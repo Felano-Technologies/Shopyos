@@ -110,7 +110,7 @@ const RegisterScreen = () => {
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
             <Text style={styles.buttonText}>Register</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/')}>
+          <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/login')}>
             <Text style={styles.loginText}>Already have an account? Login</Text>
           </TouchableOpacity>
         </ScrollView>

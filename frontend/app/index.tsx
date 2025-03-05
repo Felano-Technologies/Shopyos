@@ -15,7 +15,7 @@ const GetStartedScreen = () => {
         <Text style={styles.createAccountText}>Create Account</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.loginButton}>
+      <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/login')} >
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>
     </View>
