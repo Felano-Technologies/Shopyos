@@ -73,6 +73,3 @@ Contributions are welcome! Feel free to submit a pull request.
 ---
 
 Need help? Feel free to reach out! 🚀  
-```
-
-This **README.md** file provides a clear overview of your Dios marketing app, its tech stack, and how to set it up. Let me know if you'd like to add anything! 😊
