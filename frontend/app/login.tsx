@@ -1,22 +1,66 @@
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Toast from 'react-native-toast-message';
+import * as Location from 'expo-location';
+import * as SecureStore from 'expo-secure-store';
+import { loginUser } from '@/services/api';
 
 const LoginScreen = () => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
-    try {
-      console.log('Login attempted with:', { username, password });
-      router.push('/home');
-    } catch (error) {
-      alert('Login failed');
+
+
+// Handle Sign In
+const handleLogin = async () => {
+  try {
+    setLoading(true);
+
+    // Request location permissions
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Location permission is required to proceed.');
+      setLoading(false); // Hide loading indicator
+      return;
     }
-  };
 
+    // Get the current location
+    const location = await Location.getCurrentPositionAsync({});
+    const { latitude, longitude } = location.coords;
+
+    const response = await loginUser(email, password, latitude, longitude);
+
+    if (response.message == "Login successful") {
+      // Set the token securely using expo-secure-store with 7 days expiration
+      await SecureStore.setItemAsync('userId', response.user.id); // Securely store the token
+
+      Toast.show({
+        type: 'success',
+        text1: 'Login Successful 😊',
+        text2: 'Welcome back! 🎉',
+      });
+      router.push('/verify');
+    } else {
+      Toast.show({
+        type: 'error',
+        text1: 'Login Failed ❌',
+        text2: response.message || 'Please try again.',
+      });
+    }
+  } catch (error) {
+    Toast.show({
+      type: 'error',
+      text1: 'Sign In Failed ⚠️',
+      text2: error.message || 'Something went wrong.',
+    });
+  } finally {
+    setLoading(false);
+  }
+};
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -30,11 +74,12 @@ const LoginScreen = () => {
 
           <TextInput
             style={styles.input}
-            placeholder="Enter your username"
+            placeholder="Enter your email"
             placeholderTextColor={"gainsboro"}
+            keyboard-type="email-address"
             autoCapitalize="none"
-            value={username}
-            onChangeText={setUsername}
+            value={email}
+            onChangeText={setEmail}
           />
 
           <View style={styles.passwordContainer}>
@@ -63,7 +108,11 @@ const LoginScreen = () => {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            <Text style={styles.loginText}>Login</Text>
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <Text style={styles.buttonText}>Sign In</Text>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => router.push('/register')}>
@@ -71,6 +120,7 @@ const LoginScreen = () => {
           </TouchableOpacity>
         </View>
       </TouchableWithoutFeedback>
+      <Toast ref={(ref) => Toast.setRef(ref)} />
     </KeyboardAvoidingView>
   );
 };

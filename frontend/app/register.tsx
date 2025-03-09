@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import * as Font from 'expo-font';
 import AppLoading from 'expo-app-loading';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from 'react-native-country-picker-modal'
+import Toast from 'react-native-toast-message';
 
 const RegisterScreen = () => {
     const [name, setName] = useState('');
@@ -16,23 +17,39 @@ const RegisterScreen = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [callingCode, setCallingCode] = useState('1');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [loading, setLoading] = useState(false);
 
 
   const handleRegister = async () => {
     try {
       const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+      setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber);
-      console.log('Registration successful', data);
-      router.push('/');
+      if (data.message == "User created successfully") {
+        Toast.show({
+          type: 'success',
+          text1: 'Sign up Successful',
+          text2: 'Welcome! 🎉',
+        });
+        router.push('/login');
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Sign up Failed',
+          text2: data.message || 'Please try again.',
+        });
+      }
     } catch (error) {
-      alert(error.error || 'Registration failed');
+      Toast.show({
+        type: 'error',
+        text1: 'Sign Up Failed',
+        text2: error.message || 'Something went wrong.',
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const [fontsLoaded, setFontsLoaded] = useState(false);
-  useEffect(() => {
-    //loadFonts().then(() => setFontsLoaded(true));
-  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -108,13 +125,19 @@ const RegisterScreen = () => {
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
-            <Text style={styles.buttonText}>Register</Text>
+          {loading ? (
+            <ActivityIndicator size="small" color="#FFF" />
+          ) : (
+            <Text style={styles.buttonText}>Sign Up</Text>
+          )}
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/login')}>
             <Text style={styles.loginText}>Already have an account? Login</Text>
           </TouchableOpacity>
         </ScrollView>
       </TouchableWithoutFeedback>
+      <Toast ref={(ref) => Toast.setRef(ref)} />
     </KeyboardAvoidingView>
   );
 };
