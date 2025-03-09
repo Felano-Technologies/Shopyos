@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 const register = async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, fullPhoneNumber } = req.body;
   try {
     let user = await User.findOne({ email });
 
@@ -16,6 +16,7 @@ const register = async (req, res) => {
     user = new User({
       name,
       email,
+      fullPhoneNumber,
       password
     });
 
@@ -61,7 +62,8 @@ const login = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        phone: user.fullPhoneNumber,
       }
     });
   } catch (err) {
