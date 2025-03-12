@@ -23,7 +23,7 @@ const register = async (req, res) => {
 
     const payload = {
       user: {
-        id: user.id
+        id: user._id
       }
     };
 
@@ -33,7 +33,10 @@ const register = async (req, res) => {
       { expiresIn: 360000 },
       (err, token) => {
         if (err) throw err;
-        res.json({ token });
+        res.json({ 
+          token,       
+          message : "User created successfully",
+      });
       }
     );
   } catch (err) {
@@ -43,26 +46,44 @@ const register = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, latitude, longitude } = req.body;
   try {
     const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
+
+    // Update user location if latitude & longitude are provided
+    if (latitude && longitude) {
+      user.latitude = latitude;
+      user.longitude = longitude;
+      await user.save();
+    }
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: '1h',
     });
     res.status(200).json({
       token,
       user: {
-        id: user._id,
+        // id: user._id,
         name: user.name,
+<<<<<<< HEAD
         email: user.email
       }
+=======
+        email: user.email,
+        phone: user.fullPhoneNumber,
+        latitude: user.latitude,
+        longitude: user.longitude
+      },
+      message : "Login successful",
+>>>>>>> 28d5c67ab758ba77510975397156e3367696b2aa
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
