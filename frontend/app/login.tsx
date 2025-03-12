@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
@@ -12,8 +12,6 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-
 
 // Handle Sign In
 const handleLogin = async () => {
@@ -36,14 +34,14 @@ const handleLogin = async () => {
 
     if (response.message == "Login successful") {
       // Set the token securely using expo-secure-store with 7 days expiration
-      await SecureStore.setItemAsync('userId', response.user.id); // Securely store the token
+      await SecureStore.setItemAsync('userId', response.token); // Securely store the token
 
       Toast.show({
         type: 'success',
         text1: 'Login Successful 😊',
         text2: 'Welcome back! 🎉',
       });
-      router.push('/verify');
+      router.push("/(tabs)");
     } else {
       Toast.show({
         type: 'error',
@@ -51,7 +49,7 @@ const handleLogin = async () => {
         text2: response.message || 'Please try again.',
       });
     }
-  } catch (error) {
+  } catch (error: any) {
     Toast.show({
       type: 'error',
       text1: 'Sign In Failed ⚠️',
@@ -111,7 +109,7 @@ const handleLogin = async () => {
             {loading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
-              <Text style={styles.buttonText}>Sign In</Text>
+              <Text style={styles.loginText}>Sign In</Text>
             )}
           </TouchableOpacity>
 
@@ -120,7 +118,7 @@ const handleLogin = async () => {
           </TouchableOpacity>
         </View>
       </TouchableWithoutFeedback>
-      <Toast ref={(ref) => Toast.setRef(ref)} />
+      <Toast  />
     </KeyboardAvoidingView>
   );
 };
