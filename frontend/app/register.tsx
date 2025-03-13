@@ -154,13 +154,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   logoText: {
-    fontSize: 32,
-    color: '#fff',
+    fontSize: 28,
+    color: '#000',
     fontWeight: 'bold',
   },
   title: {
-    fontSize: 24,
-    color: '#fff',
+    fontSize: 20,
+    color: '#000',
     textAlign: 'center',
     marginBottom: 22,
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     backgroundColor: '#000',
-    borderRadius: 8,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 16,
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   loginText: {
-    color: '#fff',
+    color: '#000',
   },
   logoImage: {
     width: 150,
