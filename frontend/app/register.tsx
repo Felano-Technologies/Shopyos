@@ -1,8 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
-import * as Font from 'expo-font';
-import AppLoading from 'expo-app-loading';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from 'react-native-country-picker-modal'
@@ -19,10 +17,16 @@ const RegisterScreen = () => {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
+    // Remove leading zero if present
+    const formattedNumber = phoneNumber.replace(/^0/, '');
+    return `+${callingCode}${formattedNumber}`;
+  };
+
 
   const handleRegister = async () => {
     try {
-      const fullPhoneNumber = `${countryCode}${phoneNumber}`;
+      const fullPhoneNumber = formatPhoneNumber (callingCode, phoneNumber);
       setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber);
       if (data.message == "User created successfully") {
@@ -39,7 +43,7 @@ const RegisterScreen = () => {
           text2: data.message || 'Please try again.',
         });
       }
-    } catch (error) {
+    } catch (error: any) {
       Toast.show({
         type: 'error',
         text1: 'Sign Up Failed',
@@ -137,7 +141,7 @@ const RegisterScreen = () => {
           </TouchableOpacity>
         </ScrollView>
       </TouchableWithoutFeedback>
-      <Toast ref={(ref) => Toast.setRef(ref)} />
+      <Toast />
     </KeyboardAvoidingView>
   );
 };
@@ -150,13 +154,13 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   logoText: {
-    fontSize: 32,
-    color: '#fff',
+    fontSize: 28,
+    color: '#000',
     fontWeight: 'bold',
   },
   title: {
-    fontSize: 24,
-    color: '#fff',
+    fontSize: 20,
+    color: '#000',
     textAlign: 'center',
     marginBottom: 22,
   },
@@ -174,7 +178,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     backgroundColor: '#000',
-    borderRadius: 8,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 16,
@@ -188,7 +192,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   loginText: {
-    color: '#fff',
+    color: '#000',
   },
   logoImage: {
     width: 150,
@@ -233,13 +237,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     fontSize: 18,
     color: '#000',
-  },
-  countryCodeWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    left: 0,
-    zIndex: 1,
   },
   callingCode: {
     marginLeft: 8,
