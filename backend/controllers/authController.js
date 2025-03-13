@@ -56,7 +56,7 @@ const login = async (req, res) => {
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid credentials' });
+      return res.status(400).json({ error: 'Invalid password' });
     }
 
     // Update user location if latitude & longitude are provided
