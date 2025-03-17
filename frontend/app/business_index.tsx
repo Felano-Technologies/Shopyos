@@ -6,21 +6,17 @@ const GetStartedScreen = () => {
   return (
     <View style={styles.container}>
       <Image style={styles.logoImage} source={require("../assets/images/icon.png")} />
-      <Text style={styles.heading}>Let’s get started</Text>
+      <Text style={styles.heading}>Advertise your Business with us</Text>
       <Text style={styles.description}>
-        Sign up for a free account and start shopping!
+        Sign up for a free account and advertise your Business!
       </Text>
 
-      <TouchableOpacity style={styles.createAccountButton} onPress={() => router.push('/register')}>
-        <Text style={styles.createAccountText}>Create Account</Text>
+      <TouchableOpacity style={styles.createAccountButton} onPress={() => router.push('/business_register')}>
+        <Text style={styles.createAccountText}>Register Business</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/login')} >
         <Text style={styles.loginText}>Login</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity onPress={() => router.push('/business_index')}>
-      <Text style={styles.signupText}>To Sign Up as a Business owner/Artisan,<Text style={styles.boldText}>Click Here!</Text></Text>
       </TouchableOpacity>
     </View>
   );
@@ -29,7 +25,7 @@ const GetStartedScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#CDD1C4',
+    backgroundColor: '#61A0AF',
     alignItems: 'center',
     justifyContent: 'center',
   },
