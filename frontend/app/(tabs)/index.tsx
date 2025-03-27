@@ -1,109 +1,111 @@
-import { StyleSheet, Image, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, Image, TextInput, FlatList, TouchableOpacity, ImageBackground, StyleSheet, SafeAreaView, useColorScheme } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'react-native-linear-gradient';
 
-import { Collapsible } from '@/components/Collapsible';
-import { ExternalLink } from '@/components/ExternalLink';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
-import { IconSymbol } from '@/components/ui/IconSymbol';
 
-export default function TabTwoScreen() {
+export default function DiosHome() {
+  const theme = useColorScheme(); // Detects system theme
+  const isDarkMode = theme === 'dark';
+
+  const backgroundColor = isDarkMode ? '#121212' : '#F8F8F8'; // Dark mode BG
+  const textColor = isDarkMode ? '#EDEDED' : '#222'; // Adjust text colors
+  const cardBackground = isDarkMode ? '#1E1E1E' : '#FFF'; // Product card color
+  
+  const products = [
+    { id: '1', title: 'Vibe Check Curvy Stretch Skinny Jeans', price: 16, oldPrice: 24.99, discount: 36, image: require('../../assets/images/search/sports.jpg') },
+    { id: '2', title: 'Robin Crop Top - Black', price: 6, oldPrice: 14.99, discount: 60, image: require('../../assets/images/search/fooddrinks.png') },
+  ];
+
+  console.log(products); // Debugging
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Explore</ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image source={require('@/assets/images/react-logo.png')} style={{ alignSelf: 'center' }} />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Custom fonts">
-        <ThemedText>
-          Open <ThemedText type="defaultSemiBold">app/_layout.tsx</ThemedText> to see how to load{' '}
-          <ThemedText style={{ fontFamily: 'SpaceMono' }}>
-            custom fonts such as this one.
-          </ThemedText>
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/versions/latest/sdk/font">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user's current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful <ThemedText type="defaultSemiBold">react-native-reanimated</ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <SafeAreaView style={[styles.container, { backgroundColor }]}>
+      
+      {/* 🟣 Top Navigation Bar */}
+      <View style={styles.topBar}>
+        <Text style={styles.logo}>
+          <Text style={{ color: 'red' }}>D</Text> 
+          <Text style={{ color: 'gold' }}>I</Text> 
+          <Text style={{ color: 'blue' }}>O</Text> 
+          <Text style={{ color: 'green' }}>S</Text>
+        </Text>
+        <View style={styles.iconRow}>
+        <Ionicons name="notifications-outline" size={24} color={isDarkMode ? "#EDEDED" : "#333"} />
+        <Ionicons name="person-circle-outline" size={30} color={isDarkMode ? "#EDEDED" : "#555"} style={{ marginLeft: 10 }} />
+        </View>
+      </View>
+
+      {/* 📦 Order Tracking Banner */}
+      <View style={[styles.banner, { backgroundColor: cardBackground }]}>
+        <Ionicons name="cube-outline" size={20} color="#F97316" />
+        <Text style={[styles.bannerText, { color: textColor }]}>
+          Track all your online orders{'\n'}
+          <Text style={[styles.bannerSubText, { color: isDarkMode ? '#AAA' : '#666' }]}>Connect your email and Dios will automatically track deliveries on future orders.</Text>
+        </Text>
+      </View>
+
+      {/* 🏪 Store Section */}
+      <View style={styles.storeCard}>
+        <ImageBackground source={require('../../assets/images/search/supplement.png')} style={styles.storeImage}>
+          <Text style={styles.storeTitle}>FASHION <Text style={{ fontWeight: 'bold' }}>NOVA</Text></Text>
+          <View style={styles.storeDetails}>
+            <Text style={styles.storeRating}>⭐ 4.3 (346.3K)</Text>
+            <TouchableOpacity style={styles.followBtn}>
+              <Text style={styles.followText}>Follow</Text>
+            </TouchableOpacity>
+          </View>
+        </ImageBackground>
+      </View>
+
+      {/* 🛍️ Product List */}
+      <FlatList
+        horizontal
+        data={products}
+        keyExtractor={(item) => item.id}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.productList}
+        renderItem={({ item }) => (
+          <View style={[styles.productCard, { backgroundColor: cardBackground }]}>
+            <Image source={item.image} style={styles.productImage} />
+            <View style={styles.discountTag}>
+              <Text style={styles.discountText}>{item.discount}% off</Text>
+            </View>
+            <Text style={[styles.productTitle, { color: textColor }]} numberOfLines={2}>{item.title}</Text>
+            <Text style={[styles.productPrice, { color: textColor }]}>${item.price} <Text style={styles.oldPrice}>${item.oldPrice}</Text></Text>
+            <TouchableOpacity style={styles.wishlistBtn}>
+              <Ionicons name="heart-outline" size={20} color="#666" />
+            </TouchableOpacity>
+          </View>
+        )}
+      />
+
+    </SafeAreaView>
   );
 }
 
+// 🎨 Styles
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: { 
+    flex: 1, 
+    backgroundColor: '#F8F8F8', 
+    paddingBottom: 70 
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
-  },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, alignItems: 'center' },
+  logo: { fontSize: 28, fontWeight: 'bold', color: '#5C4CD6' },
+  iconRow: { flexDirection: 'row', alignItems: 'center' },
+  
+  banner: { flexDirection: 'row', backgroundColor: '#FFF', margin: 10, padding: 15, borderRadius: 12, alignItems: 'center', elevation: 2 },
+  bannerText: { marginLeft: 10, fontWeight: 'bold', fontSize: 14, color: '#222' },
+  bannerSubText: { fontWeight: '400', fontSize: 12, color: '#666' },
+
+  storeCard: { marginHorizontal: 10, borderRadius: 12, overflow: 'hidden', elevation: 3 },
+  storeImage: { width: '100%', height: 200, justifyContent: 'flex-end', padding: 15 },
+  storeTitle: { fontSize: 24, color: '#FFF', fontWeight: 'bold' },
+
+  productList: { paddingLeft: 10, marginTop: 15, flexGrow: 1 },
+  productCard: { width: 160, backgroundColor: '#FFF', marginRight: 10, borderRadius: 12, padding: 10, elevation: 3 },
+  productImage: { width: '100%', height: 120, borderRadius: 10 },
+  discountTag: { position: 'absolute', top: 10, left: 10, backgroundColor: '#000', paddingHorizontal: 5, borderRadius: 4 },
+  discountText: { color: '#FFF', fontSize: 12, fontWeight: 'bold' },
 });
