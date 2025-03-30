@@ -37,6 +37,8 @@ export default function RootLayout() {
         <Stack.Screen name="business_login" options={{ headerShown: false }} />
         <Stack.Screen name="business_index" options={{ headerShown: false }} />
         <Stack.Screen name="business_register" options={{ headerShown: false }} />
+        <Stack.Screen name="notification" options={{ headerShown: false }} />
+        <Stack.Screen name="userProfile" options={{ headerShown: false }} />
 
         
         <Stack.Screen name="+not-found" />

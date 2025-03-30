@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, TextInput, FlatList, TouchableOpacity, ImageBackground, StyleSheet, SafeAreaView, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'react-native-linear-gradient';
+import { router } from 'expo-router';
 
 
 export default function DiosHome() {
@@ -31,8 +32,12 @@ export default function DiosHome() {
           <Text style={{ color: 'green' }}>S</Text>
         </Text>
         <View style={styles.iconRow}>
+           <TouchableOpacity onPress={() => router.push('/notification')}>
         <Ionicons name="notifications-outline" size={24} color={isDarkMode ? "#EDEDED" : "#333"} />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/userProfile')}>
         <Ionicons name="person-circle-outline" size={30} color={isDarkMode ? "#EDEDED" : "#555"} style={{ marginLeft: 10 }} />
+        </TouchableOpacity>
         </View>
       </View>
 

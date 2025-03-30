@@ -12,7 +12,7 @@ const categories = [
   { title: 'Bags', image: require('../../assets/images/search/bag1.jpg'), color: '#C4C4C4' },
   { title: 'Accesories', image: require('../../assets/images/search/accessories.png'), color: '#262626' },
   { title: 'Footwear', image: require('../../assets/images/search/slipper1.png'), color: '#8496C4' },
-  { title: 'Home', image: require('../../assets/images/search/table.jpg'), color: '#94A07D' },
+  { title: 'Home', image: require('../../assets/images/search/table2.jpg'), color: '#94A07D' },
   { title: 'Fitness & Nutrition', image: require('../../assets/images/search/supplement2.jpg') },
 ];
 
@@ -43,7 +43,7 @@ export default function CategoryScreen() {
         ListFooterComponent={<View style={{ height: 20 }} />}
         renderItem={({ item }) => (
           <TouchableOpacity style={[dynamicStyles.categoryItem, {backgroundColor: item.color }]}>
-            <ImageBackground source={item.image} style={dynamicStyles.image}>
+            <ImageBackground source={item.image} style={[dynamicStyles.image, (item.title === 'Men') && dynamicStyles.imageRight, (item.title === 'Women') && dynamicStyles.imageWomen]}>
               <View style={dynamicStyles.overlay}>
                 <Text style={dynamicStyles.categoryText}>{item.title}</Text>
               </View>
@@ -92,6 +92,20 @@ const lightStyles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    // opacity: 0.75,
+
+  },
+  imageRight: {
+    alignItems: 'flex-end', // Push image content to the right
+    justifyContent: 'flex-end',
+    paddingLeft: 50, // Add some spacing
+    
+  },
+  imageWomen:{
+    resizeMode: 'cover',
+    position: 'absolute',   // Allow absolute positioning inside the container
+    paddingRight: 95, // Add some spacing
+  
   },
   overlay: {
     position: 'absolute',
@@ -103,9 +117,9 @@ const lightStyles = StyleSheet.create({
     alignItems: 'center',
   },
   categoryText: {
-    color: '#FEFEFA',
-    fontWeight: 'bold',
-    fontSize: 18,
+      color: '#fff', // White text in dark mode
+      fontWeight: 'bold',
+      fontSize: 18,
   },
 });
 
@@ -132,6 +146,7 @@ const darkStyles = StyleSheet.create({
     color: '#fff', // White text in dark mode
     fontWeight: 'bold',
     fontSize: 18,
+
   },
 });
 
