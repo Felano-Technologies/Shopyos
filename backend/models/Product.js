@@ -12,7 +12,7 @@ const ProductSchema = new mongoose.Schema(
       required: true,
     },
     stock: { type: Number, default: 0 }, // Number of items in stock
-    rating: { type: Number, default: 0 }, // Average rating,
+    rating: { type: Number, default: 0 }, // Average rating
     reviews: [
       {
         // Number of reviews
