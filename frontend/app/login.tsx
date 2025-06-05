@@ -41,7 +41,7 @@ const handleLogin = async () => {
         text1: 'Login Successful 😊',
         text2: 'Welcome back! 🎉',
       });
-      router.push("/(tabs)");
+      router.push("/home");
     } else {
       Toast.show({
         type: 'error',

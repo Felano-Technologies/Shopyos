@@ -1,336 +1,223 @@
-import React, { useState } from 'react';
+// app/userProfile.tsx
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  Image,
   SafeAreaView,
-  StatusBar,
-  Platform
+  useColorScheme,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { Ionicons, FontAwesome, Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
+import { getUserData } from '@/services/api'; // Your helper
 
-const UserProfile = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const email = 'adukorankye16@gmail.com';
+interface User {
+  name: string;
+  email: string;
+}
+
+export default function UserProfile() {
+  const theme = useColorScheme();
+  const isDark = theme === 'dark';
+  const router = useRouter();
+
+  const bgColor = isDark ? '#121212' : '#F8F8F8';
+  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
+  const primaryText = isDark ? '#EDEDED' : '#222222';
+  const secondaryText = isDark ? '#AAA' : '#666666';
+  const highlightColor = '#4F46E5';
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('userId');
+        if (!token) throw new Error('No auth token found');
+
+        const response = await getUserData(token);
+        console.log('Fetched user details:', response);
+
+        setUser({
+          name: response.name,
+          email: response.email,
+        });
+      } catch (error) {
+        console.warn('Failed to fetch user details:', error);
+        Alert.alert(
+          'Error',
+          'Unable to load user details. Please try again later.'
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserDetails();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={highlightColor} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+        <View style={styles.errorContainer}>
+          <Text style={[styles.errorText, { color: primaryText }]}>
+            Failed to load user information.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-
-      <View style={styles.accountHeader}>
-        <View style={styles.accountAvatar}>
-          <Text style={styles.avatarText}>A</Text>
-        </View>
-        <Text style={styles.accountText}>Account</Text>
-        <Text style={styles.emailText}>{email}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.headerTitle, { color: primaryText }]}>Profile</Text>
+        <TouchableOpacity onPress={() => router.push('/settings')}>
+          <Ionicons name="settings-outline" size={24} color={primaryText} />
+        </TouchableOpacity>
       </View>
 
-      {/* Shop Pay Card */}
-      <View style={styles.shopPayCard}>
-        <Text style={styles.cardTitle}>Complete your profile</Text>
-        
-        <View style={styles.infoContainer}>
-          <Text style={styles.infoText}>
-Enter your phone and receive a one-time code to secure your          </Text>
-          <View style={styles.cartIconContainer}>
-            <View style={styles.cartCircle}>
-              <View style={styles.cartInnerCircle} />
-            </View>
-            <View style={styles.cartBasket} />
-          </View>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Basic Info Card */}
+        <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
+          <Text style={[styles.userName, { color: primaryText }]}>{user.name}</Text>
+          <Text style={[styles.userEmail, { color: secondaryText }]}>{user.email}</Text>
         </View>
-        
-        {/* Phone Input */}
-        <View style={styles.phoneInputContainer}>
-          <Text style={styles.countryCode}>+1</Text>
-          <TextInput
-            style={styles.phoneInput}
-            placeholder="Phone number"
-            value={phoneNumber}
-            onChangeText={setPhoneNumber}
-            keyboardType="phone-pad"
-          />
-          <View style={styles.flagContainer}>
-            <Image 
-              //source={require('')} 
-              style={styles.flagIcon}
-              resizeMode="contain"
+
+        {/* Profile Options */}
+        <View style={[styles.sectionCard, { backgroundColor: cardBg, marginTop: 12 }]}>
+          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/orders')}>
+            <Ionicons
+              name="receipt-outline"
+              size={20}
+              color={secondaryText}
+              style={styles.itemIcon}
             />
-            <Ionicons name="chevron-down" size={14} color="#777" />
-          </View>
-        </View>
-        
-        {/* Continue Button */}
-        <TouchableOpacity style={styles.continueButton}>
-          <Text style={styles.continueButtonText}>Continue</Text>
-        </TouchableOpacity>
-        
-        <Text style={styles.securityText}>
-          We'll send you a security code to confirm it's you
-        </Text>
-      </View>
-      
-      {/* Support and Settings */}
-      <View style={styles.actionCardsContainer}>
-        <TouchableOpacity style={styles.actionCard}>
-          <View style={styles.actionIconContainer}>
-            <FontAwesome name="question" size={20} color="#fff" />
-          </View>
-          <Text style={styles.actionText}>Support</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.actionCard}>
-          <View style={styles.actionIconContainer}>
-            <Ionicons name="settings" size={20} color="#fff" />
-          </View>
-          <Text style={styles.actionText} >Settings</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* Bottom Navigation */}
-      <View style={styles.navigationContainer}>
-        <View style={styles.navigationBar}>
-          <TouchableOpacity style={styles.navBackButton}>
-            <Ionicons name="chevron-back" size={22} color="#000" />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>My Orders</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={secondaryText}
+              style={styles.chevronIcon}
+            />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton}>
-            <Ionicons name="home-outline" size={22} color="#000" />
+
+          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/wishlist')}>
+            <Ionicons
+              name="heart-outline"
+              size={20}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>Wishlist</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={secondaryText}
+              style={styles.chevronIcon}
+            />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton}>
-            <Ionicons name="search-outline" size={22} color="#000" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.navButton}>
-            <Feather name="list" size={22} color="#000" />
+
+          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/addresses')}>
+            <Ionicons
+              name="location-outline"
+              size={20}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>Addresses</Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={secondaryText}
+              style={styles.chevronIcon}
+            />
           </TouchableOpacity>
         </View>
-        
-        <View style={styles.homeIndicator} />
-      </View>
+
+        {/* Logout Button */}
+        <View style={styles.logoutContainer}>
+          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]}>
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color="#E11D48"
+              style={styles.logoutIcon}
+            />
+            <Text style={[styles.logoutLabel, { color: '#E11D48' }]}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f2f2f2',
-  },
-  accountHeader: {
-    paddingTop: 20,
-    alignItems: 'center',
-    marginTop: 15,
-    marginBottom: 20,
-  },
-  accountAvatar: {
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    backgroundColor: '#d3d3d3',
-    justifyContent: 'center',
+  container: { flex: 1 },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  avatarText: {
-    fontSize: 26,
-    fontWeight: 'bold',
-  },
-  accountText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  emailText: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  shopPayCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    marginHorizontal: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
+  headerTitle: { fontSize: 24, fontWeight: '600' },
+  scrollContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  errorText: { fontSize: 16, fontWeight: '500' },
+  profileCard: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 20,
+    borderRadius: 12,
     elevation: 2,
   },
-  cardTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 12,
+  userName: { fontSize: 20, fontWeight: '600', marginBottom: 4 },
+  userEmail: { fontSize: 14, fontWeight: '400' },
+  sectionCard: {
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    elevation: 2,
   },
-  infoContainer: {
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-  },
-  infoText: {
-    flex: 1,
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#333',
-  },
-  cartIconContainer: {
-    width: 60,
-    height: 60,
-    marginLeft: 10,
-    position: 'relative',
-  },
-  cartCircle: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#C81D25',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  cartInnerCircle: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 4,
-    borderColor: '#EFCA08',
-  },
-  cartBasket: {
-    position: 'absolute',
-    top: 10,
-    right: 0,
-    width: 50,
-    height: 50,
-    backgroundColor: '#069E2D',
-    borderRadius: 8,
-    transform: [{ rotate: '10deg' }],
-  },
-  phoneInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 30,
-    paddingHorizontal: 15,
     paddingVertical: 12,
-    marginBottom: 15,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#CCC',
   },
-  countryCode: {
-    marginRight: 8,
-    fontSize: 16,
-    color: '#444',
-  },
-  phoneInput: {
-    flex: 1,
-    fontSize: 16,
-  },
-  flagContainer: {
+  itemIcon: { marginRight: 12 },
+  itemLabel: { fontSize: 16, flex: 1 },
+  chevronIcon: { marginLeft: 8 },
+  logoutContainer: { marginTop: 24, alignItems: 'center' },
+  logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  flagIcon: {
-    width: 24,
-    height: 16,
-    marginRight: 5,
-  },
-  continueButton: {
-    backgroundColor: '#069E2D',
-    borderRadius: 30,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  securityText: {
-    textAlign: 'center',
-    color: '#666',
-    fontSize: 13,
-    marginTop: 12,
-  },
-  actionCardsContainer: {
-    flexDirection: 'row',
-    marginTop: 20,
-    marginHorizontal: 16,
-  },
-  actionCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 15,
-    marginHorizontal: 5,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     elevation: 1,
   },
-  actionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionText: {
-    fontWeight: '600',
-    fontSize: 15,
-  },
-  navigationContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-  },
-  navigationBar: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderRadius: 30,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '65%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  navButton: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  navBackButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  homeIndicator: {
-    width: 35,
-    height: 5,
-    backgroundColor: '#000',
-    borderRadius: 3,
-    marginTop: 8,
-  },
+  logoutIcon: { marginRight: 8 },
+  logoutLabel: { fontSize: 16, fontWeight: '500' },
 });
-
-export default UserProfile;

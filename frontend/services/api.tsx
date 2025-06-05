@@ -1,7 +1,7 @@
 import axios from 'axios';
                    
 
-export const API_URL = 'http://192.168.1.177:5000/api/';
+export const API_URL = 'http://192.168.0.176:5000/api/';
 export const baseURL = 'http://172.20.10.3:5000';
 
 export const api = axios.create({
@@ -42,6 +42,25 @@ export const loginUser = async (email: string, password: string, latitude: numbe
     } else {
       // Other error (network issues, timeout, etc.)
       console.error('Error signing up:', error.message);
+    }
+    throw error;
+  }
+};
+export const getUserData = async (token: string) => {
+  try {
+    const response = await api.get('/auth/me', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      // Backend returned a response with an error payload
+      console.error('Server Error:', error.response.data);
+    } else {
+      // Something else went wrong (network, timeout, etc.)
+      console.error('Error fetching user data:', error.message);
     }
     throw error;
   }

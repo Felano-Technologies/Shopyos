@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { decrypt, encrypt } = require('../utils/encryption');
 
 const register = async (req, res) => {
   const { name, email, password, fullPhoneNumber } = req.body;
@@ -66,19 +67,9 @@ const login = async (req, res) => {
       await user.save();
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: '1h',
-    });
+    const token = await encrypt(user.id.toString());
     res.status(200).json({
       token,
-      user: {
-        // id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.fullPhoneNumber,
-        latitude: user.latitude,
-        longitude: user.longitude
-      },
       message : "Login successful",
     });
   } catch (err) {
@@ -133,8 +124,50 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const getUserData = async (req, res) => {
+  try {
+    // 1) Make sure the “Authorization” header exists and split out the token:
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: 'Authentication token missing' });
+    }
+    const token = authHeader.split(' ')[1]; // “Bearer <token>”
+    if (!token) {
+      return res.status(401).json({ error: 'Authentication token missing' });
+    }
+
+    // 2) Decrypt the token to get the user’s ID
+    console.log('Decrypted ID:', decoded);
+
+    // 3) Look up the user by that _id in MongoDB
+    const user = await User.findById(decoded);
+    //    (or: await User.findOne({ _id: decoded }); )
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 4) Optionally re-encrypt the ID for the client if you need to
+    const userId = await encrypt(user._id.toString());
+
+    // 5) Send back only the fields you want the client to see
+    res.status(200).json({
+      id:      userId,       // encrypted ID, if you need it
+      name:    user.name,
+      email:   user.email,
+      longitude: user.longitude,
+      latitude:  user.latitude,
+      phone:     user.phone,
+    });
+  } catch (error) {
+    console.error('Error getting user data:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+};
+
 module.exports = {
   register,
   login,
-  resetPassword
+  resetPassword,
+  getUserData
 };
