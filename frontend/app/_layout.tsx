@@ -23,6 +23,12 @@ export default function RootLayout() {
   const pathname = usePathname();  
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    'Rye-Regular': require('../assets/fonts/Rye-Regular.ttf'),
+    'Ballet_60pt-Regular': require('../assets/fonts/Ballet_60pt-Regular.ttf'),
+    'Ballet_24pt-Regular': require('../assets/fonts/Ballet_24pt-Regular.ttf'),
+    'BungeeSpice-Regular': require('../assets/fonts/BungeeSpice-Regular.ttf'),
+    'UnicialAntiqua-Regular': require('../assets/fonts/UncialAntiqua-Regular.ttf'),
+    'Nosifer-Regular': require('../assets/fonts/Nosifer-Regular.ttf'),
   });
 
   useEffect(() => {

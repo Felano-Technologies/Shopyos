@@ -612,9 +612,10 @@ const styles = StyleSheet.create({
     fontWeight: '400',
   },
   userNameText: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '600',
     marginTop: 2,
+    fontFamily: 'Nosifer-Regular',
   },
   avatar: {
     width: 40,
@@ -691,6 +692,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '700',
     color: '#FFF',
+    fontFamily: 'UnicialAntiqua-Regular',
   },
   bannerSubtitle: {
     fontSize: 12,
