@@ -64,8 +64,9 @@ export default function RootLayout() {
   ];
 
   // Check if current path starts with any of our “show” patterns
-  const shouldShowNav = showNavRoutes.some((base) => pathname.startsWith(base)) 
-    || pathname.startsWith('/categories');
+  const shouldShowNav = showNavRoutes.some((base) => 
+    pathname.startsWith(base)
+    ) || pathname.startsWith('/categories');
 
   return (
     <ThemeProvider value={navTheme}>
@@ -76,7 +77,12 @@ export default function RootLayout() {
           style={[styles.stackContainer, { backgroundColor: screenBg }]}
           edges={['top']}
         >
-          <Stack>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              animation: 'none',
+            }}
+          >
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="register" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
@@ -89,6 +95,10 @@ export default function RootLayout() {
             <Stack.Screen name="search" options={{ headerShown: false }} />
             <Stack.Screen name="order" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
+            <Stack.Screen name='settings/changePassword' options={{ headerShown: false }} />
+            <Stack.Screen name='settings/pushNotifications' options={{ headerShown: false }} />
+            <Stack.Screen name='settings/helpCenter' options={{ headerShown: false }} />
+            <Stack.Screen name='settings/contactUs' options={{ headerShown: false }} />
             <Stack.Screen
               name="business_verification"
               options={{ headerShown: false }}
