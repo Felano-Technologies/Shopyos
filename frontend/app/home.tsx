@@ -1,50 +1,142 @@
 // app/DiosHome.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   Image,
+  ImageBackground,
   TextInput,
   FlatList,
   TouchableOpacity,
-  ImageBackground,
   StyleSheet,
   SafeAreaView,
   useColorScheme,
+  Animated,
+  RefreshControl,
+  Dimensions,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
-import { router, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+
+const { width } = Dimensions.get('window');
+
+const CATEGORIES = [
+  { id: 'c1', label: 'Sneakers', image: require('../assets/images/categories/sneakers.jpg') },
+  { id: 'c2', label: 'Headsets', image: require('../assets/images/categories/headset.jpg') },
+  { id: 'c3', label: 'Jackets', image: require('../assets/images/categories/jacket.jpg') },
+  { id: 'c4', label: 'Art', image: require('../assets/images/categories/art.jpg') },
+];
+
+const RECENT_PRODUCTS = [
+  {
+    id: 'p1',
+    title: 'The Dad Artwork',
+    category: 'Art',
+    price: 250.0,
+    oldPrice: 350.0,
+    image: require('../assets/images/products/artwork2.jpg'),
+  },
+  {
+    id: 'p2',
+    title: 'Nike Air Force 1 (Long)',
+    category: 'Sneakers',
+    price: 175.0,
+    oldPrice: 300.0,
+    image: require('../assets/images/products/nike.jpg'),
+  },
+];
+
+const FEATURED_ITEMS = [
+  { id: 'f1', image: require('../assets/images/featured/feat1.jpg') },
+  { id: 'f2', image: require('../assets/images/featured/feat2.jpg') },
+  { id: 'f3', image: require('../assets/images/featured/feat3.jpg') },
+  { id: 'f4', image: require('../assets/images/featured/feat4.jpg') },
+];
+
+const DEALS_FOR_YOU = [
+  {
+    id: 'd1',
+    title: 'Limited Edition Sneakers',
+    price: 199.0,
+    image: require('../assets/images/products/nike.jpg'),
+  },
+  {
+    id: 'd2',
+    title: 'Artisan Jacket',
+    price: 120.0,
+    image: require('../assets/images/categories/jacket.jpg'),
+  },
+];
 
 export default function DiosHome() {
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
-  const navigation = useRouter(); // for navigation inside renderItem
+  const router = useRouter();
 
-  // Location state
   const [locationText, setLocationText] = useState<'Locating…' | string>('Locating…');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedCat, setSelectedCat] = useState<string>('All');
+
+  const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Mock user
+  const user = {
+    name: 'Felly',
+    avatarUrl: 'https://via.placeholder.com/40',
+  };
+
+  // Derived list of chip categories
+  const allCategoryNames = ['All', ...CATEGORIES.map((c) => c.label)];
+
+  // Filtered recent products according to selected category
+  const filteredRecent =
+    selectedCat === 'All'
+      ? RECENT_PRODUCTS
+      : RECENT_PRODUCTS.filter((p) => p.category === selectedCat);
+
+  // --- Auto-scrolling “Featured” FlatList state & ref ---
+  const featuredRef = useRef<FlatList<any>>(null);
+  const [featuredIndex, setFeaturedIndex] = useState(0);
 
   useEffect(() => {
+    // Simulate data loading
+    setTimeout(() => {
+      setLoading(false);
+
+      // Initialize animation values for recent products
+      const vals = RECENT_PRODUCTS.map(() => new Animated.Value(0));
+      setAnimationValues(vals);
+
+      // Staggered fade-in for recent products
+      const animations = vals.map((anim, i) =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 500,
+          delay: i * 200,
+          useNativeDriver: true,
+        })
+      );
+      Animated.stagger(150, animations).start();
+    }, 2000);
+
+    // Fetch location once
     (async () => {
       try {
-        // a) Ask user for foreground location permission
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
           setLocationText('Permission denied');
           return;
         }
-
-        // b) Get current position (latitude, longitude)
         const {
           coords: { latitude, longitude },
         } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-
-        // c) Reverse-geocode into city/country
         const [reverseInfo] = await Location.reverseGeocodeAsync({ latitude, longitude });
-
-        // d) Compose “City, Region” or “City, Country”
         if (reverseInfo) {
           const { city, region, country } = reverseInfo;
           const cityPart = city ?? region ?? country ?? 'Unknown';
@@ -60,203 +152,417 @@ export default function DiosHome() {
     })();
   }, []);
 
-  // Colors
-  const bgColor = isDarkMode ? '#121212' : '#F8F8F8';
-  const cardBg = isDarkMode ? '#1E1E1E' : '#FFF';
-  const primaryText = isDarkMode ? '#EDEDED' : '#222';
-  const secondaryText = isDarkMode ? '#AAA' : '#666';
-  const inputBg = isDarkMode ? '#1E1E1E' : '#FFF';
+  // Set up interval to auto-scroll “Featured” every 3 seconds
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      setFeaturedIndex((prev) => {
+        const next = (prev + 1) % FEATURED_ITEMS.length;
+        if (featuredRef.current) {
+          featuredRef.current.scrollToIndex({ index: next, animated: true });
+        }
+        return next;
+      });
+    }, 3000);
 
-  // Sample category data (replace image sources with your own)
-  const categories = [
-    {
-      id: 'c1',
-      label: 'Sneakers',
-      image: require('../assets/images/categories/sneakers.jpg'),
-    },
-    {
-      id: 'c2',
-      label: 'Headsets',
-      image: require('../assets/images/categories/headset.jpg'),
-    },
-    {
-      id: 'c3',
-      label: 'Jackets',
-      image: require('../assets/images/categories/jacket.jpg'),
-    },
-    {
-      id: 'c4',
-      label: 'Art',
-      image: require('../assets/images/categories/art.jpg'),
-    },
-  ];
+    return () => clearInterval(intervalId);
+  }, []);
 
-  // Sample “Recently Added” products (replace images/prices as needed)
-  const recentProducts = [
-    {
-      id: 'p1',
-      title: 'Artwork 1',
-      category: 'Art',
-      price: 195.0,
-      oldPrice: 244.0,
-      image: require('../assets/images/products/artwork2.jpg'),
-    },
-    {
-      id: 'p2',
-      title: 'Nike Air Force 1 (Long)',
-      category: 'Sneakers',
-      price: 195.0,
-      oldPrice: 285.0,
-      image: require('../assets/images/products/nike.jpg'),
-    },
-  ];
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simulate re-fetch
+    await new Promise((r) => setTimeout(r, 1000));
+    setRefreshing(false);
+  };
 
-  return (
-  
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-      {/* ─────────── Location + Search Row ─────────── */}
-      <View style={styles.topSection}>
-        {/* Location */}
-        <TouchableOpacity
-          style={styles.locationRow}
-          onPress={() => {
-            // If you want a manual “refresh” of location when tapping, re-run the same logic
-          }}
-        >
-          <Ionicons name="location-sharp" size={20} color={primaryText} />
-          <Text style={[styles.locationText, { color: primaryText }]}>
-            {locationText}
-          </Text>
-          <Ionicons name="chevron-down" size={18} color={primaryText} />
+  const renderRecent = ({
+    item,
+    index,
+  }: {
+    item: typeof RECENT_PRODUCTS[0];
+    index: number;
+  }) => (
+    <Animated.View
+      style={{
+        opacity: animationValues[index],
+        transform: [
+          {
+            scale: animationValues[index].interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.85, 1],
+            }),
+          },
+        ],
+        marginRight: 16,
+      }}
+    >
+      <View
+        style={[
+          styles.productCard,
+          { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
+        ]}
+      >
+        <Image source={item.image} style={styles.productImage} />
+        <TouchableOpacity style={styles.heartIcon}>
+          <Ionicons name="heart-outline" size={20} color="#E11D48" />
         </TouchableOpacity>
-
-        {/* Search Bar + Filter Button */}
-        <View style={styles.searchRow}>
-          <View style={[styles.searchInputWrapper, { backgroundColor: inputBg }]}>
-            <Feather name="search" size={18} color={secondaryText} />
-            <TextInput
-              placeholder="Search here..."
-              placeholderTextColor={secondaryText}
-              style={[styles.searchInput, { color: primaryText }]}
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.filterBtn, { backgroundColor: inputBg }]}
-            onPress={() => {
-              // Navigate to filter screen (if implemented)
-              router.push('/filter');
-            }}
+        <View style={styles.productInfo}>
+          <Text
+            style={[
+              styles.productTitle,
+              { color: isDarkMode ? '#EDEDED' : '#222' },
+            ]}
+            numberOfLines={1}
           >
-            <Feather name="sliders" size={20} color={secondaryText} />
-          </TouchableOpacity>
+            {item.title}
+          </Text>
+          <Text
+            style={[
+              styles.productCategory,
+              { color: isDarkMode ? '#AAA' : '#666' },
+            ]}
+          >
+            {item.category}
+          </Text>
+          <View style={styles.priceRow}>
+            <Text
+              style={[
+                styles.currentPrice,
+                { color: isDarkMode ? '#EDEDED' : '#222' },
+              ]}
+            >
+              ₵{item.price.toFixed(2)}
+            </Text>
+            <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
+          </View>
         </View>
       </View>
+    </Animated.View>
+  );
 
-      {/* ─────────── Promotional Banner ─────────── */}
-      <View style={styles.bannerContainer}>
-        <ImageBackground
-          source={require('../assets/images/products/artwork.jpg')}
-          style={styles.bannerImage}
-          imageStyle={{ borderRadius: 12 }}
-        >
-          <View style={styles.bannerOverlay}>
-            <Text style={styles.bannerTitle}>DIOS</Text>
-            <Text style={styles.bannerSubtitle}>
-              Your go-to app for the latest apparels, sneakers, gadgets and accessories from artisans around you. Shop trendy and unique items from local artisans. Right here in Ghana.
+  const renderDeal = ({ item }: { item: typeof DEALS_FOR_YOU[0] }) => (
+    <TouchableOpacity
+      style={[
+        styles.dealCard,
+        { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
+      ]}
+    >
+      <Image source={item.image} style={styles.dealImage} />
+      <Text
+        style={[
+          styles.dealTitle,
+          { color: isDarkMode ? '#EDEDED' : '#222' },
+        ]}
+        numberOfLines={1}
+      >
+        {item.title}
+      </Text>
+      <Text
+        style={[
+          styles.dealPrice,
+          { color: isDarkMode ? '#EDEDED' : '#222' },
+        ]}
+      >
+        ₵{item.price.toFixed(2)}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  if (loading) {
+    // Skeleton placeholders while loading
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { backgroundColor: isDarkMode ? '#121212' : '#F8F8F8' },
+        ]}
+      >
+        <View style={styles.skeletonHeader} />
+        <View style={styles.skeletonBanner} />
+        <View style={styles.skeletonChips} />
+        <View style={styles.skeletonRow} />
+        <View style={styles.skeletonRow} />
+        <ActivityIndicator
+          size="large"
+          color={isDarkMode ? '#4F46E5' : '#4F46E5'}
+        />
+        <BottomNav />
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: isDarkMode ? '#121212' : '#F8F8F8' },
+      ]}
+    >
+      <Animated.ScrollView
+        contentContainerStyle={{ flexGrow: 1 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+      >
+        {/* Welcome Row */}
+        <View style={styles.welcomeRow}>
+          <View>
+            <Text
+              style={[
+                styles.welcomeText,
+                { color: isDarkMode ? '#EDEDED' : '#222' },
+              ]}
+            >
+              Welcome,
             </Text>
-            <TouchableOpacity style={styles.shopNowBtn}>
-              <Text style={styles.shopNowText}>Shop Now</Text>
+            <Text
+              style={[
+                styles.userNameText,
+                { color: isDarkMode ? '#EDEDED' : '#222' },
+              ]}
+              numberOfLines={1}
+            >
+              {user.name} 👋
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => router.push('/userProfile')}>
+            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Location + Search Row */}
+        <View style={styles.topSection}>
+          <TouchableOpacity style={styles.locationRow}>
+            <Ionicons
+              name="location-sharp"
+              size={20}
+              color={isDarkMode ? '#EDEDED' : '#222'}
+            />
+            <Text
+              style={[
+                styles.locationText,
+                { color: isDarkMode ? '#EDEDED' : '#222' },
+              ]}
+            >
+              {locationText}
+            </Text>
+            <Ionicons
+              name="chevron-down"
+              size={18}
+              color={isDarkMode ? '#EDEDED' : '#222'}
+            />
+          </TouchableOpacity>
+          <View style={styles.searchRow}>
+            <View
+              style={[
+                styles.searchInputWrapper,
+                { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
+              ]}
+            >
+              <Feather
+                name="search"
+                size={18}
+                color={isDarkMode ? '#AAA' : '#666'}
+              />
+              <TextInput
+                placeholder="Search here..."
+                placeholderTextColor={isDarkMode ? '#AAA' : '#666'}
+                style={[
+                  styles.searchInput,
+                  { color: isDarkMode ? '#EDEDED' : '#222' },
+                ]}
+              />
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.filterBtn,
+                { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
+              ]}
+              onPress={() => router.push('/filter')}
+            >
+              <Feather
+                name="sliders"
+                size={20}
+                color={isDarkMode ? '#AAA' : '#666'}
+              />
             </TouchableOpacity>
           </View>
-        </ImageBackground>
-      </View>
+        </View>
 
-      {/* ─────────── Categories Section ─────────── */}
-      <View style={styles.categoriesHeader}>
-        <Text style={[styles.sectionTitle, { color: primaryText }]}>
-          Categories
-        </Text>
-        {/* Updated the route to /categories/categories */}
-        <TouchableOpacity onPress={() => navigation.push('/categories/categories')}>
-          <Text style={[styles.seeAllText, { color: '#A1A1AA' }]}>
-            See All
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={categories}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesList}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.categoryCard}
-            onPress={() => {
-              // Navigate to /categories/categories/{item.id}
-              navigation.push(`/categories/categories/${item.id}`);
-            }}
+        {/* Parallax Banner with Overlay */}
+        <Animated.View
+          style={[
+            styles.bannerContainer,
+            {
+              transform: [
+                {
+                  translateY: scrollY.interpolate({
+                    inputRange: [-100, 0, 100],
+                    outputRange: [-50, 0, 50],
+                    extrapolate: 'clamp',
+                  }),
+                },
+                {
+                  scale: scrollY.interpolate({
+                    inputRange: [-150, 0],
+                    outputRange: [1.2, 1],
+                    extrapolate: 'clamp',
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
+          <ImageBackground
+            source={require('../assets/images/products/artwork.jpg')}
+            style={styles.bannerImage}
+            imageStyle={{ borderRadius: 12 }}
           >
-            <View style={styles.categoryCircle}>
-              <Image source={item.image} style={styles.categoryImage} />
+            <View style={styles.bannerOverlay}>
+              <Text style={styles.bannerTitle}>DIOS</Text>
+              <Text style={styles.bannerSubtitle}>
+                Your go-to app for the latest apparels, sneakers, gadgets and
+                accessories from artisans around you. Shop trendy and unique
+                items from local artisans. Right here in Ghana.
+              </Text>
+              <TouchableOpacity style={styles.shopNowBtn}>
+                <Text style={styles.shopNowText}>Shop Now</Text>
+              </TouchableOpacity>
             </View>
-            <Text style={[styles.categoryLabel, { color: primaryText }]}>
-              {item.label}
+          </ImageBackground>
+        </Animated.View>
+
+        {/* Category Chips */}
+        <View style={styles.chipsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {allCategoryNames.map((cat) => {
+              const isActive = selectedCat === cat;
+              return (
+                <TouchableOpacity
+                  key={cat}
+                  onPress={() => setSelectedCat(cat)}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isActive
+                        ? '#4F46E5'
+                        : isDarkMode
+                        ? '#1E1E1E'
+                        : '#FFF',
+                      borderColor: isActive
+                        ? '#4F46E5'
+                        : isDarkMode
+                        ? '#333'
+                        : '#DDD',
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      {
+                        color: isActive
+                          ? '#FFF'
+                          : isDarkMode
+                          ? '#AAA'
+                          : '#666',
+                      },
+                    ]}
+                  >
+                    {cat}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Featured “Carousel” as simple horizontal FlatList */}
+        <View style={{ paddingTop: 10 }}>
+          <FlatList
+            ref={featuredRef}
+            data={FEATURED_ITEMS}
+            keyExtractor={(item) => item.id}
+            horizontal
+            pagingEnabled={false}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16 }}
+            renderItem={({ item }) => (
+              <ImageBackground
+                source={item.image}
+                style={{
+                  width: width - 32,
+                  height: 160,
+                  borderRadius: 12,
+                  marginRight: 16,
+                }}
+                imageStyle={{ borderRadius: 12 }}
+              />
+            )}
+            getItemLayout={(_, index) => ({
+              length: width - 16,        // (width - 32) + 16 margin
+              offset: (width - 16) * index,
+              index,
+            })}
+          />
+        </View>
+
+        {/* Recently Added */}
+        <View style={styles.sectionHeader}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDarkMode ? '#EDEDED' : '#222' },
+            ]}
+          >
+            Recently Added
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/recent')}>
+            <Text style={[styles.seeAllText, { color: '#A1A1AA' }]}>
+              See All
             </Text>
           </TouchableOpacity>
-        )}
-      />
+        </View>
+        <FlatList
+          data={filteredRecent}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.recentList}
+          renderItem={renderRecent}
+        />
 
-      {/* ─────────── Recently Added Section ─────────── */}
-      <View style={styles.recentHeader}>
-        <Text style={[styles.sectionTitle, { color: primaryText }]}>
-          Recently Added
-        </Text>
-        <TouchableOpacity onPress={() => router.push('/recent')}>
-          <Text style={[styles.seeAllText, { color: '#A1A1AA' }]}>
-            See All
+        {/* Deals for You */}
+        <View style={styles.sectionHeader}>
+          <Text
+            style={[
+              styles.sectionTitle,
+              { color: isDarkMode ? '#EDEDED' : '#222' },
+            ]}
+          >
+            Deals for You
           </Text>
-        </TouchableOpacity>
-      </View>
-      <FlatList
-        data={recentProducts}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.recentList}
-        renderItem={({ item }) => (
-          <View style={[styles.productCard, { backgroundColor: cardBg }]}>
-            <Image source={item.image} style={styles.productImage} />
-            <TouchableOpacity style={styles.heartIcon}>
-              <Ionicons name="heart-outline" size={20} color="#E11D48" />
-            </TouchableOpacity>
-            <View style={styles.productInfo}>
-              <Text
-                style={[styles.productTitle, { color: primaryText }]}
-                numberOfLines={1}
-              >
-                {item.title}
-              </Text>
-              <Text style={[styles.productCategory, { color: secondaryText }]}>
-                {item.category}
-              </Text>
-              <View style={styles.priceRow}>
-                <Text style={[styles.currentPrice, { color: primaryText }]}>
-                  ${item.price.toFixed(2)}
-                </Text>
-                <Text style={styles.oldPrice}>${item.oldPrice.toFixed(2)}</Text>
-              </View>
-            </View>
-          </View>
-        )}
-      />
-    </ScrollView>
-      {/* ─────────── Bottom Navigation ─────────── */}
-      <BottomNav />
+          <TouchableOpacity onPress={() => router.push('/deals')}>
+            <Text style={[styles.seeAllText, { color: '#A1A1AA' }]}>
+              See All
+            </Text>
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={DEALS_FOR_YOU}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.dealsList}
+          renderItem={renderDeal}
+        />
+      </Animated.ScrollView>
 
+      {/* Bottom Navigation */}
+      <BottomNav />
     </SafeAreaView>
   );
 }
@@ -264,13 +570,62 @@ export default function DiosHome() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingBottom: 70, // leave space for BottomNav
+  },
+  // Skeleton placeholders
+  skeletonHeader: {
+    height: 60,
+    margin: 16,
+    borderRadius: 12,
+    backgroundColor: '#333',
+  },
+  skeletonBanner: {
+    height: 160,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#333',
+  },
+  skeletonChips: {
+    height: 40,
+    marginTop: 12,
+    marginHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#333',
+  },
+  skeletonRow: {
+    height: 120,
+    marginTop: 20,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#333',
   },
 
-  // ───── Top Section ─────
+  // Welcome row
+  welcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  welcomeText: {
+    fontSize: 14,
+    fontWeight: '400',
+  },
+  userNameText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+
+  // Top Section (Location + Search)
   topSection: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 0,
     paddingBottom: 8,
   },
   locationRow: {
@@ -313,21 +668,24 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  // ───── Promotional Banner ─────
+  // Parallax Banner
   bannerContainer: {
     marginHorizontal: 16,
-    marginVertical: 10,
+    marginTop: 10,
+    height: 160,
+    overflow: 'hidden',
+    borderRadius: 12,
   },
   bannerImage: {
     width: '100%',
-    height: 150,
-    justifyContent: 'flex-end',
+    height: '100%',
   },
   bannerOverlay: {
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    flex: 1,
     padding: 12,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    borderRadius: 12,
   },
   bannerTitle: {
     fontSize: 24,
@@ -353,13 +711,31 @@ const styles = StyleSheet.create({
     color: '#111',
   },
 
-  // ───── Categories ─────
-  categoriesHeader: {
+  // Category Chips
+  chipsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  chip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+
+  // Section Headers
+  sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 16,
+    marginTop: 20,
+    marginBottom: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -369,44 +745,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  categoriesList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  categoryCard: {
-    marginRight: 16,
-    alignItems: 'center',
-  },
-  categoryCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    overflow: 'hidden',
-    marginBottom: 6,
-    backgroundColor: '#EFEFEF',
-  },
-  categoryImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  categoryLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
 
-  // ───── Recently Added ─────
-  recentHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 8,
-  },
+  // Recently Added Cards
   recentList: {
     paddingLeft: 16,
-    paddingBottom: 16,
+    paddingBottom: 20,
   },
   productCard: {
     width: 160,
@@ -453,5 +796,54 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
     color: '#A1A1AA',
     marginLeft: 6,
+  },
+
+  // Deals for You
+  dealsList: {
+    paddingLeft: 16,
+    paddingBottom: 20,
+  },
+  dealCard: {
+    width: 140,
+    borderRadius: 12,
+    marginRight: 16,
+    elevation: 3,
+    overflow: 'hidden',
+    alignItems: 'center',
+    padding: 8,
+  },
+  dealImage: {
+    width: '100%',
+    height: 80,
+    resizeMode: 'cover',
+    borderRadius: 8,
+  },
+  dealTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 8,
+  },
+  dealPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+
+  // Floating Action Button
+  fab: {
+    position: 'absolute',
+    bottom: 80,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#4F46E5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
   },
 });
