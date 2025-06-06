@@ -14,7 +14,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
-import * as Permissions from 'expo-permissions';
 
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
@@ -60,13 +59,11 @@ export default function PushNotificationsScreen() {
 
     // 4) Register for push only if permission is granted
     const registerForPushNotifications = async () => {
-      const { status: existingStatus } = await Permissions.getAsync(
-        Permissions.NOTIFICATIONS
-      );
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
-        const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+        const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
@@ -88,7 +85,6 @@ export default function PushNotificationsScreen() {
     // 5) Optional: Listen for incoming notifications (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(
       (notification) => {
-        // You can inspect notification.request.content here if you want
         console.log('Notification received in foreground:', notification);
       }
     );
@@ -101,12 +97,12 @@ export default function PushNotificationsScreen() {
     );
 
     return () => {
-      // Clean up listeners on unmount
+      // Clean up listeners on unmount using .remove()
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);
@@ -123,13 +119,9 @@ export default function PushNotificationsScreen() {
 
       if (newValue) {
         // Re-check permissions when enabling
-        const { status: existingStatus } = await Permissions.getAsync(
-          Permissions.NOTIFICATIONS
-        );
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
         if (existingStatus !== 'granted') {
-          const { status } = await Permissions.askAsync(
-            Permissions.NOTIFICATIONS
-          );
+          const { status } = await Notifications.requestPermissionsAsync();
           if (status !== 'granted') {
             Alert.alert(
               'Permission denied',
@@ -157,7 +149,7 @@ export default function PushNotificationsScreen() {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Test Notification',
-          body: 'This is a test push notification for Dios App.',
+          body: 'This is a test push notification for Dios.',
           data: { test: true },
         },
         trigger: { seconds: 3 },

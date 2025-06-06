@@ -14,7 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-import { getUserData } from '@/services/api'; // Your helper
+import { getUserData } from '../services/api';
 
 interface User {
   name: string;

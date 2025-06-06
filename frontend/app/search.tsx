@@ -12,7 +12,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BottomNav from '@/components/BottomNav';
+import BottomNav from '../components/BottomNav'; // Import your BottomNav component
 
 // 🔥 Define Categories with Local Images
 const categories = [
