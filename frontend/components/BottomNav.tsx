@@ -9,10 +9,11 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import { usePathname, router } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 
 const BottomNav = () => {
-  const pathname = usePathname();
+  const pathname = usePathname() || '/';
+  const router = useRouter();
   const theme = useColorScheme();
   const isDark = theme === 'dark';
 
@@ -26,7 +27,11 @@ const BottomNav = () => {
         {/* Home Button */}
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => router.push('/home')}
+          onPress={() => {
+            if (pathname !== '/home') {
+              router.push('/home');
+            }
+          }}
         >
           <Ionicons name="home-outline" size={22} color={iconColor} />
           <Text style={[styles.navLabel, { color: iconColor }]}>Home</Text>
@@ -35,7 +40,11 @@ const BottomNav = () => {
         {/* Search Button */}
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => router.push('/search')}
+          onPress={() => {
+            if (pathname !== '/search') {
+              router.push('/search');
+            }
+          }}
         >
           <Ionicons name="search-outline" size={22} color={iconColor} />
           <Text style={[styles.navLabel, { color: iconColor }]}>Search</Text>
@@ -44,7 +53,11 @@ const BottomNav = () => {
         {/* Stores Button */}
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => router.push('/stores')}
+          onPress={() => {
+            if (pathname !== '/stores') {
+              router.push('/stores');
+            }
+          }}
         >
           <Ionicons name="storefront-outline" size={22} color={iconColor} />
           <Text style={[styles.navLabel, { color: iconColor }]}>Stores</Text>
@@ -53,7 +66,11 @@ const BottomNav = () => {
         {/* Settings Button */}
         <TouchableOpacity
           style={styles.navButton}
-          onPress={() => router.push('/settings')}
+          onPress={() => {
+            if (pathname !== '/settings') {
+              router.push('/settings');
+            }
+          }}
         >
           <Feather name="list" size={22} color={iconColor} />
           <Text style={[styles.navLabel, { color: iconColor }]}>Settings</Text>

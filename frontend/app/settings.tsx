@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -22,6 +23,26 @@ export default function SettingsScreen() {
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
   const primaryText = isDark ? '#EDEDED' : '#222222';
   const secondaryText = isDark ? '#AAA' : '#666666';
+
+  // Show confirmation before logging out
+  const confirmLogout = () => {
+    Alert.alert(
+      'Confirm Logout',
+      'Are you sure you want to log out?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: () => router.push('/login'),
+        },
+      ],
+      { cancelable: true }
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
@@ -63,7 +84,10 @@ export default function SettingsScreen() {
               Profile
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow}>
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/changePassword')}
+          >
             <Ionicons
               name="lock-closed-outline"
               size={20}
@@ -86,7 +110,10 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: primaryText }]}>
             Notifications
           </Text>
-          <TouchableOpacity style={styles.itemRow}>
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/pushNotifications')}
+          >
             <Ionicons
               name="notifications-outline"
               size={20}
@@ -110,40 +137,6 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Preferences Section */}
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: cardBg, marginTop: 12 },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>
-            Preferences
-          </Text>
-          <TouchableOpacity style={styles.itemRow}>
-            <Ionicons
-              name="moon-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Dark Mode: {isDark ? 'On' : 'Off'}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow}>
-            <Ionicons
-              name="language-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Language
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         {/* Support Section */}
         <View
           style={[
@@ -154,7 +147,10 @@ export default function SettingsScreen() {
           <Text style={[styles.sectionTitle, { color: primaryText }]}>
             Support
           </Text>
-          <TouchableOpacity style={styles.itemRow}>
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/helpCenter')}
+          >
             <Ionicons
               name="help-circle-outline"
               size={20}
@@ -165,7 +161,10 @@ export default function SettingsScreen() {
               Help Center
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow}>
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/contactUs')}
+          >
             <Ionicons
               name="mail-unread-outline"
               size={20}
@@ -174,6 +173,24 @@ export default function SettingsScreen() {
             />
             <Text style={[styles.itemLabel, { color: primaryText }]}>
               Contact Us
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Logout Button */}
+        <View style={styles.logoutContainer}>
+          <TouchableOpacity
+            style={[styles.logoutButton, { backgroundColor: cardBg }]}
+            onPress={confirmLogout}
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color="#E11D48"
+              style={styles.logoutIcon}
+            />
+            <Text style={[styles.logoutLabel, { color: '#E11D48' }]}>
+              Log Out
             </Text>
           </TouchableOpacity>
         </View>
@@ -225,6 +242,25 @@ const styles = StyleSheet.create({
   },
   itemLabel: {
     fontSize: 14,
+    fontWeight: '500',
+  },
+  logoutContainer: {
+    marginTop: -50,
+    alignItems: 'center',
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    elevation: 1,
+  },
+  logoutIcon: {
+    marginRight: 8,
+  },
+  logoutLabel: {
+    fontSize: 16,
     fontWeight: '500',
   },
 });

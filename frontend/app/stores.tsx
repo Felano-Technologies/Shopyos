@@ -26,7 +26,7 @@ export default function StoresScreen() {
   const inputBg = isDarkMode ? '#1E1E1E' : '#FFF';
 
   // Dummy category toggles
-  const categoryToggles = ['All store', 'Food', 'Home & Garden'];
+  const categoryToggles = ['All store', 'Grocery', 'Electronics', 'Fashion'];
   const [activeToggle, setActiveToggle] = useState<string>('All store');
 
   // Dummy “Popular stores” data
@@ -81,9 +81,9 @@ export default function StoresScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* ───── Header ───── */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.menuButton}>
+        {/* <TouchableOpacity onPress={() => router.back()} style={styles.menuButton}>
           <Ionicons name="menu-outline" size={24} color={primaryText} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <Text style={[styles.headerTitle, { color: primaryText }]}>Stores</Text>
       </View>
 
