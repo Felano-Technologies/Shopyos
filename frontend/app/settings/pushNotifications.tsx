@@ -1,4 +1,3 @@
-// app/settings/pushNotifications.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
@@ -14,7 +13,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
-import * as Permissions from 'expo-permissions';
 
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
@@ -60,21 +58,16 @@ export default function PushNotificationsScreen() {
 
     // 4) Register for push only if permission is granted
     const registerForPushNotifications = async () => {
-      const { status: existingStatus } = await Permissions.getAsync(
-        Permissions.NOTIFICATIONS
-      );
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
 
       if (existingStatus !== 'granted') {
-        const { status } = await Permissions.askAsync(Permissions.NOTIFICATIONS);
+        const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
 
       if (finalStatus !== 'granted') {
-        Alert.alert(
-          'Permission required',
-          'Enable notifications to receive alerts.'
-        );
+        Alert.alert('Permission required', 'Enable notifications to receive alerts.');
         return;
       }
 
@@ -88,7 +81,6 @@ export default function PushNotificationsScreen() {
     // 5) Optional: Listen for incoming notifications (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(
       (notification) => {
-        // You can inspect notification.request.content here if you want
         console.log('Notification received in foreground:', notification);
       }
     );
@@ -101,7 +93,6 @@ export default function PushNotificationsScreen() {
     );
 
     return () => {
-      // Clean up listeners on unmount
       if (notificationListener.current) {
         Notifications.removeNotificationSubscription(notificationListener.current);
       }
@@ -116,20 +107,12 @@ export default function PushNotificationsScreen() {
     try {
       const newValue = !pushEnabled;
       setPushEnabled(newValue);
-      await SecureStore.setItemAsync(
-        'prefPushNotifications',
-        newValue ? 'true' : 'false'
-      );
+      await SecureStore.setItemAsync('prefPushNotifications', newValue ? 'true' : 'false');
 
       if (newValue) {
-        // Re-check permissions when enabling
-        const { status: existingStatus } = await Permissions.getAsync(
-          Permissions.NOTIFICATIONS
-        );
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
         if (existingStatus !== 'granted') {
-          const { status } = await Permissions.askAsync(
-            Permissions.NOTIFICATIONS
-          );
+          const { status } = await Notifications.requestPermissionsAsync();
           if (status !== 'granted') {
             Alert.alert(
               'Permission denied',
@@ -140,6 +123,7 @@ export default function PushNotificationsScreen() {
             return;
           }
         }
+
         const tokenData = await Notifications.getExpoPushTokenAsync();
         setExpoPushToken(tokenData.data);
         Alert.alert('Push Notifications', 'Enabled');
@@ -161,12 +145,9 @@ export default function PushNotificationsScreen() {
           data: { test: true },
         },
         trigger: { seconds: 3 },
-        channelId: 'default', // ensures Android shows it
+        channelId: 'default',
       });
-      Alert.alert(
-        'Test Scheduled',
-        'A test notification will appear in ~3 seconds.'
-      );
+      Alert.alert('Test Scheduled', 'A test notification will appear in ~3 seconds.');
     } catch (e) {
       console.error('Error scheduling test notification:', e);
       Alert.alert('Error', 'Could not schedule test notification.');
