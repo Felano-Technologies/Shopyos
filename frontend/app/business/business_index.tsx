@@ -5,17 +5,17 @@ import { router } from 'expo-router';
 const GetStartedScreen = () => {
   return (
     <View style={styles.container}>
-      <Image style={styles.logoImage} source={require("../assets/images/icon.png")} />
+      <Image style={styles.logoImage} source={require("../../assets/images/icon.png")} />
       <Text style={styles.heading}>Advertise your Business with us</Text>
       <Text style={styles.description}>
         Sign up for a free account and advertise your Business!
       </Text>
 
-      <TouchableOpacity style={styles.createAccountButton} onPress={() => router.push('/business_register')}>
+      <TouchableOpacity style={styles.createAccountButton} onPress={() => router.push('/business/register')}>
         <Text style={styles.createAccountText}>Register Business</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/login')} >
+      <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/business/login')} >
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>
     </View>

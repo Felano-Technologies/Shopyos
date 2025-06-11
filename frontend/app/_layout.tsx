@@ -86,9 +86,10 @@ export default function RootLayout() {
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="register" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="business_login" options={{ headerShown: false }} />
-            <Stack.Screen name="business_index" options={{ headerShown: false }} />
-            <Stack.Screen name="business_register" options={{ headerShown: false }} />
+            <Stack.Screen name="business/login" options={{ headerShown: false }} />
+            <Stack.Screen name="business/business_index" options={{ headerShown: false }} />
+            <Stack.Screen name="business/register" options={{ headerShown: false }} />
+            <Stack.Screen name="business/dashboard" options={{ headerShown: false }} />
             <Stack.Screen name="notification" options={{ headerShown: false }} />
             <Stack.Screen name="userProfile" options={{ headerShown: false }} />
             <Stack.Screen name="home" options={{ headerShown: false }} />
@@ -100,7 +101,7 @@ export default function RootLayout() {
             <Stack.Screen name='settings/helpCenter' options={{ headerShown: false }} />
             <Stack.Screen name='settings/contactUs' options={{ headerShown: false }} />
             <Stack.Screen
-              name="business_verification"
+              name="business/verification"
               options={{ headerShown: false }}
             />
             <Stack.Screen
