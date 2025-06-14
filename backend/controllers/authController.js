@@ -3,17 +3,22 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
-const { decrypt, encrypt } = require('../utils/encryption');
 
+// @desc    Register new user
+// @route   POST /api/auth/register
+// @access  Public
 const register = async (req, res) => {
   const { name, email, password, fullPhoneNumber } = req.body;
+  
   try {
+    // Check if user exists
     let user = await User.findOne({ email });
 
     if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ error: 'User already exists' });
     }
 
+    // Create user
     user = new User({
       name,
       email,
@@ -21,69 +26,70 @@ const register = async (req, res) => {
       password
     });
 
+    // Save user
     await user.save();
 
-    const payload = {
-      user: {
-        id: user._id
-      }
-    };
+    // Generate token
+    generateToken(res, user._id);
 
-    jwt.sign(
-      payload,
-      'secret',
-      { expiresIn: 360000 },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ 
-          token,       
-          message : "User created successfully",
-      });
-      }
-    );
+    res.status(201).json({
+      message: 'User created successfully'
+    });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
+// @desc    Authenticate a user
+// @route   POST /api/auth/login
+// @access  Public
 const login = async (req, res) => {
   const { email, password, latitude, longitude } = req.body;
+
   try {
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
     const isMatch = await user.matchPassword(password);
+
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid password' });
+      return res.status(400).json({ error: 'Invalid credentials' });
     }
 
-    // Update user location if latitude & longitude are provided
+    // Update user location if provided
     if (latitude && longitude) {
       user.latitude = latitude;
       user.longitude = longitude;
       await user.save();
     }
 
-    const token = await encrypt(user.id.toString());
+    const token = generateToken(res, user._id);
+
     res.status(200).json({
       token,
-      message : "Login successful",
+      message: 'Login successful'
     });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error(err.message);
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
+// @desc    Reset password
+// @route   POST /api/auth/reset-password
+// @access  Public
 const resetPassword = async (req, res) => {
   const { email } = req.body;
+
   try {
-    let user = await User.findOne({ email });
+    const user = await User.findOne({ email });
 
     if (!user) {
-      return res.status(400).json({ msg: 'User not found' });
+      return res.status(400).json({ error: 'User not found' });
     }
 
     const token = crypto.randomBytes(20).toString('hex');
@@ -96,73 +102,61 @@ const resetPassword = async (req, res) => {
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
       auth: {
-        user: 'your-email@gmail.com',
-        pass: 'your-email-password'
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD
       }
     });
+
+    const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${token}`;
 
     const mailOptions = {
       to: user.email,
-      from: 'your-email@gmail.com',
+      from: process.env.EMAIL_FROM,
       subject: 'Password Reset',
       text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
         Please click on the following link, or paste this into your browser to complete the process:\n\n
-        http://localhost:3000/reset/${token}\n\n
+        ${resetUrl}\n\n
         If you did not request this, please ignore this email and your password will remain unchanged.\n`
     };
 
-    transporter.sendMail(mailOptions, (err, response) => {
-      if (err) {
-        console.error('there was an error: ', err);
-      } else {
-        res.status(200).json('recovery email sent');
-      }
-    });
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: 'Recovery email sent' });
   } catch (err) {
     console.error(err.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ error: 'Server error' });
   }
 };
 
+// @desc    Get user data
+// @route   GET /api/auth/me
+// @access  Private
 const getUserData = async (req, res) => {
   try {
-    // 1) Make sure the “Authorization” header exists and split out the token:
-    const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({ error: 'Authentication token missing' });
-    }
-    const token = authHeader.split(' ')[1]; // “Bearer <token>”
-    if (!token) {
-      return res.status(401).json({ error: 'Authentication token missing' });
-    }
+    const user = await User.findById(req.user._id).select('-password');
 
-    // 2) Decrypt the token to get the user’s ID
-    console.log('Decrypted ID:', decoded);
-
-    // 3) Look up the user by that _id in MongoDB
-    const user = await User.findById(decoded);
-    //    (or: await User.findOne({ _id: decoded }); )
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // 4) Optionally re-encrypt the ID for the client if you need to
-    const userId = await encrypt(user._id.toString());
-
-    // 5) Send back only the fields you want the client to see
-    res.status(200).json({
-      id:      userId,       // encrypted ID, if you need it
-      name:    user.name,
-      email:   user.email,
-      longitude: user.longitude,
-      latitude:  user.latitude,
-      phone:     user.phone,
-    });
+    res.status(200).json(user);
   } catch (error) {
     console.error('Error getting user data:', error);
     res.status(500).json({ error: 'Server error' });
   }
+};
+
+// Generate JWT token and set cookie
+const generateToken = (res, userId) => {
+  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE
+  });
+
+  // Set cookie
+  res.cookie('jwt', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV !== 'development',
+    sameSite: 'strict',
+    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+  });
+
+  return token;
 };
 
 module.exports = {

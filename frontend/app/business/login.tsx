@@ -1,11 +1,24 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  Alert,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
-import { loginUser } from '@/services/api';
+import { loginBusiness } from '@/services/api';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -13,68 +26,72 @@ const LoginScreen = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-// Handle Sign In
-const handleLogin = async () => {
-  try {
-    setLoading(true);
-
-    // Request location permissions
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Location permission is required to proceed.');
-      setLoading(false); // Hide loading indicator
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Toast.show({
+        type: 'error',
+        text1: 'Missing Fields ❗',
+        text2: 'Please enter both email and password.',
+      });
       return;
     }
 
-    // Get the current location
-    const location = await Location.getCurrentPositionAsync({});
-    const { latitude, longitude } = location.coords;
+    try {
+      setLoading(true);
 
-    const response = await loginUser(email, password, latitude, longitude);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to proceed.');
+        setLoading(false);
+        return;
+      }
 
-    if (response.message == "Login successful") {
-      // Set the token securely using expo-secure-store with 7 days expiration
-      await SecureStore.setItemAsync('userId', response.token); // Securely store the token
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
 
-      Toast.show({
-        type: 'success',
-        text1: 'Login Successful 😊',
-        text2: 'Welcome back! 🎉',
-      });
-      router.push("/(tabs)");
-    } else {
+      const response = await loginBusiness(email, password, latitude, longitude);
+
+      if (response.message === 'Login successful') {
+        await SecureStore.setItemAsync('businessToken', response.token);
+
+        Toast.show({
+          type: 'success',
+          text1: 'Login Successful 😊',
+          text2: 'Welcome back! 🎉',
+        });
+
+        router.push('/business/dashboard');
+      } else {
+        Toast.show({
+          type: 'error',
+          text1: 'Login Failed ❌',
+          text2: response.message || 'Please try again.',
+        });
+      }
+    } catch (error: any) {
       Toast.show({
         type: 'error',
-        text1: 'Login Failed ❌',
-        text2: response.message || 'Please try again.',
+        text1: 'Sign In Failed ⚠️',
+        text2: error.message || 'Something went wrong.',
       });
+    } finally {
+      setLoading(false);
     }
-  } catch (error: any) {
-    Toast.show({
-      type: 'error',
-      text1: 'Sign In Failed ⚠️',
-      text2: error.message || 'Something went wrong.',
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.innerContainer}>
-        <Image style={styles.logoImage} source={require("../assets/images/icon.png")} />
+          <Image style={styles.logoImage} source={require('../../assets/images/icon.png')} />
           <Text style={styles.header}>Hello, Sign in your Account</Text>
           <Text style={styles.subHeader}>Welcome back you've been missed!</Text>
 
           <TextInput
             style={styles.input}
             placeholder="Enter your email"
-            placeholderTextColor={"gainsboro"}
-            keyboard-type="email-address"
+            placeholderTextColor="gainsboro"
+            keyboardType="email-address"
             autoCapitalize="none"
             value={email}
             onChangeText={setEmail}
@@ -84,20 +101,13 @@ const handleLogin = async () => {
             <TextInput
               style={styles.passwordInput}
               placeholder="Password"
-              placeholderTextColor={"gainsboro"}
+              placeholderTextColor="gainsboro"
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
-            <TouchableOpacity
-              style={styles.eyeIcon}
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Ionicons
-                name={showPassword ? 'eye' : 'eye-off'}
-                size={24}
-                color="black"
-              />
+            <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+              <Ionicons name={showPassword ? 'eye' : 'eye-off'} size={24} color="black" />
             </TouchableOpacity>
           </View>
 
@@ -106,19 +116,17 @@ const handleLogin = async () => {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <Text style={styles.loginText}>Sign In</Text>
-            )}
+            {loading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.loginText}>Sign In</Text>}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/business_register')}>
-            <Text style={styles.signupText}>Not registered? <Text style={styles.boldText}>Sign up now!</Text></Text>
+          <TouchableOpacity onPress={() => router.push('/business/register')}>
+            <Text style={styles.signupText}>
+              Not registered? <Text style={styles.boldText}>Sign up now!</Text>
+            </Text>
           </TouchableOpacity>
         </View>
       </TouchableWithoutFeedback>
-      <Toast  />
+      <Toast />
     </KeyboardAvoidingView>
   );
 };
@@ -202,7 +210,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   signupText: {
-    color: '000',
+    color: '#000',
   },
   boldText: {
     fontWeight: 'bold',

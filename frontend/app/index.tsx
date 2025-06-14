@@ -19,7 +19,7 @@ const GetStartedScreen = () => {
         <Text style={styles.loginText}>Login</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push('/business_index')}>
+      <TouchableOpacity onPress={() => router.push('/business/business_index')}>
       <Text style={styles.signupText}>To Sign Up as a Business owner/Artisan,<Text style={styles.boldText}>Click Here!</Text></Text>
       </TouchableOpacity>
     </View>
