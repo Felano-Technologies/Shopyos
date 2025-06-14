@@ -12,18 +12,23 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BottomNav from '@/components/BottomNav';
+import BottomNav from '../components/BottomNav'; // Adjust the path as necessary
 import { usePathname } from 'expo-router';
-import { useColorScheme as useAppColorScheme } from '@/hooks/useColorScheme';
 
 // Prevent the splash screen from auto‐hiding before fonts load
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
-  const colorScheme = useAppColorScheme();
+  const colorScheme = useColorScheme();
   const pathname = usePathname();  
   const [loaded] = useFonts({
     SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
+    'Rye-Regular': require('../assets/fonts/Rye-Regular.ttf'),
+    'Ballet_60pt-Regular': require('../assets/fonts/Ballet_60pt-Regular.ttf'),
+    'Ballet_24pt-Regular': require('../assets/fonts/Ballet_24pt-Regular.ttf'),
+    'BungeeSpice-Regular': require('../assets/fonts/BungeeSpice-Regular.ttf'),
+    'UnicialAntiqua-Regular': require('../assets/fonts/UncialAntiqua-Regular.ttf'),
+    'Nosifer-Regular': require('../assets/fonts/Nosifer-Regular.ttf'),
   });
 
   useEffect(() => {

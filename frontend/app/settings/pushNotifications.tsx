@@ -94,10 +94,10 @@ export default function PushNotificationsScreen() {
 
     return () => {
       if (notificationListener.current) {
-        Notifications.removeNotificationSubscription(notificationListener.current);
+        notificationListener.current.remove();
       }
       if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
+        responseListener.current.remove();
       }
     };
   }, []);
@@ -141,7 +141,7 @@ export default function PushNotificationsScreen() {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Test Notification',
-          body: 'This is a test push notification for Dios App.',
+          body: 'This is a test push notification for Dios.',
           data: { test: true },
         },
         trigger: { seconds: 3 },
