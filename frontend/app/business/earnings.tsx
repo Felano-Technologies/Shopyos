@@ -64,7 +64,7 @@ const EarningsScreen = () => {
         }}
         width={screenWidth - 32}
         height={220}
-        yAxisPrefix="$"
+        yAxisPrefix="₵"
         chartConfig={{
           backgroundGradientFrom: backgroundColor,
           backgroundGradientTo: backgroundColor,
@@ -89,7 +89,7 @@ const EarningsScreen = () => {
           <View style={[styles.earningCard, { backgroundColor: cardBackground }]}>
             <Text style={[styles.label, { color: primaryText }]}>{item.label}</Text>
             <Text style={[styles.subtext, { color: secondaryText }]}>Count: {item.amount}</Text>
-            <Text style={[styles.amount, { color: primaryText }]}>${item.value.toFixed(2)}</Text>
+            <Text style={[styles.amount, { color: primaryText }]}>₵{item.value.toFixed(2)}</Text>
           </View>
         )}
       />

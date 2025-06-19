@@ -97,7 +97,7 @@ const OrdersScreen = () => {
               <View>
                 <Text style={[styles.customerName, { color: primaryText }]}>{item.customerName}</Text>
                 <Text style={[styles.detailText, { color: secondaryText }]}>
-                  {item.itemsCount} item(s) • ${item.totalAmount.toFixed(2)}
+                  {item.itemsCount} item(s) • ₵{item.totalAmount.toFixed(2)}
                 </Text>
                 <Text style={[styles.detailText, { color: secondaryText }]}>
                   {format(new Date(item.date), 'PPPpp')}
@@ -128,7 +128,7 @@ const OrdersScreen = () => {
                   <Text style={[styles.modalTitle, { color: primaryText }]}>Order Details</Text>
                   <Text style={[styles.modalText, { color: secondaryText }]}>Customer: {selectedOrder.customerName}</Text>
                   <Text style={[styles.modalText, { color: secondaryText }]}>Items: {selectedOrder.itemsCount}</Text>
-                  <Text style={[styles.modalText, { color: secondaryText }]}>Amount: ${selectedOrder.totalAmount.toFixed(2)}</Text>
+                  <Text style={[styles.modalText, { color: secondaryText }]}>Amount: ₵{selectedOrder.totalAmount.toFixed(2)}</Text>
                   <Text style={[styles.modalText, { color: secondaryText }]}>Status: {selectedOrder.status}</Text>
                   <Text style={[styles.modalText, { color: secondaryText }]}>Placed on: {format(new Date(selectedOrder.date), 'PPPpp')}</Text>
                   <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>

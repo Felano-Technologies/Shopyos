@@ -97,8 +97,21 @@ const Dashboard = () => {
 
   return (
     <LinearGradient colors={["#e0f2fe", "#f8fafc"]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Welcome, {businessData?.businessName}!</Text>
+          <ScrollView contentContainerStyle={styles.container}>
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Welcome, {businessData?.businessName}!</Text>
+          <TouchableOpacity onPress={() => router.push('/business/settings')}>
+            {businessData?.logo ? (
+              <Image
+                source={{ uri: businessData.logo }}
+                style={styles.avatar}
+              />
+            ) : (
+              <Ionicons name="person-circle-outline" size={36} color="#444" />
+            )}
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.subtitle}>Business Dashboard</Text>
 
         {verificationStatus === 'pending' && (
@@ -161,7 +174,7 @@ const Dashboard = () => {
               <Animated.View style={[styles.metricCard, { backgroundColor: '#DCFCE7', transform: [{ scale: scaleAnim }] }]}>
                 <Ionicons name="cash-outline" size={24} color="#10B981" />
                 <Text style={styles.metricTitle}>Earnings</Text>
-                <Text style={styles.metricValue}>$3,520</Text>
+                <Text style={styles.metricValue}>₵3,520</Text>
                 <View style={styles.badge}><Text style={styles.badgeText}>↑12%</Text></View>
               </Animated.View>
             </TouchableOpacity>
@@ -219,7 +232,7 @@ const Dashboard = () => {
             📊 Chart shows total orders per selected timeframe. Tap tabs to switch between weekly, monthly, and yearly views.
           </Text>
         </View>
-      </ScrollView>
+        </ScrollView>
       <BusinessBottomNav/>
     </LinearGradient>
   );
@@ -291,6 +304,20 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 16,
   },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+
   metricCard: {
     flex: 1,
     backgroundColor: '#fff',
