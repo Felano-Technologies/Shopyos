@@ -1,7 +1,7 @@
 import axios from 'axios';
                    
 
-export const API_URL = 'http://172.20.10.2:5000/api/';
+export const API_URL = 'http://172.20.10.3:5000/api/';
 export const baseURL = 'http://172.20.10.2:5000';
 // export const API_URL = 'https://dios-mnxg.onrender.com/api/';
 // export const baseURL = 'https://dios-mnxg.onrender.com';
