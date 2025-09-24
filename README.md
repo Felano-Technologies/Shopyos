@@ -32,7 +32,7 @@ Ensure you have the following installed:
 #### 1️⃣ Clone the Repository  
 ```bash
 git clone https://github.com/yourusername/dios.git
-cd dios
+cd shopyos
 ```
 
 #### 2️⃣ Install Dependencies  
