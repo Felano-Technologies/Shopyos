@@ -5,13 +5,18 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
+
+import { Appearance } from 'react-native';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const isDarkMode = Appearance.getColorScheme() === 'dark';
 
 // Handle Sign In
 const handleLogin = async () => {
@@ -60,14 +65,19 @@ const handleLogin = async () => {
   }
 };
   return (
+        <LinearGradient
+      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
+      style={{ flex: 1 }}
+    >
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.innerContainer}>
-        <Image style={styles.logoImage} source={require("../assets/images/icon.png")} />
-          <Text style={styles.header}>Hello, Sign in your Account</Text>
+        <Image style={styles.logoImage} source={require("../assets/images/icondark.png")} />
+          <Text style={styles.header}>Hello, Sign into your Account</Text>
           <Text style={styles.subHeader}>Welcome back you've been missed!</Text>
 
           <TextInput
@@ -120,13 +130,14 @@ const handleLogin = async () => {
       </TouchableWithoutFeedback>
       <Toast  />
     </KeyboardAvoidingView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#CDD1C4',
+    backgroundColor: '#020b4dff',
     padding: 16,
   },
   innerContainer: {
@@ -136,20 +147,19 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     width: 250,
-    height: 200,
-    borderRadius: 20,
-    marginBottom: 20,
-    marginTop: -10,
+    height: 62,
+    borderRadius: 1,
+    marginBottom: 10,
   },
   header: {
-    fontSize: 20,
-    color: '#000',
+    fontSize: 18,
+    color: '#ffffffff',
     fontWeight: 'bold',
     marginBottom: 8,
   },
   subHeader: {
     fontSize: 14,
-    color: '#000',
+    color: '#ffffffff',
     marginBottom: 24,
   },
   input: {
@@ -184,13 +194,13 @@ const styles = StyleSheet.create({
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    color: '#000',
+    color: '#ffffffff',
     marginBottom: 24,
   },
   loginButton: {
     width: '100%',
     height: 48,
-    backgroundColor: '#000',
+    backgroundColor: '#028f2cff',
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
@@ -202,7 +212,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   signupText: {
-    color: '000',
+    color: '#fff',
   },
   boldText: {
     fontWeight: 'bold',

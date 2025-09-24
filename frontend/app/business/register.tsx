@@ -54,7 +54,7 @@ const BusinessRegister = () => {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView contentContainerStyle={styles.innerContainer} keyboardShouldPersistTaps="handled">
-          <Image style={styles.logoImage} source={require('../../assets/images/icon.png')} />
+          <Image style={styles.logoImage} source={require('../../assets/images/iconwhite.png')} />
           <Text style={styles.header}>Register Your Business</Text>
           <Text style={styles.subHeader}>Start selling to a wider audience!</Text>
 
@@ -108,16 +108,34 @@ const BusinessRegister = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#61A0AF', padding: 16 },
+  container: { 
+    flex: 1, 
+    backgroundColor: '#028f2cff', 
+    padding: 16 
+  },
   innerContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingBottom: 40,
   },
-  logoImage: { width: 250, height: 200, borderRadius: 20, marginBottom: 20 },
-  header: { fontSize: 20, color: '#000', fontWeight: 'bold', marginBottom: 8 },
-  subHeader: { fontSize: 14, color: '#000', marginBottom: 24 },
+  logoImage: { 
+    width: 250,
+    height: 62,
+    borderRadius: 1,
+    marginBottom: 10,
+   },
+  header: { 
+    fontSize: 20,
+     color: '#000', 
+     fontWeight: 'bold',
+     marginBottom: 8 
+    },
+  subHeader: { 
+    fontSize: 14,
+     color: '#000',
+      marginBottom: 24
+     },
   input: {
     width: '100%',
     height: 48,

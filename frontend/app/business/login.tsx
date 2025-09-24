@@ -83,7 +83,7 @@ const LoginScreen = () => {
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.innerContainer}>
-          <Image style={styles.logoImage} source={require('../../assets/images/icon.png')} />
+          <Image style={styles.logoImage} source={require('../../assets/images/iconwhite.png')} />
           <Text style={styles.header}>Hello, Sign in your Account</Text>
           <Text style={styles.subHeader}>Welcome back you've been missed!</Text>
 
@@ -134,7 +134,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#61A0AF',
+    backgroundColor: '#028f2cff',
     padding: 16,
   },
   innerContainer: {
@@ -144,10 +144,9 @@ const styles = StyleSheet.create({
   },
   logoImage: {
     width: 250,
-    height: 200,
-    borderRadius: 20,
-    marginBottom: 20,
-    marginTop: -10,
+    height: 62,
+    borderRadius: 1,
+    marginBottom: 10,
   },
   header: {
     fontSize: 20,

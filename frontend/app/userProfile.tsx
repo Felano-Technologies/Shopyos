@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   useColorScheme,
   ScrollView,
   TouchableOpacity,
@@ -14,7 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { getUserData } from '../services/api';
+
 
 interface User {
   name: string;

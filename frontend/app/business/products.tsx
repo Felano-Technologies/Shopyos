@@ -9,9 +9,9 @@ import {
   Image,
   Alert,
   useColorScheme,
-  SafeAreaView,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import BusinessBottomNav from '@/components/BusinessBottomNav';

@@ -1,26 +1,16 @@
-// app/DiosHome.tsx
+// app/home.tsx
 import React, { useEffect, useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ImageBackground,
-  TextInput,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  SafeAreaView,
-  useColorScheme,
-  Animated,
-  RefreshControl,
-  Dimensions,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import {View,Text,Image,ImageBackground,TextInput,FlatList,TouchableOpacity, StyleSheet,useColorScheme, Animated,RefreshControl,Dimensions, ScrollView,ActivityIndicator,} from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { BlurView } from 'expo-blur';
+import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+
+
 
 const { width } = Dimensions.get('window');
 
@@ -72,7 +62,7 @@ const DEALS_FOR_YOU = [
   },
 ];
 
-export default function DiosHome() {
+export default function Home() {
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
   const router = useRouter();
@@ -85,11 +75,7 @@ export default function DiosHome() {
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Mock user
-  const user = {
-    name: 'Felly',
-    avatarUrl: 'https://via.placeholder.com/40',
-  };
+
 
   // Derived list of chip categories
   const allCategoryNames = ['All', ...CATEGORIES.map((c) => c.label)];
@@ -195,7 +181,9 @@ export default function DiosHome() {
         marginRight: 16,
       }}
     >
-      <View
+      <BlurView
+        intensity={40}
+        tint={isDarkMode ? 'dark' : 'light'}
         style={[
           styles.productCard,
           { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
@@ -235,7 +223,7 @@ export default function DiosHome() {
             <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
           </View>
         </View>
-      </View>
+      </BlurView>
     </Animated.View>
   );
 
@@ -291,6 +279,11 @@ export default function DiosHome() {
   }
 
   return (
+        <LinearGradient
+      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
+      style={{ flex: 1 }}
+    >
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
     <SafeAreaView
       style={[
         styles.container,
@@ -307,31 +300,7 @@ export default function DiosHome() {
           { useNativeDriver: true }
         )}
       >
-        {/* Welcome Row */}
-        <View style={styles.welcomeRow}>
-          <View>
-            <Text
-              style={[
-                styles.welcomeText,
-                { color: isDarkMode ? '#EDEDED' : '#222' },
-              ]}
-            >
-              Welcome,
-            </Text>
-            <Text
-              style={[
-                styles.userNameText,
-                { color: isDarkMode ? '#EDEDED' : '#222' },
-              ]}
-              numberOfLines={1}
-            >
-              {user.name} 👋
-            </Text>
-          </View>
-          <TouchableOpacity onPress={() => router.push('/userProfile')}>
-            <Image source={{ uri: user.avatarUrl }} style={styles.avatar} />
-          </TouchableOpacity>
-        </View>
+
 
         {/* Location + Search Row */}
         <View style={styles.topSection}>
@@ -356,7 +325,9 @@ export default function DiosHome() {
             />
           </TouchableOpacity>
           <View style={styles.searchRow}>
-            <View
+            <BlurView
+              intensity={100}
+              tint={isDarkMode ? 'dark' : 'light'}
               style={[
                 styles.searchInputWrapper,
                 { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
@@ -375,19 +346,22 @@ export default function DiosHome() {
                   { color: isDarkMode ? '#EDEDED' : '#222' },
                 ]}
               />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.filterBtn,
-                { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
-              ]}
-              onPress={() => router.push('/filter')}
-            >
-              <Feather
-                name="sliders"
-                size={20}
-                color={isDarkMode ? '#AAA' : '#666'}
-              />
+            </BlurView>
+            <TouchableOpacity onPress={() => router.push('/filter')}>
+              <BlurView
+                intensity={40}
+                tint={isDarkMode ? 'dark' : 'light'}
+                style={[
+                  styles.filterBtn,
+                  { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
+                ]}
+              >
+                <Feather
+                  name="sliders"
+                  size={20}
+                  color={isDarkMode ? '#AAA' : '#666'}
+                />
+              </BlurView>
             </TouchableOpacity>
           </View>
         </View>
@@ -417,12 +391,18 @@ export default function DiosHome() {
           ]}
         >
           <ImageBackground
-            source={require('../assets/images/products/artwork.jpg')}
+            source={require('../assets/images/liquidglass.jpg')}
             style={styles.bannerImage}
             imageStyle={{ borderRadius: 12 }}
           >
-            <View style={styles.bannerOverlay}>
-              <Text style={styles.bannerTitle}>DIOS</Text>
+            <BlurView
+            intensity={40}
+            tint={isDarkMode ? 'dark' : 'light'}
+            style={styles.bannerOverlay}>
+              <Image
+               source={require('../assets/images/icondark.png')}
+               style={styles.bannerIcon}
+              />
               <Text style={styles.bannerSubtitle}>
                 Your go-to app for the latest apparels, sneakers, gadgets and
                 accessories from artisans around you. Shop trendy and unique
@@ -431,7 +411,7 @@ export default function DiosHome() {
               <TouchableOpacity style={styles.shopNowBtn}>
                 <Text style={styles.shopNowText}>Shop Now</Text>
               </TouchableOpacity>
-            </View>
+            </BlurView>
           </ImageBackground>
         </Animated.View>
 
@@ -443,7 +423,10 @@ export default function DiosHome() {
               return (
                 <TouchableOpacity
                   key={cat}
-                  onPress={() => setSelectedCat(cat)}
+                  onPress={() => setSelectedCat(cat)}>
+                  <BlurView
+                    intensity={40}
+                    tint={isDarkMode ? 'dark' : 'light'}
                   style={[
                     styles.chip,
                     {
@@ -474,6 +457,7 @@ export default function DiosHome() {
                   >
                     {cat}
                   </Text>
+                  </BlurView>
                 </TouchableOpacity>
               );
             })}
@@ -564,6 +548,7 @@ export default function DiosHome() {
       {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
+    </LinearGradient>
   );
 }
 
@@ -599,29 +584,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#333',
   },
 
-  // Welcome row
-  welcomeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  welcomeText: {
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  userNameText: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 2,
-    fontFamily: 'Nosifer-Regular',
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
 
   // Top Section (Location + Search)
   topSection: {
@@ -653,6 +615,8 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginRight: 10,
     elevation: 2,
+    backgroundColor: 'rgba(255,255,255,0.05)', 
+
   },
   searchInput: {
     flex: 1,
@@ -667,6 +631,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 2,
+      backgroundColor: 'rgba(255,255,255,0.05)', 
   },
 
   // Parallax Banner
@@ -681,11 +646,15 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  bannerIcon: {
+    width: 120,
+    height: 30,
+  },
   bannerOverlay: {
     flex: 1,
     padding: 12,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.25)',
     borderRadius: 12,
   },
   bannerTitle: {
@@ -721,9 +690,9 @@ const styles = StyleSheet.create({
   chip: {
     paddingVertical: 6,
     paddingHorizontal: 14,
-    borderRadius: 20,
     marginRight: 8,
     borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   chipText: {
     fontSize: 14,
@@ -758,6 +727,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginRight: 16,
     elevation: 3,
+    backgroundColor: 'rgba(255,255,255,0.05)', 
+    padding: 8,
     overflow: 'hidden',
   },
   productImage: {
@@ -813,6 +784,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     alignItems: 'center',
     padding: 8,
+    marginBottom: 45,
+    backgroundColor: 'rgba(255,255,255,0.05)', // glassy
   },
   dealImage: {
     width: '100%',

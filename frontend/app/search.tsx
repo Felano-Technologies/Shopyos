@@ -8,11 +8,11 @@ import {
   FlatList,
   ImageBackground,
   TouchableOpacity,
-  SafeAreaView,
   useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import BottomNav from '../components/BottomNav'; // Import your BottomNav component
+import BottomNav from '../components/BottomNav'; 
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // 🔥 Define Categories with Local Images
 const categories = [

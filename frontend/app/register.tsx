@@ -5,6 +5,10 @@ import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from 'react-native-country-picker-modal'
 import Toast from 'react-native-toast-message';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+
+import { Appearance } from 'react-native';
 
 const RegisterScreen = () => {
     const [name, setName] = useState('');
@@ -14,8 +18,9 @@ const RegisterScreen = () => {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [callingCode, setCallingCode] = useState('1');
-  const [showCountryPicker, setShowCountryPicker] = useState(false);
-  const [loading, setLoading] = useState(false);
+    const [showCountryPicker, setShowCountryPicker] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const isDarkMode = Appearance.getColorScheme() === 'dark';
 
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     // Remove leading zero if present
@@ -56,13 +61,18 @@ const RegisterScreen = () => {
 
 
   return (
+        <LinearGradient
+      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
+      style={{ flex: 1 }}
+    >
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView contentContainerStyle={{flexGrow: 1, justifyContent: 'center', alignItems: 'center'}}>
-          <Image style={styles.logoImage} source={require('../assets/images/icon.png')} />
+          <Image style={styles.logoImage} source={require('../assets/images/icondark.png')} />
           <Text style={styles.logoText}>Register</Text>
           <Text style={styles.title}>Sign up as a user</Text>
           <TextInput
@@ -143,6 +153,7 @@ const RegisterScreen = () => {
       </TouchableWithoutFeedback>
       <Toast />
     </KeyboardAvoidingView>
+    </LinearGradient>
   );
 };
 
@@ -150,17 +161,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    backgroundColor: '#CDD1C4',
+    backgroundColor: '#020b4dff',
     padding: 16,
   },
   logoText: {
     fontSize: 28,
-    color: '#000',
+    color: '#ffffffff',
     fontWeight: 'bold',
   },
   title: {
     fontSize: 20,
-    color: '#000',
+    color: '#ffffffff',
     textAlign: 'center',
     marginBottom: 22,
   },
@@ -177,7 +188,7 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     height: 48,
-    backgroundColor: '#000',
+    backgroundColor: '#028f2cff',
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
@@ -192,7 +203,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   loginText: {
-    color: '#000',
+    color: '#ffffffff',
   },
   logoImage: {
     width: 150,

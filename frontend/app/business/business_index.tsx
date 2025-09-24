@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 const GetStartedScreen = () => {
   return (
     <View style={styles.container}>
-      <Image style={styles.logoImage} source={require("../../assets/images/icon.png")} />
+      <Image style={styles.logoImage} source={require("../../assets/images/iconwhite.png")} />
       <Text style={styles.heading}>Advertise your Business with us</Text>
       <Text style={styles.description}>
         Sign up for a free account and advertise your Business!
@@ -25,14 +25,14 @@ const GetStartedScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#61A0AF',
+    backgroundColor: '#028f2cff',
     alignItems: 'center',
     justifyContent: 'center',
   },
   logoImage: {
-    width: 300,
-    height: 300,
-    borderRadius: 75,
+    width: 250,
+    height: 62,
+    borderRadius: 1,
     marginBottom: 10,
   },
   heading: {
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     borderWidth: 1,
-    borderColor: '#4D5061',
+    borderColor: '#ffffffff',
     width: '80%',
     paddingVertical: 12,
     borderRadius: 30,
