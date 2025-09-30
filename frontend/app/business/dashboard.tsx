@@ -65,11 +65,10 @@ const BusinessDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       const data = await getMyBusinesses();
-      console.log('Business data:', data);
       
       if (!data.success || !data.businesses || data.businesses.length === 0) {
         Alert.alert('No Business Found', 'Please create a business first', [
-          { text: 'Create Business', onPress: () => router.replace('/business/setup') }
+          { text: 'Create Business', onPress: () => router.replace('/business/register') }
         ]);
         return;
       }
@@ -168,7 +167,7 @@ const BusinessDashboard = () => {
         <Text style={styles.errorSubtext}>You need to create a business to access the dashboard</Text>
         <TouchableOpacity 
           style={styles.createBusinessButton} 
-          onPress={() => router.replace('/business/setup')}
+          onPress={() => router.replace('/business/register')}
         >
           <Text style={styles.createBusinessButtonText}>Create Your First Business</Text>
         </TouchableOpacity>
