@@ -23,6 +23,10 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: null,
   },
+  role: {
+    type: String,
+    default: "none",
+  },
 });
 
 userSchema.pre('save', async function (next) {

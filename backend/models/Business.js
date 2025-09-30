@@ -1,46 +1,108 @@
+// models/Business.js
 const mongoose = require('mongoose');
-const bcrypt = require('bcryptjs');
 
 const businessSchema = new mongoose.Schema({
-  businessName: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  phone: { type: String, required: true },
-  password: { type: String, required: true },
-  ownerName: String,
-  businessType: String,
-  country: String,
-  address: String,
-  socialMedia: String,
-  productCategory: String,
+  // Owner reference
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  
+  // Basic business info
+  businessName: { 
+    type: String, 
+    required: true,
+    trim: true
+  },
+  description: { 
+    type: String, 
+    required: true 
+  },
+  category: { 
+    type: String, 
+    required: true 
+  },
+  
+  // Contact information
+  phone: { 
+    type: String, 
+    required: true 
+  },
+  address: { 
+    type: String, 
+    required: true 
+  },
+  city: { 
+    type: String, 
+    required: true 
+  },
+  country: { 
+    type: String, 
+    required: true 
+  },
+  
+  // Optional fields
+  website: { 
+    type: String, 
+    default: '' 
+  },
+  socialMedia: {
+    instagram: { type: String, default: '' },
+    facebook: { type: String, default: '' }
+  },
+  
+  // Images (Cloudinary URLs)
+  logo: { 
+    type: String, 
+    default: '' 
+  },
+  coverImage: { 
+    type: String, 
+    default: '' 
+  },
+  
+  // Verification and status
   verificationStatus: {
     type: String,
     enum: ['pending', 'verified', 'rejected'],
     default: 'pending'
   },
-  longitude: {
-    type: Number,
-    default: null,
+  rejectionReason: {
+    type: String,
+    default: ''
   },
-  latitude: {
-    type: Number,
-    default: null,
+  isActive: {
+    type: Boolean,
+    default: true
   },
-}, { timestamps: true });
-
-// Password hashing middleware
-businessSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    return next();
+  
+  // Business metrics
+  rating: {
+    type: Number,
+    default: 0
+  },
+  totalReviews: {
+    type: Number,
+    default: 0
+  },
+  totalProducts: {
+    type: Number,
+    default: 0
+  },
+  totalOrders: {
+    type: Number,
+    default: 0
   }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
+
+}, { 
+  timestamps: true 
 });
 
-// Method to compare entered password with hashed password
-businessSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
+// Index for better query performance
+businessSchema.index({ owner: 1, businessName: 1 });
+businessSchema.index({ category: 1 });
+businessSchema.index({ verificationStatus: 1 });
 
 const Business = mongoose.model('Business', businessSchema);
 

@@ -7,7 +7,6 @@ import CountryPicker from 'react-native-country-picker-modal'
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-
 import { Appearance } from 'react-native';
 
 const RegisterScreen = () => {
@@ -71,73 +70,97 @@ const RegisterScreen = () => {
       style={styles.container}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={{flexGrow: 1, justifyContent: 'center', alignItems: 'center'}}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
           <Image style={styles.logoImage} source={require('../assets/images/icondark.png')} />
-          <Text style={styles.logoText}>Register</Text>
-          <Text style={styles.title}>Sign up as a user</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your name"
-            placeholderTextColor={"gainsboro"}
-            autoCorrect={false}
-            value={name}
-            onChangeText={setName}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter your email"
-            placeholderTextColor={"gainsboro"}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            value={email}
-            onChangeText={setEmail}
-          />
-   <View style={styles.phoneContainer}>
+          <Text style={styles.logoText}>Create an Account</Text>
+          
+          {/* Name Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your name"
+              placeholderTextColor="#999"
+              autoCorrect={false}
+              value={name}
+              onChangeText={setName}
+            />
+          </View>
+
+          {/* Email Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your email"
+              placeholderTextColor="#999"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+
+          {/* Phone Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
             <TouchableOpacity
-              style={styles.countryCodeWrapper}
+              style={styles.countryCodeButton}
               onPress={() => setShowCountryPicker(true)}
             >
-              <CountryPicker
-                withFlag
-                withCallingCode
-                withFilter
-                countryCode={countryCode}
-                onSelect={(country) => {
-                  setCountryCode(country.cca2);
-                  setCallingCode(country.callingCode[0]);
-                }}
-                visible={showCountryPicker}
-                onClose={() => setShowCountryPicker(false)}
-              />
               <Text style={styles.callingCode}>+{callingCode}</Text>
+              <Ionicons name="chevron-down" size={16} color="#666" />
             </TouchableOpacity>
             <TextInput
-              style={styles.phoneInput}
+              style={[styles.input, styles.phoneInput]}
               placeholder="Phone Number"
-              placeholderTextColor={"gainsboro"}
-              keyboardType="numeric"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
               autoCapitalize="none"
               autoCorrect={false}
               value={phoneNumber}
               onChangeText={setPhoneNumber}
             />
+            <CountryPicker
+              withFlag
+              withCallingCode
+              withFilter
+              countryCode={countryCode}
+              onSelect={(country) => {
+                setCountryCode(country.cca2);
+                setCallingCode(country.callingCode[0]);
+              }}
+              visible={showCountryPicker}
+              onClose={() => setShowCountryPicker(false)}
+            />
           </View>
-          <View style={styles.passwordContainer}>
+
+          {/* Password Input */}
+          <View style={styles.inputContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
             <TextInput
-              style={styles.passwordInput}
+              style={[styles.input, styles.passwordInput]}
               placeholder="Password"
-              placeholderTextColor={"gainsboro"}
+              placeholderTextColor="#999"
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoCorrect={false}
               value={password}
               onChangeText={setPassword}
             />
-            <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
-              <Ionicons name={showPassword ? 'eye' : 'eye-off'} size={24} color="black" />
+            <TouchableOpacity 
+              style={styles.eyeIcon} 
+              onPress={() => setShowPassword(!showPassword)}
+            >
+              <Ionicons 
+                name={showPassword ? 'eye' : 'eye-off'} 
+                size={20} 
+                color="#666" 
+              />
             </TouchableOpacity>
           </View>
+
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
           {loading ? (
             <ActivityIndicator size="small" color="#FFF" />
@@ -164,115 +187,109 @@ const styles = StyleSheet.create({
     backgroundColor: '#020b4dff',
     padding: 16,
   },
+  scrollContent: {
+    flexGrow: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
   logoText: {
     fontSize: 28,
     color: '#ffffffff',
     fontWeight: 'bold',
+    marginBottom: 30,
   },
-  title: {
-    fontSize: 20,
-    color: '#ffffffff',
-    textAlign: 'center',
-    marginBottom: 22,
+
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginVertical: 8,
+    paddingHorizontal: 16,
+    height: 56,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
   },
   input: {
-    width: '100%',
-    height: 48,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginVertical: 10,
-    fontSize: 18,
-    color: '#000',
-  },
-  button: {
-    width: '100%',
-    height: 48,
-    backgroundColor: '#028f2cff',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  loginButton: {
-    marginTop: 16,
-  },
-  loginText: {
-    color: '#ffffffff',
-  },
-  logoImage: {
-    width: 150,
-    height: 150,
-    marginBottom: 32,
-    marginTop: -45,
-    resizeMode: 'contain',
-    alignSelf: 'center',
-    borderRadius: 999,
-  },
-  phoneContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    alignItems: 'center',
-  },
-  countryCodeWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    left: 0,
-    zIndex: 1,
-  },
-  flag: {
-    fontSize: 24,
-    marginRight: 4,
-  },
-  countryCodeInput: {
-    width: 60,
-    height: 48,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    fontSize: 18,
-    color: '#000',
-  },
-  phoneInput: {
     flex: 1,
-    height: 48,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 95,
-    marginVertical: 10,
-    fontSize: 18,
+    fontSize: 16,
     color: '#000',
+    paddingVertical: 8,
+  },
+  inputIcon: {
+    marginRight: 12,
+  },
+  countryCodeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    paddingRight: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#e1e1e1',
   },
   callingCode: {
-    marginLeft: 8,
-    fontSize: 18,
+    fontSize: 16,
     color: '#000',
+    marginRight: 4,
+    fontWeight: '500',
   },
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    position: 'relative',
+  phoneInput: {
+    marginLeft: 0,
+    paddingLeft: 0,
   },
   passwordInput: {
-    flex: 1,
-    height: 48,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    marginVertical: 10,
-    fontSize: 18,
-    color: '#000',
+    paddingRight: 40,
   },
   eyeIcon: {
     position: 'absolute',
     right: 16,
+    padding: 4,
+  },
+  button: {
+    width: '100%',
+    height: 56,
+    backgroundColor: '#1b7c22ff',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 20,
+    shadowColor: '#1b7c22',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  buttonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  loginButton: {
+    marginTop: 16,
+    padding: 8,
+  },
+  loginText: {
+    color: '#ffffffff',
+    fontSize: 16,
+    opacity: 0.9,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 20,
+    resizeMode: 'contain',
+    alignSelf: 'center',
   },
 });
 

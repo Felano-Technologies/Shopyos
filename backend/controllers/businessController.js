@@ -1,133 +1,288 @@
+// controllers/businessController.js
 const Business = require('../models/Business');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-// @desc    Register new business
-// @route   POST /api/business/register
-// @access  Public
-const registerBusiness = async (req, res) => {
-  const { businessName, email, password, phone } = req.body;
-
+// @desc    Create a new business
+// @route   POST /api/business/create
+// @access  Private
+const createBusiness = async (req, res) => {
   try {
-    // Check if business exists
-    const businessExists = await Business.findOne({ email });
-    if (businessExists) {
-      return res.status(400).json({ error: 'Business already exists' });
+    const userId = req.user._id;
+    
+    const {
+      businessName,
+      description,
+      category,
+      address,
+      city,
+      country,
+      phone,
+      website,
+      instagram,
+      facebook,
+      logo,
+      coverImage
+    } = req.body;
+
+    // Validate required fields
+    if (!businessName || !description || !category || !address || !city || !country || !phone) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please fill all required fields'
+      });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Check if business name already exists for this user
+    const existingBusiness = await Business.findOne({
+      owner: userId,
+      businessName
+    });
+
+    if (existingBusiness) {
+      return res.status(400).json({
+        success: false,
+        error: 'You already have a business with this name'
+      });
     }
 
     // Create business
     const business = await Business.create({
+      owner: userId,
       businessName,
-      email,
-      password,
+      description,
+      category,
+      address,
+      city,
+      country,
       phone,
+      website: website || '',
+      socialMedia: {
+        instagram: instagram || '',
+        facebook: facebook || ''
+      },
+      logo: logo || '',
+      coverImage: coverImage || '',
+      verificationStatus: 'pending'
     });
 
+    // Populate the created business
+    const populatedBusiness = await Business.findById(business._id)
+      .select('-__v')
+      .populate('owner', 'name email');
 
     res.status(201).json({
-      message: 'Business registered successfully',
+      success: true,
+      message: 'Business created successfully',
+      business: populatedBusiness
     });
+
   } catch (error) {
-    console.error('Business registration error:', error.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// @desc    Authenticate business
-// @route   POST /api/business/login
-// @access  Public
-const loginBusiness = async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    const business = await Business.findOne({ email });
+    console.error('Error creating business:', error);
     
-    if (!business) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        error: 'Business name already exists'
+      });
+    }
+    
+    // Handle validation errors
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: errors.join(', ')
+      });
     }
 
-    // Check password
-    const isMatch = await business.matchPassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-
-    // Generate token (using JWT)
-    const token = generateToken(res, business._id);
-
-    // Return only the token in response
-    res.status(200).json({
-      token,
-      message: 'Login successful'
+    res.status(500).json({
+      success: false,
+      error: 'Server error while creating business'
     });
-    
-  } catch (error) {
-    console.error('Business login error:', error.message);
-    res.status(500).json({ error: 'Server error' });
   }
 };
 
-// @desc    Get business profile
-// @route   GET /api/business/profile
-// @access  Private (Business)
-const getBusinessProfile = async (req, res) => {
+// @desc    Get user's businesses
+// @route   GET /api/business/my-businesses
+// @access  Private
+const getMyBusinesses = async (req, res) => {
   try {
-    const business = await Business.findById(req.user._id).select('-password');
-    
-    if (!business) {
-      return res.status(404).json({ error: 'Business not found' });
-    }
+    const userId = req.user._id;
 
-    res.status(200).json(business);
-  } catch (error) {
-    console.error('Get business profile error:', error.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-};
-
-// @desc    Update business profile
-// @route   PUT /api/business/profile
-// @access  Private (Business)
-const updateBusinessProfile = async (req, res) => {
-  try {
-    const business = await Business.findByIdAndUpdate(
-      req.user._id,
-      req.body,
-      { new: true, runValidators: true }
-    ).select('-password');
+    const businesses = await Business.find({ owner: userId })
+      .select('-__v')
+      .populate('owner', 'name email')
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
-      message: 'Profile updated successfully',
+      success: true,
+      count: businesses.length,
+      businesses
+    });
+
+  } catch (error) {
+    console.error('Error fetching businesses:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while fetching businesses'
+    });
+  }
+};
+
+// @desc    Get business by ID
+// @route   GET /api/business/:id
+// @access  Private
+const getBusinessById = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user._id;
+
+    const business = await Business.findOne({
+      _id: businessId,
+      owner: userId
+    })
+    .select('-__v')
+    .populate('owner', 'name email');
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        error: 'Business not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
       business
     });
+
   } catch (error) {
-    console.error('Update business profile error:', error.message);
-    res.status(500).json({ error: 'Server error' });
+    console.error('Error fetching business:', error);
+    
+    if (error.name === 'CastError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid business ID'
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Server error while fetching business'
+    });
   }
 };
 
+// @desc    Update business
+// @route   PUT /api/business/update/:id
+// @access  Private
+const updateBusiness = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user._id;
+    const updateData = req.body;
 
-// Generate JWT token and set cookie
-const generateToken = (res, userId) => {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
-  });
+    // Find business and verify ownership
+    const business = await Business.findOne({
+      _id: businessId,
+      owner: userId
+    });
 
-  // Set cookie
-  res.cookie('jwt', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development',
-    sameSite: 'strict',
-    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-  });
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        error: 'Business not found'
+      });
+    }
 
-  return token;
+    // Update business
+    const updatedBusiness = await Business.findByIdAndUpdate(
+      businessId,
+      updateData,
+      { 
+        new: true, 
+        runValidators: true 
+      }
+    )
+    .select('-__v')
+    .populate('owner', 'name email');
+
+    res.status(200).json({
+      success: true,
+      message: 'Business updated successfully',
+      business: updatedBusiness
+    });
+
+  } catch (error) {
+    console.error('Error updating business:', error);
+    
+    if (error.name === 'ValidationError') {
+      const errors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        error: errors.join(', ')
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Server error while updating business'
+    });
+  }
+};
+
+// @desc    Delete business
+// @route   DELETE /api/business/:id
+// @access  Private
+const deleteBusiness = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user._id;
+
+    // Find business and verify ownership
+    const business = await Business.findOne({
+      _id: businessId,
+      owner: userId
+    });
+
+    if (!business) {
+      return res.status(404).json({
+        success: false,
+        error: 'Business not found'
+      });
+    }
+
+    // Soft delete (set isActive to false) or hard delete
+    await Business.findByIdAndDelete(businessId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Business deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Error deleting business:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while deleting business'
+    });
+  }
 };
 
 module.exports = {
-  registerBusiness,
-  loginBusiness,
-  getBusinessProfile,
-  updateBusinessProfile
+  createBusiness,
+  getMyBusinesses,
+  getBusinessById,
+  updateBusiness,
+  deleteBusiness
 };

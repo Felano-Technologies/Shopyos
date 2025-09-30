@@ -10,5 +10,6 @@ router.post('/reset-password', authController.resetPassword);
 
 // Protected routes
 router.get('/me', protect, authController.getUserData);
+router.put('/role', protect, authController.updateUserRole);
 
 module.exports = router;

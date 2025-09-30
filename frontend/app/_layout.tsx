@@ -78,10 +78,6 @@ export default function RootLayout() {
       {/* 3) Root container uses a plain View so content can go edge-to-edge */}
       <View style={[styles.container, { backgroundColor: screenBg }]}>
         {/* Only respect top notch/status bar safe area */}
-        <SafeAreaView
-          style={[styles.stackContainer, { backgroundColor: screenBg }]}
-          edges={['top']}
-        >
           <Stack
             screenOptions={{
               headerShown: false,
@@ -91,13 +87,11 @@ export default function RootLayout() {
             <Stack.Screen name="index" options={{ headerShown: false }} />
             <Stack.Screen name="register" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
-            <Stack.Screen name="business/login" options={{ headerShown: false }} />
-            <Stack.Screen name="business/business_index" options={{ headerShown: false }} />
-            <Stack.Screen name="business/register" options={{ headerShown: false }} />
             <Stack.Screen name="business/dashboard" options={{ headerShown: false }} />
             <Stack.Screen name="notification" options={{ headerShown: false }} />
             <Stack.Screen name="userProfile" options={{ headerShown: false }} />
             <Stack.Screen name="home" options={{ headerShown: false }} />
+            <Stack.Screen name="role" options={{ headerShown: false }} />
             <Stack.Screen name="search" options={{ headerShown: false }} />
             <Stack.Screen name="order" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
@@ -120,7 +114,6 @@ export default function RootLayout() {
             <Stack.Screen name="stores" options={{ headerShown: false }} />
             <Stack.Screen name="+not-found" />
           </Stack>
-        </SafeAreaView>
 
         {/* 4) Render BottomNav only on allowed routes */}
         {shouldShowNav && <BottomNav />}

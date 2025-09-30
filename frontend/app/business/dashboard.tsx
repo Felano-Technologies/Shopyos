@@ -1,380 +1,546 @@
-import React, { useEffect, useState } from 'react';
+// app/business/setup.tsx
+import React, { useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  ActivityIndicator,
+  TextInput,
   TouchableOpacity,
-  Alert,
+  StyleSheet,
   ScrollView,
-  Animated,
+  Alert,
+  ActivityIndicator,
+  Image,
+  Platform
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import { router } from 'expo-router';
-import { api } from '@/services/api';
-import { Ionicons } from '@expo/vector-icons';
-import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import BusinessBottomNav from '../../components/BusinessBottomNav';
+import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
+import { api, businessRegister } from '@/services/api';
+import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 
-const screenWidth = Dimensions.get('window').width;
+const BusinessSetupScreen = () => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    businessName: '',
+    description: '',
+    category: '',
+    address: '',
+    city: '',
+    country: '',
+    phone: '',
+    website: '',
+    instagram: '',
+    facebook: ''
+  });
+  const [logo, setLogo] = useState<string | null>(null);
+  const [coverImage, setCoverImage] = useState<string | null>(null);
 
-const Dashboard = () => {
-  const [loading, setLoading] = useState(true);
-  const [businessData, setBusinessData] = useState<any>(null);
-  const [verificationStatus, setVerificationStatus] = useState<'pending' | 'verified' | 'rejected'>('pending');
-  const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
-  const scaleAnim = useState(new Animated.Value(1))[0];
+  const { uploadImage, loading: uploadLoading, error: uploadError } = useCloudinaryUpload();
 
-  const fetchBusinessData = async () => {
+  const categories = [
+    'Fashion & Apparel',
+    'Electronics',
+    'Home & Living',
+    'Art & Crafts',
+    'Beauty & Personal Care',
+    'Food & Beverages',
+    'Jewelry & Accessories',
+    'Sports & Outdoors',
+    'Other'
+  ];
+
+  const pickImage = async (type: 'logo' | 'cover') => {
     try {
-      const token = await SecureStore.getItemAsync('businessToken');
-      if (!token) {
-        Alert.alert('Login Required', 'Please login to access your dashboard');
-        router.replace('/business/login');
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload images.');
         return;
       }
 
-      const res = await api.get('/business/me', {
-        headers: { Authorization: `Bearer ${token}` },
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: type === 'logo' ? [1, 1] : [16, 9],
+        quality: 0.8,
       });
 
-      setBusinessData(res.data);
-      setVerificationStatus(res.data.isVerified ? 'verified' : 'pending');
-      if (res.data.verificationStatus === 'rejected') {
-        setVerificationStatus('rejected');
+      if (!result.canceled) {
+        if (type === 'logo') {
+          setLogo(result.assets[0].uri);
+        } else {
+          setCoverImage(result.assets[0].uri);
+        }
       }
     } catch (error) {
-      console.error('Error fetching business data:', error);
-      Alert.alert('Error', 'Unable to load business info.');
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.businessName.trim()) {
+      Alert.alert('Validation Error', 'Business name is required');
+      return false;
+    }
+    if (!formData.description.trim()) {
+      Alert.alert('Validation Error', 'Business description is required');
+      return false;
+    }
+    if (!formData.category) {
+      Alert.alert('Validation Error', 'Please select a business category');
+      return false;
+    }
+    if (!formData.address.trim()) {
+      Alert.alert('Validation Error', 'Business address is required');
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      Alert.alert('Validation Error', 'Business phone number is required');
+      return false;
+    }
+    return true;
+  };
+
+  const handleCreateBusiness = async () => {
+    if (!validateForm()) return;
+
+    setLoading(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) {
+        Alert.alert('Error', 'Authentication required');
+        router.replace('/login');
+        return;
+      }
+
+
+     // UPLOAD IMAGES TO CLOUDINARY
+     let logoUrl = '';
+     let coverImageUrl = '';
+
+     if (logo) {
+       const logoResult = await uploadImage(logo, 'business_image');
+       if (logoResult) {
+         logoUrl = logoResult.url;
+         console.log('Logo uploaded:', logoUrl);
+       } else {
+         throw new Error(uploadError || 'Failed to upload logo');
+       }
+     }
+
+     if (coverImage) {
+       const coverResult = await uploadImage(coverImage, 'business_image');
+       console.log(coverResult)
+       if (coverResult) {
+         console.log('Cover image uploaded:', coverImageUrl);
+       } else {
+         throw new Error(uploadError || 'Failed to upload cover image');
+       }
+     }
+
+     const submitData = {
+      ...formData,
+      logo: logoUrl,
+      coverImage: coverImageUrl,
+    };
+
+
+
+      const response = await businessRegister(submitData);
+
+      if (response.success) {
+
+        
+        Alert.alert(
+          'Success!',
+          'Your business has been created successfully!',
+          [{ text: 'Continue', onPress: () => router.replace('/business/dashboard') }]
+        );
+      }
+    } catch (error: any) {
+      console.error('Error creating business:', error);
+      Alert.alert(
+        'Creation Failed',
+        error.response?.data?.error || 'Failed to create business. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const animateCard = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 0.97,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  };
-
-  const chartDataSets = {
-    weekly: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{ data: [12, 19, 14, 23, 17, 21, 15] }],
-    },
-    monthly: {
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-      datasets: [{ data: [60, 90, 75, 110] }],
-    },
-    yearly: {
-      labels: ['Jan', 'Apr', 'Jul', 'Oct'],
-      datasets: [{ data: [250, 400, 320, 500] }],
-    },
-  };
-
-  useEffect(() => {
-    fetchBusinessData();
-  }, []);
-
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
-    );
-  }
-
   return (
-    <LinearGradient colors={["#e0f2fe", "#f8fafc"]} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerRow}>
-          <Text style={styles.title}>Welcome, {businessData?.businessName}!</Text>
-          <TouchableOpacity onPress={() => router.push('/business/settings')}>
-            {businessData?.logo ? (
-              <Image
-                source={{ uri: businessData.logo }}
-                style={styles.avatar}
+    <LinearGradient
+      colors={['#FDFBFB', '#EBEDEE']}
+      style={styles.gradient}
+    >
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Header */}
+          <View style={styles.header}>
+            {/* <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#333" />
+            </TouchableOpacity> */}
+            <Text style={styles.title}>Setup Your Business</Text>
+            <Text style={styles.subtitle}>Create your first business profile to get started</Text>
+          </View>
+
+          {/* Business Images */}
+          <View style={styles.imageSection}>
+            <Text style={styles.sectionTitle}>Business Images</Text>
+            
+            {/* Cover Image */}
+            <TouchableOpacity 
+              style={styles.coverImageContainer}
+              onPress={() => pickImage('cover')}
+            >
+              {coverImage ? (
+                <Image source={{ uri: coverImage }} style={styles.coverImage} />
+              ) : (
+                <View style={styles.coverImagePlaceholder}>
+                  <Ionicons name="camera-outline" size={32} color="#666" />
+                  <Text style={styles.imagePlaceholderText}>Add Cover Image</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Logo */}
+            <View style={styles.logoSection}>
+              <Text style={styles.logoLabel}>Business Logo</Text>
+              <TouchableOpacity 
+                style={styles.logoContainer}
+                onPress={() => pickImage('logo')}
+              >
+                {logo ? (
+                  <Image source={{ uri: logo }} style={styles.logoImage} />
+                ) : (
+                  <View style={styles.logoPlaceholder}>
+                    <Ionicons name="business-outline" size={24} color="#666" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Business Information */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Business Information</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Business Name *"
+              placeholderTextColor="#999"
+              value={formData.businessName}
+              onChangeText={(text) => handleInputChange('businessName', text)}
+            />
+
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Business Description *"
+              placeholderTextColor="#999"
+              multiline
+              numberOfLines={4}
+              value={formData.description}
+              onChangeText={(text) => handleInputChange('description', text)}
+            />
+
+            <View style={styles.categoryContainer}>
+              <Text style={styles.categoryLabel}>Business Category *</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
+                {categories.map((category) => (
+                  <TouchableOpacity
+                    key={category}
+                    style={[
+                      styles.categoryChip,
+                      formData.category === category && styles.categoryChipSelected
+                    ]}
+                    onPress={() => handleInputChange('category', category)}
+                  >
+                    <Text style={[
+                      styles.categoryText,
+                      formData.category === category && styles.categoryTextSelected
+                    ]}>
+                      {category}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Business Address *"
+              placeholderTextColor="#999"
+              value={formData.address}
+              onChangeText={(text) => handleInputChange('address', text)}
+            />
+
+            <View style={styles.row}>
+              <TextInput
+                style={[styles.input, styles.halfInput]}
+                placeholder="City *"
+                placeholderTextColor="#999"
+                value={formData.city}
+                onChangeText={(text) => handleInputChange('city', text)}
               />
+              <TextInput
+                style={[styles.input, styles.halfInput]}
+                placeholder="Country *"
+                placeholderTextColor="#999"
+                value={formData.country}
+                onChangeText={(text) => handleInputChange('country', text)}
+              />
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Business Phone *"
+              placeholderTextColor="#999"
+              keyboardType="phone-pad"
+              value={formData.phone}
+              onChangeText={(text) => handleInputChange('phone', text)}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Website (Optional)"
+              placeholderTextColor="#999"
+              keyboardType="url"
+              value={formData.website}
+              onChangeText={(text) => handleInputChange('website', text)}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Instagram (Optional)"
+              placeholderTextColor="#999"
+              value={formData.instagram}
+              onChangeText={(text) => handleInputChange('instagram', text)}
+            />
+
+            <TextInput
+              style={styles.input}
+              placeholder="Facebook (Optional)"
+              placeholderTextColor="#999"
+              value={formData.facebook}
+              onChangeText={(text) => handleInputChange('facebook', text)}
+            />
+          </View>
+
+          {/* Submit Button */}
+          <TouchableOpacity
+            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+            onPress={handleCreateBusiness}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="#FFF" />
             ) : (
-              <Ionicons name="person-circle-outline" size={36} color="#444" />
+              <>
+                <Text style={styles.submitButtonText}>Create Business</Text>
+                <Ionicons name="rocket-outline" size={20} color="#FFF" />
+              </>
             )}
           </TouchableOpacity>
-        </View>
 
-        <Text style={styles.subtitle}>Business Dashboard</Text>
-
-        {verificationStatus === 'pending' && (
-          <View style={styles.noticeCard}>
-            <Text style={styles.warningText}>Verification Pending</Text>
-            <Text style={styles.subText}>
-              Your business profile is under review. This typically takes 1–2 business days.
-            </Text>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => router.push('/business/verification')}
-            >
-              <Text style={styles.buttonText}>Complete Profile</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {verificationStatus === 'rejected' && (
-          <View style={styles.noticeCard}>
-            <Text style={styles.errorText}>Verification Rejected</Text>
-            <Text style={styles.subText}>
-              {businessData?.rejectionReason || 'Please update your information and resubmit.'}
-            </Text>
-            <TouchableOpacity
-              style={styles.button}
-              onPress={() => router.push('/business/verification')}
-            >
-              <Text style={styles.buttonText}>Resubmit Verification</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        <View style={styles.cardRow}>
-          <View style={{ flex: 1 }}>
-            <TouchableOpacity onPress={() => { animateCard(); router.push('/business/products'); }} activeOpacity={0.85}>
-              <Animated.View style={[styles.metricCard, { backgroundColor: '#DBEAFE', transform: [{ scale: scaleAnim }] }]}>
-                <Ionicons name="cube-outline" size={24} color="#2563EB" />
-                <Text style={styles.metricTitle}>Manage Products</Text>
-                <Text style={styles.metricValue}>12</Text>
-                <View style={styles.badge}><Text style={styles.badgeText}>New</Text></View>
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <TouchableOpacity onPress={() => { animateCard(); router.push('/business/orders'); }} activeOpacity={0.85}>
-              <Animated.View style={[styles.metricCard, { backgroundColor: '#FEF9C3', transform: [{ scale: scaleAnim }] }]}>
-                <Ionicons name="receipt-outline" size={24} color="#D97706" />
-                <Text style={styles.metricTitle}>Orders</Text>
-                <Text style={styles.metricValue}>48</Text>
-                <View style={styles.badge}><Text style={styles.badgeText}>+15%</Text></View>
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.cardRow}>
-          <View style={{ flex: 1 }}>
-            <TouchableOpacity onPress={() => { animateCard(); router.push('/business/earnings'); }} activeOpacity={0.85}>
-              <Animated.View style={[styles.metricCard, { backgroundColor: '#DCFCE7', transform: [{ scale: scaleAnim }] }]}>
-                <Ionicons name="cash-outline" size={24} color="#10B981" />
-                <Text style={styles.metricTitle}>Earnings</Text>
-                <Text style={styles.metricValue}>₵3,520</Text>
-                <View style={styles.badge}><Text style={styles.badgeText}>↑12%</Text></View>
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <TouchableOpacity onPress={() => { animateCard(); router.push('/business/reviews'); }} activeOpacity={0.85}>
-              <Animated.View style={[styles.metricCard, { backgroundColor: '#FDE68A', transform: [{ scale: scaleAnim }] }]}>
-                <Ionicons name="star-outline" size={24} color="#FBBF24" />
-                <Text style={styles.metricTitle}>Reviews</Text>
-                <Text style={styles.metricValue}>4.8⭐</Text>
-                <View style={styles.badge}><Text style={styles.badgeText}>Top</Text></View>
-              </Animated.View>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.statusText}>
-            Your business is {verificationStatus === 'verified' ? 'fully verified!' : 'awaiting verification.'}
+          <Text style={styles.footerText}>
+            You can create multiple businesses later from your profile
           </Text>
-        </View>
-
-        <View style={styles.tabRow}>
-          {['weekly', 'monthly', 'yearly'].map((range) => (
-            <TouchableOpacity key={range} style={[styles.tabButton, timeframe === range && styles.tabButtonActive]} onPress={() => setTimeframe(range)}>
-              <Text style={[styles.tabText, timeframe === range && styles.tabTextActive]}>{range.toUpperCase()}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <LineChart
-          data={chartDataSets[timeframe]}
-          width={screenWidth - 48}
-          height={250}
-          chartConfig={{
-            backgroundGradientFrom: '#ffffff',
-            backgroundGradientTo: '#f0f4f8',
-            decimalPlaces: 0,
-            color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-            labelColor: (opacity = 1) => `rgba(107, 114, 128, ${opacity})`,
-            style: { borderRadius: 16 },
-            propsForDots: {
-              r: '6',
-              strokeWidth: '2',
-              stroke: '#3B82F6',
-            },
-          }}
-          bezier
-          style={{ borderRadius: 16, marginTop: 16 }}
-        />
-
-        <View style={{ marginTop: 12 }}>
-          <Text style={{ fontSize: 14, color: '#4B5563' }}>
-            📊 Chart shows total orders per selected timeframe. Tap tabs to switch between weekly, monthly, and yearly views.
-          </Text>
-        </View>
         </ScrollView>
-      <BusinessBottomNav/>
+      </SafeAreaView>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  centered: {
+  gradient: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  container: {
+  safeArea: {
+    flex: 1,
+  },
+  scrollContent: {
     flexGrow: 1,
-    padding: 24,
-    backgroundColor: '#F5F5F5',
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 30,
+    marginTop: 20,
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
   },
   title: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 4,
+    color: '#333',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
     color: '#666',
-    marginBottom: 24,
+    textAlign: 'center',
   },
-  warningText: {
+  imageSection: {
+    marginBottom: 30,
+  },
+  sectionTitle: {
     fontSize: 18,
-    color: '#FFA000',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  errorText: {
-    fontSize: 18,
-    color: '#B00020',
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subText: {
-    fontSize: 14,
-    marginBottom: 16,
-    color: '#555',
-  },
-  button: {
-    backgroundColor: '#61A0AF',
-    padding: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  card: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 8,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+    fontWeight: '600',
+    color: '#333',
     marginBottom: 16,
   },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+  coverImageContainer: {
+    height: 150,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 20,
+    backgroundColor: '#F5F5F5',
   },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#ccc',
+  coverImage: {
+    width: '100%',
+    height: '100%',
   },
-
-  metricCard: {
+  coverImagePlaceholder: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+  },
+  logoSection: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  metricTitle: {
-    fontSize: 14,
-    color: '#888',
-    marginBottom: 4,
-  },
-  metricValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  logoLabel: {
+    flex: 1,
+    fontSize: 16,
     color: '#333',
   },
-  noticeCard: {
+  logoContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    overflow: 'hidden',
+    backgroundColor: '#F5F5F5',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  logoPlaceholder: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#E5E5E5',
+    borderStyle: 'dashed',
+    borderRadius: 40,
+  },
+  imagePlaceholderText: {
+    marginTop: 8,
+    color: '#666',
+    fontSize: 14,
+  },
+  formSection: {
+    marginBottom: 30,
+  },
+  input: {
     backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 10,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    fontSize: 16,
+    marginBottom: 16,
+    color: '#333',
   },
-    tabRow: {
-        flexDirection: 'row', justifyContent: 'space-around', marginTop: 24 },
-    tabButton: {
-        paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, backgroundColor: '#E5E7EB' },
-    tabButtonActive: {
-        backgroundColor: '#2563EB' },
-    tabText: {
-        fontSize: 13, color: '#374151' },
-    tabTextActive: {
-        color: '#ffffff', fontWeight: '600' },
-  badge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#2563EB',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
   },
-  badgeText: {
-    color: 'white',
-    fontSize: 10,
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  halfInput: {
+    width: '48%',
+  },
+  categoryContainer: {
+    marginBottom: 16,
+  },
+  categoryLabel: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 8,
+  },
+  categoriesScroll: {
+    marginBottom: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F5F5F5',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  categoryChipSelected: {
+    backgroundColor: '#4F46E5',
+    borderColor: '#4F46E5',
+  },
+  categoryText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  categoryTextSelected: {
+    color: '#FFF',
     fontWeight: '600',
+  },
+  submitButton: {
+    backgroundColor: '#4F46E5',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  submitButtonDisabled: {
+    opacity: 0.6,
+  },
+  submitButtonText: {
+    color: '#FFF',
+    fontSize: 18,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  footerText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 14,
   },
 });
 
-export default Dashboard;
+export default BusinessSetupScreen;

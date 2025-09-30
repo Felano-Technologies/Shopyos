@@ -1,15 +1,20 @@
+// routes/businessRoutes.js
 const express = require('express');
 const router = express.Router();
-const businessController = require('../controllers/businessController');
 const { protect } = require('../middleware/authMiddleware');
+const {
+  createBusiness,
+  getMyBusinesses,
+  getBusinessById,
+  updateBusiness,
+  deleteBusiness
+} = require('../controllers/businessController');
 
-// Public routes
-router.post('/register', businessController.registerBusiness);
-router.post('/login', businessController.loginBusiness);
-
-// Protected routes
-router.route('/profile')
-  .get(protect, businessController.getBusinessProfile)
-  .put(protect, businessController.updateBusinessProfile);
+// Business routes
+router.post('/create', protect, createBusiness);
+router.get('/my-businesses', protect, getMyBusinesses);
+router.get('/:id', protect, getBusinessById);
+router.put('/update/:id', protect, updateBusiness);
+router.delete('/:id', protect, deleteBusiness);
 
 module.exports = router;

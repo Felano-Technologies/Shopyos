@@ -71,6 +71,7 @@ const login = async (req, res) => {
 
     res.status(200).json({
       token,
+      role: user.role,
       message: 'Login successful'
     });
   } catch (err) {
@@ -159,9 +160,65 @@ const generateToken = (res, userId) => {
   return token;
 };
 
+
+
+// @desc    Update user role
+// @route   PUT /api/auth/update-role
+// @access  Private
+const updateUserRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    const userId = req.user._id; // From auth middleware
+
+    // Validate role input
+    if (!role) {
+      return res.status(400).json({
+        success: false,
+        error: 'Role is required'
+      });
+    }
+
+    // Validate role value
+    const validRoles = ['customer', 'seller', 'driver', 'none'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be one of: customer, seller, driver, none'
+      });
+    }
+
+    // Find user and update role
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { role },
+      { new: true, runValidators: true }
+    ).select('-password'); // Exclude password from response
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Role updated successfully',
+    });
+
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while updating role'
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   resetPassword,
-  getUserData
+  getUserData,
+  updateUserRole
 };
