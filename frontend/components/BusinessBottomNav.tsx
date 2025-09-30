@@ -1,32 +1,64 @@
+// components/BusinessBottomNav.tsx
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, usePathname } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 
 const BusinessBottomNav = () => {
-  const router = useRouter();
   const pathname = usePathname();
 
   const navItems = [
-    { label: 'Dashboard', icon: 'home-outline', route: '/business/dashboard' },
-    { label: 'Products', icon: 'cube-outline', route: '/business/products' },
-    { label: 'Orders', icon: 'receipt-outline', route: '/business/orders' },
-    { label: 'Earnings', icon: 'cash-outline', route: '/business/earnings' },
-    { label: 'Reviews', icon: 'star-outline', route: '/business/reviews' },
+    {
+      name: 'Dashboard',
+      icon: 'grid',
+      route: '/business/dashboard',
+    },
+    {
+      name: 'Products',
+      icon: 'cube',
+      route: '/business/products',
+    },
+    {
+      name: 'Orders',
+      icon: 'cart',
+      route: '/business/orders',
+    },
+    {
+      name: 'Analytics',
+      icon: 'bar-chart',
+      route: '/business/analytics',
+    },
+    {
+      name: 'Profile',
+      icon: 'person',
+      route: '/business/profile',
+    },
   ];
 
   return (
     <View style={styles.container}>
-      {navItems.map(({ label, icon, route }) => {
-        const isActive = pathname === route;
+      {navItems.map((item) => {
+        const isActive = pathname === item.route;
+        
         return (
           <TouchableOpacity
-            key={route}
-            onPress={() => router.push(route)}
+            key={item.name}
             style={styles.navItem}
+            onPress={() => router.push(item.route as any)}
           >
-            <Ionicons name={icon} size={22} color={isActive ? '#2563EB' : '#94A3B8'} />
-            <Text style={[styles.label, isActive && styles.activeLabel]}>{label}</Text>
+            <Ionicons
+              name={item.icon as any}
+              size={22}
+              color={isActive ? '#4F46E5' : '#6B7280'}
+            />
+            <Text
+              style={[
+                styles.navText,
+                { color: isActive ? '#4F46E5' : '#6B7280' },
+              ]}
+            >
+              {item.name}
+            </Text>
           </TouchableOpacity>
         );
       })}
@@ -37,23 +69,25 @@ const BusinessBottomNav = () => {
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
+    backgroundColor: '#FFF',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     borderTopWidth: 1,
-    borderColor: '#E5E7EB',
+    borderTopColor: '#E5E7EB',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   navItem: {
+    flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  label: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  activeLabel: {
-    color: '#2563EB',
-    fontWeight: '600',
+  navText: {
+    fontSize: 10,
+    marginTop: 4,
+    fontWeight: '500',
   },
 });
 

@@ -117,9 +117,6 @@ export const updateUserRole = async (role: string) => {
   }
 }
 
-// Add to your existing api.tsx file
-
-// Business Registration
 export const businessRegister = async (businessData: {
   businessName: string;
   description: string;
@@ -135,16 +132,7 @@ export const businessRegister = async (businessData: {
   coverImage?: string;
 }) => {
   try {
-    const token = await SecureStore.getItemAsync('userToken');
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await api.post('/business/create', businessData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const response = await api.post('/business/create', businessData);
 
     // If successful, store business token and ID
     if (response.data.token) {
@@ -169,17 +157,7 @@ export const businessRegister = async (businessData: {
 // Get user's businesses
 export const getMyBusinesses = async () => {
   try {
-    const token = await SecureStore.getItemAsync('userToken');
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await api.get('/business/my-businesses', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
+    const response = await api.get('/business/my-businesses');
     return response.data;
   } catch (error: any) {
     if (error.response) {
@@ -195,16 +173,7 @@ export const getMyBusinesses = async () => {
 // Switch between businesses
 export const switchBusiness = async (businessId: string) => {
   try {
-    const token = await SecureStore.getItemAsync('userToken');
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await api.post('/business/switch', { businessId }, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
+    const response = await api.post('/business/switch', { businessId });
 
     // Store the new business token and ID
     if (response.data.token) {
@@ -227,17 +196,7 @@ export const switchBusiness = async (businessId: string) => {
 // Update business profile
 export const updateBusiness = async (businessId: string, updateData: any) => {
   try {
-    const token = await SecureStore.getItemAsync('userToken');
-    if (!token) {
-      throw new Error('Authentication required');
-    }
-
-    const response = await api.put(`/business/update/${businessId}`, updateData, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
+    const response = await api.put(`/business/update/${businessId}`, updateData);
     return response.data;
   } catch (error: any) {
     if (error.response) {
@@ -253,17 +212,7 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
 // Get business dashboard data
 export const getBusinessDashboard = async (businessId: string) => {
   try {
-    const token = await SecureStore.getItemAsync('businessToken');
-    if (!token) {
-      throw new Error('Business authentication required');
-    }
-
-    const response = await api.get(`/business/dashboard/${businessId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
+    const response = await api.get(`/business/dashboard/${businessId}`);
     return response.data;
   } catch (error: any) {
     if (error.response) {
@@ -273,5 +222,30 @@ export const getBusinessDashboard = async (businessId: string) => {
       console.error('Error fetching dashboard:', error.message);
       throw error;
     }
+  }
+};
+
+// Also update the loginBusiness function
+export const loginBusiness = async (email: string, password: string, latitude: number, longitude: number) => {
+  try {
+    const response = await api.post('/business/login', { email, password, latitude, longitude });
+    
+    // Store tokens and business data
+    if (response.data.token) {
+      await SecureStore.setItemAsync('businessToken', response.data.token);
+    }
+    if (response.data.business) {
+      await SecureStore.setItemAsync('currentBusinessId', response.data.business._id);
+      await SecureStore.setItemAsync('userRole', 'seller');
+    }
+    
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      console.error('Server Error:', error.response.data);
+    } else {
+      console.error('Error logging in business:', error.message);
+    }
+    throw error;
   }
 };

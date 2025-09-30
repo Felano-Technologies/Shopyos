@@ -1,546 +1,782 @@
-// app/business/setup.tsx
-import React, { useState } from 'react';
+// app/business/dashboard.tsx
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
-  TextInput,
-  TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  Alert,
   ActivityIndicator,
-  Image,
-  Platform
+  TouchableOpacity,
+  Alert,
+  ScrollView,
+  Animated,
+  Image
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
-import { api, businessRegister } from '@/services/api';
-import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
+import { router } from 'expo-router';
+import { getMyBusinesses } from '@/services/api';
+import { Ionicons } from '@expo/vector-icons';
+import { LineChart } from 'react-native-chart-kit';
+import { Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import BusinessBottomNav from '@/components/BusinessBottomNav';
 
-const BusinessSetupScreen = () => {
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    businessName: '',
-    description: '',
-    category: '',
-    address: '',
-    city: '',
-    country: '',
-    phone: '',
-    website: '',
-    instagram: '',
-    facebook: ''
-  });
-  const [logo, setLogo] = useState<string | null>(null);
-  const [coverImage, setCoverImage] = useState<string | null>(null);
+const screenWidth = Dimensions.get('window').width;
 
-  const { uploadImage, loading: uploadLoading, error: uploadError } = useCloudinaryUpload();
+interface Business {
+  _id: string;
+  businessName: string;
+  description: string;
+  category: string;
+  address: string;
+  city: string;
+  country: string;
+  phone: string;
+  website: string;
+  logo: string;
+  coverImage: string;
+  verificationStatus: 'pending' | 'verified' | 'rejected';
+  totalProducts: number;
+  totalOrders: number;
+  totalReviews: number;
+  rating: number;
+  createdAt: string;
+  updatedAt: string;
+  owner: any;
+  socialMedia: any;
+  isActive: boolean;
+  rejectionReason: string;
+}
 
-  const categories = [
-    'Fashion & Apparel',
-    'Electronics',
-    'Home & Living',
-    'Art & Crafts',
-    'Beauty & Personal Care',
-    'Food & Beverages',
-    'Jewelry & Accessories',
-    'Sports & Outdoors',
-    'Other'
-  ];
+interface BusinessStats {
+  totalProducts: number;
+  totalOrders: number;
+  totalEarnings: number;
+  pendingOrders: number;
+  averageRating: number;
+}
 
-  const pickImage = async (type: 'logo' | 'cover') => {
+const BusinessDashboard = () => {
+  const [loading, setLoading] = useState(true);
+  const [businesses, setBusinesses] = useState<Business[]>([]);
+  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
+  const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
+  const scaleAnim = new Animated.Value(1);
+
+  const fetchDashboardData = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      const data = await getMyBusinesses();
+      console.log('Business data:', data);
       
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload images.');
+      if (!data.success || !data.businesses || data.businesses.length === 0) {
+        Alert.alert('No Business Found', 'Please create a business first', [
+          { text: 'Create Business', onPress: () => router.replace('/business/setup') }
+        ]);
         return;
       }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: type === 'logo' ? [1, 1] : [16, 9],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        if (type === 'logo') {
-          setLogo(result.assets[0].uri);
-        } else {
-          setCoverImage(result.assets[0].uri);
-        }
+      setBusinesses(data.businesses);
+      // Select the first business by default
+      setSelectedBusiness(data.businesses[0]);
+      
+      // Store the first business ID for future use
+      if (data.businesses[0]._id) {
+        await SecureStore.setItemAsync('currentBusinessId', data.businesses[0]._id);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to pick image');
-    }
-  };
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const validateForm = () => {
-    if (!formData.businessName.trim()) {
-      Alert.alert('Validation Error', 'Business name is required');
-      return false;
-    }
-    if (!formData.description.trim()) {
-      Alert.alert('Validation Error', 'Business description is required');
-      return false;
-    }
-    if (!formData.category) {
-      Alert.alert('Validation Error', 'Please select a business category');
-      return false;
-    }
-    if (!formData.address.trim()) {
-      Alert.alert('Validation Error', 'Business address is required');
-      return false;
-    }
-    if (!formData.phone.trim()) {
-      Alert.alert('Validation Error', 'Business phone number is required');
-      return false;
-    }
-    return true;
-  };
-
-  const handleCreateBusiness = async () => {
-    if (!validateForm()) return;
-
-    setLoading(true);
-    try {
-      const token = await SecureStore.getItemAsync('userToken');
-      if (!token) {
-        Alert.alert('Error', 'Authentication required');
-        router.replace('/login');
-        return;
-      }
-
-
-     // UPLOAD IMAGES TO CLOUDINARY
-     let logoUrl = '';
-     let coverImageUrl = '';
-
-     if (logo) {
-       const logoResult = await uploadImage(logo, 'business_image');
-       if (logoResult) {
-         logoUrl = logoResult.url;
-         console.log('Logo uploaded:', logoUrl);
-       } else {
-         throw new Error(uploadError || 'Failed to upload logo');
-       }
-     }
-
-     if (coverImage) {
-       const coverResult = await uploadImage(coverImage, 'business_image');
-       console.log(coverResult)
-       if (coverResult) {
-         console.log('Cover image uploaded:', coverImageUrl);
-       } else {
-         throw new Error(uploadError || 'Failed to upload cover image');
-       }
-     }
-
-     const submitData = {
-      ...formData,
-      logo: logoUrl,
-      coverImage: coverImageUrl,
-    };
-
-
-
-      const response = await businessRegister(submitData);
-
-      if (response.success) {
-
-        
-        Alert.alert(
-          'Success!',
-          'Your business has been created successfully!',
-          [{ text: 'Continue', onPress: () => router.replace('/business/dashboard') }]
-        );
-      }
-    } catch (error: any) {
-      console.error('Error creating business:', error);
-      Alert.alert(
-        'Creation Failed',
-        error.response?.data?.error || 'Failed to create business. Please try again.'
-      );
+      console.error('Error fetching dashboard data:', error);
+      Alert.alert('Error', 'Unable to load dashboard data.');
     } finally {
       setLoading(false);
     }
   };
 
+  const animateCard = () => {
+    Animated.sequence([
+      Animated.timing(scaleAnim, {
+        toValue: 0.97,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 3,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const chartDataSets = {
+    weekly: {
+      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      datasets: [{ data: [12, 19, 14, 23, 17, 21, 15] }],
+    },
+    monthly: {
+      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+      datasets: [{ data: [60, 90, 75, 110] }],
+    },
+    yearly: {
+      labels: ['Jan', 'Apr', 'Jul', 'Oct'],
+      datasets: [{ data: [250, 400, 320, 500] }],
+    },
+  };
+
+  // Mock stats based on business data
+  const getBusinessStats = (business: Business): BusinessStats => ({
+    totalProducts: business.totalProducts || 0,
+    totalOrders: business.totalOrders || 0,
+    totalEarnings: (business.totalOrders || 0) * 150, // Mock calculation
+    pendingOrders: Math.floor((business.totalOrders || 0) * 0.2), // Mock 20% pending
+    averageRating: business.rating || 0,
+  });
+
+  // Mock recent orders
+  const recentOrders = [
+    {
+      _id: '1',
+      orderNumber: 'ORD-001',
+      totalAmount: 150,
+      status: 'completed',
+      createdAt: new Date(),
+    },
+    {
+      _id: '2',
+      orderNumber: 'ORD-002',
+      totalAmount: 200,
+      status: 'pending',
+      createdAt: new Date(),
+    },
+  ];
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#4F46E5" />
+        <Text style={styles.loadingText}>Loading your dashboard...</Text>
+      </View>
+    );
+  }
+
+  if (!selectedBusiness || businesses.length === 0) {
+    return (
+      <View style={styles.centered}>
+        <Ionicons name="business-outline" size={64} color="#9CA3AF" />
+        <Text style={styles.errorText}>No Business Found</Text>
+        <Text style={styles.errorSubtext}>You need to create a business to access the dashboard</Text>
+        <TouchableOpacity 
+          style={styles.createBusinessButton} 
+          onPress={() => router.replace('/business/setup')}
+        >
+          <Text style={styles.createBusinessButtonText}>Create Your First Business</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const stats = getBusinessStats(selectedBusiness);
+
   return (
-    <LinearGradient
-      colors={['#FDFBFB', '#EBEDEE']}
-      style={styles.gradient}
-    >
-      <StatusBar style="dark" translucent backgroundColor="transparent" />
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            {/* <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-              <Ionicons name="arrow-back" size={24} color="#333" />
-            </TouchableOpacity> */}
-            <Text style={styles.title}>Setup Your Business</Text>
-            <Text style={styles.subtitle}>Create your first business profile to get started</Text>
+    <LinearGradient colors={["#f0f9ff", "#e0f2fe"]} style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Header Section */}
+        <View style={styles.header}>
+          <View style={styles.businessInfo}>
+            {selectedBusiness.logo ? (
+              <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
+            ) : (
+              <View style={styles.businessLogoPlaceholder}>
+                <Ionicons name="business" size={24} color="#4F46E5" />
+              </View>
+            )}
+            <View style={styles.businessText}>
+              <Text style={styles.businessName}>{selectedBusiness.businessName}</Text>
+              <Text style={styles.businessCategory}>{selectedBusiness.category}</Text>
+              <View style={styles.verificationBadge}>
+                <Ionicons 
+                  name={selectedBusiness.verificationStatus === 'verified' ? 'shield-checkmark' : 'time'} 
+                  size={14} 
+                  color={selectedBusiness.verificationStatus === 'verified' ? '#10B981' : '#F59E0B'} 
+                />
+                <Text style={[
+                  styles.verificationText,
+                  { color: selectedBusiness.verificationStatus === 'verified' ? '#10B981' : '#F59E0B' }
+                ]}>
+                  {selectedBusiness.verificationStatus === 'verified' ? 'Verified' : 'Pending Verification'}
+                </Text>
+              </View>
+            </View>
+          </View>
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => router.push('/business/settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color="#4B5563" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Business Selector (if multiple businesses) */}
+        {businesses.length > 1 && (
+          <View style={styles.businessSelector}>
+            <Text style={styles.selectorLabel}>Active Business:</Text>
+            <TouchableOpacity style={styles.selectorButton}>
+              <Text style={styles.selectorText}>{selectedBusiness.businessName}</Text>
+              <Ionicons name="chevron-down" size={16} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Stats Overview */}
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
+              <Ionicons name="cube-outline" size={20} color="#2563EB" />
+            </View>
+            <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+            <Text style={styles.statLabel}>Products</Text>
           </View>
 
-          {/* Business Images */}
-          <View style={styles.imageSection}>
-            <Text style={styles.sectionTitle}>Business Images</Text>
-            
-            {/* Cover Image */}
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="cart-outline" size={20} color="#D97706" />
+            </View>
+            <Text style={styles.statNumber}>{stats.totalOrders}</Text>
+            <Text style={styles.statLabel}>Total Orders</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#D1FAE5' }]}>
+              <Ionicons name="cash-outline" size={20} color="#059669" />
+            </View>
+            <Text style={styles.statNumber}>₵{stats.totalEarnings?.toLocaleString()}</Text>
+            <Text style={styles.statLabel}>Earnings</Text>
+          </View>
+
+          <View style={styles.statCard}>
+            <View style={[styles.statIcon, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="time-outline" size={20} color="#DC2626" />
+            </View>
+            <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.actionsGrid}>
             <TouchableOpacity 
-              style={styles.coverImageContainer}
-              onPress={() => pickImage('cover')}
+              style={styles.actionCard}
+              onPress={() => router.push('/business/products')}
             >
-              {coverImage ? (
-                <Image source={{ uri: coverImage }} style={styles.coverImage} />
-              ) : (
-                <View style={styles.coverImagePlaceholder}>
-                  <Ionicons name="camera-outline" size={32} color="#666" />
-                  <Text style={styles.imagePlaceholderText}>Add Cover Image</Text>
-                </View>
-              )}
+              <View style={[styles.actionIcon, { backgroundColor: '#4F46E5' }]}>
+                <Ionicons name="add-circle" size={24} color="#FFF" />
+              </View>
+              <Text style={styles.actionText}>Add Product</Text>
             </TouchableOpacity>
 
-            {/* Logo */}
-            <View style={styles.logoSection}>
-              <Text style={styles.logoLabel}>Business Logo</Text>
-              <TouchableOpacity 
-                style={styles.logoContainer}
-                onPress={() => pickImage('logo')}
-              >
-                {logo ? (
-                  <Image source={{ uri: logo }} style={styles.logoImage} />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Ionicons name="business-outline" size={24} color="#666" />
-                  </View>
-                )}
-              </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/business/orders')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#10B981' }]}>
+                <Ionicons name="list" size={24} color="#FFF" />
+              </View>
+              <Text style={styles.actionText}>View Orders</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/business/analytics')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#F59E0B' }]}>
+                <Ionicons name="bar-chart" size={24} color="#FFF" />
+              </View>
+              <Text style={styles.actionText}>Analytics</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => router.push('/business/inventory')}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#EF4444' }]}>
+                <Ionicons name="archive" size={24} color="#FFF" />
+              </View>
+              <Text style={styles.actionText}>Inventory</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Sales Chart */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Sales Performance</Text>
+            <View style={styles.timeframeTabs}>
+              {['weekly', 'monthly', 'yearly'].map((range) => (
+                <TouchableOpacity
+                  key={range}
+                  style={[
+                    styles.timeframeTab,
+                    timeframe === range && styles.timeframeTabActive
+                  ]}
+                  onPress={() => setTimeframe(range as any)}
+                >
+                  <Text style={[
+                    styles.timeframeText,
+                    timeframe === range && styles.timeframeTextActive
+                  ]}>
+                    {range.charAt(0).toUpperCase() + range.slice(1)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-          {/* Business Information */}
-          <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Business Information</Text>
+          <LineChart
+            data={chartDataSets[timeframe]}
+            width={screenWidth - 48}
+            height={220}
+            chartConfig={{
+              backgroundGradientFrom: '#ffffff',
+              backgroundGradientTo: '#ffffff',
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+              style: { borderRadius: 16 },
+              propsForDots: {
+                r: '4',
+                strokeWidth: '2',
+                stroke: '#4F46E5',
+              },
+            }}
+            bezier
+            style={styles.chart}
+          />
+        </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Business Name *"
-              placeholderTextColor="#999"
-              value={formData.businessName}
-              onChangeText={(text) => handleInputChange('businessName', text)}
-            />
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Orders</Text>
+            <TouchableOpacity onPress={() => router.push('/business/orders')}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
 
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Business Description *"
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={4}
-              value={formData.description}
-              onChangeText={(text) => handleInputChange('description', text)}
-            />
-
-            <View style={styles.categoryContainer}>
-              <Text style={styles.categoryLabel}>Business Category *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesScroll}>
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    style={[
-                      styles.categoryChip,
-                      formData.category === category && styles.categoryChipSelected
-                    ]}
-                    onPress={() => handleInputChange('category', category)}
-                  >
+          {recentOrders && recentOrders.length > 0 ? (
+            recentOrders.slice(0, 3).map((order, index) => (
+              <View key={order._id} style={styles.orderItem}>
+                <View style={styles.orderInfo}>
+                  <Text style={styles.orderId}>Order #{order.orderNumber}</Text>
+                  <Text style={styles.orderDate}>{new Date(order.createdAt).toLocaleDateString()}</Text>
+                </View>
+                <View style={styles.orderDetails}>
+                  <Text style={styles.orderAmount}>₵{order.totalAmount}</Text>
+                  <View style={[
+                    styles.statusBadge,
+                    { backgroundColor: order.status === 'completed' ? '#D1FAE5' : 
+                                    order.status === 'pending' ? '#FEF3C7' : '#FEE2E2' }
+                  ]}>
                     <Text style={[
-                      styles.categoryText,
-                      formData.category === category && styles.categoryTextSelected
+                      styles.statusText,
+                      { color: order.status === 'completed' ? '#065F46' : 
+                              order.status === 'pending' ? '#92400E' : '#991B1B' }
                     ]}>
-                      {category}
+                      {order.status}
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                  </View>
+                </View>
+              </View>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="receipt-outline" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyStateText}>No orders yet</Text>
+              <Text style={styles.emptyStateSubtext}>Orders will appear here once customers start purchasing</Text>
             </View>
+          )}
+        </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="Business Address *"
-              placeholderTextColor="#999"
-              value={formData.address}
-              onChangeText={(text) => handleInputChange('address', text)}
-            />
-
-            <View style={styles.row}>
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="City *"
-                placeholderTextColor="#999"
-                value={formData.city}
-                onChangeText={(text) => handleInputChange('city', text)}
-              />
-              <TextInput
-                style={[styles.input, styles.halfInput]}
-                placeholder="Country *"
-                placeholderTextColor="#999"
-                value={formData.country}
-                onChangeText={(text) => handleInputChange('country', text)}
-              />
-            </View>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Business Phone *"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-              value={formData.phone}
-              onChangeText={(text) => handleInputChange('phone', text)}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Website (Optional)"
-              placeholderTextColor="#999"
-              keyboardType="url"
-              value={formData.website}
-              onChangeText={(text) => handleInputChange('website', text)}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Instagram (Optional)"
-              placeholderTextColor="#999"
-              value={formData.instagram}
-              onChangeText={(text) => handleInputChange('instagram', text)}
-            />
-
-            <TextInput
-              style={styles.input}
-              placeholder="Facebook (Optional)"
-              placeholderTextColor="#999"
-              value={formData.facebook}
-              onChangeText={(text) => handleInputChange('facebook', text)}
-            />
+        {/* Business Tips */}
+        <View style={styles.tipsSection}>
+          <Text style={styles.tipsTitle}>💡 Business Tips</Text>
+          <View style={styles.tipCard}>
+            <Ionicons name="megaphone" size={20} color="#4F46E5" />
+            <Text style={styles.tipText}>
+              Promote your products on social media to reach more customers
+            </Text>
           </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleCreateBusiness}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator size="small" color="#FFF" />
-            ) : (
-              <>
-                <Text style={styles.submitButtonText}>Create Business</Text>
-                <Ionicons name="rocket-outline" size={20} color="#FFF" />
-              </>
-            )}
-          </TouchableOpacity>
-
-          <Text style={styles.footerText}>
-            You can create multiple businesses later from your profile
-          </Text>
-        </ScrollView>
-      </SafeAreaView>
+          <View style={styles.tipCard}>
+            <Ionicons name="images" size={20} color="#4F46E5" />
+            <Text style={styles.tipText}>
+              Add high-quality images to increase product visibility
+            </Text>
+          </View>
+        </View>
+      </ScrollView>
+      <BusinessBottomNav />
     </LinearGradient>
   );
 };
 
+
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollContent: {
+  container: {
     flexGrow: 1,
+    padding: 20,
+    paddingBottom: 100,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#6B7280',
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#EF4444',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#4F46E5',
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
-    alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 24,
   },
-  backButton: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
+  businessInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  businessLogo: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+  businessLogoPlaceholder: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  businessText: {
+    flex: 1,
+  },
+  businessName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  businessCategory: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  verificationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  verificationText: {
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
+  },
+  settingsButton: {
     padding: 8,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  statCard: {
+    width: '48%',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  statIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
+  statNumber: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 2,
   },
-  imageSection: {
-    marginBottom: 30,
+  statLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
   },
-  coverImageContainer: {
-    height: 150,
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 20,
-    backgroundColor: '#F5F5F5',
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverImagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-  },
-  logoSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoLabel: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-  },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    overflow: 'hidden',
-    backgroundColor: '#F5F5F5',
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  logoPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#E5E5E5',
-    borderStyle: 'dashed',
-    borderRadius: 40,
-  },
-  imagePlaceholderText: {
-    marginTop: 8,
-    color: '#666',
+  seeAllText: {
     fontSize: 14,
+    color: '#4F46E5',
+    fontWeight: '500',
   },
-  formSection: {
-    marginBottom: 30,
-  },
-  input: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 16,
-    color: '#333',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  row: {
+  actionsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  halfInput: {
+  actionCard: {
     width: '48%',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  categoryContainer: {
-    marginBottom: 16,
-  },
-  categoryLabel: {
-    fontSize: 16,
-    color: '#333',
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  categoriesScroll: {
+  actionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  timeframeTabs: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 2,
+  },
+  timeframeTab: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  timeframeTabActive: {
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  timeframeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  timeframeTextActive: {
+    color: '#4F46E5',
+  },
+  chart: {
+    borderRadius: 16,
+    marginTop: 8,
+  },
+  orderItem: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
     marginBottom: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
+  orderInfo: {
+    flex: 1,
   },
-  categoryChipSelected: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
-  },
-  categoryText: {
+  orderId: {
     fontSize: 14,
-    color: '#666',
-  },
-  categoryTextSelected: {
-    color: '#FFF',
     fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
   },
-  submitButton: {
-    backgroundColor: '#4F46E5',
+  orderDate: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  orderDetails: {
+    alignItems: 'flex-end',
+  },
+  orderAmount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  emptyState: {
+    backgroundColor: '#FFF',
+    padding: 32,
+    borderRadius: 12,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  tipsSection: {
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  tipsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  tipCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+    padding: 12,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+    marginLeft: 8,
+    lineHeight: 20,
+  },
+  businessSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
+    justifyContent: 'space-between',
+    backgroundColor: '#FFF',
+    padding: 12,
+    borderRadius: 8,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
-  },
-  submitButtonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  footerText: {
-    textAlign: 'center',
-    color: '#666',
+  selectorLabel: {
     fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  selectorButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  selectorText: {
+    fontSize: 14,
+    color: '#374151',
+    fontWeight: '500',
+    marginRight: 4,
+  },
+  createBusinessButton: {
+    backgroundColor: '#4F46E5',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  createBusinessButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 8,
+    marginBottom: 16,
   },
 });
 
-export default BusinessSetupScreen;
+export default BusinessDashboard;

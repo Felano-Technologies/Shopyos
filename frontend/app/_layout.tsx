@@ -88,6 +88,9 @@ export default function RootLayout() {
             <Stack.Screen name="register" options={{ headerShown: false }} />
             <Stack.Screen name="login" options={{ headerShown: false }} />
             <Stack.Screen name="business/dashboard" options={{ headerShown: false }} />
+            <Stack.Screen name="business/register" options={{ headerShown: false }} />
+            <Stack.Screen name="business/inventory" options={{ headerShown: false }} />
+            <Stack.Screen name="business/analytics" options={{ headerShown: false }} />
             <Stack.Screen name="notification" options={{ headerShown: false }} />
             <Stack.Screen name="userProfile" options={{ headerShown: false }} />
             <Stack.Screen name="home" options={{ headerShown: false }} />
