@@ -105,9 +105,6 @@ const ProductsScreen = () => {
                 <Text style={styles.cardSubtitle}>Your product Overview</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={() => router.push('/business/analytics')}>
-              <Ionicons name="arrow-forward" size={24} color="#9CA3AF" />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.analyticsGrid}>
