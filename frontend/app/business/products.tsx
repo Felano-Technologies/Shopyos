@@ -121,17 +121,6 @@ const ProductsScreen = () => {
         </View>
 
 
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput
-            placeholder="Search products..."
-            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={[styles.searchInput, { color: isDark ? '#FFF' : '#111827' }]}
-          />
-        </View>
 
         {/* Add Product Card */}
         <View style={[styles.card, { backgroundColor: isDark ? '#1A2332' : '#FFF' }]}>
@@ -162,6 +151,18 @@ const ProductsScreen = () => {
           <TouchableOpacity style={styles.addButton} onPress={addProduct}>
             <Text style={styles.addButtonText}>Add Product</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color="#9CA3AF" />
+          <TextInput
+            placeholder="Search your products..."
+            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[styles.searchInput, { color: isDark ? '#FFF' : '#111827' }]}
+          />
         </View>
 
         {/* Product List */}
@@ -246,10 +247,14 @@ const styles = StyleSheet.create({
     padding: 20,
     marginHorizontal: 16,
     marginBottom: 20,
-    shadowColor: '#000',
+    borderBlockColor: '#1e3a8a',
+    borderWidth: 1,
+    shadowColor: '#1e3a8a',
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    borderBottomColor: '#1e3a8a',
+    borderBottomWidth: 1,
   },
   cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12, color: '#f3f4f6' },
   input: {
@@ -272,12 +277,12 @@ const styles = StyleSheet.create({
   imagePickerText: { color: '#6B7280' },
   imagePreview: { width: '100%', height: '100%', borderRadius: 12 },
   addButton: {
-    backgroundColor: '#1e3a8a',
+    backgroundColor: '#84cc16',
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: 'center',
   },
-  addButtonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  addButtonText: { color: '#111827', fontSize: 16, fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, marginLeft: 16 },
   productCard: {
     flexDirection: 'row',
