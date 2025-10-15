@@ -15,17 +15,31 @@ const IndexScreen = () => {
   const isDarkMode = colorScheme === 'dark';
   const fadeAnim = useRef(new Animated.Value(0)).current; // animation value for logo opacity
   const fadeOutAnim = useRef(new Animated.Value(1)).current; // Screen fade-out overlay
+  const bgScale = useRef(new Animated.Value(1)).current; // background zoom
+  const bgTranslateY = useRef(new Animated.Value(0)).current; // background drift
 
 
 
 
   useEffect(() => {
-    // Start fade-in animation
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 1200, // 1.2 seconds
-      useNativeDriver: true,
-    }).start();
+    // Parallel fade + background zoom animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(bgScale, {
+        toValue: 1.08,
+        duration: 2200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(bgTranslateY, {
+        toValue: -12,
+        duration: 2200,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
     // Temporarily simplified navigation (skip login check)
     const timer = setTimeout(() => {
@@ -37,7 +51,7 @@ const IndexScreen = () => {
         // Step 3: Navigate only after fade-out finishes
         router.replace('/getstarted');
       });
-    }, 1800); // Start fade-out after 1.8s
+    }, 2000); // Start fade-out after 1.8s
 
 
     return () => clearTimeout(timer);
@@ -45,6 +59,12 @@ const IndexScreen = () => {
 
   return (
     <View style={styles.container}>
+      <Animated.View
+        style={{
+          flex: 1,
+          transform: [{ scale: bgScale }, { translateY: bgTranslateY }],
+        }}
+      >
       <ImageBackground
         source={require('../assets/images/shopbackground.png')}
         style={styles.backgroundImage}
@@ -54,8 +74,9 @@ const IndexScreen = () => {
         <StatusBar style="light" translucent backgroundColor="transparent" />
 
         <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
-          {/* Centered Logo with Fade-in */}
-          <View style={styles.logoContainer}>
+
+          {/* Centered logo */}
+          <View style={styles.centerWrapper}>
             <Animated.Image
               source={require('../assets/images/iconwhite.png')}
               style={[styles.logo, { opacity: fadeAnim }]}
@@ -90,6 +111,21 @@ const IndexScreen = () => {
           </View>
         </SafeAreaView>
       </ImageBackground>
+      </Animated.View>
+
+      {/* Screen fade-out overlay */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            backgroundColor: '#061f65',
+            opacity: fadeOutAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.9],
+            }),
+          },
+        ]}
+      />
     </View>
   );
 };
@@ -103,14 +139,12 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   backgroundImageStyle: {
     opacity: 0.5,
     transform: [
-      { rotate: '-20deg' }, // slight left tilt
-      { translateX: 30 },  // move right
+      { rotate: '-20deg' },
+      { translateX: 30 },
       { translateY: 20 },
     ],
     resizeMode: 'contain',
@@ -123,19 +157,19 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  logoContainer: {
+  /** Ensures true centering on any screen */
+  centerWrapper: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   logo: {
-    width: width * 0.55,
-    height: 120,
+    width: width * 0.6,
+    height: height * 0.12, // adjusts dynamically to screen height
   },
   footer: {
     paddingHorizontal: 30,
     paddingBottom: 40,
-    paddingTop: 20,
   },
   createAccountButton: {
     width: '100%',
