@@ -1,186 +1,136 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import Reac, { useEffect, useRef} from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, ImageBackground, Animated } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Appearance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+// import * as SecureStore from 'expo-secure-store'; // ⛔ temporarily disabled
+
 
 const { width, height } = Dimensions.get('window');
 
-const GetStartedScreen = () => {
+const IndexScreen = () => {
   const colorScheme = Appearance.getColorScheme();
   const isDarkMode = colorScheme === 'dark';
+  const fadeAnim = useRef(new Animated.Value(0)).current; // animation value for logo opacity
+  const fadeOutAnim = useRef(new Animated.Value(1)).current; // Screen fade-out overlay
+
+
+
+
+  useEffect(() => {
+    // Start fade-in animation
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 1200, // 1.2 seconds
+      useNativeDriver: true,
+    }).start();
+
+    // Temporarily simplified navigation (skip login check)
+    const timer = setTimeout(() => {
+      Animated.timing(fadeOutAnim, {
+        toValue: 0,
+        duration: 800, // smooth fade out
+        useNativeDriver: true,
+      }).start(() => {
+        // Step 3: Navigate only after fade-out finishes
+        router.replace('/getstarted');
+      });
+    }, 1800); // Start fade-out after 1.8s
+
+
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
-    <LinearGradient
-      colors={isDarkMode ? ['#020b4d', '#1a237e'] : ['#020b4d', '#1a237e']}
-      style={styles.gradient}
-    >
-      <StatusBar style="light" translucent backgroundColor="transparent" />
-      <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
-        
-        {/* Header Section */}
-        <View style={styles.header}>
-          <Image 
-            style={styles.logoImage} 
-            source={require("../assets/images/icondark.png")} 
-            resizeMode="contain"
-          />
-        </View>
+    <View style={styles.container}>
+      <ImageBackground
+        source={require('../assets/images/shopbackground.png')}
+        style={styles.backgroundImage}
+        imageStyle={styles.backgroundImageStyle}
+      >
+        <View style={styles.overlay} />
+        <StatusBar style="light" translucent backgroundColor="transparent" />
 
-        {/* Main Content */}
-        <View style={styles.content}>
-          {/* Hero Text */}
-          <View style={styles.heroSection}>
-            <Text style={styles.heading}>Welcome to Shopyos</Text>
-            <Text style={styles.subHeading}>Let's get started</Text>
-            <Text style={styles.description}>
-              Join thousands of shoppers and discover amazing products. 
-              Create your free account today!
-            </Text>
+        <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
+          {/* Centered Logo with Fade-in */}
+          <View style={styles.logoContainer}>
+            <Animated.Image
+              source={require('../assets/images/iconwhite.png')}
+              style={[styles.logo, { opacity: fadeAnim }]}
+              resizeMode="contain"
+            />
           </View>
 
-          {/* Features Icons */}
-          <View style={styles.featuresContainer}>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureEmoji}>🛒</Text>
-              </View>
-              <Text style={styles.featureText}>Easy Shopping</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureEmoji}>🚚</Text>
-              </View>
-              <Text style={styles.featureText}>Fast Delivery</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <View style={styles.featureIcon}>
-                <Text style={styles.featureEmoji}>🔒</Text>
-              </View>
-              <Text style={styles.featureText}>Secure Payments</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Action Buttons */}
-        <View style={styles.footer}>
-          <TouchableOpacity 
-            style={styles.createAccountButton} 
-            onPress={() => router.push('/register')}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={['#1b7c22', '#34a853']}
-              style={styles.gradientButton}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+          {/* Hidden buttons (keep functionality for later) */}
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.createAccountButton, { opacity: 0 }]}
+              onPress={() => router.push('/register')}
+              activeOpacity={0.8}
             >
-              <Text style={styles.createAccountText}>Create Account</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={['#1b7c22', '#34a853']}
+                style={styles.gradientButton}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <Text style={styles.createAccountText}>Create Account</Text>
+              </LinearGradient>
+            </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={styles.loginButton} 
-            onPress={() => router.push('/login')}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.loginText}>Already have an account? Login</Text>
-          </TouchableOpacity>
-
-          {/* Business Option */}
-          {/* <TouchableOpacity 
-            style={styles.businessButton}
-            onPress={() => router.push('/business/business_index')}
-          >
-            <Text style={styles.businessText}>
-              Are you a business owner? <Text style={styles.businessHighlight}>Get Started Here</Text>
-            </Text>
-          </TouchableOpacity> */}
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
+            <TouchableOpacity
+              style={[styles.loginButton, { opacity: 0 }]}
+              onPress={() => router.push('/login')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.loginText}>Already have an account? Login</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </ImageBackground>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  gradient: {
+  container: {
     flex: 1,
+    backgroundColor: '#061f65ff',
+  },
+  backgroundImage: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  backgroundImageStyle: {
+    opacity: 0.5,
+    transform: [
+      { rotate: '-20deg' }, // slight left tilt
+      { translateX: 30 },  // move right
+      { translateY: 20 },
+    ],
+    resizeMode: 'contain',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#061f65ff',
+    opacity: 0.93,
   },
   safeArea: {
     flex: 1,
   },
-  header: {
-    alignItems: 'center',
-    paddingTop: height * 0.02,
-    paddingBottom: height * 0.02,
-    marginTop: 60,
-  },
-  logoImage: {
-    width: width * 0.6,
-    height: 70,
-  },
-  content: {
+  logoContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 20,
   },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  heading: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 8,
-    letterSpacing: -0.5,
-  },
-  subHeading: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: '#a8b1ff',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  description: {
-    fontSize: 16,
-    color: '#e8eaf6',
-    textAlign: 'center',
-    lineHeight: 22,
-    marginHorizontal: 20,
-  },
-  featuresContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginTop: 30,
-  },
-  featureItem: {
-    alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 8,
-  },
-  featureIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  featureEmoji: {
-    fontSize: 24,
-  },
-  featureText: {
-    fontSize: 12,
-    color: '#ffffff',
-    textAlign: 'center',
-    fontWeight: '500',
+  logo: {
+    width: width * 0.55,
+    height: 120,
   },
   footer: {
     paddingHorizontal: 30,
@@ -191,14 +141,6 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 25,
     marginBottom: 16,
-    shadowColor: '#1b7c22',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
   gradientButton: {
     paddingVertical: 16,
@@ -209,35 +151,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
-    letterSpacing: 0.5,
   },
   loginButton: {
     width: '100%',
     paddingVertical: 16,
     borderRadius: 25,
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    marginBottom: 12,
   },
   loginText: {
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '500',
   },
-  businessButton: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  businessText: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  businessHighlight: {
-    color: '#4caf50',
-    fontWeight: '600',
-  },
 });
 
-export default GetStartedScreen;
+export default IndexScreen;

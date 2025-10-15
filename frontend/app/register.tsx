@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from 'react-native-country-picker-modal'
@@ -8,6 +8,10 @@ import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Appearance } from 'react-native';
+import Swiper from 'react-native-swiper';
+
+
+const { width } = Dimensions.get('window');
 
 const RegisterScreen = () => {
     const [name, setName] = useState('');
@@ -60,236 +64,228 @@ const RegisterScreen = () => {
 
 
   return (
-        <LinearGradient
-      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
+    <LinearGradient
+      colors={['#EAF0FF', '#F4F6FF']}
       style={{ flex: 1 }}
     >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Image style={styles.logoImage} source={require('../assets/images/icondark.png')} />
-          <Text style={styles.logoText}>Create an Account</Text>
-          
-          {/* Name Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your name"
-              placeholderTextColor="#999"
-              autoCorrect={false}
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.container}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView contentContainerStyle={styles.scrollContent}>
+            
+            {/* 🖼️ Top Banner Carousel */}
+            <View style={styles.bannerContainer}>
+              <Swiper
+                autoplay
+                autoplayTimeout={3}
+                loop
+                showsPagination
+                dotStyle={styles.dot}
+                activeDotStyle={styles.activeDot}
+              >
+                <View style={styles.slide}>
+                  <Image
+                    source={require('../assets/images/customer.jpg')}
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <View style={styles.slide}>
+                  <Image
+                    source={require('../assets/images/seller.jpg')}
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <View style={styles.slide}>
+                  <Image
+                    source={require('../assets/images/driver.jpg')}
+                    style={styles.bannerImage}
+                    resizeMode="cover"
+                  />
+                </View>
+              </Swiper>
+            </View>
 
-          {/* Email Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter your email"
-              placeholderTextColor="#999"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
+            {/* 🧾 Input fields */}
+            <View style={styles.formContainer}>
+              <View style={styles.inputContainer}>
+                <Ionicons name="person" size={20} color="#1b1b1b" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your name"
+                  placeholderTextColor="#666"
+                  autoCorrect={false}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
 
-          {/* Phone Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="call-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TouchableOpacity
-              style={styles.countryCodeButton}
-              onPress={() => setShowCountryPicker(true)}
-            >
-              <Text style={styles.callingCode}>+{callingCode}</Text>
-              <Ionicons name="chevron-down" size={16} color="#666" />
-            </TouchableOpacity>
-            <TextInput
-              style={[styles.input, styles.phoneInput]}
-              placeholder="Phone Number"
-              placeholderTextColor="#999"
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-            />
-            <CountryPicker
-              withFlag
-              withCallingCode
-              withFilter
-              countryCode={countryCode}
-              onSelect={(country) => {
-                setCountryCode(country.cca2);
-                setCallingCode(country.callingCode[0]);
-              }}
-              visible={showCountryPicker}
-              onClose={() => setShowCountryPicker(false)}
-            />
-          </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail" size={20} color="#1b1b1b" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#666"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
 
-          {/* Password Input */}
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, styles.passwordInput]}
-              placeholder="Password"
-              placeholderTextColor="#999"
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity 
-              style={styles.eyeIcon} 
-              onPress={() => setShowPassword(!showPassword)}
-            >
-              <Ionicons 
-                name={showPassword ? 'eye' : 'eye-off'} 
-                size={20} 
-                color="#666" 
-              />
-            </TouchableOpacity>
-          </View>
+              <View style={styles.inputContainer}>
+                <TouchableOpacity
+                  style={styles.countryCodeButton}
+                  onPress={() => setShowCountryPicker(true)}
+                >
+                  <Text style={styles.callingCode}>+{callingCode}</Text>
+                  <Ionicons name="chevron-down-sharp" size={16} color="#444" />
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.phoneInput]}
+                  placeholder="Phone number"
+                  placeholderTextColor="#666"
+                  keyboardType="phone-pad"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                />
+                <CountryPicker
+                  withFlag
+                  withCallingCode
+                  withFilter
+                  countryCode={countryCode}
+                  onSelect={(country) => {
+                    setCountryCode(country.cca2);
+                    setCallingCode(country.callingCode[0]);
+                  }}
+                  visible={showCountryPicker}
+                  onClose={() => setShowCountryPicker(false)}
+                />
+              </View>
 
-          <TouchableOpacity style={styles.button} onPress={handleRegister}>
-          {loading ? (
-            <ActivityIndicator size="small" color="#FFF" />
-          ) : (
-            <Text style={styles.buttonText}>Sign Up</Text>
-          )}
-          </TouchableOpacity>
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed" size={20} color="#1b1b1b" style={styles.inputIcon} />
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="Password"
+                  placeholderTextColor="#666"
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+                  <Ionicons
+                    name={showPassword ? 'eye' : 'eye-off'}
+                    size={20}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
 
-          <TouchableOpacity style={styles.loginButton} onPress={() => router.push('/login')}>
-            <Text style={styles.loginText}>Already have an account? Login</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-      <Toast />
-    </KeyboardAvoidingView>
+              {/* Sign Up Button */}
+              <TouchableOpacity style={styles.button} onPress={handleRegister}>
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFF" />
+                ) : (
+                  <Text style={styles.buttonText}>Sign Up</Text>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.roleText}>Select your role to continue registration.</Text>
+
+              <View style={styles.bottomLogos}>
+                <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
+                <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
+              </View>
+            </View>
+          </ScrollView>
+        </TouchableWithoutFeedback>
+        <Toast />
+      </KeyboardAvoidingView>
     </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    backgroundColor: '#020b4dff',
-    padding: 16,
-  },
-  scrollContent: {
-    flexGrow: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  logoText: {
-    fontSize: 28,
-    color: '#ffffffff',
-    fontWeight: 'bold',
-    marginBottom: 30,
-  },
+  container: { flex: 1, backgroundColor: '#e9f0ff' },
+  scrollContent: { flexGrow: 1, alignItems: 'center', paddingVertical: 30 },
+  
+  bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 30 },
+  slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  bannerImage: { width: '100%', height: '100%', borderRadius: 16 },
 
+  dot: { backgroundColor: '#ccc', width: 6, height: 6, borderRadius: 3, margin: 3 },
+  activeDot: { backgroundColor: '#1b7c22', width: 6, height: 6, borderRadius: 3, margin: 3 },
+
+  formContainer: { width: '100%', alignItems: 'center' },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
+    width: '90%',
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 25,
+    borderWidth: 1.2,
+    borderColor: '#A3D977',
     marginVertical: 8,
     paddingHorizontal: 16,
-    height: 56,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    height: 50,
   },
-  input: {
-    flex: 1,
-    fontSize: 16,
-    color: '#000',
-    paddingVertical: 8,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
+  input: { flex: 1, fontSize: 16, color: '#000' },
+  inputIcon: { marginRight: 10 },
+  passwordInput: { paddingRight: 35 },
+  eyeIcon: { position: 'absolute', right: 16, padding: 4 },
+
   countryCodeButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
-    paddingRight: 12,
+    marginRight: 8,
     borderRightWidth: 1,
-    borderRightColor: '#e1e1e1',
+    borderRightColor: '#ddd',
+    paddingRight: 8,
   },
-  callingCode: {
-    fontSize: 16,
-    color: '#000',
-    marginRight: 4,
-    fontWeight: '500',
-  },
-  phoneInput: {
-    marginLeft: 0,
-    paddingLeft: 0,
-  },
-  passwordInput: {
-    paddingRight: 40,
-  },
-  eyeIcon: {
-    position: 'absolute',
-    right: 16,
-    padding: 4,
-  },
+  callingCode: { fontSize: 16, color: '#000', fontWeight: '500' },
+  phoneInput: { marginLeft: 4 },
+
   button: {
-    width: '100%',
-    height: 56,
-    backgroundColor: '#1b7c22ff',
-    borderRadius: 12,
+    width: '90%',
+    height: 50,
+    backgroundColor: '#7ACB22',
+    borderRadius: 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 20,
-    shadowColor: '#1b7c22',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    marginTop: 20,
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
+  buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
+  roleText: { marginTop: 20, fontSize: 14, color: '#000', textAlign: 'center', fontWeight: '500' },
+
+  bottomLogos: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '90%',
+    marginTop: 25,
   },
-  loginButton: {
-    marginTop: 16,
-    padding: 8,
-  },
-  loginText: {
-    color: '#ffffffff',
-    fontSize: 16,
-    opacity: 0.9,
-  },
-  logoImage: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
+  circleLogo: {
+    width: 150,
+    height: 150,
     resizeMode: 'contain',
-    alignSelf: 'center',
+    marginLeft: -50,
+    marginBottom: -280,
+
+  },
+  brandLogo: {
+    width: 90,
+    height: 30,
+    resizeMode: 'contain',
+    marginLeft: -50,
+    marginBottom: -200,
   },
 });
 
