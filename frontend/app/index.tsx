@@ -26,17 +26,17 @@ const IndexScreen = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1200,
+        duration: 1800,
         useNativeDriver: true,
       }),
       Animated.timing(bgScale, {
         toValue: 1.08,
-        duration: 2200,
+        duration: 2400,
         useNativeDriver: true,
       }),
       Animated.timing(bgTranslateY, {
         toValue: -12,
-        duration: 2200,
+        duration: 2400,
         useNativeDriver: true,
       }),
     ]).start();
@@ -45,7 +45,7 @@ const IndexScreen = () => {
     const timer = setTimeout(() => {
       Animated.timing(fadeOutAnim, {
         toValue: 0,
-        duration: 800, // smooth fade out
+        duration: 1000, // smooth fade out
         useNativeDriver: true,
       }).start(() => {
         // Step 3: Navigate only after fade-out finishes
@@ -75,8 +75,8 @@ const IndexScreen = () => {
 
         <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
 
-          {/* Centered logo */}
-          <View style={styles.centerWrapper}>
+          {/* Centered logo (responsive true center) */}
+          <View style={styles.logoAbsoluteContainer}>
             <Animated.Image
               source={require('../assets/images/iconwhite.png')}
               style={[styles.logo, { opacity: fadeAnim }]}
@@ -157,16 +157,21 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  /** Ensures true centering on any screen */
-  centerWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  logo: {
-    width: width * 0.6,
-    height: height * 0.12, // adjusts dynamically to screen height
-  },
+    logoAbsoluteContainer: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 2,
+    },
+    logo: {
+      width: width * 0.55,
+      height: height * 0.12,
+    },
+
   footer: {
     paddingHorizontal: 30,
     paddingBottom: 40,
