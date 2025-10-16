@@ -1,6 +1,6 @@
 # Shopyos - The Ultimate Marketing App 🚀  
 
-Shopyos is a powerful marketing platform that enables businesses to showcase their products and attract customers. With Dios, businesses can effortlessly post what they sell, making it easy for potential buyers to discover and purchase products.  
+Shopyos is a powerful marketing platform that enables businesses to showcase their products and attract customers. With Shopyos, businesses can effortlessly post what they sell, making it easy for potential buyers to discover and purchase products.  
 
 ## 📌 Features  
 - 🛍️ Businesses can post and manage their product listings  
