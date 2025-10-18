@@ -465,6 +465,20 @@ export default function Home() {
         />
       </Animated.ScrollView>
 
+           {/* Bottom Logos */}
+      <ImageBackground
+        source={require('../assets/images/icon.png')}
+        style={styles.background}
+      >
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
+      </ImageBackground>
+
+
       {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
@@ -801,4 +815,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#84cc16',
   },
+background: {
+  flex: 1,
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+},
+
+bottomLogos: {
+  position: 'absolute',
+  bottom: -50,      // adjust distance from bottom
+  left: -50,        // adjust distance from left
+},
+
+fadedLogo: {
+  width: 130,
+  height: 130,
+  resizeMode: 'contain',
+  opacity: 0.12, // soft fade
+},
 });
