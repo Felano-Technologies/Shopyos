@@ -8,7 +8,6 @@ import {
   FlatList,
   Image,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,20 +15,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function StoresScreen() {
   const router = useRouter();
-  const theme = useColorScheme();
-  const isDarkMode = theme === 'dark';
 
-  const backgroundColor = isDarkMode ? '#121212' : '#F8F8F8';
-  const cardBackground = isDarkMode ? '#1E1E1E' : '#FFF';
-  const primaryText = isDarkMode ? '#EDEDED' : '#222';
-  const secondaryText = isDarkMode ? '#AAA' : '#666';
-  const inputBg = isDarkMode ? '#1E1E1E' : '#FFF';
+  const backgroundColor = '#e9f0ff';
+  const cardBackground = '#FFF';
+  const primaryText = '#222';
+  const secondaryText = '#666';
+  const inputBg = '#1e3a8a';
 
   // Dummy category toggles
   const categoryToggles = ['All store', 'Grocery', 'Electronics', 'Fashion'];
   const [activeToggle, setActiveToggle] = useState<string>('All store');
 
-  // Dummy “Popular stores” data
+  // Dummy "Popular stores" data
   const popularStores = [
     {
       id: 'ps1',
@@ -51,10 +48,9 @@ export default function StoresScreen() {
       name: 'BBQ City',
       logo: require('../assets/images/stores/bbq.jpg'),
     },
-    // …add as many popular stores as you want…
   ];
 
-  // Dummy “All stores” data
+  // Dummy "All stores" data
   const allStores = [
     {
       id: 'as1',
@@ -74,31 +70,27 @@ export default function StoresScreen() {
       catalogues: 4,
       logo: require('../assets/images/stores/ecomarket.jpg'),
     },
-    // …add as many as you want…
   ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>
       {/* ───── Header ───── */}
       <View style={styles.header}>
-        {/* <TouchableOpacity onPress={() => router.back()} style={styles.menuButton}>
-          <Ionicons name="menu-outline" size={24} color={primaryText} />
-        </TouchableOpacity> */}
         <Text style={[styles.headerTitle, { color: primaryText }]}>Stores</Text>
       </View>
 
       {/* ───── Search Bar + Filter ───── */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchInputWrapper, { backgroundColor: inputBg }]}>
-          <Feather name="search" size={18} color={secondaryText} />
+          <Feather name="search" size={18} color="#FFF" />
           <TextInput
             placeholder="Search for stores"
-            placeholderTextColor={secondaryText}
-            style={[styles.searchInput, { color: primaryText }]}
+            placeholderTextColor="rgba(255,255,255,0.7)"
+            style={[styles.searchInput, { color: '#FFF' }]}
           />
         </View>
         <TouchableOpacity style={[styles.filterButton, { backgroundColor: inputBg }]}>
-          <Feather name="sliders" size={20} color={secondaryText} />
+          <Feather name="sliders" size={20} color="#FFF" />
         </TouchableOpacity>
       </View>
 
@@ -112,7 +104,7 @@ export default function StoresScreen() {
               style={[
                 styles.toggleButton,
                 {
-                  backgroundColor: isActive ? '#A3E635' : inputBg,
+                  backgroundColor: isActive ? '#A3E635' : cardBackground,
                   borderColor: isActive ? '#A3E635' : '#CCC',
                 },
               ]}
@@ -131,7 +123,7 @@ export default function StoresScreen() {
         })}
       </View>
 
-      {/* ───── “Popular stores” ───── */}
+      {/* ───── "Popular stores" ───── */}
       <View style={styles.sectionHeader}>
         <Text style={[styles.sectionTitle, { color: primaryText }]}>Popular stores</Text>
       </View>
@@ -151,7 +143,7 @@ export default function StoresScreen() {
         )}
       />
 
-      {/* ───── “All stores” ───── */}
+      {/* ───── "All stores" ───── */}
       <View style={[styles.sectionHeader, { marginTop: 16 }]}>
         <Text style={[styles.sectionTitle, { color: primaryText }]}>All stores</Text>
       </View>
@@ -261,7 +253,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ───── “Popular stores” Horizontal List ─────
+  // ───── "Popular stores" Horizontal List ─────
   popularList: {
     paddingLeft: 16,
     paddingBottom: 12,
@@ -287,7 +279,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // ───── “All stores” Vertical List ─────
+  // ───── "All stores" Vertical List ─────
   allList: {
     paddingHorizontal: 16,
     paddingBottom: 16,

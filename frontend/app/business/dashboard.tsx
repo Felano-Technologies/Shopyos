@@ -1,5 +1,5 @@
 // app/business/dashboard.tsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,21 @@ import {
   Alert,
   ScrollView,
   Animated,
-  Image
+  Image,
+  useColorScheme,
+  RefreshControl,
+  Dimensions,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
 import { getMyBusinesses } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
-import { Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
+import { StatusBar } from 'expo-status-bar';
 
-const screenWidth = Dimensions.get('window').width;
+const { width } = Dimensions.get('window');
 
 interface Business {
   _id: string;
@@ -56,11 +59,14 @@ interface BusinessStats {
 }
 
 const BusinessDashboard = () => {
+  const theme = useColorScheme();
+  const isDarkMode = theme === 'dark';
+  
   const [loading, setLoading] = useState(true);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
-  const scaleAnim = new Animated.Value(1);
+  const [refreshing, setRefreshing] = useState(false);
 
   const fetchDashboardData = async () => {
     try {
@@ -74,10 +80,8 @@ const BusinessDashboard = () => {
       }
 
       setBusinesses(data.businesses);
-      // Select the first business by default
       setSelectedBusiness(data.businesses[0]);
       
-      // Store the first business ID for future use
       if (data.businesses[0]._id) {
         await SecureStore.setItemAsync('currentBusinessId', data.businesses[0]._id);
       }
@@ -89,19 +93,10 @@ const BusinessDashboard = () => {
     }
   };
 
-  const animateCard = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 0.97,
-        duration: 100,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        useNativeDriver: true,
-      }),
-    ]).start();
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchDashboardData();
+    setRefreshing(false);
   };
 
   const chartDataSets = {
@@ -119,16 +114,14 @@ const BusinessDashboard = () => {
     },
   };
 
-  // Mock stats based on business data
   const getBusinessStats = (business: Business): BusinessStats => ({
     totalProducts: business.totalProducts || 0,
     totalOrders: business.totalOrders || 0,
-    totalEarnings: (business.totalOrders || 0) * 150, // Mock calculation
-    pendingOrders: Math.floor((business.totalOrders || 0) * 0.2), // Mock 20% pending
+    totalEarnings: (business.totalOrders || 0) * 150,
+    pendingOrders: Math.floor((business.totalOrders || 0) * 0.2),
     averageRating: business.rating || 0,
   });
 
-  // Mock recent orders
   const recentOrders = [
     {
       _id: '1',
@@ -152,19 +145,25 @@ const BusinessDashboard = () => {
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4F46E5" />
-        <Text style={styles.loadingText}>Loading your dashboard...</Text>
+      <View style={[styles.centered, { backgroundColor: isDarkMode ? '#0F1419' : '#F5F5F5' }]}>
+        <ActivityIndicator size="large" color="#1e3a8a" />
+        <Text style={[styles.loadingText, { color: isDarkMode ? '#EDEDED' : '#6B7280' }]}>
+          Loading your dashboard...
+        </Text>
       </View>
     );
   }
 
   if (!selectedBusiness || businesses.length === 0) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: isDarkMode ? '#0F1419' : '#f3f4f6' }]}>
         <Ionicons name="business-outline" size={64} color="#9CA3AF" />
-        <Text style={styles.errorText}>No Business Found</Text>
-        <Text style={styles.errorSubtext}>You need to create a business to access the dashboard</Text>
+        <Text style={[styles.errorText, { color: isDarkMode ? '#f3f4f6' : '#f3f4f6' }]}>
+          No Business Found
+        </Text>
+        <Text style={[styles.errorSubtext, { color: isDarkMode ? '#AAA' : '#6B7280' }]}>
+          You need to create a business to access the dashboard
+        </Text>
         <TouchableOpacity 
           style={styles.createBusinessButton} 
           onPress={() => router.replace('/business/register')}
@@ -178,153 +177,176 @@ const BusinessDashboard = () => {
   const stats = getBusinessStats(selectedBusiness);
 
   return (
-    <LinearGradient colors={["#f0f9ff", "#e0f2fe"]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Header Section */}
-        <View style={styles.header}>
-          <View style={styles.businessInfo}>
-            {selectedBusiness.logo ? (
-              <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
-            ) : (
-              <View style={styles.businessLogoPlaceholder}>
-                <Ionicons name="business" size={24} color="#4F46E5" />
-              </View>
-            )}
-            <View style={styles.businessText}>
-              <Text style={styles.businessName}>{selectedBusiness.businessName}</Text>
-              <Text style={styles.businessCategory}>{selectedBusiness.category}</Text>
-              <View style={styles.verificationBadge}>
-                <Ionicons 
-                  name={selectedBusiness.verificationStatus === 'verified' ? 'shield-checkmark' : 'time'} 
-                  size={14} 
-                  color={selectedBusiness.verificationStatus === 'verified' ? '#10B981' : '#F59E0B'} 
-                />
-                <Text style={[
-                  styles.verificationText,
-                  { color: selectedBusiness.verificationStatus === 'verified' ? '#10B981' : '#F59E0B' }
-                ]}>
-                  {selectedBusiness.verificationStatus === 'verified' ? 'Verified' : 'Pending Verification'}
-                </Text>
-              </View>
-            </View>
-          </View>
+    <View style={[styles.mainContainer, { backgroundColor: isDarkMode ? '#0F1419' : '#f3f4f6' }]}>
+      <StatusBar style={isDarkMode ? 'light' : 'dark'} />
+      
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: isDarkMode ? '#1e3a8a' : '#1e3a8a' }]}>
+      <View style={styles.headerTop}>
+        <Image 
+          source={require('../../assets/images/iconwhite.png')} 
+          style={styles.appLogo}
+          resizeMode="contain"
+        />
+        <View style={styles.headerIcons}>
+          <TouchableOpacity style={styles.headerIconButton}>
+            <Ionicons name="notifications-outline" size={24} color="#f3f4f6" />
+          </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.settingsButton}
+            style={styles.headerIconButton}
             onPress={() => router.push('/business/settings')}
           >
-            <Ionicons name="settings-outline" size={24} color="#4B5563" />
+            <Ionicons name="settings-outline" size={24} color="#f3f4f6" />
           </TouchableOpacity>
         </View>
+      </View>
+      </View>
 
-        {/* Business Selector (if multiple businesses) */}
-        {businesses.length > 1 && (
-          <View style={styles.businessSelector}>
-            <Text style={styles.selectorLabel}>Active Business:</Text>
-            <TouchableOpacity style={styles.selectorButton}>
-              <Text style={styles.selectorText}>{selectedBusiness.businessName}</Text>
-              <Ionicons name="chevron-down" size={16} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Stats Overview */}
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="cube-outline" size={20} color="#2563EB" />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Welcome Card */}
+    <LinearGradient
+      colors={['#f3f4f6', '#f3f4f6']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.welcomeCard}
+    >
+      <View style={styles.welcomeContent}>
+        <View style={styles.businessInfo}>
+          {selectedBusiness.logo ? (
+            <Image
+              source={{ uri: selectedBusiness.logo }}
+              style={styles.businessLogo}
+              resizeMode="contain"
+            />
+          ) : (
+            <View style={styles.businessLogoPlaceholder}>
+              <Ionicons name="business" size={28} color="#f3f4f6" />
             </View>
-            <Text style={styles.statNumber}>{stats.totalProducts}</Text>
-            <Text style={styles.statLabel}>Products</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="cart-outline" size={20} color="#D97706" />
-            </View>
-            <Text style={styles.statNumber}>{stats.totalOrders}</Text>
-            <Text style={styles.statLabel}>Total Orders</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="cash-outline" size={20} color="#059669" />
-            </View>
-            <Text style={styles.statNumber}>₵{stats.totalEarnings?.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Earnings</Text>
-          </View>
-
-          <View style={styles.statCard}>
-            <View style={[styles.statIcon, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="time-outline" size={20} color="#DC2626" />
-            </View>
-            <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+          )}
+          <View>
+            <Text style={styles.businessName}>{selectedBusiness.businessName}</Text>
+            <Text style={styles.businessCategory}>{selectedBusiness.category}</Text>
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/business/products')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#4F46E5' }]}>
-                <Ionicons name="add-circle" size={24} color="#FFF" />
-              </View>
-              <Text style={styles.actionText}>Add Product</Text>
-            </TouchableOpacity>
+        <Text style={styles.welcomeGreeting}>Welcome back!</Text>
+        <Text style={styles.welcomeText}>
+          Manage your business operations and track your performance
+        </Text>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/business/orders')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#10B981' }]}>
-                <Ionicons name="list" size={24} color="#FFF" />
-              </View>
-              <Text style={styles.actionText}>View Orders</Text>
-            </TouchableOpacity>
+        <View style={styles.verificationBadgeWelcome}>
+          <Ionicons 
+            name={selectedBusiness.verificationStatus === 'verified' ? 'shield-checkmark' : 'time'} 
+            size={16} 
+            color={selectedBusiness.verificationStatus === 'verified' ? '#10B981' : '#111827'} 
+          />
+          <Text style={[
+            styles.verificationTextWelcome,
+            { color: selectedBusiness.verificationStatus === 'verified' ? '#111827' : '#111827' }
+          ]}>
+            {selectedBusiness.verificationStatus === 'verified' ? 'Verified Business' : 'Pending Verification'}
+          </Text>
+        </View>
+      </View>
+    </LinearGradient>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/business/analytics')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#F59E0B' }]}>
-                <Ionicons name="bar-chart" size={24} color="#FFF" />
-              </View>
-              <Text style={styles.actionText}>Analytics</Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.actionCard}
-              onPress={() => router.push('/business/inventory')}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: '#EF4444' }]}>
-                <Ionicons name="archive" size={24} color="#FFF" />
+        {/* Analytics Card */}
+        <View style={[styles.card, { backgroundColor: isDarkMode ? '#1e3a8a' : '#1e3a8a' }]}>
+          <View style={styles.cardHeader}>
+            <View style={styles.cardHeaderLeft}>
+              <View style={[styles.cardIcon, { backgroundColor: 'rgba(79, 70, 229, 0.2)' }]}>
+                <Ionicons name="bar-chart" size={20} color="#84cc16" />
               </View>
-              <Text style={styles.actionText}>Inventory</Text>
+              <View>
+                <Text style={styles.cardTitle}>Business Analytics</Text>
+                <Text style={styles.cardSubtitle}>Your Performance Overview</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={() => router.push('/business/analytics')}>
+              <Ionicons name="arrow-forward" size={24} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
+
+          <View style={styles.analyticsGrid}>
+            <View style={styles.analyticsItem}>
+              <Text style={styles.analyticsNumber}>{stats.totalProducts}</Text>
+              <View style={styles.analyticsDivider} />
+              <Text style={styles.analyticsLabel}>Products</Text>
+            </View>
+            <View style={styles.analyticsItem}>
+              <Text style={styles.analyticsNumber}>{stats.totalOrders}</Text>
+              <View style={styles.analyticsDivider} />
+              <Text style={styles.analyticsLabel}>Orders</Text>
+            </View>
+            <View style={styles.analyticsItem}>
+              <Text style={styles.analyticsNumber}>{stats.pendingOrders}</Text>
+              <View style={styles.analyticsDivider} />
+              <Text style={styles.analyticsLabel}>Pending</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Services Grid */}
+        <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#1F2937' }]}>
+          Quick Actions
+        </Text>
+        
+        <View style={styles.servicesGrid}>
+          {[
+            { icon: 'add-circle', color: '#8B5CF6', bg: '#F3E8FF', label: 'Add Product', route: '/business/products' },
+            { icon: 'calculator', color: '#10B981', bg: '#D1FAE5', label: 'View Orders', route: '/business/orders' },
+            { icon: 'cube', color: '#3B82F6', bg: '#DBEAFE', label: 'Inventory', route: '/business/inventory' },
+            { icon: 'bar-chart', color: '#F59E0B', bg: '#FEF3C7', label: 'Analytics', route: '/business/analytics' },
+          ].map((service, idx) => (
+            <TouchableOpacity 
+              key={idx}
+              style={[styles.serviceCard, { backgroundColor: isDarkMode ? '#f3f4f6' : '#f3f4f6' }]}
+              onPress={() => router.push(service.route as any)}
+            >
+              <View style={[styles.serviceIcon, { backgroundColor: service.bg }]}>
+                <Ionicons name={service.icon as any} size={24} color={service.color} />
+              </View>
+              <Text style={[styles.serviceLabel, { color: isDarkMode ? '#111827' : '#111827' }]}>
+                {service.label}
+              </Text>
+              <Text style={[styles.serviceSubtext, { color: isDarkMode ? '#9CA3AF' : '#6B7280' }]}>
+                {idx === 0 ? 'Start adding items' : idx === 1 ? 'Track your sales' : idx === 2 ? 'Manage stock' : 'View insights'}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* Sales Chart */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Sales Performance</Text>
+        <View style={[styles.card, { backgroundColor: isDarkMode ? '#1A2332' : '#FFF' }]}>
+          <View style={styles.chartHeader}>
+            <Text style={[styles.cardTitle, { color: isDarkMode ? '#EDEDED' : '#1F2937' }]}>
+              Sales Performance
+            </Text>
             <View style={styles.timeframeTabs}>
               {['weekly', 'monthly', 'yearly'].map((range) => (
                 <TouchableOpacity
                   key={range}
+                  onPress={() => setTimeframe(range as any)}
                   style={[
                     styles.timeframeTab,
-                    timeframe === range && styles.timeframeTabActive
+                    {
+                      backgroundColor: timeframe === range
+                        ? '#84cc16'
+                        : isDarkMode ? '#0F1419' : '#F3F4F6'
+                    }
                   ]}
-                  onPress={() => setTimeframe(range as any)}
                 >
                   <Text style={[
                     styles.timeframeText,
-                    timeframe === range && styles.timeframeTextActive
+                    { color: timeframe === range ? '#FFF' : (isDarkMode ? '#9CA3AF' : '#6B7280') }
                   ]}>
                     {range.charAt(0).toUpperCase() + range.slice(1)}
                   </Text>
@@ -335,19 +357,19 @@ const BusinessDashboard = () => {
 
           <LineChart
             data={chartDataSets[timeframe]}
-            width={screenWidth - 48}
-            height={220}
+            width={width - 64}
+            height={200}
             chartConfig={{
-              backgroundGradientFrom: '#ffffff',
-              backgroundGradientTo: '#ffffff',
+              backgroundGradientFrom: isDarkMode ? '#111827' : '#f3f4f6',
+              backgroundGradientTo: isDarkMode ? '#111827' : '#f3f4f6',
               decimalPlaces: 0,
-              color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-              labelColor: (opacity = 1) => `rgba(75, 85, 99, ${opacity})`,
+              color: (opacity = 1) => `rgba(30, 58, 138, ${opacity})`,
+              labelColor: (opacity = 1) => isDarkMode ? `rgba(156, 163, 175, ${opacity})` : `rgba(107, 114, 128, ${opacity})`,
               style: { borderRadius: 16 },
               propsForDots: {
-                r: '4',
+                r: '5',
                 strokeWidth: '2',
-                stroke: '#4F46E5',
+                stroke: '#111827',
               },
             }}
             bezier
@@ -355,426 +377,476 @@ const BusinessDashboard = () => {
           />
         </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recent Orders</Text>
-            <TouchableOpacity onPress={() => router.push('/business/orders')}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
+        {/* Recent Orders */}
+        <View style={styles.ordersHeader}>
+          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#f3f4f6' : '#111827' }]}>
+            Recent Orders
+          </Text>
+          <TouchableOpacity onPress={() => router.push('/business/orders')}>
+            <Text style={styles.seeAllText}>See All</Text>
+          </TouchableOpacity>
+        </View>
 
-          {recentOrders && recentOrders.length > 0 ? (
-            recentOrders.slice(0, 3).map((order, index) => (
-              <View key={order._id} style={styles.orderItem}>
-                <View style={styles.orderInfo}>
-                  <Text style={styles.orderId}>Order #{order.orderNumber}</Text>
-                  <Text style={styles.orderDate}>{new Date(order.createdAt).toLocaleDateString()}</Text>
+        {recentOrders && recentOrders.length > 0 ? (
+          recentOrders.slice(0, 3).map((order) => (
+            <View
+              key={order._id}
+              style={[styles.orderCard, { backgroundColor: isDarkMode ? '#111827' : '#FFF' }]}
+            >
+              <View style={styles.orderLeft}>
+                <View style={[styles.orderIconContainer, { backgroundColor: '#f3f4f6' }]}>
+                  <Ionicons name="receipt" size={20} color="#1e3a8a" />
                 </View>
-                <View style={styles.orderDetails}>
-                  <Text style={styles.orderAmount}>₵{order.totalAmount}</Text>
-                  <View style={[
-                    styles.statusBadge,
-                    { backgroundColor: order.status === 'completed' ? '#D1FAE5' : 
-                                    order.status === 'pending' ? '#FEF3C7' : '#FEE2E2' }
-                  ]}>
-                    <Text style={[
-                      styles.statusText,
-                      { color: order.status === 'completed' ? '#065F46' : 
-                              order.status === 'pending' ? '#92400E' : '#991B1B' }
-                    ]}>
-                      {order.status}
-                    </Text>
-                  </View>
+                <View>
+                  <Text style={[styles.orderNumber, { color: isDarkMode ? '#f3f4f6' : '#111827' }]}>
+                    Order #{order.orderNumber}
+                  </Text>
+                  <Text style={[styles.orderDate, { color: isDarkMode ? '#9CA3AF' : '#6B7280' }]}>
+                    {new Date(order.createdAt).toLocaleDateString()}
+                  </Text>
                 </View>
               </View>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyStateText}>No orders yet</Text>
-              <Text style={styles.emptyStateSubtext}>Orders will appear here once customers start purchasing</Text>
+              <View style={styles.orderRight}>
+                <Text style={[styles.orderAmount, { color: isDarkMode ? '#EDEDED' : '#1F2937' }]}>
+                  ₵{order.totalAmount}
+                </Text>
+                <View style={[
+                  styles.statusBadge,
+                  { backgroundColor: order.status === 'completed' ? '#84cc16' : '#111827' }
+                ]}>
+                  <Text style={[
+                    styles.statusText,
+                    { color: order.status === 'completed' ? '#065F46' : '#f3f4f6' }
+                  ]}>
+                    {order.status}
+                  </Text>
+                </View>
+              </View>
             </View>
-          )}
-        </View>
+          ))
+        ) : (
+          <View style={[styles.emptyState, { backgroundColor: isDarkMode ? '#1A2332' : '#FFF' }]}>
+            <Ionicons name="receipt-outline" size={48} color="#9CA3AF" />
+            <Text style={[styles.emptyStateText, { color: isDarkMode ? '#EDEDED' : '#1F2937' }]}>
+              No orders yet
+            </Text>
+            <Text style={[styles.emptyStateSubtext, { color: isDarkMode ? '#9CA3AF' : '#6B7280' }]}>
+              Orders will appear here once customers start purchasing
+            </Text>
+          </View>
+        )}
 
         {/* Business Tips */}
-        <View style={styles.tipsSection}>
+        <LinearGradient
+          colors={['#111827', '#84cc16']}
+          start={{ x: 0, y: 1 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.tipsCard}
+        >
           <Text style={styles.tipsTitle}>💡 Business Tips</Text>
-          <View style={styles.tipCard}>
-            <Ionicons name="megaphone" size={20} color="#4F46E5" />
-            <Text style={styles.tipText}>
-              Promote your products on social media to reach more customers
-            </Text>
-          </View>
-          <View style={styles.tipCard}>
-            <Ionicons name="images" size={20} color="#4F46E5" />
-            <Text style={styles.tipText}>
-              Add high-quality images to increase product visibility
-            </Text>
-          </View>
-        </View>
+          <Text style={styles.tipsText}>
+            Promote your products on social media to reach more customers
+          </Text>
+          <Text style={styles.tipsText}>
+            Add high-quality images to increase product visibility
+          </Text>
+        </LinearGradient>
       </ScrollView>
+      
       <BusinessBottomNav />
-    </LinearGradient>
+    </View>
   );
 };
 
-
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    paddingBottom: 100,
+  mainContainer: {
+    flex: 1,
   },
+  appLogo: {
+  width: 100,
+  height: 50,
+  borderRadius: 8,
+},
+
+businessInfo: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginBottom: 16,
+},
+
+businessLogo: {
+  width: 40,
+  height: 40,
+  borderRadius: 12,
+  marginRight: 12,
+},
+
+businessLogoPlaceholder: {
+  width: 50,
+  height: 50,
+  borderRadius: 12,
+  backgroundColor: '#111827',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: 12,
+},
+
+businessName: {
+  fontSize: 18,
+  fontWeight: '700',
+  color: '#111827',
+},
+
+businessCategory: {
+  fontSize: 14,
+  color: '#1e3a8a',
+},
+
+
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    padding: 20,
   },
   loadingText: {
     marginTop: 12,
     fontSize: 16,
-    color: '#6B7280',
   },
   errorText: {
     fontSize: 18,
-    color: '#EF4444',
-    marginBottom: 16,
-  },
-  retryButton: {
-    backgroundColor: '#4F46E5',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
+    marginTop: 16,
     fontWeight: '600',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  businessInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  businessLogo: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-  businessLogoPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 12,
-    backgroundColor: '#E5E7EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  businessText: {
-    flex: 1,
-  },
-  businessName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  businessCategory: {
+  errorSubtext: {
     fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-  },
-  verificationBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  verificationText: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
-  },
-  settingsButton: {
-    padding: 8,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  statCard: {
-    width: '48%',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  statIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  seeAllText: {
-    fontSize: 14,
-    color: '#4F46E5',
-    fontWeight: '500',
-  },
-  actionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  actionCard: {
-    width: '48%',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  actionText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#374151',
     textAlign: 'center',
-  },
-  timeframeTabs: {
-    flexDirection: 'row',
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    padding: 2,
-  },
-  timeframeTab: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  timeframeTabActive: {
-    backgroundColor: '#FFF',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  timeframeText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  timeframeTextActive: {
-    color: '#4F46E5',
-  },
-  chart: {
-    borderRadius: 16,
     marginTop: 8,
-  },
-  orderItem: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  orderInfo: {
-    flex: 1,
-  },
-  orderId: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  orderDate: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  orderDetails: {
-    alignItems: 'flex-end',
-  },
-  orderAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 4,
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  emptyState: {
-    backgroundColor: '#FFF',
-    padding: 32,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-  },
-  tipsSection: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  tipsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  tipCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-    padding: 12,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 8,
-  },
-  tipText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#374151',
-    marginLeft: 8,
-    lineHeight: 20,
-  },
-  businessSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  selectorLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  selectorButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  selectorText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-    marginRight: 4,
+    marginBottom: 24,
   },
   createBusinessButton: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#FF6B35',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
-    marginTop: 16,
   },
   createBusinessButtonText: {
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
   },
-  errorSubtext: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
+  header: {
+    paddingTop: 35,
+    paddingBottom: 35,
+    paddingHorizontal: 16,
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerLogo: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  headerLogoPlaceholder: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: '#1e3a8a',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  headerTextContainer: {
+    flex: 1,
+  },
+  headerBusinessName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 2,
+  },
+  headerBusinessCategory: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  welcomeCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    borderBlockColor: '#000',
+    borderBottomColor: '#000',
+    borderBottomWidth: 1,
+    borderEndEndRadius: 16,
+    borderEndStartRadius: 16,
+    borderStartEndRadius: 16,
+    borderStartStartRadius: 16,
+    borderLeftColor: '#000',
+    borderLeftWidth: 1,
+    borderRightColor: '#000',
+    borderRightWidth: 1,
+  },
+  welcomeContent: {
+    gap: 1,
+  },
+  welcomeGreeting: {
+    fontSize: 16,
+    color: '#1e3a8a',
+    fontWeight: '500',
+  },
+  welcomeText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1F2937',
+    lineHeight: 28,
+  },
+  verificationBadgeWelcome: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginTop: 8,
+  },
+  verificationTextWelcome: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  cardIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 2,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  analyticsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  analyticsItem: {
+    alignItems: 'center',
+  },
+  analyticsNumber: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#84cc16',
+  },
+  analyticsDivider: {
+    width: 40,
+    height: 2,
+    backgroundColor: '#84cc16',
+    marginVertical: 8,
+  },
+  analyticsLabel: {
+    fontSize: 12,
+    color: '#f3f4f6',
+    fontWeight: '500',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
     marginBottom: 16,
+  },
+  servicesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  serviceCard: {
+    width: '48%',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  serviceIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  serviceLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  serviceSubtext: {
+    fontSize: 12,
+  },
+  chartHeader: {
+    marginBottom: 16,
+  },
+  timeframeTabs: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+  },
+  timeframeTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  timeframeText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chart: {
+    marginVertical: 8,
+    borderRadius: 16,
+  },
+  ordersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  orderCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  orderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  orderIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  orderNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  orderDate: {
+    fontSize: 12,
+  },
+  orderRight: {
+    alignItems: 'flex-end',
+  },
+  orderAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  statusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'capitalize',
+  },
+  emptyState: {
+    padding: 40,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  emptyStateSubtext: {
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  tipsCard: {
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  tipsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFF',
+    marginBottom: 12,
+  },
+  tipsText: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginBottom: 8,
+    lineHeight: 20,
   },
 });
 

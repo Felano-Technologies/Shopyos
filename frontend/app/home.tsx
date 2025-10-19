@@ -19,6 +19,7 @@ const CATEGORIES = [
   { id: 'c2', label: 'Headsets', image: require('../assets/images/categories/headset.jpg') },
   { id: 'c3', label: 'Jackets', image: require('../assets/images/categories/jacket.jpg') },
   { id: 'c4', label: 'Art', image: require('../assets/images/categories/art.jpg') },
+  { id: 'c5', label: 'more', image: null },
 ];
 
 const RECENT_PRODUCTS = [
@@ -63,8 +64,6 @@ const DEALS_FOR_YOU = [
 ];
 
 export default function Home() {
-  const theme = useColorScheme();
-  const isDarkMode = theme === 'dark';
   const router = useRouter();
 
   const [locationText, setLocationText] = useState<'Locating…' | string>('Locating…');
@@ -77,8 +76,8 @@ export default function Home() {
 
 
 
-  // Derived list of chip categories
-  const allCategoryNames = ['All', ...CATEGORIES.map((c) => c.label)];
+  // Derived list of chip categories - exclude 'more' from names
+  const allCategoryNames = ['All', ...CATEGORIES.filter(c => c.label !== 'more').map((c) => c.label)];
 
   // Filtered recent products according to selected category
   const filteredRecent =
@@ -86,7 +85,7 @@ export default function Home() {
       ? RECENT_PRODUCTS
       : RECENT_PRODUCTS.filter((p) => p.category === selectedCat);
 
-  // --- Auto-scrolling “Featured” FlatList state & ref ---
+  // --- Auto-scrolling "Featured" FlatList state & ref ---
   const featuredRef = useRef<FlatList<any>>(null);
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
@@ -138,7 +137,7 @@ export default function Home() {
     })();
   }, []);
 
-  // Set up interval to auto-scroll “Featured” every 3 seconds
+  // Set up interval to auto-scroll "Featured" every 3 seconds
   useEffect(() => {
     const intervalId = setInterval(() => {
       setFeaturedIndex((prev) => {
@@ -181,75 +180,41 @@ export default function Home() {
         marginRight: 16,
       }}
     >
-      <BlurView
-        intensity={40}
-        tint={isDarkMode ? 'dark' : 'light'}
+      <TouchableOpacity
         style={[
           styles.productCard,
-          { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
+          { backgroundColor: '#111827' },
         ]}
       >
         <Image source={item.image} style={styles.productImage} />
-        <TouchableOpacity style={styles.heartIcon}>
+        {/* <TouchableOpacity style={styles.heartIcon}>
           <Ionicons name="heart-outline" size={20} color="#E11D48" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <View style={styles.productInfo}>
-          <Text
-            style={[
-              styles.productTitle,
-              { color: isDarkMode ? '#EDEDED' : '#222' },
-            ]}
-            numberOfLines={1}
-          >
+          <Text style={[styles.productTitle, { color: '#f3f4f6' }]} numberOfLines={1}>
             {item.title}
           </Text>
-          <Text
-            style={[
-              styles.productCategory,
-              { color: isDarkMode ? '#AAA' : '#666' },
-            ]}
-          >
+          <Text style={[styles.productCategory, { color: '#64748B' }]}>
             {item.category}
           </Text>
           <View style={styles.priceRow}>
-            <Text
-              style={[
-                styles.currentPrice,
-                { color: isDarkMode ? '#EDEDED' : '#222' },
-              ]}
-            >
+            <Text style={[styles.currentPrice, { color: '#84cc16' }]}>
               ₵{item.price.toFixed(2)}
             </Text>
             <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
           </View>
         </View>
-      </BlurView>
+      </TouchableOpacity>
     </Animated.View>
   );
 
   const renderDeal = ({ item }: { item: typeof DEALS_FOR_YOU[0] }) => (
-    <TouchableOpacity
-      style={[
-        styles.dealCard,
-        { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
-      ]}
-    >
+    <TouchableOpacity style={[styles.dealCard, { backgroundColor: '#111827' }]}>
       <Image source={item.image} style={styles.dealImage} />
-      <Text
-        style={[
-          styles.dealTitle,
-          { color: isDarkMode ? '#EDEDED' : '#222' },
-        ]}
-        numberOfLines={1}
-      >
+      <Text style={[styles.dealTitle, { color: '#f3f4f6' }]} numberOfLines={2}>
         {item.title}
       </Text>
-      <Text
-        style={[
-          styles.dealPrice,
-          { color: isDarkMode ? '#EDEDED' : '#222' },
-        ]}
-      >
+      <Text style={styles.dealPrice}>
         ₵{item.price.toFixed(2)}
       </Text>
     </TouchableOpacity>
@@ -258,40 +223,29 @@ export default function Home() {
   if (loading) {
     // Skeleton placeholders while loading
     return (
-      <SafeAreaView
-        style={[
-          styles.container,
-          { backgroundColor: isDarkMode ? '#121212' : '#F8F8F8' },
-        ]}
-      >
-        <View style={styles.skeletonHeader} />
-        <View style={styles.skeletonBanner} />
-        <View style={styles.skeletonChips} />
-        <View style={styles.skeletonRow} />
-        <View style={styles.skeletonRow} />
-        <ActivityIndicator
-          size="large"
-          color={isDarkMode ? '#4F46E5' : '#4F46E5'}
-        />
-        <BottomNav />
-      </SafeAreaView>
+      <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
+        <SafeAreaView style={{ flex: 1 }}>
+          <View style={styles.skeletonHeader} />
+          <View style={styles.skeletonBanner} />
+          <View style={styles.skeletonChips} />
+          <View style={styles.skeletonRow} />
+          <View style={styles.skeletonRow} />
+          <ActivityIndicator
+            size="large"
+            color="#1e3a8a"
+          />
+          <BottomNav />
+        </SafeAreaView>
+      </View>
     );
   }
 
   return (
-        <LinearGradient
-      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
-      style={{ flex: 1 }}
-    >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
-    <SafeAreaView
-      style={[
-        styles.container,
-        { backgroundColor: isDarkMode ? '#121212' : '#F8F8F8' },
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+    <SafeAreaView style={styles.container}>
       <Animated.ScrollView
-        contentContainerStyle={{ flexGrow: 1 }}
+        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -302,71 +256,68 @@ export default function Home() {
       >
 
 
-        {/* Location + Search Row */}
+        {/* Location + App Logo + Search Row */}
         <View style={styles.topSection}>
+          {/* Location Row */}
           <TouchableOpacity style={styles.locationRow}>
             <Ionicons
               name="location-sharp"
-              size={20}
-              color={isDarkMode ? '#EDEDED' : '#222'}
+              size={18}
+              color="#222"
             />
-            <Text
-              style={[
-                styles.locationText,
-                { color: isDarkMode ? '#EDEDED' : '#222' },
-              ]}
-            >
+            <Text style={[styles.locationText, { color: '#222' }]}>
               {locationText}
             </Text>
             <Ionicons
               name="chevron-down"
-              size={18}
-              color={isDarkMode ? '#EDEDED' : '#222'}
+              size={16}
+              color="#222"
             />
           </TouchableOpacity>
-          <View style={styles.searchRow}>
-            <BlurView
-              intensity={100}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[
-                styles.searchInputWrapper,
-                { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
-              ]}
-            >
-              <Feather
-                name="search"
-                size={18}
-                color={isDarkMode ? '#AAA' : '#666'}
+
+          {/* Logo and Search Row */}
+          <View style={styles.logoSearchRow}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../assets/images/icondark.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
               />
-              <TextInput
-                placeholder="Search here..."
-                placeholderTextColor={isDarkMode ? '#AAA' : '#666'}
-                style={[
-                  styles.searchInput,
-                  { color: isDarkMode ? '#EDEDED' : '#222' },
-                ]}
-              />
-            </BlurView>
-            <TouchableOpacity onPress={() => router.push('/filter')}>
-              <BlurView
-                intensity={40}
-                tint={isDarkMode ? 'dark' : 'light'}
-                style={[
-                  styles.filterBtn,
-                  { backgroundColor: isDarkMode ? '#1E1E1E' : '#FFF' },
-                ]}
-              >
+            </View>
+
+            <View style={styles.searchAndIcons}>
+              <View style={[styles.searchInputWrapper, { backgroundColor: '#1e3a8a' }]}>
                 <Feather
-                  name="sliders"
-                  size={20}
-                  color={isDarkMode ? '#AAA' : '#666'}
+                  name="search"
+                  size={16}
+                  color="#FFF"
                 />
-              </BlurView>
-            </TouchableOpacity>
+                <TextInput
+                  placeholder="Search here..."
+                  placeholderTextColor="rgba(255,255,255,0.8)"
+                  style={[styles.searchInput, { color: '#FFF' }]}
+                />
+                <TouchableOpacity onPress={() => router.push('/filter')}>
+                  <Feather
+                    name="sliders"
+                    size={16}
+                    color="#FFF"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity 
+                style={styles.notificationIcon}
+                onPress={() => router.push('/notifications')}
+              >
+                <Ionicons name="notifications" size={22} color="#1e3a8a" />
+                <View style={styles.notificationDot} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
-        {/* Parallax Banner with Overlay */}
+        {/* Enhanced Banner with Image Background */}
         <Animated.View
           style={[
             styles.bannerContainer,
@@ -379,43 +330,19 @@ export default function Home() {
                     extrapolate: 'clamp',
                   }),
                 },
-                {
-                  scale: scrollY.interpolate({
-                    inputRange: [-150, 0],
-                    outputRange: [1.2, 1],
-                    extrapolate: 'clamp',
-                  }),
-                },
               ],
             },
           ]}
         >
           <ImageBackground
-            source={require('../assets/images/liquidglass.jpg')}
-            style={styles.bannerImage}
-            imageStyle={{ borderRadius: 12 }}
+            source={require('../assets/images/banner1.png')}
+            style={styles.bannerImageBg}
+            imageStyle={{ borderRadius: 16 }}
           >
-            <BlurView
-            intensity={40}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={styles.bannerOverlay}>
-              <Image
-               source={require('../assets/images/icondark.png')}
-               style={styles.bannerIcon}
-              />
-              <Text style={styles.bannerSubtitle}>
-                Your go-to app for the latest apparels, sneakers, gadgets and
-                accessories from artisans around you. Shop trendy and unique
-                items from local artisans. Right here in Ghana.
-              </Text>
-              <TouchableOpacity style={styles.shopNowBtn}>
-                <Text style={styles.shopNowText}>Shop Now</Text>
-              </TouchableOpacity>
-            </BlurView>
           </ImageBackground>
         </Animated.View>
 
-        {/* Category Chips */}
+        {/* Category Chips with better styling */}
         <View style={styles.chipsContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {allCategoryNames.map((cat) => {
@@ -424,22 +351,12 @@ export default function Home() {
                 <TouchableOpacity
                   key={cat}
                   onPress={() => setSelectedCat(cat)}>
-                  <BlurView
-                    intensity={40}
-                    tint={isDarkMode ? 'dark' : 'light'}
+                  <View
                   style={[
                     styles.chip,
                     {
-                      backgroundColor: isActive
-                        ? '#4F46E5'
-                        : isDarkMode
-                        ? '#1E1E1E'
-                        : '#FFF',
-                      borderColor: isActive
-                        ? '#4F46E5'
-                        : isDarkMode
-                        ? '#333'
-                        : '#DDD',
+                      backgroundColor: isActive ? '#84cc16' : '#FFF',
+                      borderColor: isActive ? '#84cc16' : '#1e3a8a',
                     },
                   ]}
                 >
@@ -447,24 +364,35 @@ export default function Home() {
                     style={[
                       styles.chipText,
                       {
-                        color: isActive
-                          ? '#FFF'
-                          : isDarkMode
-                          ? '#AAA'
-                          : '#666',
+                        color: isActive ? '#111827' : '#64748B',
                       },
                     ]}
                   >
                     {cat}
                   </Text>
-                  </BlurView>
+                  </View>
                 </TouchableOpacity>
               );
             })}
+            <TouchableOpacity>
+              <View
+                style={[
+                  styles.chip,
+                  {
+                    backgroundColor: '#1e3a8a',
+                    borderColor: '#E2E8F0',
+                  },
+                ]}
+              >
+                <Text style={[styles.chipText, { color: '#fff' }]}>
+                  More..
+                </Text>
+              </View>
+            </TouchableOpacity>
           </ScrollView>
         </View>
 
-        {/* Featured “Carousel” as simple horizontal FlatList */}
+        {/* Featured "Carousel" - made more prominent */}
         <View style={{ paddingTop: 10 }}>
           <FlatList
             ref={featuredRef}
@@ -475,37 +403,34 @@ export default function Home() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ paddingHorizontal: 16 }}
             renderItem={({ item }) => (
-              <ImageBackground
-                source={item.image}
-                style={{
-                  width: width - 32,
-                  height: 160,
-                  borderRadius: 12,
-                  marginRight: 16,
-                }}
-                imageStyle={{ borderRadius: 12 }}
-              />
+              <View style={styles.featuredCard}>
+                <ImageBackground
+                  source={item.image}
+                  style={styles.featuredImage}
+                  imageStyle={{ borderRadius: 16 }}
+                >
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.3)']}
+                    style={styles.featuredOverlay}
+                  />
+                </ImageBackground>
+              </View>
             )}
             getItemLayout={(_, index) => ({
-              length: width - 16,        // (width - 32) + 16 margin
+              length: width - 16,
               offset: (width - 16) * index,
               index,
             })}
           />
         </View>
 
-        {/* Recently Added */}
+        {/* Recently Added with enhanced cards */}
         <View style={styles.sectionHeader}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: isDarkMode ? '#EDEDED' : '#222' },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: '#222' }]}>
             Recently Added
           </Text>
           <TouchableOpacity onPress={() => router.push('/recent')}>
-            <Text style={[styles.seeAllText, { color: '#A1A1AA' }]}>
+            <Text style={[styles.seeAllText, { color: '#64748B' }]}>
               See All
             </Text>
           </TouchableOpacity>
@@ -519,18 +444,13 @@ export default function Home() {
           renderItem={renderRecent}
         />
 
-        {/* Deals for You */}
+        {/* Deals for You with enhanced styling */}
         <View style={styles.sectionHeader}>
-          <Text
-            style={[
-              styles.sectionTitle,
-              { color: isDarkMode ? '#EDEDED' : '#222' },
-            ]}
-          >
+          <Text style={[styles.sectionTitle, { color: '#222' }]}>
             Deals for You
           </Text>
           <TouchableOpacity onPress={() => router.push('/deals')}>
-            <Text style={[styles.seeAllText, { color: '#A1A1AA' }]}>
+            <Text style={[styles.seeAllText, { color: '#64748B' }]}>
               See All
             </Text>
           </TouchableOpacity>
@@ -545,16 +465,31 @@ export default function Home() {
         />
       </Animated.ScrollView>
 
+           {/* Bottom Logos */}
+      <ImageBackground
+        source={require('../assets/images/icon.png')}
+        style={styles.background}
+      >
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
+      </ImageBackground>
+
+
       {/* Bottom Navigation */}
       <BottomNav />
     </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#e9f0ff',
   },
   // Skeleton placeholders
   skeletonHeader: {
@@ -588,115 +523,185 @@ const styles = StyleSheet.create({
   // Top Section (Location + Search)
   topSection: {
     paddingHorizontal: 16,
-    paddingTop: 0,
-    paddingBottom: 8,
+    paddingTop: 8,
+    paddingBottom: 12,
   },
   locationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   locationText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
-    marginLeft: 6,
-    marginRight: 4,
+    marginLeft: 4,
+    marginRight: 2,
   },
-  searchRow: {
+
+  // Logo and Search Row
+  logoSearchRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  logoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: 99,
+    height: 32,
+  },
+
+  searchAndIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginLeft: 12,
   },
   searchInputWrapper: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     marginRight: 10,
-    elevation: 2,
-    backgroundColor: 'rgba(255,255,255,0.05)', 
-
   },
   searchInput: {
     flex: 1,
-    marginLeft: 6,
-    height: 36,
-    fontSize: 14,
+    marginLeft: 8,
+    marginRight: 8,
+    height: 24,
+    fontSize: 13,
   },
-  filterBtn: {
-    width: 44,
-    height: 36,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 2,
-      backgroundColor: 'rgba(255,255,255,0.05)', 
+  notificationIcon: {
+    position: 'relative',
+    padding: 4,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#ff0101ff',
   },
 
-  // Parallax Banner
+  // Enhanced Banner
   bannerContainer: {
     marginHorizontal: 16,
-    marginTop: 10,
-    height: 160,
+    marginTop: 12,
+    height: 180,
     overflow: 'hidden',
-    borderRadius: 12,
+    borderRadius: 16,
   },
-  bannerImage: {
+  bannerImageBg: {
+    flex: 1,
     width: '100%',
     height: '100%',
   },
-  bannerIcon: {
-    width: 120,
-    height: 30,
-  },
-  bannerOverlay: {
+  bannerGradientOverlay: {
     flex: 1,
-    padding: 12,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    borderRadius: 12,
+    borderRadius: 16,
   },
-  bannerTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#FFF',
-    fontFamily: 'UnicialAntiqua-Regular',
+  bannerContent: {
+    flex: 1,
+    flexDirection: 'row',
+    padding: 16,
+  },
+  bannerLeftContent: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  bannerIcon: {
+    width: 100,
+    height: 28,
+    marginBottom: 8,
   },
   bannerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#FFF',
-    marginVertical: 6,
-    lineHeight: 16,
+    lineHeight: 15,
+    marginBottom: 12,
+    opacity: 0.95,
   },
   shopNowBtn: {
     alignSelf: 'flex-start',
     backgroundColor: '#FFF',
     borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   shopNowText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#111',
+  },
+
+  // Banner Illustration
+  bannerIllustration: {
+    width: 140,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cartContainer: {
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  floatingCard1: {
+    position: 'absolute',
+    top: 10,
+    right: -10,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 8,
+    padding: 8,
+  },
+  floatingCard2: {
+    position: 'absolute',
+    bottom: 15,
+    left: -15,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    borderRadius: 8,
+    padding: 8,
   },
 
   // Category Chips
   chipsContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    marginRight: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginRight: 10,
     borderWidth: 1,
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 20,
+    elevation: 1,
   },
   chipText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Featured Cards
+  featuredCard: {
+    width: width - 32,
+    height: 150,
+    borderRadius: 16,
+    marginRight: 16,
+    overflow: 'hidden',
+    elevation: 3,
+  },
+  featuredImage: {
+    width: '100%',
+    height: '100%',
+  },
+  featuredOverlay: {
+    flex: 1,
+    borderRadius: 16,
   },
 
   // Section Headers
@@ -705,16 +710,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
   seeAllText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Recently Added Cards
@@ -724,101 +729,108 @@ const styles = StyleSheet.create({
   },
   productCard: {
     width: 160,
-    borderRadius: 12,
-    marginRight: 16,
-    elevation: 3,
-    backgroundColor: 'rgba(255,255,255,0.05)', 
-    padding: 8,
+    borderRadius: 16,
+    elevation: 4,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   productImage: {
     width: '100%',
-    height: 110,
+    height: 120,
     resizeMode: 'cover',
   },
   heartIcon: {
     position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderRadius: 16,
-    padding: 4,
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 20,
+    padding: 6,
+    elevation: 2,
   },
   productInfo: {
-    padding: 8,
+    padding: 12,
   },
   productTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   productCategory: {
     fontSize: 12,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   currentPrice: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
   },
   oldPrice: {
     fontSize: 12,
     textDecorationLine: 'line-through',
-    color: '#A1A1AA',
+    color: '#94A3B8',
     marginLeft: 6,
   },
 
   // Deals for You
   dealsList: {
     paddingLeft: 16,
-    paddingBottom: 20,
+    paddingBottom: 30,
   },
   dealCard: {
     width: 140,
-    borderRadius: 12,
+    borderRadius: 16,
     marginRight: 16,
-    elevation: 3,
+    elevation: 4,
     overflow: 'hidden',
     alignItems: 'center',
-    padding: 8,
-    marginBottom: 45,
-    backgroundColor: 'rgba(255,255,255,0.05)', // glassy
+    padding: 0,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
   dealImage: {
     width: '100%',
-    height: 80,
+    height: 100,
     resizeMode: 'cover',
-    borderRadius: 8,
   },
   dealTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginTop: 8,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 10,
+    marginHorizontal: 8,
+    textAlign: 'center',
   },
   dealPrice: {
     fontSize: 14,
-    fontWeight: '600',
-    marginTop: 4,
+    fontWeight: '700',
+    marginTop: 6,
+    marginBottom: 10,
+    color: '#84cc16',
   },
+background: {
+  flex: 1,
+  justifyContent: 'flex-end',
+  alignItems: 'center',
+},
 
-  // Floating Action Button
-  fab: {
-    position: 'absolute',
-    bottom: 80,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#4F46E5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
+bottomLogos: {
+  position: 'absolute',
+  bottom: -50,      // adjust distance from bottom
+  left: -50,        // adjust distance from left
+},
+
+fadedLogo: {
+  width: 130,
+  height: 130,
+  resizeMode: 'contain',
+  opacity: 0.12, // soft fade
+},
 });

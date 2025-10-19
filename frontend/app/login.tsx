@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
@@ -9,6 +9,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
 import { Appearance } from 'react-native';
+
+const { width } = Dimensions.get('window');
+
 
 
 const LoginScreen = () => {
@@ -73,31 +76,36 @@ const LoginScreen = () => {
   };
 
   return (
-    <LinearGradient
-      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
-      style={{ flex: 1 }}
-    >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+    <View style={styles.container}>
+      <StatusBar style="dark" translucent backgroundColor="transparent" />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.container}
+        style={{ flex: 1 }}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.innerContainer}>
-            <Image style={styles.logoImage} source={require("../assets/images/icondark.png")} />
-            <Text style={styles.header}>Hello, Sign into your Account</Text>
-            <Text style={styles.subHeader}>Welcome back you've been missed!</Text>
+            {/* Logo */}
+            <Image
+              source={require('../assets/images/icondark.png')}
+              style={styles.logo}
+            />
+
+            {/* Title */}
+            <Text style={styles.title}>Hello, Sign into your account</Text>
+            <Text style={styles.subtitle}>
+              Welcome back you’ve been missed!
+            </Text>
 
             {/* Email Input */}
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="mail" size={20} color="#333" />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your email"
-                placeholderTextColor="#999"
+                placeholderTextColor="#888"
                 keyboardType="email-address"
                 autoCapitalize="none"
-                autoCorrect={false}
                 value={email}
                 onChangeText={setEmail}
               />
@@ -105,158 +113,200 @@ const LoginScreen = () => {
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="lock-closed" size={20} color="#333" />
               <TextInput
-                style={[styles.input, styles.passwordInput]}
+                style={styles.input}
                 placeholder="Password"
-                placeholderTextColor="#999"
+                placeholderTextColor="#888"
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
-                autoCorrect={false}
                 value={password}
                 onChangeText={setPassword}
               />
               <TouchableOpacity
-                style={styles.eyeIcon}
                 onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeIcon}
               >
                 <Ionicons
                   name={showPassword ? 'eye' : 'eye-off'}
                   size={20}
-                  color="#666"
+                  color="#111827"
                 />
               </TouchableOpacity>
             </View>
 
+            {/* Forgot Password */}
             <TouchableOpacity onPress={() => alert('Reset Password')}>
               <Text style={styles.forgotPassword}>Forgot password?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
+
+            {/* Sign in (solid pill) */}
+            <TouchableOpacity
+              style={[styles.signInButton, loading && styles.disabledButton]}
+              onPress={handleLogin}
+              disabled={loading}
+            >
               {loading ? (
-                <ActivityIndicator size="small" color="#FFF" />
+                <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.loginText}>Sign In</Text>
+                <Text style={styles.signInText}>Sign in</Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push('/register')}>
-              <Text style={styles.signupText}>
-                Not registered? <Text style={styles.boldText}>Sign up now!</Text>
+            {/* Register (outlined pill) */}
+            <TouchableOpacity
+              style={styles.registerButton}
+              onPress={() => router.push('/register')}
+            >
+              <Text style={styles.registerText}>
+                Not registered? <Text style={styles.registerBold}>Sign up now!</Text>
               </Text>
             </TouchableOpacity>
+
+            {/* Bottom Logos */}
+            <View style={styles.bottomLogos}>
+              <Image
+                source={require('../assets/images/icon.png')}
+                style={styles.circleLogo}
+              />
+              <Image
+                source={require('../assets/images/icondark.png')}
+                style={styles.brandLogo}
+              />
+            </View>
           </View>
         </TouchableWithoutFeedback>
-        <Toast />
       </KeyboardAvoidingView>
-    </LinearGradient>
+      <Toast />
+    </View>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#020b4dff',
-    padding: 16,
+    backgroundColor: '#e9f0ff', // pale light-blue like the image
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   innerContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    width: '92%',
     alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
   },
-  logoImage: {
-    width: 250,
-    height: 62,
-    borderRadius: 1,
-    marginBottom: 20,
+  logo: {
+    width: 200,
+    height: 60,
     resizeMode: 'contain',
+    marginBottom: 10,
+    marginTop: 20,
   },
-  header: {
-    fontSize: 24,
-    color: '#ffffffff',
-    fontWeight: 'bold',
-    marginBottom: 8,
+  title: {
+    fontSize: 22,
+    color: '#1e3a8a', // deep blue heading
+    fontWeight: '700',
     textAlign: 'center',
+    marginTop: 6,
   },
-  subHeader: {
-    fontSize: 16,
-    color: '#ffffffff',
-    marginBottom: 40,
+  subtitle: {
+    fontSize: 14,
+    color: '#444',
     textAlign: 'center',
-    opacity: 0.8,
+    marginBottom: 28,
+    opacity: 0.9,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginVertical: 10,
+    borderRadius: 28, // pill-like inputs
+    borderWidth: 1.5,
+    borderColor: '#84cc16', // green border like image
     paddingHorizontal: 16,
     height: 56,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    marginVertical: 8,
+    elevation: 2,
   },
   input: {
     flex: 1,
     fontSize: 16,
     color: '#000',
-    paddingVertical: 8,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  passwordInput: {
-    paddingRight: 40,
+    marginLeft: 8,
   },
   eyeIcon: {
-    position: 'absolute',
-    right: 16,
     padding: 4,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    color: '#ffffffff',
-    marginBottom: 30,
+    color: '#1e3a8a',
     fontSize: 14,
-    opacity: 0.9,
+    marginTop: 6,
+    marginBottom: 12,
   },
-  loginButton: {
-    width: '100%',
-    height: 56,
-    backgroundColor: '#1b7c22ff',
-    borderRadius: 12,
-    justifyContent: 'center',
+  signInButton: {
+    width: 250,
+    height: 50,
+    backgroundColor: '#84cc16', // solid green
+    borderRadius: 25, // big pill
     alignItems: 'center',
-    marginVertical: 20,
-    shadowColor: '#1b7c22',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    justifyContent: 'center',
+    marginTop: 6,
+
   },
-  loginText: {
+  disabledButton: {
+    opacity: 0.85,
+  },
+  signInText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
+    textTransform: 'none',
   },
-  signupText: {
-    color: '#ffffffff',
-    fontSize: 16,
-    opacity: 0.9,
+  registerButton: {
+    width: 250,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#84cc16',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
   },
-  boldText: {
-    fontWeight: 'bold',
-    color: '#4caf50',
+  registerText: {
+    color: '#1e3a8a',
+    fontSize: 15,
+  },
+  registerBold: {
+    color: '#84cc16',
+    fontWeight: '700',
+  },
+  bottomLogos: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginTop: 26,
+    paddingHorizontal: 6,
+    marginBottom: -20,
+  },
+  circleLogo: {
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
+    marginLeft: -50,
+    marginBottom: -200,
+
+  },
+  brandLogo: {
+    width: 90,
+    height: 30,
+    resizeMode: 'contain',
+    marginLeft: -50,
+    marginBottom: -200,
   },
 });
 

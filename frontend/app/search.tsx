@@ -8,7 +8,6 @@ import {
   FlatList,
   ImageBackground,
   TouchableOpacity,
-  useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav'; 
@@ -29,24 +28,15 @@ const categories = [
 ];
 
 export default function CategoryScreen() {
-  const colorScheme = useColorScheme(); // 🌙 Detects dark or light mode
-
-  // Dynamic Styles Based on Theme
-  const dynamicStyles = colorScheme === 'dark' ? darkStyles : lightStyles;
-
   return (
-    <SafeAreaView style={dynamicStyles.safeContainer}>
+    <SafeAreaView style={styles.safeContainer}>
       {/* 🔍 Search Bar */}
-      <View style={dynamicStyles.searchBar}>
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color={colorScheme === 'dark' ? '#fff' : '#888'}
-        />
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#888" />
         <TextInput
           placeholder="Search"
-          placeholderTextColor={colorScheme === 'dark' ? '#ccc' : '#333'}
-          style={dynamicStyles.searchInput}
+          placeholderTextColor="#333"
+          style={styles.searchInput}
         />
       </View>
 
@@ -55,16 +45,16 @@ export default function CategoryScreen() {
         data={categories}
         keyExtractor={(item) => item.title}
         numColumns={2}
-        contentContainerStyle={dynamicStyles.grid}
+        contentContainerStyle={styles.grid}
         ListFooterComponent={<View style={{ height: 80 }} />}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={[dynamicStyles.categoryItem, { backgroundColor: item.color }]}
+            style={[styles.categoryItem, { backgroundColor: item.color }]}
             activeOpacity={0.8}
           >
-            <ImageBackground source={item.image} style={dynamicStyles.image}>
-              <View style={dynamicStyles.overlay}>
-                <Text style={dynamicStyles.categoryText}>{item.title}</Text>
+            <ImageBackground source={item.image} style={styles.image}>
+              <View style={styles.overlay}>
+                <Text style={styles.categoryText}>{item.title}</Text>
               </View>
             </ImageBackground>
           </TouchableOpacity>
@@ -77,11 +67,10 @@ export default function CategoryScreen() {
   );
 }
 
-// 🎨 **Light Theme Styles**
-const lightStyles = StyleSheet.create({
+const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
-    backgroundColor: '#FDFFF7',
+    backgroundColor: '#e9f0ff',
   },
   searchBar: {
     flexDirection: 'row',
@@ -101,7 +90,7 @@ const lightStyles = StyleSheet.create({
   },
   grid: {
     paddingHorizontal: 10,
-    paddingBottom: 80, // leave room for BottomNav
+    paddingBottom: 80,
   },
   categoryItem: {
     flex: 1,
@@ -109,8 +98,8 @@ const lightStyles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     height: 120,
-    elevation: 2, // Android shadow
-    shadowColor: '#000', // iOS shadow
+    elevation: 2,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
@@ -139,30 +128,5 @@ const lightStyles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-  },
-});
-
-// 🌙 **Dark Theme Styles**
-const darkStyles = StyleSheet.create({
-  ...lightStyles,
-  safeContainer: {
-    flex: 1,
-    backgroundColor: '#000', // Dark background
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#333',
-    marginHorizontal: 16,
-    marginTop: 20,
-    padding: 12,
-    borderRadius: 20,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 16,
-    color: '#fff',
-    fontWeight: '400',
   },
 });
