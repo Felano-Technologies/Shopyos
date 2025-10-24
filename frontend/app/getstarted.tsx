@@ -90,10 +90,10 @@ const GetStartedScreen = () => {
       </View>
 
       {/* Bottom Logo */}
-              <View style={styles.bottomLogos}>
-                <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
-                <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
-              </View>
+      <View style={styles.bottomLogos}>
+        <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
+        <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
+        </View>
       </View>
   );
 };
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   carousel: {
-    marginTop: 40,
+    marginTop: 50,
   },
   carouselImage: {
     width: width * 0.85,
@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginVertical: 13,
+    marginBottom: 50,
   },
   dot: {
     width: 8,
