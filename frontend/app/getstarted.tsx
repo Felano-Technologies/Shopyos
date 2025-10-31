@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   carouselImage: {
     width: width * 0.85,
-    height: 160,
+    height: 140,
     borderRadius: 14,
     resizeMode: 'cover',
     marginHorizontal: 10,

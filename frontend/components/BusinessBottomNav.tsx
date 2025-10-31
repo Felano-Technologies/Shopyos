@@ -28,11 +28,7 @@ const BusinessBottomNav = () => {
       icon: 'bar-chart',
       route: '/business/analytics',
     },
-    {
-      name: 'Profile',
-      icon: 'person',
-      route: '/business/profile',
-    },
+
   ];
 
   return (

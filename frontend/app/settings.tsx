@@ -1,200 +1,102 @@
 // app/settings.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  useColorScheme,
   TouchableOpacity,
-  ScrollView,
   Image,
-  Alert,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 
 export default function SettingsScreen() {
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
+  const [username, setUsername] = useState('');
   const router = useRouter();
 
-  const bgColor = isDark ? '#121212' : '#F8F8F8';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const primaryText = isDark ? '#EDEDED' : '#222222';
-  const secondaryText = isDark ? '#AAA' : '#666666';
-
-  // Show confirmation before logging out
-  const confirmLogout = () => {
-    Alert.alert(
-      'Confirm Logout',
-      'Are you sure you want to log out?',
-      [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: () => router.push('/login'),
-        },
-      ],
-      { cancelable: true }
-    );
-  };
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const storedName = await SecureStore.getItemAsync('username');
+        if (storedName) setUsername(storedName);
+        else setUsername('KB Ventures');
+      } catch (error) {
+        console.log('Error loading username:', error);
+      }
+    };
+    fetchUserData();
+  }, []);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-      {/* Header with Title and Avatar */}
+    <SafeAreaView style={styles.container}>
+      {/* Header Section */}
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { color: primaryText }]}>
-          Settings
-        </Text>
+        {/* Faint background logo watermark */}
+        <Image
+          source={require('../assets/images/splash-icon.png')}
+          style={styles.headerWatermark}
+        />
+
+        <Text style={styles.headerTitle}>My Account</Text>
+
+        <View style={styles.profileContainer}>
+          <Ionicons name="person-circle-outline" size={70} color="#fff" />
+          <Text style={styles.username}>{username}</Text>
+        </View>
+      </View>
+
+      {/* Banner Section */}
+      <View style={styles.bannerContainer}>
+        <Image
+          source={require('../assets/images/bannerSettings.png')}
+          style={styles.bannerImage}
+        />
+      </View>
+
+      {/* Menu Section */}
+      <View style={styles.menuContainer}>
         <TouchableOpacity
-          style={styles.avatarWrapper}
-          onPress={() => router.push('/userProfile')}
+          style={styles.menuItem}
+          onPress={() => router.push('/account')}
         >
-          {/* Replace with actual user image if available */}
-          <Ionicons
-            name="person-circle-outline"
-            size={36}
-            color={primaryText}
-          />
+          <Ionicons name="person-circle-outline" size={28} color="#0B165C" />
+          <Text style={styles.menuText}>My Account</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/transactions')}
+        >
+          <Ionicons name="card" size={26} color="#0B165C" />
+          <Text style={styles.menuText}>Transaction History</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/settings/security')}
+        >
+          <MaterialIcons name="security" size={26} color="#0B165C" />
+          <Text style={styles.menuText}>Security Settings</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/general-settings')}
+        >
+          <Ionicons name="settings-sharp" size={26} color="#0B165C" />
+          <Text style={styles.menuText}>General Settings</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Account Section */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>
-            Account
-          </Text>
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/userProfile')}
-          >
-            <Ionicons
-              name="person-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Profile
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/changePassword')}
-          >
-            <Ionicons
-              name="lock-closed-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Change Password
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Notifications Section */}
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: cardBg, marginTop: 12 },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>
-            Notifications
-          </Text>
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/pushNotifications')}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Push Notifications
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow}>
-            <Ionicons
-              name="mail-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Email Notifications
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Support Section */}
-        <View
-          style={[
-            styles.sectionCard,
-            { backgroundColor: cardBg, marginTop: 12, marginBottom: 80 },
-          ]}
-        >
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>
-            Support
-          </Text>
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/helpCenter')}
-          >
-            <Ionicons
-              name="help-circle-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Help Center
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/contactUs')}
-          >
-            <Ionicons
-              name="mail-unread-outline"
-              size={20}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Contact Us
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Logout Button */}
-        <View style={styles.logoutContainer}>
-          <TouchableOpacity
-            style={[styles.logoutButton, { backgroundColor: cardBg }]}
-            onPress={confirmLogout}
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={20}
-              color="#E11D48"
-              style={styles.logoutIcon}
-            />
-            <Text style={[styles.logoutLabel, { color: '#E11D48' }]}>
-              Log Out
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+      {/* Bottom Watermark */}
+      <View style={styles.bottomWatermarkContainer}>
+        <Image
+          source={require('../assets/images/splash-icon.png')}
+          style={styles.bottomWatermark}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -202,65 +104,82 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#E9F0FF',
   },
   header: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    backgroundColor: '#0B165C',
+    paddingTop: 40,
+    paddingBottom: 30,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
     alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerWatermark: {
+    position: 'absolute',
+    right: -40,
+    bottom: -40,
+    width: 150,
+    height: 150,
+    opacity: 0.15,
+    resizeMode: 'contain',
   },
   headerTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+    color: '#A3E635',
+    fontSize: 18,
+    fontWeight: '700',
+    alignSelf: 'flex-start',
+    marginLeft: 30,
   },
-  avatarWrapper: {
-    justifyContent: 'center',
+  profileContainer: {
     alignItems: 'center',
+    marginTop: 15,
   },
-  scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+  username: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 6,
   },
-  sectionCard: {
+  bannerContainer: {
+    alignItems: 'center',
+    marginTop: 25,
+  },
+  bannerImage: {
+    width: '85%',
+    height: 100,
     borderRadius: 12,
-    padding: 12,
-    elevation: 2,
+    resizeMode: 'cover',
   },
-  sectionTitle: {
+  menuContainer: {
+    marginTop: 60,
+    paddingHorizontal: 40,
+    flex: 1,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  menuText: {
+    marginLeft: 16,
     fontSize: 16,
+    color: '#000',
     fontWeight: '600',
-    marginBottom: 8,
   },
-  itemRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10,
+  bottomWatermarkContainer: {
+    position: 'relative',
+    height: 80,
+    justifyContent: 'flex-end',
   },
-  itemIcon: {
-    marginRight: 12,
-  },
-  itemLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  logoutContainer: {
-    marginTop: -50,
-    alignItems: 'center',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    elevation: 1,
-  },
-  logoutIcon: {
-    marginRight: 8,
-  },
-  logoutLabel: {
-    fontSize: 16,
-    fontWeight: '500',
+  bottomWatermark: {
+    position: 'absolute',
+    left: -40,
+    bottom: -30,
+    width: 150,
+    height: 150,
+    opacity: 0.12,
+    resizeMode: 'contain',
   },
 });

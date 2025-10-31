@@ -3,9 +3,11 @@ import React from 'react';
 import {
   View,
   Text,
-  StyleSheet,TouchableOpacity,
+  StyleSheet,
+  TouchableOpacity,
   ScrollView,
   Alert,
+  Image,
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,10 +19,12 @@ export default function BusinessSettingsScreen() {
   const isDark = theme === 'dark';
   const router = useRouter();
 
-  const bgColor = isDark ? '#121212' : '#F8F8F8';
+  const bgColor = isDark ? '#121212' : '#E9F0FF';
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const primaryText = isDark ? '#EDEDED' : '#222222';
+  const primaryText = isDark ? '#EDEDED' : '#111827';
   const secondaryText = isDark ? '#AAA' : '#666666';
+  const accent = '#A3E635';
+  const headerBg = '#081059';
 
   const confirmLogout = () => {
     Alert.alert('Logout?', 'Are you sure you want to log out?', [
@@ -31,67 +35,177 @@ export default function BusinessSettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+      {/* ─── Header Section ─── */}
+      <View style={[styles.header, { backgroundColor: headerBg }]}>
+        {/* Background watermark */}
+        <Image
+          source={require('../../assets/images/splash-icon.png')}
+          style={styles.headerWatermark}
+        />
+        <Text style={[styles.headerTitle, { color: accent }]}>Business Settings</Text>
+        <View style={styles.businessProfile}>
+          <Ionicons name="briefcase-outline" size={70} color="#fff" />
+          <Text style={styles.businessName}>My Business</Text>
+        </View>
+      </View>
+
+      {/* ─── Scrollable Content ─── */}
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* ─── Business Profile ─── */}
         <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
           <Text style={[styles.sectionTitle, { color: primaryText }]}>Business Profile</Text>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/business/editProfile')}>
-            <Ionicons name="briefcase-outline" size={20} color={secondaryText} style={styles.itemIcon} />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Edit Business Info</Text>
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/business/editProfile')}
+          >
+            <Ionicons
+              name="briefcase-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>
+              Edit Business Info
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/business/verification')}>
-            <Ionicons name="shield-checkmark-outline" size={20} color={secondaryText} style={styles.itemIcon} />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Verification Status</Text>
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/business/verification')}
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>
+              Verification Status
+            </Text>
           </TouchableOpacity>
         </View>
 
-
-
         {/* ─── Finance Settings ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg, marginTop: 12 }]}>
+        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
           <Text style={[styles.sectionTitle, { color: primaryText }]}>Finance</Text>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/business/payout')}>
-            <MaterialIcons name="payments" size={20} color={secondaryText} style={styles.itemIcon} />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Payout Settings</Text>
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/business/payout')}
+          >
+            <MaterialIcons
+              name="payments"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>
+              Payout Settings
+            </Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/business/transactions')}>
-            <Ionicons name="cash-outline" size={20} color={secondaryText} style={styles.itemIcon} />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Transaction History</Text>
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/business/transactions')}
+          >
+            <Ionicons
+              name="cash-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>
+              Transaction History
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* ─── Notifications ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg, marginTop: 12 }]}>
+        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
           <Text style={[styles.sectionTitle, { color: primaryText }]}>Notifications</Text>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/settings/pushNotifications')}>
-            <Ionicons name="notifications-outline" size={20} color={secondaryText} style={styles.itemIcon} />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Push Alerts</Text>
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/pushNotifications')}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>
+              Push Alerts
+            </Text>
           </TouchableOpacity>
+
           <TouchableOpacity style={styles.itemRow}>
-            <Ionicons name="mail-outline" size={20} color={secondaryText} style={styles.itemIcon} />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Email Preferences</Text>
+            <Ionicons
+              name="mail-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
+            <Text style={[styles.itemLabel, { color: primaryText }]}>
+              Email Preferences
+            </Text>
           </TouchableOpacity>
         </View>
 
         {/* ─── Support ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg, marginTop: 12 }]}>
+        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
           <Text style={[styles.sectionTitle, { color: primaryText }]}>Support</Text>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/settings/helpCenter')}>
-            <Ionicons name="help-circle-outline" size={20} color={secondaryText} style={styles.itemIcon} />
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/helpCenter')}
+          >
+            <Ionicons
+              name="help-circle-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
             <Text style={[styles.itemLabel, { color: primaryText }]}>Help Center</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/settings/contactUs')}>
-            <Ionicons name="chatbox-ellipses-outline" size={20} color={secondaryText} style={styles.itemIcon} />
+
+          <TouchableOpacity
+            style={styles.itemRow}
+            onPress={() => router.push('/settings/contactUs')}
+          >
+            <Ionicons
+              name="chatbox-ellipses-outline"
+              size={22}
+              color={secondaryText}
+              style={styles.itemIcon}
+            />
             <Text style={[styles.itemLabel, { color: primaryText }]}>Contact Support</Text>
           </TouchableOpacity>
         </View>
 
         {/* ─── Logout ─── */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]} onPress={confirmLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#E11D48" style={styles.logoutIcon} />
+          <TouchableOpacity
+            style={[styles.logoutButton, { backgroundColor: cardBg }]}
+            onPress={confirmLogout}
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={22}
+              color="#E11D48"
+              style={styles.logoutIcon}
+            />
             <Text style={[styles.logoutLabel, { color: '#E11D48' }]}>Log Out</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Bottom Watermark */}
+        <View style={styles.bottomWatermarkContainer}>
+          <Image
+            source={require('../../assets/images/splash-icon.png')}
+            style={styles.bottomWatermark}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -99,31 +213,69 @@ export default function BusinessSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+  container: { flex: 1 },
+  header: {
+    paddingTop: 40,
+    paddingBottom: 25,
+    borderBottomLeftRadius: 50,
+    borderBottomRightRadius: 50,
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  headerWatermark: {
+    position: 'absolute',
+    right: -40,
+    bottom: -40,
+    width: 150,
+    height: 150,
+    opacity: 0.15,
+    resizeMode: 'contain',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    alignSelf: 'flex-start',
+    marginLeft: 30,
+  },
+  businessProfile: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  businessName: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 6,
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 60,
   },
   sectionCard: {
-    borderRadius: 12,
-    padding: 12,
-    elevation: 2,
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowOffset: { width: 0, height: 3 },
+    shadowRadius: 5,
+    elevation: 3,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 8,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   itemIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   itemLabel: {
     fontSize: 15,
@@ -131,7 +283,7 @@ const styles = StyleSheet.create({
   },
   logoutContainer: {
     alignItems: 'center',
-    marginTop: 30,
+    marginTop: 25,
   },
   logoutButton: {
     flexDirection: 'row',
@@ -139,13 +291,27 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 8,
-    elevation: 1,
+    elevation: 2,
   },
   logoutIcon: {
     marginRight: 8,
   },
   logoutLabel: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
+  },
+  bottomWatermarkContainer: {
+    position: 'relative',
+    height: 100,
+    justifyContent: 'flex-end',
+  },
+  bottomWatermark: {
+    position: 'absolute',
+    left: -40,
+    bottom: -40,
+    width: 150,
+    height: 150,
+    opacity: 0.12,
+    resizeMode: 'contain',
   },
 });
