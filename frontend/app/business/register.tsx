@@ -10,65 +10,67 @@ import {
   Alert,
   ActivityIndicator,
   Image,
-  Platform, useColorScheme,Animated,Dimensions
+  Dimensions,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
-import { api, businessRegister } from '@/services/api';
-import { BlurView } from 'expo-blur';
+import { businessRegister } from '@/services/api';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 
-// const { width } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
+// --- MOVED OUTSIDE: Input Component to prevent re-render issues ---
+const InputField = ({ label, icon, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: any) => (
+  <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
+          <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />
+          <TextInput
+              style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
+              value={value}
+              onChangeText={onChangeText} // Direct prop passing
+              placeholder={placeholder}
+              placeholderTextColor="#94A3B8"
+              multiline={multiline}
+              textAlignVertical={multiline ? 'top' : 'center'}
+              keyboardType={keyboardType}
+          />
+      </View>
+  </View>
+);
 
 const BusinessSetupScreen = () => {
-  const theme = useColorScheme();
-  const isDarkMode = theme === 'dark';
-
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    businessName: '',
-    description: '',
-    category: '',
-    address: '',
-    city: '',
-    country: '',
-    phone: '',
-    website: '',
-    instagram: '',
-    facebook: ''
+    businessName: '', description: '', category: '', address: '',
+    city: '', country: '', phone: '', website: '',
+    instagram: '', facebook: ''
   });
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
 
-  const { uploadImage, loading: uploadLoading, error: uploadError } = useCloudinaryUpload();
+  const { uploadImage, loading: uploadLoading } = useCloudinaryUpload();
 
   const categories = [
-    'Fashion & Apparel',
-    'Electronics',
-    'Home & Living',
-    'Art & Crafts',
-    'Beauty & Personal Care',
-    'Food & Beverages',
-    'Jewelry & Accessories',
-    'Sports & Outdoors',
-    'Other'
+    'Fashion', 'Electronics', 'Home', 'Art',
+    'Beauty', 'Food', 'Jewelry', 'Sports', 'Other'
   ];
 
+  // --- Logic ---
   const pickImage = async (type: 'logo' | 'cover') => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Sorry, we need camera roll permissions to upload images.');
+        Alert.alert('Permission Required', 'We need access to your photos to upload images.');
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
@@ -77,664 +79,557 @@ const BusinessSetupScreen = () => {
       });
 
       if (!result.canceled) {
-        if (type === 'logo') {
-          setLogo(result.assets[0].uri);
-        } else {
-          setCoverImage(result.assets[0].uri);
-        }
+        if (type === 'logo') setLogo(result.assets[0].uri);
+        else setCoverImage(result.assets[0].uri);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const validateForm = () => {
-    if (!formData.businessName.trim()) {
-      Alert.alert('Validation Error', 'Business name is required');
-      return false;
-    }
-    if (!formData.description.trim()) {
-      Alert.alert('Validation Error', 'Business description is required');
-      return false;
-    }
-    if (!formData.category) {
-      Alert.alert('Validation Error', 'Please select a business category');
-      return false;
-    }
-    if (!formData.address.trim()) {
-      Alert.alert('Validation Error', 'Business address is required');
-      return false;
-    }
-    if (!formData.phone.trim()) {
-      Alert.alert('Validation Error', 'Business phone number is required');
-      return false;
-    }
+    if (!formData.businessName.trim()) return alertError('Business Name is required');
+    if (!formData.description.trim()) return alertError('Description is required');
+    if (!formData.category) return alertError('Select a Category');
+    if (!formData.address.trim()) return alertError('Address is required');
+    if (!formData.phone.trim()) return alertError('Phone Number is required');
     return true;
+  };
+
+  const alertError = (msg: string) => {
+    Alert.alert('Missing Information', msg);
+    return false;
   };
 
   const handleCreateBusiness = async () => {
     if (!validateForm()) return;
-
     setLoading(true);
+
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      if (!token) {
-        Alert.alert('Error', 'Authentication required');
-        router.replace('/login');
-        return;
+      if (!token) return router.replace('/login');
+
+      let logoUrl = '';
+      let coverImageUrl = '';
+
+      // Uploads
+      if (logo) {
+        const res = await uploadImage(logo, 'business_image');
+        if (res) logoUrl = res.url;
+      }
+      if (coverImage) {
+        const res = await uploadImage(coverImage, 'business_image');
+        if (res) coverImageUrl = res.url;
       }
 
-
-     // UPLOAD IMAGES TO CLOUDINARY
-     let logoUrl = '';
-     let coverImageUrl = '';
-
-     if (logo) {
-       const logoResult = await uploadImage(logo, 'business_image');
-       if (logoResult) {
-         logoUrl = logoResult.url;
-         console.log('Logo uploaded:', logoUrl);
-       } else {
-         throw new Error(uploadError || 'Failed to upload logo');
-       }
-     }
-
-     if (coverImage) {
-       const coverResult = await uploadImage(coverImage, 'business_image');
-       console.log(coverResult)
-       if (coverResult) {
-         console.log('Cover image uploaded:', coverImageUrl);
-       } else {
-         throw new Error(uploadError || 'Failed to upload cover image');
-       }
-     }
-
-     const submitData = {
-      ...formData,
-      logo: logoUrl,
-      coverImage: coverImageUrl,
-    };
-
-
+      const submitData = {
+        ...formData,
+        logo: logoUrl,
+        coverImage: coverImageUrl,
+        socialMedia: {
+            instagram: formData.instagram,
+            facebook: formData.facebook
+        }
+      };
 
       const response = await businessRegister(submitData);
 
       if (response.success) {
-
-        
-        Alert.alert(
-          'Success!',
-          'Your business has been created successfully!',
-          [{ text: 'Continue', onPress: () => router.replace('/business/dashboard') }]
-        );
+        Alert.alert('Success!', 'Business created successfully!', [
+          { text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }
+        ]);
       }
-    } catch (error: any) {
-      console.error('Error creating business:', error);
-      Alert.alert(
-        'Creation Failed',
-        error.response?.data?.error || 'Failed to create business. Please try again.'
-      );
+} catch (error: any) {
+        // --- DEBUG LOGGING ---
+        console.log("FULL ERROR OBJECT:", JSON.stringify(error, null, 2));
+        if (error.response) {
+            console.log("STATUS:", error.response.status);
+            console.log("DATA:", error.response.data);
+        }
+        // ---------------------
+
+        let errorMessage = 'Registration failed. Please try again.';
+        
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = error.response.data.error;
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        Alert.alert('Registration Error', errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-   return (
-    <LinearGradient
-      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
-      style={styles.gradient}
-    >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          {/* Header with Glassmorphism */}
-          <BlurView
-            intensity={80}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[styles.header, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.8)' : 'rgba(255,255,255,0.8)' }]}
-          >
-            <LinearGradient
-              colors={['#4F46E5', '#7C3AED']}
-              style={styles.iconContainer}
-            >
-              <Ionicons name="rocket" size={32} color="#FFF" />
-            </LinearGradient>
-            <Text style={[styles.title, { color: isDarkMode ? '#EDEDED' : '#333' }]}>
-              Setup Your Business
-            </Text>
-            <Text style={[styles.subtitle, { color: isDarkMode ? '#AAA' : '#666' }]}>
-              Create your first business profile to get started
-            </Text>
-          </BlurView>
+  return (
+    <View style={styles.mainContainer}>
+      <StatusBar style="light" />
+      
+      {/* Background Watermark */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={styles.bottomLogos}>
+          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+        </View>
+      </View>
 
-          {/* Business Images Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="image" size={20} color="#4F46E5" />
-              <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#333' }]}>
-                Business Images
-              </Text>
-            </View>
-            
-            {/* Cover Image */}
-            <TouchableOpacity 
-              style={styles.coverImageContainer}
-              onPress={() => pickImage('cover')}
-              activeOpacity={0.8}
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+        {/* Keyboard Avoiding View Wrapper */}
+        <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+            style={{ flex: 1 }}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20} 
+        >
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
             >
-              {coverImage ? (
-                <Image source={{ uri: coverImage }} style={styles.coverImage} />
-              ) : (
-                <BlurView
-                  intensity={60}
-                  tint={isDarkMode ? 'dark' : 'light'}
-                  style={[styles.coverImagePlaceholder, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-                >
-                  <LinearGradient
-                    colors={['#4F46E5', '#7C3AED']}
-                    style={styles.uploadIconContainer}
-                  >
-                    <Ionicons name="camera-outline" size={28} color="#FFF" />
-                  </LinearGradient>
-                  <Text style={[styles.imagePlaceholderText, { color: isDarkMode ? '#AAA' : '#666' }]}>
-                    Add Cover Image
-                  </Text>
-                  <Text style={[styles.imagePlaceholderSubtext, { color: isDarkMode ? '#888' : '#999' }]}>
-                    16:9 aspect ratio recommended
-                  </Text>
-                </BlurView>
-              )}
-              {coverImage && (
-                <View style={styles.imageOverlay}>
-                  <BlurView intensity={80} tint="dark" style={styles.changeImageBtn}>
-                    <Ionicons name="camera" size={16} color="#FFF" />
-                    <Text style={styles.changeImageText}>Change</Text>
-                  </BlurView>
+            
+            {/* Header */}
+            <LinearGradient
+                colors={['#0C1559', '#1e3a8a']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.headerContainer}
+            >
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <Ionicons name="arrow-back" size={24} color="#FFF" />
+                </TouchableOpacity>
+                <View style={{ alignItems: 'center' }}>
+                    <Text style={styles.headerTitle}>Setup Business</Text>
+                    <Text style={styles.headerSubtitle}>Let's get your store online</Text>
                 </View>
-              )}
+                <View style={{ width: 40 }} />
+            </LinearGradient>
+
+            {/* --- Media Upload Section --- */}
+            <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Brand Identity</Text>
+                
+                {/* Cover Image */}
+                <TouchableOpacity style={styles.coverUpload} onPress={() => pickImage('cover')}>
+                    {coverImage ? (
+                        <Image source={{ uri: coverImage }} style={styles.uploadedCover} />
+                    ) : (
+                        <View style={styles.uploadPlaceholder}>
+                            <Feather name="image" size={32} color="#94A3B8" />
+                            <Text style={styles.uploadText}>Add Cover Photo (16:9)</Text>
+                        </View>
+                    )}
+                    {coverImage && <View style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF"/></View>}
+                </TouchableOpacity>
+
+                {/* Logo Upload */}
+                <View style={styles.logoRow}>
+                    <TouchableOpacity style={styles.logoUpload} onPress={() => pickImage('logo')}>
+                        {logo ? (
+                            <Image source={{ uri: logo }} style={styles.uploadedLogo} />
+                        ) : (
+                            <View style={styles.logoPlaceholder}>
+                                <Feather name="camera" size={24} color="#94A3B8" />
+                            </View>
+                        )}
+                        <View style={styles.addLogoBadge}><Feather name="plus" size={10} color="#FFF"/></View>
+                    </TouchableOpacity>
+                    <View style={styles.logoTextContainer}>
+                        <Text style={styles.logoLabel}>Business Logo</Text>
+                        <Text style={styles.logoSub}>Tap to upload a square logo</Text>
+                    </View>
+                </View>
+            </View>
+
+            {/* --- Business Info Section --- */}
+            <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Basic Details</Text>
+                
+                <InputField 
+                    label="Business Name" 
+                    icon="briefcase" 
+                    value={formData.businessName} 
+                    onChangeText={(t: string) => handleInputChange('businessName', t)} 
+                    placeholder="e.g. Urban Trends" 
+                />
+                
+                <InputField 
+                    label="Description" 
+                    icon="file-text" 
+                    value={formData.description} 
+                    onChangeText={(t: string) => handleInputChange('description', t)} 
+                    placeholder="Tell us about what you sell..." 
+                    multiline 
+                />
+
+                {/* Category Pills */}
+                <Text style={styles.label}>Category</Text>
+                <ScrollView 
+                    horizontal 
+                    showsHorizontalScrollIndicator={false} 
+                    contentContainerStyle={styles.catScroll}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    {categories.map((cat) => (
+                        <TouchableOpacity 
+                            key={cat} 
+                            style={[styles.catChip, formData.category === cat && styles.catActive]}
+                            onPress={() => handleInputChange('category', cat)}
+                        >
+                            <Text style={[styles.catText, formData.category === cat && styles.catTextActive]}>{cat}</Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+            </View>
+
+            {/* --- Contact & Location --- */}
+            <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Contact & Location</Text>
+                
+                <InputField 
+                    label="Phone Number" 
+                    icon="phone" 
+                    value={formData.phone} 
+                    onChangeText={(t: string) => handleInputChange('phone', t)} 
+                    placeholder="+233 24 123 4567" 
+                    keyboardType="phone-pad" 
+                />
+                
+                <View style={styles.row}>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                        <InputField 
+                            label="City" 
+                            icon="map-pin" 
+                            value={formData.city} 
+                            onChangeText={(t: string) => handleInputChange('city', t)} 
+                            placeholder="Accra" 
+                        />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <InputField 
+                            label="Country" 
+                            icon="flag" 
+                            value={formData.country} 
+                            onChangeText={(t: string) => handleInputChange('country', t)} 
+                            placeholder="Ghana" 
+                        />
+                    </View>
+                </View>
+                
+                <InputField 
+                    label="Full Address" 
+                    icon="map" 
+                    value={formData.address} 
+                    onChangeText={(t: string) => handleInputChange('address', t)} 
+                    placeholder="Street name, PLT number..." 
+                />
+            </View>
+
+            {/* --- Social Links --- */}
+            <View style={styles.sectionCard}>
+                <Text style={styles.sectionTitle}>Online Presence (Optional)</Text>
+                <InputField 
+                    label="Website" 
+                    icon="globe" 
+                    value={formData.website} 
+                    onChangeText={(t: string) => handleInputChange('website', t)} 
+                    placeholder="https://yourstore.com" 
+                />
+                
+                <View style={styles.row}>
+                    <View style={{ flex: 1, marginRight: 10 }}>
+                        <InputField 
+                            label="Instagram" 
+                            icon="instagram" 
+                            value={formData.instagram} 
+                            onChangeText={(t: string) => handleInputChange('instagram', t)} 
+                            placeholder="@handle" 
+                        />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                        <InputField 
+                            label="Facebook" 
+                            icon="facebook" 
+                            value={formData.facebook} 
+                            onChangeText={(t: string) => handleInputChange('facebook', t)} 
+                            placeholder="Page Name" 
+                        />
+                    </View>
+                </View>
+            </View>
+
+            {/* --- Submit Button --- */}
+            <TouchableOpacity 
+                style={styles.submitBtn} 
+                onPress={handleCreateBusiness}
+                disabled={loading || uploadLoading}
+            >
+                <LinearGradient
+                    colors={['#0C1559', '#1e3a8a']}
+                    style={styles.submitGradient}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                >
+                    {loading || uploadLoading ? (
+                        <ActivityIndicator color="#FFF" />
+                    ) : (
+                        <>
+                            <Text style={styles.submitText}>Launch Business</Text>
+                            <Ionicons name="rocket" size={20} color="#FFF" />
+                        </>
+                    )}
+                </LinearGradient>
             </TouchableOpacity>
 
-            {/* Logo */}
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.logoSection, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <View style={styles.logoInfo}>
-                <Text style={[styles.logoLabel, { color: isDarkMode ? '#EDEDED' : '#333' }]}>
-                  Business Logo
-                </Text>
-                <Text style={[styles.logoSubtext, { color: isDarkMode ? '#888' : '#999' }]}>
-                  Square format
-                </Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.logoContainer}
-                onPress={() => pickImage('logo')}
-                activeOpacity={0.8}
-              >
-                {logo ? (
-                  <Image source={{ uri: logo }} style={styles.logoImage} />
-                ) : (
-                  <LinearGradient
-                    colors={['#4F46E5', '#7C3AED']}
-                    style={styles.logoPlaceholder}
-                  >
-                    <Ionicons name="business-outline" size={32} color="#FFF" />
-                  </LinearGradient>
-                )}
-              </TouchableOpacity>
-            </BlurView>
-          </View>
-
-          {/* Business Information */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Ionicons name="information-circle" size={20} color="#4F46E5" />
-              <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#333' }]}>
-                Business Information
-              </Text>
-            </View>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Business Name *"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={formData.businessName}
-                onChangeText={(text) => handleInputChange('businessName', text)}
-              />
-            </BlurView>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, styles.textArea, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Business Description *"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                value={formData.description}
-                onChangeText={(text) => handleInputChange('description', text)}
-              />
-            </BlurView>
-
-            {/* Category Selection */}
-            <View style={styles.categoryContainer}>
-              <Text style={[styles.categoryLabel, { color: isDarkMode ? '#EDEDED' : '#333' }]}>
-                Business Category *
-              </Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                style={styles.categoriesScroll}
-              >
-                {categories.map((category) => (
-                  <TouchableOpacity
-                    key={category}
-                    onPress={() => handleInputChange('category', category)}
-                    activeOpacity={0.7}
-                  >
-                    <BlurView
-                      intensity={60}
-                      tint={isDarkMode ? 'dark' : 'light'}
-                      style={[
-                        styles.categoryChip,
-                        { backgroundColor: formData.category === category 
-                          ? '#4F46E5' 
-                          : isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' 
-                        }
-                      ]}
-                    >
-                      <Text style={[
-                        styles.categoryText,
-                        { color: formData.category === category 
-                          ? '#FFF' 
-                          : isDarkMode ? '#AAA' : '#666' 
-                        }
-                      ]}>
-                        {category}
-                      </Text>
-                    </BlurView>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Business Address *"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={formData.address}
-                onChangeText={(text) => handleInputChange('address', text)}
-              />
-            </BlurView>
-
-            <View style={styles.row}>
-              <BlurView
-                intensity={60}
-                tint={isDarkMode ? 'dark' : 'light'}
-                style={[styles.input, styles.halfInput, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-              >
-                <TextInput
-                  style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                  placeholder="City *"
-                  placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                  value={formData.city}
-                  onChangeText={(text) => handleInputChange('city', text)}
-                />
-              </BlurView>
-              <BlurView
-                intensity={60}
-                tint={isDarkMode ? 'dark' : 'light'}
-                style={[styles.input, styles.halfInput, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-              >
-                <TextInput
-                  style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                  placeholder="Country *"
-                  placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                  value={formData.country}
-                  onChangeText={(text) => handleInputChange('country', text)}
-                />
-              </BlurView>
-            </View>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Business Phone *"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                keyboardType="phone-pad"
-                value={formData.phone}
-                onChangeText={(text) => handleInputChange('phone', text)}
-              />
-            </BlurView>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Website (Optional)"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                keyboardType="url"
-                value={formData.website}
-                onChangeText={(text) => handleInputChange('website', text)}
-              />
-            </BlurView>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <Ionicons name="logo-instagram" size={20} color="#E1306C" style={styles.socialIcon} />
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Instagram (Optional)"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={formData.instagram}
-                onChangeText={(text) => handleInputChange('instagram', text)}
-              />
-            </BlurView>
-
-            <BlurView
-              intensity={60}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[styles.input, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-            >
-              <Ionicons name="logo-facebook" size={20} color="#1877F2" style={styles.socialIcon} />
-              <TextInput
-                style={[styles.inputText, { color: isDarkMode ? '#EDEDED' : '#333' }]}
-                placeholder="Facebook (Optional)"
-                placeholderTextColor={isDarkMode ? '#888' : '#999'}
-                value={formData.facebook}
-                onChangeText={(text) => handleInputChange('facebook', text)}
-              />
-            </BlurView>
-          </View>
-
-          {/* Submit Button */}
-          <TouchableOpacity
-            style={[styles.submitButton, loading && styles.submitButtonDisabled]}
-            onPress={handleCreateBusiness}
-            disabled={loading}
-            activeOpacity={0.8}
-          >
-            <LinearGradient
-              colors={loading ? ['#9CA3AF', '#6B7280'] : ['#4F46E5', '#7C3AED']}
-              style={styles.submitGradient}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFF" />
-              ) : (
-                <>
-                  <Text style={styles.submitButtonText}>Create Business</Text>
-                  <Ionicons name="rocket-outline" size={20} color="#FFF" />
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
-
-          <BlurView
-            intensity={60}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[styles.footerCard, { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }]}
-          >
-            <Ionicons name="information-circle-outline" size={20} color={isDarkMode ? '#AAA' : '#666'} />
-            <Text style={[styles.footerText, { color: isDarkMode ? '#AAA' : '#666' }]}>
-              You can create multiple businesses later from your profile
-            </Text>
-          </BlurView>
-        </ScrollView>
+            </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  gradient: {
+  mainContainer: {
     flex: 1,
+    backgroundColor: '#F1F5F9',
   },
   safeArea: {
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 50,
   },
-  header: {
-    alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 20,
-    padding: 24,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    textAlign: 'center',
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  coverImageContainer: {
-    height: 160,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 16,
-  },
-  coverImage: {
-    width: '100%',
-    height: '100%',
-  },
-  coverImagePlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  uploadIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  imagePlaceholderText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  imagePlaceholderSubtext: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-  imageOverlay: {
+  
+  // Background
+  bottomLogos: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    bottom: 20,
+    left: -20,
   },
-  changeImageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    overflow: 'hidden',
+  fadedLogo: {
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
+    opacity: 0.08,
   },
-  changeImageText: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  logoSection: {
+
+  // Header
+  headerContainer: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+
+  // Section Cards
+  sectionCard: {
+    backgroundColor: '#FFF',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+
+  // Media Uploads
+  coverUpload: {
+    height: 140,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
     overflow: 'hidden',
   },
-  logoInfo: {
+  uploadedCover: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  uploadPlaceholder: {
+    alignItems: 'center',
+  },
+  uploadText: {
+    marginTop: 8,
+    color: '#94A3B8',
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 12,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    padding: 6,
+    borderRadius: 8,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoUpload: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    position: 'relative',
+  },
+  uploadedLogo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 35,
+  },
+  logoPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addLogoBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#0C1559',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  logoTextContainer: {
     flex: 1,
   },
   logoLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#334155',
   },
-  logoSubtext: {
+  logoSub: {
     fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
   },
-  logoContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 16,
-    overflow: 'hidden',
+
+  // Inputs
+  inputContainer: {
+    marginBottom: 16,
   },
-  logoImage: {
-    width: '100%',
-    height: '100%',
+  label: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#334155',
+    marginBottom: 6,
+    marginLeft: 2,
   },
-  logoPlaceholder: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  input: {
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 12,
-    overflow: 'hidden',
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    height: 50,
   },
-  inputText: {
+  input: {
     flex: 1,
-    fontSize: 16,
-  },
-  textArea: {
-    minHeight: 100,
-    paddingTop: 14,
-  },
-  socialIcon: {
-    marginRight: 8,
+    fontSize: 14,
+    fontFamily: 'Montserrat-Medium',
+    color: '#0F172A',
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
-  halfInput: {
-    width: '48%',
+
+  // Categories
+  catScroll: {
+    gap: 8,
+    paddingBottom: 4,
   },
-  categoryContainer: {
-    marginBottom: 16,
-  },
-  categoryLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 12,
-  },
-  categoriesScroll: {
-    marginBottom: 4,
-  },
-  categoryChip: {
+  catChip: {
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 20,
-    marginRight: 8,
-    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  categoryText: {
-    fontSize: 14,
-    fontWeight: '500',
+  catActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
   },
-  submitButton: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginBottom: 16,
+  catText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
   },
-  submitButtonDisabled: {
-    opacity: 0.6,
+  catTextActive: {
+    color: '#FFF',
+  },
+
+  // Submit
+  submitBtn: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    borderRadius: 16,
+    shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
   },
   submitGradient: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-  },
-  submitButtonText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-    marginRight: 8,
-  },
-  footerCard: {
-    flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
   },
-  footerText: {
-    flex: 1,
-    fontSize: 14,
-    marginLeft: 8,
-    lineHeight: 20,
+  submitText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
   },
 });
 

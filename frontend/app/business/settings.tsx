@@ -237,14 +237,7 @@ export default function BusinessSettingsScreen() {
                     label="Security & Privacy" 
                     onPress={() => {}} 
                 />
-                <View style={styles.divider} />
-                <SettingItem 
-                    icon="language-outline" 
-                    iconColor="#0891B2" 
-                    bg="#ECFEFF" 
-                    label="Language" 
-                    onPress={() => {}} 
-                />
+
             </View>
 
             {/* Group 3: Support */}

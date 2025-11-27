@@ -8,7 +8,13 @@ const businessSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   },
-  
+  //i added this part to make email unique but optional... 
+  email: {
+    type: String,
+    unique: true, 
+    sparse: true, // <--- ADD THIS! This allows multiple documents to have no email.
+    trim: true,
+  },
   // Basic business info
   businessName: { 
     type: String, 

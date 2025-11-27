@@ -53,6 +53,8 @@ const BusinessDashboard = () => {
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(5); // Example initial count
+
 
   // --- Data Fetching ---
   const fetchDashboardData = async () => {
@@ -147,6 +149,7 @@ const BusinessDashboard = () => {
       </View>
     );
   }
+  
 
   const stats = getBusinessStats(selectedBusiness);
 
@@ -186,9 +189,20 @@ const BusinessDashboard = () => {
                   resizeMode="contain"
                 />
                 <View style={styles.topIcons}>
-                  <TouchableOpacity style={styles.iconBtn}>
+               <TouchableOpacity 
+                    style={styles.iconBtn}
+                    onPress={() => router.push('/business/notifications')}
+                  >
                     <Ionicons name="notifications-outline" size={22} color="#FFF" />
-                    <View style={styles.notificationDot} />
+                    
+                    {/* Only show badge if count > 0 */}
+                    {unreadCount > 0 && (
+                      <View style={styles.badgeContainer}>
+                        <Text style={styles.badgeText}>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={styles.iconBtn}
@@ -461,17 +475,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.1)',
+    position: 'relative', 
   },
-  notificationDot: {
+  badgeContainer: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 1,
-    borderColor: '#0C1559',
+    top: -5,
+    right: -5,
+    backgroundColor: '#EF4444', // Alert Red
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#0C1559', // Matches header bg for cutout effect
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontFamily: 'Montserrat-Bold', // Use your app font
+    textAlign: 'center',
+    lineHeight: 11, // Adjust slightly to center vertically
   },
 
   // Business Profile Section

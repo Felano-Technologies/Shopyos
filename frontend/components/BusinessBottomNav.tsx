@@ -45,7 +45,7 @@ const BusinessBottomNav = () => {
       route: '/business/dashboard',
     },
     {
-      name: 'Products',
+      name: 'Product',
       icon: 'box',
       route: '/business/products',
     },
