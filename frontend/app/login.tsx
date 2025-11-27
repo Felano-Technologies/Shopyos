@@ -27,19 +27,22 @@ const LoginScreen = () => {
       setLoading(true);
 
       // Request location permissions
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to proceed.');
-        setLoading(false); // Hide loading indicator
-        return;
-      }
+      // const { status } = await Location.requestForegroundPermissionsAsync();
+      // if (status !== 'granted') {
+      //   Alert.alert('Permission Denied', 'Location permission is required to proceed.');
+      //   setLoading(false); // Hide loading indicator
+      //   return;
+      // }
 
-      // Get the current location
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
+      // // Get the current location
+      // const location = await Location.getCurrentPositionAsync({});
+      // const { latitude, longitude } = location.coords;
 
-      const response = await loginUser(email, password, latitude, longitude);
+      // const response = await loginUser(email, password, latitude, longitude);
 
+      const response = await loginUser(email, password, 0, 0); // Temporarily using 0,0 for lat,long
+
+      
       if (response.message == "Login successful") {
 
         Toast.show({

@@ -5,99 +5,59 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  useColorScheme,
   Animated,
   RefreshControl,
-  ScrollView,
   Dimensions,
+  ImageBackground,
+  Image,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
-import { LineChart, BarChart, PieChart } from 'react-native-chart-kit';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 
 const { width } = Dimensions.get('window');
 
 const Analytics = () => {
-  const theme = useColorScheme();
-  const isDarkMode = theme === 'dark';
-
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('week');
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Mock analytics data
+  // --- Mock Data ---
   const revenueData = {
     week: {
       labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{ data: [450, 680, 520, 890, 750, 920, 650] }],
+      datasets: [{ data: [100, 825, 2514, 400, 789, 2900, 2100] }],
     },
     month: {
-      labels: ['W1', 'W2', 'W3', 'W4'],
+      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
       datasets: [{ data: [2500, 3200, 2800, 3800] }],
     },
     year: {
-      labels: ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov'],
-      datasets: [{ data: [8500, 12000, 15000, 18000, 16500, 21000] }],
-    },
-  };
-
-  const ordersData = {
-    week: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{ data: [5, 8, 6, 12, 9, 15, 10] }],
-    },
-    month: {
-      labels: ['W1', 'W2', 'W3', 'W4'],
-      datasets: [{ data: [35, 48, 42, 55] }],
-    },
-    year: {
-      labels: ['Jan', 'Mar', 'May', 'Jul', 'Sep', 'Nov'],
-      datasets: [{ data: [120, 180, 220, 280, 250, 320] }],
+      labels: ['Jan', 'Apr', 'Jul', 'Oct'],
+      datasets: [{ data: [15000, 22000, 18000, 26000] }],
     },
   };
 
   const topProducts = [
     { name: 'Nike Air Force 1', sales: 45, revenue: 7875, color: '#2563EB' },
-    { name: 'Wireless Headset', sales: 32, revenue: 2879.68, color: '#D97706' },
+    { name: 'Wireless Headset', sales: 32, revenue: 2879, color: '#D97706' },
     { name: 'Leather Jacket', sales: 28, revenue: 3360, color: '#059669' },
-    { name: 'Art Prints', sales: 18, revenue: 4500, color: '#7C3AED' },
   ];
 
   const categoryDistribution = [
-    { name: 'Sneakers', sales: 45, color: '#2563EB', legendFontColor: isDarkMode ? '#EDEDED' : '#222', legendFontSize: 12 },
-    { name: 'Electronics', sales: 32, color: '#D97706', legendFontColor: isDarkMode ? '#EDEDED' : '#222', legendFontSize: 12 },
-    { name: 'Clothing', sales: 28, color: '#059669', legendFontColor: isDarkMode ? '#EDEDED' : '#222', legendFontSize: 12 },
-    { name: 'Art', sales: 18, color: '#7C3AED', legendFontColor: isDarkMode ? '#EDEDED' : '#222', legendFontSize: 12 },
+    { name: 'Sneakers', sales: 45, color: '#2563EB', legendFontColor: '#333', legendFontSize: 12 },
+    { name: 'Tech', sales: 32, color: '#D97706', legendFontColor: '#333', legendFontSize: 12 },
+    { name: 'Wear', sales: 28, color: '#059669', legendFontColor: '#333', legendFontSize: 12 },
+    { name: 'Art', sales: 18, color: '#7C3AED', legendFontColor: '#333', legendFontSize: 12 },
   ];
 
   const stats = {
-    week: {
-      revenue: 4860,
-      orders: 65,
-      avgOrder: 74.77,
-      growth: 12.5,
-      customers: 52,
-      conversionRate: 3.2,
-    },
-    month: {
-      revenue: 12300,
-      orders: 180,
-      avgOrder: 68.33,
-      growth: 18.3,
-      customers: 145,
-      conversionRate: 3.8,
-    },
-    year: {
-      revenue: 91000,
-      orders: 1370,
-      avgOrder: 66.42,
-      growth: 45.7,
-      customers: 892,
-      conversionRate: 4.1,
-    },
+    week: { revenue: 4860, orders: 65, growth: 12.5 },
+    month: { revenue: 12300, orders: 180, growth: 18.3 },
+    year: { revenue: 91000, orders: 1370, growth: 45.7 },
   };
 
   const currentStats = stats[timeframe];
@@ -108,563 +68,430 @@ const Analytics = () => {
     setRefreshing(false);
   };
 
+  // --- Chart Configuration ---
   const chartConfig = {
-    backgroundGradientFrom: isDarkMode ? 'rgba(30,30,30,0)' : 'rgba(255,255,255,0)',
-    backgroundGradientTo: isDarkMode ? 'rgba(30,30,30,0)' : 'rgba(255,255,255,0)',
+    backgroundGradientFrom: '#ffffff',
+    backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(79, 70, 229, ${opacity})`,
-    labelColor: (opacity = 1) => isDarkMode ? `rgba(237, 237, 237, ${opacity})` : `rgba(34, 34, 34, ${opacity})`,
+    color: (opacity = 1) => `rgba(124, 58, 237, ${opacity})`,
+    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
     style: { borderRadius: 16 },
     propsForDots: {
-      r: '4',
+      r: '5',
       strokeWidth: '2',
-      stroke: '#4F46E5',
+      stroke: '#fff',
     },
+    propsForBackgroundLines: {
+        strokeDasharray: "5",
+        stroke: "rgba(0,0,0,0.05)"
+    },
+    propsForLabels: {
+        fontFamily: 'Montserrat-Regular' // Applied font to chart labels
+    }
   };
 
   return (
-    <LinearGradient
-      colors={isDarkMode ? ['#0F0F1A', '#1A1A2E'] : ['#FDFBFB', '#EBEDEE']}
-      style={{ flex: 1 }}
-    >
-      <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
+    <View style={styles.mainContainer}>
+      <StatusBar style="light" />
 
-      <Animated.ScrollView
-        contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-      >
-        {/* Header */}
-        <Animated.View
-          style={[
-            styles.header,
-            {
-              transform: [
-                {
-                  translateY: scrollY.interpolate({
-                    inputRange: [-100, 0, 100],
-                    outputRange: [-50, 0, 30],
-                    extrapolate: 'clamp',
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <View>
-            <Text style={[styles.headerTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-              Analytics
-            </Text>
-            <Text style={[styles.headerSubtitle, { color: isDarkMode ? '#AAA' : '#666' }]}>
-              Track your business performance
-            </Text>
+      {/* --- Background Layer --- */}
+      <View style={StyleSheet.absoluteFillObject}>
+          <View style={styles.bottomLogos}>
+            <Image
+              source={require('../../assets/images/splash-icon.png')}
+              style={styles.fadedLogo}
+            />
           </View>
-        </Animated.View>
+ 
+      </View>
 
-        {/* Timeframe Selector */}
-        <View style={styles.timeframeSection}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {(['week', 'month', 'year'] as const).map((period) => (
-              <TouchableOpacity key={period} onPress={() => setTimeframe(period)}>
-                <BlurView
-                  intensity={40}
-                  tint={isDarkMode ? 'dark' : 'light'}
-                  style={[
-                    styles.timeframeBtn,
-                    {
-                      backgroundColor: timeframe === period
-                        ? 'rgba(79, 70, 229, 0.2)'
-                        : isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.timeframeText,
-                      { color: timeframe === period ? '#4F46E5' : (isDarkMode ? '#AAA' : '#666') },
-                    ]}
-                  >
-                    {period === 'week' ? 'This Week' : period === 'month' ? 'This Month' : 'This Year'}
-                  </Text>
-                </BlurView>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Key Metrics Grid */}
-        <View style={styles.statsGrid}>
-          {[
-            { icon: 'cash-outline', color: '#059669', bg: '#D1FAE5', label: 'Revenue', value: `₵${currentStats.revenue.toLocaleString()}`, change: `+${currentStats.growth}%` },
-            { icon: 'cart-outline', color: '#2563EB', bg: '#DBEAFE', label: 'Orders', value: currentStats.orders, change: `+${Math.round(currentStats.growth * 0.8)}%` },
-            { icon: 'people-outline', color: '#D97706', bg: '#FEF3C7', label: 'Customers', value: currentStats.customers, change: `+${Math.round(currentStats.growth * 0.6)}%` },
-            { icon: 'trending-up-outline', color: '#7C3AED', bg: '#EDE9FE', label: 'Avg Order', value: `₵${currentStats.avgOrder.toFixed(0)}`, change: `+${Math.round(currentStats.growth * 0.4)}%` },
-          ].map((stat, idx) => (
-            <BlurView
-              key={idx}
-              intensity={100}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[
-                styles.statCard,
-                { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-              ]}
-            >
-              <View style={styles.statHeader}>
-                <View style={[styles.statIcon, { backgroundColor: isDarkMode ? stat.color + '40' : stat.bg }]}>
-                  <Ionicons name={stat.icon as any} size={20} color={stat.color} />
-                </View>
-                <View style={styles.changeIndicator}>
-                  <Ionicons name="arrow-up" size={12} color="#059669" />
-                  <Text style={styles.changeText}>{stat.change}</Text>
-                </View>
-              </View>
-              <Text style={[styles.statNumber, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-                {stat.value}
-              </Text>
-              <Text style={[styles.statLabel, { color: isDarkMode ? '#AAA' : '#666' }]}>
-                {stat.label}
-              </Text>
-            </BlurView>
-          ))}
-        </View>
-
-        {/* Revenue Chart */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-            Revenue Trend
-          </Text>
-          <BlurView
-            intensity={100}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[
-              styles.chartContainer,
-              { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-            ]}
-          >
-            <LineChart
-              data={revenueData[timeframe]}
-              width={width - 64}
-              height={220}
-              chartConfig={chartConfig}
-              bezier
-              style={styles.chart}
-            />
-          </BlurView>
-        </View>
-
-        {/* Orders Chart */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-            Order Volume
-          </Text>
-          <BlurView
-            intensity={100}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[
-              styles.chartContainer,
-              { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-            ]}
-          >
-            <BarChart
-              data={ordersData[timeframe]}
-              width={width - 64}
-              height={220}
-              yAxisLabel=""
-              yAxisSuffix=""
-              chartConfig={{
-                ...chartConfig,
-                barPercentage: 0.7,
-              }}
-              style={styles.chart}
-            />
-          </BlurView>
-        </View>
-
-        {/* Category Distribution */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-            Sales by Category
-          </Text>
-          <BlurView
-            intensity={100}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[
-              styles.chartContainer,
-              { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-            ]}
-          >
-            <PieChart
-              data={categoryDistribution}
-              width={width - 64}
-              height={220}
-              chartConfig={chartConfig}
-              accessor="sales"
-              backgroundColor="transparent"
-              paddingLeft="15"
-              center={[10, 0]}
-              absolute
-            />
-          </BlurView>
-        </View>
-
-        {/* Top Products */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-            Top Products
-          </Text>
-          {topProducts.map((product, idx) => (
-            <BlurView
-              key={idx}
-              intensity={100}
-              tint={isDarkMode ? 'dark' : 'light'}
-              style={[
-                styles.productCard,
-                { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-              ]}
-            >
-              <View style={styles.productRank}>
-                <LinearGradient
-                  colors={[product.color, product.color + 'CC']}
-                  style={styles.rankBadge}
-                >
-                  <Text style={styles.rankText}>{idx + 1}</Text>
-                </LinearGradient>
-              </View>
-              <View style={styles.productInfo}>
-                <Text style={[styles.productName, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-                  {product.name}
-                </Text>
-                <Text style={[styles.productSales, { color: isDarkMode ? '#AAA' : '#666' }]}>
-                  {product.sales} sales
-                </Text>
-              </View>
-              <View style={styles.productRevenue}>
-                <Text style={[styles.revenueAmount, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-                  ₵{product.revenue.toLocaleString()}
-                </Text>
-                <View style={[styles.progressBar, { backgroundColor: isDarkMode ? '#333' : '#E5E7EB' }]}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${(product.sales / 45) * 100}%`, backgroundColor: product.color }
-                    ]}
-                  />
-                </View>
-              </View>
-            </BlurView>
-          ))}
-        </View>
-
-        {/* Additional Insights */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-            Insights
-          </Text>
-          <BlurView
-            intensity={100}
-            tint={isDarkMode ? 'dark' : 'light'}
-            style={[
-              styles.insightsCard,
-              { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-            ]}
-          >
-            {[
-              { icon: 'trending-up', color: '#059669', text: 'Revenue is up 12.5% compared to last period' },
-              { icon: 'star', color: '#D97706', text: 'Nike Air Force 1 is your bestselling product' },
-              { icon: 'time', color: '#2563EB', text: 'Peak sales hours: 2PM - 5PM' },
-              { icon: 'people', color: '#7C3AED', text: 'Customer retention rate: 68%' },
-            ].map((insight, idx) => (
-              <View key={idx} style={styles.insightRow}>
-                <View style={[styles.insightIcon, { backgroundColor: insight.color + '20' }]}>
-                  <Ionicons name={insight.icon as any} size={18} color={insight.color} />
-                </View>
-                <Text style={[styles.insightText, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-                  {insight.text}
-                </Text>
-              </View>
-            ))}
-          </BlurView>
-        </View>
-
-        {/* Performance Score */}
-        <BlurView
-          intensity={100}
-          tint={isDarkMode ? 'dark' : 'light'}
-          style={[
-            styles.scoreCard,
-            { backgroundColor: isDarkMode ? 'rgba(30,30,30,0.6)' : 'rgba(255,255,255,0.6)' }
-          ]}
+      <SafeAreaView style={styles.safeArea}>
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#FFF'} />}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
         >
-          <Text style={[styles.scoreTitle, { color: isDarkMode ? '#EDEDED' : '#222' }]}>
-            Performance Score
-          </Text>
-          <View style={styles.scoreContent}>
-            <LinearGradient
-              colors={['#4F46E5', '#7C3AED']}
-              style={styles.scoreCircle}
-            >
-              <Text style={styles.scoreNumber}>8.5</Text>
-              <Text style={styles.scoreLabel}>/ 10</Text>
-            </LinearGradient>
-            <View style={styles.scoreDetails}>
-              <Text style={[styles.scoreDescription, { color: isDarkMode ? '#AAA' : '#666' }]}>
-                Your business is performing excellently! Keep up the great work.
-              </Text>
-              <View style={styles.scoreMetrics}>
-                {['Sales', 'Growth', 'Quality'].map((metric, idx) => (
-                  <View key={idx} style={styles.scoreMetric}>
-                    <Ionicons name="star" size={14} color="#F59E0B" />
-                    <Text style={[styles.metricText, { color: isDarkMode ? '#AAA' : '#666' }]}>
-                      {metric}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+          {/* --- Header Section --- */}
+          <View style={styles.headerContainer}>
+            <Text style={styles.headerTitle}>Analytics</Text>
+            <Text style={styles.headerSubtitle}>Overview & Performance</Text>
+          </View>
+
+          {/* --- Main Content Body --- */}
+          <View style={styles.bodyContainer}>
+            
+            <View style={styles.sectionHeaderRow}>
+               <Text style={styles.sectionTitle}>Sales Performance</Text>
             </View>
-          </View>
-        </BlurView>
-      </Animated.ScrollView>
 
-      <BusinessBottomNav />
-    </LinearGradient>
+            {/* Timeframe Toggles */}
+            <View style={styles.toggleContainer}>
+                {(['week', 'month', 'year'] as const).map((period) => {
+                    const isActive = timeframe === period;
+                    return (
+                        <TouchableOpacity 
+                            key={period} 
+                            onPress={() => setTimeframe(period)}
+                            style={[
+                                styles.toggleBtn,
+                                isActive ? styles.toggleBtnActive : styles.toggleBtnInactive
+                            ]}
+                        >
+                            <Text style={[
+                                styles.toggleText,
+                                isActive ? styles.toggleTextActive : styles.toggleTextInactive
+                            ]}>
+                                {period === 'week' ? 'Weekly' : period === 'month' ? 'Monthly' : 'Yearly'}
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
+
+            {/* Main Chart */}
+            <View style={styles.card}>
+                <LineChart
+                    data={revenueData[timeframe]}
+                    width={width - 48}
+                    height={220}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={styles.chartStyle}
+                    withInnerLines={true}
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                />
+            </View>
+
+            {/* Quick Stats Grid */}
+            <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                    <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
+                        <Ionicons name="cash" size={20} color="#15803D" />
+                    </View>
+                    <Text style={styles.statLabel}>Total Revenue</Text>
+                    <Text style={styles.statValue}>₵{currentStats.revenue.toLocaleString()}</Text>
+                    <Text style={styles.statGrowth}>+{currentStats.growth}%</Text>
+                </View>
+
+                <View style={styles.statCard}>
+                    <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
+                        <Ionicons name="cart" size={20} color="#1E40AF" />
+                    </View>
+                    <Text style={styles.statLabel}>Total Orders</Text>
+                    <Text style={styles.statValue}>{currentStats.orders}</Text>
+                    <Text style={styles.statGrowth}>+8.2%</Text>
+                </View>
+            </View>
+
+            {/* Sales Distribution */}
+            <View style={styles.sectionHeaderRow}>
+               <Text style={styles.sectionTitle}>Category Breakdown</Text>
+            </View>
+            <View style={styles.card}>
+                <PieChart
+                    data={categoryDistribution}
+                    width={width - 48}
+                    height={200}
+                    chartConfig={chartConfig}
+                    accessor="sales"
+                    backgroundColor="transparent"
+                    paddingLeft="15"
+                    absolute
+                />
+            </View>
+
+            {/* Top Products */}
+            <View style={styles.sectionHeaderRow}>
+               <Text style={styles.sectionTitle}>Top Products</Text>
+            </View>
+            
+            {topProducts.map((product, index) => (
+                <View key={index} style={styles.productCard}>
+                    <View style={[styles.rankBadge, { backgroundColor: product.color }]}>
+                        <Text style={styles.rankText}>{index + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.productName}>{product.name}</Text>
+                        <Text style={styles.productSales}>{product.sales} Sales</Text>
+                    </View>
+                    <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
+                </View>
+            ))}
+
+             {/* Performance Score */}
+             <LinearGradient
+                colors={['#0C1559', '#1e3a8a']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.scoreBanner}
+             >
+                <View>
+                    <Text style={styles.scoreTitle}>Performance Score</Text>
+                    <Text style={styles.scoreDesc}>Your shop is doing great!</Text>
+                </View>
+                <View style={styles.scoreCircle}>
+                    <Text style={styles.scoreNum}>9.2</Text>
+                </View>
+             </LinearGradient>
+
+          </View>
+        </Animated.ScrollView>
+
+        <BusinessBottomNav />
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    padding: 16,
-    paddingBottom: 100,
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#E9F0FF',
   },
-  header: {
-    marginBottom: 16,
-    marginTop: 8,
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  backgroundImageStyle: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    width: '100%',
+    height: '100%',
+  },
+  bottomLogos: {
+    position: 'absolute',
+    bottom: -50,
+    left: -50,
+  },
+  fadedLogo: {
+    width: 130,
+    height: 130,
+    resizeMode: 'contain',
+    opacity: 0.12,
+  },
+  
+  // Header
+  headerContainer: {
+    backgroundColor: '#0C1559',
+    paddingTop: 60,
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 24,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
   },
   headerTitle: {
+    fontFamily: 'Montserrat-Bold', // Font Applied
     fontSize: 28,
-    fontWeight: '600',
-    marginBottom: 2,
+    color: '#FFF',
   },
   headerSubtitle: {
+    fontFamily: 'Montserrat-Regular', // Font Applied
     fontSize: 14,
+    color: '#94A3B8',
+    marginTop: 4,
   },
-  timeframeSection: {
-    marginBottom: 16,
-  },
-  timeframeBtn: {
-    paddingVertical: 8,
+
+  // Body
+  bodyContainer: {
     paddingHorizontal: 16,
-    marginRight: 8,
-    borderRadius: 20,
-    overflow: 'hidden',
+    paddingTop: 10,
   },
-  timeframeText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  statCard: {
-    width: '48%',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    overflow: 'hidden',
-    elevation: 2,
-  },
-  statHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  changeIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(5, 150, 105, 0.1)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-  },
-  changeText: {
-    fontSize: 11,
-    color: '#059669',
-    fontWeight: '600',
-    marginLeft: 2,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: 20,
+  sectionHeaderRow: {
+    marginTop: 15,
+    marginBottom: 10,
   },
   sectionTitle: {
+    fontFamily: 'Montserrat-Bold', // Font Applied
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 12,
+    color: '#0C1559',
   },
-  chartContainer: {
-    borderRadius: 12,
-    padding: 16,
-    overflow: 'hidden',
-    elevation: 2,
-    alignItems: 'center',
-  },
-  chart: {
-    borderRadius: 12,
-  },
-  productCard: {
+
+  // Toggles
+  toggleContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 8,
-    overflow: 'hidden',
+    marginBottom: 16,
+    gap: 10,
+  },
+  toggleBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  toggleBtnActive: {
+    backgroundColor: '#84cc16',
+    borderColor: '#84cc16',
     elevation: 2,
   },
-  productRank: {
-    marginRight: 12,
+  toggleBtnInactive: {
+    backgroundColor: '#FFF',
+    borderColor: '#FFF',
   },
-  rankBadge: {
+  toggleText: {
+    fontSize: 13,
+  },
+  toggleTextActive: {
+    fontFamily: 'Montserrat-SemiBold', // Font Applied
+    color: '#0f172a',
+  },
+  toggleTextInactive: {
+    fontFamily: 'Montserrat-Regular', // Font Applied
+    color: '#64748B',
+  },
+
+  // Cards
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  chartStyle: {
+    marginRight: 0,
+    paddingRight: 0,
+    borderRadius: 16,
+  },
+
+  // Stats Grid
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  statCard: {
+    backgroundColor: '#FFF',
+    width: '48%',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  iconBox: {
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statLabel: {
+    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontSize: 13,
+    color: '#64748B',
+  },
+  statValue: {
+    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontSize: 20,
+    color: '#0C1559',
+    marginTop: 4,
+  },
+  statGrowth: {
+    fontFamily: 'Montserrat-SemiBold', // Font Applied
+    fontSize: 12,
+    color: '#15803D',
+    marginTop: 4,
+  },
+
+  // Products
+  productCard: {
+    backgroundColor: '#FFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  rankBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
   rankText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontFamily: 'Montserrat-Bold', // Font Applied
     color: '#FFF',
-  },
-  productInfo: {
-    flex: 1,
+    fontSize: 14,
   },
   productName: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
+    fontFamily: 'Montserrat-SemiBold', // Font Applied
+    fontSize: 15,
+    color: '#1e293b',
   },
   productSales: {
+    fontFamily: 'Montserrat-Regular', // Font Applied
     fontSize: 12,
+    color: '#64748B',
   },
   productRevenue: {
-    alignItems: 'flex-end',
+    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontSize: 15,
+    color: '#0C1559',
   },
-  revenueAmount: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  progressBar: {
-    width: 80,
-    height: 4,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  insightsCard: {
-    padding: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
-    elevation: 2,
-  },
-  insightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  insightIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  insightText: {
-    flex: 1,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  scoreCard: {
-    padding: 20,
-    borderRadius: 12,
+
+  // Score Banner
+  scoreBanner: {
+    marginTop: 10,
     marginBottom: 20,
-    overflow: 'hidden',
-    elevation: 2,
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    elevation: 4,
   },
   scoreTitle: {
+    fontFamily: 'Montserrat-Bold', // Font Applied
     fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
+    color: '#FFF',
   },
-  scoreContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  scoreDesc: {
+    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontSize: 13,
+    color: '#cbd5e1',
+    marginTop: 4,
   },
   scoreCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    borderWidth: 2,
+    borderColor: '#84cc16',
   },
-  scoreNumber: {
-    fontSize: 32,
-    fontWeight: '700',
+  scoreNum: {
+    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontSize: 16,
     color: '#FFF',
-  },
-  scoreLabel: {
-    fontSize: 14,
-    color: '#FFF',
-    opacity: 0.8,
-  },
-  scoreDetails: {
-    flex: 1,
-  },
-  scoreDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-    marginBottom: 8,
-  },
-  scoreMetrics: {
-    flexDirection: 'row',
-  },
-  scoreMetric: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  metricText: {
-    fontSize: 12,
-    marginLeft: 4,
   },
 });
 

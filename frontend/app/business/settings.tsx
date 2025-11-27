@@ -1,5 +1,5 @@
 // app/business/settings.tsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,310 +8,492 @@ import {
   ScrollView,
   Alert,
   Image,
-  useColorScheme,
+  Dimensions,
+  Switch,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { getMyBusinesses } from '@/services/api'; // Import your API function
+
+const { width } = Dimensions.get('window');
+
+// Define simplified interface for settings display
+interface BusinessData {
+    businessName: string;
+    logo?: string;
+    verificationStatus: string;
+    owner?: {
+        email: string;
+    };
+}
 
 export default function BusinessSettingsScreen() {
-  const theme = useColorScheme();
-  const isDark = theme === 'dark';
   const router = useRouter();
+  const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
+  
+  // State for business data
+  const [businessData, setBusinessData] = useState<BusinessData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const bgColor = isDark ? '#121212' : '#E9F0FF';
-  const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
-  const primaryText = isDark ? '#EDEDED' : '#111827';
-  const secondaryText = isDark ? '#AAA' : '#666666';
-  const accent = '#A3E635';
-  const headerBg = '#081059';
+  // Fetch Business Data on Mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+        try {
+            const response = await getMyBusinesses();
+            if (response.success && response.businesses && response.businesses.length > 0) {
+                // Assuming we pick the first/active business
+                setBusinessData(response.businesses[0]); 
+            }
+        } catch (error) {
+            console.log("Error fetching settings profile:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+    fetchProfile();
+  }, []);
 
   const confirmLogout = () => {
-    Alert.alert('Logout?', 'Are you sure you want to log out?', [
+    Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', onPress: () => router.replace('/business/login'), style: 'destructive' },
+      { text: 'Log Out', onPress: () => router.replace('/login'), style: 'destructive' },
     ]);
   };
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
-      {/* ─── Header Section ─── */}
-      <View style={[styles.header, { backgroundColor: headerBg }]}>
-        {/* Background watermark */}
-        <Image
-          source={require('../../assets/images/splash-icon.png')}
-          style={styles.headerWatermark}
+  // Helper to determine status color/text
+  const getStatusInfo = (status: string | undefined) => {
+      switch(status) {
+          case 'verified': return { text: 'Verified Merchant', bg: '#DCFCE7', color: '#15803D', icon: 'checkmark' };
+          case 'pending': return { text: 'Verification Pending', bg: '#FEF9C3', color: '#854D0E', icon: 'time' };
+          case 'rejected': return { text: 'Verification Failed', bg: '#FEE2E2', color: '#991B1B', icon: 'close' };
+          default: return { text: 'Unverified', bg: '#F3F4F6', color: '#4B5563', icon: 'alert' };
+      }
+  };
+
+  const statusInfo = getStatusInfo(businessData?.verificationStatus);
+
+  // Reusable Setting Row Component
+  const SettingItem = ({ icon, iconColor, bg, label, onPress, type = 'link' }: any) => (
+    <TouchableOpacity 
+      style={styles.settingRow} 
+      onPress={type === 'link' ? onPress : undefined}
+      activeOpacity={type === 'link' ? 0.7 : 1}
+    >
+      <View style={styles.settingLeft}>
+        <View style={[styles.iconContainer, { backgroundColor: bg }]}>
+            <Ionicons name={icon} size={20} color={iconColor} />
+        </View>
+        <Text style={styles.settingLabel}>{label}</Text>
+      </View>
+      
+      {type === 'toggle' ? (
+        <Switch 
+            trackColor={{ false: "#E2E8F0", true: "#0C1559" }}
+            thumbColor={"#FFF"}
+            onValueChange={() => setIsNotificationsEnabled(!isNotificationsEnabled)}
+            value={isNotificationsEnabled}
         />
-        <Text style={[styles.headerTitle, { color: accent }]}>Business Settings</Text>
-        <View style={styles.businessProfile}>
-          <Ionicons name="briefcase-outline" size={70} color="#fff" />
-          <Text style={styles.businessName}>My Business</Text>
+      ) : (
+        <Feather name="chevron-right" size={18} color="#94A3B8" />
+      )}
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.mainContainer}>
+      <StatusBar style="light" />
+
+      {/* --- Background Watermark --- */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
         </View>
       </View>
 
-      {/* ─── Scrollable Content ─── */}
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* ─── Business Profile ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>Business Profile</Text>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          
+          {/* --- Header & Profile Section --- */}
+          <View style={styles.headerWrapper}>
+            <LinearGradient
+                colors={['#0C1559', '#1e3a8a']}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.headerGradient}
+            >
+                <View style={styles.headerContent}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Settings</Text>
+                    <View style={{ width: 24 }} /> 
+                </View>
+            </LinearGradient>
 
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/business/editProfile')}
-          >
-            <Ionicons
-              name="briefcase-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Edit Business Info
-            </Text>
-          </TouchableOpacity>
+            {/* Floating Profile Card */}
+            <View style={styles.profileCard}>
+                {loading ? (
+                    <View style={{ padding: 20, alignItems: 'center' }}>
+                        <ActivityIndicator color="#0C1559" />
+                    </View>
+                ) : (
+                    <View style={styles.profileHeader}>
+                        <View style={styles.avatarContainer}>
+                            {businessData?.logo ? (
+                                <Image 
+                                    source={{ uri: businessData.logo }} 
+                                    style={styles.avatar}
+                                />
+                            ) : (
+                                <Image 
+                                    source={require('../../assets/images/adaptive-icon.png')} 
+                                    style={styles.avatar}
+                                />
+                            )}
+                            
+                            {businessData?.verificationStatus === 'verified' && (
+                                <View style={styles.verifiedBadge}>
+                                    <Ionicons name="checkmark" size={10} color="#FFF" />
+                                </View>
+                            )}
+                        </View>
+                        
+                        <View style={styles.profileInfo}>
+                            <Text style={styles.businessName}>
+                                {businessData?.businessName || 'Business Name'}
+                            </Text>
+                            <Text style={styles.businessEmail}>
+                                {businessData?.owner?.email || 'No email connected'}
+                            </Text>
+                            
+                            <View style={[styles.statusPill, { backgroundColor: statusInfo.bg }]}>
+                                <Ionicons name={statusInfo.icon as any} size={10} color={statusInfo.color} style={{ marginRight: 4 }} />
+                                <Text style={[styles.statusText, { color: statusInfo.color }]}>
+                                    {statusInfo.text}
+                                </Text>
+                            </View>
+                        </View>
+                        
+                        <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/business/updateProfile')}>
+                            <Feather name="edit-2" size={18} color="#0C1559" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+            </View>
+          </View>
 
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/business/verification')}
-          >
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Verification Status
-            </Text>
-          </TouchableOpacity>
-        </View>
+          {/* --- Settings Groups --- */}
+          <View style={styles.contentContainer}>
+            
+            {/* Group 1: Business */}
+            <Text style={styles.sectionHeader}>Business & Finance</Text>
+            <View style={styles.settingsGroup}>
+                <SettingItem 
+                    icon="briefcase-outline" 
+                    iconColor="#2563EB" 
+                    bg="#EFF6FF" 
+                    label="Business Details" 
+                    onPress={() => router.push('/business/updateProfile')} 
+                />
+                <View style={styles.divider} />
+                <SettingItem 
+                    icon="card-outline" 
+                    iconColor="#059669" 
+                    bg="#ECFDF5" 
+                    label="Payout Methods" 
+                    onPress={() => router.push('/business/payout')} 
+                />
+                <View style={styles.divider} />
+                <SettingItem 
+                    icon="receipt-outline" 
+                    iconColor="#D97706" 
+                    bg="#FFFBEB" 
+                    label="Transaction History" 
+                    onPress={() => router.push('/business/transactions')} 
+                />
+            </View>
 
-        {/* ─── Finance Settings ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>Finance</Text>
+            {/* Group 2: Preferences */}
+            <Text style={styles.sectionHeader}>Preferences</Text>
+            <View style={styles.settingsGroup}>
+                <SettingItem 
+                    icon="notifications-outline" 
+                    iconColor="#7C3AED" 
+                    bg="#F5F3FF" 
+                    label="Push Notifications" 
+                    type="toggle"
+                />
+                <View style={styles.divider} />
+                <SettingItem 
+                    icon="shield-checkmark-outline" 
+                    iconColor="#DC2626" 
+                    bg="#FEF2F2" 
+                    label="Security & Privacy" 
+                    onPress={() => {}} 
+                />
+                <View style={styles.divider} />
+                <SettingItem 
+                    icon="language-outline" 
+                    iconColor="#0891B2" 
+                    bg="#ECFEFF" 
+                    label="Language" 
+                    onPress={() => {}} 
+                />
+            </View>
 
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/business/payout')}
-          >
-            <MaterialIcons
-              name="payments"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Payout Settings
-            </Text>
-          </TouchableOpacity>
+            {/* Group 3: Support */}
+            <Text style={styles.sectionHeader}>Support</Text>
+            <View style={styles.settingsGroup}>
+                <SettingItem 
+                    icon="help-circle-outline" 
+                    iconColor="#475569" 
+                    bg="#F1F5F9" 
+                    label="Help Center" 
+                    onPress={() => router.push('/settings/helpCenter')} 
+                />
+                <View style={styles.divider} />
+                <SettingItem 
+                    icon="chatbubble-ellipses-outline" 
+                    iconColor="#475569" 
+                    bg="#F1F5F9" 
+                    label="Contact Support" 
+                    onPress={() => router.push('/settings/contactUs')} 
+                />
+            </View>
 
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/business/transactions')}
-          >
-            <Ionicons
-              name="cash-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Transaction History
-            </Text>
-          </TouchableOpacity>
-        </View>
+            {/* Logout Button */}
+            <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout}>
+                <Feather name="log-out" size={20} color="#EF4444" />
+                <Text style={styles.logoutText}>Log Out</Text>
+            </TouchableOpacity>
 
-        {/* ─── Notifications ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>Notifications</Text>
+            <Text style={styles.versionText}>Version 1.0.5 (Build 2024)</Text>
 
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/pushNotifications')}
-          >
-            <Ionicons
-              name="notifications-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Push Alerts
-            </Text>
-          </TouchableOpacity>
+          </View>
 
-          <TouchableOpacity style={styles.itemRow}>
-            <Ionicons
-              name="mail-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>
-              Email Preferences
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ─── Support ─── */}
-        <View style={[styles.sectionCard, { backgroundColor: cardBg }]}>
-          <Text style={[styles.sectionTitle, { color: primaryText }]}>Support</Text>
-
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/helpCenter')}
-          >
-            <Ionicons
-              name="help-circle-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Help Center</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.itemRow}
-            onPress={() => router.push('/settings/contactUs')}
-          >
-            <Ionicons
-              name="chatbox-ellipses-outline"
-              size={22}
-              color={secondaryText}
-              style={styles.itemIcon}
-            />
-            <Text style={[styles.itemLabel, { color: primaryText }]}>Contact Support</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* ─── Logout ─── */}
-        <View style={styles.logoutContainer}>
-          <TouchableOpacity
-            style={[styles.logoutButton, { backgroundColor: cardBg }]}
-            onPress={confirmLogout}
-          >
-            <Ionicons
-              name="log-out-outline"
-              size={22}
-              color="#E11D48"
-              style={styles.logoutIcon}
-            />
-            <Text style={[styles.logoutLabel, { color: '#E11D48' }]}>Log Out</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom Watermark */}
-        <View style={styles.bottomWatermarkContainer}>
-          <Image
-            source={require('../../assets/images/splash-icon.png')}
-            style={styles.bottomWatermark}
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    paddingTop: 40,
-    paddingBottom: 25,
-    borderBottomLeftRadius: 50,
-    borderBottomRightRadius: 50,
-    alignItems: 'center',
-    position: 'relative',
-    overflow: 'hidden',
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
   },
-  headerWatermark: {
+  safeArea: {
+    flex: 1,
+  },
+  
+  // Background
+  bottomLogos: {
     position: 'absolute',
-    right: -40,
-    bottom: -40,
+    bottom: 20,
+    left: -20,
+  },
+  fadedLogo: {
     width: 150,
     height: 150,
-    opacity: 0.15,
     resizeMode: 'contain',
+    opacity: 0.08,
+  },
+
+  // Header & Profile
+  headerWrapper: {
+    marginBottom: 60, // Space for the floating card overlap
+  },
+  headerGradient: {
+    paddingTop: 60,
+    paddingBottom: 80, // Extended background
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    alignSelf: 'flex-start',
-    marginLeft: 30,
+    fontSize: 20,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
   },
-  businessProfile: {
+  
+  // Profile Card
+  profileCard: {
+    position: 'absolute',
+    bottom: -50,
+    left: 20,
+    right: 20,
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#0C1559",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  profileHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 10,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginRight: 20,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    borderColor: '#F1F5F9',
+    backgroundColor: '#F8FAFC',
+  },
+  verifiedBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#10B981',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  profileInfo: {
+    flex: 1,
   },
   businessName: {
-    color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
-    marginTop: 6,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: 2,
   },
-  scrollContent: {
+  businessEmail: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    color: '#64748B',
+    marginBottom: 6,
+  },
+  statusPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Bold',
+  },
+  editBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+
+  // Settings Content
+  contentContainer: {
     paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 60,
   },
-  sectionCard: {
+  sectionHeader: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: '#64748B',
+    marginBottom: 12,
+    marginLeft: 4,
+    marginTop: 10,
+    textTransform: 'uppercase',
+  },
+  settingsGroup: {
+    backgroundColor: '#FFF',
     borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginBottom: 14,
+    padding: 8,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
     shadowRadius: 5,
-    elevation: 3,
+    elevation: 1,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  itemRow: {
+  settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
-  },
-  itemIcon: {
-    marginRight: 10,
-  },
-  itemLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  logoutContainer: {
-    alignItems: 'center',
-    marginTop: 25,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    elevation: 2,
+    paddingHorizontal: 12,
   },
-  logoutIcon: {
-    marginRight: 8,
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
-  logoutLabel: {
-    fontSize: 16,
-    fontWeight: '600',
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  bottomWatermarkContainer: {
-    position: 'relative',
-    height: 100,
-    justifyContent: 'flex-end',
+  settingLabel: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#334155',
   },
-  bottomWatermark: {
-    position: 'absolute',
-    left: -40,
-    bottom: -40,
-    width: 150,
-    height: 150,
-    opacity: 0.12,
-    resizeMode: 'contain',
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginLeft: 56, // Align with text
+  },
+
+  // Logout & Footer
+  logoutBtn: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    padding: 16,
+    borderRadius: 16,
+    marginTop: 10,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 8,
+  },
+  logoutText: {
+    color: '#EF4444',
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+  },
+  versionText: {
+    textAlign: 'center',
+    color: '#94A3B8',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginBottom: 20,
   },
 });

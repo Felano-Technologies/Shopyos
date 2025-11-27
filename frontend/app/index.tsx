@@ -26,17 +26,17 @@ const IndexScreen = () => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1800,
+        duration: 2200,
         useNativeDriver: true,
       }),
       Animated.timing(bgScale, {
         toValue: 1.08,
-        duration: 2400,
+        duration: 2800,
         useNativeDriver: true,
       }),
       Animated.timing(bgTranslateY, {
         toValue: -12,
-        duration: 2400,
+        duration: 3000,
         useNativeDriver: true,
       }),
     ]).start();

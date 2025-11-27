@@ -1,3 +1,4 @@
+// app/business/products.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -13,23 +14,24 @@ import {
   Dimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context'; // Ensure this is used
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 
 const { width } = Dimensions.get('window');
 
 const ProductsScreen = () => {
   const theme = useColorScheme();
-  const isDark = theme === 'dark';
-
   const [products, setProducts] = useState<any[]>([]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // --- Actions ---
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -54,310 +56,537 @@ const ProductsScreen = () => {
       price,
       image,
     };
-    setProducts(prev => [...prev, newProduct]);
+    setProducts(prev => [newProduct, ...prev]); 
     setName('');
     setPrice('');
     setImage(null);
   };
 
   const removeProduct = (id: string) => {
-    setProducts(prev => prev.filter(p => p.id !== id));
+    Alert.alert("Delete Product", "Are you sure you want to remove this item?", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => setProducts(prev => prev.filter(p => p.id !== id)) }
+    ]);
   };
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // --- Derived Analytics ---
+  const totalProducts = products.length;
+  const portfolioValue = products.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: isDark ? '#0F1419' : '#f3f4f6' }]}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <LinearGradient
-          colors={['#1e3a8a', '#1e40af']}
-          style={[styles.header, { width }]}
-        >
-          <View style={styles.headerTop}>
-            {/* Logo */}
-            <Image
-              source={require('../../assets/images/iconwhite.png')}
-              style={styles.logo}
-              resizeMode="contain"
-            />
-            {/* Settings */}
-            <TouchableOpacity
-                   style={styles.headerIconButton}
-                    onPress={() => router.push('/business/settings')}>
-              <Ionicons name="settings-outline" size={26} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+    <View style={styles.mainContainer}>
+      {/* Light Status Bar for Dark Header */}
+      <StatusBar style="light" />
 
+      {/* --- Background Watermark --- */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
+      </View>
 
-        {/* Analytics Card */}
-        <View style={[styles.card, { backgroundColor: isDark ? '#1e3a8a' : '#1e3a8a' }]}>
-          <View style={styles.cardHeader}>
-            <View style={styles.cardHeaderLeft}>
-              <View style={[styles.cardIcon, { backgroundColor: 'rgba(79, 70, 229, 0.2)' }]}>
-                <Ionicons name="bar-chart" size={20} color="#84cc16" />
+      {/* Ignore the 'top' edge so the Gradient fills the status bar area.
+         We handle the top padding manually in 'headerContainer'.
+      */}
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+          
+          {/* --- Header Section --- */}
+          <LinearGradient
+            colors={['#0C1559', '#1e3a8a']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.headerContainer}
+          >
+            <View style={styles.headerTop}>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../../assets/images/iconwhite.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
               </View>
-              <View>
-                <Text style={styles.cardTitle}>Manage Your Products</Text>
-                <Text style={styles.cardSubtitle}>Your product Overview</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.analyticsGrid}>
-            <View style={styles.analyticsItem}>
-              <View style={styles.analyticsDivider} />
-              <Text style={styles.analyticsLabel}>ADDED</Text>
+              <TouchableOpacity
+                style={styles.headerIconButton}
+                onPress={() => router.push('/business/settings')}
+              >
+                <Ionicons name="settings-outline" size={22} color="#FFF" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.analyticsItem}>
-              <View style={styles.analyticsDivider} />
-              <Text style={styles.analyticsLabel}>REMOVED</Text>
-            </View>
-          </View>
-        </View>
-
-
-
-        {/* Add Product Card */}
-        <View style={[styles.card, { backgroundColor: isDark ? '#1A2332' : '#FFF' }]}>
-          <Text style={[styles.cardTitle, { color: isDark ? '#EDEDED' : '#1F2937' }]}>Add New Product</Text>
-          <TextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="Product Name"
-            placeholderTextColor={isDark ? '#AAA' : '#6B7280'}
-            style={[styles.input, { color: isDark ? '#FFF' : '#111827' }]}
-          />
-          <TextInput
-            value={price}
-            onChangeText={setPrice}
-            placeholder="Product Price"
-            keyboardType="numeric"
-            placeholderTextColor={isDark ? '#AAA' : '#6B7280'}
-            style={[styles.input, { color: isDark ? '#FFF' : '#111827' }]}
-          />
-          <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.imagePreview} />
-            ) : (
-              <Text style={styles.imagePickerText}>Pick an image</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.addButton} onPress={addProduct}>
-            <Text style={styles.addButtonText}>Add Product</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput
-            placeholder="Search your products..."
-            placeholderTextColor={isDark ? '#9CA3AF' : '#6B7280'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={[styles.searchInput, { color: isDark ? '#FFF' : '#111827' }]}
-          />
-        </View>
-
-        {/* Product List */}
-        <Text style={[styles.sectionTitle, { color: isDark ? '#EDEDED' : '#1F2937' }]}>Your Products</Text>
-
-        {filteredProducts.length > 0 ? (
-          <FlatList
-            data={filteredProducts}
-            keyExtractor={item => item.id}
-            scrollEnabled={false} // disable FlatList scroll since ScrollView is wrapping
-            renderItem={({ item }) => (
-              <View style={[styles.productCard, { backgroundColor: isDark ? '#111827' : '#FFF' }]}>
-                <Image source={{ uri: item.image }} style={styles.productImage} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.productName, { color: isDark ? '#FFF' : '#111827' }]}>{item.name}</Text>
-                  <Text style={[styles.productPrice, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>₵{item.price}</Text>
+            {/* Quick Analytics Row */}
+            <View style={styles.statsRow}>
+                <View style={styles.statCard}>
+                    <View style={[styles.iconBox, { backgroundColor: 'rgba(132, 204, 22, 0.2)' }]}>
+                        <Feather name="package" size={18} color="#84cc16" />
+                    </View>
+                    <View>
+                        <Text style={styles.statLabel}>Total Products</Text>
+                        <Text style={styles.statValue}>{totalProducts}</Text>
+                    </View>
                 </View>
-                <TouchableOpacity onPress={() => removeProduct(item.id)}>
-                  <Ionicons name="trash" size={20} color="#EF4444" />
-                </TouchableOpacity>
+                <View style={styles.verticalDivider} />
+                <View style={styles.statCard}>
+                    <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
+                        <MaterialCommunityIcons name="finance" size={18} color="#3b82f6" />
+                    </View>
+                    <View>
+                        <Text style={styles.statLabel}>Inventory Value</Text>
+                        <Text style={styles.statValue}>₵{portfolioValue.toFixed(2)}</Text>
+                    </View>
+                </View>
+            </View>
+          </LinearGradient>
+
+          {/* --- Add Product Form --- */}
+          <View style={styles.formSection}>
+            <View style={styles.formCard}>
+              <View style={styles.formHeader}>
+                 <Text style={styles.formTitle}>Add New Item</Text>
+                 <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
+              </View>
+
+              <View style={styles.inputRow}>
+                  {/* Image Picker */}
+                  <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage}>
+                    {image ? (
+                      <Image source={{ uri: image }} style={styles.uploadedImage} />
+                    ) : (
+                      <View style={styles.uploadPlaceholder}>
+                        <Feather name="camera" size={24} color="#94A3B8" />
+                        <Text style={styles.uploadText}>Add Photo</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Text Inputs */}
+                  <View style={styles.textInputContainer}>
+                      <View style={styles.inputWrapper}>
+                        <Feather name="tag" size={16} color="#64748B" style={styles.inputIcon} />
+                        <TextInput
+                            value={name}
+                            onChangeText={setName}
+                            placeholder="Product Name"
+                            placeholderTextColor="#94A3B8"
+                            style={styles.textInput}
+                        />
+                      </View>
+                      <View style={styles.inputWrapper}>
+                        <Text style={styles.currencySymbol}>₵</Text>
+                        <TextInput
+                            value={price}
+                            onChangeText={setPrice}
+                            placeholder="0.00"
+                            keyboardType="numeric"
+                            placeholderTextColor="#94A3B8"
+                            style={styles.textInput}
+                        />
+                      </View>
+                  </View>
+              </View>
+
+              <TouchableOpacity onPress={addProduct}>
+                <LinearGradient
+                    colors={['#0C1559', '#1e3a8a']}
+                    start={{x:0, y:0}} end={{x:1, y:0}}
+                    style={styles.addButton}
+                >
+                    <Feather name="plus" size={18} color="#FFF" />
+                    <Text style={styles.addButtonText}>Add to Inventory</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* --- Search & List --- */}
+          <View style={styles.listSection}>
+            <View style={styles.searchBar}>
+                <Ionicons name="search" size={20} color="#94A3B8" />
+                <TextInput
+                    placeholder="Search inventory..."
+                    placeholderTextColor="#94A3B8"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={styles.searchInput}
+                />
+            </View>
+
+            <Text style={styles.sectionHeader}>Inventory List ({filteredProducts.length})</Text>
+
+            {filteredProducts.length > 0 ? (
+              <FlatList
+                data={filteredProducts}
+                keyExtractor={item => item.id}
+                scrollEnabled={false}
+                renderItem={({ item }) => (
+                  <View style={styles.productCard}>
+                    <Image source={{ uri: item.image }} style={styles.cardImage} />
+                    
+                    <View style={styles.cardInfo}>
+                      <Text style={styles.cardTitle}>{item.name}</Text>
+                      <Text style={styles.cardPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                    </View>
+
+                    <View style={styles.cardActions}>
+                        <TouchableOpacity style={styles.actionBtn}>
+                             <Feather name="edit-2" size={16} color="#64748B" />
+                        </TouchableOpacity>
+                        <TouchableOpacity 
+                            style={[styles.actionBtn, styles.deleteBtn]}
+                            onPress={() => removeProduct(item.id)}
+                        >
+                             <Feather name="trash-2" size={16} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Image 
+                    source={require('../../assets/images/icon.png')}
+                    style={{width: 60, height: 60, opacity: 0.2, marginBottom: 10, tintColor: '#64748B'}}
+                    resizeMode="contain"
+                />
+                <Text style={styles.emptyTitle}>No products found</Text>
+                <Text style={styles.emptySubtitle}>
+                   {searchQuery ? "Try a different search term" : "Add your first product above"}
+                </Text>
               </View>
             )}
-          />
-        ) : (
-          <View style={[styles.emptyState, { backgroundColor: isDark ? '#1A2332' : '#FFF' }]}>
-            <Ionicons name="cube-outline" size={48} color="#9CA3AF" />
-            <Text style={[styles.emptyStateText, { color: isDark ? '#EDEDED' : '#1F2937' }]}>No products yet</Text>
-            <Text style={[styles.emptyStateSubtext, { color: isDark ? '#9CA3AF' : '#6B7280' }]}>
-              Add products to see them listed here
-            </Text>
           </View>
-        )}
-      </ScrollView>
 
-      <BusinessBottomNav />
-    </SafeAreaView>
+        </ScrollView>
+        <BusinessBottomNav />
+      </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    paddingTop: 35,
-    paddingBottom: 40,
-    paddingHorizontal: 16,
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
-    marginBottom: 20,
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#F1F5F9', 
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  
+  // Background Watermark
+  bottomLogos: {
+    position: 'absolute',
+    bottom: 20,
+    left: -20,
+  },
+  fadedLogo: {
+    width: 130,
+    height: 130,
+    resizeMode: 'contain',
+    opacity: 0.08, 
+  },
+
+  // Header
+  headerContainer: {
+    paddingTop: 60, // Manual padding to clear status bar
+    paddingBottom: 25,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    marginBottom: 10,
+    shadowColor: "#0C1559",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 20,
   },
   logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
+    height: 40,
+    justifyContent: 'center',
   },
   logo: {
-    width: 100,
+    width: 110,
+    height: 35,
+  },
+  headerIconButton: {
+    width: 40,
     height: 40,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    marginHorizontal: 16,
-    marginBottom: 20,
-    height: 44,
-    borderBlockStartColor: '#111827',
-    borderWidth: 0.9,
-  },
-  searchInput: { flex: 1, padding: 10, fontSize: 14 },
-  card: {
-    borderRadius: 16,
-    padding: 20,
-    marginHorizontal: 16,
-    marginBottom: 20,
-    borderBlockColor: '#1e3a8a',
-    borderWidth: 1,
-    shadowColor: '#1e3a8a',
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-    borderBottomColor: '#1e3a8a',
-    borderBottomWidth: 1,
-  },
-  cardTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12, color: '#f3f4f6' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 12,
-    fontSize: 14,
-  },
-  imagePicker: {
-    height: 120,
-    borderWidth: 1,
-    borderColor: '#DDD',
-    borderRadius: 12,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-  imagePickerText: { color: '#6B7280' },
-  imagePreview: { width: '100%', height: '100%', borderRadius: 12 },
-  addButton: {
-    backgroundColor: '#84cc16',
-    paddingVertical: 12,
+
+  // Header Stats
+  statsRow: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+  },
+  statCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  verticalDivider: {
+    width: 1,
+    height: '70%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
     borderRadius: 10,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  addButtonText: { color: '#111827', fontSize: 16, fontWeight: '600' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, marginLeft: 16 },
+  statLabel: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontFamily: 'Montserrat-Medium',
+  },
+  statValue: {
+    color: '#FFF',
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+  },
+
+  // Add Product Form
+  formSection: {
+    paddingHorizontal: 20,
+    marginTop: -10,
+    marginBottom: 20,
+  },
+  formCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  formHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  formTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  badgeNew: {
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 10,
+    color: '#15803D',
+    fontFamily: 'Montserrat-Bold',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    marginBottom: 16,
+  },
+  imageUploadBox: {
+    width: 90,
+    height: 90,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    backgroundColor: '#F8FAFC',
+    overflow: 'hidden',
+  },
+  uploadPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uploadText: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 4,
+    fontFamily: 'Montserrat-Medium',
+  },
+  uploadedImage: {
+    width: '100%',
+    height: '100%',
+  },
+  textInputContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+  inputIcon: {
+    marginRight: 8,
+  },
+  currencySymbol: {
+    fontSize: 14,
+    color: '#64748B',
+    marginRight: 8,
+    fontFamily: 'Montserrat-Bold',
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    fontFamily: 'Montserrat-Medium',
+  },
+  addButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 14,
+    gap: 8,
+  },
+  addButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+  },
+
+  // List Section
+  listSection: {
+    paddingHorizontal: 20,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    height: 50,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    color: '#0F172A',
+    fontFamily: 'Montserrat-Medium',
+  },
+  sectionHeader: {
+    fontSize: 14,
+    color: '#64748B',
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 12,
+    marginLeft: 4,
+  },
+  
+  // Product Card
   productCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
     padding: 12,
-    marginHorizontal: 16,
     marginBottom: 12,
-    borderRadius: 12,
+    alignItems: 'center',
     shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 3,
+    elevation: 1,
   },
-    scrollView: {
+  cardImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  cardInfo: {
     flex: 1,
+    marginLeft: 12,
+    justifyContent: 'center',
   },
-    headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  cardTitle: {
+    fontSize: 15,
+    color: '#0F172A',
+    fontFamily: 'Montserrat-SemiBold',
+    marginBottom: 4,
+  },
+  cardPrice: {
+    fontSize: 14,
+    color: '#0C1559',
+    fontFamily: 'Montserrat-Bold',
+  },
+  cardActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
   },
-cardHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: 20,
-},
-cardHeaderLeft: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 12,
-},
-cardIcon: {
-  width: 40,
-  height: 40,
-  borderRadius: 12,
-  justifyContent: 'center',
-  alignItems: 'center',
-},
-cardSubtitle: {
-  fontSize: 12,
-  color: 'rgba(255, 255, 255, 0.6)',
-},
+  deleteBtn: {
+    backgroundColor: '#FEF2F2',
+  },
 
-  productImage: { width: 50, height: 50, borderRadius: 8, marginRight: 12 },
-  productName: { fontSize: 16, fontWeight: '600' },
-  productPrice: { fontSize: 14 },
-  emptyState: { padding: 40, borderRadius: 16, alignItems: 'center', margin: 16 },
-  emptyStateText: { fontSize: 16, fontWeight: '700', marginTop: 12, marginBottom: 4 },
-  emptyStateSubtext: { fontSize: 13, textAlign: 'center' },
-    analyticsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  analyticsItem: {
+  // Empty State
+  emptyState: {
     alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
   },
-  analyticsNumber: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#84cc16',
+  emptyTitle: {
+    fontSize: 16,
+    color: '#0F172A',
+    fontFamily: 'Montserrat-SemiBold',
+    marginTop: 10,
   },
-  analyticsDivider: {
-    width: 40,
-    height: 2,
-    backgroundColor: '#84cc16',
-    marginVertical: 8,
-  },
-  analyticsLabel: {
-    fontSize: 12,
-    color: '#f3f4f6',
-    fontWeight: '500',
+  emptySubtitle: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 4,
   },
 });
 
