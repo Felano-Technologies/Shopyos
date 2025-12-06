@@ -198,8 +198,8 @@ export default function BusinessSettingsScreen() {
                     icon="briefcase-outline" 
                     iconColor="#2563EB" 
                     bg="#EFF6FF" 
-                    label="Business Details" 
-                    onPress={() => router.push('/business/updateProfile')} 
+                    label="Business Registration" 
+                    onPress={() => router.push('/business/businessRegistration')} 
                 />
                 <View style={styles.divider} />
                 <SettingItem 

@@ -26,6 +26,12 @@
     "plugins": [
       "expo-router",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Shopyos to access your camera"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/images/icon dark.png",
@@ -34,8 +40,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
+
       "expo-font",
-      "expo-barcode-scanner",
       "expo-secure-store",
       "expo-web-browser"
     ],

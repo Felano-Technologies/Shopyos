@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
-import CountryPicker from 'react-native-country-picker-modal'
+import CountryPicker from '@/components/CountryPicker';
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -143,7 +143,7 @@ const RegisterScreen = () => {
                   style={styles.countryCodeButton}
                   onPress={() => setShowCountryPicker(true)}
                 >
-                  <Text style={styles.callingCode}>+{callingCode}</Text>
+                  <Text style={styles.callingCode}>{callingCode}</Text>
                   <Ionicons name="chevron-down-sharp" size={16} color="#444" />
                 </TouchableOpacity>
                 <TextInput
@@ -154,18 +154,17 @@ const RegisterScreen = () => {
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                 />
-                <CountryPicker
-                  withFlag
-                  withCallingCode
-                  withFilter
-                  countryCode={countryCode}
-                  onSelect={(country) => {
-                    setCountryCode(country.cca2);
-                    setCallingCode(country.callingCode[0]);
-                  }}
-                  visible={showCountryPicker}
-                  onClose={() => setShowCountryPicker(false)}
-                />
+              <CountryPicker
+                visible={showCountryPicker}
+                onClose={() => setShowCountryPicker(false)}
+                onSelect={(country) => {
+                  // 1. Use 'code' instead of 'cca2'
+                  setCountryCode(country.code); 
+                  
+                  // 2. Use 'dial_code' instead of 'callingCode[0]'
+                  setCallingCode(country.dial_code); 
+                }}
+              />
               </View>
 
               <View style={styles.inputContainer}>
