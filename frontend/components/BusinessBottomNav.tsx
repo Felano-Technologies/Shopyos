@@ -60,6 +60,11 @@ const BusinessBottomNav = () => {
       icon: 'bar-chart-2',
       route: '/business/analytics',
     },
+    {
+      name: 'Commmunity',
+      icon: 'message-circle',
+      route: '/business/community',
+    },
   ];
 
   const Badge = () => {
