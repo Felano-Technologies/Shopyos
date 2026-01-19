@@ -1,5 +1,4 @@
-const User = require('../models/User');
-const bcrypt = require('bcryptjs');
+const repositories = require('../db/repositories');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
@@ -12,25 +11,22 @@ const register = async (req, res) => {
   
   try {
     // Check if user exists
-    let user = await User.findOne({ email });
+    const existingUser = await repositories.users.findByEmail(email);
 
-    if (user) {
+    if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    // Create user
-    user = new User({
-      name,
+    // Create user (password will be auto-hashed by repository)
+    const user = await repositories.users.createUser({
       email,
-      fullPhoneNumber,
-      password
+      password,
+      full_name: name,
+      phone: fullPhoneNumber
     });
 
-    // Save user
-    await user.save();
-
     // Generate token
-    generateToken(res, user._id);
+    generateToken(res, user.id);
 
     res.status(201).json({
       message: 'User created successfully'
@@ -48,13 +44,13 @@ const login = async (req, res) => {
   const { email, password, latitude, longitude } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await repositories.users.findByEmail(email);
 
     if (!user) {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
-    const isMatch = await user.matchPassword(password);
+    const isMatch = await repositories.users.verifyPassword(user.id, password);
 
     if (!isMatch) {
       return res.status(400).json({ error: 'Invalid credentials' });
@@ -62,16 +58,22 @@ const login = async (req, res) => {
 
     // Update user location if provided
     if (latitude && longitude) {
-      user.latitude = latitude;
-      user.longitude = longitude;
-      await user.save();
+      await repositories.users.update(user.id, {
+        last_latitude: latitude,
+        last_longitude: longitude,
+        last_location_update: new Date().toISOString()
+      });
     }
 
-    const token = generateToken(res, user._id);
+    // Get user roles for backward compatibility
+    const userWithRoles = await repositories.users.getUserWithRoles(user.id);
+    const role = userWithRoles?.roles?.[0]?.role_name || 'none';
+
+    const token = generateToken(res, user.id);
 
     res.status(200).json({
       token,
-      role: user.role,
+      role,
       message: 'Login successful'
     });
   } catch (err) {
@@ -87,18 +89,16 @@ const resetPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
-    const user = await User.findOne({ email });
+    const user = await repositories.users.findByEmail(email);
 
     if (!user) {
       return res.status(400).json({ error: 'User not found' });
     }
 
     const token = crypto.randomBytes(20).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 
-    user.resetPasswordToken = token;
-    user.resetPasswordExpires = Date.now() + 3600000; // 1 hour
-
-    await user.save();
+    await repositories.users.setPasswordResetToken(user.id, token, expiresAt);
 
     const transporter = nodemailer.createTransport({
       service: 'Gmail',
@@ -134,9 +134,25 @@ const resetPassword = async (req, res) => {
 // @access  Private
 const getUserData = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await repositories.users.getUserWithProfile(req.user.id);
 
-    res.status(200).json(user);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Format response for backward compatibility
+    const userData = {
+      id: user.id,
+      email: user.email,
+      name: user.user_profiles?.full_name || user.email,
+      fullPhoneNumber: user.user_profiles?.phone,
+      latitude: user.last_latitude,
+      longitude: user.last_longitude,
+      role: user.roles?.[0]?.role_name || 'none',
+      email_verified: user.email_verified
+    };
+
+    res.status(200).json(userData);
   } catch (error) {
     console.error('Error getting user data:', error);
     res.status(500).json({ error: 'Server error' });
@@ -168,7 +184,7 @@ const generateToken = (res, userId) => {
 const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    const userId = req.user._id; // From auth middleware
+    const userId = req.user.id; // From auth middleware
 
     // Validate role input
     if (!role) {
@@ -178,28 +194,34 @@ const updateUserRole = async (req, res) => {
       });
     }
 
-    // Validate role value
-    const validRoles = ['customer', 'seller', 'driver', 'none'];
-    if (!validRoles.includes(role)) {
+    // Validate role value (map old names to new if needed)
+    const roleMapping = {
+      'customer': 'buyer',
+      'buyer': 'buyer',
+      'seller': 'seller',
+      'driver': 'driver',
+      'none': 'none'
+    };
+    
+    const mappedRole = roleMapping[role];
+    if (!mappedRole) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid role. Must be one of: customer, seller, driver, none'
+        error: 'Invalid role. Must be one of: customer, buyer, seller, driver, none'
       });
     }
 
-    // Find user and update role
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { role },
-      { new: true, runValidators: true }
-    ).select('-password'); // Exclude password from response
-
+    // Check if user exists
+    const user = await repositories.users.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
         error: 'User not found'
       });
     }
+
+    // Set role (replaces all existing roles)
+    await repositories.users.setRole(userId, mappedRole);
 
     res.status(200).json({
       success: true,

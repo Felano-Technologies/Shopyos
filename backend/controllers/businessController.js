@@ -1,13 +1,13 @@
 // controllers/businessController.js
-const Business = require('../models/Business');
-const User = require('../models/User');
+const repositories = require('../db/repositories');
+const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 
-// @desc    Create a new business
+// @desc    Create a new business/store
 // @route   POST /api/business/create
 // @access  Private
 const createBusiness = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
     
     const {
       businessName,
@@ -21,7 +21,8 @@ const createBusiness = async (req, res) => {
       instagram,
       facebook,
       logo,
-      coverImage
+      coverImage,
+      email
     } = req.body;
 
     // Validate required fields
@@ -33,7 +34,7 @@ const createBusiness = async (req, res) => {
     }
 
     // Check if user exists
-    const user = await User.findById(userId);
+    const user = await repositories.users.findById(userId);
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -42,66 +43,93 @@ const createBusiness = async (req, res) => {
     }
 
     // Check if business name already exists for this user
-    const existingBusiness = await Business.findOne({
-      owner: userId,
-      businessName
-    });
+    const existingStores = await repositories.stores.findByOwner(userId);
+    const nameExists = existingStores.some(
+      store => store.store_name.toLowerCase() === businessName.toLowerCase()
+    );
 
-    if (existingBusiness) {
+    if (nameExists) {
       return res.status(400).json({
         success: false,
         error: 'You already have a business with this name'
       });
     }
 
-    // Create business
-    const business = await Business.create({
-      owner: userId,
-      businessName,
+    // Generate slug from business name
+    const slug = businessName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      + '-' + Date.now();
+
+    // Create store
+    const store = await repositories.stores.create({
+      owner_id: userId,
+      store_name: businessName,
+      slug,
       description,
       category,
-      address,
+      phone,
+      email: email || null,
+      address_line1: address,
       city,
       country,
-      phone,
-      website: website || '',
-      socialMedia: {
-        instagram: instagram || '',
-        facebook: facebook || ''
-      },
-      logo: logo || '',
-      coverImage: coverImage || '',
-      verificationStatus: 'pending'
+      website_url: website || null,
+      social_instagram: instagram || null,
+      social_facebook: facebook || null,
+      logo_url: logo || null,
+      banner_url: coverImage || null,
+      verification_status: 'pending',
+      is_active: true
     });
 
-    // Populate the created business
-    const populatedBusiness = await Business.findById(business._id)
-      .select('-__v')
-      .populate('owner', 'name email');
+    // Get store with owner details
+    const storeWithOwner = await repositories.stores.getStoreDetails(store.id);
+
+    // Format response for backward compatibility
+    const response = {
+      _id: store.id,
+      owner: {
+        _id: userId,
+        name: user.email,
+        email: user.email
+      },
+      businessName: store.store_name,
+      description: store.description,
+      category: store.category,
+      phone: store.phone,
+      address: store.address_line1,
+      city: store.city,
+      country: store.country,
+      website: store.website_url || '',
+      socialMedia: {
+        instagram: store.social_instagram || '',
+        facebook: store.social_facebook || ''
+      },
+      logo: store.logo_url || '',
+      coverImage: store.banner_url || '',
+      verificationStatus: store.verification_status,
+      isActive: store.is_active,
+      rating: store.avg_rating || 0,
+      totalReviews: store.total_reviews || 0,
+      createdAt: store.created_at,
+      updatedAt: store.updated_at
+    };
 
     res.status(201).json({
       success: true,
       message: 'Business created successfully',
-      business: populatedBusiness
+      business: response
     });
 
   } catch (error) {
     console.error('Error creating business:', error);
     
-    // Handle duplicate key errors
-    if (error.code === 11000) {
+    // Handle unique constraint violations
+    if (error.code === '23505') {
       return res.status(400).json({
         success: false,
-        error: 'Business name already exists'
-      });
-    }
-    
-    // Handle validation errors
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        error: errors.join(', ')
+        error: 'Business with this name or email already exists'
       });
     }
 
@@ -117,12 +145,37 @@ const createBusiness = async (req, res) => {
 // @access  Private
 const getMyBusinesses = async (req, res) => {
   try {
-    const userId = req.user._id;
+    const userId = req.user.id;
 
-    const businesses = await Business.find({ owner: userId })
-      .select('-__v')
-      .populate('owner', 'name email')
-      .sort({ createdAt: -1 });
+    const stores = await repositories.stores.findByOwner(userId);
+
+    // Format response for backward compatibility
+    const businesses = stores.map(store => ({
+      _id: store.id,
+      owner: userId,
+      businessName: store.store_name,
+      description: store.description,
+      category: store.category,
+      phone: store.phone,
+      email: store.email,
+      address: store.address_line1,
+      city: store.city,
+      country: store.country,
+      website: store.website_url || '',
+      socialMedia: {
+        instagram: store.social_instagram || '',
+        facebook: store.social_facebook || ''
+      },
+      logo: store.logo_url || '',
+      coverImage: store.banner_url || '',
+      verificationStatus: store.verification_status,
+      rejectionReason: store.rejection_reason || '',
+      isActive: store.is_active,
+      rating: store.avg_rating || 0,
+      totalReviews: store.total_reviews || 0,
+      createdAt: store.created_at,
+      updatedAt: store.updated_at
+    }));
 
     res.status(200).json({
       success: true,
@@ -145,21 +198,58 @@ const getMyBusinesses = async (req, res) => {
 const getBusinessById = async (req, res) => {
   try {
     const businessId = req.params.id;
-    const userId = req.user._id;
+    const userId = req.user.id;
 
-    const business = await Business.findOne({
-      _id: businessId,
-      owner: userId
-    })
-    .select('-__v')
-    .populate('owner', 'name email');
+    const store = await repositories.stores.findById(businessId);
 
-    if (!business) {
+    if (!store) {
       return res.status(404).json({
         success: false,
         error: 'Business not found'
       });
     }
+
+    // Verify ownership
+    if (store.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to access this business'
+      });
+    }
+
+    // Get store with details
+    const storeWithDetails = await repositories.stores.getStoreDetails(businessId);
+
+    // Format response for backward compatibility
+    const business = {
+      _id: store.id,
+      owner: {
+        _id: store.owner_id,
+        email: storeWithDetails.owner?.email || ''
+      },
+      businessName: store.store_name,
+      description: store.description,
+      category: store.category,
+      phone: store.phone,
+      email: store.email,
+      address: store.address_line1,
+      city: store.city,
+      country: store.country,
+      website: store.website_url || '',
+      socialMedia: {
+        instagram: store.social_instagram || '',
+        facebook: store.social_facebook || ''
+      },
+      logo: store.logo_url || '',
+      coverImage: store.banner_url || '',
+      verificationStatus: store.verification_status,
+      rejectionReason: store.rejection_reason || '',
+      isActive: store.is_active,
+      rating: store.avg_rating || 0,
+      totalReviews: store.total_reviews || 0,
+      createdAt: store.created_at,
+      updatedAt: store.updated_at
+    };
 
     res.status(200).json({
       success: true,
@@ -168,14 +258,6 @@ const getBusinessById = async (req, res) => {
 
   } catch (error) {
     console.error('Error fetching business:', error);
-    
-    if (error.name === 'CastError') {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid business ID'
-      });
-    }
-
     res.status(500).json({
       success: false,
       error: 'Server error while fetching business'
@@ -189,50 +271,93 @@ const getBusinessById = async (req, res) => {
 const updateBusiness = async (req, res) => {
   try {
     const businessId = req.params.id;
-    const userId = req.user._id;
+    const userId = req.user.id;
     const updateData = req.body;
 
-    // Find business and verify ownership
-    const business = await Business.findOne({
-      _id: businessId,
-      owner: userId
-    });
+    // Find store and verify ownership
+    const store = await repositories.stores.findById(businessId);
 
-    if (!business) {
+    if (!store) {
       return res.status(404).json({
         success: false,
         error: 'Business not found'
       });
     }
 
-    // Update business
-    const updatedBusiness = await Business.findByIdAndUpdate(
-      businessId,
-      updateData,
-      { 
-        new: true, 
-        runValidators: true 
-      }
-    )
-    .select('-__v')
-    .populate('owner', 'name email');
+    if (store.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to update this business'
+      });
+    }
+
+    // Map old field names to new schema
+    const mappedData = {};
+    
+    if (updateData.businessName) mappedData.store_name = updateData.businessName;
+    if (updateData.description) mappedData.description = updateData.description;
+    if (updateData.category) mappedData.category = updateData.category;
+    if (updateData.phone) mappedData.phone = updateData.phone;
+    if (updateData.email) mappedData.email = updateData.email;
+    if (updateData.address) mappedData.address_line1 = updateData.address;
+    if (updateData.city) mappedData.city = updateData.city;
+    if (updateData.country) mappedData.country = updateData.country;
+    if (updateData.website) mappedData.website_url = updateData.website;
+    if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
+    if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
+    if (updateData.logo) mappedData.logo_url = updateData.logo;
+    if (updateData.coverImage) mappedData.banner_url = updateData.coverImage;
+    if (updateData.verificationStatus) mappedData.verification_status = updateData.verificationStatus;
+    if (updateData.rejectionReason) mappedData.rejection_reason = updateData.rejectionReason;
+    if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;
+
+    // Update slug if business name changed
+    if (mappedData.store_name) {
+      mappedData.slug = mappedData.store_name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        + '-' + Date.now();
+    }
+
+    // Update store
+    const updatedStore = await repositories.stores.update(businessId, mappedData);
+
+    // Format response for backward compatibility
+    const business = {
+      _id: updatedStore.id,
+      owner: userId,
+      businessName: updatedStore.store_name,
+      description: updatedStore.description,
+      category: updatedStore.category,
+      phone: updatedStore.phone,
+      email: updatedStore.email,
+      address: updatedStore.address_line1,
+      city: updatedStore.city,
+      country: updatedStore.country,
+      website: updatedStore.website_url || '',
+      socialMedia: {
+        instagram: updatedStore.social_instagram || '',
+        facebook: updatedStore.social_facebook || ''
+      },
+      logo: updatedStore.logo_url || '',
+      coverImage: updatedStore.banner_url || '',
+      verificationStatus: updatedStore.verification_status,
+      rejectionReason: updatedStore.rejection_reason || '',
+      isActive: updatedStore.is_active,
+      rating: updatedStore.avg_rating || 0,
+      totalReviews: updatedStore.total_reviews || 0,
+      updatedAt: updatedStore.updated_at
+    };
 
     res.status(200).json({
       success: true,
       message: 'Business updated successfully',
-      business: updatedBusiness
+      business
     });
 
   } catch (error) {
     console.error('Error updating business:', error);
-    
-    if (error.name === 'ValidationError') {
-      const errors = Object.values(error.errors).map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        error: errors.join(', ')
-      });
-    }
 
     res.status(500).json({
       success: false,
@@ -247,23 +372,49 @@ const updateBusiness = async (req, res) => {
 const deleteBusiness = async (req, res) => {
   try {
     const businessId = req.params.id;
-    const userId = req.user._id;
+    const userId = req.user.id;
 
-    // Find business and verify ownership
-    const business = await Business.findOne({
-      _id: businessId,
-      owner: userId
-    });
+    // Find store and verify ownership
+    const store = await repositories.stores.findById(businessId);
 
-    if (!business) {
+    if (!store) {
       return res.status(404).json({
         success: false,
         error: 'Business not found'
       });
     }
 
-    // Soft delete (set isActive to false) or hard delete
-    await Business.findByIdAndDelete(businessId);
+    if (store.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to delete this business'
+      });
+    }
+
+    // Delete images from Cloudinary if they exist
+    const imagesToDelete = [];
+    
+    if (store.logo_url) {
+      const logoPublicId = extractPublicId(store.logo_url);
+      if (logoPublicId) imagesToDelete.push(logoPublicId);
+    }
+    
+    if (store.banner_url) {
+      const bannerPublicId = extractPublicId(store.banner_url);
+      if (bannerPublicId) imagesToDelete.push(bannerPublicId);
+    }
+
+    // Delete images from Cloudinary
+    if (imagesToDelete.length > 0) {
+      await Promise.all(imagesToDelete.map(id => 
+        deleteImage(id).catch(err => 
+          console.warn(`Failed to delete image ${id}:`, err.message)
+        )
+      ));
+    }
+
+    // Soft delete the store
+    await repositories.stores.softDelete(businessId);
 
     res.status(200).json({
       success: true,
@@ -279,10 +430,142 @@ const deleteBusiness = async (req, res) => {
   }
 };
 
+// @desc    Upload business logo
+// @route   POST /api/business/:id/upload-logo
+// @access  Private
+const uploadLogo = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No logo file uploaded'
+      });
+    }
+
+    // Verify ownership
+    const store = await repositories.stores.findById(businessId);
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'Business not found'
+      });
+    }
+
+    if (store.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized'
+      });
+    }
+
+    // Delete old logo if exists
+    if (store.logo_url) {
+      const oldPublicId = extractPublicId(store.logo_url);
+      if (oldPublicId) {
+        await deleteImage(oldPublicId).catch(err => 
+          console.warn('Failed to delete old logo:', err.message)
+        );
+      }
+    }
+
+    // Upload new logo
+    const result = await uploadFileToCloudinary(req.file, 'shopyos/store-logos');
+
+    // Update store
+    await repositories.stores.update(businessId, {
+      logo_url: result.url,
+      logo_cloudinary_id: result.public_id
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Logo uploaded successfully',
+      logo: result.url
+    });
+
+  } catch (error) {
+    console.error('Error uploading logo:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload logo'
+    });
+  }
+};
+
+// @desc    Upload business banner/cover image
+// @route   POST /api/business/:id/upload-banner
+// @access  Private
+const uploadBanner = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No banner file uploaded'
+      });
+    }
+
+    // Verify ownership
+    const store = await repositories.stores.findById(businessId);
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'Business not found'
+      });
+    }
+
+    if (store.owner_id !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized'
+      });
+    }
+
+    // Delete old banner if exists
+    if (store.banner_url) {
+      const oldPublicId = extractPublicId(store.banner_url);
+      if (oldPublicId) {
+        await deleteImage(oldPublicId).catch(err => 
+          console.warn('Failed to delete old banner:', err.message)
+        );
+      }
+    }
+
+    // Upload new banner
+    const result = await uploadFileToCloudinary(req.file, 'shopyos/store-banners');
+
+    // Update store
+    await repositories.stores.update(businessId, {
+      banner_url: result.url,
+      banner_cloudinary_id: result.public_id
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Banner uploaded successfully',
+      banner: result.url
+    });
+
+  } catch (error) {
+    console.error('Error uploading banner:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to upload banner'
+    });
+  }
+};
+
 module.exports = {
   createBusiness,
   getMyBusinesses,
   getBusinessById,
   updateBusiness,
-  deleteBusiness
+  deleteBusiness,
+  uploadLogo,
+  uploadBanner
 };
