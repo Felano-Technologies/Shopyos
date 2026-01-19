@@ -329,3 +329,6 @@ const styles = StyleSheet.create({
     marginRight: 2,
   },
   sendBtnDisabled: {
+    backgroundColor: '#E2E8F0',
+  },
+});
