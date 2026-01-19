@@ -41,11 +41,12 @@ const RECENT_PRODUCTS = [
   },
 ];
 
+// Updated to include details for navigation
 const FEATURED_ITEMS = [
-  { id: 'f1', image: require('../assets/images/featured/feat1.jpg') },
-  { id: 'f2', image: require('../assets/images/featured/feat2.jpg') },
-  { id: 'f3', image: require('../assets/images/featured/feat3.jpg') },
-  { id: 'f4', image: require('../assets/images/featured/feat4.jpg') },
+  { id: 'f1', title: 'Summer Collection', price: 150.0, image: require('../assets/images/featured/feat1.jpg') },
+  { id: 'f2', title: 'Urban Streetwear', price: 220.0, image: require('../assets/images/featured/feat2.jpg') },
+  { id: 'f3', title: 'Classic Fits', price: 180.0, image: require('../assets/images/featured/feat3.jpg') },
+  { id: 'f4', title: 'New Arrivals', price: 300.0, image: require('../assets/images/featured/feat4.jpg') },
 ];
 
 const DEALS_FOR_YOU = [
@@ -74,12 +75,10 @@ export default function Home() {
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-
-
-  // Derived list of chip categories - exclude 'more' from names
+  // Derived list of chip categories
   const allCategoryNames = ['All', ...CATEGORIES.filter(c => c.label !== 'more').map((c) => c.label)];
 
-  // Filtered recent products according to selected category
+  // Filtered recent products
   const filteredRecent =
     selectedCat === 'All'
       ? RECENT_PRODUCTS
@@ -93,12 +92,10 @@ export default function Home() {
     // Simulate data loading
     setTimeout(() => {
       setLoading(false);
-
-      // Initialize animation values for recent products
+      // Initialize animation values
       const vals = RECENT_PRODUCTS.map(() => new Animated.Value(0));
       setAnimationValues(vals);
-
-      // Staggered fade-in for recent products
+      // Staggered fade-in
       const animations = vals.map((anim, i) =>
         Animated.timing(anim, {
           toValue: 1,
@@ -110,7 +107,7 @@ export default function Home() {
       Animated.stagger(150, animations).start();
     }, 2000);
 
-    // Fetch location once
+    // Fetch location
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -118,9 +115,7 @@ export default function Home() {
           setLocationText('Permission denied');
           return;
         }
-        const {
-          coords: { latitude, longitude },
-        } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+        const { coords: { latitude, longitude } } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
         const [reverseInfo] = await Location.reverseGeocodeAsync({ latitude, longitude });
         if (reverseInfo) {
           const { city, region, country } = reverseInfo;
@@ -137,7 +132,7 @@ export default function Home() {
     })();
   }, []);
 
-  // Set up interval to auto-scroll "Featured" every 3 seconds
+  // Auto-scroll Featured
   useEffect(() => {
     const intervalId = setInterval(() => {
       setFeaturedIndex((prev) => {
@@ -148,59 +143,49 @@ export default function Home() {
         return next;
       });
     }, 3000);
-
     return () => clearInterval(intervalId);
   }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate re-fetch
     await new Promise((r) => setTimeout(r, 1000));
     setRefreshing(false);
   };
 
-  const renderRecent = ({
-    item,
-    index,
-  }: {
-    item: typeof RECENT_PRODUCTS[0];
-    index: number;
-  }) => (
+  // Helper to navigate to product details
+  const goToDetails = (item: any) => {
+    router.push({
+      pathname: '/product/details',
+      params: {
+        id: item.id,
+        title: item.title,
+        price: item.price,
+        oldPrice: item.oldPrice,
+        category: item.category,
+        image: item.image // Passes the number (asset ID)
+      }
+    });
+  };
+
+  const renderRecent = ({ item, index }: { item: typeof RECENT_PRODUCTS[0]; index: number }) => (
     <Animated.View
       style={{
         opacity: animationValues[index],
-        transform: [
-          {
-            scale: animationValues[index].interpolate({
-              inputRange: [0, 1],
-              outputRange: [0.85, 1],
-            }),
-          },
-        ],
+        transform: [{ scale: animationValues[index].interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
         marginRight: 16,
       }}
     >
       <TouchableOpacity
-        style={[
-          styles.productCard,
-          { backgroundColor: '#111827' },
-        ]}
+        style={[styles.productCard, { backgroundColor: '#111827' }]}
+        activeOpacity={0.8}
+        onPress={() => goToDetails(item)}
       >
         <Image source={item.image} style={styles.productImage} />
-        {/* <TouchableOpacity style={styles.heartIcon}>
-          <Ionicons name="heart-outline" size={20} color="#E11D48" />
-        </TouchableOpacity> */}
         <View style={styles.productInfo}>
-          <Text style={[styles.productTitle, { color: '#f3f4f6' }]} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={[styles.productCategory, { color: '#64748B' }]}>
-            {item.category}
-          </Text>
+          <Text style={[styles.productTitle, { color: '#f3f4f6' }]} numberOfLines={1}>{item.title}</Text>
+          <Text style={[styles.productCategory, { color: '#64748B' }]}>{item.category}</Text>
           <View style={styles.priceRow}>
-            <Text style={[styles.currentPrice, { color: '#84cc16' }]}>
-              ₵{item.price.toFixed(2)}
-            </Text>
+            <Text style={[styles.currentPrice, { color: '#84cc16' }]}>₵{item.price.toFixed(2)}</Text>
             <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
           </View>
         </View>
@@ -209,32 +194,46 @@ export default function Home() {
   );
 
   const renderDeal = ({ item }: { item: typeof DEALS_FOR_YOU[0] }) => (
-    <TouchableOpacity style={[styles.dealCard, { backgroundColor: '#111827' }]}>
+    <TouchableOpacity 
+        style={[styles.dealCard, { backgroundColor: '#111827' }]}
+        activeOpacity={0.8}
+        onPress={() => goToDetails(item)}
+    >
       <Image source={item.image} style={styles.dealImage} />
-      <Text style={[styles.dealTitle, { color: '#f3f4f6' }]} numberOfLines={2}>
-        {item.title}
-      </Text>
-      <Text style={styles.dealPrice}>
-        ₵{item.price.toFixed(2)}
-      </Text>
+      <Text style={[styles.dealTitle, { color: '#f3f4f6' }]} numberOfLines={2}>{item.title}</Text>
+      <Text style={styles.dealPrice}>₵{item.price.toFixed(2)}</Text>
+    </TouchableOpacity>
+  );
+
+  const renderFeatured = ({ item }: { item: typeof FEATURED_ITEMS[0] }) => (
+    <TouchableOpacity 
+      style={styles.featuredCard} 
+      activeOpacity={0.9}
+      onPress={() => goToDetails(item)}
+    >
+        <ImageBackground
+            source={item.image}
+            style={styles.featuredImage}
+            imageStyle={{ borderRadius: 16 }}
+        >
+            <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.6)']}
+            style={styles.featuredOverlay}
+            >
+                <View style={styles.featuredTextContainer}>
+                    <Text style={styles.featuredTitle}>{item.title}</Text>
+                    <Text style={styles.featuredPrice}>From ₵{item.price}</Text>
+                </View>
+            </LinearGradient>
+        </ImageBackground>
     </TouchableOpacity>
   );
 
   if (loading) {
-    // Skeleton placeholders while loading
     return (
       <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
         <SafeAreaView style={{ flex: 1 }}>
-          <View style={styles.skeletonHeader} />
-          <View style={styles.skeletonBanner} />
-          <View style={styles.skeletonChips} />
-          <View style={styles.skeletonRow} />
-          <View style={styles.skeletonRow} />
-          <ActivityIndicator
-            size="large"
-            color="#1e3a8a"
-          />
-          <BottomNav />
+          <ActivityIndicator size="large" color="#1e3a8a" style={{marginTop: 50}} />
         </SafeAreaView>
       </View>
     );
@@ -243,245 +242,155 @@ export default function Home() {
   return (
     <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
-    <SafeAreaView style={styles.container}>
-      <Animated.ScrollView
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-          { useNativeDriver: true }
-        )}
-      >
+      <SafeAreaView style={styles.container}>
+        <Animated.ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+        >
+          {/* Location + App Logo + Search Row */}
+          <View style={styles.topSection}>
+            <TouchableOpacity style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={18} color="#222" />
+              <Text style={[styles.locationText, { color: '#222' }]}>{locationText}</Text>
+              <Ionicons name="chevron-down" size={16} color="#222" />
+            </TouchableOpacity>
 
-
-        {/* Location + App Logo + Search Row */}
-        <View style={styles.topSection}>
-          {/* Location Row */}
-          <TouchableOpacity style={styles.locationRow}>
-            <Ionicons
-              name="location-sharp"
-              size={18}
-              color="#222"
-            />
-            <Text style={[styles.locationText, { color: '#222' }]}>
-              {locationText}
-            </Text>
-            <Ionicons
-              name="chevron-down"
-              size={16}
-              color="#222"
-            />
-          </TouchableOpacity>
-
-          {/* Logo and Search Row */}
-          <View style={styles.logoSearchRow}>
-            <View style={styles.logoContainer}>
-              <Image
-                source={require('../assets/images/icondark.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
-              />
-            </View>
-
-            <View style={styles.searchAndIcons}>
-              <View style={[styles.searchInputWrapper, { backgroundColor: '#1e3a8a' }]}>
-                <Feather
-                  name="search"
-                  size={16}
-                  color="#FFF"
-                />
-                <TextInput
-                  placeholder="Search here..."
-                  placeholderTextColor="rgba(255,255,255,0.8)"
-                  style={[styles.searchInput, { color: '#FFF' }]}
-                />
-                <TouchableOpacity onPress={() => router.push('/filter')}>
-                  <Feather
-                    name="sliders"
-                    size={16}
-                    color="#FFF"
-                  />
-                </TouchableOpacity>
+            <View style={styles.logoSearchRow}>
+              <View style={styles.logoContainer}>
+                <Image source={require('../assets/images/icondark.png')} style={styles.logoImage} resizeMode="contain" />
               </View>
 
-              <TouchableOpacity 
-                style={styles.notificationIcon}
-                onPress={() => router.push('/notifications')}
-              >
-                <Ionicons name="notifications" size={22} color="#1e3a8a" />
-                <View style={styles.notificationDot} />
-              </TouchableOpacity>
+              <View style={styles.searchAndIcons}>
+                <View style={[styles.searchInputWrapper, { backgroundColor: '#1e3a8a' }]}>
+                  <Feather name="search" size={16} color="#FFF" />
+                  <TextInput
+                    placeholder="Search here..."
+                    placeholderTextColor="rgba(255,255,255,0.8)"
+                    style={[styles.searchInput, { color: '#FFF' }]}
+                  />
+                  <TouchableOpacity onPress={() => router.push('/filter')}>
+                    <Feather name="sliders" size={16} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.notificationIcon} onPress={() => router.push('/cart')}>
+                  <Ionicons name="cart" size={22} color="#1e3a8a" />
+                  <View style={styles.notificationDot} />
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-        </View>
 
-        {/* Enhanced Banner with Image Background */}
-        <Animated.View
-          style={[
-            styles.bannerContainer,
-            {
-              transform: [
-                {
-                  translateY: scrollY.interpolate({
-                    inputRange: [-100, 0, 100],
-                    outputRange: [-50, 0, 50],
-                    extrapolate: 'clamp',
-                  }),
-                },
-              ],
-            },
-          ]}
-        >
-          <ImageBackground
-            source={require('../assets/images/banner1.png')}
-            style={styles.bannerImageBg}
-            imageStyle={{ borderRadius: 16 }}
-          >
-          </ImageBackground>
-        </Animated.View>
-
-        {/* Category Chips with better styling */}
-        <View style={styles.chipsContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {allCategoryNames.map((cat) => {
-              const isActive = selectedCat === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  onPress={() => setSelectedCat(cat)}>
-                  <View
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: isActive ? '#84cc16' : '#FFF',
-                      borderColor: isActive ? '#84cc16' : '#1e3a8a',
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      {
-                        color: isActive ? '#111827' : '#64748B',
-                      },
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity>
-              <View
-                style={[
-                  styles.chip,
+          {/* Enhanced Banner (Now Clickable) */}
+          <Animated.View
+            style={[
+              styles.bannerContainer,
+              {
+                transform: [
                   {
-                    backgroundColor: '#1e3a8a',
-                    borderColor: '#E2E8F0',
+                    translateY: scrollY.interpolate({
+                      inputRange: [-100, 0, 100],
+                      outputRange: [-50, 0, 50],
+                      extrapolate: 'clamp',
+                    }),
                   },
-                ]}
-              >
-                <Text style={[styles.chipText, { color: '#fff' }]}>
-                  More..
-                </Text>
-              </View>
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity 
+                activeOpacity={0.9} 
+                onPress={() => router.push({ pathname: '/product/details', params: { title: 'Special Offer', price: 99, image: require('../assets/images/banner1.png') }})}
+                style={{ flex: 1 }}
+            >
+                <ImageBackground
+                source={require('../assets/images/banner1.png')}
+                style={styles.bannerImageBg}
+                imageStyle={{ borderRadius: 16 }}
+                />
             </TouchableOpacity>
-          </ScrollView>
-        </View>
+          </Animated.View>
 
-        {/* Featured "Carousel" - made more prominent */}
-        <View style={{ paddingTop: 10 }}>
+          {/* Category Chips */}
+          <View style={styles.chipsContainer}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              {allCategoryNames.map((cat) => {
+                const isActive = selectedCat === cat;
+                return (
+                  <TouchableOpacity key={cat} onPress={() => setSelectedCat(cat)}>
+                    <View style={[styles.chip, { backgroundColor: isActive ? '#84cc16' : '#FFF', borderColor: isActive ? '#84cc16' : '#1e3a8a' }]}>
+                      <Text style={[styles.chipText, { color: isActive ? '#111827' : '#64748B' }]}>{cat}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Featured "Carousel" (Now Clickable) */}
+          <View style={{ paddingTop: 10 }}>
+            <FlatList
+              ref={featuredRef}
+              data={FEATURED_ITEMS}
+              keyExtractor={(item) => item.id}
+              horizontal
+              pagingEnabled={false}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+              renderItem={renderFeatured}
+              getItemLayout={(_, index) => ({
+                length: width - 16,
+                offset: (width - 16) * index,
+                index,
+              })}
+            />
+          </View>
+
+          {/* Recently Added */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: '#222' }]}>Recently Added</Text>
+            <TouchableOpacity onPress={() => router.push('/recent')}>
+              <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
+            </TouchableOpacity>
+          </View>
           <FlatList
-            ref={featuredRef}
-            data={FEATURED_ITEMS}
+            data={filteredRecent}
             keyExtractor={(item) => item.id}
             horizontal
-            pagingEnabled={false}
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16 }}
-            renderItem={({ item }) => (
-              <View style={styles.featuredCard}>
-                <ImageBackground
-                  source={item.image}
-                  style={styles.featuredImage}
-                  imageStyle={{ borderRadius: 16 }}
-                >
-                  <LinearGradient
-                    colors={['transparent', 'rgba(0,0,0,0.3)']}
-                    style={styles.featuredOverlay}
-                  />
-                </ImageBackground>
-              </View>
-            )}
-            getItemLayout={(_, index) => ({
-              length: width - 16,
-              offset: (width - 16) * index,
-              index,
-            })}
+            contentContainerStyle={styles.recentList}
+            renderItem={renderRecent}
           />
-        </View>
 
-        {/* Recently Added with enhanced cards */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: '#222' }]}>
-            Recently Added
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/recent')}>
-            <Text style={[styles.seeAllText, { color: '#64748B' }]}>
-              See All
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={filteredRecent}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.recentList}
-          renderItem={renderRecent}
-        />
-
-        {/* Deals for You with enhanced styling */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: '#222' }]}>
-            Deals for You
-          </Text>
-          <TouchableOpacity onPress={() => router.push('/deals')}>
-            <Text style={[styles.seeAllText, { color: '#64748B' }]}>
-              See All
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <FlatList
-          data={DEALS_FOR_YOU}
-          keyExtractor={(item) => item.id}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dealsList}
-          renderItem={renderDeal}
-        />
-      </Animated.ScrollView>
-
-           {/* Bottom Logos */}
-      <ImageBackground
-        source={require('../assets/images/icon.png')}
-        style={styles.background}
-      >
-        <View style={styles.bottomLogos}>
-          <Image
-            source={require('../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
+          {/* Deals for You */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: '#222' }]}>Deals for You</Text>
+            <TouchableOpacity onPress={() => router.push('/deals')}>
+              <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={DEALS_FOR_YOU}
+            keyExtractor={(item) => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.dealsList}
+            renderItem={renderDeal}
           />
-        </View>
-      </ImageBackground>
+        </Animated.ScrollView>
 
-
-      {/* Bottom Navigation */}
-      <BottomNav />
-    </SafeAreaView>
+        {/* Bottom Background & Nav */}
+        <ImageBackground source={require('../assets/images/icon.png')} style={styles.background}>
+          <View style={styles.bottomLogos}>
+            <Image source={require('../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+          </View>
+        </ImageBackground>
+        <BottomNav />
+      </SafeAreaView>
     </View>
   );
 }
