@@ -10,6 +10,8 @@ router.post('/reset-password', authController.resetPassword);
 
 // Protected routes
 router.get('/me', protect, authController.getUserData);
-router.put('/role', protect, authController.updateUserRole);
+router.post('/add-role', protect, authController.addRole);
+router.get('/roles', protect, authController.getUserRoles);
+router.put('/role', protect, authController.updateUserRole); // Deprecated - use add-role
 
 module.exports = router;
