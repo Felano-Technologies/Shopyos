@@ -89,46 +89,111 @@ app.get('/api', (req, res) => {
     success: true,
     message: 'Shopyos API',
     version: '1.0.0',
+    currentVersion: 'v1',
     endpoints: {
-      auth: '/api/auth',
-      stores: '/api/business',
-      products: '/api/products',
-      cart: '/api/cart',
-      orders: '/api/orders',
-      messaging: '/api/messaging',
-      deliveries: '/api/deliveries',
-      reviews: '/api/reviews',
-      notifications: '/api/notifications',
-      admin: '/api/admin',
-      advertising: '/api/advertising'
+      v1: '/api/v1',
+      health: '/health'
+    },
+    availableVersions: ['v1']
+  });
+});
+
+// API v1 info endpoint
+app.get('/api/v1', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Shopyos API v1',
+    version: '1.0.0',
+    endpoints: {
+      auth: '/api/v1/auth',
+      stores: '/api/v1/business',
+      products: '/api/v1/products',
+      cart: '/api/v1/cart',
+      orders: '/api/v1/orders',
+      messaging: '/api/v1/messaging',
+      deliveries: '/api/v1/deliveries',
+      reviews: '/api/v1/reviews',
+      notifications: '/api/v1/notifications',
+      admin: '/api/v1/admin',
+      advertising: '/api/v1/advertising'
     }
   });
 });
 
-// Apply rate limiters to specific routes
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/upload', uploadLimiter);
-app.use('/api/orders/create', orderLimiter);
-app.use('/api/messaging', messageLimiter);
+// Apply rate limiters to specific routes (v1)
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/auth/register', authLimiter);
+app.use('/api/v1/auth/forgot-password', authLimiter);
+app.use('/api/v1/upload', uploadLimiter);
+app.use('/api/v1/orders/create', orderLimiter);
+app.use('/api/v1/messaging', messageLimiter);
 
 // Apply general API rate limiter to all API routes
 app.use('/api', apiLimiter);
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/business', businessRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/upload', uploadRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/messaging', messagingRoutes);
-app.use('/api/deliveries', deliveryRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/advertising', advertisingRoutes);
+// API v1 Routes
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/business', businessRoutes);
+app.use('/api/v1/products', productRoutes);
+app.use('/api/v1/upload', uploadRoutes);
+app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/messaging', messagingRoutes);
+app.use('/api/v1/deliveries', deliveryRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/advertising', advertisingRoutes);
+
+// Legacy routes (redirect to v1 for backward compatibility)
+app.use('/api/auth', (req, res, next) => {
+  req.url = '/api/v1/auth' + req.url.substring('/api/auth'.length);
+  authRoutes(req, res, next);
+});
+app.use('/api/business', (req, res, next) => {
+  req.url = '/api/v1/business' + req.url.substring('/api/business'.length);
+  businessRoutes(req, res, next);
+});
+app.use('/api/products', (req, res, next) => {
+  req.url = '/api/v1/products' + req.url.substring('/api/products'.length);
+  productRoutes(req, res, next);
+});
+app.use('/api/upload', (req, res, next) => {
+  req.url = '/api/v1/upload' + req.url.substring('/api/upload'.length);
+  uploadRoutes(req, res, next);
+});
+app.use('/api/cart', (req, res, next) => {
+  req.url = '/api/v1/cart' + req.url.substring('/api/cart'.length);
+  cartRoutes(req, res, next);
+});
+app.use('/api/orders', (req, res, next) => {
+  req.url = '/api/v1/orders' + req.url.substring('/api/orders'.length);
+  orderRoutes(req, res, next);
+});
+app.use('/api/messaging', (req, res, next) => {
+  req.url = '/api/v1/messaging' + req.url.substring('/api/messaging'.length);
+  messagingRoutes(req, res, next);
+});
+app.use('/api/deliveries', (req, res, next) => {
+  req.url = '/api/v1/deliveries' + req.url.substring('/api/deliveries'.length);
+  deliveryRoutes(req, res, next);
+});
+app.use('/api/reviews', (req, res, next) => {
+  req.url = '/api/v1/reviews' + req.url.substring('/api/reviews'.length);
+  reviewRoutes(req, res, next);
+});
+app.use('/api/notifications', (req, res, next) => {
+  req.url = '/api/v1/notifications' + req.url.substring('/api/notifications'.length);
+  notificationRoutes(req, res, next);
+});
+app.use('/api/admin', (req, res, next) => {
+  req.url = '/api/v1/admin' + req.url.substring('/api/admin'.length);
+  adminRoutes(req, res, next);
+});
+app.use('/api/advertising', (req, res, next) => {
+  req.url = '/api/v1/advertising' + req.url.substring('/api/advertising'.length);
+  advertisingRoutes(req, res, next);
+});
 
 // 404 handler
 app.use(notFoundHandler);

@@ -7,9 +7,15 @@ const crypto = require('crypto');
 // @route   POST /api/auth/register
 // @access  Public
 const register = async (req, res) => {
-  const { name, email, password, fullPhoneNumber } = req.body;
+  const { name, email, password, fullPhoneNumber, role = 'buyer' } = req.body;
   
   try {
+    // Validate role
+    const validRoles = ['buyer', 'seller', 'driver'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role. Must be buyer, seller, or driver' });
+    }
+
     // Check if user exists
     const existingUser = await repositories.users.findByEmail(email);
 
@@ -18,12 +24,23 @@ const register = async (req, res) => {
     }
 
     // Create user (password will be auto-hashed by repository)
+    // Note: Database trigger automatically creates user_profile with default values
     const user = await repositories.users.createUser({
       email,
-      password,
+      password
+    });
+
+    // Update user profile with provided data (trigger creates it with defaults)
+    await repositories.userProfiles.updateByUserId(user.id, {
       full_name: name,
       phone: fullPhoneNumber
     });
+
+    // Assign selected role (buyer is default)
+    const selectedRole = await repositories.roles.findByName(role);
+    if (selectedRole) {
+      await repositories.roles.assignRoleToUser(user.id, selectedRole.id);
+    }
 
     // Generate token
     generateToken(res, user.id);
@@ -56,24 +73,29 @@ const login = async (req, res) => {
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
-    // Update user location if provided
+    // Update user location if provided (store in user_profiles)
     if (latitude && longitude) {
-      await repositories.users.update(user.id, {
-        last_latitude: latitude,
-        last_longitude: longitude,
-        last_location_update: new Date().toISOString()
+      await repositories.userProfiles.updateByUserId(user.id, {
+        latitude: latitude,
+        longitude: longitude
       });
     }
 
-    // Get user roles for backward compatibility
-    const userWithRoles = await repositories.users.getUserWithRoles(user.id);
-    const role = userWithRoles?.roles?.[0]?.role_name || 'none';
+    // Update last login time
+    await repositories.users.update(user.id, {
+      last_login_at: new Date().toISOString()
+    });
+
+    // Get user roles
+    const userRoles = await repositories.roles.getUserRoles(user.id);
+    const role = userRoles?.[0]?.role?.name || 'none';
 
     const token = generateToken(res, user.id);
 
     res.status(200).json({
       token,
       role,
+      roles: userRoles.map(r => r.role.name),
       message: 'Login successful'
     });
   } catch (err) {
@@ -134,22 +156,43 @@ const resetPassword = async (req, res) => {
 // @access  Private
 const getUserData = async (req, res) => {
   try {
-    const user = await repositories.users.getUserWithProfile(req.user.id);
+    const user = await repositories.users.findById(req.user.id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Format response for backward compatibility
+    // Get user profile
+    const profile = await repositories.userProfiles.findByUserId(user.id);
+
+    // Get user roles
+    const userRoles = await repositories.roles.getUserRoles(user.id);
+
+    // Format response
     const userData = {
       id: user.id,
       email: user.email,
-      name: user.user_profiles?.full_name || user.email,
-      fullPhoneNumber: user.user_profiles?.phone,
-      latitude: user.last_latitude,
-      longitude: user.last_longitude,
-      role: user.roles?.[0]?.role_name || 'none',
-      email_verified: user.email_verified
+      name: profile?.full_name || user.email,
+      fullPhoneNumber: profile?.phone,
+      avatar_url: profile?.avatar_url,
+      address_line1: profile?.address_line1,
+      address_line2: profile?.address_line2,
+      city: profile?.city,
+      state_province: profile?.state_province,
+      postal_code: profile?.postal_code,
+      country: profile?.country,
+      latitude: profile?.latitude,
+      longitude: profile?.longitude,
+      role: userRoles?.[0]?.role?.name || 'none',
+      roles: userRoles.map(r => ({
+        name: r.role.name,
+        displayName: r.role.display_name,
+        assignedAt: r.assigned_at
+      })),
+      email_verified: user.email_verified,
+      is_active: user.is_active,
+      last_login_at: user.last_login_at,
+      created_at: user.created_at
     };
 
     res.status(200).json(userData);
@@ -178,7 +221,85 @@ const generateToken = (res, userId) => {
 
 
 
-// @desc    Update user role
+// @desc    Add role to user (users can have multiple roles)
+// @route   POST /api/auth/add-role
+// @access  Private
+const addRole = async (req, res) => {
+  const { role } = req.body;
+  const userId = req.user.id;
+
+  try {
+    // Validate role
+    const validRoles = ['buyer', 'seller', 'driver'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be buyer, seller, or driver'
+      });
+    }
+
+    // Check if user already has this role
+    const hasRole = await repositories.roles.userHasRole(userId, role);
+    if (hasRole) {
+      return res.status(400).json({
+        success: false,
+        error: `You already have the ${role} role`
+      });
+    }
+
+    // Get role and assign to user
+    const roleData = await repositories.roles.findByName(role);
+    if (!roleData) {
+      return res.status(404).json({
+        success: false,
+        error: 'Role not found'
+      });
+    }
+
+    await repositories.roles.assignRoleToUser(userId, roleData.id);
+
+    res.status(200).json({
+      success: true,
+      message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully`
+    });
+
+  } catch (error) {
+    console.error('Error adding role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while adding role'
+    });
+  }
+};
+
+// @desc    Get user roles
+// @route   GET /api/auth/roles
+// @access  Private
+const getUserRoles = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const roles = await repositories.roles.getUserRoles(userId);
+
+    res.status(200).json({
+      success: true,
+      roles: roles.map(r => ({
+        id: r.id,
+        name: r.role.name,
+        displayName: r.role.display_name,
+        description: r.role.description,
+        assignedAt: r.assigned_at
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while fetching roles'
+    });
+  }
+};
+
+// @desc    Update user role (DEPRECATED - use addRole instead)
 // @route   PUT /api/auth/update-role
 // @access  Private
 const updateUserRole = async (req, res) => {
@@ -242,5 +363,7 @@ module.exports = {
   login,
   resetPassword,
   getUserData,
+  addRole,
+  getUserRoles,
   updateUserRole
 };

@@ -4,6 +4,8 @@
 const { supabaseAdmin } = require('../../config/supabase');
 
 const UserRepository = require('./UserRepository');
+const UserProfileRepository = require('./UserProfileRepository');
+const RoleRepository = require('./RoleRepository');
 const StoreRepository = require('./StoreRepository');
 const ProductRepository = require('./ProductRepository');
 const OrderRepository = require('./OrderRepository');
@@ -21,6 +23,8 @@ const AuditLogRepository = require('./AuditLogRepository');
 // Initialize repositories with supabase admin client
 const repositories = {
   users: new UserRepository(supabaseAdmin),
+  userProfiles: new UserProfileRepository(supabaseAdmin),
+  roles: new RoleRepository(supabaseAdmin),
   stores: new StoreRepository(supabaseAdmin),
   products: new ProductRepository(supabaseAdmin),
   orders: new OrderRepository(supabaseAdmin),
