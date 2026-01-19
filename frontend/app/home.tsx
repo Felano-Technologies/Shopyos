@@ -1,7 +1,7 @@
 // app/home.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import {View,Text,Image,ImageBackground,TextInput,FlatList,TouchableOpacity, StyleSheet,useColorScheme, Animated,RefreshControl,Dimensions, ScrollView,ActivityIndicator,} from 'react-native';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
@@ -383,6 +383,22 @@ export default function Home() {
           />
         </Animated.ScrollView>
 
+        {/* Floating Chat Button */}
+        <TouchableOpacity 
+            style={styles.floatingChatBtn}
+            onPress={() => router.push('/chat')} // Navigates to the chat inbox
+            activeOpacity={0.8}
+        >
+            <LinearGradient
+                colors={['#0C1559', '#1e3a8a']}
+                style={styles.floatingGradient}
+            >
+                <MaterialCommunityIcons name="chat-processing" size={28} color="#FFF" />
+                {/* Unread Indicator */}
+                <View style={styles.unreadChatDot} />
+            </LinearGradient>
+        </TouchableOpacity>
+
         {/* Bottom Background & Nav */}
         <ImageBackground source={require('../assets/images/icon.png')} style={styles.background}>
           <View style={styles.bottomLogos}>
@@ -612,6 +628,21 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
   },
+  featuredTextContainer: {
+    padding: 10,
+    // Add other styles as needed
+  },
+  featuredTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+    // Add other styles as needed
+  },
+  featuredPrice: {
+    fontSize: 16,
+    color: '#fff',
+    // Add other styles as needed
+  },
 
   // Section Headers
   sectionHeader: {
@@ -729,7 +760,39 @@ background: {
   justifyContent: 'flex-end',
   alignItems: 'center',
 },
-
+// --- NEW Floating Chat Styles ---
+  floatingChatBtn: {
+    position: 'absolute',
+    bottom: 90, // Positioned above the bottom nav
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    shadowColor: "#0C1559",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+    zIndex: 100,
+  },
+  floatingGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  unreadChatDot: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#84cc16', // Lime Green dot
+    borderWidth: 1.5,
+    borderColor: '#0C1559',
+  },
 bottomLogos: {
   position: 'absolute',
   bottom: -50,      // adjust distance from bottom

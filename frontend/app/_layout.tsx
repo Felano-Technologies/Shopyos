@@ -15,6 +15,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNav from '../components/BottomNav'; // Adjust the path as necessary
 import { usePathname } from 'expo-router';
 import { CartProvider } from './context/CartContext';
+import { ChatProvider } from './context/ChatContext';
+
+
 // Prevent the splash screen from auto‐hiding before fonts load
 SplashScreen.preventAutoHideAsync();
 
@@ -71,6 +74,7 @@ export default function RootLayout() {
 
   return (
     <CartProvider>
+      <ChatProvider>
     <ThemeProvider value={navTheme}>
       {/* 3) Root container uses a plain View so content can go edge-to-edge */}
       <View style={[styles.container, { backgroundColor: screenBg }]}>
@@ -100,6 +104,8 @@ export default function RootLayout() {
             <Stack.Screen name='settings/helpCenter' options={{ headerShown: false }} />
             <Stack.Screen name='settings/contactUs' options={{ headerShown: false }} />
             <Stack.Screen name='cart' options={{ headerShown: false }} /> 
+            <Stack.Screen name='chat/index' options={{ headerShown: false }} />
+            <Stack.Screen name='chat/conversation' options={{ headerShown: false }} />
             <Stack.Screen
               name="business/verification"
               options={{ headerShown: false }}
@@ -123,7 +129,9 @@ export default function RootLayout() {
         <StatusBar style="auto" />
       </View>
     </ThemeProvider>
-    </CartProvider>
+    </ChatProvider>
+  </CartProvider>
+
   );
 }
 
