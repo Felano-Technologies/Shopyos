@@ -15,7 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import Toast from 'react-native-toast-message';
 import { Appearance } from 'react-native';
 import { updateUserRole } from '@/services/api';
 
@@ -26,42 +26,51 @@ const RoleSelectionScreen = () => {
 
  
   const roles = [
-    { id: 'customer', image: require('../assets/images/customer.jpg') },
-    { id: 'seller', image: require('../assets/images/seller.jpg') },
-    { id: 'driver', image: require('../assets/images/driver.jpg') },
+    { id: 'customer', image: require('../assets/images/customer.jpg'), label: 'Customer' },
+    { id: 'seller', image: require('../assets/images/seller.jpg'), label: 'Seller' },
+    { id: 'driver', image: require('../assets/images/driver.jpg'), label: 'Driver' },
   ];
 
   const handleRoleSelection = async () => {
     if (!selectedRole) {
-      Alert.alert('Selection Required', 'Please select a role to continue.');
+      Toast.show({
+        type: 'error',
+        text1: 'Selection Required',
+        text2: 'Please select a role to continue.',
+      });
       return;
     }
 
     setLoading(true);
     try {
-      await updateUserRole(selectedRole);
+      const response = await updateUserRole(selectedRole);
+      
+      console.log('Role update response:', response);
 
-      Alert.alert(
-        'Success!',
-        `You have selected ${selectedRole} role.`,
-        [
-          {
-            text: 'Continue',
-            onPress: () => {
-              if (selectedRole === 'customer') {
-                router.replace('/home');
-              } else if (selectedRole === 'seller') {
-                router.replace('/business/dashboard');
-              } else if (selectedRole === 'driver') {
-                // router.replace('/business/dashboard');
-              }
-            },
-          },
-        ]
-      );
-    } catch (error) {
+      Toast.show({
+        type: 'success',
+        text1: 'Success! 🎉',
+        text2: `You are now a ${selectedRole}!`,
+      });
+
+      // Small delay to show toast before navigation
+      setTimeout(() => {
+        if (selectedRole === 'customer') {
+          router.replace('/home');
+        } else if (selectedRole === 'seller') {
+          router.replace('/business/dashboard');
+        } else if (selectedRole === 'driver') {
+          router.replace('/home'); // Update when driver dashboard is ready
+        }
+      }, 500);
+      
+    } catch (error: any) {
       console.error('Error saving role:', error);
-      Alert.alert('Error', 'Failed to save your role selection. Please try again.');
+      Toast.show({
+        type: 'error',
+        text1: 'Error ❌',
+        text2: error.response?.data?.error || 'Failed to save your role selection.',
+      });
     } finally {
       setLoading(false);
     }

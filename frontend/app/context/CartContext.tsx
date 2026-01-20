@@ -74,3 +74,9 @@ export const useCart = () => {
   if (!context) throw new Error('useCart must be used within a CartProvider');
   return context;
 };
+
+// Dummy default export to prevent Expo Router warning
+// This file should not be accessed as a route
+export default function NotARoute() {
+  return null;
+}

@@ -96,3 +96,9 @@ export const useChat = () => {
   if (!context) throw new Error('useChat must be used within a ChatProvider');
   return context;
 };
+
+// Dummy default export to prevent Expo Router warning
+// This file should not be accessed as a route
+export default function NotARoute() {
+  return null;
+}

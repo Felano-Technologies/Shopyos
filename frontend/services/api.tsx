@@ -1,10 +1,37 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
-export const API_URL = 'http://10.40.29.111:5000/api/';
-export const baseURL = 'http://192.168.0.16:5000';
-// export const API_URL = 'https://dios-mnxg.onrender.com/api/';
+export const API_URL = 'http://localhost:5000/api/v1/';
+export const baseURL = 'http://localhost:5000';
+// export const API_URL = 'https://dios-mnxg.onrender.com/api/v1/';
 // export const baseURL = 'https://dios-mnxg.onrender.com';
+
+// Platform-specific storage helpers
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === 'web') {
+      return localStorage.getItem(key);
+    }
+    return await SecureStore.getItemAsync(key);
+  },
+  
+  async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      localStorage.setItem(key, value);
+    } else {
+      await SecureStore.setItemAsync(key, value);
+    }
+  },
+  
+  async removeItem(key: string): Promise<void> {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  }
+};
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -17,12 +44,12 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await storage.getItem('userToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     } catch (error) {
-      console.error('Error getting token from SecureStore:', error);
+      console.error('Error getting token from storage:', error);
     }
     return config;
   },
@@ -40,12 +67,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       // Token expired or invalid
       try {
-        await SecureStore.deleteItemAsync('userToken');
-        await SecureStore.deleteItemAsync('userId');
+        await storage.removeItem('userToken');
+        await storage.removeItem('userId');
         // You might want to redirect to login screen here
         // or trigger a global logout event
-      } catch (secureStoreError) {
-        console.error('Error clearing tokens:', secureStoreError);
+      } catch (storageError) {
+        console.error('Error clearing tokens:', storageError);
       }
     }
     return Promise.reject(error);
@@ -74,7 +101,7 @@ export const loginUser = async (email: string, password: string, latitude: numbe
     
     // Store token automatically after successful login
     if (response.data.token) {
-      await SecureStore.setItemAsync('userToken', response.data.token);
+      await storage.setItem('userToken', response.data.token);
     }
     
     return response.data;

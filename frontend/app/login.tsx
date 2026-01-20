@@ -42,6 +42,7 @@ const LoginScreen = () => {
 
       const response = await loginUser(email, password, 0, 0); // Temporarily using 0,0 for lat,long
 
+      console.log('Login response:', response); // Debug log
       
       if (response.message == "Login successful") {
 
@@ -51,14 +52,17 @@ const LoginScreen = () => {
           text2: 'Welcome back! 🎉',
         });
 
-        if (response.role === 'none') {
+        // Handle role-based navigation (customer and buyer are same)
+        const userRole = response.role?.toLowerCase();
+        
+        if (userRole === 'none' || !userRole) {
           router.push('/role');
-        } else if (response.role === 'customer') {
+        } else if (userRole === 'customer' || userRole === 'buyer') {
           router.push("/home");
-        } else if (response.role === 'seller') { 
+        } else if (userRole === 'seller') { 
           router.push("/business/dashboard");
-        } else if (response.role === 'driver') { 
-          // router.push("/business/dashboard");
+        } else if (userRole === 'driver') { 
+          router.push("/home"); // Update when driver dashboard is ready
         }
       } else {
         Toast.show({

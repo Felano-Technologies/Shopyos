@@ -266,7 +266,7 @@ class UserRepository extends BaseRepository {
     const { data: roleData, error: roleError } = await this.db
       .from('roles')
       .select('id')
-      .eq('role_name', roleName.toLowerCase())
+      .eq('name', roleName.toLowerCase())
       .single();
 
     if (roleError) throw new Error(`Role '${roleName}' not found`);
@@ -299,7 +299,7 @@ class UserRepository extends BaseRepository {
     const { data: roleData, error: roleError } = await this.db
       .from('roles')
       .select('id')
-      .eq('role_name', roleName.toLowerCase())
+      .eq('name', roleName.toLowerCase())
       .single();
 
     if (roleError) throw new Error(`Role '${roleName}' not found`);
@@ -347,10 +347,10 @@ class UserRepository extends BaseRepository {
       .from('user_roles')
       .select(`
         id,
-        roles!inner(role_name)
+        roles!inner(name)
       `)
       .eq('user_id', userId)
-      .eq('roles.role_name', roleName.toLowerCase())
+      .eq('roles.name', roleName.toLowerCase())
       .eq('is_active', true)
       .single();
 
