@@ -22,8 +22,8 @@ module.exports = {
 
   // CORS configuration
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-    credentials: true,
+    origin: '*', // Allow all origins (use specific URLs in production)
+    credentials: false, // Must be false when origin is '*'
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
