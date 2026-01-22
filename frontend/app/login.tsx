@@ -27,22 +27,20 @@ const LoginScreen = () => {
       setLoading(true);
 
       // Request location permissions
-      // const { status } = await Location.requestForegroundPermissionsAsync();
-      // if (status !== 'granted') {
-      //   Alert.alert('Permission Denied', 'Location permission is required to proceed.');
-      //   setLoading(false); // Hide loading indicator
-      //   return;
-      // }
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to proceed.');
+        setLoading(false); // Hide loading indicator
+        return;
+      }
 
-      // // Get the current location
-      // const location = await Location.getCurrentPositionAsync({});
-      // const { latitude, longitude } = location.coords;
+      // Get the current location
+      const location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
 
-      // const response = await loginUser(email, password, latitude, longitude);
+      const response = await loginUser(email, password, latitude, longitude);
 
-      const response = await loginUser(email, password, 0, 0); // Temporarily using 0,0 for lat,long
 
-      console.log('Login response:', response); // Debug log
       
       if (response.message == "Login successful") {
 
@@ -52,17 +50,21 @@ const LoginScreen = () => {
           text2: 'Welcome back! 🎉',
         });
 
-        // Handle role-based navigation (customer and buyer are same)
-        const userRole = response.role?.toLowerCase();
-        
-        if (userRole === 'none' || !userRole) {
+        // Check if user needs to select a role (using the needsRole flag from API)
+        if (response.needsRole) {
+          // User has no role assigned, redirect to role selection
           router.push('/role');
-        } else if (userRole === 'customer' || userRole === 'buyer') {
-          router.push("/home");
-        } else if (userRole === 'seller') { 
-          router.push("/business/dashboard");
-        } else if (userRole === 'driver') { 
-          router.push("/home"); // Update when driver dashboard is ready
+        } else {
+          // User has a role, proceed with normal navigation
+          const userRole = response.role?.toLowerCase();
+          
+          if (userRole === 'customer' || userRole === 'buyer') {
+            router.push("/home");
+          } else if (userRole === 'seller') { 
+            router.push("/business/dashboard");
+          } else if (userRole === 'driver') { 
+            router.push("/home"); // Update when driver dashboard is ready
+          }
         }
       } else {
         Toast.show({

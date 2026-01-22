@@ -43,7 +43,10 @@ const RoleSelectionScreen = () => {
 
     setLoading(true);
     try {
-      const response = await updateUserRole(selectedRole);
+      // Map 'customer' to 'buyer' for backend compatibility
+      const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
+      
+      const response = await updateUserRole(backendRole);
       
       console.log('Role update response:', response);
 
