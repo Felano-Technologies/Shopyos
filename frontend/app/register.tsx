@@ -41,10 +41,9 @@ const RegisterScreen = () => {
         Toast.show({
           type: 'success',
           text1: 'Sign up Successful',
-          text2: 'Welcome! Please select your role 🎉',
+          text2: 'Welcome! 🎉',
         });
-        // Redirect to role selection instead of login
-        router.push('/role');
+        router.push('/login');
       } else {
         Toast.show({
           type: 'error',
@@ -198,8 +197,9 @@ const RegisterScreen = () => {
                 )}
               </TouchableOpacity>
 
+              <Text style={styles.roleText}>Select your role to continue registration.</Text>
 
-            {/* login (outlined pill) */}
+            {/* Register (outlined pill) */}
             <TouchableOpacity
               style={styles.loginButton}
               onPress={() => router.push('/login')}
