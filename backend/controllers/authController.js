@@ -7,15 +7,9 @@ const crypto = require('crypto');
 // @route   POST /api/auth/register
 // @access  Public
 const register = async (req, res) => {
-  const { name, email, password, fullPhoneNumber, role = 'buyer' } = req.body;
+  const { name, email, password, fullPhoneNumber } = req.body;
   
   try {
-    // Validate role
-    const validRoles = ['buyer', 'seller', 'driver'];
-    if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be buyer, seller, or driver' });
-    }
-
     // Check if user exists
     const existingUser = await repositories.users.findByEmail(email);
 
@@ -36,17 +30,14 @@ const register = async (req, res) => {
       phone: fullPhoneNumber
     });
 
-    // Assign selected role (buyer is default)
-    const selectedRole = await repositories.roles.findByName(role);
-    if (selectedRole) {
-      await repositories.roles.assignRoleToUser(user.id, selectedRole.id);
-    }
+    // DO NOT assign role here - user will select role on first login
 
     // Generate token
     generateToken(res, user.id);
 
     res.status(201).json({
-      message: 'User created successfully'
+      message: 'User created successfully',
+      requiresRoleSelection: true
     });
   } catch (err) {
     console.error(err.message);
@@ -88,6 +79,7 @@ const login = async (req, res) => {
 
     // Get user roles
     const userRoles = await repositories.roles.getUserRoles(user.id);
+    const hasRole = userRoles.length > 0;
     const role = userRoles?.[0]?.role?.name || 'none';
 
     const token = generateToken(res, user.id);
@@ -96,6 +88,7 @@ const login = async (req, res) => {
       token,
       role,
       roles: userRoles.map(r => r.role.name),
+      requiresRoleSelection: !hasRole, // Flag to indicate if user needs to select a role
       message: 'Login successful'
     });
   } catch (err) {

@@ -2,10 +2,23 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-// export const API_URL = 'http://localhost:5000/api/v1/';
-// export const baseURL = 'http://localhost:5000';
-export const API_URL = 'https://dios-mnxg.onrender.com/api/v1/';
-export const baseURL = 'https://dios-mnxg.onrender.com';
+// Dynamic baseURL based on platform and environment
+const getBaseURL = () => {
+  if (__DEV__) {
+    // Development mode - use local server
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:5000'; // Android Emulator
+    } else {
+      return 'http://localhost:5000'; // iOS Simulator or Web
+    }
+  } else {
+    // Production mode - use production server
+    return 'https://dios-mnxg.onrender.com';
+  }
+};
+
+export const baseURL = getBaseURL();
+export const API_URL = `${baseURL}/api/v1/`;
 
 // Platform-specific storage helpers
 const storage = {
@@ -83,14 +96,21 @@ api.interceptors.response.use(
 export const registerUser = async (name: string, email: string, password: string, fullPhoneNumber: string) => {
   try {
     const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password });
+    
+    // Store token if registration is successful
+    if (response.data.token) {
+      await storage.setItem('userToken', response.data.token);
+    }
+    
     return response.data;
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Registration failed');
     } else {
       console.error('Error signing up:', error.message);
+      throw new Error(error.message || 'Network error during registration');
     }
-    throw error;
   }
 };
 
@@ -104,14 +124,24 @@ export const loginUser = async (email: string, password: string, latitude: numbe
       await storage.setItem('userToken', response.data.token);
     }
     
-    return response.data;
+    // Check if user needs to select a role
+    const needsRole = response.data.requiresRoleSelection || 
+                      response.data.role === 'none' || 
+                      !response.data.role ||
+                      (response.data.roles && response.data.roles.length === 0);
+    
+    return {
+      ...response.data,
+      needsRole
+    };
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Login failed');
     } else {
-      console.error('Error signing up:', error.message);
+      console.error('Error logging in:', error.message);
+      throw new Error(error.message || 'Network error during login');
     }
-    throw error;
   }
 };
 
@@ -123,24 +153,27 @@ export const getUserData = async () => {
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Failed to fetch user data');
     } else {
       console.error('Error fetching user data:', error.message);
+      throw new Error(error.message || 'Network error fetching user data');
     }
-    throw error;
   }
 };
 
 export const updateUserRole = async (role: string) => {
   try {
-    const response = await api.put('/auth/role', { role });
+    // Use the new add-role endpoint for first-time role assignment
+    const response = await api.post('/auth/add-role', { role });
     return response.data;
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Failed to update role');
     } else {
       console.error('Error updating user role:', error.message);
+      throw new Error(error.message || 'Network error during role update');
     }
-    throw error;
   }
 }
 
@@ -161,12 +194,12 @@ export const businessRegister = async (businessData: {
   try {
     const response = await api.post('/business/create', businessData);
 
-    // If successful, store business token and ID
+    // If successful, store business token and ID using storage helper
     if (response.data.token) {
-      await SecureStore.setItemAsync('businessToken', response.data.token);
+      await storage.setItem('businessToken', response.data.token);
     }
     if (response.data.business?._id) {
-      await SecureStore.setItemAsync('currentBusinessId', response.data.business._id);
+      await storage.setItem('currentBusinessId', response.data.business._id);
     }
 
     return response.data;
@@ -176,7 +209,7 @@ export const businessRegister = async (businessData: {
       throw new Error(error.response.data.error || 'Failed to create business');
     } else {
       console.error('Error creating business:', error.message);
-      throw error;
+      throw new Error(error.message || 'Network error during business creation');
     }
   }
 };
@@ -192,7 +225,7 @@ export const getMyBusinesses = async () => {
       throw new Error(error.response.data.error || 'Failed to fetch businesses');
     } else {
       console.error('Error fetching businesses:', error.message);
-      throw error;
+      throw new Error(error.message || 'Network error fetching businesses');
     }
   }
 };
@@ -202,11 +235,11 @@ export const switchBusiness = async (businessId: string) => {
   try {
     const response = await api.post('/business/switch', { businessId });
 
-    // Store the new business token and ID
+    // Store the new business token and ID using storage helper
     if (response.data.token) {
-      await SecureStore.setItemAsync('businessToken', response.data.token);
+      await storage.setItem('businessToken', response.data.token);
     }
-    await SecureStore.setItemAsync('currentBusinessId', businessId);
+    await storage.setItem('currentBusinessId', businessId);
 
     return response.data;
   } catch (error: any) {
@@ -215,7 +248,7 @@ export const switchBusiness = async (businessId: string) => {
       throw new Error(error.response.data.error || 'Failed to switch business');
     } else {
       console.error('Error switching business:', error.message);
-      throw error;
+      throw new Error(error.message || 'Network error switching business');
     }
   }
 };
@@ -231,7 +264,7 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
       throw new Error(error.response.data.error || 'Failed to update business');
     } else {
       console.error('Error updating business:', error.message);
-      throw error;
+      throw new Error(error.message || 'Network error updating business');
     }
   }
 };
@@ -247,7 +280,7 @@ export const getBusinessDashboard = async (businessId: string) => {
       throw new Error(error.response.data.error || 'Failed to fetch dashboard data');
     } else {
       console.error('Error fetching dashboard:', error.message);
-      throw error;
+      throw new Error(error.message || 'Network error fetching dashboard');
     }
   }
 };
@@ -257,22 +290,23 @@ export const loginBusiness = async (email: string, password: string, latitude: n
   try {
     const response = await api.post('/business/login', { email, password, latitude, longitude });
     
-    // Store tokens and business data
+    // Store tokens and business data using storage helper
     if (response.data.token) {
-      await SecureStore.setItemAsync('businessToken', response.data.token);
+      await storage.setItem('businessToken', response.data.token);
     }
     if (response.data.business) {
-      await SecureStore.setItemAsync('currentBusinessId', response.data.business._id);
-      await SecureStore.setItemAsync('userRole', 'seller');
+      await storage.setItem('currentBusinessId', response.data.business._id);
+      await storage.setItem('userRole', 'seller');
     }
     
     return response.data;
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Business login failed');
     } else {
       console.error('Error logging in business:', error.message);
+      throw new Error(error.message || 'Network error during business login');
     }
-    throw error;
   }
 };
