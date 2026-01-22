@@ -33,11 +33,12 @@ const register = async (req, res) => {
     // DO NOT assign role here - user will select role on first login
 
     // Generate token
-    generateToken(res, user.id);
+    const token = generateToken(res, user.id);
 
     res.status(201).json({
       message: 'User created successfully',
-      requiresRoleSelection: true
+      requiresRoleSelection: true,
+      token
     });
   } catch (err) {
     console.error(err.message);

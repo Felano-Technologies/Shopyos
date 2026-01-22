@@ -4,7 +4,8 @@ import { Platform } from 'react-native';
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
-  if (__DEV__) {
+  const isDev = __DEV__ ? "development" : "production";
+  if (isDev === "development") {
     // Development mode - use local server
     if (Platform.OS === 'android') {
       return 'http://10.0.2.2:5000'; // Android Emulator
