@@ -1,5 +1,4 @@
-// app/settings/account.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,365 +10,548 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  Modal,
+  FlatList
 } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, Stack } from 'expo-router';
+import { getUserData } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
+// --- 1. DATA CONSTANTS ---
+const AVATAR_SEEDS = [
+  'Felix', 'Aneka', 'Zack', 'Molly', 'Garfield', 
+  'Bella', 'Jack', 'Oliver', 'Sophie', 'Leo', 
+  'Max', 'Charlie', 'Lily', 'Sam', 'Chloe'
+];
+
+const AVATARS = AVATAR_SEEDS.map(seed => 
+  `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}`
+);
+
+const LOCATION_DATA: Record<string, string[]> = {
+  'Ghana': ['Ashanti', 'Greater Accra', 'Central', 'Western', 'Eastern', 'Northern', 'Volta', 'Brong-Ahafo', 'Upper East', 'Upper West'],
+  'Nigeria': ['Lagos', 'Abuja (FCT)', 'Rivers', 'Kano', 'Oyo', 'Edo', 'Kaduna'],
+  'Togo': ['Maritime', 'Plateaux', 'Centrale', 'Kara', 'Savanes'],
+  'Ivory Coast': ['Abidjan', 'Yamoussoukro', 'Lagunes', 'Vallée du Bandama', 'Savanes'],
+  'USA': ['California', 'Texas', 'Florida', 'New York', 'Illinois', 'Pennsylvania'],
+  'UK': ['Greater London', 'West Midlands', 'Greater Manchester', 'West Yorkshire', 'Scotland', 'Wales'],
+};
+
+const COUNTRIES = Object.keys(LOCATION_DATA);
+
+// --- 2. REUSABLE COMPONENT ---
+const ProfileField = ({ 
+  icon, 
+  library = "Ionicons", 
+  value, 
+  onChangeText, 
+  placeholder, 
+  isPhone = false, 
+  isCountry = false, 
+  isDropdown = false,
+  loading = false,
+  onPress
+}: any) => {
+  const renderIcon = () => {
+    if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={22} color="#0C1559" />;
+    if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={18} color="#0C1559" />;
+    return <Ionicons name={icon} size={22} color="#0C1559" />;
+  };
+
+  const isSelectable = isCountry || isDropdown;
+
+  return (
+    <TouchableOpacity 
+        style={styles.fieldRow} 
+        activeOpacity={isSelectable ? 0.7 : 1}
+        onPress={isSelectable ? onPress : undefined}
+    >
+      <View style={styles.inputWrapper}>
+        <View style={styles.iconArea}>{renderIcon()}</View>
+        
+        {isPhone && (
+          <View style={styles.flagContainer}>
+             <Image source={{ uri: 'https://flagcdn.com/w40/gh.png' }} style={styles.flag} />
+             <Text style={styles.phonePrefix}>+233</Text>
+             <View style={styles.verticalDivider} />
+          </View>
+        )}
+        
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholderTextColor="#94A3B8"
+          placeholder={loading ? "Loading..." : placeholder}
+          editable={!isSelectable} 
+          pointerEvents={isSelectable ? "none" : "auto"}
+        />
+        
+        {isSelectable ? (
+           <Ionicons name="chevron-down" size={20} color="#64748B" style={{ marginRight: 10 }} />
+        ) : (
+           <TouchableOpacity>
+              <FontAwesome5 name="pen" size={10} color="#0C1559" style={{ opacity: 0.6, marginRight: 10 }} />
+           </TouchableOpacity>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 export default function AccountScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Modals
+  const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showCountryModal, setShowCountryModal] = useState(false);
+  const [showRegionModal, setShowRegionModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // New Success Modal State
 
-  // Mock User Data
   const [userData, setUserData] = useState({
-    name: 'Williams Boampong',
-    email: 'nanaquamy4@gmail.com',
-    phone: '233 54 673 2719', // Separated from code for display
-    country: 'Country',
-    city: 'City or Town',
-    address: 'Digital Address or GPS code',
-    createdAt: '00/00/0000',
-    updatedAt: '00/00/0000'
+    name: '',
+    email: '',
+    phone: '',
+    country: '',
+    region: '',
+    address: '',
+    createdAt: '',
+    avatar: AVATARS[0],
   });
 
-  // Reusable Field Component to match the image layout
-  const ProfileField = ({ 
-    icon, 
-    library = "Ionicons", 
-    value, 
-    onChangeText, 
-    isPhone = false, 
-    isCountry = false,
-    isDropdown = false 
-  }: any) => {
-    
-    // Icon rendering helper
-    const renderIcon = () => {
-      if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={28} color="#0C1559" />;
-      if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={24} color="#0C1559" />;
-      return <Ionicons name={icon} size={28} color="#0C1559" />;
-    };
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
-    return (
-      <View style={styles.fieldRow}>
-        {/* Left Icon */}
-        <View style={styles.leftIconContainer}>
-          {renderIcon()}
-        </View>
+  const fetchProfile = async () => {
+    try {
+      const data = await getUserData();
+      const user = data.user || data;
 
-        {/* Center Input Box */}
-        <View style={styles.inputWrapper}>
-          {isPhone && (
-            <View style={styles.flagContainer}>
-               <Image 
-                 source={{ uri: 'https://flagcdn.com/w40/gh.png' }} 
-                 style={styles.flag} 
-               />
-               <Text style={styles.phonePrefix}>+233 |</Text>
-            </View>
-          )}
-          {isCountry && (
-             <Image 
-                source={{ uri: 'https://flagcdn.com/w40/gh.png' }} 
-                style={[styles.flag, { marginRight: 8 }]} 
-             />
-          )}
-          {isDropdown && (
-             <Ionicons name="chevron-down" size={20} color="#000" style={{ marginRight: 8 }} />
-          )}
+      const dateJoined = user.createdAt 
+        ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) 
+        : 'N/A';
 
-          <TextInput
-            style={[styles.input, (isPhone || isCountry) && { flex: 1 }]}
-            value={value}
-            onChangeText={onChangeText}
-            placeholderTextColor="#666"
-          />
-        </View>
-
-        {/* Right Edit Button */}
-        <TouchableOpacity style={styles.editBtn}>
-          <FontAwesome5 name="pen" size={12} color="#0C1559" />
-          <Text style={styles.editBtnText}>Edit</Text>
-        </TouchableOpacity>
-      </View>
-    );
+      setUserData({
+        name: user.name || '',
+        email: user.email || '',
+        phone: user.fullPhoneNumber || user.phone || '',
+        country: user.country || '', 
+        region: user.region || user.city || '', 
+        address: user.address || '',
+        createdAt: dateJoined,
+        avatar: user.avatar || `https://api.dicebear.com/9.x/adventurer/png?seed=${user.name || 'User'}`,
+      });
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleSave = async () => {
+    setSaving(true);
+    // Simulate API save
+    setTimeout(() => {
+        setSaving(false);
+        // Show Custom Success Modal instead of Alert
+        setShowSuccessModal(true);
+    }, 1500);
+  };
+
+  const selectCountry = (country: string) => {
+    setUserData({ ...userData, country, region: '' });
+    setShowCountryModal(false);
+  };
+
+  const selectRegion = (region: string) => {
+    setUserData({ ...userData, region });
+    setShowRegionModal(false);
+  };
+
+  // Reusable Selection Modal
+  const SelectionModal = ({ visible, onClose, title, data, onSelect }: any) => (
+    <Modal
+        animationType="slide"
+        transparent={true}
+        visible={visible}
+        onRequestClose={onClose}
+    >
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{title}</Text>
+                    <TouchableOpacity onPress={onClose}>
+                        <Ionicons name="close" size={24} color="#64748B" />
+                    </TouchableOpacity>
+                </View>
+                <FlatList
+                    data={data}
+                    keyExtractor={(item) => item}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity style={styles.optionItem} onPress={() => onSelect(item)}>
+                            <Text style={styles.optionText}>{item}</Text>
+                            {((title.includes('Country') && userData.country === item) || 
+                              (title.includes('Region') && userData.region === item)) && (
+                                <Ionicons name="checkmark" size={20} color="#A3E635" />
+                            )}
+                        </TouchableOpacity>
+                    )}
+                    ListEmptyComponent={
+                        <Text style={styles.emptyText}>No options available</Text>
+                    }
+                />
+            </View>
+        </View>
+    </Modal>
+  );
 
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" backgroundColor="#0C1559" />
+      <Stack.Screen options={{ headerShown: false }} />
 
-      {/* --- Background Watermark --- */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <View style={styles.bottomLogos}>
-          <Image
-            source={require('../../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
-          />
-        </View>
-      </View>
-
-      {/* --- Header Section (Fills Top) --- */}
+      {/* --- Header Section --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
-            <View style={styles.headerContent}>
-                <Text style={styles.headerTitle}>My Account</Text>
-                
-                <View style={styles.dateRow}>
-                    <View>
-                        <Text style={styles.dateLabel}>Created At:</Text>
-                        <Text style={styles.dateValue}>{userData.createdAt}</Text>
-                    </View>
-                    
-                    {/* Profile Image Center */}
-                    <View style={styles.profileImageContainer}>
-                        <Image 
-                            source={{ uri: 'https://randomuser.me/api/portraits/men/.jpg' }} 
-                            style={styles.profileImage} 
-                        />
-                    </View>
+            <View style={styles.navBar}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                    <Ionicons name="arrow-back" size={24} color="#A3E635" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Edit Profile</Text>
+                <View style={{ width: 40 }} /> 
+            </View>
 
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.dateLabel}>Last Updated:</Text>
-                        <Text style={styles.dateValue}>{userData.updatedAt}</Text>
-                    </View>
+            <View style={styles.profileSection}>
+                <View style={styles.imageWrapper}>
+                    <Image 
+                        source={{ uri: userData.avatar }} 
+                        style={styles.profileImage} 
+                        defaultSource={require('../../assets/images/icon.png')} 
+                    />
+                    <TouchableOpacity 
+                        style={styles.cameraBadge}
+                        onPress={() => setShowAvatarModal(true)}
+                    >
+                        <Ionicons name="camera" size={16} color="#0C1559" />
+                    </TouchableOpacity>
                 </View>
-
-                <Text style={styles.profileName}>{userData.name}</Text>
+                
+                {loading ? (
+                    <ActivityIndicator color="#A3E635" style={{ marginTop: 10 }} />
+                ) : (
+                    <>
+                        <Text style={styles.profileName}>{userData.name || 'User'}</Text>
+                        <View style={styles.dateBadge}>
+                            <Text style={styles.dateText}>Member since {userData.createdAt}</Text>
+                        </View>
+                    </>
+                )}
             </View>
         </SafeAreaView>
       </View>
 
-      {/* --- Scrollable Form --- */}
-      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.contentArea}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                
-                {/* Fields */}
+      {/* --- Content Area --- */}
+      <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+        style={styles.contentArea}
+      >
+        <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
+            <ScrollView 
+                contentContainerStyle={styles.scrollContent} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
                 <ProfileField 
-                    icon="person-circle" 
+                    icon="person" 
                     value={userData.name} 
-                    onChangeText={(t: string) => setUserData({...userData, name: t})}
+                    placeholder="Enter your full name"
+                    onChangeText={(t: string) => setUserData({...userData, name: t})} 
+                    loading={loading}
                 />
-
+                
                 <ProfileField 
                     icon="mail" 
-                    library="MaterialCommunityIcons"
                     value={userData.email} 
-                    onChangeText={(t: string) => setUserData({...userData, email: t})}
+                    placeholder="Enter email address"
+                    onChangeText={(t: string) => setUserData({...userData, email: t})} 
+                    loading={loading}
                 />
-
+                
                 <ProfileField 
                     icon="phone-alt" 
-                    library="FontAwesome5"
+                    library="FontAwesome5" 
                     value={userData.phone} 
-                    isPhone={true}
-                    onChangeText={(t: string) => setUserData({...userData, phone: t})}
+                    placeholder="54 123 4567"
+                    isPhone={true} 
+                    onChangeText={(t: string) => setUserData({...userData, phone: t})} 
+                    loading={loading}
                 />
-
+                
                 <ProfileField 
-                    icon="map-marker-multiple" 
-                    library="MaterialCommunityIcons"
+                    icon="map" 
                     value={userData.country} 
+                    placeholder="Select Country"
                     isCountry={true}
-                    onChangeText={(t: string) => setUserData({...userData, country: t})}
+                    onPress={() => setShowCountryModal(true)}
+                    loading={loading}
                 />
-
+                
                 <ProfileField 
                     icon="location-sharp" 
-                    value={userData.city} 
-                    isDropdown={true}
-                    onChangeText={(t: string) => setUserData({...userData, city: t})}
+                    value={userData.region} 
+                    placeholder={userData.country ? "Select Region/State" : "Select Country First"}
+                    isDropdown={true} 
+                    onPress={() => {
+                        if(userData.country) setShowRegionModal(true);
+                        // Optional: Show a subtle toast here instead of alert if preferred
+                    }}
+                    loading={loading}
                 />
-
+                
                 <ProfileField 
-                    icon="search" 
+                    icon="home" 
                     value={userData.address} 
-                    onChangeText={(t: string) => setUserData({...userData, address: t})}
+                    placeholder="Digital Address or GPS Code"
+                    onChangeText={(t: string) => setUserData({...userData, address: t})} 
+                    loading={loading}
                 />
+                
+                <View style={{ height: 20 }} />
 
-                {/* Logout Button */}
-                <TouchableOpacity style={styles.logoutRow} onPress={() => router.replace('/login')}>
-                    <MaterialIcons name="logout" size={28} color="#FF0000" />
-                    <Text style={styles.logoutText}>Logout</Text>
+                <TouchableOpacity style={styles.saveButton} activeOpacity={0.8} onPress={handleSave} disabled={saving}>
+                    {saving ? <ActivityIndicator color="#A3E635" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
                 </TouchableOpacity>
-
+                
+                <View style={{ height: 40 }} />
+                
             </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+        </SafeAreaView>
+      </KeyboardAvoidingView>
+
+      {/* --- MODALS --- */}
+      <SelectionModal 
+        visible={showCountryModal}
+        onClose={() => setShowCountryModal(false)}
+        title="Select Country"
+        data={COUNTRIES}
+        onSelect={selectCountry}
+      />
+
+      <SelectionModal 
+        visible={showRegionModal}
+        onClose={() => setShowRegionModal(false)}
+        title={`Select Region in ${userData.country}`}
+        data={userData.country ? LOCATION_DATA[userData.country] : []}
+        onSelect={selectRegion}
+      />
+
+      {/* Avatar Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showAvatarModal}
+        onRequestClose={() => setShowAvatarModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Choose an Avatar</Text>
+                    <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
+                        <Ionicons name="close" size={24} color="#64748B" />
+                    </TouchableOpacity>
+                </View>
+                <FlatList
+                    data={AVATARS}
+                    keyExtractor={(item, index) => index.toString()}
+                    numColumns={3}
+                    contentContainerStyle={styles.avatarGrid}
+                    renderItem={({ item }) => (
+                        <TouchableOpacity 
+                            style={[
+                                styles.avatarOption, 
+                                userData.avatar === item && styles.avatarOptionSelected
+                            ]}
+                            onPress={() => {
+                                setUserData({ ...userData, avatar: item });
+                                setShowAvatarModal(false);
+                            }}
+                        >
+                            <Image 
+                                source={{ uri: item }} 
+                                style={styles.avatarImage} 
+                                resizeMode="cover"
+                            />
+                            {userData.avatar === item && (
+                                <View style={styles.checkmark}>
+                                    <Ionicons name="checkmark" size={12} color="#FFF" />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    )}
+                />
+            </View>
+        </View>
+      </Modal>
+
+      {/* --- CUSTOM SUCCESS MODAL --- */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showSuccessModal}
+        onRequestClose={() => setShowSuccessModal(false)}
+      >
+        <View style={styles.successOverlay}>
+            <View style={styles.successCard}>
+                <View style={styles.successIconContainer}>
+                    <Ionicons name="checkmark" size={40} color="#FFF" />
+                </View>
+                <Text style={styles.successTitle}>Profile Updated!</Text>
+                <Text style={styles.successMessage}>
+                    Your account details have been successfully saved.
+                </Text>
+                <TouchableOpacity 
+                    style={styles.successButton}
+                    onPress={() => setShowSuccessModal(false)}
+                >
+                    <Text style={styles.successButtonText}>Continue</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F0F4FC', // Light blue/white background
-  },
+  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   
   // Header
   header: {
-    backgroundColor: '#0C1559', // Deep Blue
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
-    paddingBottom: 30,
+    backgroundColor: '#0C1559',
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    paddingBottom: 7,
+    shadowColor: "#0C1559",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
     zIndex: 10,
   },
-  safeHeader: {
-    width: '100%',
-  },
-  headerContent: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    color: '#A3E635', // Lime Green
-    fontSize: 22,
-    fontWeight: '500',
-    marginBottom: 20,
-    fontFamily: 'Montserrat-Bold',
-  },
-  dateRow: {
+  safeHeader: { width: '100%' },
+  navBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    width: '100%',
-    marginBottom: 10,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 15,
   },
-  dateLabel: {
-    color: '#FFF',
-    fontSize: 12,
-    marginBottom: 2,
-    fontFamily: 'Montserrat-Regular',
+  backBtn: { padding: 8 },
+  headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  
+  profileSection: { alignItems: 'center' },
+  imageWrapper: { position: 'relative', marginBottom: 12 },
+  profileImage: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#A3E635', backgroundColor: '#F1F5F9' },
+  cameraBadge: {
+    position: 'absolute', bottom: 0, right: 0,
+    backgroundColor: '#A3E635', width: 32, height: 32,
+    borderRadius: 16, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#0C1559',
   },
-  dateValue: {
-    color: '#FFF',
-    fontSize: 12,
-    fontWeight: '500',
-    fontFamily: 'Montserrat-Medium',
-  },
-  profileImageContainer: {
-    marginHorizontal: 10,
-    borderWidth: 2,
-    borderColor: '#FFF',
-    borderRadius: 50,
-    padding: 2,
-  },
-  profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  profileName: {
-    color: '#FFF',
-    fontSize: 22,
-    fontWeight: '700',
-    marginTop: 10,
-    fontFamily: 'Montserrat-Bold',
-  },
+  profileName: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold', marginBottom: 6 },
+  dateBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
+  dateText: { color: '#CBD5E1', fontSize: 12, fontFamily: 'Montserrat-Medium' },
 
   // Content
-  contentArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 30,
-    paddingBottom: 50,
-  },
+  contentArea: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 100 },
 
-  // Field Row
-  fieldRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  leftIconContainer: {
-    width: 40,
-    alignItems: 'center',
-    marginRight: 10,
-  },
+  fieldRow: { marginBottom: 16 },
   inputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EBF2FF', // Very light blue fill
-    borderWidth: 1.5,
-    borderColor: '#A3E635', // Lime/Green border
-    borderRadius: 25, // Pill shape
-    height: 50,
-    paddingHorizontal: 15,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF',
+    borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 25,
+    height: 54, paddingHorizontal: 6,
+    shadowColor: "#000", shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03, shadowRadius: 4, elevation: 2,
   },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: '#000',
-    fontFamily: 'Montserrat-Medium',
+  iconArea: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9',
+    justifyContent: 'center', alignItems: 'center', marginLeft: 4,
   },
-  flagContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  flag: {
-    width: 24,
-    height: 16,
-    borderRadius: 2,
-  },
-  phonePrefix: {
-    fontSize: 15,
-    color: '#000',
-    marginLeft: 6,
-    fontWeight: '600',
-  },
+  input: { flex: 1, fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium', paddingHorizontal: 12, height: '100%' },
   
-  // Edit Button
-  editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 12,
+  flagContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 10 },
+  flag: { width: 24, height: 16, borderRadius: 2 },
+  phonePrefix: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-SemiBold', marginLeft: 6 },
+  verticalDivider: { width: 1, height: 20, backgroundColor: '#CBD5E1', marginLeft: 10 },
+
+  saveButton: {
+    backgroundColor: '#0C1559', height: 56, borderRadius: 28,
+    justifyContent: 'center', alignItems: 'center', marginTop: 10,
+    shadowColor: "#0C1559", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
-  editBtnText: {
-    color: '#0C1559',
-    fontWeight: '700',
-    marginLeft: 6,
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
+  saveButtonText: { color: '#A3E635', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+
+  // Selection Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, maxHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20,
+  },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  optionItem: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9'
+  },
+  optionText: { fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
+  emptyText: { textAlign: 'center', color: '#64748B', marginTop: 20, fontFamily: 'Montserrat-Medium' },
+
+  // Avatar Grid
+  avatarGrid: { alignItems: 'center', paddingBottom: 20 },
+  avatarOption: {
+    margin: 8, padding: 4, borderRadius: 40, borderWidth: 2, borderColor: '#F1F5F9',
+    position: 'relative', backgroundColor: '#F8FAFC',
+  },
+  avatarOptionSelected: { borderColor: '#A3E635', backgroundColor: '#ECFCCB' },
+  avatarImage: { width: 70, height: 70, borderRadius: 35 },
+  checkmark: {
+    position: 'absolute', bottom: 0, right: 0, backgroundColor: '#A3E635',
+    width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#FFF',
   },
 
-  // Logout
-  logoutRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 10,
-    paddingLeft: 10, // Align with icons
+  // Success Modal Styles
+  successOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20
   },
-  logoutText: {
-    color: '#000',
-    fontSize: 18,
-    fontWeight: '700',
-    marginLeft: 15,
-    fontFamily: 'Montserrat-Bold',
+  successCard: {
+    backgroundColor: '#FFF', width: '100%', maxWidth: 320, borderRadius: 24, padding: 30, alignItems: 'center',
+    shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10
   },
-
-  // Background Watermark
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    height: 100,
-    width: '100%',
-    justifyContent: 'flex-end',
+  successIconContainer: {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: '#A3E635',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 20,
+    borderWidth: 4, borderColor: '#ECFCCB'
   },
-  fadedLogo: {
-    position: 'absolute',
-    left: -30,
-    bottom: -20,
-    width: 150,
-    height: 150,
-    opacity: 0.05,
-    resizeMode: 'contain',
+  successTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 10, textAlign: 'center' },
+  successMessage: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  successButton: {
+    backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, width: '100%'
   },
+  successButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', textAlign: 'center' }
 });

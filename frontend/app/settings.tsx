@@ -1,4 +1,3 @@
-// app/settings.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -6,128 +5,198 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
+  Switch,
+  ScrollView,
+  Alert,
   StatusBar,
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
-// import { getUserProfile } from '@/services/api'; // Eugene try to write a service to get user profile info
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function SettingsScreen() {
-  const [username, setUsername] = useState('');
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [username, setUsername] = useState('User');
+  const [email, setEmail] = useState('user@example.com'); // Mock email
+  
+  // Toggles State
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        setLoading(true);
-        // Simulate fetch delay or call API
         const storedName = await SecureStore.getItemAsync('username');
-        const storedUser = await SecureStore.getItemAsync('userInfo');
+        if (storedName) setUsername(storedName);
         
-        if (storedName) {
-          setUsername(storedName);
-        } else if (storedUser) {
-          const parsedUser = JSON.parse(storedUser);
-          setUsername(parsedUser.name || parsedUser.username || 'User');
-        } else {
-          setUsername('Settings');
-        }
+        // Mocking email fetch
+        const storedEmail = await SecureStore.getItemAsync('email');
+        if (storedEmail) setEmail(storedEmail);
       } catch (error) {
-        setUsername('User');
-      } finally {
-        setLoading(false);
+        console.log('Error loading settings', error);
       }
     };
-
     fetchUserData();
   }, []);
 
+  const handleLogout = async () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Log Out', 
+        style: 'destructive', 
+        onPress: async () => {
+          await SecureStore.deleteItemAsync('userToken');
+          router.replace('/login');
+        } 
+      },
+    ]);
+  };
+
+  const renderSettingItem = ({ 
+    icon, 
+    label, 
+    onPress, 
+    color = '#0F172A', 
+    isDestructive = false,
+    rightElement = null 
+  }: any) => (
+    <TouchableOpacity 
+      style={styles.settingItem} 
+      onPress={onPress}
+      activeOpacity={0.7}
+      disabled={!!rightElement && !onPress} // Disable press if it's a switch row only
+    >
+      <View style={[styles.iconBox, { backgroundColor: isDestructive ? '#FEF2F2' : '#F1F5F9' }]}>
+        <Feather name={icon} size={20} color={isDestructive ? '#EF4444' : '#0C1559'} />
+      </View>
+      <Text style={[styles.settingLabel, isDestructive && styles.destructiveLabel]}>
+        {label}
+      </Text>
+      {rightElement ? (
+        rightElement
+      ) : (
+        <Feather name="chevron-right" size={20} color="#CBD5E1" />
+      )}
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.container}>
-      {/* Set status bar to light content for dark header */}
-      <StatusBar barStyle="light-content" backgroundColor="#0B165C" />
-
-      {/* --- Header Section (Fills Top) --- */}
-      <View style={styles.header}>
-        {/* Background Watermark */}
+      <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
+      
+      {/* --- HEADER --- */}
+      <View style={styles.headerContainer}>
         <Image
           source={require('../assets/images/splash-icon.png')}
           style={styles.headerWatermark}
         />
-
-        {/* Header Content */}
-        <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeaderContent}>
-            <Text style={styles.headerTitle}></Text>
-
-            <View style={styles.profileContainer}>
-                <Ionicons name="person-circle-outline" size={70} color="#fff" />
-                {loading ? (
-                    <ActivityIndicator color="#A3E635" style={{ marginTop: 6 }} />
-                ) : (
-                    <Text style={styles.username}>{username}</Text>
-                )}
+        <SafeAreaView edges={['top', 'left', 'right']}>
+          <View style={styles.headerContent}>
+            <Text style={styles.screenTitle}>Settings</Text>
+            
+            {/* Profile Card */}
+            <View style={styles.profileCard}>
+                <View style={styles.avatarContainer}>
+                    <Text style={styles.avatarText}>{username.charAt(0)}</Text>
+                </View>
+                <View style={styles.profileInfo}>
+                    <Text style={styles.profileName}>{username}</Text>
+                    <Text style={styles.profileEmail}>{email}</Text>
+                </View>
+                <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')}>
+                    <Feather name="edit-2" size={16} color="#FFF" />
+                </TouchableOpacity>
             </View>
+          </View>
         </SafeAreaView>
       </View>
 
-      {/* --- Main Content (Scrollable if needed, or fixed) --- */}
-      <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.contentArea}>
-          
-          {/* Banner Section */}
-          <View style={styles.bannerContainer}>
-            <Image
-              source={require('../assets/images/bannerSettings.png')}
-              style={styles.bannerImage}
-            />
-          </View>
+      {/* --- CONTENT --- */}
+      <ScrollView 
+        style={styles.scrollView} 
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        
+        {/* Section: Account */}
+        <Text style={styles.sectionHeader}>Account</Text>
+        <View style={styles.sectionCard}>
+            {renderSettingItem({ 
+                icon: 'user', 
+                label: 'Personal Information', 
+                onPress: () => router.push('/settings/Account') 
+            })}
+            <View style={styles.separator} />
+            {renderSettingItem({ 
+                icon: 'credit-card', 
+                label: 'Payment Methods', 
+                onPress: () =>router.push('/settings/paymentMethods') 
+            })}
+            <View style={styles.separator} />
+            {renderSettingItem({ 
+                icon: 'list', 
+                label: 'Transaction History', 
+                onPress: () => router.push('/settings/Transactions') 
+            })}
+        </View>
 
-          {/* Menu Section */}
-          <View style={styles.menuContainer}>
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push('/settings/Account')}
-            >
-              <Ionicons name="person-circle-outline" size={28} color="#0B165C" />
-              <Text style={styles.menuText}>My Account</Text>
+        {/* Section: Preferences */}
+        <Text style={styles.sectionHeader}>Preferences</Text>
+        <View style={styles.sectionCard}>
+            {renderSettingItem({ 
+                icon: 'bell', 
+                label: 'Push Notifications', 
+                onPress: null, // No navigation
+                rightElement: (
+                    <Switch
+                        value={notificationsEnabled}
+                        onValueChange={setNotificationsEnabled}
+                        trackColor={{ false: '#E2E8F0', true: '#84cc16' }}
+                        thumbColor={'#FFF'}
+                    />
+                )
+            })}
+            <View style={styles.separator} />
+        </View>
+
+        {/* Section: Support & Legal */}
+        <Text style={styles.sectionHeader}>Support</Text>
+        <View style={styles.sectionCard}>
+            {renderSettingItem({ 
+                icon: 'help-circle', 
+                label: 'Help Center', 
+                onPress: () => {} 
+            })}
+            <View style={styles.separator} />
+            {renderSettingItem({ 
+                icon: 'shield', 
+                label: 'Privacy & Security', 
+                onPress: () => router.push('/security') 
+            })}
+             <View style={styles.separator} />
+            {renderSettingItem({ 
+                icon: 'info', 
+                label: 'About App', 
+                onPress: () => {} 
+            })}
+        </View>
+
+        {/* Logout */}
+        <View style={styles.logoutContainer}>
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+                <Feather name="log-out" size={20} color="#EF4444" />
+                <Text style={styles.logoutText}>Log Out</Text>
             </TouchableOpacity>
+            <Text style={styles.versionText}>Version 1.0.0</Text>
+        </View>
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push('/settings/Transactions')}
-            >
-              <Ionicons name="card" size={26} color="#0B165C" />
-              <Text style={styles.menuText}>Transaction History</Text>
-            </TouchableOpacity>
+        {/* Bottom Padding */}
+        <View style={{ height: 40 }} />
 
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push('/security')}
-            >
-              <MaterialIcons name="security" size={26} color="#0B165C" />
-              <Text style={styles.menuText}>Security Settings</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => router.push('/general-settings')}
-            >
-              <Ionicons name="settings-sharp" size={26} color="#0B165C" />
-              <Text style={styles.menuText}>General Settings</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Bottom Watermark */}
-          <View style={styles.bottomWatermarkContainer}>
-            <Image
-              source={require('../assets/images/splash-icon.png')}
-              style={styles.bottomWatermark}
-            />
-          </View>
-      </SafeAreaView>
+      </ScrollView>
     </View>
   );
 }
@@ -135,98 +204,171 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E9F0FF',
+    backgroundColor: '#F8FAFC',
   },
-  // Header fills top area completely
-  header: {
-    backgroundColor: '#0B165C',
-    paddingBottom: 30, // Bottom padding for the curve effect
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    alignItems: 'center',
-    position: 'relative',
+  
+  // Header
+  headerContainer: {
+    backgroundColor: '#0C1559',
+    paddingBottom: 24,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
     overflow: 'hidden',
-    zIndex: 10,
-  },
-  safeHeaderContent: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: 10, // Additional padding from safe area top if needed
+    position: 'relative',
   },
   headerWatermark: {
     position: 'absolute',
-    right: -40,
-    bottom: -40,
-    width: 150,
-    height: 150,
-    opacity: 0.15,
+    right: -30,
+    top: -20,
+    width: 200,
+    height: 200,
+    opacity: 0.1,
     resizeMode: 'contain',
+    transform: [{ rotate: '-15deg' }],
   },
-  headerTitle: {
-    color: '#A3E635',
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold', // Font Applied
-    alignSelf: 'flex-start',
-    marginLeft: 30,
-    marginBottom: 10,
+  headerContent: {
+    paddingHorizontal: 24,
+    paddingTop: 10,
   },
-  profileContainer: {
-    alignItems: 'center',
-    marginTop: 5,
-  },
-  username: {
-    color: '#fff',
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold', // Font Applied
-    marginTop: 6,
+  screenTitle: {
+    fontSize: 28,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
+    marginBottom: 20,
   },
   
-  // Content Area
-  contentArea: {
-    flex: 1,
-  },
-  bannerContainer: {
-    alignItems: 'center',
-    marginTop: 25,
-  },
-  bannerImage: {
-    width: '85%',
-    height: 100,
-    borderRadius: 12,
-    resizeMode: 'cover',
-  },
-  menuContainer: {
-    marginTop: 40, // Reduced top margin since header is taller
-    paddingHorizontal: 40,
-    flex: 1,
-  },
-  menuItem: {
+  // Profile Card
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 40,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
-  menuText: {
+  avatarContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#84cc16', // Lime Green
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  avatarText: {
+    fontSize: 24,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+  },
+  profileInfo: {
+    flex: 1,
     marginLeft: 16,
-    fontSize: 16,
-    color: '#000',
-    fontFamily: 'Montserrat-SemiBold', // Font Applied
   },
-  bottomWatermarkContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    height: 80,
+  profileName: {
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
+  },
+  profileEmail: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    color: '#CBD5E1',
+    marginTop: 2,
+  },
+  editBtn: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+  },
+
+  // Content
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: 24,
+  },
+  sectionHeader: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: '#64748B',
+    marginBottom: 12,
+    marginTop: 8,
+    marginLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  sectionCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    paddingVertical: 4,
+    marginBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginLeft: 60, // Indent separator to align with text
+  },
+  
+  // Setting Item
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  iconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  settingLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#0F172A',
+  },
+  destructiveLabel: {
+    color: '#EF4444',
+  },
+
+  // Logout
+  logoutContainer: {
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    paddingVertical: 14,
+    paddingHorizontal: 30,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    gap: 8,
     width: '100%',
-    justifyContent: 'flex-end',
-    zIndex: -1,
+    marginBottom: 16,
   },
-  bottomWatermark: {
-    position: 'absolute',
-    left: -40,
-    bottom: -30,
-    width: 150,
-    height: 150,
-    opacity: 0.12,
-    resizeMode: 'contain',
+  logoutText: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#EF4444',
+  },
+  versionText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    color: '#94A3B8',
   },
 });
