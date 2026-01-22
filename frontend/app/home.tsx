@@ -1,16 +1,28 @@
 // app/home.tsx
 import React, { useEffect, useState, useRef } from 'react';
-import {View,Text,Image,ImageBackground,TextInput,FlatList,TouchableOpacity, StyleSheet,useColorScheme, Animated,RefreshControl,Dimensions, ScrollView,ActivityIndicator,} from 'react-native';
+import {
+  View,
+  Text,
+  Image,
+  ImageBackground,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  StyleSheet,
+  useColorScheme,
+  Animated,
+  RefreshControl,
+  Dimensions,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-
-
 
 const { width } = Dimensions.get('window');
 
@@ -41,7 +53,6 @@ const RECENT_PRODUCTS = [
   },
 ];
 
-// Updated to include details for navigation
 const FEATURED_ITEMS = [
   { id: 'f1', title: 'Summer Collection', price: 150.0, image: require('../assets/images/featured/feat1.jpg') },
   { id: 'f2', title: 'Urban Streetwear', price: 220.0, image: require('../assets/images/featured/feat2.jpg') },
@@ -71,6 +82,9 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>('All');
+  
+  // --- Search State ---
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -78,11 +92,19 @@ export default function Home() {
   // Derived list of chip categories
   const allCategoryNames = ['All', ...CATEGORIES.filter(c => c.label !== 'more').map((c) => c.label)];
 
-  // Filtered recent products
+  // Filtered recent products (for the Recent tab)
   const filteredRecent =
     selectedCat === 'All'
       ? RECENT_PRODUCTS
       : RECENT_PRODUCTS.filter((p) => p.category === selectedCat);
+
+  // --- Search Logic: Aggregate all items ---
+  const ALL_SEARCHABLE_ITEMS = [...FEATURED_ITEMS, ...RECENT_PRODUCTS, ...DEALS_FOR_YOU];
+  // Deduplicate items based on ID if necessary (simple filter here assumes mostly unique IDs or doesn't mind duplicates if they act as distinct offers)
+  
+  const searchResults = ALL_SEARCHABLE_ITEMS.filter((item) =>
+    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   // --- Auto-scrolling "Featured" FlatList state & ref ---
   const featuredRef = useRef<FlatList<any>>(null);
@@ -167,6 +189,8 @@ export default function Home() {
     });
   };
 
+  // --- Render Components ---
+
   const renderRecent = ({ item, index }: { item: typeof RECENT_PRODUCTS[0]; index: number }) => (
     <Animated.View
       style={{
@@ -229,6 +253,21 @@ export default function Home() {
     </TouchableOpacity>
   );
 
+  // New Search Result Item Renderer
+  const renderSearchItem = ({ item }: { item: any }) => (
+    <TouchableOpacity 
+      style={styles.searchResultCard} 
+      onPress={() => goToDetails(item)}
+      activeOpacity={0.8}
+    >
+        <Image source={item.image} style={styles.searchResultImage} />
+        <View style={styles.searchResultInfo}>
+            <Text style={styles.searchResultTitle} numberOfLines={2}>{item.title}</Text>
+            <Text style={styles.searchResultPrice}>₵{item.price.toFixed(2)}</Text>
+        </View>
+    </TouchableOpacity>
+  );
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
@@ -268,13 +307,22 @@ export default function Home() {
                 <View style={[styles.searchInputWrapper, { backgroundColor: '#1e3a8a' }]}>
                   <Feather name="search" size={16} color="#FFF" />
                   <TextInput
-                    placeholder="Search here..."
+                    placeholder="Search items..."
                     placeholderTextColor="rgba(255,255,255,0.8)"
                     style={[styles.searchInput, { color: '#FFF' }]}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery} // Update state on type
                   />
-                  <TouchableOpacity onPress={() => router.push('/filter')}>
-                    <Feather name="sliders" size={16} color="#FFF" />
-                  </TouchableOpacity>
+                  {/* Conditional: Clear button if typing, Slider if empty */}
+                  {searchQuery.length > 0 ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                        <Feather name="x" size={16} color="#FFF" />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity onPress={() => router.push('/filter')}>
+                        <Feather name="sliders" size={16} color="#FFF" />
+                    </TouchableOpacity>
+                  )}
                 </View>
 
                 <TouchableOpacity style={styles.notificationIcon} onPress={() => router.push('/cart')}>
@@ -285,108 +333,137 @@ export default function Home() {
             </View>
           </View>
 
-          {/* Enhanced Banner (Now Clickable) */}
-          <Animated.View
-            style={[
-              styles.bannerContainer,
-              {
-                transform: [
-                  {
-                    translateY: scrollY.interpolate({
-                      inputRange: [-100, 0, 100],
-                      outputRange: [-50, 0, 50],
-                      extrapolate: 'clamp',
-                    }),
-                  },
-                ],
-              },
-            ]}
-          >
-            <TouchableOpacity 
-                activeOpacity={0.9} 
-                onPress={() => router.push({ pathname: '/product/details', params: { title: 'Special Offer', price: 99, image: require('../assets/images/banner1.png') }})}
-                style={{ flex: 1 }}
-            >
-                <ImageBackground
-                source={require('../assets/images/banner1.png')}
-                style={styles.bannerImageBg}
-                imageStyle={{ borderRadius: 16 }}
-                />
-            </TouchableOpacity>
-          </Animated.View>
-
-          {/* Category Chips */}
-          <View style={styles.chipsContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {allCategoryNames.map((cat) => {
-                const isActive = selectedCat === cat;
-                return (
-                  <TouchableOpacity key={cat} onPress={() => setSelectedCat(cat)}>
-                    <View style={[styles.chip, { backgroundColor: isActive ? '#84cc16' : '#FFF', borderColor: isActive ? '#84cc16' : '#1e3a8a' }]}>
-                      <Text style={[styles.chipText, { color: isActive ? '#111827' : '#64748B' }]}>{cat}</Text>
+          {/* === Conditional Rendering based on Search === */}
+          {searchQuery.length > 0 ? (
+            // --- SEARCH RESULTS VIEW ---
+            <View style={styles.searchResultsContainer}>
+                <Text style={styles.sectionTitle}>
+                    Found {searchResults.length} Result{searchResults.length !== 1 ? 's' : ''}
+                </Text>
+                {searchResults.length === 0 ? (
+                    <View style={styles.noResultsContainer}>
+                        <Feather name="frown" size={40} color="#64748B" />
+                        <Text style={styles.noResultsText}>No items found for "{searchQuery}"</Text>
                     </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
+                ) : (
+                    <FlatList 
+                        data={searchResults}
+                        keyExtractor={(item, index) => item.id + index} // Ensure unique keys if duplicates exist
+                        renderItem={renderSearchItem}
+                        numColumns={2}
+                        scrollEnabled={false} // Allow parent ScrollView to handle scrolling
+                        columnWrapperStyle={{ justifyContent: 'space-between' }}
+                        contentContainerStyle={{ marginTop: 10 }}
+                    />
+                )}
+            </View>
+          ) : (
+            // --- DEFAULT HOME VIEW ---
+            <>
+                {/* Banner */}
+                <Animated.View
+                    style={[
+                    styles.bannerContainer,
+                    {
+                        transform: [
+                        {
+                            translateY: scrollY.interpolate({
+                            inputRange: [-100, 0, 100],
+                            outputRange: [-50, 0, 50],
+                            extrapolate: 'clamp',
+                            }),
+                        },
+                        ],
+                    },
+                    ]}
+                >
+                    <TouchableOpacity 
+                        activeOpacity={0.9} 
+                        onPress={() => router.push({ pathname: '/product/details', params: { title: 'Special Offer', price: 99, image: require('../assets/images/banner1.png') }})}
+                        style={{ flex: 1 }}
+                    >
+                        <ImageBackground
+                        source={require('../assets/images/banner1.png')}
+                        style={styles.bannerImageBg}
+                        imageStyle={{ borderRadius: 16 }}
+                        />
+                    </TouchableOpacity>
+                </Animated.View>
 
-          {/* Featured "Carousel" (Now Clickable) */}
-          <View style={{ paddingTop: 10 }}>
-            <FlatList
-              ref={featuredRef}
-              data={FEATURED_ITEMS}
-              keyExtractor={(item) => item.id}
-              horizontal
-              pagingEnabled={false}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              renderItem={renderFeatured}
-              getItemLayout={(_, index) => ({
-                length: width - 16,
-                offset: (width - 16) * index,
-                index,
-              })}
-            />
-          </View>
+                {/* Category Chips */}
+                <View style={styles.chipsContainer}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    {allCategoryNames.map((cat) => {
+                        const isActive = selectedCat === cat;
+                        return (
+                        <TouchableOpacity key={cat} onPress={() => setSelectedCat(cat)}>
+                            <View style={[styles.chip, { backgroundColor: isActive ? '#84cc16' : '#FFF', borderColor: isActive ? '#84cc16' : '#1e3a8a' }]}>
+                            <Text style={[styles.chipText, { color: isActive ? '#111827' : '#64748B' }]}>{cat}</Text>
+                            </View>
+                        </TouchableOpacity>
+                        );
+                    })}
+                    </ScrollView>
+                </View>
 
-          {/* Recently Added */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: '#222' }]}>Recently Added</Text>
-            <TouchableOpacity onPress={() => router.push('/recent')}>
-              <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={filteredRecent}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.recentList}
-            renderItem={renderRecent}
-          />
+                {/* Featured "Carousel" */}
+                <View style={{ paddingTop: 10 }}>
+                    <FlatList
+                    ref={featuredRef}
+                    data={FEATURED_ITEMS}
+                    keyExtractor={(item) => item.id}
+                    horizontal
+                    pagingEnabled={false}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 16 }}
+                    renderItem={renderFeatured}
+                    getItemLayout={(_, index) => ({
+                        length: width - 16,
+                        offset: (width - 16) * index,
+                        index,
+                    })}
+                    />
+                </View>
 
-          {/* Deals for You */}
-          <View style={styles.sectionHeader}>
-            <Text style={[styles.sectionTitle, { color: '#222' }]}>Deals for You</Text>
-            <TouchableOpacity onPress={() => router.push('/deals')}>
-              <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={DEALS_FOR_YOU}
-            keyExtractor={(item) => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.dealsList}
-            renderItem={renderDeal}
-          />
+                {/* Recently Added */}
+                <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: '#222' }]}>Recently Added</Text>
+                    <TouchableOpacity onPress={() => router.push('/recent')}>
+                    <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
+                    </TouchableOpacity>
+                </View>
+                <FlatList
+                    data={filteredRecent}
+                    keyExtractor={(item) => item.id}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.recentList}
+                    renderItem={renderRecent}
+                />
+
+                {/* Deals for You */}
+                <View style={styles.sectionHeader}>
+                    <Text style={[styles.sectionTitle, { color: '#222' }]}>Deals for You</Text>
+                    <TouchableOpacity onPress={() => router.push('/deals')}>
+                    <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
+                    </TouchableOpacity>
+                </View>
+                <FlatList
+                    data={DEALS_FOR_YOU}
+                    keyExtractor={(item) => item.id}
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.dealsList}
+                    renderItem={renderDeal}
+                />
+            </>
+          )}
         </Animated.ScrollView>
 
         {/* Floating Chat Button */}
         <TouchableOpacity 
             style={styles.floatingChatBtn}
-            onPress={() => router.push('/chat')} // Navigates to the chat inbox
+            onPress={() => router.push('/chat')} 
             activeOpacity={0.8}
         >
             <LinearGradient
@@ -394,7 +471,6 @@ export default function Home() {
                 style={styles.floatingGradient}
             >
                 <MaterialCommunityIcons name="chat-processing" size={28} color="#FFF" />
-                {/* Unread Indicator */}
                 <View style={styles.unreadChatDot} />
             </LinearGradient>
         </TouchableOpacity>
@@ -416,354 +492,98 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#e9f0ff',
   },
-  // Skeleton placeholders
-  skeletonHeader: {
-    height: 60,
-    margin: 16,
-    borderRadius: 12,
-    backgroundColor: '#333',
-  },
-  skeletonBanner: {
-    height: 160,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#333',
-  },
-  skeletonChips: {
-    height: 40,
-    marginTop: 12,
-    marginHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#333',
-  },
-  skeletonRow: {
-    height: 120,
-    marginTop: 20,
-    marginHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: '#333',
-  },
+  // ... (Your existing skeleton styles) ...
+  skeletonHeader: { height: 60, margin: 16, borderRadius: 12, backgroundColor: '#333' },
+  skeletonBanner: { height: 160, marginHorizontal: 16, borderRadius: 12, backgroundColor: '#333' },
+  skeletonChips: { height: 40, marginTop: 12, marginHorizontal: 16, borderRadius: 20, backgroundColor: '#333' },
+  skeletonRow: { height: 120, marginTop: 20, marginHorizontal: 16, borderRadius: 12, backgroundColor: '#333' },
 
+  // Top Section
+  topSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  locationText: { fontSize: 14, fontWeight: '500', marginLeft: 4, marginRight: 2 },
+  
+  logoSearchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  logoContainer: { flexDirection: 'row', alignItems: 'center' },
+  logoImage: { width: 99, height: 32 },
 
-  // Top Section (Location + Search)
-  topSection: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  locationText: {
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: 4,
-    marginRight: 2,
-  },
+  searchAndIcons: { flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 12 },
+  searchInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginRight: 10 },
+  searchInput: { flex: 1, marginLeft: 8, marginRight: 8, height: 24, fontSize: 13 },
+  
+  notificationIcon: { position: 'relative', padding: 4 },
+  notificationDot: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff0101ff' },
 
-  // Logo and Search Row
-  logoSearchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  logoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoImage: {
-    width: 99,
-    height: 32,
-  },
+  // Banner
+  bannerContainer: { marginHorizontal: 16, marginTop: 12, height: 180, overflow: 'hidden', borderRadius: 16 },
+  bannerImageBg: { flex: 1, width: '100%', height: '100%' },
+  
+  // Chips
+  chipsContainer: { paddingHorizontal: 16, paddingVertical: 12 },
+  chip: { paddingVertical: 8, paddingHorizontal: 16, marginRight: 10, borderWidth: 1, borderRadius: 20, elevation: 1 },
+  chipText: { fontSize: 13, fontWeight: '600' },
 
-  searchAndIcons: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    marginLeft: 12,
-  },
-  searchInputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 10,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    marginRight: 8,
-    height: 24,
-    fontSize: 13,
-  },
-  notificationIcon: {
-    position: 'relative',
-    padding: 4,
-  },
-  notificationDot: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#ff0101ff',
-  },
+  // Featured
+  featuredCard: { width: width - 32, height: 150, borderRadius: 16, marginRight: 16, overflow: 'hidden', elevation: 3 },
+  featuredImage: { width: '100%', height: '100%' },
+  featuredOverlay: { flex: 1, borderRadius: 16, justifyContent:'flex-end' },
+  featuredTextContainer: { padding: 16 },
+  featuredTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
+  featuredPrice: { fontSize: 14, color: '#84cc16', fontWeight: 'bold' },
 
-  // Enhanced Banner
-  bannerContainer: {
-    marginHorizontal: 16,
-    marginTop: 12,
-    height: 180,
-    overflow: 'hidden',
-    borderRadius: 16,
-  },
-  bannerImageBg: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  bannerGradientOverlay: {
-    flex: 1,
-    borderRadius: 16,
-  },
-  bannerContent: {
-    flex: 1,
-    flexDirection: 'row',
-    padding: 16,
-  },
-  bannerLeftContent: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  bannerIcon: {
-    width: 100,
-    height: 28,
-    marginBottom: 8,
-  },
-  bannerSubtitle: {
-    fontSize: 11,
-    color: '#FFF',
-    lineHeight: 15,
-    marginBottom: 12,
-    opacity: 0.95,
-  },
-  shopNowBtn: {
-    alignSelf: 'flex-start',
+  // Headers
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 24, marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '700' },
+  seeAllText: { fontSize: 13, fontWeight: '600' },
+
+  // Recent
+  recentList: { paddingLeft: 16, paddingBottom: 20 },
+  productCard: { width: 160, borderRadius: 16, elevation: 4, overflow: 'hidden', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
+  productImage: { width: '100%', height: 120, resizeMode: 'cover' },
+  productInfo: { padding: 12 },
+  productTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+  productCategory: { fontSize: 12, marginBottom: 8 },
+  priceRow: { flexDirection: 'row', alignItems: 'center' },
+  currentPrice: { fontSize: 15, fontWeight: '700' },
+  oldPrice: { fontSize: 12, textDecorationLine: 'line-through', color: '#94A3B8', marginLeft: 6 },
+
+  // Deals
+  dealsList: { paddingLeft: 16, paddingBottom: 30 },
+  dealCard: { width: 140, borderRadius: 16, marginRight: 16, elevation: 4, overflow: 'hidden', alignItems: 'center', padding: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
+  dealImage: { width: '100%', height: 100, resizeMode: 'cover' },
+  dealTitle: { fontSize: 13, fontWeight: '600', marginTop: 10, marginHorizontal: 8, textAlign: 'center' },
+  dealPrice: { fontSize: 14, fontWeight: '700', marginTop: 6, marginBottom: 10, color: '#84cc16' },
+
+  // Search Results
+  searchResultsContainer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20 },
+  searchResultCard: {
+    width: (width - 48) / 2, // 2 column layout with spacing
     backgroundColor: '#FFF',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  shopNowText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111',
-  },
-
-  // Banner Illustration
-  bannerIllustration: {
-    width: 140,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  cartContainer: {
-    position: 'relative',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  floatingCard1: {
-    position: 'absolute',
-    top: 10,
-    right: -10,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 8,
-    padding: 8,
-  },
-  floatingCard2: {
-    position: 'absolute',
-    bottom: 15,
-    left: -15,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 8,
-    padding: 8,
-  },
-
-  // Category Chips
-  chipsContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginRight: 10,
-    borderWidth: 1,
-    borderRadius: 20,
-    elevation: 1,
-  },
-  chipText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Featured Cards
-  featuredCard: {
-    width: width - 32,
-    height: 150,
-    borderRadius: 16,
-    marginRight: 16,
+    borderRadius: 12,
+    marginBottom: 16,
     overflow: 'hidden',
     elevation: 3,
-  },
-  featuredImage: {
-    width: '100%',
-    height: '100%',
-  },
-  featuredOverlay: {
-    flex: 1,
-    borderRadius: 16,
-  },
-  featuredTextContainer: {
-    padding: 10,
-    // Add other styles as needed
-  },
-  featuredTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-    // Add other styles as needed
-  },
-  featuredPrice: {
-    fontSize: 16,
-    color: '#fff',
-    // Add other styles as needed
-  },
-
-  // Section Headers
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 24,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  seeAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Recently Added Cards
-  recentList: {
-    paddingLeft: 16,
-    paddingBottom: 20,
-  },
-  productCard: {
-    width: 160,
-    borderRadius: 16,
-    elevation: 4,
-    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  productImage: {
-    width: '100%',
-    height: 120,
-    resizeMode: 'cover',
-  },
-  heartIcon: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderRadius: 20,
-    padding: 6,
-    elevation: 2,
-  },
-  productInfo: {
-    padding: 12,
-  },
-  productTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  productCategory: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  currentPrice: {
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  oldPrice: {
-    fontSize: 12,
-    textDecorationLine: 'line-through',
-    color: '#94A3B8',
-    marginLeft: 6,
-  },
+  searchResultImage: { width: '100%', height: 120, resizeMode: 'cover' },
+  searchResultInfo: { padding: 8 },
+  searchResultTitle: { fontSize: 13, fontWeight: '600', color: '#0F172A', marginBottom: 4 },
+  searchResultPrice: { fontSize: 14, fontWeight: '700', color: '#84cc16' },
+  noResultsContainer: { alignItems: 'center', marginTop: 50 },
+  noResultsText: { marginTop: 10, fontSize: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' },
 
-  // Deals for You
-  dealsList: {
-    paddingLeft: 16,
-    paddingBottom: 30,
-  },
-  dealCard: {
-    width: 140,
-    borderRadius: 16,
-    marginRight: 16,
-    elevation: 4,
-    overflow: 'hidden',
-    alignItems: 'center',
-    padding: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  dealImage: {
-    width: '100%',
-    height: 100,
-    resizeMode: 'cover',
-  },
-  dealTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 10,
-    marginHorizontal: 8,
-    textAlign: 'center',
-  },
-  dealPrice: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 6,
-    marginBottom: 10,
-    color: '#84cc16',
-  },
-background: {
-  flex: 1,
-  justifyContent: 'flex-end',
-  alignItems: 'center',
-},
-// --- NEW Floating Chat Styles ---
+  // Bottom Area
+  background: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
+  bottomLogos: { position: 'absolute', bottom: -50, left: -50 },
+  fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.12 },
+
+  // Floating Chat
   floatingChatBtn: {
     position: 'absolute',
-    bottom: 90, // Positioned above the bottom nav
+    bottom: 90,
     right: 20,
     width: 60,
     height: 60,
@@ -789,20 +609,8 @@ background: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#84cc16', // Lime Green dot
+    backgroundColor: '#84cc16',
     borderWidth: 1.5,
     borderColor: '#0C1559',
-  },
-bottomLogos: {
-  position: 'absolute',
-  bottom: -50,      // adjust distance from bottom
-  left: -50,        // adjust distance from left
-},
-
-fadedLogo: {
-  width: 130,
-  height: 130,
-  resizeMode: 'contain',
-  opacity: 0.12, // soft fade
-},
+  }
 });

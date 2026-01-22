@@ -2,10 +2,10 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-export const API_URL = 'http://localhost:5000/api/v1/';
-export const baseURL = 'http://localhost:5000';
-// export const API_URL = 'https://dios-mnxg.onrender.com/api/v1/';
-// export const baseURL = 'https://dios-mnxg.onrender.com';
+// export const API_URL = 'http://localhost:5000/api/v1/';
+// export const baseURL = 'http://localhost:5000';
+export const API_URL = 'https://dios-mnxg.onrender.com/api/v1/';
+export const baseURL = 'https://dios-mnxg.onrender.com';
 
 // Platform-specific storage helpers
 const storage = {

@@ -10,7 +10,8 @@ import {
   useColorScheme,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
+import { useSearchParams } from 'expo-router/build/hooks';
 
 export const options = {
   // Show “Category” instead of “categories/categories/[id]”
@@ -55,7 +56,7 @@ const ALL_PRODUCTS = [
 ];
 
 export default function CategoryDetailScreen() {
-  const { id: categoryId } = useSearchParams<{ id: string }>();
+  const { id: categoryId } = useSearchParams() as { id?: string };
   const router = useRouter();
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
@@ -78,7 +79,7 @@ export default function CategoryDetailScreen() {
     c3: 'Jackets',
     c4: 'Art',
   };
-  const categoryLabel = categoryLabels[categoryId] ?? 'Category';
+  const categoryLabel = categoryId ? categoryLabels[categoryId] ?? 'Category' : 'Category';
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor }]}>

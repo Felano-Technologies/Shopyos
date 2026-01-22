@@ -199,6 +199,15 @@ const RegisterScreen = () => {
 
               <Text style={styles.roleText}>Select your role to continue registration.</Text>
 
+            {/* login (outlined pill) */}
+            <TouchableOpacity
+              style={styles.loginButton}
+              onPress={() => router.push('/login')}
+            >
+              <Text style={styles.loginText}>
+                Already registered? <Text style={styles.loginBold}>Sign in now!</Text>
+              </Text>
+            </TouchableOpacity>
               <View style={styles.bottomLogos}>
                 <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
                 <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
@@ -218,7 +227,7 @@ const styles = StyleSheet.create({
   
   bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 30 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  bannerImage: { width: '100%', height: '100%', borderRadius: 16 },
+  bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
 
   dot: { backgroundColor: '#ccc', width: 6, height: 6, borderRadius: 3, margin: 3 },
   activeDot: { backgroundColor: '#1b7c22', width: 6, height: 6, borderRadius: 3, margin: 3 },
@@ -285,6 +294,24 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: -50,
     marginBottom: -200,
+  },
+    loginButton: {
+    width: 250,
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: '#84cc16',
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 14,
+  },
+  loginText: {
+    color: '#1e3a8a',
+    fontSize: 15,
+  },
+  loginBold: {
+    color: '#84cc16',
+    fontWeight: '700',
   },
 });
 
