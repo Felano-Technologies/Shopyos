@@ -13,6 +13,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNav from '../components/BottomNav'; 
+import DriverBottomNav from '../components/DriverBottomNav'; // <--- 1. Import Driver Nav
 import { usePathname } from 'expo-router';
 import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
@@ -42,19 +43,18 @@ export default function RootLayout() {
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const screenBg = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
 
-  // 1) Routes where Nav usually appears
+  // --- CUSTOMER NAV LOGIC ---
   const showNavRoutes = [
     '/home',
     '/stores',
     '/search',
-    '/settings', // This enables it for /settings AND /settings/account by default
+    '/settings', 
     '/order',
   ];
 
-  // 2) Specific Exceptions (Routes to HIDE the nav)
   const hideNavRoutes = [
     '/settings/Account', 
-    '/settings/changePassword', // You likely want it hidden here too
+    '/settings/changePassword', 
     '/settings/pushNotifications',
     '/settings/helpCenter',
     '/settings/contactUs',
@@ -62,13 +62,29 @@ export default function RootLayout() {
     '/settings/paymentMethods',
     '/cart',
     '/chat/index',
+    // We also want to hide the Customer BottomNav if we are on ANY driver page
+    '/driver' 
   ];
 
-  // 3) Logic: Must be in "Show List" AND NOT in "Hide List"
   const shouldShowNav = 
     (showNavRoutes.some((base) => pathname.startsWith(base)) || pathname.startsWith('/categories'))
     && 
     !hideNavRoutes.some((exclude) => pathname.startsWith(exclude));
+
+
+  // --- DRIVER NAV LOGIC ---
+  // Check if we are currently in the driver section
+  const isDriverRoute = pathname.startsWith('/driver');
+
+  // Only show the Driver Bottom Nav on these specific main screens
+  // We do NOT want it on 'activeOrder' so the map can take full screen
+  const showDriverNav = [
+    '/driver/dashboard',
+    '/driver/earnings',
+    '/driver/history',
+    '/driver/settings',
+  ].includes(pathname);
+
 
   return (
     <CartProvider>
@@ -96,7 +112,14 @@ export default function RootLayout() {
             <Stack.Screen name="order" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
             
-            {/* These screens will now have NO bottom nav because of logic above */}
+            {/* Driver Screens */}
+            <Stack.Screen name="driver/dashboard" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/activeOrder" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/earnings" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/history" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/settings" options={{ headerShown: false }} />
+            
+            {/* Settings Sub-Screens */}
             <Stack.Screen name='settings/Account' options={{ headerShown: false }} />
             <Stack.Screen name='settings/changePassword' options={{ headerShown: false }} />
             <Stack.Screen name='settings/pushNotifications' options={{ headerShown: false }} />
@@ -125,7 +148,13 @@ export default function RootLayout() {
             <Stack.Screen name="+not-found" />
           </Stack>
 
+        {/* 3. Conditional Rendering based on Route Type */}
+        
+        {/* Render Customer Nav if applicable */}
         {shouldShowNav && <BottomNav />}
+
+        {/* Render Driver Nav only if on Driver Main Routes */}
+        {isDriverRoute && showDriverNav && <DriverBottomNav />}
 
         <StatusBar style="auto" />
       </View>
