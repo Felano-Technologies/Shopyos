@@ -266,7 +266,7 @@ export default function BusinessSettingsScreen() {
                 <Text style={styles.logoutText}>Log Out</Text>
             </TouchableOpacity>
 
-            <Text style={styles.versionText}>Version 1.0.5 (Build 2024)</Text>
+            <Text style={styles.versionText}>Version 1.0.9</Text>
 
           </View>
 
