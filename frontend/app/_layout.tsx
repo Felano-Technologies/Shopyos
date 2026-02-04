@@ -79,12 +79,17 @@ export default function RootLayout() {
   // Only show the Driver Bottom Nav on these specific main screens
   // We do NOT want it on 'activeOrder' so the map can take full screen
   const showDriverNav = [
+    '/driver/index',
     '/driver/dashboard',
     '/driver/earnings',
     '/driver/history',
     '/driver/settings',
   ].includes(pathname);
 
+  const hideDriverNav = [
+    '/driver/index',
+    '/driver/verification',
+  ];
 
   return (
     <CartProvider>
@@ -113,11 +118,13 @@ export default function RootLayout() {
             <Stack.Screen name="settings" options={{ headerShown: false }} />
             
             {/* Driver Screens */}
+            <Stack.Screen name="driver/index" options={{ headerShown: false }} />
             <Stack.Screen name="driver/dashboard" options={{ headerShown: false }} />
             <Stack.Screen name="driver/activeOrder" options={{ headerShown: false }} />
             <Stack.Screen name="driver/earnings" options={{ headerShown: false }} />
             <Stack.Screen name="driver/history" options={{ headerShown: false }} />
             <Stack.Screen name="driver/settings" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/verification" options={{ headerShown: false }} />
             
             {/* Settings Sub-Screens */}
             <Stack.Screen name='settings/Account' options={{ headerShown: false }} />
