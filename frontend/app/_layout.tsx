@@ -12,11 +12,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import BottomNav from '../components/BottomNav'; // Adjust the path as necessary
+import BottomNav from '../components/BottomNav'; 
+import DriverBottomNav from '../components/DriverBottomNav'; // <--- 1. Import Driver Nav
 import { usePathname } from 'expo-router';
 import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
-
 
 // Prevent the splash screen from auto‐hiding before fonts load
 SplashScreen.preventAutoHideAsync();
@@ -28,7 +28,6 @@ export default function RootLayout() {
     'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
     'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
     'Montserrat-SemiBold': require('../assets/fonts/Montserrat-SemiBold.ttf'),
-
   });
 
   useEffect(() => {
@@ -41,44 +40,62 @@ export default function RootLayout() {
     return null;
   }
 
-  // Pick React Navigation theme
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
-  // Force a pure screen background
   const screenBg = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
 
-  //
-  // 1) Define exactly which “base” routes should show the BottomNav.
-  //    We’ll show the bar on:
-  //      • /home
-  //      • /stores
-  //      • /cart
-  //      • /search
-  //      • /settings
-  //      • /order
-  //      • any /categories* route (list + detail)
-  //
-  // 2) Use startsWith so that "/categories/c1" (dynamic) still counts.
-  //
+  // --- CUSTOMER NAV LOGIC ---
   const showNavRoutes = [
     '/home',
     '/stores',
     '/search',
-    '/settings',
+    '/settings', 
     '/order',
   ];
 
-  // Check if current path starts with any of our “show” patterns
-  const shouldShowNav = showNavRoutes.some((base) => 
-    pathname.startsWith(base)
-    ) || pathname.startsWith('/categories');
+  const hideNavRoutes = [
+    '/settings/Account', 
+    '/settings/changePassword', 
+    '/settings/pushNotifications',
+    '/settings/helpCenter',
+    '/settings/contactUs',
+    '/settings/Transactions',
+    '/settings/paymentMethods',
+    '/cart',
+    '/chat/index',
+    // We also want to hide the Customer BottomNav if we are on ANY driver page
+    '/driver' 
+  ];
+
+  const shouldShowNav = 
+    (showNavRoutes.some((base) => pathname.startsWith(base)) || pathname.startsWith('/categories'))
+    && 
+    !hideNavRoutes.some((exclude) => pathname.startsWith(exclude));
+
+
+  // --- DRIVER NAV LOGIC ---
+  // Check if we are currently in the driver section
+  const isDriverRoute = pathname.startsWith('/driver');
+
+  // Only show the Driver Bottom Nav on these specific main screens
+  // We do NOT want it on 'activeOrder' so the map can take full screen
+  const showDriverNav = [
+    '/driver/index',
+    '/driver/dashboard',
+    '/driver/earnings',
+    '/driver/history',
+    '/driver/settings',
+  ].includes(pathname);
+
+  const hideDriverNav = [
+    '/driver/index',
+    '/driver/verification',
+  ];
 
   return (
     <CartProvider>
       <ChatProvider>
     <ThemeProvider value={navTheme}>
-      {/* 3) Root container uses a plain View so content can go edge-to-edge */}
       <View style={[styles.container, { backgroundColor: screenBg }]}>
-        {/* Only respect top notch/status bar safe area */}
           <Stack
             screenOptions={{
               headerShown: false,
@@ -99,10 +116,25 @@ export default function RootLayout() {
             <Stack.Screen name="search" options={{ headerShown: false }} />
             <Stack.Screen name="order" options={{ headerShown: false }} />
             <Stack.Screen name="settings" options={{ headerShown: false }} />
+            
+            {/* Driver Screens */}
+            <Stack.Screen name="driver/index" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/dashboard" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/activeOrder" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/earnings" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/history" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/settings" options={{ headerShown: false }} />
+            <Stack.Screen name="driver/verification" options={{ headerShown: false }} />
+            
+            {/* Settings Sub-Screens */}
+            <Stack.Screen name='settings/Account' options={{ headerShown: false }} />
             <Stack.Screen name='settings/changePassword' options={{ headerShown: false }} />
             <Stack.Screen name='settings/pushNotifications' options={{ headerShown: false }} />
             <Stack.Screen name='settings/helpCenter' options={{ headerShown: false }} />
             <Stack.Screen name='settings/contactUs' options={{ headerShown: false }} />
+            <Stack.Screen name='settings/Transactions' options={{ headerShown: false }} />
+            <Stack.Screen name='settings/paymentMethods' options={{ headerShown: false }} />
+            
             <Stack.Screen name='cart' options={{ headerShown: false }} /> 
             <Stack.Screen name='chat/index' options={{ headerShown: false }} />
             <Stack.Screen name='chat/conversation' options={{ headerShown: false }} />
@@ -123,15 +155,19 @@ export default function RootLayout() {
             <Stack.Screen name="+not-found" />
           </Stack>
 
-        {/* 4) Render BottomNav only on allowed routes */}
+        {/* 3. Conditional Rendering based on Route Type */}
+        
+        {/* Render Customer Nav if applicable */}
         {shouldShowNav && <BottomNav />}
+
+        {/* Render Driver Nav only if on Driver Main Routes */}
+        {isDriverRoute && showDriverNav && <DriverBottomNav />}
 
         <StatusBar style="auto" />
       </View>
     </ThemeProvider>
     </ChatProvider>
   </CartProvider>
-
   );
 }
 
@@ -139,7 +175,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  // No bottom padding—content can extend fully under a floating BottomNav
   stackContainer: {
     flex: 1,
   },

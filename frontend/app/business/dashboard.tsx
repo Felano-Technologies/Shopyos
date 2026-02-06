@@ -1,4 +1,3 @@
-// app/business/dashboard.tsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -6,13 +5,12 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Image,
   useColorScheme,
   RefreshControl,
   Dimensions,
-  ImageBackground,
+  Modal, // <--- Added Modal
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
@@ -79,6 +77,10 @@ const BusinessDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(5); 
+  
+  // --- New State for Custom Modal ---
+  const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
 
@@ -89,9 +91,9 @@ const BusinessDashboard = () => {
       const data = await getMyBusinesses();
 
       if (!data.success || !data.businesses || data.businesses.length === 0) {
-        Alert.alert('No Business Found', 'Please create a business first', [
-          { text: 'Create Business', onPress: () => router.replace('/business/register') }
-        ]);
+        //  Show Custom Modal instead of Alert
+        setShowNoBusinessModal(true);
+        setLoading(false); // Stop spinner so modal shows
         return;
       }
 
@@ -384,8 +386,45 @@ const BusinessDashboard = () => {
             </Text>
           </LinearGradient>
 
-        </ScrollView>
+            </ScrollView>
+        ) : (
+            // Placeholder view if no business is selected yet (Modal will be on top)
+            <View style={styles.centered}>
+                <Text style={{color: '#94A3B8'}}>No Business Selected</Text>
+            </View>
+        )}
       </SafeAreaView>
+
+      {/* --- CUSTOM NO BUSINESS MODAL --- */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showNoBusinessModal}
+        onRequestClose={() => {}} 
+      >
+        <View style={styles.alertOverlay}>
+          <View style={styles.alertContent}>
+            <View style={styles.alertIconCircle}>
+                <MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" />
+            </View>
+            <Text style={styles.alertTitle}>No Business Found</Text>
+            <Text style={styles.alertMessage}>
+              It looks like you haven't set up a store yet. Create your business profile to access the dashboard.
+            </Text>
+            <TouchableOpacity 
+              style={styles.alertButton}
+              activeOpacity={0.9}
+              onPress={() => {
+                setShowNoBusinessModal(false);
+                router.replace('/business/register');
+              }}
+            >
+              <Text style={styles.alertButtonText}>Create Business</Text>
+              <Feather name="arrow-right" size={18} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <BusinessBottomNav />
     </View>
@@ -393,19 +432,10 @@ const BusinessDashboard = () => {
 };
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
+  mainContainer: { flex: 1, backgroundColor: '#F1F5F9' },
+  safeArea: { flex: 1 },
+  scrollView: { flex: 1 },
+  scrollContent: { paddingBottom: 100 },
 
   // Centered States
   centered: {
@@ -414,50 +444,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F1F5F9',
   },
-  loadingText: {
-    marginTop: 10,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-  errorText: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#1e293b',
-  },
-  errorSubtext: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
-    marginBottom: 20,
-  },
-  createBusinessButton: {
-    backgroundColor: '#0C1559',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 12,
-  },
-  createBusinessButtonText: {
-    color: '#FFF',
-    fontFamily: 'Montserrat-Bold',
-  },
+  loadingText: { marginTop: 10, fontFamily: 'Montserrat-Medium', color: '#64748B' },
 
   // Background Watermark
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 20,
-    left: -20,
-  },
-  fadedLogo: {
-    width: 130,
-    height: 130,
-    resizeMode: 'contain',
-    opacity: 0.08,
-  },
+  bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
+  fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.08 },
 
   // Hero Header
   heroContainer: {
     paddingTop: 50,
-    paddingBottom: 60, // Extra padding for the floating card overlap
+    paddingBottom: 60,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -509,117 +505,25 @@ const styles = StyleSheet.create({
     lineHeight: 11, // Adjust slightly to center vertically
   },
 
-  // Business Profile Section
-  businessProfile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoWrapper: {
-    position: 'relative',
-    marginRight: 15,
-  },
-  businessLogo: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  logoPlaceholder: {
-    width: 56,
-    height: 56,
-    borderRadius: 20,
-    backgroundColor: '#3b82f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  logoInitial: {
-    fontSize: 24,
-    color: '#FFF',
-    fontFamily: 'Montserrat-Bold',
-  },
-  verifiedBadge: {
-    position: 'absolute',
-    bottom: -4,
-    right: -4,
-    backgroundColor: '#10B981',
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#0C1559',
-  },
-  businessTexts: {
-    flex: 1,
-  },
-  welcomeLabel: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    marginBottom: 2,
-  },
-  businessName: {
-    color: '#FFF',
-    fontSize: 20,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 4,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-  },
-  ratingText: {
-    color: '#FFF',
-    fontSize: 11,
-    fontFamily: 'Montserrat-SemiBold',
-    marginLeft: 4,
-  },
+  // Business Profile
+  businessProfile: { flexDirection: 'row', alignItems: 'center' },
+  logoWrapper: { position: 'relative', marginRight: 15 },
+  businessLogo: { width: 56, height: 56, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  logoPlaceholder: { width: 56, height: 56, borderRadius: 20, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  logoInitial: { fontSize: 24, color: '#FFF', fontFamily: 'Montserrat-Bold' },
+  verifiedBadge: { position: 'absolute', bottom: -4, right: -4, backgroundColor: '#10B981', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#0C1559' },
+  businessTexts: { flex: 1 },
+  welcomeLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontFamily: 'Montserrat-Medium', marginBottom: 2 },
+  businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold', marginBottom: 4 },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
 
-  // Floating Stats Card
-  floatingStatsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
-    marginHorizontal: 20,
-    marginTop: -35,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: "#0C1559",
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statNumber: {
-    fontSize: 20,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-  statDivider: {
-    width: 1,
-    height: 30,
-    backgroundColor: '#E2E8F0',
-  },
+  // Floating Stats
+  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, shadowColor: "#0C1559", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, justifyContent: 'space-between', alignItems: 'center' },
+  statItem: { alignItems: 'center', flex: 1 },
+  statNumber: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 4 },
+  statLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  statDivider: { width: 1, height: 30, backgroundColor: '#E2E8F0' },
 
   // Quick Actions
   sectionContainer: {
@@ -662,133 +566,39 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  // Chart Card
-  chartCard: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 20,
-    marginTop: 20,
-    borderRadius: 20,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  chartHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  cardTitle: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
-  },
-  timeToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  timeText: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#475569',
-    marginRight: 4,
-  },
-  chartStyle: {
-    marginVertical: 8,
-    borderRadius: 16,
-  },
+  // Chart
+  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 20, borderRadius: 20, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
+  cardTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  cardSubtitle: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#64748B' },
+  timeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
+  timeText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#475569', marginRight: 4 },
+  chartStyle: { marginVertical: 8, borderRadius: 16 },
 
   // Recent Orders
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  seeAllText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#0C1559',
-  },
-  orderCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FFF',
-    padding: 14,
-    borderRadius: 14,
-    marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  orderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  orderIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  orderNumber: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
-  },
-  orderStatus: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-    textTransform: 'capitalize',
-  },
-  orderAmount: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
-  },
+  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  seeAllText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
+  orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 14, borderRadius: 14, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3, elevation: 1 },
+  orderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  orderIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  orderNumber: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  orderStatus: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', textTransform: 'capitalize' },
+  orderAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
 
   // Tips
-  tipCard: {
-    marginHorizontal: 20,
-    marginTop: 10,
-    borderRadius: 16,
-    padding: 20,
-  },
-  tipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 6,
-  },
-  tipTitle: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
-  },
-  tipText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Regular',
-    color: 'rgba(255,255,255,0.8)',
-    lineHeight: 20,
-  },
+  tipCard: { marginHorizontal: 20, marginTop: 10, borderRadius: 16, padding: 20 },
+  tipHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+  tipTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  tipText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
+
+  // --- Custom Alert Styles ---
+  alertOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  alertContent: { backgroundColor: '#FFF', width: '100%', maxWidth: 340, borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 },
+  alertIconCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F0F4FC', justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
+  alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14, width: '100%', shadowColor: "#0C1559", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4, gap: 8 },
+  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
 });
 
 export default BusinessDashboard;

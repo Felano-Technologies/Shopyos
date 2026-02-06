@@ -9,23 +9,55 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  ImageSourcePropType,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { Appearance } from 'react-native';
 import { updateUserRole } from '@/services/api';
+
+// 1. Define the Role Type
+type Role = {
+  id: string;
+  image: ImageSourcePropType;
+  label: string;
+};
+
+// 2. Move RoleCard OUTSIDE the main component
+const RoleCard = ({ 
+  role, 
+  isSelected, 
+  onSelect 
+}: { 
+  role: Role; 
+  isSelected: boolean; 
+  onSelect: (id: string) => void;
+}) => (
+  <TouchableOpacity
+    style={[
+      styles.roleCard,
+      {
+        borderColor: isSelected ? '#84cc16' : 'transparent',
+        borderWidth: isSelected ? 3 : 0,
+      },
+    ]}
+    onPress={() => onSelect(role.id)}
+    activeOpacity={0.9} // Increased opacity so it doesn't fade too much on press
+  >
+    <Image source={role.image} style={styles.roleImage} />
+    {/* Optional: Add an overlay to highlight the image itself slightly */}
+    {isSelected && <View style={styles.selectedOverlay} />}
+  </TouchableOpacity>
+);
 
 const RoleSelectionScreen = () => {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const isDarkMode = Appearance.getColorScheme() === 'dark';
 
- 
-  const roles = [
+  const roles: Role[] = [
     { id: 'customer', image: require('../assets/images/customer.jpg'), label: 'Customer' },
     { id: 'seller', image: require('../assets/images/seller.jpg'), label: 'Seller' },
     { id: 'driver', image: require('../assets/images/driver.jpg'), label: 'Driver' },
@@ -43,9 +75,7 @@ const RoleSelectionScreen = () => {
 
     setLoading(true);
     try {
-      // Map 'customer' to 'buyer' for backend compatibility
       const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
-      
       const response = await updateUserRole(backendRole);
       
       console.log('Role update response:', response);
@@ -56,14 +86,13 @@ const RoleSelectionScreen = () => {
         text2: `You are now a ${selectedRole}!`,
       });
 
-      // Small delay to show toast before navigation
       setTimeout(() => {
         if (selectedRole === 'customer') {
           router.replace('/home');
         } else if (selectedRole === 'seller') {
           router.replace('/business/dashboard');
         } else if (selectedRole === 'driver') {
-          router.replace('/home'); // Update when driver dashboard is ready
+          router.replace('/home');
         }
       }, 500);
       
@@ -78,23 +107,6 @@ const RoleSelectionScreen = () => {
       setLoading(false);
     }
   };
-
-  const RoleCard = ({ role }: { role: typeof roles[0] }) => (
-    <TouchableOpacity
-      style={[
-        styles.roleCard,
-        {
-          borderColor: selectedRole === role.id ? '#84cc16' : 'transparent',
-          borderWidth: selectedRole === role.id ? 3 : 0,
-        },
-      ]}
-      onPress={() => setSelectedRole(role.id)}
-      activeOpacity={0.85}
-    >
-      <Image source={role.image} style={styles.roleImage} />
-    </TouchableOpacity>
-  );
-
 
   return (
     <View style={styles.container}>
@@ -113,7 +125,12 @@ const RoleSelectionScreen = () => {
           {/* Role Images */}
           <View style={styles.rolesContainer}>
             {roles.map((role) => (
-              <RoleCard key={role.id} role={role} />
+              <RoleCard 
+                key={role.id} 
+                role={role} 
+                isSelected={selectedRole === role.id}
+                onSelect={setSelectedRole}
+              />
             ))}
           </View>
 
@@ -192,12 +209,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 6,
     elevation: 5,
+    // Ensure height is fixed so borders don't jump layout
+    height: 160, 
+    position: 'relative',
   },
   roleImage: {
     width: '100%',
-    height: 160,
+    height: '100%',
     resizeMode: 'cover',
-    borderRadius: 18,
+  },
+  // Optional: Adds a subtle tint to selected image
+  selectedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(132, 204, 22, 0.1)', // Very light green tint
   },
   instructionText: {
     fontSize: 14,

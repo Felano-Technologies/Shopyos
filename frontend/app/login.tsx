@@ -63,7 +63,7 @@ const LoginScreen = () => {
           } else if (userRole === 'seller') { 
             router.push("/business/dashboard");
           } else if (userRole === 'driver') { 
-            router.push("/home"); // Update when driver dashboard is ready
+            router.push("/driver"); // Update when driver dashboard is ready
           }
         }
       } else {
