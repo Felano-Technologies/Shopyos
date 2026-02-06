@@ -1,5 +1,5 @@
 // context/CartContext.tsx
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 // Define Item Types
 type Product = {
@@ -21,10 +21,28 @@ type CartContextType = {
   cartCount: number;
 };
 
+import { storage } from '../../services/api';
+
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
+  // Load cart on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await storage.getItem('cart');
+        if (stored) setItems(JSON.parse(stored));
+      } catch (e) {
+        console.log("Failed to load cart", e);
+      }
+    })();
+  }, []);
+
+  // Save cart on change
+  useEffect(() => {
+    storage.setItem('cart', JSON.stringify(items)).catch(e => console.log("Failed to save cart", e));
+  }, [items]);
 
   const addToCart = (product: Product) => {
     setItems((prevItems) => {

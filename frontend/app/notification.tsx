@@ -3,17 +3,24 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { getNotifications } from '@/services/api';
 
 const NotificationScreen = () => {
     const navigation = useNavigation();
-    const [notifications, setNotifications] = useState([]);
+    const [notifications, setNotifications] = useState<any[]>([]);
 
-    // Simulate fetching notifications from an API
     useEffect(() => {
-        // Mock notifications (Replace with API call)
-        setTimeout(() => {
-            setNotifications([]); // Empty initially (you can add sample notifications here)
-        }, 1000);
+        const fetchNotifications = async () => {
+            try {
+                const res = await getNotifications();
+                if (res && res.notifications) {
+                    setNotifications(res.notifications);
+                }
+            } catch (error) {
+                console.error("Failed to load notifications", error);
+            }
+        };
+        fetchNotifications();
     }, []);
 
     return (
@@ -28,9 +35,9 @@ const NotificationScreen = () => {
                     <Text style={styles.emptySubtitle}>
                         You’ll get updates on your account and shopping activity here.
                     </Text>
-                    <TouchableOpacity 
-                        style={styles.startShoppingButton} 
-                        onPress={() => router.push('/(tabs)')}
+                    <TouchableOpacity
+                        style={styles.startShoppingButton}
+                        onPress={() => router.push('/')}
                     >
                         <Text style={styles.buttonText}>Start shopping</Text>
                     </TouchableOpacity>
@@ -46,11 +53,11 @@ const NotificationScreen = () => {
                     )}
                 />
             )}
-                <View style={styles.bottomNav}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton}>
-                        <Ionicons name="arrow-back" size={24} color="black" />
-                    </TouchableOpacity>
-               </View>
+            <View style={styles.bottomNav}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.navButton}>
+                    <Ionicons name="arrow-back" size={24} color="black" />
+                </TouchableOpacity>
+            </View>
         </View>
 
     );
@@ -117,7 +124,7 @@ const styles = StyleSheet.create({
         bottom: 50,
         left: 0,
         right: 0,
-        
+
     },
     navButton: {
         alignSelf: 'flex-start',

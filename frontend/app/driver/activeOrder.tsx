@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { getDeliveryDetails, updateDeliveryStatus } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -20,15 +21,36 @@ const ORDER_STEPS = ['Go to Restaurant', 'Confirm Pickup', 'Go to Customer', 'Co
 
 export default function ActiveOrderScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
+  const [delivery, setDelivery] = useState<any>(null);
 
-  const handleProgress = () => {
-    if (step < 3) {
+  useEffect(() => {
+    if (deliveryId) {
+      getDeliveryDetails(deliveryId).then(d => {
+        if (d.success) setDelivery(d.delivery);
+      }).catch(console.error);
+    }
+  }, [deliveryId]);
+
+  const handleProgress = async () => {
+    try {
+      if (step === 1) {
+        // Confirm Pickup
+        await updateDeliveryStatus(deliveryId, 'picked_up');
+      } else if (step === 3) {
+        // Complete Delivery
+        await updateDeliveryStatus(deliveryId, 'delivered');
+        Alert.alert("Order Completed", "Great job! You received ₵25.00", [
+          { text: "OK", onPress: () => router.back() }
+        ]);
+        return;
+      }
       setStep(step + 1);
-    } else {
-      Alert.alert("Order Completed", "Great job! You earned ₵25.00", [
-        { text: "OK", onPress: () => router.back() }
-      ]);
+    } catch (e) {
+      Alert.alert("Error", "Failed to update status");
+      console.error(e);
     }
   };
 
@@ -45,103 +67,107 @@ export default function ActiveOrderScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       {/* --- MAP PLACEHOLDER (Top Half) --- */}
       <View style={styles.mapContainer}>
         {/* Placeholder Map Image - Use an actual MapView in production */}
-        <Image 
-            source={{ uri: 'https://i.imgur.com/83g2v6z.png' }} // Generic Map Image
-            style={styles.mapImage}
+        <Image
+          source={{ uri: 'https://i.imgur.com/83g2v6z.png' }} // Generic Map Image
+          style={styles.mapImage}
         />
-        
+
         {/* Floating Back Button */}
         <SafeAreaView style={styles.safeMapOverlay}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Ionicons name="arrow-back" size={24} color="#0F172A" />
-            </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+          </TouchableOpacity>
         </SafeAreaView>
       </View>
 
       {/* --- BOTTOM SHEET (Order Details) --- */}
       <View style={styles.bottomSheet}>
         <View style={styles.handleBar} />
-        
+
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-            
-            {/* Status Header */}
-            <View style={styles.statusRow}>
-                <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
-                <Text style={styles.timeRemaining}>~ 8 mins</Text>
+
+          {/* Status Header */}
+          <View style={styles.statusRow}>
+            <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
+            <Text style={styles.timeRemaining}>~ 8 mins</Text>
+          </View>
+
+          {/* Address Info */}
+          <View style={styles.locationCard}>
+            <View style={styles.iconCircle}>
+              <MaterialIcons name={step <= 1 ? "storefront" : "location-pin"} size={24} color="#0C1559" />
             </View>
-
-            {/* Address Info */}
-            <View style={styles.locationCard}>
-                <View style={styles.iconCircle}>
-                    <MaterialIcons name={step <= 1 ? "storefront" : "location-pin"} size={24} color="#0C1559" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 15 }}>
-                    <Text style={styles.locationLabel}>{step <= 1 ? "Pick Up At" : "Deliver To"}</Text>
-                    <Text style={styles.locationName}>
-                        {step <= 1 ? "KFC - Asokwa Branch" : "KNUST Campus, Brunei"}
-                    </Text>
-                    <Text style={styles.locationAddress}>
-                        {step <= 1 ? "Kumasi - Accra Rd, near City Mall" : "Room 4B, Block C"}
-                    </Text>
-                </View>
-                <TouchableOpacity style={styles.navBtn}>
-                    <FontAwesome5 name="location-arrow" size={18} color="#FFF" />
-                </TouchableOpacity>
+            <View style={{ flex: 1, marginLeft: 15 }}>
+              <Text style={styles.locationLabel}>{step <= 1 ? "Pick Up At" : "Deliver To"}</Text>
+              <Text style={styles.locationName}>
+                {step <= 1
+                  ? (delivery?.order?.store?.name || "KFC - Asokwa Branch")
+                  : (delivery?.order?.buyer?.name || "KNUST Campus, Brunei")}
+              </Text>
+              <Text style={styles.locationAddress}>
+                {step <= 1
+                  ? (delivery?.pickupAddress || "Kumasi - Accra Rd, near City Mall")
+                  : (delivery?.deliveryAddress || "Room 4B, Block C")}
+              </Text>
             </View>
+            <TouchableOpacity style={styles.navBtn}>
+              <FontAwesome5 name="location-arrow" size={18} color="#FFF" />
+            </TouchableOpacity>
+          </View>
 
-            {/* Customer/Restaurant Contact */}
-            <View style={styles.contactRow}>
-                <View style={styles.customerInfo}>
-                    <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} style={styles.customerImg} />
-                    <View>
-                        <Text style={styles.customerName}>Sarah Mensah</Text>
-                        <Text style={styles.customerRole}>Customer</Text>
-                    </View>
-                </View>
-                <View style={styles.actionButtons}>
-                    <TouchableOpacity style={styles.circleBtn}>
-                        <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}>
-                        <Ionicons name="call-outline" size={22} color="#0C1559" />
-                    </TouchableOpacity>
-                </View>
+          {/* Customer/Restaurant Contact */}
+          <View style={styles.contactRow}>
+            <View style={styles.customerInfo}>
+              <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} style={styles.customerImg} />
+              <View>
+                <Text style={styles.customerName}>{delivery?.order?.buyer?.name || "Sarah Mensah"}</Text>
+                <Text style={styles.customerRole}>Customer</Text>
+              </View>
             </View>
-
-            <View style={styles.divider} />
-
-            {/* Order Items Summary */}
-            <View style={styles.orderSummary}>
-                <Text style={styles.summaryTitle}>Order Details</Text>
-                <View style={styles.orderItem}>
-                    <Text style={styles.qty}>2x</Text>
-                    <Text style={styles.itemName}>Streetwise 2 with Chips</Text>
-                </View>
-                <View style={styles.orderItem}>
-                    <Text style={styles.qty}>1x</Text>
-                    <Text style={styles.itemName}>Coke (500ml)</Text>
-                </View>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity style={styles.circleBtn}>
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}>
+                <Ionicons name="call-outline" size={22} color="#0C1559" />
+              </TouchableOpacity>
             </View>
+          </View>
 
-            <View style={{ height: 80 }} /> 
+          <View style={styles.divider} />
+
+          {/* Order Items Summary */}
+          <View style={styles.orderSummary}>
+            <Text style={styles.summaryTitle}>Order Details</Text>
+            <View style={styles.orderItem}>
+              <Text style={styles.qty}>2x</Text>
+              <Text style={styles.itemName}>Streetwise 2 with Chips</Text>
+            </View>
+            <View style={styles.orderItem}>
+              <Text style={styles.qty}>1x</Text>
+              <Text style={styles.itemName}>Coke (500ml)</Text>
+            </View>
+          </View>
+
+          <View style={{ height: 80 }} />
         </ScrollView>
 
         {/* --- MAIN ACTION BUTTON --- */}
         <View style={styles.footer}>
-            <TouchableOpacity 
-                style={[styles.mainBtn, step === 3 && styles.completeBtn]} 
-                onPress={handleProgress}
-                activeOpacity={0.8}
-            >
-                <Text style={[styles.mainBtnText, step === 3 && { color: '#FFF' }]}>
-                    {getButtonText()}
-                </Text>
-                <Feather name="arrow-right" size={20} color={step === 3 ? "#FFF" : "#0C1559"} />
-            </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.mainBtn, step === 3 && styles.completeBtn]}
+            onPress={handleProgress}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.mainBtnText, step === 3 && { color: '#FFF' }]}>
+              {getButtonText()}
+            </Text>
+            <Feather name="arrow-right" size={20} color={step === 3 ? "#FFF" : "#0C1559"} />
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -150,7 +176,7 @@ export default function ActiveOrderScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
-  
+
   // Map Section
   mapContainer: { height: height * 0.45, width: '100%', backgroundColor: '#E2E8F0' },
   mapImage: { width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.8 },
@@ -163,7 +189,7 @@ const styles = StyleSheet.create({
     marginTop: -30, paddingHorizontal: 24, paddingTop: 10
   },
   handleBar: { width: 40, height: 4, backgroundColor: '#CBD5E1', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  
+
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   statusTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   timeRemaining: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#16A34A', backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },

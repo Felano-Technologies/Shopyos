@@ -270,6 +270,16 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
   }
 };
 
+export const getAllStores = async (params: { search?: string, category?: string } = {}) => {
+  try {
+    const response = await api.get('/business/all', { params });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching all stores:", error);
+    throw error;
+  }
+};
+
 // Get store orders
 export const getStoreOrders = async (storeId: string) => {
   try {
@@ -318,6 +328,27 @@ export const getStoreProducts = async (storeId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching store products", error);
+    throw error;
+  }
+};
+
+// Search products (for customer home page)
+export const searchProducts = async (params: { query?: string, category?: string, limit?: number, offset?: number, sortBy?: string }) => {
+  try {
+    const response = await api.get('/products/search', { params });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error searching products:", error);
+    throw error;
+  }
+};
+
+export const getProductById = async (id: string) => {
+  try {
+    const response = await api.get(`/products/${id}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching product details:", error);
     throw error;
   }
 };
@@ -418,5 +449,142 @@ export const loginBusiness = async (email: string, password: string, latitude: n
       console.error('Error logging in business:', error.message);
       throw new Error(error.message || 'Network error during business login');
     }
+  }
+
+};
+
+// --- Messaging API ---
+
+export const getConversations = async () => {
+  try {
+    const response = await api.get('/messaging/conversations');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching conversations:", error);
+    throw error;
+  }
+};
+
+export const getMessages = async (conversationId: string) => {
+  try {
+    const response = await api.get(`/messaging/conversations/${conversationId}/messages`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching messages:", error);
+    throw error;
+  }
+};
+
+export const sendMessage = async (conversationId: string, content: string) => {
+  try {
+    const response = await api.post(`/messaging/conversations/${conversationId}/messages`, { content });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
+};
+
+export const markConversationRead = async (conversationId: string) => {
+  try {
+    const response = await api.put(`/messaging/conversations/${conversationId}/read`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error marking conversation read:", error);
+    throw error;
+  }
+};
+
+// --- Notifications API ---
+
+export const getNotifications = async () => {
+  try {
+    const response = await api.get('/notifications');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching notifications:", error);
+    throw error;
+  }
+}
+
+export const markNotificationRead = async (notificationId: string) => {
+  try {
+    const response = await api.put(`/notifications/${notificationId}/read`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error marking notification read:", error);
+    throw error;
+  }
+}
+
+export const markAllNotificationsRead = async () => {
+  try {
+    const response = await api.put('/notifications/read-all');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error marking all notifications read:", error);
+    throw error;
+  }
+}
+
+export const getUnreadNotificationCount = async () => {
+  try {
+    const response = await api.get('/notifications/unread-count');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching unread count:", error);
+    throw error;
+  }
+}
+
+// --- Delivery API ---
+
+export const getAvailableDeliveries = async () => {
+  try {
+    const response = await api.get('/deliveries/available');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching available deliveries:", error);
+    throw error;
+  }
+};
+
+export const assignDriver = async (deliveryId: string) => {
+  try {
+    const response = await api.put(`/deliveries/${deliveryId}/assign`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error assigning driver:", error);
+    throw error;
+  }
+};
+
+export const getMyDeliveries = async (status?: string) => {
+  try {
+    const response = await api.get('/deliveries/my-deliveries', { params: { status } });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching my deliveries:", error);
+    throw error;
+  }
+};
+
+export const getDeliveryDetails = async (deliveryId: string) => {
+  try {
+    const response = await api.get(`/deliveries/${deliveryId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching delivery details:", error);
+    throw error;
+  }
+};
+
+export const updateDeliveryStatus = async (deliveryId: string, status: string) => {
+  try {
+    const response = await api.put(`/deliveries/${deliveryId}/status`, { status });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating delivery status:", error);
+    throw error;
   }
 };

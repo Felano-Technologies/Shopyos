@@ -42,7 +42,7 @@ export default function UserProfile() {
         const token = await SecureStore.getItemAsync('userId');
         if (!token) throw new Error('No auth token found');
 
-        const response = await getUserData(token);
+        const response = await getUserData();
         console.log('Fetched user details:', response);
 
         setUser({

@@ -34,46 +34,9 @@ const CATEGORIES = [
   { id: 'c5', label: 'more', image: null },
 ];
 
-const RECENT_PRODUCTS = [
-  {
-    id: 'p1',
-    title: 'The Dad Artwork',
-    category: 'Art',
-    price: 250.0,
-    oldPrice: 350.0,
-    image: require('../assets/images/products/artwork2.jpg'),
-  },
-  {
-    id: 'p2',
-    title: 'Nike Air Force 1 (Long)',
-    category: 'Sneakers',
-    price: 175.0,
-    oldPrice: 300.0,
-    image: require('../assets/images/products/nike.jpg'),
-  },
-];
+import { searchProducts } from '@/services/api';
 
-const FEATURED_ITEMS = [
-  { id: 'f1', title: 'Summer Collection', price: 150.0, image: require('../assets/images/featured/feat1.jpg') },
-  { id: 'f2', title: 'Urban Streetwear', price: 220.0, image: require('../assets/images/featured/feat2.jpg') },
-  { id: 'f3', title: 'Classic Fits', price: 180.0, image: require('../assets/images/featured/feat3.jpg') },
-  { id: 'f4', title: 'New Arrivals', price: 300.0, image: require('../assets/images/featured/feat4.jpg') },
-];
 
-const DEALS_FOR_YOU = [
-  {
-    id: 'd1',
-    title: 'Limited Edition Sneakers',
-    price: 199.0,
-    image: require('../assets/images/products/nike.jpg'),
-  },
-  {
-    id: 'd2',
-    title: 'Artisan Jacket',
-    price: 120.0,
-    image: require('../assets/images/categories/jacket.jpg'),
-  },
-];
 
 export default function Home() {
   const router = useRouter();
@@ -82,9 +45,13 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>('All');
-  
+
   // --- Search State ---
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [recentProducts, setRecentProducts] = useState<any[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
+  const [dealsProducts, setDealsProducts] = useState<any[]>([]);
 
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -92,44 +59,73 @@ export default function Home() {
   // Derived list of chip categories
   const allCategoryNames = ['All', ...CATEGORIES.filter(c => c.label !== 'more').map((c) => c.label)];
 
-  // Filtered recent products (for the Recent tab)
-  const filteredRecent =
-    selectedCat === 'All'
-      ? RECENT_PRODUCTS
-      : RECENT_PRODUCTS.filter((p) => p.category === selectedCat);
+  // --- Search Logic ---
+  // If search query exists, we will hit the API for search results
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // --- Search Logic: Aggregate all items ---
-  const ALL_SEARCHABLE_ITEMS = [...FEATURED_ITEMS, ...RECENT_PRODUCTS, ...DEALS_FOR_YOU];
-  // Deduplicate items based on ID if necessary (simple filter here assumes mostly unique IDs or doesn't mind duplicates if they act as distinct offers)
-  
-  const searchResults = ALL_SEARCHABLE_ITEMS.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  useEffect(() => {
+    if (searchQuery.length > 2) {
+      const delayDebounce = setTimeout(async () => {
+        try {
+          const res = await searchProducts({ query: searchQuery, limit: 10 });
+          if (res.success) setSearchResults(res.products);
+        } catch (e) {
+          console.log("Search error", e);
+        }
+      }, 500);
+      return () => clearTimeout(delayDebounce);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
 
   // --- Auto-scrolling "Featured" FlatList state & ref ---
   const featuredRef = useRef<FlatList<any>>(null);
   const [featuredIndex, setFeaturedIndex] = useState(0);
 
   useEffect(() => {
-    // Simulate data loading
-    setTimeout(() => {
-      setLoading(false);
-      // Initialize animation values
-      const vals = RECENT_PRODUCTS.map(() => new Animated.Value(0));
-      setAnimationValues(vals);
-      // Staggered fade-in
-      const animations = vals.map((anim, i) =>
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 500,
-          delay: i * 200,
-          useNativeDriver: true,
-        })
-      );
-      Animated.stagger(150, animations).start();
-    }, 2000);
+    loadHomePageData();
+  }, [selectedCat]);
 
-    // Fetch location
+  const loadHomePageData = async () => {
+    setLoading(true);
+    try {
+      // Fetch Featured (New Arrivals)
+      const featRes = await searchProducts({ limit: 5, sortBy: 'newest' });
+      if (featRes.success) setFeaturedProducts(featRes.products);
+
+      // Fetch Recent (Filter by category if selected)
+      const catFilter = selectedCat !== 'All' ? selectedCat : undefined;
+      const recentRes = await searchProducts({ limit: 10, offset: 0, category: catFilter });
+      if (recentRes.success) {
+        setRecentProducts(recentRes.products);
+        // Animation values for recent items
+        const vals = recentRes.products.map(() => new Animated.Value(0));
+        setAnimationValues(vals);
+        const animations = vals.map((anim: any, i: number) =>
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 500,
+            delay: i * 100,
+            useNativeDriver: true,
+          })
+        );
+        Animated.stagger(100, animations).start();
+      }
+
+      // Fetch Deals (Cheapest)
+      const dealsRes = await searchProducts({ limit: 5, sortBy: 'price_asc' });
+      if (dealsRes.success) setDealsProducts(dealsRes.products);
+
+    } catch (error) {
+      console.error("Failed to load home data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch location
+  useEffect(() => {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -158,7 +154,8 @@ export default function Home() {
   useEffect(() => {
     const intervalId = setInterval(() => {
       setFeaturedIndex((prev) => {
-        const next = (prev + 1) % FEATURED_ITEMS.length;
+        if (featuredProducts.length === 0) return 0;
+        const next = (prev + 1) % featuredProducts.length;
         if (featuredRef.current) {
           featuredRef.current.scrollToIndex({ index: next, animated: true });
         }
@@ -170,7 +167,7 @@ export default function Home() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 1000));
+    await loadHomePageData();
     setRefreshing(false);
   };
 
@@ -179,92 +176,91 @@ export default function Home() {
     router.push({
       pathname: '/product/details',
       params: {
-        id: item.id,
-        title: item.title,
+        id: item._id, // Use _id from backend
+        title: item.name, // name in backend
         price: item.price,
-        oldPrice: item.oldPrice,
         category: item.category,
-        image: item.image // Passes the number (asset ID)
+        image: item.images?.[0] || 'https://via.placeholder.com/150', // First image URL
+        description: item.description
       }
     });
   };
 
   // --- Render Components ---
 
-  const renderRecent = ({ item, index }: { item: typeof RECENT_PRODUCTS[0]; index: number }) => (
+  const renderRecent = ({ item, index }: { item: any; index: number }) => (
     <Animated.View
       style={{
-        opacity: animationValues[index],
-        transform: [{ scale: animationValues[index].interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) }],
+        opacity: animationValues[index] || 1,
+        transform: [{ scale: animationValues[index]?.interpolate({ inputRange: [0, 1], outputRange: [0.85, 1] }) || 1 }],
         marginRight: 16,
       }}
     >
       <TouchableOpacity
-        style={[styles.productCard, { backgroundColor: '#111827' }]}
+        style={[styles.productCard, { backgroundColor: '#FFF' }]}
         activeOpacity={0.8}
         onPress={() => goToDetails(item)}
       >
-        <Image source={item.image} style={styles.productImage} />
+        <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} style={styles.productImage} />
         <View style={styles.productInfo}>
-          <Text style={[styles.productTitle, { color: '#f3f4f6' }]} numberOfLines={1}>{item.title}</Text>
+          <Text style={[styles.productTitle, { color: '#0F172A' }]} numberOfLines={1}>{item.name}</Text>
           <Text style={[styles.productCategory, { color: '#64748B' }]}>{item.category}</Text>
           <View style={styles.priceRow}>
             <Text style={[styles.currentPrice, { color: '#84cc16' }]}>₵{item.price.toFixed(2)}</Text>
-            <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
           </View>
         </View>
       </TouchableOpacity>
     </Animated.View>
   );
 
-  const renderDeal = ({ item }: { item: typeof DEALS_FOR_YOU[0] }) => (
-    <TouchableOpacity 
-        style={[styles.dealCard, { backgroundColor: '#111827' }]}
-        activeOpacity={0.8}
-        onPress={() => goToDetails(item)}
+  const renderDeal = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={[styles.dealCard, { backgroundColor: '#FFF' }]}
+      activeOpacity={0.8}
+      onPress={() => goToDetails(item)}
     >
-      <Image source={item.image} style={styles.dealImage} />
-      <Text style={[styles.dealTitle, { color: '#f3f4f6' }]} numberOfLines={2}>{item.title}</Text>
+      <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} style={styles.dealImage} />
+      <Text style={[styles.dealTitle, { color: '#0F172A' }]} numberOfLines={2}>{item.name}</Text>
       <Text style={styles.dealPrice}>₵{item.price.toFixed(2)}</Text>
     </TouchableOpacity>
   );
 
-  const renderFeatured = ({ item }: { item: typeof FEATURED_ITEMS[0] }) => (
-    <TouchableOpacity 
-      style={styles.featuredCard} 
+  const renderFeatured = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.featuredCard}
       activeOpacity={0.9}
       onPress={() => goToDetails(item)}
     >
-        <ImageBackground
-            source={item.image}
-            style={styles.featuredImage}
-            imageStyle={{ borderRadius: 16 }}
+      <ImageBackground
+        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+        style={styles.featuredImage}
+        imageStyle={{ borderRadius: 16 }}
+      >
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.6)']}
+          style={styles.featuredOverlay}
         >
-            <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.6)']}
-            style={styles.featuredOverlay}
-            >
-                <View style={styles.featuredTextContainer}>
-                    <Text style={styles.featuredTitle}>{item.title}</Text>
-                    <Text style={styles.featuredPrice}>From ₵{item.price}</Text>
-                </View>
-            </LinearGradient>
-        </ImageBackground>
+          <View style={styles.featuredTextContainer}>
+            <Text style={styles.featuredTitle}>{item.name}</Text>
+            <Text style={styles.featuredPrice}>From ₵{item.price}</Text>
+          </View>
+        </LinearGradient>
+      </ImageBackground>
     </TouchableOpacity>
   );
 
   // New Search Result Item Renderer
   const renderSearchItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.searchResultCard} 
+    <TouchableOpacity
+      style={styles.searchResultCard}
       onPress={() => goToDetails(item)}
       activeOpacity={0.8}
     >
-        <Image source={item.image} style={styles.searchResultImage} />
-        <View style={styles.searchResultInfo}>
-            <Text style={styles.searchResultTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.searchResultPrice}>₵{item.price.toFixed(2)}</Text>
-        </View>
+      <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} style={styles.searchResultImage} />
+      <View style={styles.searchResultInfo}>
+        <Text style={styles.searchResultTitle} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.searchResultPrice}>₵{item.price.toFixed(2)}</Text>
+      </View>
     </TouchableOpacity>
   );
 
@@ -272,7 +268,7 @@ export default function Home() {
     return (
       <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
         <SafeAreaView style={{ flex: 1 }}>
-          <ActivityIndicator size="large" color="#1e3a8a" style={{marginTop: 50}} />
+          <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 50 }} />
         </SafeAreaView>
       </View>
     );
@@ -316,11 +312,11 @@ export default function Home() {
                   {/* Conditional: Clear button if typing, Slider if empty */}
                   {searchQuery.length > 0 ? (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Feather name="x" size={16} color="#FFF" />
+                      <Feather name="x" size={16} color="#FFF" />
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity onPress={() => router.push('/filter')}>
-                        <Feather name="sliders" size={16} color="#FFF" />
+                      <Feather name="sliders" size={16} color="#FFF" />
                     </TouchableOpacity>
                   )}
                 </View>
@@ -337,142 +333,142 @@ export default function Home() {
           {searchQuery.length > 0 ? (
             // --- SEARCH RESULTS VIEW ---
             <View style={styles.searchResultsContainer}>
-                <Text style={styles.sectionTitle}>
-                    Found {searchResults.length} Result{searchResults.length !== 1 ? 's' : ''}
-                </Text>
-                {searchResults.length === 0 ? (
-                    <View style={styles.noResultsContainer}>
-                        <Feather name="frown" size={40} color="#64748B" />
-                        <Text style={styles.noResultsText}>No items found for "{searchQuery}"</Text>
-                    </View>
-                ) : (
-                    <FlatList 
-                        data={searchResults}
-                        keyExtractor={(item, index) => item.id + index} // Ensure unique keys if duplicates exist
-                        renderItem={renderSearchItem}
-                        numColumns={2}
-                        scrollEnabled={false} // Allow parent ScrollView to handle scrolling
-                        columnWrapperStyle={{ justifyContent: 'space-between' }}
-                        contentContainerStyle={{ marginTop: 10 }}
-                    />
-                )}
+              <Text style={styles.sectionTitle}>
+                Found {searchResults.length} Result{searchResults.length !== 1 ? 's' : ''}
+              </Text>
+              {searchResults.length === 0 ? (
+                <View style={styles.noResultsContainer}>
+                  <Feather name="frown" size={40} color="#64748B" />
+                  <Text style={styles.noResultsText}>No items found for "{searchQuery}"</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={searchResults}
+                  keyExtractor={(item) => item._id}
+                  renderItem={renderSearchItem}
+                  numColumns={2}
+                  scrollEnabled={false} // Allow parent ScrollView to handle scrolling
+                  columnWrapperStyle={{ justifyContent: 'space-between' }}
+                  contentContainerStyle={{ marginTop: 10 }}
+                />
+              )}
             </View>
           ) : (
             // --- DEFAULT HOME VIEW ---
             <>
-                {/* Banner */}
-                <Animated.View
-                    style={[
-                    styles.bannerContainer,
-                    {
-                        transform: [
-                        {
-                            translateY: scrollY.interpolate({
-                            inputRange: [-100, 0, 100],
-                            outputRange: [-50, 0, 50],
-                            extrapolate: 'clamp',
-                            }),
-                        },
-                        ],
-                    },
-                    ]}
+              {/* Banner */}
+              <Animated.View
+                style={[
+                  styles.bannerContainer,
+                  {
+                    transform: [
+                      {
+                        translateY: scrollY.interpolate({
+                          inputRange: [-100, 0, 100],
+                          outputRange: [-50, 0, 50],
+                          extrapolate: 'clamp',
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPress={() => router.push({ pathname: '/product/details', params: { title: 'Special Offer', price: 99, image: require('../assets/images/banner1.png') } })}
+                  style={{ flex: 1 }}
                 >
-                    <TouchableOpacity 
-                        activeOpacity={0.9} 
-                        onPress={() => router.push({ pathname: '/product/details', params: { title: 'Special Offer', price: 99, image: require('../assets/images/banner1.png') }})}
-                        style={{ flex: 1 }}
-                    >
-                        <ImageBackground
-                        source={require('../assets/images/banner1.png')}
-                        style={styles.bannerImageBg}
-                        imageStyle={{ borderRadius: 16 }}
-                        />
-                    </TouchableOpacity>
-                </Animated.View>
+                  <ImageBackground
+                    source={require('../assets/images/banner1.png')}
+                    style={styles.bannerImageBg}
+                    imageStyle={{ borderRadius: 16 }}
+                  />
+                </TouchableOpacity>
+              </Animated.View>
 
-                {/* Category Chips */}
-                <View style={styles.chipsContainer}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    {allCategoryNames.map((cat) => {
-                        const isActive = selectedCat === cat;
-                        return (
-                        <TouchableOpacity key={cat} onPress={() => setSelectedCat(cat)}>
-                            <View style={[styles.chip, { backgroundColor: isActive ? '#84cc16' : '#FFF', borderColor: isActive ? '#84cc16' : '#1e3a8a' }]}>
-                            <Text style={[styles.chipText, { color: isActive ? '#111827' : '#64748B' }]}>{cat}</Text>
-                            </View>
-                        </TouchableOpacity>
-                        );
-                    })}
-                    </ScrollView>
-                </View>
+              {/* Category Chips */}
+              <View style={styles.chipsContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {allCategoryNames.map((cat) => {
+                    const isActive = selectedCat === cat;
+                    return (
+                      <TouchableOpacity key={cat} onPress={() => setSelectedCat(cat)}>
+                        <View style={[styles.chip, { backgroundColor: isActive ? '#84cc16' : '#FFF', borderColor: isActive ? '#84cc16' : '#1e3a8a' }]}>
+                          <Text style={[styles.chipText, { color: isActive ? '#111827' : '#64748B' }]}>{cat}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
 
-                {/* Featured "Carousel" */}
-                <View style={{ paddingTop: 10 }}>
-                    <FlatList
-                    ref={featuredRef}
-                    data={FEATURED_ITEMS}
-                    keyExtractor={(item) => item.id}
-                    horizontal
-                    pagingEnabled={false}
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{ paddingHorizontal: 16 }}
-                    renderItem={renderFeatured}
-                    getItemLayout={(_, index) => ({
-                        length: width - 16,
-                        offset: (width - 16) * index,
-                        index,
-                    })}
-                    />
-                </View>
-
-                {/* Recently Added */}
-                <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: '#222' }]}>Recently Added</Text>
-                    <TouchableOpacity onPress={() => router.push('/recent')}>
-                    <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
-                    </TouchableOpacity>
-                </View>
+              {/* Featured "Carousel" */}
+              <View style={{ paddingTop: 10 }}>
                 <FlatList
-                    data={filteredRecent}
-                    keyExtractor={(item) => item.id}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.recentList}
-                    renderItem={renderRecent}
+                  ref={featuredRef}
+                  data={featuredProducts}
+                  keyExtractor={(item) => item._id}
+                  horizontal
+                  pagingEnabled={false}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ paddingHorizontal: 16 }}
+                  renderItem={renderFeatured}
+                  getItemLayout={(_, index) => ({
+                    length: width - 16,
+                    offset: (width - 16) * index,
+                    index,
+                  })}
                 />
+              </View>
 
-                {/* Deals for You */}
-                <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionTitle, { color: '#222' }]}>Deals for You</Text>
-                    <TouchableOpacity onPress={() => router.push('/deals')}>
-                    <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
-                    </TouchableOpacity>
-                </View>
-                <FlatList
-                    data={DEALS_FOR_YOU}
-                    keyExtractor={(item) => item.id}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.dealsList}
-                    renderItem={renderDeal}
-                />
+              {/* Recently Added */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: '#222' }]}>Recently Added</Text>
+                <TouchableOpacity onPress={() => router.push('/recent')}>
+                  <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={recentProducts}
+                keyExtractor={(item) => item._id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recentList}
+                renderItem={renderRecent}
+              />
+
+              {/* Deals for You */}
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: '#222' }]}>Deals for You</Text>
+                <TouchableOpacity onPress={() => router.push('/deals')}>
+                  <Text style={[styles.seeAllText, { color: '#64748B' }]}>See All</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={dealsProducts}
+                keyExtractor={(item) => item._id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.dealsList}
+                renderItem={renderDeal}
+              />
             </>
           )}
         </Animated.ScrollView>
 
         {/* Floating Chat Button */}
-        <TouchableOpacity 
-            style={styles.floatingChatBtn}
-            onPress={() => router.push('/chat')} 
-            activeOpacity={0.8}
+        <TouchableOpacity
+          style={styles.floatingChatBtn}
+          onPress={() => router.push('/chat')}
+          activeOpacity={0.8}
         >
-            <LinearGradient
-                colors={['#0C1559', '#1e3a8a']}
-                style={styles.floatingGradient}
-            >
-                <MaterialCommunityIcons name="chat-processing" size={28} color="#FFF" />
-                <View style={styles.unreadChatDot} />
-            </LinearGradient>
+          <LinearGradient
+            colors={['#0C1559', '#1e3a8a']}
+            style={styles.floatingGradient}
+          >
+            <MaterialCommunityIcons name="chat-processing" size={28} color="#FFF" />
+            <View style={styles.unreadChatDot} />
+          </LinearGradient>
         </TouchableOpacity>
 
         {/* Bottom Background & Nav */}
@@ -502,7 +498,7 @@ const styles = StyleSheet.create({
   topSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   locationText: { fontSize: 14, fontWeight: '500', marginLeft: 4, marginRight: 2 },
-  
+
   logoSearchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   logoContainer: { flexDirection: 'row', alignItems: 'center' },
   logoImage: { width: 99, height: 32 },
@@ -510,14 +506,14 @@ const styles = StyleSheet.create({
   searchAndIcons: { flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 12 },
   searchInputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, marginRight: 10 },
   searchInput: { flex: 1, marginLeft: 8, marginRight: 8, height: 24, fontSize: 13 },
-  
+
   notificationIcon: { position: 'relative', padding: 4 },
   notificationDot: { position: 'absolute', top: 4, right: 4, width: 8, height: 8, borderRadius: 4, backgroundColor: '#ff0101ff' },
 
   // Banner
   bannerContainer: { marginHorizontal: 16, marginTop: 12, height: 180, overflow: 'hidden', borderRadius: 16 },
   bannerImageBg: { flex: 1, width: '100%', height: '100%' },
-  
+
   // Chips
   chipsContainer: { paddingHorizontal: 16, paddingVertical: 12 },
   chip: { paddingVertical: 8, paddingHorizontal: 16, marginRight: 10, borderWidth: 1, borderRadius: 20, elevation: 1 },
@@ -526,7 +522,7 @@ const styles = StyleSheet.create({
   // Featured
   featuredCard: { width: width - 32, height: 150, borderRadius: 16, marginRight: 16, overflow: 'hidden', elevation: 3 },
   featuredImage: { width: '100%', height: '100%' },
-  featuredOverlay: { flex: 1, borderRadius: 16, justifyContent:'flex-end' },
+  featuredOverlay: { flex: 1, borderRadius: 16, justifyContent: 'flex-end' },
   featuredTextContainer: { padding: 16 },
   featuredTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
   featuredPrice: { fontSize: 14, color: '#84cc16', fontWeight: 'bold' },

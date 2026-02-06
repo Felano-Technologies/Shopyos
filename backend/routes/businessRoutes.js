@@ -12,12 +12,14 @@ const {
   uploadLogo,
   uploadBanner,
   getBusinessDashboard,
-  getBusinessAnalytics
+  getBusinessAnalytics,
+  getAllBusinesses
 } = require('../controllers/businessController');
 
 // Business routes
 router.post('/create', protect, createBusiness);
 router.get('/my-businesses', protect, getMyBusinesses);
+router.get('/all', protect, getAllBusinesses);
 router.get('/:id', protect, getBusinessById);
 router.put('/update/:id', protect, updateBusiness);
 router.delete('/:id', protect, deleteBusiness);

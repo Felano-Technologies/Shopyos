@@ -1,5 +1,5 @@
 // app/stores.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,38 +17,53 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import BottomNav from '@/components/BottomNav';
+import { getAllStores } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
-// --- Mock Data ---
 const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Fashion', 'Home'];
-
-const POPULAR_STORES = [
-  { id: 'ps1', name: 'EcoMarket', category: 'Grocery', rating: 4.8, logo: require('../assets/images/stores/ecomarket.jpg') },
-  { id: 'ps2', name: 'Anokye Mart', category: 'Grocery', rating: 4.5, logo: require('../assets/images/stores/anokyemart.jpg') },
-  { id: 'ps3', name: 'Astro Tech', category: 'Electronics', rating: 4.9, logo: require('../assets/images/stores/astrotech.jpg') },
-  { id: 'ps4', name: 'BBQ City', category: 'Food', rating: 4.7, logo: require('../assets/images/stores/bbq.jpg') },
-];
-
-const ALL_STORES = [
-  { id: 'as1', name: 'Astro Technologies', category: 'Electronics', catalogues: 12, rating: 4.9, logo: require('../assets/images/stores/astrotech.jpg') },
-  { id: 'as2', name: 'Anokye Mart', category: 'Grocery', catalogues: 8, rating: 4.5, logo: require('../assets/images/stores/anokyemart.jpg') },
-  { id: 'as3', name: 'EcoMarket', category: 'Grocery', catalogues: 15, rating: 4.8, logo: require('../assets/images/stores/ecomarket.jpg') },
-  { id: 'as4', name: 'Style Loft', category: 'Fashion', catalogues: 5, rating: 4.2, logo: require('../assets/images/stores/bbq.jpg') },
-  { id: 'as5', name: 'Home Essentials', category: 'Home', catalogues: 20, rating: 4.6, logo: require('../assets/images/stores/ecomarket.jpg') },
-];
 
 export default function StoresScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
 
-  // --- Filtering Logic ---
-  const filteredStores = ALL_STORES.filter((store) => {
-    const matchesSearch = store.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === 'All' || store.category === activeCategory;
-    return searchQuery.length > 0 ? matchesSearch : matchesCategory;
-  });
+  const [stores, setStores] = useState<any[]>([]);
+  const [popularStores, setPopularStores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // --- Data Fetching ---
+  useEffect(() => {
+    fetchStores();
+  }, [activeCategory, searchQuery]);
+
+  const fetchStores = async () => {
+    try {
+      setLoading(true);
+      const res = await getAllStores({
+        search: searchQuery || undefined,
+        category: activeCategory !== 'All' ? activeCategory : undefined
+      });
+      if (res.success) {
+        const mapped = res.businesses.map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          category: b.category,
+          rating: b.rating || 4.5,
+          logo: b.logo ? { uri: b.logo } : require('../assets/images/icon.png'),
+          catalogues: b.catalogues || 0
+        }));
+        setStores(mapped);
+
+        // Simple client-side popular filter for now
+        setPopularStores(mapped.slice(0, 5));
+      }
+    } catch (e) {
+      console.error("Error fetching stores", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const isSearching = searchQuery.length > 0;
 
@@ -67,16 +82,16 @@ export default function StoresScreen() {
 
   // --- Render Items ---
   const renderPopularCard = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.popularCard} 
+    <TouchableOpacity
+      style={styles.popularCard}
       activeOpacity={0.8}
       onPress={() => handleVisitStore(item)}
     >
       <View style={styles.popularImageContainer}>
         <Image source={item.logo} style={styles.popularLogo} />
         <View style={styles.ratingBadge}>
-            <Ionicons name="star" size={10} color="#FFF" />
-            <Text style={styles.ratingText}>{item.rating}</Text>
+          <Ionicons name="star" size={10} color="#FFF" />
+          <Text style={styles.ratingText}>{item.rating}</Text>
         </View>
       </View>
       <Text style={styles.popularName} numberOfLines={1}>{item.name}</Text>
@@ -85,23 +100,23 @@ export default function StoresScreen() {
   );
 
   const renderStoreRow = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.storeRow} 
+    <TouchableOpacity
+      style={styles.storeRow}
       activeOpacity={0.7}
       onPress={() => handleVisitStore(item)} // Clicking row visits store
     >
       <Image source={item.logo} style={styles.storeRowLogo} />
-      
+
       <View style={styles.storeRowInfo}>
         <Text style={styles.storeRowName}>{item.name}</Text>
         <View style={styles.storeRowMeta}>
-            <Text style={styles.storeRowCategory}>{item.category}</Text>
-            <View style={styles.dotSeparator} />
-            <Text style={styles.storeRowCatalogues}>{item.catalogues} items</Text>
+          <Text style={styles.storeRowCategory}>{item.category}</Text>
+          <View style={styles.dotSeparator} />
+          <Text style={styles.storeRowCatalogues}>{item.catalogues} items</Text>
         </View>
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.visitButton}
         onPress={() => handleVisitStore(item)} // Clicking button visits store
       >
@@ -116,12 +131,12 @@ export default function StoresScreen() {
       <View style={styles.container}>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-          
+
           {/* Header */}
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Stores</Text>
             <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="notifications-outline" size={24} color="#0C1559" />
+              <Ionicons name="notifications-outline" size={24} color="#0C1559" />
             </TouchableOpacity>
           </View>
 
@@ -138,7 +153,7 @@ export default function StoresScreen() {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
                 </TouchableOpacity>
               )}
             </View>
@@ -148,33 +163,33 @@ export default function StoresScreen() {
           </View>
 
           <FlatList
-            data={filteredStores}
+            data={stores}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            
+
             ListHeaderComponent={
               !isSearching ? (
                 <>
                   {/* Category Toggles */}
                   <View style={styles.categoryContainer}>
-                    <FlatList 
-                        horizontal
-                        data={CATEGORIES}
-                        keyExtractor={(item) => item}
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={{ paddingHorizontal: 20 }}
-                        renderItem={({ item }) => {
-                            const isActive = activeCategory === item;
-                            return (
-                                <TouchableOpacity 
-                                    style={[styles.catChip, isActive && styles.catChipActive]}
-                                    onPress={() => setActiveCategory(item)}
-                                >
-                                    <Text style={[styles.catText, isActive && styles.catTextActive]}>{item}</Text>
-                                </TouchableOpacity>
-                            )
-                        }}
+                    <FlatList
+                      horizontal
+                      data={CATEGORIES}
+                      keyExtractor={(item) => item}
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={{ paddingHorizontal: 20 }}
+                      renderItem={({ item }) => {
+                        const isActive = activeCategory === item;
+                        return (
+                          <TouchableOpacity
+                            style={[styles.catChip, isActive && styles.catChipActive]}
+                            onPress={() => setActiveCategory(item)}
+                          >
+                            <Text style={[styles.catText, isActive && styles.catTextActive]}>{item}</Text>
+                          </TouchableOpacity>
+                        )
+                      }}
                     />
                   </View>
 
@@ -182,11 +197,11 @@ export default function StoresScreen() {
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Popular Stores</Text>
                     <TouchableOpacity>
-                        <Text style={styles.seeAll}>See All</Text>
+                      <Text style={styles.seeAll}>See All</Text>
                     </TouchableOpacity>
                   </View>
                   <FlatList
-                    data={POPULAR_STORES}
+                    data={popularStores}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.popularList}
@@ -201,9 +216,9 @@ export default function StoresScreen() {
                 </>
               ) : (
                 <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>
-                        {filteredStores.length} Result{filteredStores.length !== 1 ? 's' : ''}
-                    </Text>
+                  <Text style={styles.sectionTitle}>
+                    {stores.length} Result{stores.length !== 1 ? 's' : ''}
+                  </Text>
                 </View>
               )
             }
@@ -211,10 +226,10 @@ export default function StoresScreen() {
             renderItem={renderStoreRow}
 
             ListEmptyComponent={
-                <View style={styles.emptyState}>
-                    <MaterialIcons name="storefront" size={64} color="#CBD5E1" />
-                    <Text style={styles.emptyText}>No stores found matching "{searchQuery}"</Text>
-                </View>
+              <View style={styles.emptyState}>
+                <MaterialIcons name="storefront" size={64} color="#CBD5E1" />
+                <Text style={styles.emptyText}>No stores found matching "{searchQuery}"</Text>
+              </View>
             }
           />
 

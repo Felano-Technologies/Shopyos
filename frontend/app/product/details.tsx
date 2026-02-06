@@ -1,5 +1,5 @@
 // app/product/details.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCart } from '../context/CartContext';
+import { getProductById } from '@/services/api';
 
 const { height } = Dimensions.get('window');
 
@@ -25,41 +26,60 @@ export default function ProductDetails() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { addToCart } = useCart();
-  
+
   const [isLiked, setIsLiked] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
 
-  const product = {
+  const [product, setProduct] = useState({
     id: params.id as string,
     title: params.title as string,
     category: params.category as string,
     price: params.price ? parseFloat(params.price as string) : 0,
     oldPrice: params.oldPrice ? parseFloat(params.oldPrice as string) : null,
-    description: "Experience premium comfort and style with this limited edition item. Crafted from high-quality materials, it offers durability and a sleek look perfect for any occasion.",
-    sellerName: "Urban Trends Store",
-    sellerPhone: "+233546732719", 
-    image: params.image ? Number(params.image) : null,
-  };
+    description: (params.description as string) || "Loading...",
+    sellerName: "Loading...",
+    sellerPhone: "",
+    image: params.image as string,
+  });
+
+  useEffect(() => {
+    if (params.id) {
+      getProductById(params.id as string).then((res) => {
+        if (res.success) {
+          setProduct((prev) => ({
+            ...prev,
+            title: res.product.name,
+            description: res.product.description,
+            price: res.product.price,
+            category: res.product.category,
+            image: res.product.images?.[0] || prev.image,
+            sellerName: res.product.store?.name || "Verified Seller",
+            // Add other fields if needed
+          }));
+        }
+      }).catch(err => console.log("Error loading product details", err));
+    }
+  }, [params.id]);
 
   // --- UPDATED: Direct Navigation to Chat ---
   const handleChat = () => {
     router.push({
-        pathname: '/chat/conversation',
-        params: {
-            recipientName: product.sellerName,
-            productName: product.title,
-            productId: product.id
-        }
+      pathname: '/chat/conversation',
+      params: {
+        recipientName: product.sellerName,
+        productName: product.title,
+        productId: product.id
+      }
     });
   };
 
   const handleAddToCart = () => {
     addToCart({
-        id: product.id,
-        title: product.title,
-        price: product.price,
-        image: product.image,
-        category: product.category
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image: product.image,
+      category: product.category
     });
     setSuccessModalVisible(true);
   };
@@ -67,7 +87,7 @@ export default function ProductDetails() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
@@ -80,78 +100,86 @@ export default function ProductDetails() {
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          
+
           {/* Header & Image Section */}
           <View style={styles.imageHeaderContainer}>
-            {product.image && <Image source={product.image} style={styles.productImage} resizeMode="cover" />}
+            {product.image && (
+              <Image
+                source={typeof product.image === 'string' && (product.image.startsWith('http') || product.image.startsWith('file'))
+                  ? { uri: product.image }
+                  : (typeof product.image === 'number' ? product.image : { uri: product.image })}
+                style={styles.productImage}
+                resizeMode="cover"
+              />
+            )}
             <View style={styles.headerOverlay}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#0C1559" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsLiked(!isLiked)} style={styles.iconBtn}>
-                    <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
-                </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+                <Ionicons name="arrow-back" size={24} color="#0C1559" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setIsLiked(!isLiked)} style={styles.iconBtn}>
+                <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
+              </TouchableOpacity>
             </View>
           </View>
 
           {/* Details Card */}
           <View style={styles.detailsCard}>
-             <View style={styles.handleBar} />
-             
-             <View style={styles.metaRow}>
-                <View style={styles.categoryBadge}>
-                    <Text style={styles.categoryText}>{product.category || 'General'}</Text>
-                </View>
-                <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={16} color="#FACC15" />
-                    <Text style={styles.ratingText}>4.8 (120 reviews)</Text>
-                </View>
-             </View>
+            <View style={styles.handleBar} />
 
-             <Text style={styles.title}>{product.title}</Text>
-             <View style={styles.priceRow}>
-                <Text style={styles.price}>₵{product.price.toFixed(2)}</Text>
-                {product.oldPrice && (
-                    <Text style={styles.oldPrice}>₵{product.oldPrice.toFixed(2)}</Text>
-                )}
-             </View>
+            <View style={styles.metaRow}>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{product.category || 'General'}</Text>
+              </View>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={16} color="#FACC15" />
+                <Text style={styles.ratingText}>4.8 (120 reviews)</Text>
+              </View>
+            </View>
 
-             <Text style={styles.sectionTitle}>Description</Text>
-             <Text style={styles.description}>{product.description}</Text>
+            <Text style={styles.title}>{product.title}</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>₵{product.price.toFixed(2)}</Text>
+              {product.oldPrice && (
+                <Text style={styles.oldPrice}>₵{product.oldPrice.toFixed(2)}</Text>
+              )}
+            </View>
 
-             <View style={styles.sellerContainer}>
-                <View style={styles.sellerInfo}>
-                    <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} style={styles.sellerAvatar} />
-                    <View>
-                        <Text style={styles.sellerLabel}>Sold by</Text>
-                        <Text style={styles.sellerName}>{product.sellerName}</Text>
-                    </View>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={styles.description}>{product.description}</Text>
+
+            <View style={styles.sellerContainer}>
+              <View style={styles.sellerInfo}>
+                <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} style={styles.sellerAvatar} />
+                <View>
+                  <Text style={styles.sellerLabel}>Sold by</Text>
+                  <Text style={styles.sellerName}>{product.sellerName}</Text>
                 </View>
-                <TouchableOpacity style={styles.visitBtn}>
-                    <Text style={styles.visitText}>Visit Store</Text>
-                </TouchableOpacity>
-             </View>
+              </View>
+              <TouchableOpacity style={styles.visitBtn}>
+                <Text style={styles.visitText}>Visit Store</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </SafeAreaView>
 
       {/* Bottom Action Bar */}
       <View style={styles.bottomBar}>
-         <TouchableOpacity style={styles.chatBtn} onPress={handleChat}>
-            <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0C1559" />
-            <Text style={styles.chatText}>Chat</Text>
-         </TouchableOpacity>
+        <TouchableOpacity style={styles.chatBtn} onPress={handleChat}>
+          <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0C1559" />
+          <Text style={styles.chatText}>Chat</Text>
+        </TouchableOpacity>
 
-         <TouchableOpacity style={styles.cartBtn} onPress={handleAddToCart}>
-            <LinearGradient
-                colors={['#0C1559', '#1e3a8a']}
-                style={styles.cartGradient}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            >
-                <Feather name="shopping-cart" size={20} color="#FFF" />
-                <Text style={styles.cartText}>Add to Cart</Text>
-            </LinearGradient>
-         </TouchableOpacity>
+        <TouchableOpacity style={styles.cartBtn} onPress={handleAddToCart}>
+          <LinearGradient
+            colors={['#0C1559', '#1e3a8a']}
+            style={styles.cartGradient}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+          >
+            <Feather name="shopping-cart" size={20} color="#FFF" />
+            <Text style={styles.cartText}>Add to Cart</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
 
       {/* --- CUSTOM SUCCESS MODAL --- */}
@@ -162,44 +190,44 @@ export default function ProductDetails() {
         onRequestClose={() => setSuccessModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                
-                {/* Success Icon */}
-                <View style={styles.successIconContainer}>
-                    <Feather name="check" size={32} color="#FFF" />
-                </View>
+          <View style={styles.modalContent}>
 
-                <Text style={styles.modalTitle}>Success!</Text>
-                <Text style={styles.modalMessage}>
-                    <Text style={{fontWeight: '700'}}>{product.title}</Text> has been added to your cart.
-                </Text>
-
-                <View style={styles.modalActions}>
-                    <TouchableOpacity 
-                        style={styles.continueBtn} 
-                        onPress={() => setSuccessModalVisible(false)}
-                    >
-                        <Text style={styles.continueText}>Continue Shopping</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.viewCartBtn} 
-                        onPress={() => {
-                            setSuccessModalVisible(false);
-                            router.push('/cart');
-                        }}
-                    >
-                        <LinearGradient
-                            colors={['#0C1559', '#1e3a8a']}
-                            style={styles.viewCartGradient}
-                            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                        >
-                            <Text style={styles.viewCartText}>View Cart</Text>
-                            <Feather name="arrow-right" size={16} color="#FFF" />
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
+            {/* Success Icon */}
+            <View style={styles.successIconContainer}>
+              <Feather name="check" size={32} color="#FFF" />
             </View>
+
+            <Text style={styles.modalTitle}>Success!</Text>
+            <Text style={styles.modalMessage}>
+              <Text style={{ fontWeight: '700' }}>{product.title}</Text> has been added to your cart.
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.continueBtn}
+                onPress={() => setSuccessModalVisible(false)}
+              >
+                <Text style={styles.continueText}>Continue Shopping</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.viewCartBtn}
+                onPress={() => {
+                  setSuccessModalVisible(false);
+                  router.push('/cart');
+                }}
+              >
+                <LinearGradient
+                  colors={['#0C1559', '#1e3a8a']}
+                  style={styles.viewCartGradient}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.viewCartText}>View Cart</Text>
+                  <Feather name="arrow-right" size={16} color="#FFF" />
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -210,7 +238,7 @@ export default function ProductDetails() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F0F4FC' },
   scrollContent: { paddingBottom: 100 },
-  
+
   // Header
   imageHeaderContainer: { height: height * 0.45, width: '100%', position: 'relative' },
   productImage: { width: '100%', height: '100%' },
@@ -231,7 +259,7 @@ const styles = StyleSheet.create({
   oldPrice: { fontSize: 16, fontFamily: 'Montserrat-Regular', color: '#94A3B8', textDecorationLine: 'line-through', marginLeft: 12, marginBottom: 4 },
   sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
   description: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', lineHeight: 22, marginBottom: 24 },
-  
+
   // Seller
   sellerContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 12, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: '#E2E8F0' },
   sellerInfo: { flexDirection: 'row', alignItems: 'center' },

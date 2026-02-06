@@ -14,58 +14,62 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/api';
+import { format, isToday, isYesterday } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 
-// --- Mock Data ---
-const INITIAL_NOTIFICATIONS = [
-  {
-    title: 'Today',
-    data: [
-      {
-        id: '1',
-        type: 'order',
-        title: 'New Order Received',
-        message: 'Order #ORD-2481 placed by John Doe for ₵61.00.',
-        time: '2m ago',
-        read: false,
-      },
-      {
-        id: '2',
-        type: 'alert',
-        title: 'Low Stock Alert',
-        message: 'Nike Air Force 1 is running low on stock (Only 3 left).',
-        time: '1h ago',
-        read: false,
-      },
-    ],
-  },
-  {
-    title: 'Yesterday',
-    data: [
-      {
-        id: '3',
-        type: 'success',
-        title: 'Payout Processed',
-        message: 'Your withdrawal of ₵500.00 has been successfully processed.',
-        time: 'Yesterday',
-        read: true,
-      },
-      {
-        id: '4',
-        type: 'info',
-        title: 'Profile Updated',
-        message: 'Your business profile details were successfully updated.',
-        time: 'Yesterday',
-        read: true,
-      },
-    ],
-  },
-];
+// --- Real Data ---
+
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchNotificationsData = async () => {
+    try {
+      const response = await getNotifications();
+      if (response && response.notifications) {
+        // Group by date
+        const groupedArray: any[] = [];
+        const today: any[] = [];
+        const yesterday: any[] = [];
+        const earlier: any[] = [];
+
+        response.notifications.forEach((n: any) => {
+          const date = new Date(n.created_at);
+          const item = {
+            id: n.id,
+            type: n.type || 'info', // Map backend types if needed
+            title: n.title,
+            message: n.message,
+            time: format(date, 'h:mm a'),
+            read: n.read,
+            fullDate: date
+          };
+
+          if (isToday(date)) today.push(item);
+          else if (isYesterday(date)) yesterday.push(item);
+          else earlier.push(item);
+        });
+
+        if (today.length > 0) groupedArray.push({ title: 'Today', data: today });
+        if (yesterday.length > 0) groupedArray.push({ title: 'Yesterday', data: yesterday });
+        if (earlier.length > 0) groupedArray.push({ title: 'Earlier', data: earlier });
+
+        setNotifications(groupedArray);
+      }
+    } catch (error) {
+      console.error("Failed to load notifications", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchNotificationsData();
+  }, []);
 
   // --- Logic ---
   const getIcon = (type: string) => {
@@ -77,29 +81,36 @@ export default function NotificationsScreen() {
     }
   };
 
-  const handleMarkAllRead = () => {
-    const updated = notifications.map(section => ({
-      ...section,
-      data: section.data.map(item => ({ ...item, read: true }))
-    }));
-    setNotifications(updated);
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      fetchNotificationsData();
+    } catch (error) {
+      console.error("Failed to mark all read", error);
+    }
   };
 
-  const handleItemPress = (id: string) => {
-    // Logic to mark single item read
+  const handleItemPress = async (id: string) => {
+    // Optimistic update
     const updated = notifications.map(section => ({
       ...section,
-      data: section.data.map(item => item.id === id ? { ...item, read: true } : item)
+      data: section.data.map((item: any) => item.id === id ? { ...item, read: true } : item)
     }));
     setNotifications(updated);
+
+    try {
+      await markNotificationRead(id);
+    } catch (error) {
+      console.error("Failed to mark read", error);
+    }
   };
 
   // --- Render Components ---
   const renderSectionHeader = ({ section: { title } }: any) => (
     <View style={styles.sectionHeaderContainer}>
-        <View style={styles.sectionPill}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-        </View>
+      <View style={styles.sectionPill}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+      </View>
     </View>
   );
 
@@ -108,33 +119,33 @@ export default function NotificationsScreen() {
     const isLastItem = index === section.data.length - 1;
 
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[
-            styles.card, 
-            !item.read && styles.unreadCard,
-            isLastItem && { marginBottom: 24 }
-        ]} 
+          styles.card,
+          !item.read && styles.unreadCard,
+          isLastItem && { marginBottom: 24 }
+        ]}
         activeOpacity={0.7}
         onPress={() => handleItemPress(item.id)}
       >
         <View style={styles.cardContent}>
-            {/* Icon Column */}
-            <View style={[styles.iconBox, { backgroundColor: bg, borderColor: borderColor }]}>
-                <Feather name={name as any} size={18} color={color} />
-            </View>
+          {/* Icon Column */}
+          <View style={[styles.iconBox, { backgroundColor: bg, borderColor: borderColor }]}>
+            <Feather name={name as any} size={18} color={color} />
+          </View>
 
-            {/* Text Column */}
-            <View style={styles.textContainer}>
-                <View style={styles.titleRow}>
-                    <Text style={[styles.cardTitle, !item.read && styles.unreadText]}>
-                        {item.title}
-                    </Text>
-                    <Text style={styles.timeText}>{item.time}</Text>
-                </View>
-                <Text style={[styles.messageText, !item.read ? styles.unreadMessage : styles.readMessage]} numberOfLines={2}>
-                    {item.message}
-                </Text>
+          {/* Text Column */}
+          <View style={styles.textContainer}>
+            <View style={styles.titleRow}>
+              <Text style={[styles.cardTitle, !item.read && styles.unreadText]}>
+                {item.title}
+              </Text>
+              <Text style={styles.timeText}>{item.time}</Text>
             </View>
+            <Text style={[styles.messageText, !item.read ? styles.unreadMessage : styles.readMessage]} numberOfLines={2}>
+              {item.message}
+            </Text>
+          </View>
         </View>
 
         {/* Unread Indicator Status Bar (Left side) */}
@@ -158,45 +169,45 @@ export default function NotificationsScreen() {
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        
+
         {/* --- Header Section --- */}
         <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.headerContainer}
+          colors={['#0C1559', '#1e3a8a']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.headerContainer}
         >
-            <View style={styles.headerRow}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#FFF" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Notifications</Text>
-                
-                <TouchableOpacity style={styles.markReadBtn} onPress={handleMarkAllRead}>
-                    <Ionicons name="checkmark-done-circle-outline" size={26} color="#FFF" />
-                </TouchableOpacity>
-            </View>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Notifications</Text>
+
+            <TouchableOpacity style={styles.markReadBtn} onPress={handleMarkAllRead}>
+              <Ionicons name="checkmark-done-circle-outline" size={26} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </LinearGradient>
 
         {/* --- List --- */}
         <View style={styles.listContainer}>
-            <SectionList
-                sections={notifications}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                renderSectionHeader={renderSectionHeader}
-                contentContainerStyle={styles.scrollContent}
-                stickySectionHeadersEnabled={false}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={() => (
-                    <View style={styles.emptyState}>
-                        <View style={styles.emptyIconBox}>
-                            <Feather name="bell-off" size={32} color="#94A3B8" />
-                        </View>
-                        <Text style={styles.emptyTitle}>No Notifications</Text>
-                        <Text style={styles.emptySub}>You're all caught up! Check back later.</Text>
-                    </View>
-                )}
-            />
+          <SectionList
+            sections={notifications}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            renderSectionHeader={renderSectionHeader}
+            contentContainerStyle={styles.scrollContent}
+            stickySectionHeadersEnabled={false}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={() => (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconBox}>
+                  <Feather name="bell-off" size={32} color="#94A3B8" />
+                </View>
+                <Text style={styles.emptyTitle}>No Notifications</Text>
+                <Text style={styles.emptySub}>You're all caught up! Check back later.</Text>
+              </View>
+            )}
+          />
         </View>
 
       </SafeAreaView>
@@ -212,7 +223,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  
+
   // Background
   bottomLogos: {
     position: 'absolute',
@@ -314,7 +325,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   unreadCard: {
-    backgroundColor: '#FFF', 
+    backgroundColor: '#FFF',
     // We use the activeBar instead of full background change for elegance
   },
   activeBar: {
@@ -325,7 +336,7 @@ const styles = StyleSheet.create({
     width: 4,
     backgroundColor: '#0C1559',
   },
-  
+
   // Icons
   iconBox: {
     width: 44,
@@ -336,7 +347,7 @@ const styles = StyleSheet.create({
     marginRight: 14,
     borderWidth: 1,
   },
-  
+
   // Text Content
   textContainer: {
     flex: 1,

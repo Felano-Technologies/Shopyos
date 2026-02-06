@@ -77,14 +77,13 @@ const BusinessDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [refreshing, setRefreshing] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(5); 
-  
+  const [unreadCount, setUnreadCount] = useState(5);
+
   // --- New State for Custom Modal ---
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
 
 
-  // --- Data Fetching ---
+
   // --- Data Fetching ---
   const fetchDashboardData = async () => {
     try {
@@ -139,26 +138,7 @@ const BusinessDashboard = () => {
     );
   }
 
-  // --- No Business State ---
-  if (!selectedBusiness || businesses.length === 0) {
-    return (
-      <View style={styles.centered}>
-        <Image
-          source={require('../../assets/images/icon.png')}
-          style={{ width: 80, height: 80, opacity: 0.5, marginBottom: 20 }}
-          resizeMode="contain"
-        />
-        <Text style={styles.errorText}>No Business Found</Text>
-        <Text style={styles.errorSubtext}>Create a business to access the dashboard</Text>
-        <TouchableOpacity
-          style={styles.createBusinessButton}
-          onPress={() => router.replace('/business/register')}
-        >
-          <Text style={styles.createBusinessButtonText}>Create Business</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
+
 
 
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0 };
@@ -180,218 +160,231 @@ const BusinessDashboard = () => {
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />}
-          showsVerticalScrollIndicator={false}
-        >
-
-          {/* --- HERO SECTION (Header + Business Info) --- */}
-          <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.heroContainer}
+        {selectedBusiness ? (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />}
+            showsVerticalScrollIndicator={false}
           >
-            {/* Top Bar */}
-            <View style={styles.topBar}>
-              <Image
-                source={require('../../assets/images/iconwhite.png')}
-                style={styles.appLogo}
-                resizeMode="contain"
-              />
-              <View style={styles.topIcons}>
-                <TouchableOpacity
-                  style={styles.iconBtn}
-                  onPress={() => router.push('/business/notifications')}
-                >
-                  <Ionicons name="notifications-outline" size={22} color="#FFF" />
 
-                  {/* Only show badge if count > 0 */}
-                  {unreadCount > 0 && (
-                    <View style={styles.badgeContainer}>
-                      <Text style={styles.badgeText}>
-                        {unreadCount > 99 ? '99+' : unreadCount}
-                      </Text>
+            {/* --- HERO SECTION (Header + Business Info) --- */}
+            <LinearGradient
+              colors={['#0C1559', '#1e3a8a']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.heroContainer}
+            >
+              {/* Top Bar */}
+              <View style={styles.topBar}>
+                <Image
+                  source={require('../../assets/images/iconwhite.png')}
+                  style={styles.appLogo}
+                  resizeMode="contain"
+                />
+                <View style={styles.topIcons}>
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => router.push('/business/notifications')}
+                  >
+                    <Ionicons name="notifications-outline" size={22} color="#FFF" />
+
+                    {/* Only show badge if count > 0 */}
+                    {unreadCount > 0 && (
+                      <View style={styles.badgeContainer}>
+                        <Text style={styles.badgeText}>
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.iconBtn}
+                    onPress={() => router.push('/business/settings')}
+                  >
+                    <Ionicons name="settings-outline" size={22} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Business Profile */}
+              <View style={styles.businessProfile}>
+                <View style={styles.logoWrapper}>
+                  {selectedBusiness?.logo ? (
+                    <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
+                  ) : (
+                    <View style={styles.logoPlaceholder}>
+                      <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
                     </View>
                   )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.iconBtn}
-                  onPress={() => router.push('/business/settings')}
-                >
-                  <Ionicons name="settings-outline" size={22} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-            </View>
+                  {selectedBusiness?.verificationStatus === 'verified' && (
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark" size={10} color="#FFF" />
+                    </View>
+                  )}
+                </View>
 
-            {/* Business Profile */}
-            <View style={styles.businessProfile}>
-              <View style={styles.logoWrapper}>
-                {selectedBusiness.logo ? (
-                  <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
-                ) : (
-                  <View style={styles.logoPlaceholder}>
-                    <Text style={styles.logoInitial}>{selectedBusiness.businessName.charAt(0)}</Text>
+                <View style={styles.businessTexts}>
+                  <Text style={styles.welcomeLabel}>Welcome back,</Text>
+                  <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName || 'My Business'}</Text>
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={14} color="#F59E0B" />
+                    <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
                   </View>
-                )}
-                {selectedBusiness.verificationStatus === 'verified' && (
-                  <View style={styles.verifiedBadge}>
-                    <Ionicons name="checkmark" size={10} color="#FFF" />
-                  </View>
-                )}
-              </View>
-
-              <View style={styles.businessTexts}>
-                <Text style={styles.welcomeLabel}>Welcome back,</Text>
-                <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness.businessName}</Text>
-                <View style={styles.ratingRow}>
-                  <Ionicons name="star" size={14} color="#F59E0B" />
-                  <Text style={styles.ratingText}>4.8 Rating</Text>
                 </View>
               </View>
-            </View>
-          </LinearGradient>
+            </LinearGradient>
 
-          {/* --- FLOATING ANALYTICS CARD --- */}
-          {/* Overlaps the header */}
-          <View style={styles.floatingStatsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.totalProducts}</Text>
-              <Text style={styles.statLabel}>Products</Text>
+            {/* --- FLOATING ANALYTICS CARD --- */}
+            {/* Overlaps the header */}
+            <View style={styles.floatingStatsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+                <Text style={styles.statLabel}>Products</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.totalOrders}</Text>
+                <Text style={styles.statLabel}>Orders</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
+                <Text style={styles.statLabel}>Pending</Text>
+              </View>
             </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.totalOrders}</Text>
-              <Text style={styles.statLabel}>Orders</Text>
-            </View>
-            <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
-            </View>
-          </View>
 
-          {/* --- QUICK ACTIONS GRID --- */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.servicesGrid}>
-              {[
-                { icon: 'plus', color: '#FFF', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
-                { icon: 'shopping-bag', color: '#FFF', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
-                { icon: 'box', color: '#FFF', bg: ['#2563EB', '#1D4ED8'], label: 'Inventory', route: '/business/inventory' },
-                { icon: 'bar-chart-2', color: '#FFF', bg: ['#D97706', '#B45309'], label: 'Analytics', route: '/business/analytics' },
-              ].map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.actionCard}
-                  onPress={() => router.push(item.route as any)}
-                >
-                  <LinearGradient
-                    colors={item.bg as [string, string, ...string[]]}
-                    style={styles.actionIconBox}
+            {/* --- QUICK ACTIONS GRID --- */}
+            <View style={styles.sectionContainer}>
+              <Text style={styles.sectionTitle}>Quick Actions</Text>
+              <View style={styles.servicesGrid}>
+                {[
+                  { icon: 'plus', color: '#FFF', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
+                  { icon: 'shopping-bag', color: '#FFF', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
+                  { icon: 'box', color: '#FFF', bg: ['#2563EB', '#1D4ED8'], label: 'Inventory', route: '/business/inventory' },
+                  { icon: 'bar-chart-2', color: '#FFF', bg: ['#D97706', '#B45309'], label: 'Analytics', route: '/business/analytics' },
+                ].map((item, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={styles.actionCard}
+                    onPress={() => router.push(item.route as any)}
                   >
-                    <Feather name={item.icon as any} size={20} color={item.color} />
-                  </LinearGradient>
-                  <Text style={styles.actionLabel}>{item.label}</Text>
+                    <LinearGradient
+                      colors={item.bg as [string, string, ...string[]]}
+                      style={styles.actionIconBox}
+                    >
+                      <Feather name={item.icon as any} size={20} color={item.color} />
+                    </LinearGradient>
+                    <Text style={styles.actionLabel}>{item.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* --- SALES CHART --- */}
+            <View style={styles.chartCard}>
+              <View style={styles.chartHeader}>
+                <View>
+                  <Text style={styles.cardTitle}>Sales Performance</Text>
+                  <Text style={styles.cardSubtitle}>Revenue over time</Text>
+                </View>
+                {/* Simple Toggle */}
+                <TouchableOpacity onPress={() => {
+                  const next = timeframe === 'weekly' ? 'monthly' : timeframe === 'monthly' ? 'yearly' : 'weekly';
+                  setTimeframe(next);
+                }}>
+                  <View style={styles.timeToggle}>
+                    <Text style={styles.timeText}>{timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}</Text>
+                    <Feather name="chevron-down" size={14} color="#64748B" />
+                  </View>
                 </TouchableOpacity>
+              </View>
+
+              <LineChart
+                data={chartData}
+                width={width - 48} // Padding calculation
+                height={180}
+                chartConfig={{
+                  backgroundGradientFrom: '#FFF',
+                  backgroundGradientTo: '#FFF',
+                  decimalPlaces: 0,
+                  color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                  style: { borderRadius: 16 },
+                  propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' },
+                  propsForBackgroundLines: { strokeDasharray: "5", stroke: "rgba(0,0,0,0.05)" }
+                }}
+                bezier
+                style={styles.chartStyle}
+                withInnerLines={true}
+                withOuterLines={false}
+                withVerticalLines={false}
+              />
+            </View>
+
+            {/* --- RECENT ORDERS --- */}
+            <View style={styles.sectionContainer}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Recent Orders</Text>
+                <TouchableOpacity onPress={() => router.push('/business/orders')}>
+                  <Text style={styles.seeAllText}>View All</Text>
+                </TouchableOpacity>
+              </View>
+
+              {recentOrders.map((order) => (
+                <View key={order._id} style={styles.orderCard}>
+                  <View style={styles.orderLeft}>
+                    <View style={[styles.orderIconBox, {
+                      backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7'
+                    }]}>
+                      <Feather
+                        name={order.status === 'completed' ? 'check' : 'clock'}
+                        size={18}
+                        color={order.status === 'completed' ? '#15803D' : '#B45309'}
+                      />
+                    </View>
+                    <View>
+                      <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
+                      <Text style={styles.orderStatus}>{order.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.orderAmount}>₵{order.totalAmount.toFixed(2)}</Text>
+                </View>
               ))}
             </View>
-          </View>
 
-          {/* --- SALES CHART --- */}
-          <View style={styles.chartCard}>
-            <View style={styles.chartHeader}>
-              <View>
-                <Text style={styles.cardTitle}>Sales Performance</Text>
-                <Text style={styles.cardSubtitle}>Revenue over time</Text>
+            {/* --- TIPS --- */}
+            <LinearGradient
+              colors={['#111827', '#0f172a']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.tipCard}
+            >
+              <View style={styles.tipHeader}>
+                <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
+                <Text style={styles.tipTitle}>Pro Tip</Text>
               </View>
-              {/* Simple Toggle */}
-              <TouchableOpacity onPress={() => {
-                const next = timeframe === 'weekly' ? 'monthly' : timeframe === 'monthly' ? 'yearly' : 'weekly';
-                setTimeframe(next);
-              }}>
-                <View style={styles.timeToggle}>
-                  <Text style={styles.timeText}>{timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}</Text>
-                  <Feather name="chevron-down" size={14} color="#64748B" />
-                </View>
-              </TouchableOpacity>
-            </View>
+              <Text style={styles.tipText}>
+                Adding high-quality images to your products can increase sales by up to 30%.
+              </Text>
+            </LinearGradient>
 
-            <LineChart
-              data={chartData}
-              width={width - 48} // Padding calculation
-              height={180}
-              chartConfig={{
-                backgroundGradientFrom: '#FFF',
-                backgroundGradientTo: '#FFF',
-                decimalPlaces: 0,
-                color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
-                labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-                style: { borderRadius: 16 },
-                propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' },
-                propsForBackgroundLines: { strokeDasharray: "5", stroke: "rgba(0,0,0,0.05)" }
-              }}
-              bezier
-              style={styles.chartStyle}
-              withInnerLines={true}
-              withOuterLines={false}
-              withVerticalLines={false}
-            />
-          </View>
-
-          {/* --- RECENT ORDERS --- */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Recent Orders</Text>
-              <TouchableOpacity onPress={() => router.push('/business/orders')}>
-                <Text style={styles.seeAllText}>View All</Text>
-              </TouchableOpacity>
-            </View>
-
-            {recentOrders.map((order) => (
-              <View key={order._id} style={styles.orderCard}>
-                <View style={styles.orderLeft}>
-                  <View style={[styles.orderIconBox, {
-                    backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7'
-                  }]}>
-                    <Feather
-                      name={order.status === 'completed' ? 'check' : 'clock'}
-                      size={18}
-                      color={order.status === 'completed' ? '#15803D' : '#B45309'}
-                    />
-                  </View>
-                  <View>
-                    <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                    <Text style={styles.orderStatus}>{order.status}</Text>
-                  </View>
-                </View>
-                <Text style={styles.orderAmount}>₵{order.totalAmount.toFixed(2)}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* --- TIPS --- */}
-          <LinearGradient
-            colors={['#111827', '#0f172a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.tipCard}
-          >
-            <View style={styles.tipHeader}>
-              <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
-              <Text style={styles.tipTitle}>Pro Tip</Text>
-            </View>
-            <Text style={styles.tipText}>
-              Adding high-quality images to your products can increase sales by up to 30%.
-            </Text>
-          </LinearGradient>
-
-            </ScrollView>
+          </ScrollView>
         ) : (
-            // Placeholder view if no business is selected yet (Modal will be on top)
-            <View style={styles.centered}>
-                <Text style={{color: '#94A3B8'}}>No Business Selected</Text>
-            </View>
+          // Placeholder view if no business is selected yet
+          <View style={styles.centered}>
+            <Image
+              source={require('../../assets/images/icon.png')}
+              style={{ width: 80, height: 80, opacity: 0.5, marginBottom: 20 }}
+              resizeMode="contain"
+            />
+            <Text style={{ fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 }}>No Business Found</Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', marginBottom: 20 }}>Create a business to access the dashboard</Text>
+            <TouchableOpacity
+              style={{ backgroundColor: '#0C1559', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
+              onPress={() => router.replace('/business/register')}
+            >
+              <Text style={{ color: '#FFF', fontFamily: 'Montserrat-Bold' }}>Create Business</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </SafeAreaView>
 
@@ -400,18 +393,18 @@ const BusinessDashboard = () => {
         animationType="fade"
         transparent={true}
         visible={showNoBusinessModal}
-        onRequestClose={() => {}} 
+        onRequestClose={() => { }}
       >
         <View style={styles.alertOverlay}>
           <View style={styles.alertContent}>
             <View style={styles.alertIconCircle}>
-                <MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" />
+              <MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" />
             </View>
             <Text style={styles.alertTitle}>No Business Found</Text>
             <Text style={styles.alertMessage}>
               It looks like you haven't set up a store yet. Create your business profile to access the dashboard.
             </Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.alertButton}
               activeOpacity={0.9}
               onPress={() => {

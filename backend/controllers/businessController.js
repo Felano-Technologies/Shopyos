@@ -662,125 +662,164 @@ const getBusinessDashboard = async (req, res) => {
       success: false,
       error: 'Server error while fetching dashboard data'
     });
-  };
+  }
+};
 
-  // @desc    Get business analytics
-  // @route   GET /api/business/analytics/:id
-  // @access  Private
-  const getBusinessAnalytics = async (req, res) => {
-    try {
-      const businessId = req.params.id;
-      const userId = req.user.id;
-      const { timeframe = 'week' } = req.query; // week, month, year
+// @desc    Get business analytics
+// @route   GET /api/business/analytics/:id
+// @access  Private
+const getBusinessAnalytics = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user.id;
+    const { timeframe = 'week' } = req.query; // week, month, year
 
-      // Verify ownership
-      const store = await repositories.stores.findById(businessId);
-      if (!store) return res.status(404).json({ success: false, error: 'Business not found' });
-      if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+    // Verify ownership
+    const store = await repositories.stores.findById(businessId);
+    if (!store) return res.status(404).json({ success: false, error: 'Business not found' });
+    if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
 
-      // Calculate Date Range
-      const endDate = new Date();
-      const startDate = new Date();
+    // Calculate Date Range
+    const endDate = new Date();
+    const startDate = new Date();
 
-      if (timeframe === 'month') startDate.setMonth(startDate.getMonth() - 1);
-      else if (timeframe === 'year') startDate.setFullYear(startDate.getFullYear() - 1);
-      else startDate.setDate(startDate.getDate() - 7); // Default week
+    if (timeframe === 'month') startDate.setMonth(startDate.getMonth() - 1);
+    else if (timeframe === 'year') startDate.setFullYear(startDate.getFullYear() - 1);
+    else startDate.setDate(startDate.getDate() - 7); // Default week
 
-      // Fetch Orders in Range
-      // Note: In a real production app, use DB aggregation. For now, we fetch and aggregate in JS.
-      const orders = await repositories.orders.findAll({
-        where: {
-          store_id: businessId,
-          // created_at: { gte: startDate.toISOString() } // BaseRepo might not support complex filtered queries directly without customQuery
-        },
-        select: '*, order_items(product_title, quantity, price), payments(amount)',
-        limit: 1000
-      });
+    // Fetch Orders in Range
+    // Note: In a real production app, use DB aggregation. For now, we fetch and aggregate in JS.
+    const orders = await repositories.orders.findAll({
+      where: {
+        store_id: businessId,
+        // created_at: { gte: startDate.toISOString() } // BaseRepo might not support complex filtered queries directly without customQuery
+      },
+      select: '*, order_items(product_title, quantity, price), payments(amount)',
+      limit: 1000
+    });
 
-      const filteredOrders = orders.filter(o => new Date(o.created_at) >= startDate);
+    const filteredOrders = orders.filter(o => new Date(o.created_at) >= startDate);
 
-      // Aggregate Data
-      let totalRevenue = 0;
-      let totalOrders = filteredOrders.length;
-      const productSales = {};
-      const categorySales = {}; // Need product category, but order items only have title usually. 
-      // Optimization: In a real app, join products table or store category in order_items. 
-      // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
+    // Aggregate Data
+    let totalRevenue = 0;
+    let totalOrders = filteredOrders.length;
+    const productSales = {};
+    const categorySales = {}; // Need product category, but order items only have title usually. 
+    // Optimization: In a real app, join products table or store category in order_items. 
+    // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
 
-      filteredOrders.forEach(order => {
-        const amount = order.payments?.[0]?.amount || 0;
-        totalRevenue += parseFloat(amount);
+    filteredOrders.forEach(order => {
+      const amount = order.payments?.[0]?.amount || 0;
+      totalRevenue += parseFloat(amount);
 
-        order.order_items?.forEach(item => {
-          if (!productSales[item.product_title]) {
-            productSales[item.product_title] = { name: item.product_title, sales: 0, revenue: 0 };
-          }
-          productSales[item.product_title].sales += item.quantity;
-          productSales[item.product_title].revenue += (item.price * item.quantity);
-        });
-      });
-
-      // Top Products
-      const topProducts = Object.values(productSales)
-        .sort((a, b) => b.sales - a.sales)
-        .slice(0, 5)
-        .map(p => ({ ...p, color: '#2563EB' })); // Add colors dynamically if needed
-
-      // Chart Data (Revenue over time)
-      const chartLabels = [];
-      const chartData = [];
-
-      if (timeframe === 'week') {
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        for (let i = 6; i >= 0; i--) {
-          const d = new Date();
-          d.setDate(d.getDate() - i);
-          chartLabels.push(days[d.getDay()]);
-
-          // Sum revenue for this day
-          const dayRevenue = filteredOrders
-            .filter(o => new Date(o.created_at).getDate() === d.getDate())
-            .reduce((sum, o) => sum + parseFloat(o.payments?.[0]?.amount || 0), 0);
-          chartData.push(dayRevenue);
+      order.order_items?.forEach(item => {
+        if (!productSales[item.product_title]) {
+          productSales[item.product_title] = { name: item.product_title, sales: 0, revenue: 0 };
         }
-      } else {
-        // Simplify for month/year for this MVP iteration
-        // Just distributed evenly or mock slightly to show graph structure if no real data
-        chartLabels.push('Start', 'End');
-        chartData.push(0, totalRevenue);
+        productSales[item.product_title].sales += item.quantity;
+        productSales[item.product_title].revenue += (item.price * item.quantity);
+      });
+    });
+
+    // Top Products
+    const topProducts = Object.values(productSales)
+      .sort((a, b) => b.sales - a.sales)
+      .slice(0, 5)
+      .map(p => ({ ...p, color: '#2563EB' })); // Add colors dynamically if needed
+
+    // Chart Data (Revenue over time)
+    const chartLabels = [];
+    const chartData = [];
+
+    if (timeframe === 'week') {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        chartLabels.push(days[d.getDay()]);
+
+        // Sum revenue for this day
+        const dayRevenue = filteredOrders
+          .filter(o => new Date(o.created_at).getDate() === d.getDate())
+          .reduce((sum, o) => sum + parseFloat(o.payments?.[0]?.amount || 0), 0);
+        chartData.push(dayRevenue);
       }
-
-      res.status(200).json({
-        success: true,
-        data: {
-          stats: {
-            revenue: totalRevenue,
-            orders: totalOrders,
-            growth: 0 // calc vs previous period if needed
-          },
-          chart: {
-            labels: chartLabels,
-            datasets: [{ data: chartData }]
-          },
-          topProducts,
-          categoryDistribution: [] // Placeholder
-        }
-      });
-
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      res.status(500).json({ success: false, error: 'Server error' });
+    } else {
+      // Simplify for month/year for this MVP iteration
+      // Just distributed evenly or mock slightly to show graph structure if no real data
+      chartLabels.push('Start', 'End');
+      chartData.push(0, totalRevenue);
     }
-  };
 
-  module.exports = {
-    createBusiness,
-    getMyBusinesses,
-    getBusinessById,
-    updateBusiness,
-    deleteBusiness,
-    uploadLogo,
-    uploadBanner,
-    getBusinessDashboard,
-    getBusinessAnalytics
-  };
+    res.status(200).json({
+      success: true,
+      data: {
+        stats: {
+          revenue: totalRevenue,
+          orders: totalOrders,
+          growth: 0 // calc vs previous period if needed
+        },
+        chart: {
+          labels: chartLabels,
+          datasets: [{ data: chartData }]
+        },
+        topProducts,
+        categoryDistribution: [] // Placeholder
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching analytics:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+// @desc    Get all businesses (Public/Customer)
+// @route   GET /api/business/all
+// @access  Private (Logged in user)
+const getAllBusinesses = async (req, res) => {
+  try {
+    const { search, category } = req.query;
+
+    let where = {};
+    if (category && category !== 'All') {
+      where.category = category;
+    }
+
+    const stores = await repositories.stores.findAll({ where });
+
+    // Filter by search if needed (since findAll might not support 'like' directly depending on repo implementation)
+    // Or assume findAll supports it. For now, filter in JS to be safe or update repo.
+    let results = stores;
+    if (search) {
+      results = results.filter(s => s.store_name.toLowerCase().includes(search.toLowerCase()));
+    }
+
+    const mapped = results.map(s => ({
+      id: s.id,
+      name: s.store_name,
+      category: s.category,
+      logo: s.logo_url,
+      rating: 4.5, // Placeholder or agg
+      catalogues: 10 // Placeholder count
+    }));
+
+    res.status(200).json({ success: true, businesses: mapped });
+  } catch (error) {
+    console.error('Error fetching all businesses:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+module.exports = {
+  createBusiness,
+  getMyBusinesses,
+  getAllBusinesses,
+  getBusinessById,
+  updateBusiness,
+  deleteBusiness,
+  uploadLogo,
+  uploadBanner,
+  getBusinessDashboard,
+  getBusinessAnalytics
+};

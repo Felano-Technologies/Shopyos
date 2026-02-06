@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,75 +17,51 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCart } from './context/CartContext'; 
+import { useCart } from './context/CartContext';
+import { searchProducts } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
 // Extended Mock Data
-const INITIAL_PRODUCTS = [
-  {
-    id: 'p1',
-    title: 'The Dad Artwork',
-    category: 'Art',
-    price: 250.0,
-    oldPrice: 350.0,
-    image: require('../assets/images/products/artwork2.jpg'),
-    timestamp: '2 hrs ago'
-  },
-  {
-    id: 'p2',
-    title: 'Nike Air Force 1',
-    category: 'Sneakers',
-    price: 175.0,
-    oldPrice: 300.0,
-    image: require('../assets/images/products/nike.jpg'),
-    timestamp: '5 hrs ago'
-  },
-  {
-    id: 'p3',
-    title: 'Urban Denim Jacket',
-    category: 'Fashion',
-    price: 120.0,
-    oldPrice: null,
-    image: require('../assets/images/categories/jacket.jpg'),
-    timestamp: '1 day ago'
-  },
-  {
-    id: 'p4',
-    title: 'Sony WH-1000XM5',
-    category: 'Electronics',
-    price: 299.0,
-    oldPrice: 350.0,
-    image: require('../assets/images/categories/headset.jpg'),
-    timestamp: '1 day ago'
-  },
-  {
-    id: 'p5',
-    title: 'Travel Backpack',
-    category: 'Bags',
-    price: 85.0,
-    oldPrice: null,
-    image: require('../assets/images/search/bag1.jpg'),
-    timestamp: '2 days ago'
-  },
-  {
-    id: 'p6',
-    title: 'Modern Coffee Table',
-    category: 'Home',
-    price: 450.0,
-    oldPrice: 500.0,
-    image: require('../assets/images/search/table2.jpg'),
-    timestamp: '2 days ago'
-  },
-];
-
-export default function RecentScreen() {
+const RecentScreen = () => {
   const router = useRouter();
-  const { addToCart } = useCart(); 
+  const { addToCart } = useCart();
 
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [activeSort, setActiveSort] = useState('newest');
+
+  useEffect(() => {
+    fetchRecentProducts();
+  }, [activeSort]);
+
+  const fetchRecentProducts = async () => {
+    try {
+      setLoading(true);
+      const res = await searchProducts({
+        limit: 20,
+        sortBy: activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'newest'
+      });
+      if (res.success) {
+        // Map backend products to UI format
+        const mapped = res.products.map((p: any) => ({
+          id: p._id,
+          title: p.name,
+          category: p.category || 'General',
+          price: p.price,
+          oldPrice: null, // Backend doesn't have oldPrice yet
+          image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
+          timestamp: 'Just now' // Placeholder as created_at logic needs formatting
+        }));
+        setProducts(mapped);
+      }
+    } catch (e) {
+      console.error("Failed to fetch recent products", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Toast Animation State ---
   const [toastMessage, setToastMessage] = useState('');
@@ -97,13 +73,13 @@ export default function RecentScreen() {
   const handleProductPress = (item: any) => {
     router.push({
       pathname: '/product/details',
-      params: { 
-        id: item.id, 
-        title: item.title, 
-        price: item.price, 
+      params: {
+        id: item.id,
+        title: item.title,
+        price: item.price,
         oldPrice: item.oldPrice,
         category: item.category,
-        image: item.image 
+        image: item.image
       }
     });
   };
@@ -156,64 +132,56 @@ export default function RecentScreen() {
     };
 
     addToCart(cartItem);
-    
+
     // Trigger Custom Toast
     showToast(`${item.title} added to cart!`);
   };
 
   // --- Sorting ---
   const applySort = (type: string) => {
-    let sorted = [...products];
-    if (type === 'low_high') {
-        sorted.sort((a, b) => a.price - b.price);
-    } else if (type === 'high_low') {
-        sorted.sort((a, b) => b.price - a.price);
-    } else {
-        sorted = INITIAL_PRODUCTS; 
-    }
-    setProducts(sorted);
     setActiveSort(type);
     setModalVisible(false);
+    // useEffect will trigger fetch
   };
 
-  const renderItem = ({ item }: { item: typeof INITIAL_PRODUCTS[0] }) => (
-    <TouchableOpacity 
-      style={styles.card} 
+  const renderItem = ({ item }: { item: any }) => (
+    <TouchableOpacity
+      style={styles.card}
       activeOpacity={0.9}
       onPress={() => handleProductPress(item)}
     >
       <View style={styles.imageContainer}>
         <Image source={item.image} style={styles.productImage} />
         <View style={styles.newBadge}>
-            <Text style={styles.newText}>NEW</Text>
+          <Text style={styles.newText}>NEW</Text>
         </View>
         <TouchableOpacity style={styles.favBtn}>
-            <Ionicons name="heart-outline" size={18} color="#0C1559" />
+          <Ionicons name="heart-outline" size={18} color="#0C1559" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.productInfo}>
         <Text style={styles.categoryText}>{item.category}</Text>
         <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
-        
+
         <View style={styles.priceRow}>
-            <Text style={styles.currentPrice}>₵{item.price.toFixed(2)}</Text>
-            {item.oldPrice && (
-                <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
-            )}
+          <Text style={styles.currentPrice}>₵{item.price.toFixed(2)}</Text>
+          {item.oldPrice && (
+            <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
+          )}
         </View>
 
         <View style={styles.footerRow}>
-            <View style={styles.timeBadge}>
-                <Feather name="clock" size={10} color="#64748B" />
-                <Text style={styles.timeText}>{item.timestamp}</Text>
-            </View>
-            <TouchableOpacity 
-                style={styles.addBtn} 
-                onPress={() => handleAddToCart(item)}
-            >
-                <Ionicons name="add" size={18} color="#FFF" />
-            </TouchableOpacity>
+          <View style={styles.timeBadge}>
+            <Feather name="clock" size={10} color="#64748B" />
+            <Text style={styles.timeText}>{item.timestamp}</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={() => handleAddToCart(item)}
+          >
+            <Ionicons name="add" size={18} color="#FFF" />
+          </TouchableOpacity>
         </View>
       </View>
     </TouchableOpacity>
@@ -222,19 +190,19 @@ export default function RecentScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Header */}
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
-            <View style={styles.headerContent}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#FFF" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Just Arrived</Text>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)}>
-                    <Ionicons name="filter" size={22} color="#FFF" />
-                </TouchableOpacity>
-            </View>
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Just Arrived</Text>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)}>
+              <Ionicons name="filter" size={22} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </SafeAreaView>
       </LinearGradient>
 
@@ -251,12 +219,12 @@ export default function RecentScreen() {
 
       {/* --- CUSTOM TOAST NOTIFICATION --- */}
       {toastVisible && (
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.toastContainer, 
-            { 
+            styles.toastContainer,
+            {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }] 
+              transform: [{ translateY: slideAnim }]
             }
           ]}
         >
@@ -277,40 +245,40 @@ export default function RecentScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-            <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
-                <View style={styles.modalBackdrop} />
-            </TouchableWithoutFeedback>
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Sort Products</Text>
-                    <TouchableOpacity onPress={() => setModalVisible(false)}>
-                        <Ionicons name="close" size={24} color="#64748B" />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.modalDivider} />
-                <TouchableOpacity style={styles.filterOption} onPress={() => applySort('newest')}>
-                    <View style={styles.optionRow}>
-                        <MaterialIcons name="new-releases" size={22} color="#0C1559" />
-                        <Text style={[styles.optionText, activeSort === 'newest' && styles.optionTextActive]}>Newest Arrivals (Reset)</Text>
-                    </View>
-                    {activeSort === 'newest' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.filterOption} onPress={() => applySort('low_high')}>
-                    <View style={styles.optionRow}>
-                        <Feather name="trending-up" size={22} color="#0C1559" />
-                        <Text style={[styles.optionText, activeSort === 'low_high' && styles.optionTextActive]}>Price: Low to High</Text>
-                    </View>
-                    {activeSort === 'low_high' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.filterOption} onPress={() => applySort('high_low')}>
-                    <View style={styles.optionRow}>
-                        <Feather name="trending-down" size={22} color="#0C1559" />
-                        <Text style={[styles.optionText, activeSort === 'high_low' && styles.optionTextActive]}>Price: High to Low</Text>
-                    </View>
-                    {activeSort === 'high_low' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
-                </TouchableOpacity>
-                <View style={{ height: 20 }} />
+          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+            <View style={styles.modalBackdrop} />
+          </TouchableWithoutFeedback>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Sort Products</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
             </View>
+            <View style={styles.modalDivider} />
+            <TouchableOpacity style={styles.filterOption} onPress={() => applySort('newest')}>
+              <View style={styles.optionRow}>
+                <MaterialIcons name="new-releases" size={22} color="#0C1559" />
+                <Text style={[styles.optionText, activeSort === 'newest' && styles.optionTextActive]}>Newest Arrivals (Reset)</Text>
+              </View>
+              {activeSort === 'newest' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterOption} onPress={() => applySort('low_high')}>
+              <View style={styles.optionRow}>
+                <Feather name="trending-up" size={22} color="#0C1559" />
+                <Text style={[styles.optionText, activeSort === 'low_high' && styles.optionTextActive]}>Price: Low to High</Text>
+              </View>
+              {activeSort === 'low_high' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.filterOption} onPress={() => applySort('high_low')}>
+              <View style={styles.optionRow}>
+                <Feather name="trending-down" size={22} color="#0C1559" />
+                <Text style={[styles.optionText, activeSort === 'high_low' && styles.optionTextActive]}>Price: High to Low</Text>
+              </View>
+              {activeSort === 'high_low' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
+            </TouchableOpacity>
+            <View style={{ height: 20 }} />
+          </View>
         </View>
       </Modal>
     </View>
@@ -318,11 +286,11 @@ export default function RecentScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F0F4FC' 
+  container: {
+    flex: 1,
+    backgroundColor: '#F0F4FC'
   },
-  
+
   // Header
   header: {
     paddingBottom: 20,
