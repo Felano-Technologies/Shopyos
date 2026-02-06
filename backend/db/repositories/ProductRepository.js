@@ -27,7 +27,8 @@ class ProductRepository extends BaseRepository {
       orderBy: 'created_at',
       ascending: false,
       limit,
-      offset
+      offset,
+      select: options.select || '*'
     });
   }
 

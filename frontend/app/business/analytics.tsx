@@ -1,5 +1,5 @@
 // app/business/analytics.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
+import { getBusinessAnalytics, storage } from '@/services/api';
+import { Alert } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -25,48 +27,54 @@ const Analytics = () => {
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // --- Mock Data ---
-  const revenueData = {
-    week: {
-      labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{ data: [100, 825, 2514, 400, 789, 2900, 2100] }],
-    },
-    month: {
-      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-      datasets: [{ data: [2500, 3200, 2800, 3800] }],
-    },
-    year: {
-      labels: ['Jan', 'Apr', 'Jul', 'Oct'],
-      datasets: [{ data: [15000, 22000, 18000, 26000] }],
-    },
+  // Real Data State
+  const [analyticsData, setAnalyticsData] = useState<any>(null);
+
+  const fetchAnalytics = async () => {
+    try {
+      const businessId = await storage.getItem('currentBusinessId');
+      if (businessId) {
+        const data = await getBusinessAnalytics(businessId, timeframe);
+        if (data && data.success) {
+          setAnalyticsData(data.data);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch analytics", error);
+      Alert.alert("Error", "Failed to load analytics");
+    }
   };
 
-  const topProducts = [
-    { name: 'Nike Air Force 1', sales: 45, revenue: 7875, color: '#2563EB' },
-    { name: 'Wireless Headset', sales: 32, revenue: 2879, color: '#D97706' },
-    { name: 'Leather Jacket', sales: 28, revenue: 3360, color: '#059669' },
-  ];
+  useEffect(() => {
+    fetchAnalytics();
+  }, [timeframe]);
 
-  const categoryDistribution = [
-    { name: 'Sneakers', sales: 45, color: '#2563EB', legendFontColor: '#333', legendFontSize: 12 },
-    { name: 'Tech', sales: 32, color: '#D97706', legendFontColor: '#333', legendFontSize: 12 },
-    { name: 'Wear', sales: 28, color: '#059669', legendFontColor: '#333', legendFontSize: 12 },
-    { name: 'Art', sales: 18, color: '#7C3AED', legendFontColor: '#333', legendFontSize: 12 },
-  ];
-
-  const stats = {
-    week: { revenue: 4860, orders: 65, growth: 12.5 },
-    month: { revenue: 12300, orders: 180, growth: 18.3 },
-    year: { revenue: 91000, orders: 1370, growth: 45.7 },
-  };
-
-  const currentStats = stats[timeframe];
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchAnalytics();
     setRefreshing(false);
   };
+
+  const revenueData = {
+    week: {
+      labels: analyticsData?.chart?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      datasets: [{ data: analyticsData?.chart?.datasets?.[0]?.data || [0, 0, 0, 0, 0, 0, 0] }]
+    },
+    month: {
+      labels: analyticsData?.chart?.labels || [],
+      datasets: [{ data: analyticsData?.chart?.datasets?.[0]?.data || [0] }]
+    },
+    year: {
+      labels: analyticsData?.chart?.labels || [],
+      datasets: [{ data: analyticsData?.chart?.datasets?.[0]?.data || [0] }]
+    }
+  };
+
+  const topProducts = analyticsData?.topProducts || [];
+  const categoryDistribution = analyticsData?.categoryDistribution || [];
+
+  const currentStats = analyticsData?.stats || { revenue: 0, orders: 0, growth: 0 };
 
   // --- Chart Configuration ---
   const chartConfig = {
@@ -82,11 +90,11 @@ const Analytics = () => {
       stroke: '#fff',
     },
     propsForBackgroundLines: {
-        strokeDasharray: "5",
-        stroke: "rgba(0,0,0,0.05)"
+      strokeDasharray: "5",
+      stroke: "rgba(0,0,0,0.05)"
     },
     propsForLabels: {
-        fontFamily: 'Montserrat-Regular' // Applied font to chart labels
+      fontFamily: 'Montserrat-Regular' // Applied font to chart labels
     }
   };
 
@@ -96,13 +104,13 @@ const Analytics = () => {
 
       {/* --- Background Layer --- */}
       <View style={StyleSheet.absoluteFillObject}>
-          <View style={styles.bottomLogos}>
-            <Image
-              source={require('../../assets/images/splash-icon.png')}
-              style={styles.fadedLogo}
-            />
-          </View>
- 
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
+
       </View>
 
       <SafeAreaView style={styles.safeArea}>
@@ -123,120 +131,120 @@ const Analytics = () => {
 
           {/* --- Main Content Body --- */}
           <View style={styles.bodyContainer}>
-            
+
             <View style={styles.sectionHeaderRow}>
-               <Text style={styles.sectionTitle}>Sales Performance</Text>
+              <Text style={styles.sectionTitle}>Sales Performance</Text>
             </View>
 
             {/* Timeframe Toggles */}
             <View style={styles.toggleContainer}>
-                {(['week', 'month', 'year'] as const).map((period) => {
-                    const isActive = timeframe === period;
-                    return (
-                        <TouchableOpacity 
-                            key={period} 
-                            onPress={() => setTimeframe(period)}
-                            style={[
-                                styles.toggleBtn,
-                                isActive ? styles.toggleBtnActive : styles.toggleBtnInactive
-                            ]}
-                        >
-                            <Text style={[
-                                styles.toggleText,
-                                isActive ? styles.toggleTextActive : styles.toggleTextInactive
-                            ]}>
-                                {period === 'week' ? 'Weekly' : period === 'month' ? 'Monthly' : 'Yearly'}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
+              {(['week', 'month', 'year'] as const).map((period) => {
+                const isActive = timeframe === period;
+                return (
+                  <TouchableOpacity
+                    key={period}
+                    onPress={() => setTimeframe(period)}
+                    style={[
+                      styles.toggleBtn,
+                      isActive ? styles.toggleBtnActive : styles.toggleBtnInactive
+                    ]}
+                  >
+                    <Text style={[
+                      styles.toggleText,
+                      isActive ? styles.toggleTextActive : styles.toggleTextInactive
+                    ]}>
+                      {period === 'week' ? 'Weekly' : period === 'month' ? 'Monthly' : 'Yearly'}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Main Chart */}
             <View style={styles.card}>
-                <LineChart
-                    data={revenueData[timeframe]}
-                    width={width - 48}
-                    height={220}
-                    chartConfig={chartConfig}
-                    bezier
-                    style={styles.chartStyle}
-                    withInnerLines={true}
-                    withOuterLines={false}
-                    withVerticalLines={false}
-                />
+              <LineChart
+                data={revenueData[timeframe]}
+                width={width - 48}
+                height={220}
+                chartConfig={chartConfig}
+                bezier
+                style={styles.chartStyle}
+                withInnerLines={true}
+                withOuterLines={false}
+                withVerticalLines={false}
+              />
             </View>
 
             {/* Quick Stats Grid */}
             <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                    <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
-                        <Ionicons name="cash" size={20} color="#15803D" />
-                    </View>
-                    <Text style={styles.statLabel}>Total Revenue</Text>
-                    <Text style={styles.statValue}>₵{currentStats.revenue.toLocaleString()}</Text>
-                    <Text style={styles.statGrowth}>+{currentStats.growth}%</Text>
+              <View style={styles.statCard}>
+                <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
+                  <Ionicons name="cash" size={20} color="#15803D" />
                 </View>
+                <Text style={styles.statLabel}>Total Revenue</Text>
+                <Text style={styles.statValue}>₵{currentStats.revenue.toLocaleString()}</Text>
+                <Text style={styles.statGrowth}>+{currentStats.growth}%</Text>
+              </View>
 
-                <View style={styles.statCard}>
-                    <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
-                        <Ionicons name="cart" size={20} color="#1E40AF" />
-                    </View>
-                    <Text style={styles.statLabel}>Total Orders</Text>
-                    <Text style={styles.statValue}>{currentStats.orders}</Text>
-                    <Text style={styles.statGrowth}>+8.2%</Text>
+              <View style={styles.statCard}>
+                <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="cart" size={20} color="#1E40AF" />
                 </View>
+                <Text style={styles.statLabel}>Total Orders</Text>
+                <Text style={styles.statValue}>{currentStats.orders}</Text>
+                <Text style={styles.statGrowth}>+8.2%</Text>
+              </View>
             </View>
 
             {/* Sales Distribution */}
             <View style={styles.sectionHeaderRow}>
-               <Text style={styles.sectionTitle}>Category Breakdown</Text>
+              <Text style={styles.sectionTitle}>Category Breakdown</Text>
             </View>
             <View style={styles.card}>
-                <PieChart
-                    data={categoryDistribution}
-                    width={width - 48}
-                    height={200}
-                    chartConfig={chartConfig}
-                    accessor="sales"
-                    backgroundColor="transparent"
-                    paddingLeft="15"
-                    absolute
-                />
+              <PieChart
+                data={categoryDistribution}
+                width={width - 48}
+                height={200}
+                chartConfig={chartConfig}
+                accessor="sales"
+                backgroundColor="transparent"
+                paddingLeft="15"
+                absolute
+              />
             </View>
 
             {/* Top Products */}
             <View style={styles.sectionHeaderRow}>
-               <Text style={styles.sectionTitle}>Top Products</Text>
+              <Text style={styles.sectionTitle}>Top Products</Text>
             </View>
-            
-            {topProducts.map((product, index) => (
-                <View key={index} style={styles.productCard}>
-                    <View style={[styles.rankBadge, { backgroundColor: product.color }]}>
-                        <Text style={styles.rankText}>{index + 1}</Text>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                        <Text style={styles.productName}>{product.name}</Text>
-                        <Text style={styles.productSales}>{product.sales} Sales</Text>
-                    </View>
-                    <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
+
+            {topProducts.map((product: any, index: number) => (
+              <View key={index} style={styles.productCard}>
+                <View style={[styles.rankBadge, { backgroundColor: product.color }]}>
+                  <Text style={styles.rankText}>{index + 1}</Text>
                 </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Text style={styles.productName}>{product.name}</Text>
+                  <Text style={styles.productSales}>{product.sales} Sales</Text>
+                </View>
+                <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
+              </View>
             ))}
 
-             {/* Performance Score */}
-             <LinearGradient
-                colors={['#0C1559', '#1e3a8a']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.scoreBanner}
-             >
-                <View>
-                    <Text style={styles.scoreTitle}>Performance Score</Text>
-                    <Text style={styles.scoreDesc}>Your shop is doing great!</Text>
-                </View>
-                <View style={styles.scoreCircle}>
-                    <Text style={styles.scoreNum}>9.2</Text>
-                </View>
-             </LinearGradient>
+            {/* Performance Score */}
+            <LinearGradient
+              colors={['#0C1559', '#1e3a8a']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.scoreBanner}
+            >
+              <View>
+                <Text style={styles.scoreTitle}>Performance Score</Text>
+                <Text style={styles.scoreDesc}>Your shop is doing great!</Text>
+              </View>
+              <View style={styles.scoreCircle}>
+                <Text style={styles.scoreNum}>9.2</Text>
+              </View>
+            </LinearGradient>
 
           </View>
         </Animated.ScrollView>
@@ -274,7 +282,7 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     opacity: 0.12,
   },
-  
+
   // Header
   headerContainer: {
     backgroundColor: '#0C1559',

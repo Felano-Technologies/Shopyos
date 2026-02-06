@@ -19,6 +19,8 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient'; // Ensure you have expo-linear-gradient installed
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
+import { getStoreOrders } from '@/services/api';
+import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
@@ -35,46 +37,44 @@ interface Order {
 const OrdersScreen = () => {
   const [filter, setFilter] = useState<'All' | 'Pending' | 'Processing' | 'Delivered' | 'Cancelled'>('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [orders, setOrders] = useState<Order[]>([]);
 
-  // Mock data
-  const ordersToUse: Order[] = [
-    {
-      id: 'o1',
-      orderNumber: 'ORD-2481',
-      customerName: 'John Doe',
-      itemsCount: 3,
-      totalAmount: 61.00,
-      date: '2024-06-16T12:30:00',
-      status: 'Pending',
-    },
-    {
-      id: 'o2',
-      orderNumber: 'ORD-2482',
-      customerName: 'Psalm George',
-      itemsCount: 2,
-      totalAmount: 100.00,
-      date: '2024-06-26T08:45:00',
-      status: 'Delivered',
-    },
-    {
-      id: 'o3',
-      orderNumber: 'ORD-2483',
-      customerName: 'Mike Johnson',
-      itemsCount: 2,
-      totalAmount: 295.0,
-      date: '2024-06-18T15:00:00',
-      status: 'Pending',
-    },
-    {
-      id: 'o4',
-      orderNumber: 'ORD-2484',
-      customerName: 'Sarah Williams',
-      itemsCount: 1,
-      totalAmount: 0.00,
-      date: '2024-06-15T10:20:00',
-      status: 'Delivered',
-    },
-  ];
+  const fetchOrders = async () => {
+    try {
+      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      if (businessId) {
+        const data = await getStoreOrders(businessId);
+        if (data.success) {
+          const mappedOrders = data.orders.map((o: any) => ({
+            id: o.id,
+            orderNumber: o.order_number,
+            customerName: o.buyer?.user_profiles?.full_name || 'Guest',
+            itemsCount: o.order_items?.length || 0,
+            // Check if payment exists and has amount, otherwise try to sum order items or use 0
+            totalAmount: o.payments?.length > 0 ? parseFloat(o.payments[0].amount) : 0,
+            date: o.created_at,
+            status: (o.status.charAt(0).toUpperCase() + o.status.slice(1)) as any
+          }));
+          setOrders(mappedOrders);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrders();
+    setRefreshing(false);
+  };
+
+  // Use state orders instead of mock
+  const ordersToUse = orders;
 
   const filteredOrders = filter === 'All' ? ordersToUse : ordersToUse.filter(order => order.status === filter);
 
@@ -82,14 +82,9 @@ const OrdersScreen = () => {
   const totalOrders = ordersToUse.length;
   const pendingOrders = ordersToUse.filter(o => o.status === 'Pending').length;
   const deliveredOrders = ordersToUse.filter(o => o.status === 'Delivered').length;
-  const totalRevenue = 61.00;
+  const totalRevenue = ordersToUse.reduce((sum, order) => sum + order.totalAmount, 0);
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  };
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -110,7 +105,7 @@ const OrdersScreen = () => {
         <View style={styles.cardHeader}>
           <View style={styles.orderIdContainer}>
             <View style={styles.iconCircle}>
-                <Feather name="package" size={16} color="#0C1559" />
+              <Feather name="package" size={16} color="#0C1559" />
             </View>
             <Text style={styles.orderNumber}>{item.orderNumber}</Text>
           </View>
@@ -122,39 +117,39 @@ const OrdersScreen = () => {
 
         {/* Divider */}
         <View style={styles.dashedDivider}>
-             {Array.from({ length: 20 }).map((_, i) => (
-                <View key={i} style={styles.dash} />
-             ))}
+          {Array.from({ length: 20 }).map((_, i) => (
+            <View key={i} style={styles.dash} />
+          ))}
         </View>
 
         {/* Middle Row: Details */}
         <View style={styles.cardBody}>
-            <View style={styles.infoRow}>
-                <Text style={styles.label}>Customer</Text>
-                <Text style={styles.value}>{item.customerName}</Text>
-            </View>
-            <View style={styles.infoRow}>
-                <Text style={styles.label}>Date</Text>
-                <Text style={styles.value}>{format(new Date(item.date), "MMM dd, hh:mm a")}</Text>
-            </View>
-            <View style={styles.infoRow}>
-                <Text style={styles.label}>Items</Text>
-                <Text style={styles.value}>{item.itemsCount} Items</Text>
-            </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Customer</Text>
+            <Text style={styles.value}>{item.customerName}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Date</Text>
+            <Text style={styles.value}>{format(new Date(item.date), "MMM dd, hh:mm a")}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.label}>Items</Text>
+            <Text style={styles.value}>{item.itemsCount} Items</Text>
+          </View>
         </View>
 
         {/* Bottom Row: Price and Action */}
         <View style={styles.cardFooter}>
           <View>
-              <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.amount}>GH₵ {item.totalAmount.toFixed(2)}</Text>
+            <Text style={styles.totalLabel}>Total Amount</Text>
+            <Text style={styles.amount}>GH₵ {item.totalAmount.toFixed(2)}</Text>
           </View>
-         <TouchableOpacity 
+          <TouchableOpacity
             style={styles.detailsBtn}
             // Update the onPress to navigate with the specific item ID
             onPress={() => router.push({
               pathname: '/business/orderDetails',
-              params: { id: item.id } 
+              params: { id: item.id }
             })}
           >
             <Text style={styles.detailsBtnText}>Details</Text>
@@ -171,12 +166,12 @@ const OrdersScreen = () => {
 
       {/* --- BACKGROUND LAYER --- */}
       <View style={StyleSheet.absoluteFillObject}>
-          <View style={styles.bottomLogos}>
-            <Image
-              source={require('../../assets/images/splash-icon.png')}
-              style={styles.fadedLogo}
-            />
-          </View>
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
       </View>
 
       <SafeAreaView style={styles.safeArea}>
@@ -192,88 +187,88 @@ const OrdersScreen = () => {
             style={styles.headerContainer}
           >
             <View style={styles.headerTop}>
-                <View>
-                    <Text style={styles.headerSubtitle}>Welcome To Your</Text>
-                    <Text style={styles.headerTitle}>Order Management</Text>
-                </View>
-                <TouchableOpacity style={styles.iconBtn}>
-                    <Ionicons name="search" size={24} color="#FFF" />
-                </TouchableOpacity>
+              <View>
+                <Text style={styles.headerSubtitle}>Welcome To Your</Text>
+                <Text style={styles.headerTitle}>Order Management</Text>
+              </View>
+              <TouchableOpacity style={styles.iconBtn}>
+                <Ionicons name="search" size={24} color="#FFF" />
+              </TouchableOpacity>
             </View>
 
             {/* Featured Revenue Card */}
             <View style={styles.revenueCard}>
-                <View>
-                    <Text style={styles.revenueLabel}>Total Revenue</Text>
-                    <Text style={styles.revenueAmount}>GH₵ {totalRevenue.toFixed(2)}</Text>
-                </View>
-                <View style={styles.revenueIconContainer}>
-                    <MaterialCommunityIcons name="finance" size={28} color="#84cc16" />
-                </View>
+              <View>
+                <Text style={styles.revenueLabel}>Total Revenue</Text>
+                <Text style={styles.revenueAmount}>GH₵ {totalRevenue.toFixed(2)}</Text>
+              </View>
+              <View style={styles.revenueIconContainer}>
+                <MaterialCommunityIcons name="finance" size={28} color="#84cc16" />
+              </View>
             </View>
           </LinearGradient>
 
           {/* --- QUICK STATS GRID --- */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Total</Text>
-                <Text style={styles.statNumber}>{totalOrders}</Text>
-                <View style={[styles.statBar, { backgroundColor: '#0C1559' }]} />
+              <Text style={styles.statLabel}>Total</Text>
+              <Text style={styles.statNumber}>{totalOrders}</Text>
+              <View style={[styles.statBar, { backgroundColor: '#0C1559' }]} />
             </View>
             <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Pending</Text>
-                <Text style={styles.statNumber}>{pendingOrders}</Text>
-                <View style={[styles.statBar, { backgroundColor: '#F59E0B' }]} />
+              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statNumber}>{pendingOrders}</Text>
+              <View style={[styles.statBar, { backgroundColor: '#F59E0B' }]} />
             </View>
             <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Delivered</Text>
-                <Text style={styles.statNumber}>{deliveredOrders}</Text>
-                <View style={[styles.statBar, { backgroundColor: '#10B981' }]} />
+              <Text style={styles.statLabel}>Delivered</Text>
+              <Text style={styles.statNumber}>{deliveredOrders}</Text>
+              <View style={[styles.statBar, { backgroundColor: '#10B981' }]} />
             </View>
           </View>
 
           {/* --- FILTER PILLS --- */}
           <View style={styles.filterWrapper}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
-                {["All", "Pending", "Processing", "Delivered", "Cancelled"].map((tab) => {
-                    const isActive = filter === tab;
-                    return (
-                        <TouchableOpacity
-                            key={tab}
-                            onPress={() => setFilter(tab as any)}
-                            style={[
-                                styles.filterPill,
-                                isActive ? styles.filterPillActive : styles.filterPillInactive,
-                            ]}
-                        >
-                            <Text style={[
-                                styles.filterText,
-                                isActive ? styles.filterTextActive : styles.filterTextInactive
-                            ]}>
-                                {tab}
-                            </Text>
-                        </TouchableOpacity>
-                    );
-                })}
+              {["All", "Pending", "Processing", "Delivered", "Cancelled"].map((tab) => {
+                const isActive = filter === tab;
+                return (
+                  <TouchableOpacity
+                    key={tab}
+                    onPress={() => setFilter(tab as any)}
+                    style={[
+                      styles.filterPill,
+                      isActive ? styles.filterPillActive : styles.filterPillInactive,
+                    ]}
+                  >
+                    <Text style={[
+                      styles.filterText,
+                      isActive ? styles.filterTextActive : styles.filterTextInactive
+                    ]}>
+                      {tab}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
           {/* --- ORDERS LIST --- */}
           <View style={styles.listContainer}>
-              <FlatList
-                data={filteredOrders}
-                keyExtractor={(item) => item.id}
-                renderItem={renderOrder}
-                scrollEnabled={false}
-                ListEmptyComponent={() => (
+            <FlatList
+              data={filteredOrders}
+              keyExtractor={(item) => item.id}
+              renderItem={renderOrder}
+              scrollEnabled={false}
+              ListEmptyComponent={() => (
                 <View style={styles.emptyState}>
-                    <Feather name="inbox" size={40} color="#CBD5E1" />
-                    <Text style={styles.emptyStateText}>No {filter} orders found.</Text>
+                  <Feather name="inbox" size={40} color="#CBD5E1" />
+                  <Text style={styles.emptyStateText}>No {filter} orders found.</Text>
                 </View>
-                )}
+              )}
             />
           </View>
-          
+
         </Animated.ScrollView>
 
         <BusinessBottomNav />
@@ -289,9 +284,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    backgroundColor: 'transparent', 
+    backgroundColor: 'transparent',
   },
-  
+
   // Background
   bottomLogos: {
     position: 'absolute',
@@ -302,7 +297,7 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     resizeMode: 'contain',
-    opacity: 0.1, 
+    opacity: 0.1,
   },
 
   // Header
@@ -335,7 +330,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 12,
   },
-  
+
   // Revenue Card
   revenueCard: {
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -439,7 +434,7 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 20,
   },
-  
+
   // Card Design
   orderCard: {
     backgroundColor: '#FFF',
@@ -489,7 +484,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     textTransform: 'uppercase',
   },
-  
+
   // Dashed Divider
   dashedDivider: {
     flexDirection: 'row',

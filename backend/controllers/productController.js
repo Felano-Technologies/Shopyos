@@ -1,10 +1,10 @@
 // controllers/productController.js
 const repositories = require('../db/repositories');
-const { 
-  uploadFileToCloudinary, 
+const {
+  uploadFileToCloudinary,
   uploadMultipleFilesToCloudinary,
   deleteImage,
-  extractPublicId 
+  extractPublicId
 } = require('../utils/uploadHelpers');
 
 // @desc    Create a new product
@@ -13,7 +13,7 @@ const {
 const createProduct = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const {
       storeId,
       name,
@@ -113,7 +113,8 @@ const getStoreProducts = async (req, res) => {
 
     const products = await repositories.products.findByStore(storeId, {
       limit: parseInt(limit),
-      offset: parseInt(offset)
+      offset: parseInt(offset),
+      select: '*, inventory(quantity), product_images(image_url)'
     });
 
     // Format for backward compatibility
@@ -123,8 +124,10 @@ const getStoreProducts = async (req, res) => {
       name: p.title,
       description: p.description,
       price: p.price,
-      images: p.images || [],
+      images: p.product_images ? p.product_images.map(img => img.image_url) : [],
       category: p.category,
+      sku: p.sku,
+      stockQuantity: p.inventory ? p.inventory.quantity : 0,
       createdAt: p.created_at,
       updatedAt: p.updated_at
     }));
@@ -242,8 +245,8 @@ const updateProduct = async (req, res) => {
     if (updateData.weight) mappedData.weight_kg = parseFloat(updateData.weight);
     if (updateData.dimensions) mappedData.dimensions = updateData.dimensions;
     if (updateData.tags) {
-      mappedData.tags = Array.isArray(updateData.tags) 
-        ? updateData.tags 
+      mappedData.tags = Array.isArray(updateData.tags)
+        ? updateData.tags
         : updateData.tags.split(',').map(t => t.trim());
     }
     if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;
@@ -313,7 +316,7 @@ const deleteProduct = async (req, res) => {
     if (product.product_images && product.product_images.length > 0) {
       const deletePromises = product.product_images.map(img => {
         const publicId = extractPublicId(img.image_url);
-        return publicId ? deleteImage(publicId).catch(err => 
+        return publicId ? deleteImage(publicId).catch(err =>
           console.warn(`Failed to delete image ${publicId}:`, err.message)
         ) : Promise.resolve();
       });
@@ -379,7 +382,7 @@ const uploadProductImages = async (req, res) => {
 
     // Upload images to Cloudinary
     const uploadResults = await uploadMultipleFilesToCloudinary(
-      req.files, 
+      req.files,
       'shopyos/products'
     );
 

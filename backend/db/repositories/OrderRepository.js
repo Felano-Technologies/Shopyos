@@ -45,7 +45,10 @@ class OrderRepository extends BaseRepository {
           product_title,
           quantity,
           price,
-          subtotal
+          subtotal,
+          product:product_id (
+            product_images (image_url)
+          )
         ),
         payments (
           id,

@@ -20,54 +20,14 @@ import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
+import { getStoreProducts } from '@/services/api';
+import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
-// Mock inventory data
-const INVENTORY_DATA = [
-  {
-    id: '1',
-    name: 'Nike Air Force 1',
-    category: 'Sneakers',
-    sku: 'NK-AF1-001',
-    stock: 45,
-    price: 175.0,
-    lowStock: false,
-    image: require('../../assets/images/products/nike.jpg'),
-  },
-  {
-    id: '2',
-    name: 'Wireless Headset',
-    category: 'Electronics',
-    sku: 'WH-001',
-    stock: 8,
-    price: 89.99,
-    lowStock: true,
-    image: require('../../assets/images/categories/headset.jpg'),
-  },
-  {
-    id: '3',
-    name: 'Leather Jacket',
-    category: 'Clothing',
-    sku: 'LJ-002',
-    stock: 23,
-    price: 120.0,
-    lowStock: false,
-    image: require('../../assets/images/categories/jacket.jpg'),
-  },
-  {
-    id: '4',
-    name: 'Abstract Art Print',
-    category: 'Art',
-    sku: 'ART-003',
-    stock: 5,
-    price: 250.0,
-    lowStock: true,
-    image: require('../../assets/images/categories/art.jpg'),
-  },
-];
-
 const CATEGORIES = ['All', 'Sneakers', 'Electronics', 'Clothing', 'Art'];
+
+
 
 const Inventory = () => {
   const theme = useColorScheme();
@@ -78,12 +38,42 @@ const Inventory = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'price'>('name');
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [inventory, setInventory] = useState<any[]>([]);
+
+  const fetchInventory = async () => {
+    try {
+      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      if (businessId) {
+        const data = await getStoreProducts(businessId);
+        if (data.success) {
+          const mappedData = data.products.map((p: any) => ({
+            id: p._id,
+            name: p.name,
+            category: p.category || 'General',
+            sku: p.sku || 'N/A',
+            stock: p.stockQuantity || 0,
+            price: parseFloat(p.price),
+            lowStock: (p.stockQuantity || 0) < 10,
+            // Use a placeholder if no image, or the first image
+            image: p.images && p.images.length > 0 ? { uri: p.images[0] } : require('../../assets/images/icon.png'),
+          }));
+          setInventory(mappedData);
+        }
+      }
+    } catch (e) {
+      console.error("Fetch inventory error", e);
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
 
   // Filter inventory based on category and search
-  const filteredInventory = INVENTORY_DATA.filter((item) => {
+  const filteredInventory = inventory.filter((item) => {
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         item.sku.toLowerCase().includes(searchQuery.toLowerCase());
+      (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
 
@@ -100,19 +90,19 @@ const Inventory = () => {
   });
 
   // Calculate stats
-  const totalItems = INVENTORY_DATA.length;
-  const totalStock = INVENTORY_DATA.reduce((sum, item) => sum + item.stock, 0);
-  const lowStockItems = INVENTORY_DATA.filter(item => item.lowStock).length;
-  const totalValue = INVENTORY_DATA.reduce((sum, item) => sum + (item.price * item.stock), 0);
+  const totalItems = inventory.length;
+  const totalStock = inventory.reduce((sum, item) => sum + item.stock, 0);
+  const lowStockItems = inventory.filter(item => item.lowStock).length;
+  const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock), 0);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await fetchInventory();
     setRefreshing(false);
   };
 
-  const renderInventoryItem = ({ item }: { item: typeof INVENTORY_DATA[0] }) => (
-    <TouchableOpacity 
+  const renderInventoryItem = ({ item }: { item: any }) => (
+    <TouchableOpacity
       style={styles.inventoryItemWrapper}
       onPress={() => router.push(`/business/products/${item.id}` as any)}
     >
@@ -125,7 +115,7 @@ const Inventory = () => {
         ]}
       >
         <Image source={item.image} style={styles.itemImage} />
-        
+
         <View style={styles.itemDetails}>
           <View style={styles.itemHeader}>
             <Text style={[styles.itemName, { color: isDarkMode ? '#EDEDED' : '#222' }]} numberOfLines={1}>
@@ -138,11 +128,11 @@ const Inventory = () => {
               </View>
             )}
           </View>
-          
+
           <Text style={[styles.itemSku, { color: isDarkMode ? '#AAA' : '#666' }]}>
             SKU: {item.sku}
           </Text>
-          
+
           <View style={styles.itemMeta}>
             <View style={styles.metaItem}>
               <Ionicons name="cube-outline" size={14} color={isDarkMode ? '#AAA' : '#666'} />
@@ -158,7 +148,7 @@ const Inventory = () => {
             </View>
           </View>
         </View>
-        
+
         <TouchableOpacity style={styles.editButton}>
           <Ionicons name="ellipsis-vertical" size={20} color={isDarkMode ? '#EDEDED' : '#666'} />
         </TouchableOpacity>
@@ -172,7 +162,7 @@ const Inventory = () => {
       style={{ flex: 1 }}
     >
       <StatusBar style={isDarkMode ? 'light' : 'dark'} translucent backgroundColor="transparent" />
-      
+
       <Animated.ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -209,7 +199,7 @@ const Inventory = () => {
                 Manage your stock levels
               </Text>
             </View>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => router.push('/business/products')}
               style={styles.addButton}
             >
@@ -273,7 +263,7 @@ const Inventory = () => {
             />
           </BlurView>
 
-          <TouchableOpacity onPress={() => {}}>
+          <TouchableOpacity onPress={() => { }}>
             <BlurView
               intensity={100}
               tint={isDarkMode ? 'dark' : 'light'}

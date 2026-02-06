@@ -20,6 +20,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { getStoreProducts, createProduct, deleteProduct, uploadProductImages } from '@/services/api';
+import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +34,28 @@ const ProductsScreen = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- Actions ---
+  const fetchProducts = async () => {
+    try {
+      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      if (businessId) {
+        const data = await getStoreProducts(businessId);
+        if (data.success) {
+          setProducts(data.products.map((p: any) => ({
+            id: p._id,
+            name: p.name,
+            price: p.price.toString(),
+            image: p.images && p.images.length > 0 ? p.images[0] : null
+          })));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch products", e);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchProducts();
+  }, []);
 
   const pickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -45,27 +69,59 @@ const ProductsScreen = () => {
     }
   };
 
-  const addProduct = () => {
+  const addProduct = async () => {
     if (!name || !price || !image) {
       Alert.alert('Missing Fields', 'Please fill all fields and add an image.');
       return;
     }
-    const newProduct = {
-      id: Date.now().toString(),
-      name,
-      price,
-      image,
-    };
-    setProducts(prev => [newProduct, ...prev]); 
-    setName('');
-    setPrice('');
-    setImage(null);
+
+    try {
+      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      if (!businessId) {
+        Alert.alert("Error", "No active business found");
+        return;
+      }
+
+      // Create product
+      const newProductData = {
+        storeId: businessId,
+        name: name,
+        price: price,
+        description: 'New Product', // Default description or add input
+        stockQuantity: 10 // Default
+      };
+
+      const createRes = await createProduct(newProductData);
+      if (createRes.success && createRes.product) {
+        const productId = createRes.product._id;
+        // Upload Image
+        await uploadProductImages(productId, [image]);
+
+        // Refresh list
+        await fetchProducts();
+        setName('');
+        setPrice('');
+        setImage(null);
+        Alert.alert("Success", "Product added successfully");
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to add product");
+    }
   };
 
   const removeProduct = (id: string) => {
     Alert.alert("Delete Product", "Are you sure you want to remove this item?", [
       { text: "Cancel", style: "cancel" },
-      { text: "Delete", style: "destructive", onPress: () => setProducts(prev => prev.filter(p => p.id !== id)) }
+      {
+        text: "Delete", style: "destructive", onPress: async () => {
+          try {
+            await deleteProduct(id);
+            fetchProducts(); // Refresh
+          } catch (e: any) {
+            Alert.alert("Error", "Failed to delete product");
+          }
+        }
+      }
     ]);
   };
 
@@ -97,7 +153,7 @@ const ProductsScreen = () => {
       */}
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          
+
           {/* --- Header Section --- */}
           <LinearGradient
             colors={['#0C1559', '#1e3a8a']}
@@ -122,25 +178,25 @@ const ProductsScreen = () => {
 
             {/* Quick Analytics Row */}
             <View style={styles.statsRow}>
-                <View style={styles.statCard}>
-                    <View style={[styles.iconBox, { backgroundColor: 'rgba(132, 204, 22, 0.2)' }]}>
-                        <Feather name="package" size={18} color="#84cc16" />
-                    </View>
-                    <View>
-                        <Text style={styles.statLabel}>Total Products</Text>
-                        <Text style={styles.statValue}>{totalProducts}</Text>
-                    </View>
+              <View style={styles.statCard}>
+                <View style={[styles.iconBox, { backgroundColor: 'rgba(132, 204, 22, 0.2)' }]}>
+                  <Feather name="package" size={18} color="#84cc16" />
                 </View>
-                <View style={styles.verticalDivider} />
-                <View style={styles.statCard}>
-                    <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-                        <MaterialCommunityIcons name="finance" size={18} color="#3b82f6" />
-                    </View>
-                    <View>
-                        <Text style={styles.statLabel}>Inventory Value</Text>
-                        <Text style={styles.statValue}>₵{portfolioValue.toFixed(2)}</Text>
-                    </View>
+                <View>
+                  <Text style={styles.statLabel}>Total Products</Text>
+                  <Text style={styles.statValue}>{totalProducts}</Text>
                 </View>
+              </View>
+              <View style={styles.verticalDivider} />
+              <View style={styles.statCard}>
+                <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
+                  <MaterialCommunityIcons name="finance" size={18} color="#3b82f6" />
+                </View>
+                <View>
+                  <Text style={styles.statLabel}>Inventory Value</Text>
+                  <Text style={styles.statValue}>₵{portfolioValue.toFixed(2)}</Text>
+                </View>
+              </View>
             </View>
           </LinearGradient>
 
@@ -148,57 +204,57 @@ const ProductsScreen = () => {
           <View style={styles.formSection}>
             <View style={styles.formCard}>
               <View style={styles.formHeader}>
-                 <Text style={styles.formTitle}>Add New Item</Text>
-                 <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
+                <Text style={styles.formTitle}>Add New Item</Text>
+                <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
               </View>
 
               <View style={styles.inputRow}>
-                  {/* Image Picker */}
-                  <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage}>
-                    {image ? (
-                      <Image source={{ uri: image }} style={styles.uploadedImage} />
-                    ) : (
-                      <View style={styles.uploadPlaceholder}>
-                        <Feather name="camera" size={24} color="#94A3B8" />
-                        <Text style={styles.uploadText}>Add Photo</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+                {/* Image Picker */}
+                <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage}>
+                  {image ? (
+                    <Image source={{ uri: image }} style={styles.uploadedImage} />
+                  ) : (
+                    <View style={styles.uploadPlaceholder}>
+                      <Feather name="camera" size={24} color="#94A3B8" />
+                      <Text style={styles.uploadText}>Add Photo</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
 
-                  {/* Text Inputs */}
-                  <View style={styles.textInputContainer}>
-                      <View style={styles.inputWrapper}>
-                        <Feather name="tag" size={16} color="#64748B" style={styles.inputIcon} />
-                        <TextInput
-                            value={name}
-                            onChangeText={setName}
-                            placeholder="Product Name"
-                            placeholderTextColor="#94A3B8"
-                            style={styles.textInput}
-                        />
-                      </View>
-                      <View style={styles.inputWrapper}>
-                        <Text style={styles.currencySymbol}>₵</Text>
-                        <TextInput
-                            value={price}
-                            onChangeText={setPrice}
-                            placeholder="0.00"
-                            keyboardType="numeric"
-                            placeholderTextColor="#94A3B8"
-                            style={styles.textInput}
-                        />
-                      </View>
+                {/* Text Inputs */}
+                <View style={styles.textInputContainer}>
+                  <View style={styles.inputWrapper}>
+                    <Feather name="tag" size={16} color="#64748B" style={styles.inputIcon} />
+                    <TextInput
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="Product Name"
+                      placeholderTextColor="#94A3B8"
+                      style={styles.textInput}
+                    />
                   </View>
+                  <View style={styles.inputWrapper}>
+                    <Text style={styles.currencySymbol}>₵</Text>
+                    <TextInput
+                      value={price}
+                      onChangeText={setPrice}
+                      placeholder="0.00"
+                      keyboardType="numeric"
+                      placeholderTextColor="#94A3B8"
+                      style={styles.textInput}
+                    />
+                  </View>
+                </View>
               </View>
 
               <TouchableOpacity onPress={addProduct}>
                 <LinearGradient
-                    colors={['#0C1559', '#1e3a8a']}
-                    start={{x:0, y:0}} end={{x:1, y:0}}
-                    style={styles.addButton}
+                  colors={['#0C1559', '#1e3a8a']}
+                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                  style={styles.addButton}
                 >
-                    <Feather name="plus" size={18} color="#FFF" />
-                    <Text style={styles.addButtonText}>Add to Inventory</Text>
+                  <Feather name="plus" size={18} color="#FFF" />
+                  <Text style={styles.addButtonText}>Add to Inventory</Text>
                 </LinearGradient>
               </TouchableOpacity>
             </View>
@@ -207,14 +263,14 @@ const ProductsScreen = () => {
           {/* --- Search & List --- */}
           <View style={styles.listSection}>
             <View style={styles.searchBar}>
-                <Ionicons name="search" size={20} color="#94A3B8" />
-                <TextInput
-                    placeholder="Search inventory..."
-                    placeholderTextColor="#94A3B8"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    style={styles.searchInput}
-                />
+              <Ionicons name="search" size={20} color="#94A3B8" />
+              <TextInput
+                placeholder="Search inventory..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={styles.searchInput}
+              />
             </View>
 
             <Text style={styles.sectionHeader}>Inventory List ({filteredProducts.length})</Text>
@@ -227,36 +283,36 @@ const ProductsScreen = () => {
                 renderItem={({ item }) => (
                   <View style={styles.productCard}>
                     <Image source={{ uri: item.image }} style={styles.cardImage} />
-                    
+
                     <View style={styles.cardInfo}>
                       <Text style={styles.cardTitle}>{item.name}</Text>
                       <Text style={styles.cardPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
                     </View>
 
                     <View style={styles.cardActions}>
-                        <TouchableOpacity style={styles.actionBtn}>
-                             <Feather name="edit-2" size={16} color="#64748B" />
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                            style={[styles.actionBtn, styles.deleteBtn]}
-                            onPress={() => removeProduct(item.id)}
-                        >
-                             <Feather name="trash-2" size={16} color="#EF4444" />
-                        </TouchableOpacity>
+                      <TouchableOpacity style={styles.actionBtn}>
+                        <Feather name="edit-2" size={16} color="#64748B" />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.actionBtn, styles.deleteBtn]}
+                        onPress={() => removeProduct(item.id)}
+                      >
+                        <Feather name="trash-2" size={16} color="#EF4444" />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 )}
               />
             ) : (
               <View style={styles.emptyState}>
-                <Image 
-                    source={require('../../assets/images/icon.png')}
-                    style={{width: 60, height: 60, opacity: 0.2, marginBottom: 10, tintColor: '#64748B'}}
-                    resizeMode="contain"
+                <Image
+                  source={require('../../assets/images/icon.png')}
+                  style={{ width: 60, height: 60, opacity: 0.2, marginBottom: 10, tintColor: '#64748B' }}
+                  resizeMode="contain"
                 />
                 <Text style={styles.emptyTitle}>No products found</Text>
                 <Text style={styles.emptySubtitle}>
-                   {searchQuery ? "Try a different search term" : "Add your first product above"}
+                  {searchQuery ? "Try a different search term" : "Add your first product above"}
                 </Text>
               </View>
             )}
@@ -272,13 +328,13 @@ const ProductsScreen = () => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#F1F5F9', 
+    backgroundColor: '#F1F5F9',
   },
   safeArea: {
     flex: 1,
     backgroundColor: 'transparent',
   },
-  
+
   // Background Watermark
   bottomLogos: {
     position: 'absolute',
@@ -289,7 +345,7 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     resizeMode: 'contain',
-    opacity: 0.08, 
+    opacity: 0.08,
   },
 
   // Header
@@ -513,7 +569,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 4,
   },
-  
+
   // Product Card
   productCard: {
     flexDirection: 'row',

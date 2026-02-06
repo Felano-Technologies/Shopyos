@@ -22,14 +22,14 @@ export const baseURL = getBaseURL();
 export const API_URL = `${baseURL}/api/v1/`;
 
 // Platform-specific storage helpers
-const storage = {
+export const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') {
       return localStorage.getItem(key);
     }
     return await SecureStore.getItemAsync(key);
   },
-  
+
   async setItem(key: string, value: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.setItem(key, value);
@@ -37,7 +37,7 @@ const storage = {
       await SecureStore.setItemAsync(key, value);
     }
   },
-  
+
   async removeItem(key: string): Promise<void> {
     if (Platform.OS === 'web') {
       localStorage.removeItem(key);
@@ -97,12 +97,12 @@ api.interceptors.response.use(
 export const registerUser = async (name: string, email: string, password: string, fullPhoneNumber: string) => {
   try {
     const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password });
-    
+
     // Store token if registration is successful
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
     }
-    
+
     return response.data;
   } catch (error: any) {
     if (error.response) {
@@ -119,18 +119,18 @@ export const registerUser = async (name: string, email: string, password: string
 export const loginUser = async (email: string, password: string, latitude: number, longitude: number) => {
   try {
     const response = await api.post('/auth/login', { email, password, latitude, longitude });
-    
+
     // Store token automatically after successful login
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
     }
-    
+
     // Check if user needs to select a role
-    const needsRole = response.data.requiresRoleSelection || 
-                      response.data.role === 'none' || 
-                      !response.data.role ||
-                      (response.data.roles && response.data.roles.length === 0);
-    
+    const needsRole = response.data.requiresRoleSelection ||
+      response.data.role === 'none' ||
+      !response.data.role ||
+      (response.data.roles && response.data.roles.length === 0);
+
     return {
       ...response.data,
       needsRole
@@ -270,6 +270,103 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
   }
 };
 
+// Get store orders
+export const getStoreOrders = async (storeId: string) => {
+  try {
+    const response = await api.get(`/orders/store/${storeId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Failed to fetch store orders');
+    } else {
+      console.error('Error fetching store orders:', error.message);
+      throw new Error(error.message || 'Network error fetching store orders');
+    }
+  }
+};
+
+export const getOrderDetails = async (orderId: string) => {
+  try {
+    const response = await api.get(`/orders/${orderId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to fetch order details');
+    }
+    throw new Error(error.message || 'Network error');
+  }
+}
+
+
+export const updateOrderStatus = async (orderId: string, status: string) => {
+  try {
+    const response = await api.put(`/orders/${orderId}/status`, { status });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to update order status');
+    }
+    throw new Error(error.message || 'Network error');
+  }
+};
+
+// Get store products
+export const getStoreProducts = async (storeId: string) => {
+  try {
+    const response = await api.get(`/products/store/${storeId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching store products", error);
+    throw error;
+  }
+};
+
+export const createProduct = async (productData: any) => {
+  try {
+    const response = await api.post('/products', productData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to create product');
+    }
+    throw error;
+  }
+};
+
+export const deleteProduct = async (productId: string) => {
+  try {
+    const response = await api.delete(`/products/${productId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to delete product');
+    }
+    throw error;
+  }
+};
+
+export const uploadProductImages = async (productId: string, imageUris: string[]) => {
+  try {
+    const formData = new FormData();
+    imageUris.forEach((uri, index) => {
+      const filename = uri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename || '');
+      const type = match ? `image/${match[1]}` : `image`;
+      // @ts-ignore
+      formData.append('images', { uri, name: filename, type });
+    });
+
+    const response = await api.post(`/products/${productId}/images`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error uploading images", error);
+    throw error;
+  }
+};
+
 // Get business dashboard data
 export const getBusinessDashboard = async (businessId: string) => {
   try {
@@ -286,11 +383,23 @@ export const getBusinessDashboard = async (businessId: string) => {
   }
 };
 
+export const getBusinessAnalytics = async (businessId: string, timeframe: 'week' | 'month' | 'year') => {
+  try {
+    const response = await api.get(`/business/analytics/${businessId}?timeframe=${timeframe}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to fetch analytics');
+    }
+    throw new Error(error.message || 'Network error');
+  }
+}
+
 // Also update the loginBusiness function
 export const loginBusiness = async (email: string, password: string, latitude: number, longitude: number) => {
   try {
     const response = await api.post('/business/login', { email, password, latitude, longitude });
-    
+
     // Store tokens and business data using storage helper
     if (response.data.token) {
       await storage.setItem('businessToken', response.data.token);
@@ -299,7 +408,7 @@ export const loginBusiness = async (email: string, password: string, latitude: n
       await storage.setItem('currentBusinessId', response.data.business._id);
       await storage.setItem('userRole', 'seller');
     }
-    
+
     return response.data;
   } catch (error: any) {
     if (error.response) {

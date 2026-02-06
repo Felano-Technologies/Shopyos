@@ -10,7 +10,9 @@ const {
   updateBusiness,
   deleteBusiness,
   uploadLogo,
-  uploadBanner
+  uploadBanner,
+  getBusinessDashboard,
+  getBusinessAnalytics
 } = require('../controllers/businessController');
 
 // Business routes
@@ -23,5 +25,9 @@ router.delete('/:id', protect, deleteBusiness);
 // Image upload routes
 router.post('/:id/upload-logo', protect, upload.single('logo'), uploadLogo);
 router.post('/:id/upload-banner', protect, upload.single('banner'), uploadBanner);
+
+// Dashboard
+router.get('/dashboard/:id', protect, getBusinessDashboard);
+router.get('/analytics/:id', protect, getBusinessAnalytics);
 
 module.exports = router;
