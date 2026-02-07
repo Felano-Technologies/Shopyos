@@ -19,7 +19,7 @@ const protect = async (req, res, next) => {
 
       // Get user from the token
       const user = await repositories.users.findById(decoded.id);
-      
+
       if (!user) {
         return res.status(401).json({ error: 'Not authorized, user not found' });
       }
@@ -40,7 +40,7 @@ const protect = async (req, res, next) => {
       next();
     } catch (error) {
       console.error('Auth middleware error:', error);
-      
+
       // Handle specific JWT errors
       if (error.name === 'JsonWebTokenError') {
         return res.status(401).json({ error: 'Not authorized, invalid token' });
@@ -48,7 +48,7 @@ const protect = async (req, res, next) => {
       if (error.name === 'TokenExpiredError') {
         return res.status(401).json({ error: 'Not authorized, token expired' });
       }
-      
+
       res.status(401).json({ error: 'Not authorized, token failed' });
     }
   } else {
@@ -62,10 +62,10 @@ const admin = async (req, res, next) => {
     try {
       // Check if user has admin role
       const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-      const hasAdminRole = userWithRoles?.user_roles?.some(ur => 
-        ur.roles?.role_name === 'admin' && ur.is_active
+      const hasAdminRole = userWithRoles?.user_roles?.some(ur =>
+        ur.roles?.name === 'admin' && ur.is_active
       );
-      
+
       if (hasAdminRole) {
         next();
       } else {
@@ -85,10 +85,10 @@ const seller = async (req, res, next) => {
   if (req.user && req.user.id) {
     try {
       const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-      const hasSellerRole = userWithRoles?.user_roles?.some(ur => 
-        ur.roles?.role_name === 'seller' && ur.is_active
+      const hasSellerRole = userWithRoles?.user_roles?.some(ur =>
+        ur.roles?.name === 'seller' && ur.is_active
       );
-      
+
       if (hasSellerRole) {
         next();
       } else {
@@ -108,10 +108,10 @@ const driver = async (req, res, next) => {
   if (req.user && req.user.id) {
     try {
       const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-      const hasDriverRole = userWithRoles?.user_roles?.some(ur => 
-        ur.roles?.role_name === 'driver' && ur.is_active
+      const hasDriverRole = userWithRoles?.user_roles?.some(ur =>
+        ur.roles?.name === 'driver' && ur.is_active
       );
-      
+
       if (hasDriverRole) {
         next();
       } else {
@@ -132,15 +132,15 @@ const hasAnyRole = (...roleNames) => {
     if (req.user && req.user.id) {
       try {
         const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-        const hasRole = userWithRoles?.user_roles?.some(ur => 
-          roleNames.includes(ur.roles?.role_name) && ur.is_active
+        const hasRole = userWithRoles?.user_roles?.some(ur =>
+          roleNames.includes(ur.roles?.name) && ur.is_active
         );
-        
+
         if (hasRole) {
           next();
         } else {
-          res.status(403).json({ 
-            error: `Access denied. Required role: ${roleNames.join(' or ')}` 
+          res.status(403).json({
+            error: `Access denied. Required role: ${roleNames.join(' or ')}`
           });
         }
       } catch (error) {

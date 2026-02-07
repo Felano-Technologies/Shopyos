@@ -64,11 +64,11 @@ class ConversationRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        participant1:participant1_id (
+        participant1:users!conversations_participant1_id_fkey (
           id,
           user_profiles (full_name, avatar_url)
         ),
-        participant2:participant2_id (
+        participant2:users!conversations_participant2_id_fkey (
           id,
           user_profiles (full_name, avatar_url)
         ),
@@ -90,7 +90,7 @@ class ConversationRepository extends BaseRepository {
     return (data || []).map(conv => {
       const isParticipant1 = conv.participant1_id === userId;
       const otherParticipant = isParticipant1 ? conv.participant2 : conv.participant1;
-      
+
       // Get last message
       const lastMessage = conv.messages && conv.messages.length > 0
         ? conv.messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
@@ -163,8 +163,8 @@ class ConversationRepository extends BaseRepository {
     const conversation = await this.findById(conversationId);
     if (!conversation) return false;
 
-    return conversation.participant1_id === userId || 
-           conversation.participant2_id === userId;
+    return conversation.participant1_id === userId ||
+      conversation.participant2_id === userId;
   }
 
   /**

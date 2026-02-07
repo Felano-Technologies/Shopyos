@@ -40,6 +40,10 @@ const productionConfig = require('./config/production');
 
 const app = express();
 
+// Trust proxy - Required for Render.com and other reverse proxies
+// This allows express-rate-limit to correctly identify users
+app.set('trust proxy', 1);
+
 // Security middleware
 app.use(helmet({
   contentSecurityPolicy: {

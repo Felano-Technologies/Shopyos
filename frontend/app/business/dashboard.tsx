@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
-import { getMyBusinesses, getBusinessDashboard } from '@/services/api';
+import { getMyBusinesses, getBusinessDashboard, getUnreadNotificationCount } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -108,6 +108,17 @@ const BusinessDashboard = () => {
           
           // --- OPTIONAL: If your API returns notification count, set it here ---
           // setUnreadCount(dashResp.data.unreadNotifications || 0); 
+        }
+
+        // Fetch real unread notification count
+        try {
+          const notificationRes = await getUnreadNotificationCount();
+          if (notificationRes.success) {
+            setUnreadCount(notificationRes.count || 0);
+          }
+        } catch (err) {
+          console.error('Error fetching unread count:', err);
+          setUnreadCount(0);
         }
       }
     } catch (error) {
