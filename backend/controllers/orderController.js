@@ -41,7 +41,7 @@ const createOrder = async (req, res) => {
 
     // Get cart with items
     const cart = await repositories.carts.getCartWithItems(userId);
-    
+
     if (!cart || !cart.cart_items || cart.cart_items.length === 0) {
       return res.status(400).json({
         success: false,
@@ -115,6 +115,37 @@ const createOrder = async (req, res) => {
 
       if (paymentError) {
         console.error('Payment creation error:', paymentError);
+      }
+
+      // Notify customer about order confirmation
+      await repositories.notifications.create({
+        user_id: userId,
+        type: 'order_placed',
+        title: 'Order Placed Successfully',
+        message: `Your order #${order.order_number} has been placed successfully. Total: ₵${totalAmount.toFixed(2)}`,
+        data: {
+          orderId: order.id,
+          orderNumber: order.order_number,
+          totalAmount: totalAmount
+        }
+      });
+
+      // Notify seller about new order
+      const store = await repositories.stores.findById(storeId);
+      if (store && store.owner_id) {
+        await repositories.notifications.create({
+          user_id: store.owner_id,
+          type: 'new_order',
+          title: 'New Order Received',
+          message: `You have a new order #${order.order_number} worth ₵${totalAmount.toFixed(2)}`,
+          data: {
+            orderId: order.id,
+            orderNumber: order.order_number,
+            storeId: storeId,
+            totalAmount: totalAmount,
+            itemCount: orderItems.length
+          }
+        });
       }
 
       createdOrders.push({
@@ -232,7 +263,7 @@ const getOrderDetails = async (req, res) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.getOrderDetails(orderId);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
@@ -280,8 +311,8 @@ const updateOrderStatus = async (req, res) => {
 
     // Validate status
     const validStatuses = [
-      'pending', 'paid', 'confirmed', 'preparing', 
-      'ready_for_pickup', 'in_transit', 'delivered', 
+      'pending', 'paid', 'confirmed', 'preparing',
+      'ready_for_pickup', 'in_transit', 'delivered',
       'completed', 'cancelled', 'refunded'
     ];
 
@@ -316,6 +347,44 @@ const updateOrderStatus = async (req, res) => {
 
     // Update status
     const updatedOrder = await repositories.orders.updateStatus(orderId, status);
+
+    // Notify customer about status changes
+    const statusMessages = {
+      'confirmed': {
+        title: 'Order Confirmed',
+        message: `Your order #${order.order_number} has been confirmed by the seller and is being prepared.`
+      },
+      'preparing': {
+        title: 'Order Being Prepared',
+        message: `Your order #${order.order_number} is now being prepared.`
+      },
+      'ready_for_pickup': {
+        title: 'Order Ready for Pickup',
+        message: `Your order #${order.order_number} is ready! A driver will pick it up soon.`
+      },
+      'cancelled': {
+        title: 'Order Cancelled',
+        message: `Your order #${order.order_number} has been cancelled. You will be refunded shortly.`
+      },
+      'completed': {
+        title: 'Order Completed',
+        message: `Your order #${order.order_number} is complete. Thank you for shopping with us!`
+      }
+    };
+
+    if (statusMessages[status]) {
+      await repositories.notifications.create({
+        user_id: order.buyer_id,
+        type: `order_${status}`,
+        title: statusMessages[status].title,
+        message: statusMessages[status].message,
+        data: {
+          orderId: order.id,
+          orderNumber: order.order_number,
+          status: status
+        }
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -401,7 +470,7 @@ const getOrderByNumber = async (req, res) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.findByOrderNumber(orderNumber);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,

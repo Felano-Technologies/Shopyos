@@ -119,7 +119,6 @@ export default function ActiveOrderScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Customer/Restaurant Contact */}
           <View style={styles.contactRow}>
             <View style={styles.customerInfo}>
               <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} style={styles.customerImg} />
@@ -129,7 +128,24 @@ export default function ActiveOrderScreen() {
               </View>
             </View>
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.circleBtn}>
+              <TouchableOpacity
+                style={styles.circleBtn}
+                onPress={() => {
+                  if (delivery?.conversationId) {
+                    router.push({
+                      pathname: '/chat/conversation',
+                      params: {
+                        conversationId: delivery.conversationId,
+                        chatType: 'driver',
+                        name: delivery?.order?.buyer?.name || 'Customer',
+                        avatar: delivery?.order?.buyer?.avatar || 'https://randomuser.me/api/portraits/women/44.jpg'
+                      }
+                    });
+                  } else {
+                    Alert.alert("Chat Unavailable", "No conversation found for this delivery");
+                  }
+                }}
+              >
                 <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
               </TouchableOpacity>
               <TouchableOpacity style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}>

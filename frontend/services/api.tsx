@@ -280,6 +280,48 @@ export const getAllStores = async (params: { search?: string, category?: string 
   }
 };
 
+// --- Favorites/Wishlist API ---
+
+export const addToFavorites = async (productId: string) => {
+  try {
+    const response = await api.post('/favorites', { productId });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error adding to favorites:", error);
+    throw error;
+  }
+};
+
+export const removeFromFavorites = async (productId: string) => {
+  try {
+    const response = await api.delete(`/favorites/${productId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error removing from favorites:", error);
+    throw error;
+  }
+};
+
+export const getFavorites = async () => {
+  try {
+    const response = await api.get('/favorites');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching favorites:", error);
+    throw error;
+  }
+};
+
+export const checkIsFavorite = async (productId: string) => {
+  try {
+    const response = await api.get(`/favorites/check/${productId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error checking favorite status:", error);
+    return { isFavorite: false };
+  }
+};
+
 // Get store orders
 export const getStoreOrders = async (storeId: string) => {
   try {

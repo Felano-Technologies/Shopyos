@@ -23,17 +23,18 @@ const messagingRoutes = require('./routes/messagingRoutes');
 const deliveryRoutes = require('./routes/deliveryRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const favoriteRoutes = require('./routes/favoriteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const advertisingRoutes = require('./routes/advertisingRoutes');
 
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { 
-  apiLimiter, 
-  authLimiter, 
-  uploadLimiter, 
+const {
+  apiLimiter,
+  authLimiter,
+  uploadLimiter,
   orderLimiter,
-  messageLimiter 
+  messageLimiter
 } = require('./middleware/rateLimiter');
 const productionConfig = require('./config/production');
 
@@ -114,6 +115,7 @@ app.get('/api/v1', (req, res) => {
       deliveries: '/api/v1/deliveries',
       reviews: '/api/v1/reviews',
       notifications: '/api/v1/notifications',
+      favorites: '/api/v1/favorites',
       admin: '/api/v1/admin',
       advertising: '/api/v1/advertising'
     }
@@ -142,6 +144,7 @@ app.use('/api/v1/messaging', messagingRoutes);
 app.use('/api/v1/deliveries', deliveryRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/favorites', favoriteRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/advertising', advertisingRoutes);
 
@@ -186,6 +189,10 @@ app.use('/api/notifications', (req, res, next) => {
   req.url = '/api/v1/notifications' + req.url.substring('/api/notifications'.length);
   notificationRoutes(req, res, next);
 });
+app.use('/api/favorites', (req, res, next) => {
+  req.url = '/api/v1/favorites' + req.url.substring('/api/favorites'.length);
+  favoriteRoutes(req, res, next);
+});
 app.use('/api/admin', (req, res, next) => {
   req.url = '/api/v1/admin' + req.url.substring('/api/admin'.length);
   adminRoutes(req, res, next);
@@ -215,7 +222,7 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 const gracefulShutdown = () => {
   console.log('\n🛑 Received shutdown signal, closing server gracefully...');
-  
+
   server.close(() => {
     console.log('✅ Server closed successfully');
     process.exit(0);

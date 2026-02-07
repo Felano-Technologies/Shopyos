@@ -15,6 +15,7 @@ const MessageRepository = require('./MessageRepository');
 const DeliveryRepository = require('./DeliveryRepository');
 const ReviewRepository = require('./ReviewRepository');
 const NotificationRepository = require('./NotificationRepository');
+const FavoriteRepository = require('./FavoriteRepository');
 const AdminRepository = require('./AdminRepository');
 const PromotedProductRepository = require('./PromotedProductRepository');
 const ReportRepository = require('./ReportRepository');
@@ -34,6 +35,7 @@ const repositories = {
   deliveries: new DeliveryRepository(supabaseAdmin),
   reviews: new ReviewRepository(supabaseAdmin),
   notifications: new NotificationRepository(supabaseAdmin),
+  favorites: new FavoriteRepository(supabaseAdmin),
   admin: new AdminRepository(supabaseAdmin),
   promotedProducts: new PromotedProductRepository(supabaseAdmin),
   reports: new ReportRepository(supabaseAdmin),

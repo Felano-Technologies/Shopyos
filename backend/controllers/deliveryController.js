@@ -154,6 +154,26 @@ const assignDriver = async (req, res) => {
     // Assign driver
     const updatedDelivery = await repositories.deliveries.assignDriver(deliveryId, driverId);
 
+    // Get order details for notification
+    const order = await repositories.orders.findById(delivery.order_id);
+    const driver = await repositories.users.findById(driverId);
+
+    // Notify customer that driver has been assigned
+    if (order && driver) {
+      await repositories.notifications.create({
+        user_id: order.buyer_id,
+        type: 'delivery_assigned',
+        title: 'Driver Assigned',
+        message: `${driver.full_name || 'A driver'} has been assigned to your order #${order.order_number}`,
+        data: {
+          orderId: order.id,
+          deliveryId: updatedDelivery.id,
+          driverId: driver.id,
+          driverName: driver.full_name
+        }
+      });
+    }
+
     res.status(200).json({
       success: true,
       message: 'Delivery assigned successfully',
@@ -237,7 +257,7 @@ const getDeliveryDetails = async (req, res) => {
     const userId = req.user.id;
 
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
-    
+
     if (!delivery) {
       return res.status(404).json({
         success: false,
@@ -285,7 +305,7 @@ const updateDeliveryStatus = async (req, res) => {
 
     // Validate status
     const validStatuses = [
-      'pending', 'assigned', 'picked_up', 'in_transit', 
+      'pending', 'assigned', 'picked_up', 'in_transit',
       'delivered', 'failed', 'cancelled'
     ];
 
@@ -309,11 +329,75 @@ const updateDeliveryStatus = async (req, res) => {
     // Update status
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
 
+    // Get order and driver details for notifications
+    const order = await repositories.orders.findById(updatedDelivery.order_id);
+    const driver = await repositories.users.findById(driverId);
+
     // Update order status based on delivery status
     if (status === 'picked_up') {
       await repositories.orders.updateStatus(updatedDelivery.order_id, 'in_transit');
+
+      // Notify customer that order has been picked up
+      if (order && driver) {
+        await repositories.notifications.create({
+          user_id: order.buyer_id,
+          type: 'order_picked_up',
+          title: 'Order Picked Up',
+          message: `${driver.full_name || 'Your driver'} has picked up your order #${order.order_number} and is on the way!`,
+          data: {
+            orderId: order.id,
+            deliveryId: updatedDelivery.id,
+            status: 'picked_up'
+          }
+        });
+      }
+    } else if (status === 'in_transit') {
+      // Notify customer that driver is on the way
+      if (order && driver) {
+        await repositories.notifications.create({
+          user_id: order.buyer_id,
+          type: 'delivery_in_transit',
+          title: 'Driver On The Way',
+          message: `${driver.full_name || 'Your driver'} is heading to your location with order #${order.order_number}`,
+          data: {
+            orderId: order.id,
+            deliveryId: updatedDelivery.id,
+            status: 'in_transit'
+          }
+        });
+      }
     } else if (status === 'delivered') {
       await repositories.orders.updateStatus(updatedDelivery.order_id, 'delivered');
+
+      // Notify customer that order has been delivered
+      if (order) {
+        await repositories.notifications.create({
+          user_id: order.buyer_id,
+          type: 'order_delivered',
+          title: 'Order Delivered',
+          message: `Your order #${order.order_number} has been successfully delivered. Enjoy!`,
+          data: {
+            orderId: order.id,
+            deliveryId: updatedDelivery.id,
+            status: 'delivered'
+          }
+        });
+      }
+    } else if (status === 'failed' || status === 'cancelled') {
+      // Notify customer of delivery issue
+      if (order) {
+        await repositories.notifications.create({
+          user_id: order.buyer_id,
+          type: 'delivery_issue',
+          title: status === 'failed' ? 'Delivery Failed' : 'Delivery Cancelled',
+          message: `There was an issue with your order #${order.order_number}. Please contact support.`,
+          data: {
+            orderId: order.id,
+            deliveryId: updatedDelivery.id,
+            status: status
+          }
+        });
+      }
     }
 
     res.status(200).json({
@@ -512,7 +596,7 @@ const getDeliveryByOrder = async (req, res) => {
     }
 
     const delivery = await repositories.deliveries.findByOrderId(orderId);
-    
+
     if (!delivery) {
       return res.status(404).json({
         success: false,

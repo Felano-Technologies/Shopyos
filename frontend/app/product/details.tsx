@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCart } from '../context/CartContext';
-import { getProductById } from '@/services/api';
+import { getProductById, addToFavorites, removeFromFavorites, checkIsFavorite } from '@/services/api';
 
 const { height } = Dimensions.get('window');
 
@@ -44,6 +44,7 @@ export default function ProductDetails() {
 
   useEffect(() => {
     if (params.id) {
+      // Fetch product details
       getProductById(params.id as string).then((res) => {
         if (res.success) {
           setProduct((prev) => ({
@@ -54,12 +55,33 @@ export default function ProductDetails() {
             category: res.product.category,
             image: res.product.images?.[0] || prev.image,
             sellerName: res.product.store?.name || "Verified Seller",
-            // Add other fields if needed
           }));
         }
       }).catch(err => console.log("Error loading product details", err));
+
+      // Check if product is favorited
+      checkIsFavorite(params.id as string).then((res) => {
+        if (res.isFavorite) {
+          setIsLiked(true);
+        }
+      }).catch(err => console.log("Error checking favorite status", err));
     }
   }, [params.id]);
+
+  const toggleFavorite = async () => {
+    try {
+      if (isLiked) {
+        await removeFromFavorites(product.id);
+        setIsLiked(false);
+      } else {
+        await addToFavorites(product.id);
+        setIsLiked(true);
+      }
+    } catch (error) {
+      console.error("Error toggling favorite:", error);
+      Alert.alert("Error", "Failed to update favorites");
+    }
+  };
 
   // --- UPDATED: Direct Navigation to Chat ---
   const handleChat = () => {
@@ -116,7 +138,7 @@ export default function ProductDetails() {
               <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
                 <Ionicons name="arrow-back" size={24} color="#0C1559" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => setIsLiked(!isLiked)} style={styles.iconBtn}>
+              <TouchableOpacity onPress={toggleFavorite} style={styles.iconBtn}>
                 <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
               </TouchableOpacity>
             </View>

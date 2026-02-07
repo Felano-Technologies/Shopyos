@@ -14,7 +14,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Object>} Created notification
    */
   async createNotification(notificationData) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .insert({
         user_id: notificationData.userId,
@@ -33,6 +33,25 @@ class NotificationRepository extends BaseRepository {
   }
 
   /**
+   * Create notification (wrapper for controllers)
+   * @param {Object} data - Notification data with snake_case or camelCase fields
+   * @returns {Promise<Object>} Created notification
+   */
+  async create(data) {
+    // Support both snake_case and camelCase
+    const notificationData = {
+      userId: data.user_id || data.userId,
+      type: data.type,
+      title: data.title,
+      message: data.message,
+      data: data.data || {},
+      relatedId: data.related_id || data.relatedId,
+      relatedType: data.related_type || data.relatedType
+    };
+    return this.createNotification(notificationData);
+  }
+
+  /**
    * Get user notifications with pagination
    * @param {string} userId - User ID
    * @param {Object} options - { limit, offset, unreadOnly }
@@ -40,7 +59,7 @@ class NotificationRepository extends BaseRepository {
    */
   async getUserNotifications(userId, options = {}) {
     const { limit = 20, offset = 0, unreadOnly = false } = options;
-    
+
     let query = this.supabase
       .from(this.tableName)
       .select('*')
@@ -227,7 +246,7 @@ class NotificationRepository extends BaseRepository {
    */
   async getNotificationsByType(userId, type, options = {}) {
     const { limit = 20, offset = 0 } = options;
-    
+
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select('*')
