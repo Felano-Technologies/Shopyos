@@ -77,22 +77,21 @@ const BusinessDashboard = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [refreshing, setRefreshing] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(5);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // --- New State for Custom Modal ---
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
 
 
 
-  // --- Data Fetching ---
+// --- Data Fetching ---
   const fetchDashboardData = async () => {
     try {
       const data = await getMyBusinesses();
 
       if (!data.success || !data.businesses || data.businesses.length === 0) {
-        //  Show Custom Modal instead of Alert
         setShowNoBusinessModal(true);
-        setLoading(false); // Stop spinner so modal shows
+        setLoading(false);
         return;
       }
 
@@ -103,10 +102,12 @@ const BusinessDashboard = () => {
       if (currentBusiness._id) {
         await SecureStore.setItemAsync('currentBusinessId', currentBusiness._id);
 
-        // Fetch real dashboard stats
         const dashResp = await getBusinessDashboard(currentBusiness._id);
         if (dashResp.success) {
           setDashboardData(dashResp.data);
+          
+          // --- OPTIONAL: If your API returns notification count, set it here ---
+          // setUnreadCount(dashResp.data.unreadNotifications || 0); 
         }
       }
     } catch (error) {
@@ -121,8 +122,6 @@ const BusinessDashboard = () => {
     await fetchDashboardData();
     setRefreshing(false);
   };
-
-  // --- Mock Data Removed ---
 
   useEffect(() => {
     fetchDashboardData();

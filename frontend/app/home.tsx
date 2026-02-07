@@ -472,11 +472,9 @@ export default function Home() {
         </TouchableOpacity>
 
         {/* Bottom Background & Nav */}
-        <ImageBackground source={require('../assets/images/icon.png')} style={styles.background}>
           <View style={styles.bottomLogos}>
             <Image source={require('../assets/images/splash-icon.png')} style={styles.fadedLogo} />
           </View>
-        </ImageBackground>
         <BottomNav />
       </SafeAreaView>
     </View>
@@ -572,8 +570,7 @@ const styles = StyleSheet.create({
   noResultsText: { marginTop: 10, fontSize: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' },
 
   // Bottom Area
-  background: { flex: 1, justifyContent: 'flex-end', alignItems: 'center' },
-  bottomLogos: { position: 'absolute', bottom: -50, left: -50 },
+  bottomLogos: { position: 'absolute', bottom: -10, left: -50 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.12 },
 
   // Floating Chat

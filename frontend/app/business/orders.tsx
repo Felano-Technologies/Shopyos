@@ -1,4 +1,3 @@
-// app/business/orders.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -7,16 +6,16 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  SafeAreaView,
   RefreshControl,
   Animated,
   Image,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { StatusBar } from 'expo-status-bar';
-import { LinearGradient } from 'expo-linear-gradient'; // Ensure you have expo-linear-gradient installed
+import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { getStoreOrders } from '@/services/api';
@@ -50,7 +49,6 @@ const OrdersScreen = () => {
             orderNumber: o.order_number,
             customerName: o.buyer?.user_profiles?.full_name || 'Guest',
             itemsCount: o.order_items?.length || 0,
-            // Check if payment exists and has amount, otherwise try to sum order items or use 0
             totalAmount: o.payments?.length > 0 ? parseFloat(o.payments[0].amount) : 0,
             date: o.created_at,
             status: (o.status.charAt(0).toUpperCase() + o.status.slice(1)) as any
@@ -73,9 +71,7 @@ const OrdersScreen = () => {
     setRefreshing(false);
   };
 
-  // Use state orders instead of mock
   const ordersToUse = orders;
-
   const filteredOrders = filter === 'All' ? ordersToUse : ordersToUse.filter(order => order.status === filter);
 
   // Stats
@@ -83,8 +79,6 @@ const OrdersScreen = () => {
   const pendingOrders = ordersToUse.filter(o => o.status === 'Pending').length;
   const deliveredOrders = ordersToUse.filter(o => o.status === 'Delivered').length;
   const totalRevenue = ordersToUse.reduce((sum, order) => sum + order.totalAmount, 0);
-
-
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -146,7 +140,6 @@ const OrdersScreen = () => {
           </View>
           <TouchableOpacity
             style={styles.detailsBtn}
-            // Update the onPress to navigate with the specific item ID
             onPress={() => router.push({
               pathname: '/business/orderDetails',
               params: { id: item.id }
@@ -162,9 +155,10 @@ const OrdersScreen = () => {
 
   return (
     <View style={styles.mainContainer}>
+      {/* Light Status Bar for Dark Header */}
       <StatusBar style="light" />
 
-      {/* --- BACKGROUND LAYER --- */}
+      {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
           <Image
@@ -174,29 +168,29 @@ const OrdersScreen = () => {
         </View>
       </View>
 
-      <SafeAreaView style={styles.safeArea}>
-        <Animated.ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+        <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={'#FFF'} />}
         >
-          {/* --- HERO HEADER --- */}
+          {/* --- HEADER SECTION (Matched to Products Screen) --- */}
           <LinearGradient
             colors={['#0C1559', '#1e3a8a']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
             style={styles.headerContainer}
           >
             <View style={styles.headerTop}>
-              <View>
-                <Text style={styles.headerSubtitle}>Welcome To Your</Text>
-                <Text style={styles.headerTitle}>Order Management</Text>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../../assets/images/iconwhite.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
               </View>
-              <TouchableOpacity style={styles.iconBtn}>
-                <Ionicons name="search" size={24} color="#FFF" />
-              </TouchableOpacity>
             </View>
 
-            {/* Featured Revenue Card */}
+            {/* Featured Revenue Card inside Header */}
             <View style={styles.revenueCard}>
               <View>
                 <Text style={styles.revenueLabel}>Total Revenue</Text>
@@ -269,7 +263,7 @@ const OrdersScreen = () => {
             />
           </View>
 
-        </Animated.ScrollView>
+        </ScrollView>
 
         <BusinessBottomNav />
       </SafeAreaView>
@@ -297,17 +291,22 @@ const styles = StyleSheet.create({
     width: 130,
     height: 130,
     resizeMode: 'contain',
-    opacity: 0.1,
+    opacity: 0.08, // Subtle opacity like Products screen
   },
 
-  // Header
+  // Header (Matched to Products Screen)
   headerContainer: {
-    paddingTop: 60,
-    paddingBottom: 30,
+    paddingTop: 60, // Manual padding to clear status bar
+    paddingBottom: 30, // Increased bottom padding to fit revenue card nicely
     paddingHorizontal: 20,
-    borderBottomRightRadius: 30,
     borderBottomLeftRadius: 30,
-    marginBottom: 20,
+    borderBottomRightRadius: 30,
+    marginBottom: 10,
+    shadowColor: "#0C1559",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerTop: {
     flexDirection: 'row',
@@ -315,27 +314,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  headerSubtitle: {
-    fontFamily: 'Montserrat-Regular',
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 14,
+  logoContainer: {
+    height: 40,
+    justifyContent: 'center',
   },
-  headerTitle: {
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
-    fontSize: 24,
+  logo: {
+    width: 110,
+    height: 35,
   },
-  iconBtn: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    padding: 10,
-    borderRadius: 12,
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
 
-  // Revenue Card
+  // Revenue Card (Inside Header)
   revenueCard: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -344,14 +346,14 @@ const styles = StyleSheet.create({
   },
   revenueLabel: {
     fontFamily: 'Montserrat-Medium',
-    color: '#D1D5DB',
+    color: '#D1D5DB', // Light grey text on dark background
     fontSize: 13,
     marginBottom: 4,
   },
   revenueAmount: {
     fontFamily: 'Montserrat-Bold',
     color: '#FFF',
-    fontSize: 28,
+    fontSize: 26, // Slightly smaller than before to fit better
   },
   revenueIconContainer: {
     backgroundColor: 'rgba(255,255,255,0.9)',
@@ -364,7 +366,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    marginTop: -25, // Overlap the header
+    marginTop: 10, // Adjusted margin since header is self-contained
     marginBottom: 20,
   },
   statItem: {
