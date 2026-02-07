@@ -8,6 +8,8 @@ import {
   RefreshControl,
   Dimensions,
   Image,
+  ActivityIndicator,
+  ScrollView
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,22 +17,28 @@ import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
-import { getBusinessAnalytics, storage } from '@/services/api';
-import { Alert } from 'react-native';
+import { getBusinessAnalytics, storage } from '@/services/api'; // Ensure this is imported correctly
+import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
 const Analytics = () => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('week');
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Real Data State
-  const [analyticsData, setAnalyticsData] = useState<any>(null);
+  // --- Data State with Defaults ---
+  const [analyticsData, setAnalyticsData] = useState<any>({
+    chart: { labels: [], datasets: [{ data: [0] }] },
+    stats: { revenue: 0, orders: 0, growth: 0 },
+    topProducts: [],
+    categoryDistribution: []
+  });
 
   const fetchAnalytics = async () => {
     try {
-      const businessId = await storage.getItem('currentBusinessId');
+      const businessId = await SecureStore.getItemAsync('currentBusinessId');
       if (businessId) {
         const data = await getBusinessAnalytics(businessId, timeframe);
         if (data && data.success) {
@@ -39,11 +47,14 @@ const Analytics = () => {
       }
     } catch (error) {
       console.error("Failed to fetch analytics", error);
-      // Alert.alert("Error", "Failed to load analytics"); // Optional: suppress if frequent
+    } finally {
+      setLoading(false);
     }
   };
 
+  // Initial Load & Timeframe Change
   useEffect(() => {
+    setLoading(true);
     fetchAnalytics();
   }, [timeframe]);
 
@@ -53,46 +64,40 @@ const Analytics = () => {
     setRefreshing(false);
   };
 
-  const revenueData = {
-    week: {
-      labels: analyticsData?.chart?.labels || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-      datasets: [{ data: analyticsData?.chart?.datasets?.[0]?.data || [0, 0, 0, 0, 0, 0, 0] }]
-    },
-    month: {
-      labels: analyticsData?.chart?.labels || [],
-      datasets: [{ data: analyticsData?.chart?.datasets?.[0]?.data || [0] }]
-    },
-    year: {
-      labels: analyticsData?.chart?.labels || [],
-      datasets: [{ data: analyticsData?.chart?.datasets?.[0]?.data || [0] }]
-    }
-  };
-
-  const topProducts = analyticsData?.topProducts || [];
-  const categoryDistribution = analyticsData?.categoryDistribution || [];
-  const currentStats = analyticsData?.stats || { revenue: 0, orders: 0, growth: 0 };
-
   // --- Chart Configuration ---
   const chartConfig = {
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`, // Using Brand Blue
-    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+    color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`, // Brand Blue
+    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`, // Slate 500
     style: { borderRadius: 16 },
     propsForDots: {
-      r: '5',
+      r: '4',
       strokeWidth: '2',
-      stroke: '#84cc16', // Lime dots
+      stroke: '#84cc16', // Lime
     },
     propsForBackgroundLines: {
       strokeDasharray: "5",
       stroke: "rgba(0,0,0,0.05)"
     },
     propsForLabels: {
-      fontFamily: 'Montserrat-Regular'
+      fontFamily: 'Montserrat-Medium',
+      fontSize: 10
     }
   };
+
+  // --- Helper to verify data existence ---
+  const hasChartData = analyticsData.chart.labels.length > 0 && analyticsData.chart.datasets[0].data.some((x: number) => x > 0);
+  const hasPieData = analyticsData.categoryDistribution.length > 0;
+
+  if (loading && !refreshing) {
+    return (
+        <View style={[styles.mainContainer, styles.centered]}>
+            <ActivityIndicator size="large" color="#0C1559" />
+        </View>
+    );
+  }
 
   return (
     <View style={styles.mainContainer}>
@@ -118,7 +123,7 @@ const Analytics = () => {
             { useNativeDriver: true }
           )}
         >
-          {/* --- HEADER SECTION (Matched Design) --- */}
+          {/* --- HEADER SECTION --- */}
           <LinearGradient
             colors={['#0C1559', '#1e3a8a']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -132,6 +137,9 @@ const Analytics = () => {
                   resizeMode="contain"
                 />
               </View>
+              <TouchableOpacity style={styles.headerIconButton} onPress={onRefresh}>
+                <Feather name="refresh-cw" size={20} color="#FFF" />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.headerTextContainer}>
@@ -142,10 +150,6 @@ const Analytics = () => {
 
           {/* --- Main Content Body --- */}
           <View style={styles.bodyContainer}>
-
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Sales Performance</Text>
-            </View>
 
             {/* Timeframe Toggles */}
             <View style={styles.toggleContainer}>
@@ -171,19 +175,33 @@ const Analytics = () => {
               })}
             </View>
 
-            {/* Main Chart */}
+            {/* Main Chart Section */}
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Revenue Trend</Text>
+            </View>
+
             <View style={styles.card}>
-              <LineChart
-                data={revenueData[timeframe]}
-                width={width - 48}
-                height={220}
-                chartConfig={chartConfig}
-                bezier
-                style={styles.chartStyle}
-                withInnerLines={true}
-                withOuterLines={false}
-                withVerticalLines={false}
-              />
+              {hasChartData ? (
+                  <LineChart
+                    data={analyticsData.chart}
+                    width={width - 48}
+                    height={220}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={styles.chartStyle}
+                    withInnerLines={true}
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                    yAxisLabel="₵"
+                    yAxisSuffix="k"
+                    yAxisInterval={1}
+                  />
+              ) : (
+                  <View style={styles.emptyChart}>
+                      <MaterialCommunityIcons name="chart-line-variant" size={40} color="#CBD5E1" />
+                      <Text style={styles.emptyText}>No revenue data for this period</Text>
+                  </View>
+              )}
             </View>
 
             {/* Quick Stats Grid */}
@@ -193,8 +211,13 @@ const Analytics = () => {
                   <Ionicons name="cash" size={20} color="#15803D" />
                 </View>
                 <Text style={styles.statLabel}>Total Revenue</Text>
-                <Text style={styles.statValue}>₵{currentStats.revenue.toLocaleString()}</Text>
-                <Text style={styles.statGrowth}>+{currentStats.growth}%</Text>
+                <Text style={styles.statValue}>₵{analyticsData.stats.revenue.toLocaleString()}</Text>
+                <View style={styles.growthRow}>
+                    <Feather name={analyticsData.stats.growth >= 0 ? "trending-up" : "trending-down"} size={14} color={analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444"} />
+                    <Text style={[styles.statGrowth, { color: analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444" }]}>
+                        {Math.abs(analyticsData.stats.growth)}%
+                    </Text>
+                </View>
               </View>
 
               <View style={styles.statCard}>
@@ -202,45 +225,55 @@ const Analytics = () => {
                   <Ionicons name="cart" size={20} color="#1E40AF" />
                 </View>
                 <Text style={styles.statLabel}>Total Orders</Text>
-                <Text style={styles.statValue}>{currentStats.orders}</Text>
-                <Text style={styles.statGrowth}>+8.2%</Text>
+                <Text style={styles.statValue}>{analyticsData.stats.orders}</Text>
+                <Text style={styles.statSubText}>Completed orders</Text>
               </View>
             </View>
 
             {/* Sales Distribution */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Category Breakdown</Text>
-            </View>
-            <View style={styles.card}>
-              <PieChart
-                data={categoryDistribution}
-                width={width - 48}
-                height={200}
-                chartConfig={chartConfig}
-                accessor="sales"
-                backgroundColor="transparent"
-                paddingLeft="15"
-                absolute
-              />
-            </View>
+            {hasPieData && (
+                <>
+                    <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Category Breakdown</Text>
+                    </View>
+                    <View style={styles.card}>
+                    <PieChart
+                        data={analyticsData.categoryDistribution}
+                        width={width - 48}
+                        height={200}
+                        chartConfig={chartConfig}
+                        accessor="sales"
+                        backgroundColor="transparent"
+                        paddingLeft="15"
+                        absolute
+                    />
+                    </View>
+                </>
+            )}
 
             {/* Top Products */}
             <View style={styles.sectionHeaderRow}>
               <Text style={styles.sectionTitle}>Top Products</Text>
             </View>
 
-            {topProducts.map((product: any, index: number) => (
-              <View key={index} style={styles.productCard}>
-                <View style={[styles.rankBadge, { backgroundColor: product.color || '#0C1559' }]}>
-                  <Text style={styles.rankText}>{index + 1}</Text>
+            {analyticsData.topProducts.length > 0 ? (
+                analyticsData.topProducts.map((product: any, index: number) => (
+                <View key={index} style={styles.productCard}>
+                    <View style={[styles.rankBadge, { backgroundColor: index === 0 ? '#EAB308' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : '#0C1559' }]}>
+                    <Text style={styles.rankText}>{index + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
+                    <Text style={styles.productSales}>{product.sales} items sold</Text>
+                    </View>
+                    <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
                 </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productSales}>{product.sales} Sales</Text>
+                ))
+            ) : (
+                <View style={styles.emptyList}>
+                    <Text style={styles.emptyText}>No top products yet.</Text>
                 </View>
-                <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
-              </View>
-            ))}
+            )}
 
             {/* Performance Score */}
             <LinearGradient
@@ -250,10 +283,14 @@ const Analytics = () => {
             >
               <View>
                 <Text style={styles.scoreTitle}>Performance Score</Text>
-                <Text style={styles.scoreDesc}>Your shop is doing great!</Text>
+                <Text style={styles.scoreDesc}>
+                    {analyticsData.stats.growth > 0 ? "You're growing fast! Keep it up." : "Steady progress. Try adding new items."}
+                </Text>
               </View>
               <View style={styles.scoreCircle}>
-                <Text style={styles.scoreNum}>9.2</Text>
+                <Text style={styles.scoreNum}>
+                    {analyticsData.stats.orders > 0 ? '9.2' : '-'}
+                </Text>
               </View>
             </LinearGradient>
 
@@ -275,6 +312,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
+  centered: {
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
   bottomLogos: {
     position: 'absolute',
     bottom: 20,
@@ -287,9 +328,9 @@ const styles = StyleSheet.create({
     opacity: 0.08,
   },
 
-  // Header (Matched to Products)
+  // Header
   headerContainer: {
-    paddingTop: 60, // Manual padding to clear status bar
+    paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -359,6 +400,7 @@ const styles = StyleSheet.create({
   toggleContainer: {
     flexDirection: 'row',
     marginBottom: 16,
+    marginTop: 5,
     gap: 10,
   },
   toggleBtn: {
@@ -406,6 +448,21 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingRight: 0,
   },
+  emptyChart: {
+      height: 180,
+      justifyContent: 'center',
+      alignItems: 'center',
+  },
+  emptyList: {
+      padding: 20,
+      alignItems: 'center',
+  },
+  emptyText: {
+      color: '#94A3B8',
+      fontFamily: 'Montserrat-Medium',
+      marginTop: 8,
+      fontSize: 14,
+  },
 
   // Stats Grid
   statsGrid: {
@@ -444,11 +501,21 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     marginTop: 4,
   },
+  growthRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 4,
+  },
   statGrowth: {
     fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
-    color: '#15803D',
-    marginTop: 4,
+    marginLeft: 4,
+  },
+  statSubText: {
+      fontFamily: 'Montserrat-Regular',
+      fontSize: 11,
+      color: '#94A3B8',
+      marginTop: 4,
   },
 
   // Products

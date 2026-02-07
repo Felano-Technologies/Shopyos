@@ -1,4 +1,3 @@
-// app/home.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -23,6 +22,7 @@ import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { searchProducts } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -33,10 +33,6 @@ const CATEGORIES = [
   { id: 'c4', label: 'Art', image: require('../assets/images/categories/art.jpg') },
   { id: 'c5', label: 'more', image: null },
 ];
-
-import { searchProducts } from '@/services/api';
-
-
 
 export default function Home() {
   const router = useRouter();
@@ -50,17 +46,14 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [recentProducts, setRecentProducts] = useState<any[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<any[]>([]);
   const [dealsProducts, setDealsProducts] = useState<any[]>([]);
 
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  // Derived list of chip categories
   const allCategoryNames = ['All', ...CATEGORIES.filter(c => c.label !== 'more').map((c) => c.label)];
 
   // --- Search Logic ---
-  // If search query exists, we will hit the API for search results
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   useEffect(() => {
@@ -79,10 +72,6 @@ export default function Home() {
     }
   }, [searchQuery]);
 
-  // --- Auto-scrolling "Featured" FlatList state & ref ---
-  const featuredRef = useRef<FlatList<any>>(null);
-  const [featuredIndex, setFeaturedIndex] = useState(0);
-
   useEffect(() => {
     loadHomePageData();
   }, [selectedCat]);
@@ -90,15 +79,19 @@ export default function Home() {
   const loadHomePageData = async () => {
     setLoading(true);
     try {
-      // Fetch Featured (New Arrivals)
-      const featRes = await searchProducts({ limit: 5, sortBy: 'created_at' });
-      if (featRes.success) setFeaturedProducts(featRes.products);
-
       // Fetch Recent (Filter by category if selected)
+      // We sort by 'created_at' or 'newest' to ensure they are the most recent
       const catFilter = selectedCat !== 'All' ? selectedCat : undefined;
-      const recentRes = await searchProducts({ limit: 10, offset: 0, category: catFilter });
+      const recentRes = await searchProducts({ 
+          limit: 10, 
+          offset: 0, 
+          category: catFilter,
+          sortBy: 'created_at' // Ensure we get the newest items
+      });
+      
       if (recentRes.success) {
         setRecentProducts(recentRes.products);
+        
         // Animation values for recent items
         const vals = recentRes.products.map(() => new Animated.Value(0));
         setAnimationValues(vals);
@@ -150,37 +143,21 @@ export default function Home() {
     })();
   }, []);
 
-  // Auto-scroll Featured
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      setFeaturedIndex((prev) => {
-        if (featuredProducts.length === 0) return 0;
-        const next = (prev + 1) % featuredProducts.length;
-        if (featuredRef.current) {
-          featuredRef.current.scrollToIndex({ index: next, animated: true });
-        }
-        return next;
-      });
-    }, 3000);
-    return () => clearInterval(intervalId);
-  }, []);
-
   const onRefresh = async () => {
     setRefreshing(true);
     await loadHomePageData();
     setRefreshing(false);
   };
 
-  // Helper to navigate to product details
   const goToDetails = (item: any) => {
     router.push({
       pathname: '/product/details',
       params: {
-        id: item._id, // Use _id from backend
-        title: item.name, // name in backend
+        id: item._id,
+        title: item.name,
         price: item.price,
         category: item.category,
-        image: item.images?.[0] || 'https://via.placeholder.com/150', // First image URL
+        image: item.images?.[0] || 'https://via.placeholder.com/150',
         description: item.description
       }
     });
@@ -225,31 +202,6 @@ export default function Home() {
     </TouchableOpacity>
   );
 
-  const renderFeatured = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.featuredCard}
-      activeOpacity={0.9}
-      onPress={() => goToDetails(item)}
-    >
-      <ImageBackground
-        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
-        style={styles.featuredImage}
-        imageStyle={{ borderRadius: 16 }}
-      >
-        <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.6)']}
-          style={styles.featuredOverlay}
-        >
-          <View style={styles.featuredTextContainer}>
-            <Text style={styles.featuredTitle}>{item.name}</Text>
-            <Text style={styles.featuredPrice}>From ₵{item.price}</Text>
-          </View>
-        </LinearGradient>
-      </ImageBackground>
-    </TouchableOpacity>
-  );
-
-  // New Search Result Item Renderer
   const renderSearchItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.searchResultCard}
@@ -277,6 +229,15 @@ export default function Home() {
   return (
     <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
+
+      {/* --- BACKGROUND WATERMARK LAYER --- */}
+      <View style={styles.bottomLogos}>
+        <Image
+          source={require('../assets/images/splash-icon.png')}
+          style={styles.fadedLogo}
+        />
+      </View>
+
       <SafeAreaView style={styles.container}>
         <Animated.ScrollView
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 100 }}
@@ -307,9 +268,8 @@ export default function Home() {
                     placeholderTextColor="rgba(255,255,255,0.8)"
                     style={[styles.searchInput, { color: '#FFF' }]}
                     value={searchQuery}
-                    onChangeText={setSearchQuery} // Update state on type
+                    onChangeText={setSearchQuery}
                   />
-                  {/* Conditional: Clear button if typing, Slider if empty */}
                   {searchQuery.length > 0 ? (
                     <TouchableOpacity onPress={() => setSearchQuery('')}>
                       <Feather name="x" size={16} color="#FFF" />
@@ -347,7 +307,7 @@ export default function Home() {
                   keyExtractor={(item) => item._id}
                   renderItem={renderSearchItem}
                   numColumns={2}
-                  scrollEnabled={false} // Allow parent ScrollView to handle scrolling
+                  scrollEnabled={false} 
                   columnWrapperStyle={{ justifyContent: 'space-between' }}
                   contentContainerStyle={{ marginTop: 10 }}
                 />
@@ -402,26 +362,7 @@ export default function Home() {
                 </ScrollView>
               </View>
 
-              {/* Featured "Carousel" */}
-              <View style={{ paddingTop: 10 }}>
-                <FlatList
-                  ref={featuredRef}
-                  data={featuredProducts}
-                  keyExtractor={(item) => item._id}
-                  horizontal
-                  pagingEnabled={false}
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={{ paddingHorizontal: 16 }}
-                  renderItem={renderFeatured}
-                  getItemLayout={(_, index) => ({
-                    length: width - 16,
-                    offset: (width - 16) * index,
-                    index,
-                  })}
-                />
-              </View>
-
-              {/* Recently Added */}
+              {/* Recently Added (Now primary list) */}
               <View style={styles.sectionHeader}>
                 <Text style={[styles.sectionTitle, { color: '#222' }]}>Recently Added</Text>
                 <TouchableOpacity onPress={() => router.push('/recent')}>
@@ -471,10 +412,6 @@ export default function Home() {
           </LinearGradient>
         </TouchableOpacity>
 
-        {/* Bottom Background & Nav */}
-          <View style={styles.bottomLogos}>
-            <Image source={require('../assets/images/splash-icon.png')} style={styles.fadedLogo} />
-          </View>
         <BottomNav />
       </SafeAreaView>
     </View>
@@ -486,12 +423,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#e9f0ff',
   },
-  // ... (Your existing skeleton styles) ...
-  skeletonHeader: { height: 60, margin: 16, borderRadius: 12, backgroundColor: '#333' },
-  skeletonBanner: { height: 160, marginHorizontal: 16, borderRadius: 12, backgroundColor: '#333' },
-  skeletonChips: { height: 40, marginTop: 12, marginHorizontal: 16, borderRadius: 20, backgroundColor: '#333' },
-  skeletonRow: { height: 120, marginTop: 20, marginHorizontal: 16, borderRadius: 12, backgroundColor: '#333' },
-
+  
   // Top Section
   topSection: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
@@ -517,14 +449,6 @@ const styles = StyleSheet.create({
   chip: { paddingVertical: 8, paddingHorizontal: 16, marginRight: 10, borderWidth: 1, borderRadius: 20, elevation: 1 },
   chipText: { fontSize: 13, fontWeight: '600' },
 
-  // Featured
-  featuredCard: { width: width - 32, height: 150, borderRadius: 16, marginRight: 16, overflow: 'hidden', elevation: 3 },
-  featuredImage: { width: '100%', height: '100%' },
-  featuredOverlay: { flex: 1, borderRadius: 16, justifyContent: 'flex-end' },
-  featuredTextContainer: { padding: 16 },
-  featuredTitle: { fontSize: 18, fontWeight: 'bold', color: '#fff' },
-  featuredPrice: { fontSize: 14, color: '#84cc16', fontWeight: 'bold' },
-
   // Headers
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: 16, marginTop: 24, marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700' },
@@ -539,7 +463,6 @@ const styles = StyleSheet.create({
   productCategory: { fontSize: 12, marginBottom: 8 },
   priceRow: { flexDirection: 'row', alignItems: 'center' },
   currentPrice: { fontSize: 15, fontWeight: '700' },
-  oldPrice: { fontSize: 12, textDecorationLine: 'line-through', color: '#94A3B8', marginLeft: 6 },
 
   // Deals
   dealsList: { paddingLeft: 16, paddingBottom: 30 },
@@ -551,7 +474,7 @@ const styles = StyleSheet.create({
   // Search Results
   searchResultsContainer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20 },
   searchResultCard: {
-    width: (width - 48) / 2, // 2 column layout with spacing
+    width: (width - 48) / 2,
     backgroundColor: '#FFF',
     borderRadius: 12,
     marginBottom: 16,

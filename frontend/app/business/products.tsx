@@ -1,5 +1,4 @@
-// app/business/products.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,25 +11,36 @@ import {
   useColorScheme,
   ScrollView,
   Dimensions,
+  Keyboard,
+  ActivityIndicator // Import ActivityIndicator
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { SafeAreaView } from 'react-native-safe-area-context'; // Ensure this is used
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { getStoreProducts, createProduct, deleteProduct, uploadProductImages } from '@/services/api';
+import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct } from '@/services/api';
 import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
 const ProductsScreen = () => {
-  const theme = useColorScheme();
+  const scrollRef = useRef<ScrollView>(null);
+
   const [products, setProducts] = useState<any[]>([]);
+  
+  // --- Form State ---
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('');
   const [image, setImage] = useState<string | null>(null);
+  
+  // --- Loading States ---
+  const [isSubmitting, setIsSubmitting] = useState(false); // New state for button loading
+  
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- Actions ---
@@ -44,6 +54,7 @@ const ProductsScreen = () => {
             id: p._id,
             name: p.name,
             price: p.price.toString(),
+            stock: p.stockQuantity?.toString() || '0',
             image: p.images && p.images.length > 0 ? p.images[0] : null
           })));
         }
@@ -61,7 +72,7 @@ const ProductsScreen = () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 1,
+      quality: 0.8,
     });
 
     if (!result.canceled) {
@@ -69,11 +80,24 @@ const ProductsScreen = () => {
     }
   };
 
-  const addProduct = async () => {
-    if (!name || !price || !image) {
-      Alert.alert('Missing Fields', 'Please fill all fields and add an image.');
+  const resetForm = () => {
+    setName('');
+    setPrice('');
+    setStock('');
+    setImage(null);
+    setEditingId(null);
+    Keyboard.dismiss();
+  };
+
+  const handleSaveProduct = async () => {
+    // 1. Validation
+    if (!name || !price || !stock) {
+      Alert.alert('Missing Fields', 'Please fill in Name, Price, and Quantity.');
       return;
     }
+
+    // 2. Start Loading
+    setIsSubmitting(true);
 
     try {
       const businessId = await SecureStore.getItemAsync('currentBusinessId');
@@ -82,31 +106,60 @@ const ProductsScreen = () => {
         return;
       }
 
-      // Create product
-      const newProductData = {
+      const productData = {
         storeId: businessId,
         name: name,
-        price: price,
-        description: 'New Product', // Default description or add input
-        stockQuantity: 10 // Default
+        price: parseFloat(price),
+        stockQuantity: parseInt(stock),
+        description: 'Product Description',
       };
 
-      const createRes = await createProduct(newProductData);
-      if (createRes.success && createRes.product) {
-        const productId = createRes.product._id;
-        // Upload Image
-        await uploadProductImages(productId, [image]);
-
-        // Refresh list
-        await fetchProducts();
-        setName('');
-        setPrice('');
-        setImage(null);
-        Alert.alert("Success", "Product added successfully");
+      if (editingId) {
+        // --- UPDATE EXISTING ---
+        const updateRes = await updateProduct(editingId, productData);
+        
+        if (updateRes.success) {
+            // Only upload image if it's a new local URI (starts with file://)
+            if (image && !image.startsWith('http')) {
+                await uploadProductImages(editingId, [image]);
+            }
+            Alert.alert("Success", "Product updated successfully");
+        }
+      } else {
+        // --- CREATE NEW ---
+        if (!image) {
+            Alert.alert('Missing Image', 'Please add an image for the new product.');
+            setIsSubmitting(false); // Stop loading if validation fails inside logic
+            return;
+        }
+        const createRes = await createProduct(productData);
+        if (createRes.success && createRes.product) {
+          const productId = createRes.product._id;
+          await uploadProductImages(productId, [image]);
+          Alert.alert("Success", "Product added successfully");
+        }
       }
+
+      // Refresh and Reset
+      await fetchProducts();
+      resetForm();
+
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to add product");
+      Alert.alert("Error", e.message || "Operation failed");
+    } finally {
+      // 3. Stop Loading regardless of success/error
+      setIsSubmitting(false);
     }
+  };
+
+  const handleEditPress = (item: any) => {
+    setName(item.name);
+    setPrice(item.price);
+    setStock(item.stock);
+    setImage(item.image);
+    setEditingId(item.id);
+    
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
   const removeProduct = (id: string) => {
@@ -116,7 +169,7 @@ const ProductsScreen = () => {
         text: "Delete", style: "destructive", onPress: async () => {
           try {
             await deleteProduct(id);
-            fetchProducts(); // Refresh
+            fetchProducts();
           } catch (e: any) {
             Alert.alert("Error", "Failed to delete product");
           }
@@ -129,16 +182,17 @@ const ProductsScreen = () => {
     p.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // --- Derived Analytics ---
   const totalProducts = products.length;
-  const portfolioValue = products.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
+  const portfolioValue = products.reduce((sum, item) => {
+      const p = parseFloat(item.price) || 0;
+      const q = parseInt(item.stock) || 0;
+      return sum + (p * q);
+  }, 0);
 
   return (
     <View style={styles.mainContainer}>
-      {/* Light Status Bar for Dark Header */}
       <StatusBar style="light" />
 
-      {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
           <Image
@@ -148,13 +202,15 @@ const ProductsScreen = () => {
         </View>
       </View>
 
-      {/* Ignore the 'top' edge so the Gradient fills the status bar area.
-         We handle the top padding manually in 'headerContainer'.
-      */}
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        <ScrollView 
+            ref={scrollRef}
+            showsVerticalScrollIndicator={false} 
+            contentContainerStyle={{ paddingBottom: 100 }}
+            keyboardShouldPersistTaps="handled"
+        >
 
-          {/* --- Header Section --- */}
+          {/* --- Header --- */}
           <LinearGradient
             colors={['#0C1559', '#1e3a8a']}
             start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
@@ -183,7 +239,7 @@ const ProductsScreen = () => {
                   <Feather name="package" size={18} color="#84cc16" />
                 </View>
                 <View>
-                  <Text style={styles.statLabel}>Total Products</Text>
+                  <Text style={styles.statLabel}>Total Items</Text>
                   <Text style={styles.statValue}>{totalProducts}</Text>
                 </View>
               </View>
@@ -193,30 +249,38 @@ const ProductsScreen = () => {
                   <MaterialCommunityIcons name="finance" size={18} color="#3b82f6" />
                 </View>
                 <View>
-                  <Text style={styles.statLabel}>Inventory Value</Text>
-                  <Text style={styles.statValue}>₵{portfolioValue.toFixed(2)}</Text>
+                  <Text style={styles.statLabel}>Total Value</Text>
+                  <Text style={styles.statValue}>₵{portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                 </View>
               </View>
             </View>
           </LinearGradient>
 
-          {/* --- Add Product Form --- */}
+          {/* --- Form Section --- */}
           <View style={styles.formSection}>
             <View style={styles.formCard}>
               <View style={styles.formHeader}>
-                <Text style={styles.formTitle}>Add New Item</Text>
-                <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
+                <Text style={styles.formTitle}>
+                    {editingId ? "Edit Product" : "Add New Item"}
+                </Text>
+                {editingId ? (
+                    <TouchableOpacity onPress={resetForm} disabled={isSubmitting}>
+                        <Text style={styles.cancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
+                )}
               </View>
 
               <View style={styles.inputRow}>
                 {/* Image Picker */}
-                <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage}>
+                <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage} disabled={isSubmitting}>
                   {image ? (
                     <Image source={{ uri: image }} style={styles.uploadedImage} />
                   ) : (
                     <View style={styles.uploadPlaceholder}>
                       <Feather name="camera" size={24} color="#94A3B8" />
-                      <Text style={styles.uploadText}>Add Photo</Text>
+                      <Text style={styles.uploadText}>Photo</Text>
                     </View>
                   )}
                 </TouchableOpacity>
@@ -231,36 +295,65 @@ const ProductsScreen = () => {
                       placeholder="Product Name"
                       placeholderTextColor="#94A3B8"
                       style={styles.textInput}
+                      editable={!isSubmitting}
                     />
                   </View>
-                  <View style={styles.inputWrapper}>
-                    <Text style={styles.currencySymbol}>₵</Text>
-                    <TextInput
-                      value={price}
-                      onChangeText={setPrice}
-                      placeholder="0.00"
-                      keyboardType="numeric"
-                      placeholderTextColor="#94A3B8"
-                      style={styles.textInput}
-                    />
+                  
+                  <View style={styles.dualInputRow}>
+                      <View style={[styles.inputWrapper, { flex: 1, marginRight: 8 }]}>
+                        <Text style={styles.currencySymbol}>₵</Text>
+                        <TextInput
+                          value={price}
+                          onChangeText={setPrice}
+                          placeholder="Price"
+                          keyboardType="numeric"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.textInput}
+                          editable={!isSubmitting}
+                        />
+                      </View>
+                      <View style={[styles.inputWrapper, { flex: 1 }]}>
+                        <Feather name="layers" size={16} color="#64748B" style={styles.inputIcon} />
+                        <TextInput
+                          value={stock}
+                          onChangeText={setStock}
+                          placeholder="Qty"
+                          keyboardType="numeric"
+                          placeholderTextColor="#94A3B8"
+                          style={styles.textInput}
+                          editable={!isSubmitting}
+                        />
+                      </View>
                   </View>
                 </View>
               </View>
 
-              <TouchableOpacity onPress={addProduct}>
+              <TouchableOpacity 
+                onPress={handleSaveProduct} 
+                disabled={isSubmitting}
+                activeOpacity={0.8}
+              >
                 <LinearGradient
-                  colors={['#0C1559', '#1e3a8a']}
+                  colors={editingId ? ['#CA8A04', '#EAB308'] : ['#0C1559', '#1e3a8a']}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                   style={styles.addButton}
                 >
-                  <Feather name="plus" size={18} color="#FFF" />
-                  <Text style={styles.addButtonText}>Add to Inventory</Text>
+                  {isSubmitting ? (
+                    <ActivityIndicator size="small" color="#FFF" />
+                  ) : (
+                    <>
+                        <Feather name={editingId ? "save" : "plus"} size={18} color="#FFF" />
+                        <Text style={styles.addButtonText}>
+                            {editingId ? "Update Product" : "Add to Inventory"}
+                        </Text>
+                    </>
+                  )}
                 </LinearGradient>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* --- Search & List --- */}
+          {/* --- List Section --- */}
           <View style={styles.listSection}>
             <View style={styles.searchBar}>
               <Ionicons name="search" size={20} color="#94A3B8" />
@@ -287,15 +380,21 @@ const ProductsScreen = () => {
                     <View style={styles.cardInfo}>
                       <Text style={styles.cardTitle}>{item.name}</Text>
                       <Text style={styles.cardPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                      <Text style={styles.cardStock}>Stock: {item.stock}</Text>
                     </View>
 
                     <View style={styles.cardActions}>
-                      <TouchableOpacity style={styles.actionBtn}>
+                      <TouchableOpacity 
+                        style={styles.actionBtn} 
+                        onPress={() => handleEditPress(item)}
+                        disabled={isSubmitting}
+                      >
                         <Feather name="edit-2" size={16} color="#64748B" />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.actionBtn, styles.deleteBtn]}
                         onPress={() => removeProduct(item.id)}
+                        disabled={isSubmitting}
                       >
                         <Feather name="trash-2" size={16} color="#EF4444" />
                       </TouchableOpacity>
@@ -350,7 +449,7 @@ const styles = StyleSheet.create({
 
   // Header
   headerContainer: {
-    paddingTop: 60, // Manual padding to clear status bar
+    paddingTop: 60, 
     paddingBottom: 25,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -423,11 +522,11 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: 16,
     fontFamily: 'Montserrat-Bold',
   },
 
-  // Add Product Form
+  // Form
   formSection: {
     paddingHorizontal: 20,
     marginTop: -10,
@@ -465,6 +564,11 @@ const styles = StyleSheet.create({
     color: '#15803D',
     fontFamily: 'Montserrat-Bold',
   },
+  cancelText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontFamily: 'Montserrat-Bold',
+  },
   inputRow: {
     flexDirection: 'row',
     marginBottom: 16,
@@ -500,6 +604,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
   },
+  dualInputRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+  },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -507,6 +615,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 42,
+    marginBottom: 6, // Small gap for stacked inputs
   },
   inputIcon: {
     marginRight: 8,
@@ -605,6 +714,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#0C1559',
     fontFamily: 'Montserrat-Bold',
+  },
+  cardStock: {
+      fontSize: 11,
+      color: '#64748B',
+      fontFamily: 'Montserrat-Medium',
+      marginTop: 2,
   },
   cardActions: {
     flexDirection: 'row',
