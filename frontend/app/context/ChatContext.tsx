@@ -1,6 +1,6 @@
 // context/ChatContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getConversations, sendMessage as apiSendMessage, markConversationRead } from '../../services/api';
+import { getConversations, sendMessage as apiSendMessage, markConversationRead, storage } from '../../services/api';
 import { useFocusEffect } from 'expo-router';
 
 export type Message = {
@@ -45,6 +45,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchChats = async () => {
     try {
+      // Check if user is authenticated before fetching
+      const token = await storage.getItem('userToken');
+      if (!token) {
+        // User not authenticated, skip fetching
+        return;
+      }
+
       const response = await getConversations();
       if (response && response.conversations) {
         // Transform API data to Context shape
@@ -66,8 +73,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         setSellerChats(formatted);
         // setBuyerChats(formatted); 
       }
-    } catch (error) {
-      console.error('Failed to load chats', error);
+    } catch (error: any) {
+      // Only log error if it's not a 401 (unauthorized)
+      if (error.response?.status !== 401) {
+        console.error('Failed to load chats', error);
+      }
     }
   };
 
