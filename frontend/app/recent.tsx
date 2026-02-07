@@ -30,7 +30,7 @@ const RecentScreen = () => {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
-  const [activeSort, setActiveSort] = useState('newest');
+  const [activeSort, setActiveSort] = useState('created_at');
 
   useEffect(() => {
     fetchRecentProducts();
@@ -41,7 +41,7 @@ const RecentScreen = () => {
       setLoading(true);
       const res = await searchProducts({
         limit: 20,
-        sortBy: activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'newest'
+        sortBy: activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'created_at'
       });
       if (res.success) {
         // Map backend products to UI format
@@ -256,12 +256,12 @@ const RecentScreen = () => {
               </TouchableOpacity>
             </View>
             <View style={styles.modalDivider} />
-            <TouchableOpacity style={styles.filterOption} onPress={() => applySort('newest')}>
+            <TouchableOpacity style={styles.filterOption} onPress={() => applySort('created_at')}>
               <View style={styles.optionRow}>
                 <MaterialIcons name="new-releases" size={22} color="#0C1559" />
-                <Text style={[styles.optionText, activeSort === 'newest' && styles.optionTextActive]}>Newest Arrivals (Reset)</Text>
+                <Text style={[styles.optionText, activeSort === 'created_at' && styles.optionTextActive]}>Newest Arrivals (Reset)</Text>
               </View>
-              {activeSort === 'newest' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
+              {activeSort === 'created_at' && <Ionicons name="checkmark-circle" size={24} color="#84cc16" />}
             </TouchableOpacity>
             <TouchableOpacity style={styles.filterOption} onPress={() => applySort('low_high')}>
               <View style={styles.optionRow}>

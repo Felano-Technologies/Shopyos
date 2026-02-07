@@ -91,7 +91,7 @@ export default function Home() {
     setLoading(true);
     try {
       // Fetch Featured (New Arrivals)
-      const featRes = await searchProducts({ limit: 5, sortBy: 'newest' });
+      const featRes = await searchProducts({ limit: 5, sortBy: 'created_at' });
       if (featRes.success) setFeaturedProducts(featRes.products);
 
       // Fetch Recent (Filter by category if selected)
