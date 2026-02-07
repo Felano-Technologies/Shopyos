@@ -1,6 +1,5 @@
-// app/chat/index.tsx
 import React from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Image, Text, TextInput } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useChat } from '../context/ChatContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,13 +9,11 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function ChatInbox() {
   const router = useRouter();
-  // 1. Fetch only BUYER chats
   const { buyerConversations, markAsRead } = useChat();
 
   const openChat = (item: any) => {
     if (item.unread > 0) markAsRead(item.id, 'buyer');
     
-    // 2. Pass 'buyer' type to conversation screen
     router.push({
       pathname: '/chat/conversation',
       params: { 
@@ -28,7 +25,22 @@ export default function ChatInbox() {
     });
   };
 
-  // ... (Render Item logic is largely the same, just ensure it uses item.name) ...
+  // --- EMPTY STATE COMPONENT ---
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconCircle}>
+            <Ionicons name="chatbubble-ellipses-outline" size={48} color="#94A3B8" />
+        </View>
+        <Text style={styles.emptyTitle}>No Messages Yet</Text>
+        <Text style={styles.emptySubtitle}>
+            Your conversations with sellers will appear here. Start browsing to chat!
+        </Text>
+        <TouchableOpacity style={styles.browseBtn} onPress={() => router.push('/home')}>
+            <Text style={styles.browseBtnText}>Browse Products</Text>
+        </TouchableOpacity>
+    </View>
+  );
+
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.chatItem} onPress={() => openChat(item)}>
       <View style={styles.avatarContainer}>
@@ -64,24 +76,31 @@ export default function ChatInbox() {
             </View>
         </SafeAreaView>
       </LinearGradient>
+      
       <FlatList 
         data={buyerConversations}
         keyExtractor={item => item.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[
+            styles.listContent, 
+            buyerConversations.length === 0 && { flex: 1, justifyContent: 'center' }
+        ]}
+        ListEmptyComponent={renderEmptyState}
       />
     </View>
   );
 }
 
-// ... Use same styles as before ...
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
   headerContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 10 },
   backBtn: { padding: 8, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)' },
   headerTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  
   listContent: { padding: 20 },
+  
+  // Chat Item Styles
   chatItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 15, borderRadius: 16, marginBottom: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3, elevation: 1 },
   avatarContainer: { position: 'relative', marginRight: 15 },
   avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F1F5F9' },
@@ -95,4 +114,12 @@ const styles = StyleSheet.create({
   messageBold: { color: '#0F172A', fontFamily: 'Montserrat-Bold' },
   badge: { backgroundColor: '#84cc16', minWidth: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5 },
   badgeText: { color: '#0C1559', fontSize: 10, fontFamily: 'Montserrat-Bold' },
+
+  // Empty State Styles
+  emptyContainer: { alignItems: 'center', padding: 40, marginTop: -60 },
+  emptyIconCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
+  emptySubtitle: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 30 },
+  browseBtn: { backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 30, borderRadius: 12 },
+  browseBtnText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
 });

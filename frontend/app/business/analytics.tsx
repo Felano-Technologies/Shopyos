@@ -1,4 +1,3 @@
-// app/business/analytics.tsx
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
@@ -8,14 +7,13 @@ import {
   Animated,
   RefreshControl,
   Dimensions,
-  ImageBackground,
   Image,
-  SafeAreaView,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { getBusinessAnalytics, storage } from '@/services/api';
 import { Alert } from 'react-native';
@@ -41,14 +39,13 @@ const Analytics = () => {
       }
     } catch (error) {
       console.error("Failed to fetch analytics", error);
-      Alert.alert("Error", "Failed to load analytics");
+      // Alert.alert("Error", "Failed to load analytics"); // Optional: suppress if frequent
     }
   };
 
   useEffect(() => {
     fetchAnalytics();
   }, [timeframe]);
-
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -73,7 +70,6 @@ const Analytics = () => {
 
   const topProducts = analyticsData?.topProducts || [];
   const categoryDistribution = analyticsData?.categoryDistribution || [];
-
   const currentStats = analyticsData?.stats || { revenue: 0, orders: 0, growth: 0 };
 
   // --- Chart Configuration ---
@@ -81,20 +77,20 @@ const Analytics = () => {
     backgroundGradientFrom: '#ffffff',
     backgroundGradientTo: '#ffffff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(124, 58, 237, ${opacity})`,
+    color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`, // Using Brand Blue
     labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
     style: { borderRadius: 16 },
     propsForDots: {
       r: '5',
       strokeWidth: '2',
-      stroke: '#fff',
+      stroke: '#84cc16', // Lime dots
     },
     propsForBackgroundLines: {
       strokeDasharray: "5",
       stroke: "rgba(0,0,0,0.05)"
     },
     propsForLabels: {
-      fontFamily: 'Montserrat-Regular' // Applied font to chart labels
+      fontFamily: 'Montserrat-Regular'
     }
   };
 
@@ -110,10 +106,9 @@ const Analytics = () => {
             style={styles.fadedLogo}
           />
         </View>
-
       </View>
 
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <Animated.ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 100 }}
@@ -123,11 +118,27 @@ const Analytics = () => {
             { useNativeDriver: true }
           )}
         >
-          {/* --- Header Section --- */}
-          <View style={styles.headerContainer}>
-            <Text style={styles.headerTitle}>Analytics</Text>
-            <Text style={styles.headerSubtitle}>Overview & Performance</Text>
-          </View>
+          {/* --- HEADER SECTION (Matched Design) --- */}
+          <LinearGradient
+            colors={['#0C1559', '#1e3a8a']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+            style={styles.headerContainer}
+          >
+            <View style={styles.headerTop}>
+              <View style={styles.logoContainer}>
+                <Image
+                  source={require('../../assets/images/iconwhite.png')}
+                  style={styles.logo}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+
+            <View style={styles.headerTextContainer}>
+                <Text style={styles.headerTitle}>Analytics</Text>
+                <Text style={styles.headerSubtitle}>Overview & Performance</Text>
+            </View>
+          </LinearGradient>
 
           {/* --- Main Content Body --- */}
           <View style={styles.bodyContainer}>
@@ -220,7 +231,7 @@ const Analytics = () => {
 
             {topProducts.map((product: any, index: number) => (
               <View key={index} style={styles.productCard}>
-                <View style={[styles.rankBadge, { backgroundColor: product.color }]}>
+                <View style={[styles.rankBadge, { backgroundColor: product.color || '#0C1559' }]}>
                   <Text style={styles.rankText}>{index + 1}</Text>
                 </View>
                 <View style={{ flex: 1, marginLeft: 12 }}>
@@ -258,55 +269,74 @@ const Analytics = () => {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: '#E9F0FF',
+    backgroundColor: '#F1F5F9',
   },
   safeArea: {
     flex: 1,
     backgroundColor: 'transparent',
   },
-  backgroundImageStyle: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    width: '100%',
-    height: '100%',
-  },
   bottomLogos: {
     position: 'absolute',
-    bottom: -50,
-    left: -50,
+    bottom: 20,
+    left: -20,
   },
   fadedLogo: {
     width: 130,
     height: 130,
     resizeMode: 'contain',
-    opacity: 0.12,
+    opacity: 0.08,
   },
 
-  // Header
+  // Header (Matched to Products)
   headerContainer: {
-    backgroundColor: '#0C1559',
-    paddingTop: 60,
-    paddingBottom: 25,
+    paddingTop: 60, // Manual padding to clear status bar
+    paddingBottom: 30,
     paddingHorizontal: 20,
-    borderBottomRightRadius: 24,
-    borderBottomLeftRadius: 24,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     marginBottom: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowColor: "#0C1559",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  logoContainer: {
+    height: 40,
+    justifyContent: 'center',
+  },
+  logo: {
+    width: 110,
+    height: 35,
+  },
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  headerTextContainer: {
+    marginTop: 5,
   },
   headerTitle: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     fontSize: 28,
     color: '#FFF',
   },
   headerSubtitle: {
-    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontFamily: 'Montserrat-Regular',
     fontSize: 14,
-    color: '#94A3B8',
+    color: 'rgba(255,255,255,0.8)',
     marginTop: 4,
   },
 
@@ -317,10 +347,10 @@ const styles = StyleSheet.create({
   },
   sectionHeaderRow: {
     marginTop: 15,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   sectionTitle: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     fontSize: 18,
     color: '#0C1559',
   },
@@ -338,23 +368,23 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   toggleBtnActive: {
-    backgroundColor: '#84cc16',
-    borderColor: '#84cc16',
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
     elevation: 2,
   },
   toggleBtnInactive: {
     backgroundColor: '#FFF',
-    borderColor: '#FFF',
+    borderColor: '#E2E8F0',
   },
   toggleText: {
     fontSize: 13,
   },
   toggleTextActive: {
-    fontFamily: 'Montserrat-SemiBold', // Font Applied
-    color: '#0f172a',
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#FFF',
   },
   toggleTextInactive: {
-    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontFamily: 'Montserrat-Regular',
     color: '#64748B',
   },
 
@@ -373,9 +403,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   chartStyle: {
-    marginRight: 0,
-    paddingRight: 0,
     borderRadius: 16,
+    paddingRight: 0,
   },
 
   // Stats Grid
@@ -405,18 +434,18 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   statLabel: {
-    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontFamily: 'Montserrat-Regular',
     fontSize: 13,
     color: '#64748B',
   },
   statValue: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     fontSize: 20,
-    color: '#0C1559',
+    color: '#0F172A',
     marginTop: 4,
   },
   statGrowth: {
-    fontFamily: 'Montserrat-SemiBold', // Font Applied
+    fontFamily: 'Montserrat-SemiBold',
     fontSize: 12,
     color: '#15803D',
     marginTop: 4,
@@ -444,22 +473,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rankText: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     color: '#FFF',
     fontSize: 14,
   },
   productName: {
-    fontFamily: 'Montserrat-SemiBold', // Font Applied
+    fontFamily: 'Montserrat-SemiBold',
     fontSize: 15,
     color: '#1e293b',
   },
   productSales: {
-    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontFamily: 'Montserrat-Regular',
     fontSize: 12,
     color: '#64748B',
   },
   productRevenue: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     fontSize: 15,
     color: '#0C1559',
   },
@@ -476,12 +505,12 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   scoreTitle: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     fontSize: 18,
     color: '#FFF',
   },
   scoreDesc: {
-    fontFamily: 'Montserrat-Regular', // Font Applied
+    fontFamily: 'Montserrat-Regular',
     fontSize: 13,
     color: '#cbd5e1',
     marginTop: 4,
@@ -497,7 +526,7 @@ const styles = StyleSheet.create({
     borderColor: '#84cc16',
   },
   scoreNum: {
-    fontFamily: 'Montserrat-Bold', // Font Applied
+    fontFamily: 'Montserrat-Bold',
     fontSize: 16,
     color: '#FFF',
   },

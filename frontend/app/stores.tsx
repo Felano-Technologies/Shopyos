@@ -1,4 +1,3 @@
-// app/stores.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,6 +10,9 @@ import {
   Dimensions,
   Keyboard,
   TouchableWithoutFeedback,
+  Modal,
+  Switch,
+  ImageBackground // Added
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,7 +21,7 @@ import { StatusBar } from 'expo-status-bar';
 import BottomNav from '@/components/BottomNav';
 import { getAllStores } from '@/services/api';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Fashion', 'Home'];
 
@@ -32,30 +34,48 @@ export default function StoresScreen() {
   const [popularStores, setPopularStores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // --- Filter Modal State ---
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterSort, setFilterSort] = useState<'rating' | 'newest' | 'name'>('rating');
+  const [filterVerified, setFilterVerified] = useState(false);
+
   // --- Data Fetching ---
   useEffect(() => {
     fetchStores();
-  }, [activeCategory, searchQuery]);
+  }, [activeCategory, searchQuery, filterSort, filterVerified]);
 
   const fetchStores = async () => {
     try {
       setLoading(true);
+      // In a real app, pass filterSort & filterVerified to API
       const res = await getAllStores({
         search: searchQuery || undefined,
         category: activeCategory !== 'All' ? activeCategory : undefined
       });
+      
       if (res.success) {
-        const mapped = res.businesses.map((b: any) => ({
+        let mapped = res.businesses.map((b: any) => ({
           id: b.id,
           name: b.name,
           category: b.category,
           rating: b.rating || 4.5,
           logo: b.logo ? { uri: b.logo } : require('../assets/images/icon.png'),
-          catalogues: b.catalogues || 0
+          catalogues: b.catalogues || 0,
+          verified: true // Mock verified status for demo
         }));
-        setStores(mapped);
 
-        // Simple client-side popular filter for now
+        // Apply Client-Side Filters (Simulated)
+        if (filterVerified) {
+            mapped = mapped.filter((s: any) => s.verified);
+        }
+        
+        if (filterSort === 'name') {
+            mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
+        } else if (filterSort === 'rating') {
+            mapped.sort((a: any, b: any) => b.rating - a.rating);
+        }
+
+        setStores(mapped);
         setPopularStores(mapped.slice(0, 5));
       }
     } catch (e) {
@@ -67,7 +87,6 @@ export default function StoresScreen() {
 
   const isSearching = searchQuery.length > 0;
 
-  // --- Navigation Helper ---
   const handleVisitStore = (item: any) => {
     router.push({
       pathname: '/stores/details',
@@ -75,7 +94,7 @@ export default function StoresScreen() {
         id: item.id,
         name: item.name,
         category: item.category,
-        logo: item.logo // Passing image asset ID
+        logo: item.logo 
       }
     });
   };
@@ -103,7 +122,7 @@ export default function StoresScreen() {
     <TouchableOpacity
       style={styles.storeRow}
       activeOpacity={0.7}
-      onPress={() => handleVisitStore(item)} // Clicking row visits store
+      onPress={() => handleVisitStore(item)}
     >
       <Image source={item.logo} style={styles.storeRowLogo} />
 
@@ -118,7 +137,7 @@ export default function StoresScreen() {
 
       <TouchableOpacity
         style={styles.visitButton}
-        onPress={() => handleVisitStore(item)} // Clicking button visits store
+        onPress={() => handleVisitStore(item)}
       >
         <Text style={styles.visitText}>Visit</Text>
         <Feather name="chevron-right" size={14} color="#0C1559" />
@@ -129,7 +148,17 @@ export default function StoresScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <View style={styles.container}>
-        <StatusBar style="dark" />
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+
+        {/* --- BACKGROUND WATERMARK LAYER (Matched Home.tsx) --- */}
+
+                <View style={styles.bottomLogos}>
+                    <Image
+                        source={require('../assets/images/splash-icon.png')}
+                        style={styles.fadedLogo}
+                    />
+                </View>
+
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
 
           {/* Header */}
@@ -157,7 +186,10 @@ export default function StoresScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity style={styles.filterBtn}>
+            <TouchableOpacity 
+                style={styles.filterBtn}
+                onPress={() => setShowFilter(true)}
+            >
               <Feather name="sliders" size={20} color="#FFF" />
             </TouchableOpacity>
           </View>
@@ -235,6 +267,63 @@ export default function StoresScreen() {
 
         </SafeAreaView>
         <BottomNav />
+
+        {/* --- FILTER MODAL --- */}
+        <Modal
+            visible={showFilter}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowFilter(false)}
+        >
+            <View style={styles.modalOverlay}>
+                <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowFilter(false)} />
+                
+                <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                        <Text style={styles.modalTitle}>Filter Stores</Text>
+                        <TouchableOpacity onPress={() => setShowFilter(false)}>
+                            <Ionicons name="close" size={24} color="#0F172A" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <Text style={styles.filterLabel}>Sort By</Text>
+                    <View style={styles.sortOptions}>
+                        {['rating', 'newest', 'name'].map((opt) => (
+                            <TouchableOpacity 
+                                key={opt}
+                                style={[styles.sortChip, filterSort === opt && styles.sortChipActive]}
+                                onPress={() => setFilterSort(opt as any)}
+                            >
+                                <Text style={[styles.sortText, filterSort === opt && styles.sortTextActive]}>
+                                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    <View style={styles.switchRow}>
+                        <Text style={styles.filterLabel}>Verified Stores Only</Text>
+                        <Switch
+                            value={filterVerified}
+                            onValueChange={setFilterVerified}
+                            trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
+                            thumbColor={'#FFF'}
+                        />
+                    </View>
+
+                    <TouchableOpacity 
+                        style={styles.applyBtn} 
+                        onPress={() => {
+                            setShowFilter(false);
+                            fetchStores(); // Apply changes
+                        }}
+                    >
+                        <Text style={styles.applyText}>Apply Filters</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+
       </View>
     </TouchableWithoutFeedback>
   );
@@ -243,13 +332,27 @@ export default function StoresScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F0F4FC',
+    backgroundColor: '#e9f0ff', // Updated to match Home.tsx
   },
   safeArea: {
     flex: 1,
   },
   scrollContent: {
     paddingBottom: 100,
+  },
+
+  // --- Background Watermark Styles ---
+
+  bottomLogos: {
+    position: 'absolute',
+    bottom: -10,
+    left: -40,
+  },
+  fadedLogo: {
+    width: 130,
+    height: 130,
+    resizeMode: 'contain',
+    opacity: 0.12,
   },
 
   // Header
@@ -488,5 +591,83 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#94A3B8',
     fontFamily: 'Montserrat-Medium',
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalBackdrop: {
+    flex: 1,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#64748B',
+    marginBottom: 10,
+    marginTop: 10,
+  },
+  sortOptions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+  },
+  sortChip: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  sortChipActive: {
+    backgroundColor: '#ECFCCB', // Light lime
+    borderColor: '#A3E635',
+  },
+  sortText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontFamily: 'Montserrat-Medium',
+  },
+  sortTextActive: {
+    color: '#16A34A',
+    fontFamily: 'Montserrat-Bold',
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  applyBtn: {
+    backgroundColor: '#0C1559',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+  },
+  applyText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
   },
 });
