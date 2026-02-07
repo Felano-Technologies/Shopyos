@@ -4,6 +4,7 @@
 class BaseRepository {
   constructor(supabaseClient, tableName) {
     this.db = supabaseClient;
+    this.supabase = supabaseClient; // Alias for compatibility with older implementations
     this.tableName = tableName;
   }
 

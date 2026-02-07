@@ -200,7 +200,7 @@ const BusinessDashboard = () => {
                     <Ionicons name="notifications-outline" size={22} color="#FFF" />
 
                     {/* Only show badge if count > 0 */}
-                    {unreadCount > 0 && (
+                    {true && (
                       <View style={styles.badgeContainer}>
                         <Text style={styles.badgeText}>
                           {unreadCount > 99 ? '99+' : unreadCount}

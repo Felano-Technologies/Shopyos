@@ -82,7 +82,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<number>} Unread count
    */
   async getUnreadCount(userId) {
-    const { count, error } = await this.supabase
+    const { count, error } = await this.db
       .from(this.tableName)
       .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
@@ -99,7 +99,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated notification
    */
   async markAsRead(notificationId, userId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('id', notificationId)
@@ -117,7 +117,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<number>} Number of updated notifications
    */
   async markAllAsRead(userId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .update({ is_read: true, read_at: new Date().toISOString() })
       .eq('user_id', userId)
@@ -135,7 +135,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<boolean>} Success status
    */
   async deleteNotification(notificationId, userId) {
-    const { error } = await this.supabase
+    const { error } = await this.db
       .from(this.tableName)
       .delete()
       .eq('id', notificationId)
@@ -151,7 +151,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<boolean>} Success status
    */
   async deleteAllNotifications(userId) {
-    const { error } = await this.supabase
+    const { error } = await this.db
       .from(this.tableName)
       .delete()
       .eq('user_id', userId);
@@ -166,7 +166,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Object>} Notification preferences
    */
   async getUserPreferences(userId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('notification_preferences')
       .select('*')
       .eq('user_id', userId)
@@ -188,7 +188,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Object>} Created preferences
    */
   async createDefaultPreferences(userId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('notification_preferences')
       .insert({
         user_id: userId,
@@ -215,7 +215,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated preferences
    */
   async updatePreferences(userId, preferences) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('notification_preferences')
       .update(preferences)
       .eq('user_id', userId)
@@ -247,7 +247,7 @@ class NotificationRepository extends BaseRepository {
   async getNotificationsByType(userId, type, options = {}) {
     const { limit = 20, offset = 0 } = options;
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*')
       .eq('user_id', userId)
@@ -267,7 +267,7 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Array>} Related notifications
    */
   async getNotificationsByRelated(userId, relatedId, relatedType) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*')
       .eq('user_id', userId)
@@ -288,7 +288,7 @@ class NotificationRepository extends BaseRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .delete()
       .eq('is_read', true)

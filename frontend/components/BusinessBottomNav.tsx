@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, 
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getBusinessDashboard } from '@/services/api';
+import { getBusinessDashboard, getConversations } from '@/services/api';
 import * as SecureStore from 'expo-secure-store';
 
 // Enable LayoutAnimation for Android
@@ -16,32 +16,44 @@ const { width } = Dimensions.get('window');
 const BusinessBottomNav = () => {
   const pathname = usePathname();
   const [orderCount, setOrderCount] = useState(0); // Default to 0
+  const [chatCount, setChatCount] = useState(0);
 
   useEffect(() => {
-    // Fetch real pending order count
-    const fetchOrderCount = async () => {
+    // Fetch real stats
+    const fetchCounts = async () => {
       try {
         const businessId = await SecureStore.getItemAsync('currentBusinessId');
         if (businessId) {
+          // Fetch order count
           const dashResp = await getBusinessDashboard(businessId);
           if (dashResp.success && dashResp.data?.stats) {
             setOrderCount(dashResp.data.stats.pendingOrders || 0);
           }
+
+          // Fetch chat count
+          try {
+            const chatResp = await getConversations();
+            if (chatResp.success && chatResp.conversations) {
+              const unreadTotal = chatResp.conversations.reduce((acc: number, c: any) => acc + (c.unreadCount || 0), 0);
+              setChatCount(unreadTotal);
+            }
+          } catch (chatErr) {
+            console.error('Error fetching chats:', chatErr);
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch order count:', error);
-        setOrderCount(0); // Default to 0 on error
+        console.error('Failed to fetch counts:', error);
       }
     };
-    fetchOrderCount();
+    fetchCounts();
   }, []);
 
   const navItems = [
-    { name: 'Home', icon: 'grid', route: '/business/dashboard' },
-    { name: 'Products', icon: 'box', route: '/business/products' },
-    { name: 'Orders', icon: 'shopping-bag', route: '/business/orders', hasBadge: true },
-    { name: 'Stats', icon: 'bar-chart-2', route: '/business/analytics' },
-    { name: 'Community', icon: 'users', route: '/business/community' }, // Changed icon to users for community
+    { name: 'Home', icon: 'grid', route: '/business/dashboard', count: 0 },
+    { name: 'Products', icon: 'box', route: '/business/products', count: 0 },
+    { name: 'Orders', icon: 'shopping-bag', route: '/business/orders', hasBadge: true, count: orderCount },
+    { name: 'Stats', icon: 'bar-chart-2', route: '/business/analytics', count: 0 },
+    { name: 'Community', icon: 'users', route: '/business/community', hasBadge: true, count: chatCount },
   ];
 
   const handlePress = (route: string) => {
@@ -51,7 +63,6 @@ const BusinessBottomNav = () => {
   };
 
   const Badge = ({ count }: { count: number }) => {
-    if (count === 0) return null;
     return (
       <View style={styles.badgeContainer}>
         <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
@@ -88,7 +99,7 @@ const BusinessBottomNav = () => {
                 >
                   <View style={{ position: 'relative' }}>
                     <Feather name={item.icon as any} size={18} color="#FFF" />
-                    {item.hasBadge && <Badge count={orderCount} />}
+                    {item.hasBadge && <Badge count={item.count || 0} />}
                   </View>
 
                   <Text style={styles.activeText} numberOfLines={1} ellipsizeMode="clip">
@@ -98,7 +109,7 @@ const BusinessBottomNav = () => {
               ) : (
                 <View style={styles.iconWrapper}>
                   <Feather name={item.icon as any} size={22} color="#94A3B8" />
-                  {item.hasBadge && <Badge count={orderCount} />}
+                  {item.hasBadge && <Badge count={item.count || 0} />}
                 </View>
               )}
             </TouchableOpacity>
