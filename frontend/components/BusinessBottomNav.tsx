@@ -3,6 +3,8 @@ import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, 
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getBusinessDashboard } from '@/services/api';
+import * as SecureStore from 'expo-secure-store';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -13,11 +15,25 @@ const { width } = Dimensions.get('window');
 
 const BusinessBottomNav = () => {
   const pathname = usePathname();
-  const [orderCount, setOrderCount] = useState(0);
+  const [orderCount, setOrderCount] = useState(0); // Default to 0
 
   useEffect(() => {
-    // Simulate fetching order count
-    setOrderCount(5); 
+    // Fetch real pending order count
+    const fetchOrderCount = async () => {
+      try {
+        const businessId = await SecureStore.getItemAsync('currentBusinessId');
+        if (businessId) {
+          const dashResp = await getBusinessDashboard(businessId);
+          if (dashResp.success && dashResp.data?.stats) {
+            setOrderCount(dashResp.data.stats.pendingOrders || 0);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch order count:', error);
+        setOrderCount(0); // Default to 0 on error
+      }
+    };
+    fetchOrderCount();
   }, []);
 
   const navItems = [
@@ -74,7 +90,7 @@ const BusinessBottomNav = () => {
                     <Feather name={item.icon as any} size={18} color="#FFF" />
                     {item.hasBadge && <Badge count={orderCount} />}
                   </View>
-                  
+
                   <Text style={styles.activeText} numberOfLines={1} ellipsizeMode="clip">
                     {item.name}
                   </Text>
@@ -120,7 +136,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#F1F5F9',
   },
-  
+
   // --- Flex Logic ---
   navItem: {
     height: '100%',
