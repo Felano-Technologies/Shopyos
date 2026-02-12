@@ -463,8 +463,49 @@ export const getAllCategories = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching categories:", error);
-    // Fallback to static if endpoint fails
-    return { success: true, data: [{ name: 'Men' }, { name: 'Women' }, { name: 'Electronics' }, { name: 'Art' }] };
+    throw error;
+  }
+};
+
+// --- Categories Management API ---
+
+export const createCategory = async (name: string, description?: string) => {
+  try {
+    const response = await api.post('/categories', { name, description });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to create category');
+    }
+    throw error;
+  }
+};
+
+export const updateCategory = async (id: string, name: string) => {
+  try {
+    const response = await api.put(`/categories/${id}`, { name });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to update category');
+    }
+    throw error;
+  }
+};
+
+export const deleteCategory = async (id: string, force: boolean = false) => {
+  try {
+    const response = await api.delete(`/categories/${id}?force=${force}`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      // Return full error response data for handling confirmation flow
+      if (error.response.data.requiresConfirmation) {
+        throw error.response.data; // throwing object to catch in UI
+      }
+      throw new Error(error.response.data.error || 'Failed to delete category');
+    }
+    throw error;
   }
 };
 

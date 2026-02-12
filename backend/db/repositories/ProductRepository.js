@@ -9,6 +9,31 @@ class ProductRepository extends BaseRepository {
   }
 
   /**
+   * Get product inventory
+   * @param {string} productId
+   * @returns {Promise<Object>}
+   */
+  async getInventory(productId) {
+    const { data, error } = await this.db
+      .from('inventory')
+      .select('quantity, reserved_quantity, allow_backorder, track_inventory')
+      .eq('product_id', productId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+
+    return {
+      stock_quantity: data.quantity,
+      reserved_quantity: data.reserved_quantity,
+      allow_backorder: data.allow_backorder,
+      track_inventory: data.track_inventory
+    };
+  }
+
+  /**
    * Find all products for a store
    * @param {string} storeId
    * @param {Object} options - Query options

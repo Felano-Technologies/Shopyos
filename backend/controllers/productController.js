@@ -228,31 +228,51 @@ const getProductById = async (req, res) => {
 // @access  Public
 const getCategories = async (req, res) => {
   try {
-    // This could be fetched from DB or static list
-    // For now, return static list or query distinct categories
-    // querying distinct categories from products is better
-    const { data, error } = await repositories.products.db
+    // Fetch categories from the new table
+    const { data: dbCategories, error: catError } = await repositories.products.db
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('name');
+
+    if (catError) {
+      console.error('Error fetching categories table:', catError);
+      // Fallback to extraction from products if table fails (or empty?)
+      // But we just seeded it.
+    }
+
+    // Get product counts for these categories
+    // efficient way: group by category
+    const { data: productCounts, error: countError } = await repositories.products.db
       .from('products')
       .select('category')
-      .eq('is_active', true)
-      .not('category', 'is', null);
+      .is('deleted_at', null)
+      .eq('is_active', true);
 
-    if (error) throw error;
+    const counts = {};
+    if (productCounts) {
+      productCounts.forEach(p => {
+        if (p.category) counts[p.category] = (counts[p.category] || 0) + 1;
+      });
+    }
 
-    // Get unique categories and count
-    const categoriesMap = {};
-    data.forEach(p => {
-      const cat = p.category;
-      if (cat) {
-        categoriesMap[cat] = (categoriesMap[cat] || 0) + 1;
-      }
-    });
-
-    const categories = Object.keys(categoriesMap).map(cat => ({
-      id: cat.toLowerCase().replace(/\s+/g, '-'),
-      name: cat,
-      count: categoriesMap[cat]
-    }));
+    let categories = [];
+    if (dbCategories && dbCategories.length > 0) {
+      categories = dbCategories.map(cat => ({
+        id: cat.id,
+        name: cat.name,
+        slug: cat.slug || cat.name.toLowerCase().replace(/\s+/g, '-'),
+        count: counts[cat.name] || 0
+      }));
+    } else {
+      // Fallback: extract from products alone if categories table is empty
+      const uniqueCats = Object.keys(counts);
+      categories = uniqueCats.map(cat => ({
+        id: cat.toLowerCase().replace(/\s+/g, '-'),
+        name: cat,
+        count: counts[cat]
+      }));
+    }
 
     res.status(200).json({
       success: true,
