@@ -209,13 +209,15 @@ const getBusinessById = async (req, res) => {
       });
     }
 
-    // Verify ownership
+    // Verify ownership removed to allow public viewing
+    /*
     if (store.owner_id !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to access this business'
       });
     }
+    */
 
     // Get store with details
     const storeWithDetails = await repositories.stores.getStoreDetails(businessId);
@@ -786,11 +788,23 @@ const getAllBusinesses = async (req, res) => {
       where.category = category;
     }
 
-    const stores = await repositories.stores.findAll({ where });
+    const stores = await repositories.stores.db
+      .from('stores')
+      .select(`
+        id,
+        store_name,
+        category,
+        logo_url,
+        average_rating,
+        is_verified,
+        products:products(count)
+      `)
+      .match(where)
+      .eq('is_active', true);
 
-    // Filter by search if needed (since findAll might not support 'like' directly depending on repo implementation)
-    // Or assume findAll supports it. For now, filter in JS to be safe or update repo.
-    let results = stores;
+    if (stores.error) throw stores.error;
+
+    let results = stores.data || [];
     if (search) {
       results = results.filter(s => s.store_name.toLowerCase().includes(search.toLowerCase()));
     }
@@ -800,8 +814,9 @@ const getAllBusinesses = async (req, res) => {
       name: s.store_name,
       category: s.category,
       logo: s.logo_url,
-      rating: 4.5, // Placeholder or agg
-      catalogues: 10 // Placeholder count
+      rating: s.average_rating || 0,
+      verified: s.is_verified || false,
+      catalogues: s.products?.[0]?.count || 0
     }));
 
     res.status(200).json({ success: true, businesses: mapped });

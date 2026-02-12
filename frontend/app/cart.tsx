@@ -1,19 +1,19 @@
 // app/cart.tsx
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Platform, Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Animated, PanResponder } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Platform, Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Animated, PanResponder, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCart } from './context/CartContext'; 
-
+import { useCart } from './context/CartContext';
+import { createOrder } from '@/services/api';
 const { width, height } = Dimensions.get('window');
 
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  
+
   // Use Global Cart Context
   const { items: cartItems, removeFromCart, updateQuantity } = useCart();
 
@@ -23,12 +23,15 @@ export default function CartScreen() {
   const [getFund, setGetFund] = useState(0);
   const [vat, setVat] = useState(0);
   const [total, setTotal] = useState(0);
-  
+
   const [modalVisible, setModalVisible] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card'>('momo');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryPhone, setDeliveryPhone] = useState('');
+  const [isOrdering, setIsOrdering] = useState(false);
 
   const DELIVERY_FEE = 15.00;
-  const SERVICE_CHARGE = 5.00; 
+  const SERVICE_CHARGE = 5.00;
 
   // --- Modal Animation ---
   const panY = useRef(new Animated.Value(0)).current;
@@ -46,8 +49,8 @@ export default function CartScreen() {
 
   const closeModal = () => {
     Animated.timing(panY, { toValue: height, duration: 300, useNativeDriver: true }).start(() => {
-        setModalVisible(false);
-        panY.setValue(0);
+      setModalVisible(false);
+      panY.setValue(0);
     });
   };
 
@@ -60,9 +63,9 @@ export default function CartScreen() {
   // --- Tax Calculations ---
   useEffect(() => {
     const baseTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    const nhilAmount = baseTotal * 0.025; 
-    const getFundAmount = baseTotal * 0.025; 
-    const vatAmount = baseTotal * 0.15; 
+    const nhilAmount = baseTotal * 0.025;
+    const getFundAmount = baseTotal * 0.025;
+    const vatAmount = baseTotal * 0.15;
     const finalTotal = baseTotal + nhilAmount + getFundAmount + vatAmount + DELIVERY_FEE + SERVICE_CHARGE;
 
     setSubtotal(baseTotal);
@@ -77,9 +80,38 @@ export default function CartScreen() {
     setModalVisible(true);
   };
 
-  const handleFinalPayment = () => {
-    closeModal();
-    Alert.alert("Payment Initiated", `Please authorise the payment of ₵${total.toFixed(2)}.`);
+  const handleFinalPayment = async () => {
+    if (!deliveryAddress || !deliveryPhone) {
+      Alert.alert("Error", "Please provide delivery address and phone number");
+      return;
+    }
+
+    try {
+      setIsOrdering(true);
+      const res = await createOrder({
+        deliveryAddress,
+        deliveryCity: 'Accra', // For now hardcoded, can be dynamic
+        deliveryCountry: 'Ghana',
+        deliveryPhone,
+        paymentMethod
+      });
+
+      if (res.success) {
+        closeModal();
+        Alert.alert(
+          "Order Placed!",
+          `Your order(s) have been placed successfully. Order #: ${res.orders[0].order_number}`,
+          [{ text: "OK", onPress: () => router.push('/order') }]
+        );
+      } else {
+        Alert.alert("Checkout Failed", res.error || "Something went wrong");
+      }
+    } catch (e: any) {
+      console.error("Order error", e);
+      Alert.alert("Error", e.message || "Failed to place order");
+    } finally {
+      setIsOrdering(false);
+    }
   };
 
   const renderItem = ({ item }: { item: any }) => (
@@ -88,23 +120,23 @@ export default function CartScreen() {
       <Image source={typeof item.image === 'number' ? item.image : { uri: item.image }} style={styles.itemImage} />
       <View style={styles.itemDetails}>
         <View style={styles.titleRow}>
-            <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-            <TouchableOpacity onPress={() => removeFromCart(item.id)} style={styles.deleteBtn}>
-                <Feather name="trash-2" size={18} color="#EF4444" />
-            </TouchableOpacity>
+          <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
+          <TouchableOpacity onPress={() => removeFromCart(item.id)} style={styles.deleteBtn}>
+            <Feather name="trash-2" size={18} color="#EF4444" />
+          </TouchableOpacity>
         </View>
         <Text style={styles.itemCategory}>{item.category}</Text>
         <View style={styles.priceControlRow}>
-            <Text style={styles.itemPrice}>₵{item.price.toFixed(2)}</Text>
-            <View style={styles.qtyContainer}>
-                <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.id, -1)}>
-                    <Feather name="minus" size={14} color="#0C1559" />
-                </TouchableOpacity>
-                <Text style={styles.qtyText}>{item.quantity}</Text>
-                <TouchableOpacity style={[styles.qtyBtn, styles.qtyBtnActive]} onPress={() => updateQuantity(item.id, 1)}>
-                    <Feather name="plus" size={14} color="#FFF" />
-                </TouchableOpacity>
-            </View>
+          <Text style={styles.itemPrice}>₵{item.price.toFixed(2)}</Text>
+          <View style={styles.qtyContainer}>
+            <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.id, -1)}>
+              <Feather name="minus" size={14} color="#0C1559" />
+            </TouchableOpacity>
+            <Text style={styles.qtyText}>{item.quantity}</Text>
+            <TouchableOpacity style={[styles.qtyBtn, styles.qtyBtnActive]} onPress={() => updateQuantity(item.id, 1)}>
+              <Feather name="plus" size={14} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </View>
@@ -120,17 +152,17 @@ export default function CartScreen() {
       </View>
 
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
-          <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
-              <View style={styles.headerRow}>
-                  <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                      <Ionicons name="arrow-back" size={24} color="#FFF" />
-                  </TouchableOpacity>
-                  <Text style={styles.headerTitle}>My Cart</Text>
-                  <View style={styles.cartCountBadge}>
-                      <Text style={styles.cartCountText}>{cartItems.length}</Text>
-                  </View>
-              </View>
-          </SafeAreaView>
+        <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
+          <View style={styles.headerRow}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>My Cart</Text>
+            <View style={styles.cartCountBadge}>
+              <Text style={styles.cartCountText}>{cartItems.length}</Text>
+            </View>
+          </View>
+        </SafeAreaView>
       </LinearGradient>
 
 
@@ -142,76 +174,102 @@ export default function CartScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-            <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" />
-                <Text style={styles.emptyText}>Your cart is empty</Text>
-                <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}>
-                    <Text style={styles.shopBtnText}>Start Shopping</Text>
-                </TouchableOpacity>
-            </View>
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" />
+            <Text style={styles.emptyText}>Your cart is empty</Text>
+            <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}>
+              <Text style={styles.shopBtnText}>Start Shopping</Text>
+            </TouchableOpacity>
+          </View>
         }
       />
 
       {/* Footer Summary */}
       {cartItems.length > 0 && (
-          <View style={styles.summaryContainer}>
-              <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Total (Inc. Taxes)</Text>
-                  <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
-              </View>
-              <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckoutPress}>
-                  <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
-                      <Text style={styles.checkoutText}>Checkout</Text>
-                      <Feather name="arrow-right" size={20} color="#FFF" />
-                  </LinearGradient>
-              </TouchableOpacity>
+        <View style={styles.summaryContainer}>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Total (Inc. Taxes)</Text>
+            <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
           </View>
+          <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckoutPress}>
+            <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
+              <Text style={styles.checkoutText}>Checkout</Text>
+              <Feather name="arrow-right" size={20} color="#FFF" />
+            </LinearGradient>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Checkout Modal */}
       <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
-            <Animated.View style={[styles.modalContent, { transform: [{ translateY: panY }] }]} {...panResponder.panHandlers}>
-                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                    <View style={styles.handleArea}><View style={styles.modalHandle} /></View>
-                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                        <Text style={styles.modalTitle}>Payment Summary</Text>
-                        
-                        <View style={styles.billContainer}>
-                            <View style={styles.billRow}><Text style={styles.billLabel}>Subtotal</Text><Text style={styles.billValue}>₵{subtotal.toFixed(2)}</Text></View>
-                            <View style={styles.billRow}><Text style={styles.billLabel}>Delivery Fee</Text><Text style={styles.billValue}>₵{DELIVERY_FEE.toFixed(2)}</Text></View>
-                            <View style={styles.billRow}><Text style={styles.billLabel}>Service Charge</Text><Text style={styles.billValue}>₵{SERVICE_CHARGE.toFixed(2)}</Text></View>
-                            <View style={styles.divider} />
-                            <Text style={styles.taxHeader}>Taxes & Levies</Text>
-                            <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>NHIL (2.5%)</Text><Text style={styles.billValueSmall}>₵{nhil.toFixed(2)}</Text></View>
-                            <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>GETFund (2.5%)</Text><Text style={styles.billValueSmall}>₵{getFund.toFixed(2)}</Text></View>
-                            <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>VAT (15%)</Text><Text style={styles.billValueSmall}>₵{vat.toFixed(2)}</Text></View>
-                            <View style={[styles.divider, { backgroundColor: '#000', marginVertical: 15 }]} />
-                            <View style={styles.billRow}><Text style={styles.totalLabelLarge}>Total Payable</Text><Text style={styles.totalValueLarge}>₵{total.toFixed(2)}</Text></View>
-                        </View>
+          <Animated.View style={[styles.modalContent, { transform: [{ translateY: panY }] }]} {...panResponder.panHandlers}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+              <View style={styles.handleArea}><View style={styles.modalHandle} /></View>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+                <Text style={styles.modalTitle}>Payment Summary</Text>
 
-                        <Text style={[styles.modalTitle, { marginTop: 20, marginBottom: 15 }]}>Payment Method</Text>
-                        
-                        <TouchableOpacity style={styles.optionRow} onPress={() => setPaymentMethod('momo')}>
-                            <View style={styles.optionLeft}>
-                                <View style={[styles.radioOuter, paymentMethod === 'momo' && { borderColor: '#84cc16' }]}>{paymentMethod === 'momo' && <View style={styles.radioInner} />}</View>
-                                <Text style={styles.optionText}>Mobile money</Text>
-                            </View>
-                        </TouchableOpacity>
+                <View style={styles.billContainer}>
+                  <View style={styles.billRow}><Text style={styles.billLabel}>Subtotal</Text><Text style={styles.billValue}>₵{subtotal.toFixed(2)}</Text></View>
+                  <View style={styles.billRow}><Text style={styles.billLabel}>Delivery Fee</Text><Text style={styles.billValue}>₵{DELIVERY_FEE.toFixed(2)}</Text></View>
+                  <View style={styles.billRow}><Text style={styles.billLabel}>Service Charge</Text><Text style={styles.billValue}>₵{SERVICE_CHARGE.toFixed(2)}</Text></View>
+                  <View style={styles.divider} />
+                  <Text style={styles.taxHeader}>Taxes & Levies</Text>
+                  <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>NHIL (2.5%)</Text><Text style={styles.billValueSmall}>₵{nhil.toFixed(2)}</Text></View>
+                  <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>GETFund (2.5%)</Text><Text style={styles.billValueSmall}>₵{getFund.toFixed(2)}</Text></View>
+                  <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>VAT (15%)</Text><Text style={styles.billValueSmall}>₵{vat.toFixed(2)}</Text></View>
+                  <View style={[styles.divider, { backgroundColor: '#000', marginVertical: 15 }]} />
+                  <View style={styles.billRow}><Text style={styles.totalLabelLarge}>Total Payable</Text><Text style={styles.totalValueLarge}>₵{total.toFixed(2)}</Text></View>
+                </View>
 
-                        <TouchableOpacity style={styles.optionRow} onPress={() => setPaymentMethod('card')}>
-                            <View style={styles.optionLeft}>
-                                <View style={[styles.radioOuter, paymentMethod === 'card' && { borderColor: '#84cc16' }]}>{paymentMethod === 'card' && <View style={styles.radioInner} />}</View>
-                                <Text style={styles.optionText}>Bank Card</Text>
-                            </View>
-                        </TouchableOpacity>
+                <Text style={[styles.modalTitle, { marginTop: 20, marginBottom: 10, alignSelf: 'flex-start' }]}>Delivery Information</Text>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Delivery Address</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="House No, Street Name, Area"
+                    value={deliveryAddress}
+                    onChangeText={setDeliveryAddress}
+                  />
+                </View>
 
-                        <TouchableOpacity style={styles.payButton} onPress={handleFinalPayment}>
-                            <Text style={styles.payButtonText}>Pay Now</Text>
-                        </TouchableOpacity>
-                    </ScrollView>
-                </KeyboardAvoidingView>
-            </Animated.View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.inputLabel}>Phone Number</Text>
+                  <TextInput
+                    style={styles.modalInput}
+                    placeholder="024 XXX XXXX"
+                    value={deliveryPhone}
+                    onChangeText={setDeliveryPhone}
+                    keyboardType="phone-pad"
+                  />
+                </View>
+
+                <Text style={[styles.modalTitle, { marginTop: 20, marginBottom: 15 }]}>Payment Method</Text>
+
+                <TouchableOpacity style={styles.optionRow} onPress={() => setPaymentMethod('momo')}>
+                  <View style={styles.optionLeft}>
+                    <View style={[styles.radioOuter, paymentMethod === 'momo' && { borderColor: '#84cc16' }]}>{paymentMethod === 'momo' && <View style={styles.radioInner} />}</View>
+                    <Text style={styles.optionText}>Mobile money</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.optionRow} onPress={() => setPaymentMethod('card')}>
+                  <View style={styles.optionLeft}>
+                    <View style={[styles.radioOuter, paymentMethod === 'card' && { borderColor: '#84cc16' }]}>{paymentMethod === 'card' && <View style={styles.radioInner} />}</View>
+                    <Text style={styles.optionText}>Bank Card</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.payButton, isOrdering && { opacity: 0.7 }]}
+                  onPress={handleFinalPayment}
+                  disabled={isOrdering}
+                >
+                  {isOrdering ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payButtonText}>Pay Now</Text>}
+                </TouchableOpacity>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </Animated.View>
         </View>
       </Modal>
     </View>
@@ -283,4 +341,7 @@ const styles = StyleSheet.create({
   shopBtnText: { color: '#0C1559', fontFamily: 'Montserrat-Bold' },
   bottomLogos: { position: 'absolute', bottom: 250, left: -20 },
   fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.05 },
+  inputGroup: { marginBottom: 15 },
+  inputLabel: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 6, marginLeft: 4 },
+  modalInput: { backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', borderWidth: 1, borderColor: '#E2E8F0' },
 });

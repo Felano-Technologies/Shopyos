@@ -8,11 +8,11 @@ import {
   StyleSheet,
   Image,
   Alert,
-  useColorScheme,
   ScrollView,
   Dimensions,
   Keyboard,
-  ActivityIndicator // Import ActivityIndicator
+  ActivityIndicator,
+  Switch
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,17 +30,17 @@ const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
 
   const [products, setProducts] = useState<any[]>([]);
-  
+
   // --- Form State ---
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [image, setImage] = useState<string | null>(null);
-  
+  const [isActive, setIsActive] = useState(true);
+
   // --- Loading States ---
-  const [isSubmitting, setIsSubmitting] = useState(false); // New state for button loading
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // --- Actions ---
@@ -55,7 +55,8 @@ const ProductsScreen = () => {
             name: p.name,
             price: p.price.toString(),
             stock: p.stockQuantity?.toString() || '0',
-            image: p.images && p.images.length > 0 ? p.images[0] : null
+            image: p.images && p.images.length > 0 ? p.images[0] : null,
+            isActive: p.isActive ?? p.is_active ?? true
           })));
         }
       }
@@ -86,17 +87,16 @@ const ProductsScreen = () => {
     setStock('');
     setImage(null);
     setEditingId(null);
+    setIsActive(true);
     Keyboard.dismiss();
   };
 
   const handleSaveProduct = async () => {
-    // 1. Validation
     if (!name || !price || !stock) {
       Alert.alert('Missing Fields', 'Please fill in Name, Price, and Quantity.');
       return;
     }
 
-    // 2. Start Loading
     setIsSubmitting(true);
 
     try {
@@ -112,25 +112,22 @@ const ProductsScreen = () => {
         price: parseFloat(price),
         stockQuantity: parseInt(stock),
         description: 'Product Description',
+        isActive: isActive
       };
 
       if (editingId) {
-        // --- UPDATE EXISTING ---
         const updateRes = await updateProduct(editingId, productData);
-        
         if (updateRes.success) {
-            // Only upload image if it's a new local URI (starts with file://)
-            if (image && !image.startsWith('http')) {
-                await uploadProductImages(editingId, [image]);
-            }
-            Alert.alert("Success", "Product updated successfully");
+          if (image && !image.startsWith('http')) {
+            await uploadProductImages(editingId, [image]);
+          }
+          Alert.alert("Success", "Product updated successfully");
         }
       } else {
-        // --- CREATE NEW ---
         if (!image) {
-            Alert.alert('Missing Image', 'Please add an image for the new product.');
-            setIsSubmitting(false); // Stop loading if validation fails inside logic
-            return;
+          Alert.alert('Missing Image', 'Please add an image for the new product.');
+          setIsSubmitting(false);
+          return;
         }
         const createRes = await createProduct(productData);
         if (createRes.success && createRes.product) {
@@ -140,14 +137,12 @@ const ProductsScreen = () => {
         }
       }
 
-      // Refresh and Reset
       await fetchProducts();
       resetForm();
 
     } catch (e: any) {
       Alert.alert("Error", e.message || "Operation failed");
     } finally {
-      // 3. Stop Loading regardless of success/error
       setIsSubmitting(false);
     }
   };
@@ -158,7 +153,7 @@ const ProductsScreen = () => {
     setStock(item.stock);
     setImage(item.image);
     setEditingId(item.id);
-    
+    setIsActive(item.isActive);
     scrollRef.current?.scrollTo({ y: 0, animated: true });
   };
 
@@ -184,9 +179,9 @@ const ProductsScreen = () => {
 
   const totalProducts = products.length;
   const portfolioValue = products.reduce((sum, item) => {
-      const p = parseFloat(item.price) || 0;
-      const q = parseInt(item.stock) || 0;
-      return sum + (p * q);
+    const p = parseFloat(item.price) || 0;
+    const q = parseInt(item.stock) || 0;
+    return sum + (p * q);
   }, 0);
 
   return (
@@ -203,11 +198,11 @@ const ProductsScreen = () => {
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <ScrollView 
-            ref={scrollRef}
-            showsVerticalScrollIndicator={false} 
-            contentContainerStyle={{ paddingBottom: 100 }}
-            keyboardShouldPersistTaps="handled"
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
         >
 
           {/* --- Header --- */}
@@ -232,7 +227,6 @@ const ProductsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Quick Analytics Row */}
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
                 <View style={[styles.iconBox, { backgroundColor: 'rgba(132, 204, 22, 0.2)' }]}>
@@ -261,19 +255,18 @@ const ProductsScreen = () => {
             <View style={styles.formCard}>
               <View style={styles.formHeader}>
                 <Text style={styles.formTitle}>
-                    {editingId ? "Edit Product" : "Add New Item"}
+                  {editingId ? "Edit Product" : "Add New Item"}
                 </Text>
                 {editingId ? (
-                    <TouchableOpacity onPress={resetForm} disabled={isSubmitting}>
-                        <Text style={styles.cancelText}>Cancel</Text>
-                    </TouchableOpacity>
+                  <TouchableOpacity onPress={resetForm} disabled={isSubmitting}>
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
                 ) : (
-                    <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
+                  <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
                 )}
               </View>
 
               <View style={styles.inputRow}>
-                {/* Image Picker */}
                 <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage} disabled={isSubmitting}>
                   {image ? (
                     <Image source={{ uri: image }} style={styles.uploadedImage} />
@@ -285,7 +278,6 @@ const ProductsScreen = () => {
                   )}
                 </TouchableOpacity>
 
-                {/* Text Inputs */}
                 <View style={styles.textInputContainer}>
                   <View style={styles.inputWrapper}>
                     <Feather name="tag" size={16} color="#64748B" style={styles.inputIcon} />
@@ -298,40 +290,52 @@ const ProductsScreen = () => {
                       editable={!isSubmitting}
                     />
                   </View>
-                  
+
                   <View style={styles.dualInputRow}>
-                      <View style={[styles.inputWrapper, { flex: 1, marginRight: 8 }]}>
-                        <Text style={styles.currencySymbol}>₵</Text>
-                        <TextInput
-                          value={price}
-                          onChangeText={setPrice}
-                          placeholder="Price"
-                          keyboardType="numeric"
-                          placeholderTextColor="#94A3B8"
-                          style={styles.textInput}
-                          editable={!isSubmitting}
-                        />
-                      </View>
-                      <View style={[styles.inputWrapper, { flex: 1 }]}>
-                        <Feather name="layers" size={16} color="#64748B" style={styles.inputIcon} />
-                        <TextInput
-                          value={stock}
-                          onChangeText={setStock}
-                          placeholder="Qty"
-                          keyboardType="numeric"
-                          placeholderTextColor="#94A3B8"
-                          style={styles.textInput}
-                          editable={!isSubmitting}
-                        />
-                      </View>
+                    <View style={[styles.inputWrapper, { flex: 1, marginRight: 8 }]}>
+                      <Text style={styles.currencySymbol}>₵</Text>
+                      <TextInput
+                        value={price}
+                        onChangeText={setPrice}
+                        placeholder="Price"
+                        keyboardType="numeric"
+                        placeholderTextColor="#94A3B8"
+                        style={styles.textInput}
+                        editable={!isSubmitting}
+                      />
+                    </View>
+                    <View style={[styles.inputWrapper, { flex: 1 }]}>
+                      <Feather name="layers" size={16} color="#64748B" style={styles.inputIcon} />
+                      <TextInput
+                        value={stock}
+                        onChangeText={setStock}
+                        placeholder="Qty"
+                        keyboardType="numeric"
+                        placeholderTextColor="#94A3B8"
+                        style={styles.textInput}
+                        editable={!isSubmitting}
+                      />
+                    </View>
                   </View>
                 </View>
               </View>
 
-              <TouchableOpacity 
-                onPress={handleSaveProduct} 
+              <View style={styles.activeToggleRow}>
+                <Text style={styles.activeToggleLabel}>Active Status (Users can see this)</Text>
+                <Switch
+                  value={isActive}
+                  onValueChange={setIsActive}
+                  trackColor={{ false: '#CBD5E1', true: '#DCFCE7' }}
+                  thumbColor={isActive ? '#15803D' : '#94A3B8'}
+                  disabled={isSubmitting}
+                />
+              </View>
+
+              <TouchableOpacity
+                onPress={handleSaveProduct}
                 disabled={isSubmitting}
                 activeOpacity={0.8}
+                style={{ marginTop: 15 }}
               >
                 <LinearGradient
                   colors={editingId ? ['#CA8A04', '#EAB308'] : ['#0C1559', '#1e3a8a']}
@@ -342,10 +346,10 @@ const ProductsScreen = () => {
                     <ActivityIndicator size="small" color="#FFF" />
                   ) : (
                     <>
-                        <Feather name={editingId ? "save" : "plus"} size={18} color="#FFF" />
-                        <Text style={styles.addButtonText}>
-                            {editingId ? "Update Product" : "Add to Inventory"}
-                        </Text>
+                      <Feather name={editingId ? "save" : "plus"} size={18} color="#FFF" />
+                      <Text style={styles.addButtonText}>
+                        {editingId ? "Update Product" : "Add to Inventory"}
+                      </Text>
                     </>
                   )}
                 </LinearGradient>
@@ -378,14 +382,20 @@ const ProductsScreen = () => {
                     <Image source={{ uri: item.image }} style={styles.cardImage} />
 
                     <View style={styles.cardInfo}>
-                      <Text style={styles.cardTitle}>{item.name}</Text>
-                      <Text style={styles.cardPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                      <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+                      <View style={styles.priceRow_list}>
+                        <Text style={styles.cardPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                        <View style={[styles.statusIndicator, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
+                        <Text style={[styles.statusText_list, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
+                          {item.isActive ? 'Active' : 'Inactive'}
+                        </Text>
+                      </View>
                       <Text style={styles.cardStock}>Stock: {item.stock}</Text>
                     </View>
 
                     <View style={styles.cardActions}>
-                      <TouchableOpacity 
-                        style={styles.actionBtn} 
+                      <TouchableOpacity
+                        style={styles.actionBtn}
                         onPress={() => handleEditPress(item)}
                         disabled={isSubmitting}
                       >
@@ -433,8 +443,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'transparent',
   },
-
-  // Background Watermark
   bottomLogos: {
     position: 'absolute',
     bottom: 20,
@@ -446,10 +454,8 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     opacity: 0.08,
   },
-
-  // Header
   headerContainer: {
-    paddingTop: 60, 
+    paddingTop: 60,
     paddingBottom: 25,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 30,
@@ -485,8 +491,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.1)',
   },
-
-  // Header Stats
   statsRow: {
     flexDirection: 'row',
     backgroundColor: 'rgba(255,255,255,0.1)',
@@ -525,8 +529,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
   },
-
-  // Form
   formSection: {
     paddingHorizontal: 20,
     marginTop: -10,
@@ -605,8 +607,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dualInputRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -615,7 +617,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     height: 42,
-    marginBottom: 6, // Small gap for stacked inputs
+    marginBottom: 6,
   },
   inputIcon: {
     marginRight: 8,
@@ -632,6 +634,20 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontFamily: 'Montserrat-Medium',
   },
+  activeToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 10,
+  },
+  activeToggleLabel: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#64748B',
+  },
   addButton: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -645,8 +661,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
   },
-
-  // List Section
   listSection: {
     paddingHorizontal: 20,
   },
@@ -678,8 +692,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     marginLeft: 4,
   },
-
-  // Product Card
   productCard: {
     flexDirection: 'row',
     backgroundColor: '#FFF',
@@ -710,16 +722,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
     marginBottom: 4,
   },
+  priceRow_list: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   cardPrice: {
     fontSize: 14,
     color: '#0C1559',
     fontFamily: 'Montserrat-Bold',
   },
+  statusIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText_list: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Bold',
+    textTransform: 'uppercase',
+  },
   cardStock: {
-      fontSize: 11,
-      color: '#64748B',
-      fontFamily: 'Montserrat-Medium',
-      marginTop: 2,
+    fontSize: 11,
+    color: '#64748B',
+    fontFamily: 'Montserrat-Medium',
+    marginTop: 2,
   },
   cardActions: {
     flexDirection: 'row',
@@ -736,8 +763,6 @@ const styles = StyleSheet.create({
   deleteBtn: {
     backgroundColor: '#FEF2F2',
   },
-
-  // Empty State
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -758,7 +783,7 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontFamily: 'Montserrat-Regular',
     marginTop: 4,
-  },
+  }
 });
 
 export default ProductsScreen;

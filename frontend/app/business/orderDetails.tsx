@@ -1,4 +1,5 @@
 // app/business/orderDetails.tsx
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -18,7 +19,7 @@ import { router, useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, updateOrderStatus } from '@/services/api';
+import { getOrderDetails, updateOrderStatus, createDelivery } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -135,8 +136,31 @@ export default function OrderDetailsScreen() {
       { text: 'Processing', onPress: () => update('Processing') },
       { text: 'Delivered', onPress: () => update('Delivered') },
       { text: 'Cancelled', onPress: () => update('Cancelled'), style: 'destructive' },
-      { text: 'Cancel', style: 'cancel' },
     ]);
+  };
+
+  const handleRequestDriver = async () => {
+    try {
+      setLoading(true);
+      // Assuming we use store address for pickup and customer address for delivery
+      // These can be more sophisticated later
+      const res = await createDelivery({
+        orderId: id as string,
+        pickupAddress: order.store?.address || 'Store Location',
+        deliveryAddress: order.customer.address,
+      });
+
+      if (res.success) {
+        Alert.alert("Success", "Driver request sent successfully!");
+        fetchOrder();
+      } else {
+        Alert.alert("Error", res.error || "Failed to request driver");
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to request driver");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -194,6 +218,18 @@ export default function OrderDetailsScreen() {
               <Text style={[styles.statusBtnText, { color: statusColor }]}>Update Status</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Request Driver Button */}
+          {currentStatus === 'Processing' && (
+            <View style={styles.sectionContainer}>
+              <TouchableOpacity style={styles.requestDriverBtn} onPress={handleRequestDriver}>
+                <LinearGradient colors={['#84cc16', '#65a30d']} style={styles.requestDriverGradient}>
+                  <MaterialCommunityIcons name="moped" size={24} color="#FFF" />
+                  <Text style={styles.requestDriverText}>Request a Driver</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* --- Customer Details --- */}
           <View style={styles.sectionContainer}>
@@ -579,5 +615,26 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontFamily: 'Montserrat-Medium',
     marginLeft: 6,
+  },
+  requestDriverBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: "#84cc16",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  requestDriverGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    gap: 12,
+  },
+  requestDriverText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
   },
 });

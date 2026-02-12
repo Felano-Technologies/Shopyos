@@ -1,14 +1,14 @@
 // app/store/details.tsx
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  Image, 
-  TouchableOpacity, 
-  ScrollView, 
-  FlatList, 
-  Dimensions, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+  FlatList,
+  Dimensions,
   Linking,
   Share, // Imported Share
   Alert  // Imported Alert for filter menu
@@ -18,18 +18,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getBusinessById, getStoreProducts } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
-// --- Mock Data ---
-const INITIAL_PRODUCTS = [
-  { id: '1', title: 'Nike Air Max', price: 450, image: require('../../assets/images/products/nike.jpg') },
-  { id: '2', title: 'Summer Jacket', price: 120, image: require('../../assets/images/categories/jacket.jpg') },
-  { id: '3', title: 'Pro Headset', price: 300, image: require('../../assets/images/categories/headset.jpg') },
-  { id: '4', title: 'Abstract Art', price: 250, image: require('../../assets/images/products/artwork2.jpg') },
-  { id: '5', title: 'Running Shoes', price: 180, image: require('../../assets/images/categories/sneakers.jpg') },
-  { id: '6', title: 'Travel Bag', price: 150, image: require('../../assets/images/search/bag1.jpg') },
-];
+// --- Mock Data (Reviews still mock for now) ---
 
 const REVIEWS = [
   { id: 'r1', user: 'Michael K.', rating: 5, date: '2 days ago', text: 'Fast delivery and great quality items!', avatar: 'https://randomuser.me/api/portraits/men/32.jpg' },
@@ -40,28 +33,70 @@ const REVIEWS = [
 export default function StoreDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  
-  // Store Info
-  const store = {
-    id: params.id,
-    name: params.name || "Astro Technologies",
-    category: params.category || "Electronics",
-    rating: 4.8,
-    reviews: 124,
-    location: "Kumasi, Adum",
-    logo: params.logo ? Number(params.logo) : require('../../assets/images/stores/astrotech.jpg'),
-    cover: require('../../assets/images/search/Arts1.png'), 
-    bio: "Your number one stop for all premium electronics, gadgets, and accessories. We deliver nationwide with warranty.",
-    phone: "+233541234567",
-    email: "contact@astrotech.com",
-    address: "Plot 12, Adum Road, Kumasi",
-    hours: "Mon - Sat: 8:00 AM - 6:00 PM"
-  };
 
   const [activeTab, setActiveTab] = useState('Catalogue');
-  
-  // --- Filter State ---
-  const [products, setProducts] = useState(INITIAL_PRODUCTS);
+  const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState<any[]>([]);
+  const [storeData, setStoreData] = useState<any>(null);
+
+  // Store Info (Legacy/Fallback)
+  const store = storeData ? {
+    id: storeData._id,
+    name: storeData.businessName,
+    category: storeData.category,
+    rating: storeData.rating || 4.5,
+    reviews: storeData.totalReviews || 0,
+    location: `${storeData.city}, ${storeData.country}`,
+    logo: storeData.logo ? { uri: storeData.logo } : require('../../assets/images/stores/astrotech.jpg'),
+    cover: storeData.coverImage ? { uri: storeData.coverImage } : require('../../assets/images/search/Arts1.png'),
+    bio: storeData.description || "No description available.",
+    phone: storeData.phone || "",
+    email: storeData.email || "",
+    address: storeData.address || "",
+    hours: "Mon - Sat: 8:00 AM - 6:00 PM" // Still partially mock as not in schema
+  } : {
+    id: params.id,
+    name: params.name || "Loading...",
+    category: params.category || "",
+    rating: 4.5,
+    reviews: 0,
+    location: "",
+    logo: params.logo ? (typeof params.logo === 'string' ? { uri: params.logo } : params.logo) : require('../../assets/images/stores/astrotech.jpg'),
+    cover: require('../../assets/images/search/Arts1.png'),
+    bio: "",
+    phone: "",
+    email: "",
+    address: "",
+    hours: ""
+  };
+
+  // --- Data Fetching ---
+  useEffect(() => {
+    if (params.id) {
+      fetchData();
+    }
+  }, [params.id]);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [bizRes, prodRes] = await Promise.all([
+        getBusinessById(params.id as string),
+        getStoreProducts(params.id as string)
+      ]);
+
+      if (bizRes.success) {
+        setStoreData(bizRes.business);
+      }
+      if (prodRes.success) {
+        setProducts(prodRes.products);
+      }
+    } catch (error) {
+      console.error("Error fetching store data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // --- Actions ---
   const handleChat = () => {
@@ -88,229 +123,235 @@ export default function StoreDetailsScreen() {
       "Sort Catalogue",
       "Choose an option to sort items",
       [
-        { 
-            text: "Price: Low to High", 
-            onPress: () => {
-                const sorted = [...products].sort((a, b) => a.price - b.price);
-                setProducts(sorted);
-            } 
+        {
+          text: "Price: Low to High",
+          onPress: () => {
+            const sorted = [...products].sort((a, b) => a.price - b.price);
+            setProducts(sorted);
+          }
         },
-        { 
-            text: "Price: High to Low", 
-            onPress: () => {
-                const sorted = [...products].sort((a, b) => b.price - a.price);
-                setProducts(sorted);
-            } 
+        {
+          text: "Price: High to Low",
+          onPress: () => {
+            const sorted = [...products].sort((a, b) => b.price - a.price);
+            setProducts(sorted);
+          }
         },
-        { 
-            text: "Reset", 
-            onPress: () => setProducts(INITIAL_PRODUCTS),
-            style: "destructive"
+        {
+          text: "Reset",
+          onPress: () => fetchData(), // Re-fetch or use a separate state variable
+          style: "destructive"
         },
         { text: "Cancel", style: "cancel" }
       ]
     );
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.productCard}
-      onPress={() => router.push({
-        pathname: '/product/details',
-        params: { ...item, sellerName: store.name }
-      })}
-    >
-      <Image source={item.image} style={styles.productImage} />
-      <View style={styles.productInfo}>
-        <Text style={styles.productTitle} numberOfLines={1}>{item.title}</Text>
-        <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>
-      </View>
-      <TouchableOpacity style={styles.addBtn}>
-        <Ionicons name="add" size={20} color="#FFF" />
+  const renderProduct = ({ item }: { item: any }) => {
+    const productImage = item.images && item.images.length > 0
+      ? { uri: item.images[0] }
+      : require('../../assets/images/icon.png');
+
+    return (
+      <TouchableOpacity
+        style={styles.productCard}
+        onPress={() => router.push({
+          pathname: '/product/details',
+          params: { id: item._id } // Pass ID only, let details page fetch
+        })}
+      >
+        <Image source={productImage} style={styles.productImage} />
+        <View style={styles.productInfo}>
+          <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>
+        </View>
+        <TouchableOpacity style={styles.addBtn}>
+          <Ionicons name="add" size={20} color="#FFF" />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderReview = ({ item }: { item: any }) => (
     <View style={styles.reviewCard}>
-        <View style={styles.reviewHeader}>
-            <Image source={{ uri: item.avatar }} style={styles.reviewAvatar} />
-            <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.reviewUser}>{item.user}</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    {[...Array(5)].map((_, i) => (
-                        <FontAwesome key={i} name="star" size={12} color={i < item.rating ? "#FACC15" : "#E2E8F0"} style={{ marginRight: 2 }} />
-                    ))}
-                    <Text style={styles.reviewDate}>• {item.date}</Text>
-                </View>
-            </View>
+      <View style={styles.reviewHeader}>
+        <Image source={{ uri: item.avatar }} style={styles.reviewAvatar} />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={styles.reviewUser}>{item.user}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {[...Array(5)].map((_, i) => (
+              <FontAwesome key={i} name="star" size={12} color={i < item.rating ? "#FACC15" : "#E2E8F0"} style={{ marginRight: 2 }} />
+            ))}
+            <Text style={styles.reviewDate}>• {item.date}</Text>
+          </View>
         </View>
-        <Text style={styles.reviewText}>{item.text}</Text>
+      </View>
+      <Text style={styles.reviewText}>{item.text}</Text>
     </View>
   );
 
   // --- Content Switcher ---
   const renderContent = () => {
     switch (activeTab) {
-        case 'Catalogue':
-            return (
-                <View style={styles.catalogueContainer}>
-                    <View style={styles.catalogueHeader}>
-                        <Text style={styles.sectionTitle}>Featured Items</Text>
-                        
-                        {/* Filter Button */}
-                        <TouchableOpacity style={styles.filterBtn} onPress={handleFilter}>
-                            <Feather name="sliders" size={16} color="#0F172A" />
-                        </TouchableOpacity>
-                    </View>
+      case 'Catalogue':
+        return (
+          <View style={styles.catalogueContainer}>
+            <View style={styles.catalogueHeader}>
+              <Text style={styles.sectionTitle}>Featured Items</Text>
 
-                    <FlatList
-                        data={products} // Use state data
-                        keyExtractor={(item) => item.id}
-                        numColumns={2}
-                        scrollEnabled={false} 
-                        columnWrapperStyle={{ justifyContent: 'space-between' }}
-                        renderItem={renderProduct}
-                    />
+              {/* Filter Button */}
+              <TouchableOpacity style={styles.filterBtn} onPress={handleFilter}>
+                <Feather name="sliders" size={16} color="#0F172A" />
+              </TouchableOpacity>
+            </View>
+
+            <FlatList
+              data={products} // Use state data
+              keyExtractor={(item) => item.id}
+              numColumns={2}
+              scrollEnabled={false}
+              columnWrapperStyle={{ justifyContent: 'space-between' }}
+              renderItem={renderProduct}
+            />
+          </View>
+        );
+      case 'About':
+        return (
+          <View style={styles.aboutContainer}>
+            <View style={styles.infoRow}>
+              <View style={styles.iconBox}><Ionicons name="time-outline" size={20} color="#0C1559" /></View>
+              <View>
+                <Text style={styles.infoLabel}>Opening Hours</Text>
+                <Text style={styles.infoValue}>{store.hours}</Text>
+              </View>
+            </View>
+            <View style={styles.infoRow}>
+              <View style={styles.iconBox}><Ionicons name="location-outline" size={20} color="#0C1559" /></View>
+              <View>
+                <Text style={styles.infoLabel}>Address</Text>
+                <Text style={styles.infoValue}>{store.address}</Text>
+              </View>
+            </View>
+            <View style={styles.infoRow}>
+              <View style={styles.iconBox}><Ionicons name="mail-outline" size={20} color="#0C1559" /></View>
+              <View>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{store.email}</Text>
+              </View>
+            </View>
+            <View style={styles.mapPlaceholder}>
+              <Text style={{ color: '#94A3B8' }}>[ Map View Placeholder ]</Text>
+            </View>
+          </View>
+        );
+      case 'Reviews':
+        return (
+          <View style={styles.reviewsContainer}>
+            <View style={styles.reviewSummary}>
+              <Text style={styles.bigRating}>{store.rating}</Text>
+              <View>
+                <View style={{ flexDirection: 'row' }}>
+                  {[...Array(5)].map((_, i) => (
+                    <FontAwesome key={i} name="star" size={16} color={i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0"} />
+                  ))}
                 </View>
-            );
-        case 'About':
-            return (
-                <View style={styles.aboutContainer}>
-                    <View style={styles.infoRow}>
-                        <View style={styles.iconBox}><Ionicons name="time-outline" size={20} color="#0C1559" /></View>
-                        <View>
-                            <Text style={styles.infoLabel}>Opening Hours</Text>
-                            <Text style={styles.infoValue}>{store.hours}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <View style={styles.iconBox}><Ionicons name="location-outline" size={20} color="#0C1559" /></View>
-                        <View>
-                            <Text style={styles.infoLabel}>Address</Text>
-                            <Text style={styles.infoValue}>{store.address}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <View style={styles.iconBox}><Ionicons name="mail-outline" size={20} color="#0C1559" /></View>
-                        <View>
-                            <Text style={styles.infoLabel}>Email</Text>
-                            <Text style={styles.infoValue}>{store.email}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.mapPlaceholder}>
-                        <Text style={{ color: '#94A3B8' }}>[ Map View Placeholder ]</Text>
-                    </View>
-                </View>
-            );
-        case 'Reviews':
-            return (
-                <View style={styles.reviewsContainer}>
-                    <View style={styles.reviewSummary}>
-                        <Text style={styles.bigRating}>{store.rating}</Text>
-                        <View>
-                            <View style={{ flexDirection: 'row' }}>
-                                {[...Array(5)].map((_, i) => (
-                                    <FontAwesome key={i} name="star" size={16} color={i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0"} />
-                                ))}
-                            </View>
-                            <Text style={styles.totalReviews}>Based on {store.reviews} reviews</Text>
-                        </View>
-                    </View>
-                    {REVIEWS.map(item => (
-                        <View key={item.id} style={{ marginBottom: 12 }}>
-                            {renderReview({ item })}
-                        </View>
-                    ))}
-                </View>
-            );
-        default:
-            return null;
+                <Text style={styles.totalReviews}>Based on {store.reviews} reviews</Text>
+              </View>
+            </View>
+            {REVIEWS.map(item => (
+              <View key={item.id} style={{ marginBottom: 12 }}>
+                {renderReview({ item })}
+              </View>
+            ))}
+          </View>
+        );
+      default:
+        return null;
     }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* 1. Header & Cover */}
         <View style={styles.headerContainer}>
           <Image source={store.cover} style={styles.coverImage} resizeMode="cover" />
           <LinearGradient colors={['rgba(0,0,0,0.3)', 'transparent']} style={styles.headerOverlay} />
-          
+
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
             <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
               <Ionicons name="arrow-back" size={24} color="#FFF" />
             </TouchableOpacity>
-            
+
             <View style={{ flexDirection: 'row', gap: 12 }}>
-                {/* Removed Search Icon as requested */}
-                
-                {/* Share Button */}
-                <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-                    <Ionicons name="share-social-outline" size={22} color="#FFF" />
-                </TouchableOpacity>
+              {/* Removed Search Icon as requested */}
+
+              {/* Share Button */}
+              <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
+                <Ionicons name="share-social-outline" size={22} color="#FFF" />
+              </TouchableOpacity>
             </View>
           </SafeAreaView>
         </View>
 
         {/* 2. Store Profile Info */}
         <View style={styles.profileSection}>
-            <View style={styles.logoWrapper}>
-                <Image source={store.logo} style={styles.storeLogo} />
-                <View style={styles.verifiedBadge}>
-                    <MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" />
-                </View>
+          <View style={styles.logoWrapper}>
+            <Image source={store.logo} style={styles.storeLogo} />
+            <View style={styles.verifiedBadge}>
+              <MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" />
             </View>
-            
-            <View style={styles.infoContent}>
-                <Text style={styles.storeName}>{store.name}</Text>
-                <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={14} color="#FACC15" />
-                    <Text style={styles.ratingText}>{store.rating} ({store.reviews} Reviews)</Text>
-                    <View style={styles.dot} />
-                    <Text style={styles.categoryText}>{store.category}</Text>
-                </View>
-                <View style={styles.locationRow}>
-                    <Ionicons name="location-sharp" size={14} color="#94A3B8" />
-                    <Text style={styles.locationText}>{store.location}</Text>
-                </View>
+          </View>
+
+          <View style={styles.infoContent}>
+            <Text style={styles.storeName}>{store.name}</Text>
+            <View style={styles.ratingRow}>
+              <Ionicons name="star" size={14} color="#FACC15" />
+              <Text style={styles.ratingText}>{store.rating} ({store.reviews} Reviews)</Text>
+              <View style={styles.dot} />
+              <Text style={styles.categoryText}>{store.category}</Text>
             </View>
+            <View style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={14} color="#94A3B8" />
+              <Text style={styles.locationText}>{store.location}</Text>
+            </View>
+          </View>
         </View>
 
         {/* 3. Action Buttons */}
         <View style={styles.actionRow}>
-            <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat}>
-                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" />
-                <Text style={styles.primaryActionText}>Chat</Text>
-            </TouchableOpacity>
-            
+          <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat}>
+            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" />
+            <Text style={styles.primaryActionText}>Chat</Text>
+          </TouchableOpacity>
 
-            <TouchableOpacity style={styles.secondaryActionBtn}>
-                <Ionicons name="notifications-outline" size={20} color="#0C1559" />
-                <Text style={styles.secondaryActionText}>Follow</Text>
-            </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryActionBtn}>
+            <Ionicons name="notifications-outline" size={20} color="#0C1559" />
+            <Text style={styles.secondaryActionText}>Follow</Text>
+          </TouchableOpacity>
         </View>
 
         {/* 4. Bio */}
         <View style={styles.bioContainer}>
-            <Text style={styles.bioText} numberOfLines={3}>{store.bio}</Text>
+          <Text style={styles.bioText} numberOfLines={3}>{store.bio}</Text>
         </View>
 
         {/* 5. Tabs */}
         <View style={styles.tabContainer}>
-            {['Catalogue', 'About', 'Reviews'].map((tab) => (
-                <TouchableOpacity 
-                    key={tab} 
-                    style={[styles.tabItem, activeTab === tab && styles.activeTabItem]}
-                    onPress={() => setActiveTab(tab)}
-                >
-                    <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
-                    {activeTab === tab && <View style={styles.activeIndicator} />}
-                </TouchableOpacity>
-            ))}
+          {['Catalogue', 'About', 'Reviews'].map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[styles.tabItem, activeTab === tab && styles.activeTabItem]}
+              onPress={() => setActiveTab(tab)}
+            >
+              <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
+              {activeTab === tab && <View style={styles.activeIndicator} />}
+            </TouchableOpacity>
+          ))}
         </View>
 
         {/* 6. Dynamic Content */}
@@ -326,7 +367,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  
+
   // Header
   headerContainer: {
     height: 180,
@@ -548,7 +589,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  
+
   // Product Card
   productCard: {
     width: (width - 52) / 2, // 2 columns with spacing

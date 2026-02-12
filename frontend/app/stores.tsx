@@ -52,27 +52,27 @@ export default function StoresScreen() {
         search: searchQuery || undefined,
         category: activeCategory !== 'All' ? activeCategory : undefined
       });
-      
+
       if (res.success) {
         let mapped = res.businesses.map((b: any) => ({
           id: b.id,
           name: b.name,
           category: b.category,
-          rating: b.rating || 4.5,
+          rating: b.rating || 0,
           logo: b.logo ? { uri: b.logo } : require('../assets/images/icon.png'),
           catalogues: b.catalogues || 0,
-          verified: true // Mock verified status for demo
+          verified: b.verified || false
         }));
 
         // Apply Client-Side Filters (Simulated)
         if (filterVerified) {
-            mapped = mapped.filter((s: any) => s.verified);
+          mapped = mapped.filter((s: any) => s.verified);
         }
-        
+
         if (filterSort === 'name') {
-            mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
+          mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
         } else if (filterSort === 'rating') {
-            mapped.sort((a: any, b: any) => b.rating - a.rating);
+          mapped.sort((a: any, b: any) => b.rating - a.rating);
         }
 
         setStores(mapped);
@@ -94,7 +94,7 @@ export default function StoresScreen() {
         id: item.id,
         name: item.name,
         category: item.category,
-        logo: item.logo 
+        logo: item.logo
       }
     });
   };
@@ -152,12 +152,12 @@ export default function StoresScreen() {
 
         {/* --- BACKGROUND WATERMARK LAYER (Matched Home.tsx) --- */}
 
-                <View style={styles.bottomLogos}>
-                    <Image
-                        source={require('../assets/images/splash-icon.png')}
-                        style={styles.fadedLogo}
-                    />
-                </View>
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
 
         <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
 
@@ -186,9 +186,9 @@ export default function StoresScreen() {
                 </TouchableOpacity>
               )}
             </View>
-            <TouchableOpacity 
-                style={styles.filterBtn}
-                onPress={() => setShowFilter(true)}
+            <TouchableOpacity
+              style={styles.filterBtn}
+              onPress={() => setShowFilter(true)}
             >
               <Feather name="sliders" size={20} color="#FFF" />
             </TouchableOpacity>
@@ -270,58 +270,58 @@ export default function StoresScreen() {
 
         {/* --- FILTER MODAL --- */}
         <Modal
-            visible={showFilter}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setShowFilter(false)}
+          visible={showFilter}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setShowFilter(false)}
         >
-            <View style={styles.modalOverlay}>
-                <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowFilter(false)} />
-                
-                <View style={styles.modalContent}>
-                    <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>Filter Stores</Text>
-                        <TouchableOpacity onPress={() => setShowFilter(false)}>
-                            <Ionicons name="close" size={24} color="#0F172A" />
-                        </TouchableOpacity>
-                    </View>
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowFilter(false)} />
 
-                    <Text style={styles.filterLabel}>Sort By</Text>
-                    <View style={styles.sortOptions}>
-                        {['rating', 'newest', 'name'].map((opt) => (
-                            <TouchableOpacity 
-                                key={opt}
-                                style={[styles.sortChip, filterSort === opt && styles.sortChipActive]}
-                                onPress={() => setFilterSort(opt as any)}
-                            >
-                                <Text style={[styles.sortText, filterSort === opt && styles.sortTextActive]}>
-                                    {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                                </Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Filter Stores</Text>
+                <TouchableOpacity onPress={() => setShowFilter(false)}>
+                  <Ionicons name="close" size={24} color="#0F172A" />
+                </TouchableOpacity>
+              </View>
 
-                    <View style={styles.switchRow}>
-                        <Text style={styles.filterLabel}>Verified Stores Only</Text>
-                        <Switch
-                            value={filterVerified}
-                            onValueChange={setFilterVerified}
-                            trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
-                            thumbColor={'#FFF'}
-                        />
-                    </View>
+              <Text style={styles.filterLabel}>Sort By</Text>
+              <View style={styles.sortOptions}>
+                {['rating', 'newest', 'name'].map((opt) => (
+                  <TouchableOpacity
+                    key={opt}
+                    style={[styles.sortChip, filterSort === opt && styles.sortChipActive]}
+                    onPress={() => setFilterSort(opt as any)}
+                  >
+                    <Text style={[styles.sortText, filterSort === opt && styles.sortTextActive]}>
+                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-                    <TouchableOpacity 
-                        style={styles.applyBtn} 
-                        onPress={() => {
-                            setShowFilter(false);
-                            fetchStores(); // Apply changes
-                        }}
-                    >
-                        <Text style={styles.applyText}>Apply Filters</Text>
-                    </TouchableOpacity>
-                </View>
+              <View style={styles.switchRow}>
+                <Text style={styles.filterLabel}>Verified Stores Only</Text>
+                <Switch
+                  value={filterVerified}
+                  onValueChange={setFilterVerified}
+                  trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
+                  thumbColor={'#FFF'}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.applyBtn}
+                onPress={() => {
+                  setShowFilter(false);
+                  fetchStores(); // Apply changes
+                }}
+              >
+                <Text style={styles.applyText}>Apply Filters</Text>
+              </TouchableOpacity>
             </View>
+          </View>
         </Modal>
 
       </View>

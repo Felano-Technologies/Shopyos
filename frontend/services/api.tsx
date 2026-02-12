@@ -270,12 +270,49 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
   }
 };
 
+export const createOrder = async (orderData: {
+  deliveryAddress: string;
+  deliveryCity: string;
+  deliveryCountry: string;
+  deliveryPhone: string;
+  deliveryNotes?: string;
+  paymentMethod: string;
+}) => {
+  try {
+    const response = await api.post('/orders/create', orderData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating order:", error);
+    throw error;
+  }
+};
+
+export const getMyOrders = async (params: { status?: string, limit?: number, offset?: number } = {}) => {
+  try {
+    const response = await api.get('/orders/my-orders', { params });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching my orders:", error);
+    throw error;
+  }
+};
+
 export const getAllStores = async (params: { search?: string, category?: string } = {}) => {
   try {
     const response = await api.get('/business/all', { params });
     return response.data;
   } catch (error: any) {
     console.error("Error fetching all stores:", error);
+    throw error;
+  }
+};
+
+export const getBusinessById = async (id: string) => {
+  try {
+    const response = await api.get(`/business/${id}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching business details:", error);
     throw error;
   }
 };
@@ -350,7 +387,6 @@ export const getOrderDetails = async (orderId: string) => {
   }
 }
 
-
 export const updateOrderStatus = async (orderId: string, status: string) => {
   try {
     const response = await api.put(`/orders/${orderId}/status`, { status });
@@ -358,6 +394,18 @@ export const updateOrderStatus = async (orderId: string, status: string) => {
   } catch (error: any) {
     if (error.response) {
       throw new Error(error.response.data.error || 'Failed to update order status');
+    }
+    throw new Error(error.message || 'Network error');
+  }
+};
+
+export const cancelOrder = async (orderId: string, reason?: string) => {
+  try {
+    const response = await api.put(`/orders/${orderId}/cancel`, { reason });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to cancel order');
     }
     throw new Error(error.message || 'Network error');
   }
@@ -414,6 +462,18 @@ export const deleteProduct = async (productId: string) => {
   } catch (error: any) {
     if (error.response) {
       throw new Error(error.response.data.error || 'Failed to delete product');
+    }
+    throw error;
+  }
+};
+
+export const updateProduct = async (productId: string, productData: any) => {
+  try {
+    const response = await api.put(`/products/${productId}`, productData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Failed to update product');
     }
     throw error;
   }
@@ -581,6 +641,26 @@ export const getUnreadNotificationCount = async () => {
 
 // --- Delivery API ---
 
+export const createDelivery = async (deliveryData: {
+  orderId: string;
+  pickupAddress: string;
+  deliveryAddress: string;
+  pickupLatitude?: number;
+  pickupLongitude?: number;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
+  estimatedPickupTime?: string;
+  estimatedDeliveryTime?: string;
+}) => {
+  try {
+    const response = await api.post('/deliveries/create', deliveryData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating delivery:", error);
+    throw error;
+  }
+};
+
 export const getAvailableDeliveries = async () => {
   try {
     const response = await api.get('/deliveries/available');
@@ -627,6 +707,48 @@ export const updateDeliveryStatus = async (deliveryId: string, status: string) =
     return response.data;
   } catch (error: any) {
     console.error("Error updating delivery status:", error);
+    throw error;
+  }
+};
+
+// --- Review API ---
+
+export const createProductReview = async (reviewData: {
+  productId: string;
+  orderId: string;
+  rating: number;
+  reviewText?: string;
+}) => {
+  try {
+    const response = await api.post('/reviews/product', reviewData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating product review:", error);
+    throw error;
+  }
+};
+
+export const createStoreReview = async (reviewData: {
+  storeId: string;
+  orderId: string;
+  rating: number;
+  reviewText?: string;
+}) => {
+  try {
+    const response = await api.post('/reviews/store', reviewData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating store review:", error);
+    throw error;
+  }
+};
+
+export const getProductReviews = async (productId: string) => {
+  try {
+    const response = await api.get(`/reviews/product/${productId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching product reviews:", error);
     throw error;
   }
 };
