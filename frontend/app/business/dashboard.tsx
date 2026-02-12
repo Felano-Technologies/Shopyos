@@ -84,7 +84,7 @@ const BusinessDashboard = () => {
 
 
 
-// --- Data Fetching ---
+  // --- Data Fetching ---
   const fetchDashboardData = async () => {
     try {
       const data = await getMyBusinesses();
@@ -105,7 +105,7 @@ const BusinessDashboard = () => {
         const dashResp = await getBusinessDashboard(currentBusiness._id);
         if (dashResp.success) {
           setDashboardData(dashResp.data);
-          
+
           // --- OPTIONAL: If your API returns notification count, set it here ---
           // setUnreadCount(dashResp.data.unreadNotifications || 0); 
         }
@@ -268,10 +268,10 @@ const BusinessDashboard = () => {
               <Text style={styles.sectionTitle}>Quick Actions</Text>
               <View style={styles.servicesGrid}>
                 {[
-                  { icon: 'plus', color: '#FFF', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
-                  { icon: 'shopping-bag', color: '#FFF', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
-                  { icon: 'box', color: '#FFF', bg: ['#2563EB', '#1D4ED8'], label: 'Inventory', route: '/business/inventory' },
-                  { icon: 'bar-chart-2', color: '#FFF', bg: ['#D97706', '#B45309'], label: 'Analytics', route: '/business/analytics' },
+                  { icon: 'plus', family: 'Feather', color: '#FFF', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
+                  { icon: 'shopping-bag', family: 'Feather', color: '#FFF', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
+                  { icon: 'megaphone', family: 'Ionicons', color: '#FFF', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/advertising' },
+                  { icon: 'bar-chart-2', family: 'Feather', color: '#FFF', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
                 ].map((item, index) => (
                   <TouchableOpacity
                     key={index}
@@ -282,11 +282,14 @@ const BusinessDashboard = () => {
                       colors={item.bg as [string, string, ...string[]]}
                       style={styles.actionIconBox}
                     >
-                      <Feather name={item.icon as any} size={20} color={item.color} />
+                      {item.family === 'Feather' && <Feather name={item.icon as any} size={20} color={item.color} />}
+                      {item.family === 'Ionicons' && <Ionicons name={item.icon as any} size={20} color={item.color} />}
+                      {item.family === 'MaterialCommunityIcons' && <MaterialCommunityIcons name={item.icon as any} size={20} color={item.color} />}
                     </LinearGradient>
                     <Text style={styles.actionLabel}>{item.label}</Text>
                   </TouchableOpacity>
-                ))}
+                ))
+                }
               </View>
             </View>
 

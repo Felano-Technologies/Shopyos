@@ -10,7 +10,8 @@ const {
   getOrderDetails,
   updateOrderStatus,
   cancelOrder,
-  getOrderByNumber
+  getOrderByNumber,
+  verifyPayment
 } = require('../controllers/orderController');
 const { protect, hasAnyRole } = require('../middleware/authMiddleware');
 
@@ -50,6 +51,9 @@ router.put('/:orderId/status', hasAnyRole('seller', 'admin'), updateOrderStatus)
 // @route   PUT /api/orders/:orderId/cancel
 // @desc    Cancel order
 // @access  Private
-router.put('/:orderId/cancel', cancelOrder);
+// @route   POST /api/orders/:orderId/verify-payment
+// @desc    Verify payment
+// @access  Private
+router.post('/:orderId/verify-payment', verifyPayment);
 
 module.exports = router;

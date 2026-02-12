@@ -126,7 +126,8 @@ class ProductRepository extends BaseRepository {
           store_name,
           slug,
           average_rating,
-          total_reviews
+          total_reviews,
+          owner_id
         ),
         product_images (
           id,

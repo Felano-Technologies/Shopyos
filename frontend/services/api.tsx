@@ -411,6 +411,18 @@ export const cancelOrder = async (orderId: string, reason?: string) => {
   }
 };
 
+export const verifyPayment = async (orderId: string, status: 'success' | 'failed' = 'success') => {
+  try {
+    const response = await api.post(`/orders/${orderId}/verify-payment`, { status });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      throw new Error(error.response.data.error || 'Payment verification failed');
+    }
+    throw new Error(error.message || 'Network error');
+  }
+};
+
 // Get store products
 export const getStoreProducts = async (storeId: string) => {
   try {
@@ -423,13 +435,26 @@ export const getStoreProducts = async (storeId: string) => {
 };
 
 // Search products (for customer home page)
-export const searchProducts = async (params: { query?: string, category?: string, limit?: number, offset?: number, sortBy?: string }) => {
+export const searchProducts = async (params: { query?: string, category?: string, limit?: number, offset?: number, sortBy?: string, minPrice?: number, maxPrice?: number }) => {
   try {
     const response = await api.get('/products/search', { params });
     return response.data;
   } catch (error: any) {
     console.error("Error searching products:", error);
     throw error;
+  }
+};
+
+export const getAllCategories = async () => {
+  try {
+    // This could be a dedicated endpoint or we derive from products
+    // For now, let's assume /products/categories exists or we use a set list
+    const response = await api.get('/products/categories');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching categories:", error);
+    // Fallback to static if endpoint fails
+    return { success: true, data: [{ name: 'Men' }, { name: 'Women' }, { name: 'Electronics' }, { name: 'Art' }] };
   }
 };
 
@@ -597,6 +622,88 @@ export const markConversationRead = async (conversationId: string) => {
   }
 };
 
+export const startConversation = async (participantId: string) => {
+  try {
+    const response = await api.post('/messaging/conversations', { participantId });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error starting conversation:", error);
+    throw error;
+  }
+};
+
+// --- Advertising API ---
+export const getPromotedProducts = async (category?: string) => {
+  try {
+    const response = await api.get('/advertising/promoted', { params: { category } });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching promoted products:", error);
+    throw error;
+  }
+};
+
+export const createCampaign = async (campaignData: any) => {
+  try {
+    const response = await api.post('/advertising/campaigns', campaignData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating campaign:", error);
+    throw error;
+  }
+};
+
+export const getMyCampaigns = async () => {
+  try {
+    const response = await api.get('/advertising/my-campaigns');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching my campaigns:", error);
+    throw error;
+  }
+};
+
+export const updateCampaignStatus = async (id: string, status: string) => {
+  try {
+    const response = await api.put(`/advertising/campaigns/${id}/status`, { status });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating campaign status:", error);
+    throw error;
+  }
+};
+
+export const recordAdClick = async (id: string) => {
+  try {
+    const response = await api.post(`/advertising/campaigns/${id}/click`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error recording click:", error);
+    throw error;
+  }
+};
+
+// --- Payouts API ---
+export const getPayoutHistory = async (storeId: string) => {
+  try {
+    const response = await api.get(`/payouts/history/${storeId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching payout history:", error);
+    throw error;
+  }
+};
+
+export const requestPayout = async (payoutData: any) => {
+  try {
+    const response = await api.post('/payouts/request', payoutData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error requesting payout:", error);
+    throw error;
+  }
+};
+
 // --- Notifications API ---
 
 export const getNotifications = async () => {
@@ -711,14 +818,28 @@ export const updateDeliveryStatus = async (deliveryId: string, status: string) =
   }
 };
 
-// --- Review API ---
+export const getActiveDeliveries = async () => {
+  try {
+    const response = await api.get('/deliveries/active');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching active deliveries:", error);
+    throw error;
+  }
+};
 
-export const createProductReview = async (reviewData: {
-  productId: string;
-  orderId: string;
-  rating: number;
-  reviewText?: string;
-}) => {
+export const getDriverStats = async (timeframe: 'today' | 'week' | 'month' = 'today') => {
+  try {
+    const response = await api.get('/deliveries/driver/stats', { params: { timeframe } });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching driver stats:", error);
+    throw error;
+  }
+};
+
+// --- Review API ---
+export const createProductReview = async (reviewData: { productId: string; orderId: string; rating: number; reviewText?: string }) => {
   try {
     const response = await api.post('/reviews/product', reviewData);
     return response.data;
@@ -728,17 +849,22 @@ export const createProductReview = async (reviewData: {
   }
 };
 
-export const createStoreReview = async (reviewData: {
-  storeId: string;
-  orderId: string;
-  rating: number;
-  reviewText?: string;
-}) => {
+export const createStoreReview = async (reviewData: { storeId: string; orderId: string; rating: number; reviewText?: string }) => {
   try {
     const response = await api.post('/reviews/store', reviewData);
     return response.data;
   } catch (error: any) {
     console.error("Error creating store review:", error);
+    throw error;
+  }
+};
+
+export const createDriverReview = async (reviewData: { driverId: string; deliveryId: string; rating: number; reviewText?: string }) => {
+  try {
+    const response = await api.post('/reviews/driver', reviewData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating driver review:", error);
     throw error;
   }
 };
@@ -749,6 +875,16 @@ export const getProductReviews = async (productId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching product reviews:", error);
+    throw error;
+  }
+};
+
+export const getStoreReviews = async (storeId: string) => {
+  try {
+    const response = await api.get(`/reviews/store/${storeId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching store reviews:", error);
     throw error;
   }
 };

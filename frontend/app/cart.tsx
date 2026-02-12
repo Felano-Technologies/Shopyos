@@ -25,7 +25,8 @@ export default function CartScreen() {
   const [total, setTotal] = useState(0);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card'>('momo');
+  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cod'>('momo');
+  const [saveAddress, setSaveAddress] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryPhone, setDeliveryPhone] = useState('');
   const [isOrdering, setIsOrdering] = useState(false);
@@ -90,7 +91,7 @@ export default function CartScreen() {
       setIsOrdering(true);
       const res = await createOrder({
         deliveryAddress,
-        deliveryCity: 'Accra', // For now hardcoded, can be dynamic
+        deliveryCity: 'Accra',
         deliveryCountry: 'Ghana',
         deliveryPhone,
         paymentMethod
@@ -98,11 +99,21 @@ export default function CartScreen() {
 
       if (res.success) {
         closeModal();
-        Alert.alert(
-          "Order Placed!",
-          `Your order(s) have been placed successfully. Order #: ${res.orders[0].order_number}`,
-          [{ text: "OK", onPress: () => router.push('/order') }]
-        );
+        const orderId = res.orders[0].id;
+
+        if (paymentMethod === 'cod') {
+          Alert.alert(
+            "Order Placed!",
+            `Your order has been placed successfully. Order #: ${res.orders[0].order_number}. You will pay on delivery.`,
+            [{ text: "OK", onPress: () => router.push(`/order/${orderId}` as any) }]
+          );
+        } else {
+          // Redirect to simulated gateway
+          router.push({
+            pathname: `/payment/${orderId}`,
+            params: { method: paymentMethod }
+          } as any);
+        }
       } else {
         Alert.alert("Checkout Failed", res.error || "Something went wrong");
       }
@@ -114,9 +125,26 @@ export default function CartScreen() {
     }
   };
 
+  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card' | 'cod', icon: any, label: string, sub: string }) => (
+    <TouchableOpacity
+      style={[styles.paymentOption, paymentMethod === type && styles.paymentOptionSelected]}
+      onPress={() => setPaymentMethod(type)}
+    >
+      <View style={[styles.optionIconContainer, paymentMethod === type && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+        <MaterialCommunityIcons name={icon} size={24} color={paymentMethod === type ? '#FFF' : '#0C1559'} />
+      </View>
+      <View style={{ flex: 1, marginLeft: 15 }}>
+        <Text style={[styles.optionLabel, paymentMethod === type && { color: '#FFF' }]}>{label}</Text>
+        <Text style={[styles.optionSub, paymentMethod === type && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
+      </View>
+      <View style={[styles.radioOuter, paymentMethod === type && { borderColor: '#FFF' }]}>
+        {paymentMethod === type && <View style={[styles.radioInner, { backgroundColor: '#FFF' }]} />}
+      </View>
+    </TouchableOpacity>
+  );
+
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
-      {/* Handle Dynamic Images vs Static Requires */}
       <Image source={typeof item.image === 'number' ? item.image : { uri: item.image }} style={styles.itemImage} />
       <View style={styles.itemDetails}>
         <View style={styles.titleRow}>
@@ -143,13 +171,8 @@ export default function CartScreen() {
   );
 
   return (
-    <View style={[styles.container, { zIndex: 9999 }]}>
+    <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0C1559" />
-      <View style={StyleSheet.absoluteFillObject}>
-        <View style={styles.bottomLogos}>
-          <Image source={require('../assets/images/splash-icon.png')} style={styles.fadedLogo} />
-        </View>
-      </View>
 
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
@@ -204,10 +227,10 @@ export default function CartScreen() {
       <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={closeModal}>
         <View style={styles.modalOverlay}>
           <Animated.View style={[styles.modalContent, { transform: [{ translateY: panY }] }]} {...panResponder.panHandlers}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
               <View style={styles.handleArea}><View style={styles.modalHandle} /></View>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                <Text style={styles.modalTitle}>Payment Summary</Text>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+                <Text style={styles.modalTitle}>Checkout Details</Text>
 
                 <View style={styles.billContainer}>
                   <View style={styles.billRow}><Text style={styles.billLabel}>Subtotal</Text><Text style={styles.billValue}>₵{subtotal.toFixed(2)}</Text></View>
@@ -218,54 +241,80 @@ export default function CartScreen() {
                   <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>NHIL (2.5%)</Text><Text style={styles.billValueSmall}>₵{nhil.toFixed(2)}</Text></View>
                   <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>GETFund (2.5%)</Text><Text style={styles.billValueSmall}>₵{getFund.toFixed(2)}</Text></View>
                   <View style={styles.billRowSmall}><Text style={styles.billLabelSmall}>VAT (15%)</Text><Text style={styles.billValueSmall}>₵{vat.toFixed(2)}</Text></View>
-                  <View style={[styles.divider, { backgroundColor: '#000', marginVertical: 15 }]} />
+                  <View style={[styles.divider, { backgroundColor: '#E2E8F0', marginVertical: 15 }]} />
                   <View style={styles.billRow}><Text style={styles.totalLabelLarge}>Total Payable</Text><Text style={styles.totalValueLarge}>₵{total.toFixed(2)}</Text></View>
                 </View>
 
-                <Text style={[styles.modalTitle, { marginTop: 20, marginBottom: 10, alignSelf: 'flex-start' }]}>Delivery Information</Text>
+                <Text style={[styles.modalSectionTitle, { marginTop: 20 }]}>Delivery Information</Text>
+
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Delivery Address</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="House No, Street Name, Area"
-                    value={deliveryAddress}
-                    onChangeText={setDeliveryAddress}
-                  />
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="location-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="House No, Street Name, Area"
+                      value={deliveryAddress}
+                      onChangeText={setDeliveryAddress}
+                    />
+                  </View>
                 </View>
 
                 <View style={styles.inputGroup}>
                   <Text style={styles.inputLabel}>Phone Number</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    placeholder="024 XXX XXXX"
-                    value={deliveryPhone}
-                    onChangeText={setDeliveryPhone}
-                    keyboardType="phone-pad"
-                  />
+                  <View style={styles.inputWrapper}>
+                    <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.modalInput}
+                      placeholder="024 XXX XXXX"
+                      value={deliveryPhone}
+                      onChangeText={setDeliveryPhone}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
                 </View>
 
-                <Text style={[styles.modalTitle, { marginTop: 20, marginBottom: 15 }]}>Payment Method</Text>
+                <View style={styles.checkboxRow}>
+                  <TouchableOpacity
+                    style={[styles.checkbox, saveAddress && styles.checkboxChecked]}
+                    onPress={() => setSaveAddress(!saveAddress)}
+                  >
+                    {saveAddress && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                  </TouchableOpacity>
+                  <Text style={styles.checkboxLabel}>Save delivery information for next time</Text>
+                </View>
 
-                <TouchableOpacity style={styles.optionRow} onPress={() => setPaymentMethod('momo')}>
-                  <View style={styles.optionLeft}>
-                    <View style={[styles.radioOuter, paymentMethod === 'momo' && { borderColor: '#84cc16' }]}>{paymentMethod === 'momo' && <View style={styles.radioInner} />}</View>
-                    <Text style={styles.optionText}>Mobile money</Text>
-                  </View>
-                </TouchableOpacity>
+                <Text style={styles.modalSectionTitle}>Payment Method</Text>
 
-                <TouchableOpacity style={styles.optionRow} onPress={() => setPaymentMethod('card')}>
-                  <View style={styles.optionLeft}>
-                    <View style={[styles.radioOuter, paymentMethod === 'card' && { borderColor: '#84cc16' }]}>{paymentMethod === 'card' && <View style={styles.radioInner} />}</View>
-                    <Text style={styles.optionText}>Bank Card</Text>
-                  </View>
-                </TouchableOpacity>
+                <PaymentOption
+                  type="momo"
+                  icon="cellphone-nfc"
+                  label="Mobile Money"
+                  sub="MTN, Telecel, AT Money"
+                />
+
+                <PaymentOption
+                  type="card"
+                  icon="credit-card-outline"
+                  label="Bank Card"
+                  sub="Visa, Mastercard, AMEX"
+                />
+
+                <PaymentOption
+                  type="cod"
+                  icon="cash-multiple"
+                  label="Cash on Delivery"
+                  sub="Pay when you receive"
+                />
 
                 <TouchableOpacity
                   style={[styles.payButton, isOrdering && { opacity: 0.7 }]}
                   onPress={handleFinalPayment}
                   disabled={isOrdering}
                 >
-                  {isOrdering ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payButtonText}>Pay Now</Text>}
+                  <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.payGradient}>
+                    {isOrdering ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payButtonText}>Place Order • ₵{total.toFixed(2)}</Text>}
+                  </LinearGradient>
                 </TouchableOpacity>
               </ScrollView>
             </KeyboardAvoidingView>
@@ -276,72 +325,83 @@ export default function CartScreen() {
   );
 }
 
-// ... Copy your styles from the previous cart response here ...
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F0F4FC', height: height },
-  header: { paddingBottom: 20, zIndex: 10 },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  header: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerSafe: { width: '100%' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
   backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   cartCountBadge: { backgroundColor: '#A3E635', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   cartCountText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  deliveryBanner: { backgroundColor: '#84cc16', paddingHorizontal: 20, paddingVertical: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, marginTop: -15, zIndex: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  deliveryLabel: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
-  deliveryAddress: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-Medium' },
+
   listContent: { padding: 20, paddingBottom: 150 },
-  cartItem: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 16, padding: 12, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  itemImage: { width: 90, height: 90, borderRadius: 12, backgroundColor: '#F1F5F9' },
-  itemDetails: { flex: 1, marginLeft: 14, justifyContent: 'space-between', paddingVertical: 2 },
+  cartItem: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, padding: 12, marginBottom: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  itemImage: { width: 85, height: 85, borderRadius: 15, backgroundColor: '#F1F5F9' },
+  itemDetails: { flex: 1, marginLeft: 15, justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  itemTitle: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginRight: 8 },
-  deleteBtn: { padding: 4 },
-  itemCategory: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: -4 },
-  priceControlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  itemPrice: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
-  qtyContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 20, padding: 4 },
-  qtyBtn: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF', shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 1, elevation: 1 },
+  itemTitle: { flex: 1, fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  deleteBtn: { padding: 5, backgroundColor: '#FEF2F2', borderRadius: 8 },
+  itemCategory: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: -2 },
+  priceControlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
+  itemPrice: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  qtyContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 4, borderWidth: 1, borderColor: '#F1F5F9' },
+  qtyBtn: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' },
   qtyBtnActive: { backgroundColor: '#0C1559' },
   qtyText: { marginHorizontal: 12, fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  summaryContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: "#0C1559", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 20, zIndex: 999 },
-  summaryRow: { marginBottom: 0 },
+
+  summaryContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: "#0C1559", shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 25 },
+  summaryRow: { flex: 1 },
   summaryLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  totalValue: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  checkoutBtn: { borderRadius: 16, overflow: 'hidden', width: '50%' },
-  checkoutGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, gap: 8 },
+  totalValue: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  checkoutBtn: { borderRadius: 18, overflow: 'hidden', flex: 1, marginLeft: 20 },
+  checkoutGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, gap: 10 },
   checkoutText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, height: '90%' },
-  handleArea: { width: '100%', alignItems: 'center', paddingVertical: 10, marginBottom: 10 },
-  modalHandle: { width: 50, height: 6, backgroundColor: '#E2E8F0', borderRadius: 3 },
-  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#000', marginBottom: 15, alignSelf: 'center' },
-  billContainer: { backgroundColor: '#F8FAFC', padding: 20, borderRadius: 16, marginBottom: 10 },
-  billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  billLabel: { fontSize: 14, color: '#334155', fontFamily: 'Montserrat-Medium' },
-  billValue: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-SemiBold' },
-  divider: { height: 1, backgroundColor: '#E2E8F0', marginVertical: 10 },
-  taxHeader: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 8, marginTop: 5, textTransform: 'uppercase' },
-  billRowSmall: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  billLabelSmall: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Regular' },
-  billValueSmall: { fontSize: 12, color: '#334155', fontFamily: 'Montserrat-Medium' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.4)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, paddingHorizontal: 24, height: '90%' },
+  handleArea: { width: '100%', alignItems: 'center', paddingVertical: 15 },
+  modalHandle: { width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2 },
+  modalTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 20, textAlign: 'center' },
+  modalSectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', marginBottom: 15, letterSpacing: 1 },
+
+  billContainer: { backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, marginBottom: 10, borderWidth: 1, borderColor: '#F1F5F9' },
+  billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  billLabel: { fontSize: 14, color: '#64748B', fontFamily: 'Montserrat-Medium' },
+  billValue: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Bold' },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 10 },
+  taxHeader: { fontSize: 11, color: '#94A3B8', fontFamily: 'Montserrat-Bold', marginBottom: 10, textTransform: 'uppercase' },
+  billRowSmall: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  billLabelSmall: { fontSize: 12, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
+  billValueSmall: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-SemiBold' },
   totalLabelLarge: { fontSize: 18, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-  totalValueLarge: { fontSize: 22, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-  optionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, paddingVertical: 5 },
-  optionLeft: { flexDirection: 'row', alignItems: 'center' },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#84cc16' },
-  optionText: { fontSize: 16, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
-  payButton: { backgroundColor: '#0C1559', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 },
+  totalValueLarge: { fontSize: 24, color: '#84cc16', fontFamily: 'Montserrat-Bold' },
+
+  inputGroup: { marginBottom: 20 },
+  inputLabel: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 8, marginLeft: 4 },
+  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', paddingHorizontal: 15 },
+  inputIcon: { marginRight: 10 },
+  modalInput: { flex: 1, paddingVertical: 14, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
+
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, marginLeft: 4 },
+  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  checkboxChecked: { backgroundColor: '#0C1559' },
+  checkboxLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569' },
+
+  paymentOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  paymentOptionSelected: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
+  optionIconContainer: { width: 45, height: 45, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 1 },
+  optionLabel: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
+  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#0C1559' },
+
+  payButton: { borderRadius: 20, overflow: 'hidden', marginTop: 20, marginBottom: 30 },
+  payGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   payButtonText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-  closeModalBtn: { alignItems: 'center', marginTop: 15, marginBottom: 30 },
-  closeText: { color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  emptyState: { alignItems: 'center', marginTop: 80 },
-  emptyText: { marginTop: 16, fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 24 },
-  shopBtn: { paddingVertical: 12, paddingHorizontal: 24, backgroundColor: '#EBF2FF', borderRadius: 20 },
-  shopBtnText: { color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-  bottomLogos: { position: 'absolute', bottom: 250, left: -20 },
-  fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.05 },
-  inputGroup: { marginBottom: 15 },
-  inputLabel: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 6, marginLeft: 4 },
-  modalInput: { backgroundColor: '#F8FAFC', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', borderWidth: 1, borderColor: '#E2E8F0' },
+
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 },
+  emptyText: { fontSize: 18, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 20, marginBottom: 30 },
+  shopBtn: { backgroundColor: '#0C1559', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
+  shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
 });

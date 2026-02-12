@@ -185,7 +185,8 @@ const getProductById = async (req, res) => {
       store: product.stores ? {
         _id: product.stores.id,
         name: product.stores.store_name,
-        rating: product.stores.avg_rating
+        rating: product.stores.average_rating,
+        ownerId: product.stores.owner_id
       } : null,
       createdAt: product.created_at,
       updatedAt: product.updated_at

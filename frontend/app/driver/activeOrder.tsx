@@ -7,7 +7,8 @@ import {
   Dimensions,
   Image,
   ScrollView,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -25,32 +26,59 @@ export default function ActiveOrderScreen() {
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
   const [delivery, setDelivery] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
+
+  const fetchDetails = async () => {
+    try {
+      const d = await getDeliveryDetails(deliveryId);
+      if (d.success) {
+        setDelivery(d.delivery);
+        // Sync step with status
+        const status = d.delivery.status;
+        if (status === 'picked_up' || status === 'in_transit') {
+          setStep(2);
+        } else if (status === 'delivered') {
+          router.replace('/driver/dashboard');
+        } else {
+          // assigned
+          setStep(0);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (deliveryId) {
-      getDeliveryDetails(deliveryId).then(d => {
-        if (d.success) setDelivery(d.delivery);
-      }).catch(console.error);
+      fetchDetails();
     }
   }, [deliveryId]);
 
   const handleProgress = async () => {
     try {
+      setUpdating(true);
       if (step === 1) {
-        // Confirm Pickup
+        // Confirm Pickup -> Move to step 2 & update backend
         await updateDeliveryStatus(deliveryId, 'picked_up');
+        setStep(2);
       } else if (step === 3) {
         // Complete Delivery
         await updateDeliveryStatus(deliveryId, 'delivered');
-        Alert.alert("Order Completed", "Great job! You received ₵25.00", [
-          { text: "OK", onPress: () => router.back() }
+        Alert.alert("Order Completed", "Great job! Your earnings have been updated.", [
+          { text: "OK", onPress: () => router.replace('/driver/dashboard') }
         ]);
         return;
+      } else {
+        setStep(step + 1);
       }
-      setStep(step + 1);
-    } catch (e) {
-      Alert.alert("Error", "Failed to update status");
-      console.error(e);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to update status");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -64,19 +92,38 @@ export default function ActiveOrderScreen() {
     }
   };
 
+  if (loading) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
+
+  if (!delivery) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text>Order not found</Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+          <Text style={{ color: '#0C1559', fontWeight: 'bold' }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const buyerProfile = delivery.order?.buyer?.user_profiles;
+  const storeDetails = delivery.order?.store;
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
 
-      {/* --- MAP PLACEHOLDER (Top Half) --- */}
+      {/* --- MAP PLACEHOLDER --- */}
       <View style={styles.mapContainer}>
-        {/* Placeholder Map Image - Use an actual MapView in production */}
         <Image
-          source={{ uri: 'https://i.imgur.com/83g2v6z.png' }} // Generic Map Image
+          source={{ uri: 'https://i.imgur.com/83g2v6z.png' }}
           style={styles.mapImage}
         />
-
-        {/* Floating Back Button */}
         <SafeAreaView style={styles.safeMapOverlay}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
@@ -84,13 +131,12 @@ export default function ActiveOrderScreen() {
         </SafeAreaView>
       </View>
 
-      {/* --- BOTTOM SHEET (Order Details) --- */}
+      {/* --- BOTTOM SHEET --- */}
       <View style={styles.bottomSheet}>
         <View style={styles.handleBar} />
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
 
-          {/* Status Header */}
           <View style={styles.statusRow}>
             <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
             <Text style={styles.timeRemaining}>~ 8 mins</Text>
@@ -104,14 +150,10 @@ export default function ActiveOrderScreen() {
             <View style={{ flex: 1, marginLeft: 15 }}>
               <Text style={styles.locationLabel}>{step <= 1 ? "Pick Up At" : "Deliver To"}</Text>
               <Text style={styles.locationName}>
-                {step <= 1
-                  ? (delivery?.order?.store?.name || "KFC - Asokwa Branch")
-                  : (delivery?.order?.buyer?.name || "KNUST Campus, Brunei")}
+                {step <= 1 ? (storeDetails?.store_name || "Store") : (buyerProfile?.full_name || "Customer")}
               </Text>
-              <Text style={styles.locationAddress}>
-                {step <= 1
-                  ? (delivery?.pickupAddress || "Kumasi - Accra Rd, near City Mall")
-                  : (delivery?.deliveryAddress || "Room 4B, Block C")}
+              <Text style={styles.locationAddress} numberOfLines={2}>
+                {step <= 1 ? (delivery.pickup_address) : (delivery.delivery_address)}
               </Text>
             </View>
             <TouchableOpacity style={styles.navBtn}>
@@ -121,28 +163,24 @@ export default function ActiveOrderScreen() {
 
           <View style={styles.contactRow}>
             <View style={styles.customerInfo}>
-              <Image source={{ uri: 'https://randomuser.me/api/portraits/women/44.jpg' }} style={styles.customerImg} />
+              <Image
+                source={{ uri: (step <= 1 ? storeDetails?.logo_url : buyerProfile?.avatar_url) || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah' }}
+                style={styles.customerImg}
+              />
               <View>
-                <Text style={styles.customerName}>{delivery?.order?.buyer?.name || "Sarah Mensah"}</Text>
-                <Text style={styles.customerRole}>Customer</Text>
+                <Text style={styles.customerName}>
+                  {step <= 1 ? (storeDetails?.store_name || "Store Contact") : (buyerProfile?.full_name || "Customer")}
+                </Text>
+                <Text style={styles.customerRole}>{step <= 1 ? "Seller" : "Customer"}</Text>
               </View>
             </View>
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.circleBtn}
                 onPress={() => {
-                  if (delivery?.conversationId) {
-                    router.push({
-                      pathname: '/chat/conversation',
-                      params: {
-                        conversationId: delivery.conversationId,
-                        chatType: 'driver',
-                        name: delivery?.order?.buyer?.name || 'Customer',
-                        avatar: delivery?.order?.buyer?.avatar || 'https://randomuser.me/api/portraits/women/44.jpg'
-                      }
-                    });
-                  } else {
-                    Alert.alert("Chat Unavailable", "No conversation found for this delivery");
+                  const targetId = step <= 1 ? delivery.order?.store?.owner_id : delivery.order?.buyer_id;
+                  if (targetId) {
+                    router.push(`/chat/${targetId}` as any);
                   }
                 }}
               >
@@ -158,31 +196,38 @@ export default function ActiveOrderScreen() {
 
           {/* Order Items Summary */}
           <View style={styles.orderSummary}>
-            <Text style={styles.summaryTitle}>Order Details</Text>
-            <View style={styles.orderItem}>
-              <Text style={styles.qty}>2x</Text>
-              <Text style={styles.itemName}>Streetwise 2 with Chips</Text>
-            </View>
-            <View style={styles.orderItem}>
-              <Text style={styles.qty}>1x</Text>
-              <Text style={styles.itemName}>Coke (500ml)</Text>
-            </View>
+            <Text style={styles.summaryTitle}>Order Details #{delivery.order?.order_number}</Text>
+            {delivery.order?.order_items?.map((item: any, index: number) => (
+              <View key={index} style={styles.orderItem}>
+                <Text style={styles.qty}>{item.quantity}x</Text>
+                <Text style={styles.itemName}>{item.product_title}</Text>
+              </View>
+            ))}
+            {(!delivery.order?.order_items || delivery.order.order_items.length === 0) && (
+              <Text style={styles.noItems}>No item details available</Text>
+            )}
           </View>
 
-          <View style={{ height: 80 }} />
         </ScrollView>
 
         {/* --- MAIN ACTION BUTTON --- */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.mainBtn, step === 3 && styles.completeBtn]}
+            style={[styles.mainBtn, step === 3 && styles.completeBtn, updating && { opacity: 0.8 }]}
             onPress={handleProgress}
             activeOpacity={0.8}
+            disabled={updating}
           >
-            <Text style={[styles.mainBtnText, step === 3 && { color: '#FFF' }]}>
-              {getButtonText()}
-            </Text>
-            <Feather name="arrow-right" size={20} color={step === 3 ? "#FFF" : "#0C1559"} />
+            {updating ? (
+              <ActivityIndicator color={step === 3 ? "#FFF" : "#0C1559"} />
+            ) : (
+              <>
+                <Text style={[styles.mainBtnText, step === 3 && { color: '#FFF' }]}>
+                  {getButtonText()}
+                </Text>
+                <Feather name="arrow-right" size={20} color={step === 3 ? "#FFF" : "#0C1559"} />
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -192,6 +237,7 @@ export default function ActiveOrderScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   // Map Section
   mapContainer: { height: height * 0.45, width: '100%', backgroundColor: '#E2E8F0' },
@@ -208,7 +254,7 @@ const styles = StyleSheet.create({
 
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   statusTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  timeRemaining: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#16A34A', backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  timeRemaining: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#16A34A', backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
 
   // Location Card
   locationCard: {
@@ -216,7 +262,7 @@ const styles = StyleSheet.create({
     padding: 16, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: '#F1F5F9'
   },
   iconCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#E0E7FF', justifyContent: 'center', alignItems: 'center' },
-  locationLabel: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium', marginBottom: 2 },
+  locationLabel: { fontSize: 11, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 2, textTransform: 'uppercase' },
   locationName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   locationAddress: { fontSize: 13, color: '#475569', fontFamily: 'Montserrat-Regular' },
   navBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
@@ -224,7 +270,7 @@ const styles = StyleSheet.create({
   // Contact Row
   contactRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   customerInfo: { flexDirection: 'row', alignItems: 'center' },
-  customerImg: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+  customerImg: { width: 45, height: 45, borderRadius: 22.5, marginRight: 12, backgroundColor: '#F1F5F9' },
   customerName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   customerRole: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
   actionButtons: { flexDirection: 'row', gap: 12 },
@@ -234,10 +280,11 @@ const styles = StyleSheet.create({
 
   // Order Summary
   orderSummary: { marginBottom: 20 },
-  summaryTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
-  orderItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  qty: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#A3E635', marginRight: 10, backgroundColor: '#0C1559', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  summaryTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 15, textTransform: 'uppercase' },
+  orderItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  qty: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#A3E635', marginRight: 12, backgroundColor: '#0C1559', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
   itemName: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155' },
+  noItems: { fontSize: 14, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
 
   // Footer
   footer: {
@@ -246,7 +293,7 @@ const styles = StyleSheet.create({
   },
   mainBtn: {
     backgroundColor: '#A3E635', flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    paddingVertical: 16, borderRadius: 16, shadowColor: "#A3E635", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, elevation: 5, gap: 10
+    paddingVertical: 18, borderRadius: 16, shadowColor: "#A3E635", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, elevation: 5, gap: 10
   },
   completeBtn: { backgroundColor: '#0C1559' },
   mainBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' }

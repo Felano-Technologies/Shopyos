@@ -9,69 +9,103 @@ import {
   FlatList,
   Dimensions,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getAvailableDeliveries, assignDriver, getDriverStats, getActiveDeliveries, getUserData } from '@/services/api';
 
 const { width } = Dimensions.get('window');
-
-import { getAvailableDeliveries, assignDriver } from '@/services/api';
 
 export default function Dashboard() {
   const router = useRouter();
   const [isOnline, setIsOnline] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
+  const [stats, setStats] = useState({ total: 0, completed: 0, inProgress: 0, earnings: 0 });
+  const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch User Info
+  useEffect(() => {
+    getUserData().then(data => {
+      if (data && data.user) setUser(data.user);
+    }).catch(console.error);
+  }, []);
 
   // Toggle Online Status
   const toggleOnline = () => {
     setIsOnline(!isOnline);
-    if (!isOnline) { // Turning ON
-      fetchRequests();
-    } else {
-      setRequests([]);
-    }
   };
 
-  const fetchRequests = async () => {
+  const fetchDashboardData = async () => {
+    if (!isOnline) return;
     try {
-      const res = await getAvailableDeliveries();
-      if (res.success) {
-        // Map backend delivery objects to UI format
-        const mapped = res.deliveries.map((d: any) => ({
-          id: d._id,
-          restaurant: d.pickupAddress, // Or d.order?.store?.name if populated
-          destination: d.deliveryAddress,
-          price: 25.0, // Standard delivery fee or d.deliveryFee
-          distance: '3.5 km', // Placeholder or calculation
-          time: '15 mins',
-          items: 1 // Placeholder
+      const [statsRes, activeRes, availableRes] = await Promise.all([
+        getDriverStats('today'),
+        getActiveDeliveries(),
+        getAvailableDeliveries()
+      ]);
+
+      if (statsRes.success) {
+        setStats(statsRes.stats);
+      }
+
+      if (activeRes.success) {
+        setActiveDeliveries(activeRes.deliveries);
+      }
+
+      if (availableRes.success) {
+        const mapped = availableRes.deliveries.map((d: any) => ({
+          id: d.id || d._id,
+          restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
+          destination: d.delivery_address || 'Destination',
+          price: 15.0, // Base fee
+          distance: 'Calculated km',
+          time: 'Est. mins',
+          items: d.order?.order_items?.length || 1
         }));
         setRequests(mapped);
       }
     } catch (e) {
-      console.log("Error fetching deliveries", e);
+      console.log("Error fetching dashboard data", e);
     }
   };
 
   useEffect(() => {
     let interval: any;
     if (isOnline) {
-      fetchRequests();
-      interval = setInterval(fetchRequests, 10000); // Poll every 10s
+      fetchDashboardData();
+      interval = setInterval(fetchDashboardData, 10000); // Poll every 10s
+    } else {
+      setRequests([]);
+      setActiveDeliveries([]);
     }
     return () => clearInterval(interval);
   }, [isOnline]);
 
   const handleAccept = async (id: string) => {
+    if (activeDeliveries.length > 0) {
+      Alert.alert("Active Delivery", "Please complete your current delivery before accepting a new one.");
+      return;
+    }
+
     try {
-      await assignDriver(id);
-      router.push({ pathname: '/driver/activeOrder', params: { deliveryId: id } } as any);
-    } catch (e) {
-      alert("Failed to accept order");
+      setLoading(true);
+      const res = await assignDriver(id);
+      if (res.success) {
+        router.push({ pathname: '/driver/activeOrder', params: { deliveryId: id } } as any);
+      } else {
+        Alert.alert("Error", res.error || "Failed to accept order");
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to accept order");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,11 +115,10 @@ export default function Dashboard() {
         <View style={styles.priceTag}>
           <Text style={styles.priceText}>₵{item.price.toFixed(2)}</Text>
         </View>
-        <Text style={styles.distanceText}>{item.distance} • {item.time}</Text>
+        <Text style={styles.distanceText}>Request Nearby</Text>
       </View>
 
       <View style={styles.routeContainer}>
-        {/* Timeline dots */}
         <View style={styles.timeline}>
           <View style={styles.dot} />
           <View style={styles.line} />
@@ -95,11 +128,11 @@ export default function Dashboard() {
         <View style={styles.addresses}>
           <View style={styles.addressBlock}>
             <Text style={styles.addressLabel}>Pick Up</Text>
-            <Text style={styles.addressTitle}>{item.restaurant}</Text>
+            <Text style={styles.addressTitle} numberOfLines={1}>{item.restaurant}</Text>
           </View>
           <View style={[styles.addressBlock, { marginTop: 15 }]}>
             <Text style={styles.addressLabel}>Drop Off</Text>
-            <Text style={styles.addressTitle}>{item.destination}</Text>
+            <Text style={styles.addressTitle} numberOfLines={1}>{item.destination}</Text>
           </View>
         </View>
       </View>
@@ -110,13 +143,33 @@ export default function Dashboard() {
           <Text style={styles.itemText}>{item.items} Items</Text>
         </View>
         <TouchableOpacity
-          style={styles.acceptBtn}
+          style={[styles.acceptBtn, loading && { opacity: 0.7 }]}
           onPress={() => handleAccept(item.id)}
+          disabled={loading}
         >
-          <Text style={styles.acceptText}>Accept Order</Text>
+          {loading ? <ActivityIndicator size="small" color="#A3E635" /> : <Text style={styles.acceptText}>Accept Order</Text>}
         </TouchableOpacity>
       </View>
     </View>
+  );
+
+  const ActiveMissionCard = ({ delivery }: { delivery: any }) => (
+    <TouchableOpacity
+      style={styles.activeCard}
+      onPress={() => router.push({ pathname: '/driver/activeOrder', params: { deliveryId: delivery.id } } as any)}
+    >
+      <LinearGradient colors={['#A3E635', '#84cc16']} style={styles.activeGradient}>
+        <View style={styles.activeHeader}>
+          <Text style={styles.activeBadge}>ACTIVE MISSION</Text>
+          <Ionicons name="chevron-forward" size={18} color="#0C1559" />
+        </View>
+        <Text style={styles.activeTitle}>Ongoing Delivery to {delivery.order?.buyer?.full_name || 'Customer'}</Text>
+        <View style={styles.activeFooter}>
+          <Text style={styles.activeStatus}>{delivery.status.replace('_', ' ').toUpperCase()}</Text>
+          <Text style={styles.activeOrderNum}>#{delivery.order?.order_number}</Text>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
   );
 
   return (
@@ -129,12 +182,12 @@ export default function Dashboard() {
           <View style={styles.headerTop}>
             <View style={styles.profileRow}>
               <Image
-                source={{ uri: 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }}
+                source={{ uri: user?.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }}
                 style={styles.avatar}
               />
               <View>
-                <Text style={styles.greeting}>Hello, Williams</Text>
-                <Text style={styles.statusText}>
+                <Text style={styles.greeting}>Hello, {user?.user_profiles?.full_name?.split(' ')[0] || 'Driver'}</Text>
+                <Text style={styles.statusTextHeader}>
                   {isOnline ? 'You are Online' : 'You are Offline'}
                 </Text>
               </View>
@@ -158,17 +211,17 @@ export default function Dashboard() {
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Today's Earnings</Text>
-              <Text style={styles.statValue}>₵145.50</Text>
+              <Text style={styles.statValue}>₵{stats.earnings.toFixed(2)}</Text>
             </View>
             <View style={styles.verticalDivider} />
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Rides</Text>
-              <Text style={styles.statValue}>8</Text>
+              <Text style={styles.statLabel}>Completed</Text>
+              <Text style={styles.statValue}>{stats.completed}</Text>
             </View>
             <View style={styles.verticalDivider} />
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Time Online</Text>
-              <Text style={styles.statValue}>4h 20m</Text>
+              <Text style={styles.statLabel}>Total Rides</Text>
+              <Text style={styles.statValue}>{stats.total}</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -183,9 +236,21 @@ export default function Dashboard() {
             </View>
             <Text style={styles.offlineTitle}>You are currently offline</Text>
             <Text style={styles.offlineSub}>Go online to start receiving delivery requests nearby.</Text>
+            <TouchableOpacity style={styles.goOnlineBtn} onPress={toggleOnline}>
+              <Text style={styles.goOnlineText}>GO ONLINE</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <View style={{ flex: 1 }}>
+
+            {/* Active Order if any */}
+            {activeDeliveries.length > 0 && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={styles.sectionTitle}>Current Task</Text>
+                {activeDeliveries.map(d => <ActiveMissionCard key={d.id} delivery={d} />)}
+              </View>
+            )}
+
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Available Requests</Text>
               <View style={styles.liveBadge}>
@@ -231,7 +296,7 @@ const styles = StyleSheet.create({
   profileRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#A3E635', marginRight: 12, backgroundColor: '#FFF' },
   greeting: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  statusText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#CBD5E1' },
+  statusTextHeader: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#CBD5E1' },
   toggleContainer: { alignItems: 'center' },
   toggleLabel: { fontSize: 10, fontFamily: 'Montserrat-Bold', marginBottom: 2 },
 
@@ -252,17 +317,29 @@ const styles = StyleSheet.create({
   offlineState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: -50 },
   offlineIconCircle: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
   offlineTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
-  offlineSub: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', width: '80%' },
+  offlineSub: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', width: '80%', marginBottom: 30 },
+  goOnlineBtn: { backgroundColor: '#0C1559', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
+  goOnlineText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },
 
   // Online State
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', marginBottom: 10 },
   liveBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#DC2626', marginRight: 6 },
   liveText: { color: '#DC2626', fontSize: 10, fontFamily: 'Montserrat-Bold' },
 
   searchingState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
   searchingText: { marginTop: 15, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+
+  // Active Order Card
+  activeCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 15, elevation: 4, shadowColor: '#365314', shadowOpacity: 0.2, shadowRadius: 10 },
+  activeGradient: { padding: 16 },
+  activeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  activeBadge: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: 'rgba(255,255,255,0.4)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  activeTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 12 },
+  activeFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  activeStatus: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#FFF', textShadowColor: 'rgba(0,0,0,0.1)', textShadowRadius: 2 },
+  activeOrderNum: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
 
   // Request Card
   requestCard: {
@@ -272,7 +349,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
   priceTag: { backgroundColor: '#ECFCCB', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   priceText: { color: '#0C1559', fontFamily: 'Montserrat-Bold', fontSize: 16 },
-  distanceText: { color: '#64748B', fontFamily: 'Montserrat-SemiBold', fontSize: 13, marginTop: 5 },
+  distanceText: { color: '#64748B', fontFamily: 'Montserrat-SemiBold', fontSize: 12, marginTop: 5 },
 
   routeContainer: { flexDirection: 'row', marginBottom: 20 },
   timeline: { alignItems: 'center', marginRight: 12, marginTop: 5 },

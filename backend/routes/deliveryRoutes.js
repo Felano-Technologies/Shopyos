@@ -14,7 +14,8 @@ const {
   addLocationUpdate,
   getLocationUpdates,
   getLatestLocation,
-  getDeliveryByOrder
+  getDeliveryByOrder,
+  getDriverStats
 } = require('../controllers/deliveryController');
 const { protect, driver, hasAnyRole } = require('../middleware/authMiddleware');
 
@@ -40,6 +41,11 @@ router.get('/my-deliveries', driver, getMyDeliveries);
 // @desc    Get driver's active deliveries
 // @access  Private (Driver)
 router.get('/active', driver, getActiveDeliveries);
+
+// @route   GET /api/deliveries/driver/stats
+// @desc    Get delivery statistics for driver
+// @access  Private (Driver)
+router.get('/driver/stats', driver, getDriverStats);
 
 // @route   GET /api/deliveries/order/:orderId
 // @desc    Get delivery by order ID

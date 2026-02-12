@@ -26,6 +26,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const advertisingRoutes = require('./routes/advertisingRoutes');
+const payoutRoutes = require('./routes/payoutRoutes');
 
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -151,6 +152,7 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/favorites', favoriteRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/advertising', advertisingRoutes);
+app.use('/api/v1/payouts', payoutRoutes);
 
 // Legacy routes (redirect to v1 for backward compatibility)
 app.use('/api/auth', (req, res, next) => {

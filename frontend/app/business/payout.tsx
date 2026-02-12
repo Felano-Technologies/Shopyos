@@ -17,26 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
 
-// --- MOCK API CALL (Replace with your actual service) ---
-// Simulates checking if the user has a payout method set up
-const checkPayoutStatus = async () => {
-  return new Promise<{ hasMethod: boolean; balance: number; history: any[] }>((resolve) => {
-    setTimeout(() => {
-      // TOGGLE THIS VALUE TO TEST DIFFERENT STATES:
-      const mockHasMethod = false; // Set to true to see the dashboard, false for empty state
-
-      resolve({
-        hasMethod: mockHasMethod,
-        balance: 1450.50,
-        history: [
-          { id: '1', date: 'Feb 01, 2026', amount: 450.00, status: 'Paid' },
-          { id: '2', date: 'Jan 25, 2026', amount: 1200.00, status: 'Paid' },
-          { id: '3', date: 'Jan 18, 2026', amount: 890.00, status: 'Processing' },
-        ]
-      });
-    }, 1000);
-  });
-};
+import { getPayoutHistory, getMyBusinesses } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -54,10 +35,17 @@ export default function PayoutScreen() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const data = await checkPayoutStatus();
-      setHasPayoutMethod(data.hasMethod);
-      setBalance(data.balance);
-      setPayoutHistory(data.history);
+      const businessResp = await getMyBusinesses();
+      if (businessResp.success && businessResp.businesses.length > 0) {
+        const store = businessResp.businesses[0];
+        setBalance(parseFloat(store.current_balance || 0));
+        setHasPayoutMethod(!!store.payout_method);
+
+        const historyResp = await getPayoutHistory(store._id);
+        if (historyResp.success) {
+          setPayoutHistory(historyResp.data);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -69,13 +57,13 @@ export default function PayoutScreen() {
   const renderHistoryItem = ({ item }: { item: any }) => (
     <View style={styles.historyItem}>
       <View style={styles.historyLeft}>
-        <View style={[styles.statusDot, { backgroundColor: item.status === 'Paid' ? '#16A34A' : '#F59E0B' }]} />
+        <View style={[styles.statusDot, { backgroundColor: item.status === 'completed' ? '#16A34A' : '#F59E0B' }]} />
         <View>
-          <Text style={styles.historyDate}>{item.date}</Text>
-          <Text style={styles.historyStatus}>{item.status}</Text>
+          <Text style={styles.historyDate}>{new Date(item.created_at).toLocaleDateString([], { month: 'short', day: '2-digit', year: 'numeric' })}</Text>
+          <Text style={styles.historyStatus}>{item.status.toUpperCase()}</Text>
         </View>
       </View>
-      <Text style={styles.historyAmount}>₵{item.amount.toFixed(2)}</Text>
+      <Text style={styles.historyAmount}>₵{parseFloat(item.amount).toFixed(2)}</Text>
     </View>
   );
 
@@ -90,7 +78,7 @@ export default function PayoutScreen() {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      
+
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
@@ -99,100 +87,100 @@ export default function PayoutScreen() {
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        
+
         {/* --- Header --- */}
         <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.headerContainer}
+          colors={['#0C1559', '#1e3a8a']}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+          style={styles.headerContainer}
         >
-            <SafeAreaView edges={['top']} style={{ width: '100%' }}>
-                <View style={styles.headerContent}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#FFF" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Payouts</Text>
-                    <View style={{ width: 40 }} /> 
-                </View>
-            </SafeAreaView>
+          <SafeAreaView edges={['top']} style={{ width: '100%' }}>
+            <View style={styles.headerContent}>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <Ionicons name="arrow-back" size={24} color="#FFF" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Payouts</Text>
+              <View style={{ width: 40 }} />
+            </View>
+          </SafeAreaView>
         </LinearGradient>
 
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-            
-            {hasPayoutMethod ? (
-                // --- ACTIVE DASHBOARD STATE ---
-                <View style={styles.contentContainer}>
-                    
-                    {/* Balance Card */}
-                    <View style={styles.balanceCard}>
-                        <View>
-                            <Text style={styles.balanceLabel}>Available for Payout</Text>
-                            <Text style={styles.balanceAmount}>₵{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
-                        </View>
-                        <TouchableOpacity style={styles.withdrawBtn}>
-                            <Text style={styles.withdrawText}>Withdraw</Text>
-                        </TouchableOpacity>
-                    </View>
 
-                    {/* Method Info */}
-                    <View style={styles.methodCard}>
-                        <View style={styles.methodRow}>
-                            <View style={styles.methodIcon}>
-                                <FontAwesome5 name="university" size={18} color="#0C1559" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.methodTitle}>Standard Payout</Text>
-                                <Text style={styles.methodSub}>Ending in **** 4589</Text>
-                            </View>
-                            <TouchableOpacity onPress={() => router.push('/business/businessRegistration')}>
-                                <Text style={styles.editText}>Edit</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <View style={styles.divider} />
-                        <Text style={styles.scheduleText}>
-                            Next scheduled payout: <Text style={{ fontFamily: 'Montserrat-Bold' }}>Feb 14, 2026</Text>
-                        </Text>
-                    </View>
+          {hasPayoutMethod ? (
+            // --- ACTIVE DASHBOARD STATE ---
+            <View style={styles.contentContainer}>
 
-                    {/* History List */}
-                    <Text style={styles.sectionTitle}>Recent Payouts</Text>
-                    <FlatList
-                        data={payoutHistory}
-                        keyExtractor={item => item.id}
-                        renderItem={renderHistoryItem}
-                        scrollEnabled={false}
-                        contentContainerStyle={styles.historyList}
-                    />
+              {/* Balance Card */}
+              <View style={styles.balanceCard}>
+                <View>
+                  <Text style={styles.balanceLabel}>Available for Payout</Text>
+                  <Text style={styles.balanceAmount}>₵{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
                 </View>
+                <TouchableOpacity style={styles.withdrawBtn}>
+                  <Text style={styles.withdrawText}>Withdraw</Text>
+                </TouchableOpacity>
+              </View>
 
-            ) : (
-                // --- EMPTY STATE (No Method Set) ---
-                <View style={styles.emptyStateContainer}>
-                    <View style={styles.emptyIconCircle}>
-                        <MaterialCommunityIcons name="bank-remove" size={64} color="#CBD5E1" />
-                    </View>
-                    <Text style={styles.emptyTitle}>No Payout Method Set</Text>
-                    <Text style={styles.emptyText}>
-                        You haven't set up a way to get paid yet. Please update your business details to start receiving earnings.
-                    </Text>
-                    
-                    <TouchableOpacity 
-                        style={styles.actionBtn}
-                        activeOpacity={0.8}
-                        onPress={() => router.push('/business/businessRegistration')} 
-                    >
-                        <Text style={styles.actionBtnText}>Set Up Payout Method</Text>
-                        <Feather name="arrow-right" size={18} color="#FFF" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity 
-                        style={styles.secondaryBtn}
-                        onPress={() => router.back()}
-                    >
-                        <Text style={styles.secondaryBtnText}>Do this later</Text>
-                    </TouchableOpacity>
+              {/* Method Info */}
+              <View style={styles.methodCard}>
+                <View style={styles.methodRow}>
+                  <View style={styles.methodIcon}>
+                    <FontAwesome5 name="university" size={18} color="#0C1559" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.methodTitle}>Standard Payout</Text>
+                    <Text style={styles.methodSub}>Ending in **** 4589</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => router.push('/business/businessRegistration')}>
+                    <Text style={styles.editText}>Edit</Text>
+                  </TouchableOpacity>
                 </View>
-            )}
+                <View style={styles.divider} />
+                <Text style={styles.scheduleText}>
+                  Next scheduled payout: <Text style={{ fontFamily: 'Montserrat-Bold' }}>Feb 14, 2026</Text>
+                </Text>
+              </View>
+
+              {/* History List */}
+              <Text style={styles.sectionTitle}>Recent Payouts</Text>
+              <FlatList
+                data={payoutHistory}
+                keyExtractor={item => item.id}
+                renderItem={renderHistoryItem}
+                scrollEnabled={false}
+                contentContainerStyle={styles.historyList}
+              />
+            </View>
+
+          ) : (
+            // --- EMPTY STATE (No Method Set) ---
+            <View style={styles.emptyStateContainer}>
+              <View style={styles.emptyIconCircle}>
+                <MaterialCommunityIcons name="bank-remove" size={64} color="#CBD5E1" />
+              </View>
+              <Text style={styles.emptyTitle}>No Payout Method Set</Text>
+              <Text style={styles.emptyText}>
+                You haven't set up a way to get paid yet. Please update your business details to start receiving earnings.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.actionBtn}
+                activeOpacity={0.8}
+                onPress={() => router.push('/business/businessRegistration')}
+              >
+                <Text style={styles.actionBtnText}>Set Up Payout Method</Text>
+                <Feather name="arrow-right" size={18} color="#FFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.secondaryBtn}
+                onPress={() => router.back()}
+              >
+                <Text style={styles.secondaryBtnText}>Do this later</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
         </ScrollView>
       </SafeAreaView>

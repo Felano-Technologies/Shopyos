@@ -621,6 +621,49 @@ const getDeliveryByOrder = async (req, res) => {
   }
 };
 
+/**
+ * @route   GET /api/deliveries/driver/stats
+ * @desc    Get delivery statistics for driver
+ * @access  Private (Driver)
+ */
+const getDriverStats = async (req, res) => {
+  try {
+    const driverId = req.user.id;
+    const { timeframe = 'today' } = req.query;
+
+    let startDate = new Date();
+    startDate.setHours(0, 0, 0, 0);
+
+    if (timeframe === 'week') {
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (timeframe === 'month') {
+      startDate.setMonth(startDate.getMonth() - 1);
+    }
+
+    const endDate = new Date();
+
+    const stats = await repositories.deliveries.getDriverStats(driverId, startDate, endDate);
+
+    // Calculate earnings (placeholder: 15 per completed delivery)
+    const earnings = stats.completed * 15.0;
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        ...stats,
+        earnings
+      }
+    });
+  } catch (error) {
+    console.error('Get driver stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get driver stats',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   createDelivery,
   getAvailableDeliveries,
@@ -632,5 +675,6 @@ module.exports = {
   addLocationUpdate,
   getLocationUpdates,
   getLatestLocation,
-  getDeliveryByOrder
+  getDeliveryByOrder,
+  getDriverStats
 };

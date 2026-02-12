@@ -27,6 +27,7 @@ type ChatContextType = {
   sellerConversations: Conversation[]; // Chats where I am the business
   sendMessage: (id: string, text: string, type: 'buyer' | 'seller') => void;
   markAsRead: (id: string, type: 'buyer' | 'seller') => void;
+  currentUserId: string | null;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -42,6 +43,7 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined);
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [buyerConversations, setBuyerChats] = useState<Conversation[]>([]);
   const [sellerConversations, setSellerChats] = useState<Conversation[]>([]);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   const fetchChats = async () => {
     try {
@@ -51,6 +53,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         // User not authenticated, skip fetching
         return;
       }
+
+      const uid = await storage.getItem('userId');
+      setCurrentUserId(uid);
 
       const response = await getConversations();
       if (response && response.conversations) {
@@ -131,7 +136,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ChatContext.Provider value={{ buyerConversations, sellerConversations, sendMessage, markAsRead }}>
+    <ChatContext.Provider value={{ buyerConversations, sellerConversations, sendMessage, markAsRead, currentUserId }}>
       {children}
     </ChatContext.Provider>
   );

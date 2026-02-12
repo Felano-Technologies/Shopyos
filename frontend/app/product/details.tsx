@@ -18,7 +18,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useCart } from '../context/CartContext';
-import { getProductById, addToFavorites, removeFromFavorites, checkIsFavorite } from '@/services/api';
+import {
+  getProductById,
+  addToFavorites,
+  removeFromFavorites,
+  checkIsFavorite,
+  startConversation
+} from '@/services/api';
 
 const { height } = Dimensions.get('window');
 
@@ -39,6 +45,7 @@ export default function ProductDetails() {
     description: (params.description as string) || "Loading...",
     sellerName: "Loading...",
     sellerPhone: "",
+    sellerId: "",
     image: params.image as string,
   });
 
@@ -55,6 +62,7 @@ export default function ProductDetails() {
             category: res.product.category,
             image: res.product.images?.[0] || prev.image,
             sellerName: res.product.store?.name || "Verified Seller",
+            sellerId: res.product.store?.ownerId || "",
           }));
         }
       }).catch(err => console.log("Error loading product details", err));
@@ -84,15 +92,29 @@ export default function ProductDetails() {
   };
 
   // --- UPDATED: Direct Navigation to Chat ---
-  const handleChat = () => {
-    router.push({
-      pathname: '/chat/conversation',
-      params: {
-        recipientName: product.sellerName,
-        productName: product.title,
-        productId: product.id
+  const handleChat = async () => {
+    try {
+      if (!product.sellerId) {
+        Alert.alert("Error", "Seller information not available");
+        return;
       }
-    });
+
+      const res = await startConversation(product.sellerId);
+      if (res.success) {
+        router.push({
+          pathname: '/chat/conversation',
+          params: {
+            conversationId: res.conversation.id,
+            name: product.sellerName,
+            avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=' + product.sellerName,
+            chatType: 'buyer'
+          }
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      Alert.alert("Error", "Failed to start chat with seller");
+    }
   };
 
   const handleAddToCart = () => {

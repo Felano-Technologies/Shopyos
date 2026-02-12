@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -11,7 +11,7 @@ import {
     Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -26,23 +26,44 @@ const OrderDetailsScreen = () => {
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [isCancelling, setIsCancelling] = useState(false);
+    const pollInterval = useRef<any>(null);
 
-    const fetchOrder = async () => {
+    const fetchOrder = async (showLoading = false) => {
+        if (showLoading) setLoading(true);
         try {
             const data = await getOrderDetails(id as string);
             if (data && data.id) {
                 setOrder(data);
+
+                // Stop polling if order is delivered or cancelled
+                const status = data.status.toLowerCase();
+                if (status === 'delivered' || status === 'cancelled' || status === 'failed') {
+                    if (pollInterval.current) {
+                        clearInterval(pollInterval.current);
+                        pollInterval.current = null;
+                    }
+                }
             }
         } catch (error) {
             console.error('Error fetching order:', error);
-            Alert.alert('Error', 'Failed to fetch order details');
+            // Don't alert on polling errors to avoid spam
+            if (showLoading) Alert.alert('Error', 'Failed to fetch order details');
         } finally {
-            setLoading(false);
+            if (showLoading) setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (id) fetchOrder();
+        if (id) {
+            fetchOrder(true);
+
+            // Start polling every 10 seconds for live updates
+            pollInterval.current = setInterval(() => fetchOrder(false), 10000);
+        }
+
+        return () => {
+            if (pollInterval.current) clearInterval(pollInterval.current);
+        };
     }, [id]);
 
     const handleCancelOrder = async () => {
@@ -85,16 +106,21 @@ const OrderDetailsScreen = () => {
 
     const getStatusBadge = (status: string) => {
         switch (status.toLowerCase()) {
-            case "pending": return { color: "#B45309", bg: "#FEF3C7", icon: "time-outline" };
-            case "delivered": return { color: "#15803D", bg: "#DCFCE7", icon: "checkmark-circle-outline" };
-            case "processing": return { color: "#1D4ED8", bg: "#DBEAFE", icon: "sync-outline" };
-            case "in_transit": return { color: "#7C3AED", bg: "#F3E8FF", icon: "bicycle-outline" };
-            case "cancelled": return { color: "#B91C1C", bg: "#FEE2E2", icon: "close-circle-outline" };
-            default: return { color: "#6B7280", bg: "#F3F4F6", icon: "help-circle-outline" };
+            case "pending": return { color: "#B45309", bg: "#FEF3C7", icon: "time-outline", label: "Waiting for Store" };
+            case "paid": return { color: "#15803D", bg: "#DCFCE7", icon: "card-outline", label: "Payment Confirmed" };
+            case "processing": return { color: "#1D4ED8", bg: "#DBEAFE", icon: "sync-outline", label: "Preparing Order" };
+            case "ready_for_pickup": return { color: "#7C3AED", bg: "#F3E8FF", icon: "storefront-outline", label: "Ready for Pickup" };
+            case "picked_up": return { color: "#7C3AED", bg: "#F3E8FF", icon: "bicycle-outline", label: "Driver Picked Up" };
+            case "in_transit": return { color: "#7C3AED", bg: "#F3E8FF", icon: "bicycle-outline", label: "On the Way" };
+            case "delivered": return { color: "#15803D", bg: "#DCFCE7", icon: "checkmark-circle-outline", label: "Delivered" };
+            case "cancelled": return { color: "#B91C1C", bg: "#FEE2E2", icon: "close-circle-outline", label: "Cancelled" };
+            default: return { color: "#6B7280", bg: "#F3F4F6", icon: "help-circle-outline", label: status };
         }
     };
 
-    const { color, bg, icon } = getStatusBadge(order.status);
+    const delivery = order.deliveries?.[0];
+    const driver = delivery?.driver;
+    const { color, bg, icon, label } = getStatusBadge(order.status);
 
     return (
         <View style={styles.mainContainer}>
@@ -106,7 +132,7 @@ const OrderDetailsScreen = () => {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                             <Ionicons name="arrow-back" size={24} color="#FFF" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Order Details</Text>
+                        <Text style={styles.headerTitle}>Order Tracking</Text>
                         <TouchableOpacity style={styles.helpBtn}>
                             <Feather name="help-circle" size={20} color="#FFF" />
                         </TouchableOpacity>
@@ -119,7 +145,7 @@ const OrderDetailsScreen = () => {
                         </View>
                         <View style={[styles.statusBadge, { backgroundColor: bg }]}>
                             <Ionicons name={icon as any} size={14} color={color} style={{ marginRight: 4 }} />
-                            <Text style={[styles.statusText, { color: color }]}>{order.status}</Text>
+                            <Text style={[styles.statusText, { color: color }]}>{label}</Text>
                         </View>
                     </View>
                 </SafeAreaView>
@@ -127,8 +153,60 @@ const OrderDetailsScreen = () => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                {/* Progress Tracker (Simplified) */}
+                {/* Live Tracking Map Placeholder / Visual Progress */}
+                {(['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase())) && (
+                    <View style={styles.liveTrackingCard}>
+                        <View style={styles.mapPlaceholder}>
+                            <Image
+                                source={{ uri: 'https://i.imgur.com/83g2v6z.png' }}
+                                style={styles.mapImg}
+                            />
+                            <View style={styles.mapOverlay}>
+                                <LinearGradient colors={['rgba(255,255,255,0.9)', 'transparent']} style={styles.mapGradient}>
+                                    <View style={styles.trackingStatusRow}>
+                                        <View style={styles.liveDot} />
+                                        <Text style={styles.liveTrackingText}>LIVE TRACKING</Text>
+                                    </View>
+                                </LinearGradient>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
+                {/* Driver Information Card */}
+                {driver && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Your Driver</Text>
+                        <View style={styles.driverCard}>
+                            <Image
+                                source={{ uri: driver.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }}
+                                style={styles.driverAvatar}
+                            />
+                            <View style={styles.driverInfo}>
+                                <Text style={styles.driverName}>{driver.user_profiles?.full_name || 'Driver'}</Text>
+                                <View style={styles.ratingRow}>
+                                    <Ionicons name="star" size={14} color="#F59E0B" />
+                                    <Text style={styles.ratingText}>4.8 • Verified Courier</Text>
+                                </View>
+                            </View>
+                            <View style={styles.driverActions}>
+                                <TouchableOpacity
+                                    style={styles.actionCircle}
+                                    onPress={() => router.push(`/chat/${driver.id}` as any)}
+                                >
+                                    <Ionicons name="chatbubble-ellipses" size={20} color="#0C1559" />
+                                </TouchableOpacity>
+                                <TouchableOpacity style={[styles.actionCircle, { backgroundColor: '#E0E7FF' }]}>
+                                    <Ionicons name="call" size={20} color="#0C1559" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                )}
+
+                {/* Store Info */}
                 <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Store</Text>
                     <View style={styles.storeHeader}>
                         <MaterialCommunityIcons name="store" size={24} color="#0C1559" />
                         <View style={styles.storeInfo}>
@@ -148,16 +226,16 @@ const OrderDetailsScreen = () => {
                         <View style={styles.infoRow}>
                             <Ionicons name="location-outline" size={20} color="#64748B" />
                             <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Address</Text>
-                                <Text style={styles.infoValue}>{order.deliveries?.[0]?.delivery_address || 'N/A'}</Text>
+                                <Text style={styles.infoLabel}>Drop-off Address</Text>
+                                <Text style={styles.infoValue}>{order.delivery_address || 'N/A'}</Text>
                             </View>
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.infoRow}>
                             <Ionicons name="call-outline" size={20} color="#64748B" />
                             <View style={styles.infoTextContainer}>
-                                <Text style={styles.infoLabel}>Contact Phone</Text>
-                                <Text style={styles.infoValue}>{order.deliveries?.[0]?.delivery_phone || 'N/A'}</Text>
+                                <Text style={styles.infoLabel}>Recipient Phone</Text>
+                                <Text style={styles.infoValue}>{order.delivery_phone || 'N/A'}</Text>
                             </View>
                         </View>
                     </View>
@@ -200,7 +278,7 @@ const OrderDetailsScreen = () => {
                         </View>
                         <View style={styles.priceRow}>
                             <Text style={styles.priceLabel}>VAT & Taxes</Text>
-                            <Text style={styles.priceValue}>₵{(order.payments?.[0]?.amount - 15 - order.order_items?.reduce((sum: number, i: any) => sum + (parseFloat(i.price) * i.quantity), 0)).toFixed(2)}</Text>
+                            <Text style={styles.priceValue}>₵{(parseFloat(order.payments?.[0]?.amount || 0) - 15 - order.order_items?.reduce((sum: number, i: any) => sum + (parseFloat(i.price) * i.quantity), 0)).toFixed(2)}</Text>
                         </View>
                         <View style={styles.divider} />
                         <View style={styles.priceRow}>
@@ -211,6 +289,15 @@ const OrderDetailsScreen = () => {
                             <MaterialCommunityIcons name="credit-card-outline" size={16} color="#64748B" />
                             <Text style={styles.methodText}>Paid via {order.payments?.[0]?.payment_method || 'Momo'}</Text>
                         </View>
+                        {order.status.toLowerCase() === 'paid' && (
+                            <TouchableOpacity
+                                style={styles.receiptLink}
+                                onPress={() => router.push(`/receipt/${order.id}` as any)}
+                            >
+                                <Ionicons name="receipt-outline" size={16} color="#0C1559" />
+                                <Text style={styles.receiptLinkText}>View Digital Receipt</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 </View>
 
@@ -252,6 +339,27 @@ const styles = StyleSheet.create({
     scrollContent: { padding: 20, paddingBottom: 50 },
     section: { marginBottom: 25 },
     sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 12, textTransform: 'uppercase' },
+
+    // Live Tracking
+    liveTrackingCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
+    mapPlaceholder: { height: 180, width: '100%', backgroundColor: '#E2E8F0' },
+    mapImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+    mapOverlay: { position: 'absolute', top: 0, left: 0, right: 0, height: 60 },
+    mapGradient: { padding: 15 },
+    trackingStatusRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, alignSelf: 'flex-start' },
+    liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444', marginRight: 8 },
+    liveTrackingText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+
+    // Driver Card
+    driverCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
+    driverAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F1F5F9' },
+    driverInfo: { flex: 1, marginLeft: 15 },
+    driverName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+    ratingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+    ratingText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginLeft: 4 },
+    driverActions: { flexDirection: 'row', gap: 10 },
+    actionCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFCCB', justifyContent: 'center', alignItems: 'center' },
+
     storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
     storeInfo: { flex: 1, marginLeft: 12 },
     storeName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
@@ -279,6 +387,8 @@ const styles = StyleSheet.create({
     totalValue: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
     paymentMethodRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 15, justifyContent: 'center', backgroundColor: '#F8FAFC', paddingVertical: 8, borderRadius: 10 },
     methodText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+    receiptLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 15, paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+    receiptLinkText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
     reviewBtn: { backgroundColor: '#0C1559', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 },
     reviewBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
     cancelBtn: { backgroundColor: '#FEF2F2', paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 15, borderWidth: 1, borderColor: '#FEE2E2' },

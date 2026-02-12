@@ -26,7 +26,7 @@ export default function ConversationScreen() {
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar } = params;
 
-  const { buyerConversations, sellerConversations, sendMessage } = useChat();
+  const { buyerConversations, sellerConversations, sendMessage, currentUserId } = useChat();
 
   // Determine list based on type
   const targetList = chatType === 'seller' ? sellerConversations : buyerConversations;
@@ -44,6 +44,10 @@ export default function ConversationScreen() {
   useEffect(() => {
     if (conversationId) {
       fetchMessages();
+
+      // Basic polling for real-time-like behavior
+      const interval = setInterval(fetchMessages, 5000);
+      return () => clearInterval(interval);
     }
   }, [conversationId]);
 
@@ -51,28 +55,7 @@ export default function ConversationScreen() {
     try {
       const response = await getMessages(conversationId);
       if (response && response.messages) {
-        // Map backend messages to UI format
-        const formatted = response.messages.map((m: any) => ({
-          id: m.id,
-          text: m.content,
-          sender: m.sender_id === response.currentUserId ? 'me' : 'them', // Logic depends on knowing my ID. 
-          // Backend getMessages doesn't return currentUserId usually. 
-          // We can infer 'me' if it's NOT the Other Participant.
-          // OR we rely on a helper.
-          // For now, let's assume if it's not the other guy, it's me.
-          // Actually, let's just use 'me' if I created it.
-          // Wait, I need to know my ID.
-          // Let's rely on 'sender' field being 'me' or 'them' from some logic.
-          // Currently backend returns `sender_id`.
-          // I will modify this logic after checking how to identify "me".
-          // Detailed implementation below.
-        }));
-        // setMessages(formatted); 
-
-        // temporary hack: we will just store the raw data and render logic will handle it if we have myId.
-        // But we don't have myId easily here. 
-        // Let's assume we can fetch profile or storage.
-        setMessages(response.messages.reverse()); // FlatList inverted? No, it's standard top-down. 
+        setMessages(response.messages.reverse());
       }
     } catch (error) {
       console.error("Failed to load messages", error);
@@ -92,7 +75,7 @@ export default function ConversationScreen() {
       id: tempId,
       content: text.trim(),
       created_at: new Date().toISOString(),
-      sender_id: 'me', // temporary marker
+      sender_id: currentUserId || 'me', // temporary marker
       pending: true
     };
 
@@ -149,20 +132,7 @@ export default function ConversationScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             renderItem={({ item }) => {
-              // Logic to determine if 'me'
-              // If I added it optimistically, sender_id is 'me'.
-              // If from backend, we need my ID. 
-              // For now, let's assume 'me' if it matches my optimistic logic or we create a simple check.
-              // Since we don't have my ID handy in a var, and I don't want to async fetch it every render,
-              // I'll cheat slightly: In a real app we'd have UserContext.
-              // For now, let's assume specific logic: 'me' vs 'them'.
-              // Actually, the backend `getMessages` output has `sender_id`.
-              // The `activeChat` has `participantId`? No.
-              // activeChat has `otherParticipant`. 
-              // If `item.sender_id` !== `activeChat.otherParticipant.id`, it's ME.
-
-              const otherId = activeChat?.otherParticipant?.id;
-              const isMe = item.sender_id === 'me' || (otherId && item.sender_id && item.sender_id !== otherId);
+              const isMe = item.sender_id === currentUserId || item.sender_id === 'me';
 
               return (
                 <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>

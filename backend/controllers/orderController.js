@@ -101,12 +101,17 @@ const createOrder = async (req, res) => {
 
       const order = await repositories.orders.createOrderWithItems(orderData, orderItems);
 
+      // Map payment method to DB enum
+      let dbPaymentMethod = 'card';
+      if (paymentMethod === 'momo') dbPaymentMethod = 'mobile_money';
+      else if (paymentMethod === 'cod') dbPaymentMethod = 'bank_transfer'; // Placeholder for COD until enum is updated
+
       // Create payment record
       const { data: payment, error: paymentError } = await repositories.orders.db
         .from('payments')
         .insert({
           order_id: order.id,
-          payment_method: paymentMethod,
+          payment_method: dbPaymentMethod,
           amount: totalAmount,
           status: 'pending'
         })
@@ -508,6 +513,69 @@ const getOrderByNumber = async (req, res) => {
   }
 };
 
+/**
+ * @route   POST /api/orders/:orderId/verify-payment
+ * @desc    Simulate and verify payment
+ * @access  Private
+ */
+const verifyPayment = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status = 'success', paymentId = 'SIM-' + Date.now() } = req.body;
+    const userId = req.user.id;
+
+    const order = await repositories.orders.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ success: false, error: 'Order not found' });
+    }
+
+    if (order.buyer_id !== userId) {
+      return res.status(403).json({ success: false, error: 'Not authorized' });
+    }
+
+    if (status !== 'success') {
+      return res.status(400).json({ success: false, error: 'Payment failed simulation' });
+    }
+
+    // Update payment record in DB
+    const { error: pError } = await repositories.orders.db
+      .from('payments')
+      .update({
+        status: 'completed',
+        paid_at: new Date().toISOString(),
+        provider_transaction_id: paymentId
+      })
+      .eq('order_id', orderId);
+
+    if (pError) throw pError;
+
+    // Update order status to 'paid' (Matches order_status enum)
+    const updatedOrder = await repositories.orders.updateStatus(orderId, 'paid');
+
+    // Notify user
+    await repositories.notifications.create({
+      user_id: userId,
+      type: 'payment_success',
+      title: 'Payment Confirmed',
+      message: `Payment for order #${order.order_number} has been confirmed. The store will start preparing it soon.`,
+      data: { orderId: order.id, orderNumber: order.order_number }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      order: updatedOrder
+    });
+  } catch (error) {
+    console.error('Verify payment error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to verify payment',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -515,5 +583,6 @@ module.exports = {
   getOrderDetails,
   updateOrderStatus,
   cancelOrder,
-  getOrderByNumber
+  getOrderByNumber,
+  verifyPayment
 };
