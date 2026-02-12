@@ -45,7 +45,6 @@ class CartRepository extends BaseRepository {
             title,
             description,
             price,
-            discount_price,
             primary_image_url,
             store_id,
             stores (
@@ -261,7 +260,7 @@ class CartRepository extends BaseRepository {
 
     let subtotal = 0;
     const items = cartWithItems.cart_items.map(item => {
-      const price = item.products.discount_price || item.products.price;
+      const price = item.products.price;
       const itemTotal = price * item.quantity;
       subtotal += itemTotal;
 

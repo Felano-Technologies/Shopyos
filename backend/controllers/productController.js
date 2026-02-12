@@ -202,7 +202,8 @@ const getProductById = async (req, res) => {
         _id: product.stores.id,
         name: product.stores.store_name,
         rating: product.stores.average_rating,
-        ownerId: product.stores.owner_id
+        ownerId: product.stores.owner_id,
+        logo: product.stores.logo_url
       } : null,
       createdAt: product.created_at,
       updatedAt: product.updated_at
@@ -359,7 +360,6 @@ const updateProduct = async (req, res) => {
 // @route   DELETE /api/products/:id
 // @access  Private (Seller)
 const deleteProduct = async (req, res) => {
-  console.log(`Attempting to delete product: ${req.params.id}`);
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -368,7 +368,6 @@ const deleteProduct = async (req, res) => {
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
-      console.log('Product not found for deletion');
       return res.status(404).json({
         success: false,
         error: 'Product not found'
@@ -378,7 +377,6 @@ const deleteProduct = async (req, res) => {
     // Verify store ownership
     const store = await repositories.stores.findById(product.store_id);
     if (store.owner_id !== userId) {
-      console.log(`User ${userId} not authorized to delete product owned by ${store.owner_id}`);
       return res.status(403).json({
         success: false,
         error: 'Not authorized to delete this product'

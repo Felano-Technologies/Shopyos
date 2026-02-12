@@ -66,7 +66,7 @@ const createOrder = async (req, res) => {
       // Calculate order total
       let subtotal = 0;
       const orderItems = items.map(item => {
-        const price = item.products.discount_price || item.products.price;
+        const price = item.products.price;
         const itemSubtotal = price * item.quantity;
         subtotal += itemSubtotal;
 

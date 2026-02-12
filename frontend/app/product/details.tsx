@@ -48,6 +48,7 @@ export default function ProductDetails() {
     sellerId: "",
     storeId: "",
     image: params.image as string,
+    storeImage: null as string | null,
   });
 
   useEffect(() => {
@@ -65,6 +66,7 @@ export default function ProductDetails() {
             sellerName: res.product.store?.name || "Verified Seller",
             sellerId: res.product.store?.ownerId || "",
             storeId: res.product.store?._id || res.product.businessId || "",
+            storeImage: res.product.store?.logo || null,
           }));
         }
       }).catch(err => console.log("Error loading product details", err));
@@ -195,7 +197,10 @@ export default function ProductDetails() {
 
             <View style={styles.sellerContainer}>
               <View style={styles.sellerInfo}>
-                <Image source={{ uri: 'https://randomuser.me/api/portraits/men/32.jpg' }} style={styles.sellerAvatar} />
+                <Image
+                  source={{ uri: product.storeImage || 'https://via.placeholder.com/100?text=Store' }}
+                  style={styles.sellerAvatar}
+                />
                 <View>
                   <Text style={styles.sellerLabel}>Sold by</Text>
                   <Text style={styles.sellerName}>{product.sellerName}</Text>
