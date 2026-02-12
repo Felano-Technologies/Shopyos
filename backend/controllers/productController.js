@@ -109,11 +109,12 @@ const createProduct = async (req, res) => {
 const getStoreProducts = async (req, res) => {
   try {
     const { storeId } = req.params;
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit = 20, offset = 0, includeInactive } = req.query;
 
     const products = await repositories.products.findByStore(storeId, {
       limit: parseInt(limit),
       offset: parseInt(offset),
+      includeInactive: includeInactive === 'true',
       select: '*, inventory(quantity), product_images(image_url)'
     });
 
@@ -129,7 +130,8 @@ const getStoreProducts = async (req, res) => {
       sku: p.sku,
       stockQuantity: p.inventory ? p.inventory.quantity : 0,
       createdAt: p.created_at,
-      updatedAt: p.updated_at
+      updatedAt: p.updated_at,
+      isActive: p.is_active
     }));
 
     res.status(200).json({

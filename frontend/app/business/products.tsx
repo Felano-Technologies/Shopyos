@@ -49,7 +49,7 @@ const ProductsScreen = () => {
     try {
       const businessId = await SecureStore.getItemAsync('currentBusinessId');
       if (businessId) {
-        const data = await getStoreProducts(businessId);
+        const data = await getStoreProducts(businessId, { includeInactive: true });
         if (data.success) {
           setProducts(data.products.map((p: any) => ({
             id: p._id,

@@ -412,9 +412,9 @@ export const cancelOrder = async (orderId: string, reason?: string) => {
 };
 
 // Get store products
-export const getStoreProducts = async (storeId: string) => {
+export const getStoreProducts = async (storeId: string, params: any = {}) => {
   try {
-    const response = await api.get(`/products/store/${storeId}`);
+    const response = await api.get(`/products/store/${storeId}`, { params });
     return response.data;
   } catch (error: any) {
     console.error("Error fetching store products", error);
