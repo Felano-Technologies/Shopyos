@@ -17,7 +17,11 @@ class ProductRepository extends BaseRepository {
   async findByStore(storeId, options = {}) {
     const { includeInactive = false, limit = 50, offset = 0 } = options;
 
-    const where = { store_id: storeId };
+    const where = {
+      store_id: storeId,
+      deleted_at: null // Filter out soft-deleted products
+    };
+
     if (!includeInactive) {
       where.is_active = true;
     }
