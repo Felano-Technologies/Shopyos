@@ -581,7 +581,7 @@ const getBusinessDashboard = async (req, res) => {
 
     // Fetch counts and recent orders in parallel
     const [totalProducts, totalOrders, pendingOrders, recentOrders, weeklyOrders] = await Promise.all([
-      repositories.products.count({ store_id: businessId, is_active: true }),
+      repositories.products.count({ store_id: businessId, is_active: true, deleted_at: null }),
       repositories.orders.count({ store_id: businessId }),
       repositories.orders.count({ store_id: businessId, status: 'pending' }),
       repositories.orders.getStoreOrders(businessId, { limit: 5 }), // Recent 5 orders
