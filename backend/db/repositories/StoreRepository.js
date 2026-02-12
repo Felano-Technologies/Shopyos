@@ -22,7 +22,7 @@ class StoreRepository extends BaseRepository {
    * @param {string} ownerId
    * @returns {Promise<Array>}
    */
-  async findByOwner(ownerId) {
+  async findByOwnerId(ownerId) {
     return this.findAll({
       where: { owner_id: ownerId, is_active: true },
       orderBy: 'created_at',
