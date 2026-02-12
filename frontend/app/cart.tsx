@@ -7,7 +7,7 @@ import { useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from './context/CartContext';
-import { createOrder } from '@/services/api';
+import { createOrder, addToCart as apiAddToCart, clearBackendCart } from '@/services/api';
 const { width, height } = Dimensions.get('window');
 
 export default function CartScreen() {
@@ -89,11 +89,23 @@ export default function CartScreen() {
 
     try {
       setIsOrdering(true);
+
+      // Sync local cart to backend for order processing
+      try {
+        await clearBackendCart().catch(() => { }); // Ignore clear error if cart empty
+        for (const item of cartItems) {
+          await apiAddToCart(item.id, item.quantity);
+        }
+      } catch (err) {
+        console.log("Error syncing cart", err);
+        throw new Error("Failed to prepare cart for checkout");
+      }
+
       const res = await createOrder({
-        deliveryAddress,
+        deliveryAddress: deliveryAddress,
         deliveryCity: 'Accra',
         deliveryCountry: 'Ghana',
-        deliveryPhone,
+        deliveryPhone: deliveryPhone,
         paymentMethod
       });
 

@@ -270,6 +270,28 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
   }
 };
 
+// --- Cart API ---
+
+export const addToCart = async (productId: string, quantity: number) => {
+  try {
+    const response = await api.post('/cart/add', { productId, quantity });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error adding to cart:", error);
+    throw error;
+  }
+};
+
+export const clearBackendCart = async () => {
+  try {
+    const response = await api.delete('/cart/clear');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error clearing backend cart:", error);
+    throw error;
+  }
+};
+
 export const createOrder = async (orderData: {
   deliveryAddress: string;
   deliveryCity: string;

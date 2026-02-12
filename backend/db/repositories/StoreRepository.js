@@ -1,5 +1,4 @@
 // db/repositories/StoreRepository.js
-// Data access layer for stores table
 
 const BaseRepository = require('./BaseRepository');
 
