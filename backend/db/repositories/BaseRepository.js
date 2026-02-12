@@ -175,7 +175,11 @@ class BaseRepository {
       .select('*', { count: 'exact', head: true });
 
     Object.entries(where).forEach(([key, value]) => {
-      query = query.eq(key, value);
+      if (value === null) {
+        query = query.is(key, null);
+      } else {
+        query = query.eq(key, value);
+      }
     });
 
     const { count, error } = await query;
