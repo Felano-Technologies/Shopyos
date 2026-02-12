@@ -1,9 +1,8 @@
-const BaseController = require('./baseController');
 const repositories = require('../db/repositories');
 
-class CategoryController extends BaseController {
+class CategoryController {
     constructor() {
-        super(repositories.products); // Using product repo as base since it has DB access
+        this.repo = repositories.products; // Using product repo as base since it has DB access
     }
 
     // @desc    Get all categories with management info
