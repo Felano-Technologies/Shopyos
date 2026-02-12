@@ -45,7 +45,10 @@ class CartRepository extends BaseRepository {
             title,
             description,
             price,
-            primary_image_url,
+            product_images (
+              image_url,
+              is_primary
+            ),
             store_id,
             stores (
               store_name,
