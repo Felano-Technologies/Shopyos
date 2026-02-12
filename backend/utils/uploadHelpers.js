@@ -29,10 +29,10 @@ const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
   try {
     // Convert buffer to data URI
     const dataURI = bufferToDataURI(file.buffer, file.mimetype);
-    
+
     // Upload to Cloudinary
     const result = await uploadImage(dataURI, folder);
-    
+
     return {
       url: result.url,
       public_id: result.public_id,
@@ -78,14 +78,14 @@ const replaceImage = async (oldPublicId, newFile, folder = 'shopyos') => {
   try {
     // Upload new image first
     const uploadResult = await uploadFileToCloudinary(newFile, folder);
-    
+
     // Delete old image if upload successful
     if (oldPublicId) {
-      await deleteImage(oldPublicId).catch(err => 
+      await deleteImage(oldPublicId).catch(err =>
         console.warn('Failed to delete old image:', err.message)
       );
     }
-    
+
     return uploadResult;
   } catch (error) {
     console.error('Replace image error:', error);
@@ -130,7 +130,7 @@ const validateImage = (file, maxSize = 5 * 1024 * 1024) => {
  */
 const extractPublicId = (url) => {
   if (!url) return null;
-  
+
   try {
     // URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{version}/{public_id}.{format}
     const matches = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/);
@@ -147,5 +147,6 @@ module.exports = {
   uploadMultipleFilesToCloudinary,
   replaceImage,
   validateImage,
-  extractPublicId
+  extractPublicId,
+  deleteImage
 };

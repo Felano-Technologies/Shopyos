@@ -46,6 +46,7 @@ export default function ProductDetails() {
     sellerName: "Loading...",
     sellerPhone: "",
     sellerId: "",
+    storeId: "",
     image: params.image as string,
   });
 
@@ -63,6 +64,7 @@ export default function ProductDetails() {
             image: res.product.images?.[0] || prev.image,
             sellerName: res.product.store?.name || "Verified Seller",
             sellerId: res.product.store?.ownerId || "",
+            storeId: res.product.store?._id || res.product.businessId || "",
           }));
         }
       }).catch(err => console.log("Error loading product details", err));
@@ -199,7 +201,19 @@ export default function ProductDetails() {
                   <Text style={styles.sellerName}>{product.sellerName}</Text>
                 </View>
               </View>
-              <TouchableOpacity style={styles.visitBtn}>
+              <TouchableOpacity
+                style={styles.visitBtn}
+                onPress={() => {
+                  if (product.storeId) {
+                    router.push({
+                      pathname: '/stores/details',
+                      params: { id: product.storeId }
+                    });
+                  } else {
+                    Alert.alert("Store Info", "Store information not available");
+                  }
+                }}
+              >
                 <Text style={styles.visitText}>Visit Store</Text>
               </TouchableOpacity>
             </View>

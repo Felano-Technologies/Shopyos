@@ -154,6 +154,15 @@ const getProductById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Check if ID is valid UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(404).json({
+        success: false,
+        error: 'Product not found'
+      });
+    }
+
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
@@ -164,7 +173,12 @@ const getProductById = async (req, res) => {
     }
 
     // Increment view count
-    await repositories.products.incrementViewCount(id);
+    try {
+      await repositories.products.incrementViewCount(id);
+    } catch (err) {
+      // Ignore errors for view count increment (it's non-critical)
+      console.warn('Failed to increment view count:', err.message);
+    }
 
     // Format response
     const formattedProduct = {
@@ -202,6 +216,50 @@ const getProductById = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Server error while fetching product'
+    });
+  }
+};
+
+// @desc    Get all categories
+// @route   GET /api/products/categories
+// @access  Public
+const getCategories = async (req, res) => {
+  try {
+    // This could be fetched from DB or static list
+    // For now, return static list or query distinct categories
+    // querying distinct categories from products is better
+    const { data, error } = await repositories.products.db
+      .from('products')
+      .select('category')
+      .eq('is_active', true)
+      .not('category', 'is', null);
+
+    if (error) throw error;
+
+    // Get unique categories and count
+    const categoriesMap = {};
+    data.forEach(p => {
+      const cat = p.category;
+      if (cat) {
+        categoriesMap[cat] = (categoriesMap[cat] || 0) + 1;
+      }
+    });
+
+    const categories = Object.keys(categoriesMap).map(cat => ({
+      id: cat.toLowerCase().replace(/\s+/g, '-'),
+      name: cat,
+      count: categoriesMap[cat]
+    }));
+
+    res.status(200).json({
+      success: true,
+      categories
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch categories'
     });
   }
 };
@@ -505,12 +563,36 @@ const searchProducts = async (req, res) => {
       offset = 0
     } = req.query;
 
+    // Parse sort options
+    let sortColumn = 'created_at';
+    let sortAscending = false;
+
+    if (sortBy === 'price_asc') {
+      sortColumn = 'price';
+      sortAscending = true;
+    } else if (sortBy === 'price_desc') {
+      sortColumn = 'price';
+      sortAscending = false;
+    } else if (sortBy === 'rating') {
+      sortColumn = 'average_rating';
+      sortAscending = false;
+    } else if (sortBy === 'newest') {
+      sortColumn = 'created_at';
+      sortAscending = false;
+    } else if (sortBy === 'relevance' && !query) {
+      // If relevance but no query, fallback to newest
+      sortColumn = 'created_at';
+      sortAscending = false;
+    }
+    // If relevance and query exists, repo handles it (usually) or defaults to rank
+
     const products = await repositories.products.search({
       query,
       category,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-      sortBy,
+      sortBy: sortColumn,
+      ascending: sortAscending,
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
@@ -555,5 +637,6 @@ module.exports = {
   deleteProduct,
   uploadProductImages,
   deleteProductImage,
-  searchProducts
+  searchProducts,
+  getCategories
 };

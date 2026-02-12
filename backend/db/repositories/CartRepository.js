@@ -53,8 +53,7 @@ class CartRepository extends BaseRepository {
               logo_url
             ),
             inventory (
-              stock_quantity,
-              stock_status
+              quantity
             )
           )
         )
@@ -251,7 +250,7 @@ class CartRepository extends BaseRepository {
    */
   async getCartTotal(userId) {
     const cartWithItems = await this.getCartWithItems(userId);
-    
+
     if (!cartWithItems || !cartWithItems.cart_items || cartWithItems.cart_items.length === 0) {
       return {
         subtotal: 0,

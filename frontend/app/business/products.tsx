@@ -36,6 +36,7 @@ const ProductsScreen = () => {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
+  const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(true);
 
@@ -56,7 +57,8 @@ const ProductsScreen = () => {
             price: p.price.toString(),
             stock: p.stockQuantity?.toString() || '0',
             image: p.images && p.images.length > 0 ? p.images[0] : null,
-            isActive: p.isActive ?? p.is_active ?? true
+            isActive: p.isActive ?? p.is_active ?? true,
+            description: p.description || ''
           })));
         }
       }
@@ -85,6 +87,7 @@ const ProductsScreen = () => {
     setName('');
     setPrice('');
     setStock('');
+    setDescription('');
     setImage(null);
     setEditingId(null);
     setIsActive(true);
@@ -111,7 +114,7 @@ const ProductsScreen = () => {
         name: name,
         price: parseFloat(price),
         stockQuantity: parseInt(stock),
-        description: 'Product Description',
+        description: description,
         isActive: isActive
       };
 
@@ -151,6 +154,7 @@ const ProductsScreen = () => {
     setName(item.name);
     setPrice(item.price);
     setStock(item.stock);
+    setDescription(item.description || '');
     setImage(item.image);
     setEditingId(item.id);
     setIsActive(item.isActive);
@@ -287,6 +291,20 @@ const ProductsScreen = () => {
                       placeholder="Product Name"
                       placeholderTextColor="#94A3B8"
                       style={styles.textInput}
+                      editable={!isSubmitting}
+                    />
+                  </View>
+
+                  <View style={[styles.inputWrapper, { height: 80, alignItems: 'flex-start', paddingTop: 10 }]}>
+                    <Feather name="file-text" size={16} color="#64748B" style={[styles.inputIcon, { marginTop: 4 }]} />
+                    <TextInput
+                      value={description}
+                      onChangeText={setDescription}
+                      placeholder="Description"
+                      placeholderTextColor="#94A3B8"
+                      style={[styles.textInput, { height: '100%', textAlignVertical: 'top' }]}
+                      multiline
+                      numberOfLines={3}
                       editable={!isSubmitting}
                     />
                   </View>
