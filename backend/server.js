@@ -27,6 +27,7 @@ const favoriteRoutes = require('./routes/favoriteRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const advertisingRoutes = require('./routes/advertisingRoutes');
 const payoutRoutes = require('./routes/payoutRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -145,6 +146,7 @@ app.use('/api/v1/products', productRoutes);
 app.use('/api/v1/upload', uploadRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', orderRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/messaging', messagingRoutes);
 app.use('/api/v1/deliveries', deliveryRoutes);
 app.use('/api/v1/reviews', reviewRoutes);

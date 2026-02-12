@@ -411,18 +411,6 @@ export const cancelOrder = async (orderId: string, reason?: string) => {
   }
 };
 
-export const verifyPayment = async (orderId: string, status: 'success' | 'failed' = 'success') => {
-  try {
-    const response = await api.post(`/orders/${orderId}/verify-payment`, { status });
-    return response.data;
-  } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Payment verification failed');
-    }
-    throw new Error(error.message || 'Network error');
-  }
-};
-
 // Get store products
 export const getStoreProducts = async (storeId: string) => {
   try {
@@ -879,12 +867,74 @@ export const getProductReviews = async (productId: string) => {
   }
 };
 
-export const getStoreReviews = async (storeId: string) => {
+// --- Admin API ---
+export const getAdminDashboard = async () => {
   try {
-    const response = await api.get(`/reviews/store/${storeId}`);
+    const response = await api.get('/admin/dashboard');
     return response.data;
-  } catch (error: any) {
-    console.error("Error fetching store reviews:", error);
+  } catch (error) {
+    console.error("Error fetching admin dashboard:", error);
+    throw error;
+  }
+};
+
+export const getAdminUsers = async (params = {}) => {
+  try {
+    const response = await api.get('/admin/users', { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching admin users:", error);
+    throw error;
+  }
+};
+
+export const getAdminStores = async (params = {}) => {
+  try {
+    const response = await api.get('/admin/stores', { params });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching admin stores:", error);
+    throw error;
+  }
+};
+
+export const getAdminPayouts = async (status?: string) => {
+  try {
+    const response = await api.get('/admin/payouts', { params: { status } });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching admin payouts:", error);
+    throw error;
+  }
+};
+
+export const updateAdminPayoutStatus = async (payoutId: string, status: 'completed' | 'rejected', notes?: string) => {
+  try {
+    const response = await api.put(`/admin/payouts/${payoutId}`, { status, notes });
+    return response.data;
+  } catch (error) {
+    console.error("Error updating admin payout status:", error);
+    throw error;
+  }
+};
+
+// --- Payments API ---
+export const initializePayment = async (orderId: string, email: string, amount: number) => {
+  try {
+    const response = await api.post('/payments/initialize', { orderId, email, amount });
+    return response.data;
+  } catch (error) {
+    console.error("Error initializing payment:", error);
+    throw error;
+  }
+};
+
+export const verifyPayment = async (reference: string) => {
+  try {
+    const response = await api.get(`/payments/verify/${reference}`);
+    return response.data;
+  } catch (error) {
+    console.error("Error verifying payment:", error);
     throw error;
   }
 };

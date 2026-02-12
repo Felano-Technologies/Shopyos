@@ -61,10 +61,17 @@ export default function ActiveOrderScreen() {
   const handleProgress = async () => {
     try {
       setUpdating(true);
-      if (step === 1) {
+      if (step === 0) {
+        // Arrived at Restaurant - optional status update if backend supports 'at_pickup'
+        setStep(1);
+      } else if (step === 1) {
         // Confirm Pickup -> Move to step 2 & update backend
         await updateDeliveryStatus(deliveryId, 'picked_up');
         setStep(2);
+      } else if (step === 2) {
+        // Arrived at Customer / On the way -> Update to in_transit
+        await updateDeliveryStatus(deliveryId, 'in_transit');
+        setStep(3);
       } else if (step === 3) {
         // Complete Delivery
         await updateDeliveryStatus(deliveryId, 'delivered');
@@ -72,8 +79,6 @@ export default function ActiveOrderScreen() {
           { text: "OK", onPress: () => router.replace('/driver/dashboard') }
         ]);
         return;
-      } else {
-        setStep(step + 1);
       }
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to update status");

@@ -11,11 +11,10 @@ const {
   getAllStores,
   verifyStore,
   updateStoreStatus,
-  getAllReports,
-  getReportDetails,
-  updateReportStatus,
   getAuditLogs,
-  getEntityHistory
+  getEntityHistory,
+  getAllPayouts,
+  updatePayoutStatus
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -86,5 +85,16 @@ router.get('/audit-logs', getAuditLogs);
 // @desc    Get entity audit trail
 // @access  Admin
 router.get('/audit-logs/:entityType/:entityId', getEntityHistory);
+
+// Payout Management
+// @route   GET /api/admin/payouts
+// @desc    Get all payout requests
+// @access  Admin
+router.get('/payouts', getAllPayouts);
+
+// @route   PUT /api/admin/payouts/:payoutId
+// @desc    Update payout status (approve/reject)
+// @access  Admin
+router.put('/payouts/:payoutId', updatePayoutStatus);
 
 module.exports = router;

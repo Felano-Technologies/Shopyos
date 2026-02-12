@@ -29,6 +29,7 @@ class OrderRepository extends BaseRepository {
         *,
         buyer:buyer_id (
           id,
+          email,
           user_profiles (full_name, phone)
         ),
         store:store_id (

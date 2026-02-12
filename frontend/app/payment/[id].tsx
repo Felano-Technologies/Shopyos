@@ -1,52 +1,115 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Animated, Dimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Animated, Dimensions, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
 import { StatusBar } from 'expo-status-bar';
-import { verifyPayment } from '@/services/api';
+import { initializePayment, verifyPayment, getUserData } from '@/services/api';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function PaymentProcessingScreen() {
     const { id, method } = useLocalSearchParams();
     const router = useRouter();
-    const [status, setStatus] = useState<'processing' | 'verifying' | 'success' | 'failed'>('processing');
+    const [status, setStatus] = useState<'initializing' | 'waiting' | 'verifying' | 'success' | 'failed'>('initializing');
     const [progress] = useState(new Animated.Value(0));
+    const [paymentRef, setPaymentRef] = useState<string | null>(null);
+    const appState = useRef(AppState.currentState);
 
-    useEffect(() => {
-        // Phase 1: Simulated Gateway Processing (3 seconds)
-        Animated.timing(progress, {
-            toValue: 1,
-            duration: 3500,
-            useNativeDriver: false,
-        }).start();
+    const startAnimation = () => {
+        progress.setValue(0);
+        Animated.loop(
+            Animated.timing(progress, {
+                toValue: 1,
+                duration: 2000,
+                useNativeDriver: false,
+            })
+        ).start();
+    };
 
-        const timer = setTimeout(() => {
-            setStatus('verifying');
-            handleVerify();
-        }, 4000);
-
-        return () => clearTimeout(timer);
-    }, []);
-
-    const handleVerify = async () => {
+    const handleInitialize = async () => {
         try {
-            const res = await verifyPayment(id as string);
-            if (res.success) {
-                setStatus('success');
+            setStatus('initializing');
+            startAnimation();
+
+            // 1. Get user email (usually should be in a context)
+            const userRes = await getUserData();
+            if (!userRes?.user?.email) throw new Error("User email not found");
+
+            // 2. Initialize with backend (use a fixed amount or fetch from order)
+            // For now, we'll assume the backend can fetch order total if we send it
+            // but let's send a dummy amount if we don't have it, or fetch it first.
+            // Better: Backend should handle amount fetching from orderId.
+            // I'll update the backend controller to fetch amount if not provided.
+            const initRes = await initializePayment(id as string, userRes.user.email, 1.0); // Amount will be overridden by backend or handled there
+
+            if (initRes.success) {
+                setPaymentRef(initRes.data.reference);
+                setStatus('waiting');
+
+                // 3. Open Paystack
+                const result = await WebBrowser.openBrowserAsync(initRes.data.authorization_url);
+
+                // 4. When browser closes, check status
+                if (result.type === 'cancel' || result.type === 'dismiss') {
+                    handleVerify(initRes.data.reference);
+                }
             } else {
                 setStatus('failed');
             }
         } catch (e) {
-            console.error(e);
+            console.error("Payment Init Error:", e);
             setStatus('failed');
         }
     };
 
+    const handleVerify = async (ref: string) => {
+        try {
+            setStatus('verifying');
+            let attempts = 0;
+            const maxAttempts = 5;
+
+            const check = async () => {
+                const res = await verifyPayment(ref);
+                if (res.success) {
+                    setStatus('success');
+                } else if (attempts < maxAttempts) {
+                    attempts++;
+                    setTimeout(check, 3000); // Wait 3s and try again
+                } else {
+                    setStatus('failed');
+                }
+            };
+
+            await check();
+        } catch (e) {
+            console.error("Verification Error:", e);
+            setStatus('failed');
+        }
+    };
+
+    // Listen for AppState changes (if user returns to app)
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+            if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+                if (status === 'waiting' && paymentRef) {
+                    handleVerify(paymentRef);
+                }
+            }
+            appState.current = nextAppState;
+        });
+
+        handleInitialize();
+
+        return () => {
+            subscription.remove();
+        };
+    }, []);
+
     const getProcessingText = () => {
-        if (status === 'processing') return `Connecting to ${method === 'momo' ? 'Momo Provider' : 'Bank Gateway'}...`;
-        if (status === 'verifying') return "Confirming transaction status...";
+        if (status === 'initializing') return "Initializing secure payment...";
+        if (status === 'waiting') return "Please complete payment in the browser";
+        if (status === 'verifying') return "Verifying transaction with Paystack...";
         if (status === 'success') return "Payment Confirmed!";
         return "Transaction Failed";
     };
@@ -66,14 +129,14 @@ export default function PaymentProcessingScreen() {
                         <View style={styles.successCircle}>
                             <Ionicons name="checkmark" size={60} color="#FFF" />
                         </View>
-                        <Text style={styles.title}>Woohoo!</Text>
-                        <Text style={styles.subtitle}>Your payment was successful and your order is being prepared.</Text>
+                        <Text style={styles.title}>Payment Success!</Text>
+                        <Text style={styles.subtitle}>Your transaction was successful. We are now processing your order.</Text>
 
                         <TouchableOpacity
                             style={styles.doneBtn}
                             onPress={() => router.replace(`/order/${id}` as any)}
                         >
-                            <Text style={styles.doneBtnText}>Track Order</Text>
+                            <Text style={styles.doneBtnText}>Track My Order</Text>
                         </TouchableOpacity>
                     </View>
                 ) : status === 'failed' ? (
@@ -81,21 +144,21 @@ export default function PaymentProcessingScreen() {
                         <View style={[styles.successCircle, { backgroundColor: '#EF4444' }]}>
                             <Ionicons name="close" size={60} color="#FFF" />
                         </View>
-                        <Text style={styles.title}>Oops!</Text>
-                        <Text style={styles.subtitle}>Something went wrong with your transaction. Please try again.</Text>
+                        <Text style={styles.title}>Payment Failed</Text>
+                        <Text style={styles.subtitle}>We couldn't verify your payment. If you were debited, please contact support.</Text>
 
                         <TouchableOpacity
                             style={[styles.doneBtn, { backgroundColor: '#0C1559' }]}
                             onPress={() => router.back()}
                         >
-                            <Text style={styles.doneBtnText}>Try Again</Text>
+                            <Text style={styles.doneBtnText}>Return to Cart</Text>
                         </TouchableOpacity>
                     </View>
                 ) : (
                     <View style={styles.center}>
                         <View style={styles.iconContainer}>
                             <MaterialCommunityIcons
-                                name={method === 'momo' ? "cellphone-nfc" : "credit-card-outline"}
+                                name={"credit-card-outline"}
                                 size={50}
                                 color="#0C1559"
                             />
@@ -106,7 +169,13 @@ export default function PaymentProcessingScreen() {
                             <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
                         </View>
 
-                        <Text style={styles.info}>Please do not close the app or refresh the page.</Text>
+                        {(status === 'waiting' || status === 'verifying') && (
+                            <TouchableOpacity style={styles.retryBtn} onPress={() => paymentRef && handleVerify(paymentRef)}>
+                                <Text style={styles.retryText}>I've finished paying</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <Text style={styles.info}>Secure transaction powered by Paystack</Text>
                     </View>
                 )}
             </View>
@@ -128,5 +197,7 @@ const styles = StyleSheet.create({
     title: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 10 },
     subtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginBottom: 30, lineHeight: 20 },
     doneBtn: { backgroundColor: '#84cc16', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 20, width: '100%', alignItems: 'center' },
-    doneBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' }
+    doneBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+    retryBtn: { marginTop: 10, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: '#F1F5F9', borderRadius: 10, marginBottom: 20 },
+    retryText: { color: '#0C1559', fontSize: 13, fontFamily: 'Montserrat-Bold' }
 });

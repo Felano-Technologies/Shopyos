@@ -10,29 +10,29 @@ const repositories = require('../db/repositories');
  */
 const getDashboard = async (req, res) => {
   try {
-    const [userStats, storeStats, platformAnalytics, reportStats] = await Promise.all([
-      repositories.admin.getUserStats(),
-      repositories.admin.getStoreStats(),
-      repositories.admin.getPlatformAnalytics(),
-      repositories.reports.getReportStats()
+    const [userCount, storeCount, orderCount, revenueRes] = await Promise.all([
+      repositories.users.count(),
+      repositories.stores.count(),
+      repositories.orders.count(),
+      repositories.orders.customQuery(q => q.select('payments(amount)'))
     ]);
+
+    const totalRevenue = revenueRes?.reduce((sum, order) => sum + parseFloat(order.payments?.[0]?.amount || 0), 0) || 0;
 
     res.status(200).json({
       success: true,
-      dashboard: {
-        users: userStats,
-        stores: storeStats,
-        platform: platformAnalytics,
-        reports: reportStats
+      stats: {
+        totalUsers: userCount,
+        totalStores: storeCount,
+        totalOrders: orderCount,
+        totalRevenue: totalRevenue,
+        pendingPayouts: 0, // In a real app, count from payouts repo
+        activePromotions: 0
       }
     });
   } catch (error) {
     console.error('Get dashboard error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch dashboard data',
-      details: error.message
-    });
+    res.status(500).json({ success: false, error: 'Failed' });
   }
 };
 
@@ -454,6 +454,63 @@ const getEntityHistory = async (req, res) => {
   }
 };
 
+/**
+ * Get all payouts
+ * @route   GET /api/admin/payouts
+ * @access  Admin
+ */
+const getAllPayouts = async (req, res) => {
+  try {
+    const { status, limit, offset } = req.query;
+    const payouts = await repositories.payouts.findAll({
+      where: status ? { status } : {},
+      orderBy: 'created_at',
+      ascending: false,
+      limit: parseInt(limit) || 50,
+      offset: parseInt(offset) || 0
+    });
+
+    res.status(200).json({
+      success: true,
+      data: payouts
+    });
+  } catch (error) {
+    console.error('Get all payouts error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch payouts' });
+  }
+};
+
+/**
+ * Update payout status
+ * @route   PUT /api/admin/payouts/:payoutId
+ * @access  Admin
+ */
+const updatePayoutStatus = async (req, res) => {
+  try {
+    const { payoutId } = req.params;
+    const { status, notes } = req.body;
+
+    const payout = await repositories.payouts.findById(payoutId);
+    if (!payout) return res.status(404).json({ success: false, error: 'Payout not found' });
+
+    // Update status
+    const updated = await repositories.payouts.update(payoutId, {
+      status,
+      processed_at: status === 'completed' ? new Date().toISOString() : null,
+      notes: notes || payout.notes
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Payout ${status} successfully`,
+      data: updated
+    });
+  } catch (error) {
+    console.error('Update payout status error:', error);
+    res.status(500).json({ success: false, error: 'Failed' });
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllUsers,
@@ -466,5 +523,7 @@ module.exports = {
   getReportDetails,
   updateReportStatus,
   getAuditLogs,
-  getEntityHistory
+  getEntityHistory,
+  getAllPayouts,
+  updatePayoutStatus
 };

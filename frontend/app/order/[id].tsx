@@ -153,7 +153,40 @@ const OrderDetailsScreen = () => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                {/* Live Tracking Map Placeholder / Visual Progress */}
+                {/* --- TRACKING PROGRESS --- */}
+                <View style={styles.progressContainer}>
+                    {[
+                        { id: 'pending', label: 'Ordered', icon: 'cart-outline' },
+                        { id: 'processing', label: 'Preparing', icon: 'sync-outline' },
+                        { id: 'ready_for_pickup', label: 'Ready', icon: 'storefront-outline' },
+                        { id: 'in_transit', label: 'On Way', icon: 'bicycle-outline' },
+                        { id: 'delivered', label: 'Arrived', icon: 'checkmark-done-outline' }
+                    ].map((step, index, array) => {
+                        const statuses = ['pending', 'paid', 'processing', 'ready_for_pickup', 'picked_up', 'in_transit', 'delivered'];
+                        const currentIdx = statuses.indexOf(order.status.toLowerCase());
+                        const stepIdx = statuses.indexOf(step.id);
+                        const isCompleted = currentIdx >= stepIdx;
+                        const isCurrent = order.status.toLowerCase() === step.id || (step.id === 'in_transit' && order.status.toLowerCase() === 'picked_up');
+
+                        return (
+                            <View key={step.id} style={styles.progressStep}>
+                                <View style={[styles.stepIconBg, isCompleted && styles.stepIconActive, isCurrent && styles.stepIconCurrent]}>
+                                    <Ionicons
+                                        name={step.icon as any}
+                                        size={18}
+                                        color={isCompleted ? '#FFF' : '#94A3B8'}
+                                    />
+                                </View>
+                                <Text style={[styles.stepLabel, isCompleted && styles.stepLabelActive]}>{step.label}</Text>
+                                {index < array.length - 1 && (
+                                    <View style={[styles.stepConnector, isCompleted && styles.stepConnectorActive]} />
+                                )}
+                            </View>
+                        );
+                    })}
+                </View>
+
+                {/* Live Tracking Map Placeholder */}
                 {(['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase())) && (
                     <View style={styles.liveTrackingCard}>
                         <View style={styles.mapPlaceholder}>
@@ -164,7 +197,7 @@ const OrderDetailsScreen = () => {
                             <View style={styles.mapOverlay}>
                                 <LinearGradient colors={['rgba(255,255,255,0.9)', 'transparent']} style={styles.mapGradient}>
                                     <View style={styles.trackingStatusRow}>
-                                        <View style={styles.liveDot} />
+                                        <View style={[styles.liveDot, { backgroundColor: '#EF4444' }]} />
                                         <Text style={styles.liveTrackingText}>LIVE TRACKING</Text>
                                     </View>
                                 </LinearGradient>
@@ -339,6 +372,17 @@ const styles = StyleSheet.create({
     scrollContent: { padding: 20, paddingBottom: 50 },
     section: { marginBottom: 25 },
     sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 12, textTransform: 'uppercase' },
+
+    // Progress
+    progressContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, paddingHorizontal: 5 },
+    progressStep: { alignItems: 'center', flex: 1 },
+    stepIconBg: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 2 },
+    stepIconActive: { backgroundColor: '#84cc16' },
+    stepIconCurrent: { backgroundColor: '#0C1559', borderWidth: 3, borderColor: '#BFDBFE' },
+    stepLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 8 },
+    stepLabelActive: { color: '#0F172A', fontFamily: 'Montserrat-Bold' },
+    stepConnector: { position: 'absolute', top: 18, left: '50%', right: '-50%', height: 2, backgroundColor: '#F1F5F9', zIndex: 1 },
+    stepConnectorActive: { backgroundColor: '#84cc16' },
 
     // Live Tracking
     liveTrackingCard: { borderRadius: 24, overflow: 'hidden', marginBottom: 25, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 10 },
