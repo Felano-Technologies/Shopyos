@@ -275,6 +275,8 @@ const updateProduct = async (req, res) => {
     const userId = req.user.id;
     const updateData = req.body;
 
+    console.log(`Updating product ${id} with data:`, JSON.stringify(updateData, null, 2));
+
     // Get product and verify ownership
     const product = await repositories.products.getProductDetails(id);
 
@@ -310,7 +312,13 @@ const updateProduct = async (req, res) => {
         ? updateData.tags
         : updateData.tags.split(',').map(t => t.trim());
     }
-    if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;
+
+    // Handle isActive - support boolean and string
+    if (updateData.isActive !== undefined) {
+      mappedData.is_active = String(updateData.isActive) === 'true';
+    }
+
+    console.log('Mapped update data:', mappedData);
 
     // Update product
     const updated = await repositories.products.update(id, mappedData);
@@ -333,7 +341,8 @@ const updateProduct = async (req, res) => {
         description: updated.description,
         price: updated.price,
         category: updated.category,
-        updatedAt: updated.updated_at
+        updatedAt: updated.updated_at,
+        isActive: updated.is_active
       }
     });
 
@@ -350,6 +359,7 @@ const updateProduct = async (req, res) => {
 // @route   DELETE /api/products/:id
 // @access  Private (Seller)
 const deleteProduct = async (req, res) => {
+  console.log(`Attempting to delete product: ${req.params.id}`);
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -358,6 +368,7 @@ const deleteProduct = async (req, res) => {
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
+      console.log('Product not found for deletion');
       return res.status(404).json({
         success: false,
         error: 'Product not found'
@@ -367,6 +378,7 @@ const deleteProduct = async (req, res) => {
     // Verify store ownership
     const store = await repositories.stores.findById(product.store_id);
     if (store.owner_id !== userId) {
+      console.log(`User ${userId} not authorized to delete product owned by ${store.owner_id}`);
       return res.status(403).json({
         success: false,
         error: 'Not authorized to delete this product'
