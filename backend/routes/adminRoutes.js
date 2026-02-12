@@ -14,7 +14,10 @@ const {
   getAuditLogs,
   getEntityHistory,
   getAllPayouts,
-  updatePayoutStatus
+  updatePayoutStatus,
+  getAllReports,
+  getReportDetails,
+  updateReportStatus
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
