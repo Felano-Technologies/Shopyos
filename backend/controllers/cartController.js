@@ -47,8 +47,8 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // Add to cart
-    const cartItem = await repositories.carts.addItem(userId, productId, quantity);
+    // Add to cart (pass product price for price_at_add column)
+    const cartItem = await repositories.carts.addItem(userId, productId, quantity, product.price);
 
     // Get updated cart with items
     const cart = await repositories.carts.getCartWithItems(userId);

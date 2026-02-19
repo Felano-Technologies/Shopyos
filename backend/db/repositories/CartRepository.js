@@ -76,9 +76,10 @@ class CartRepository extends BaseRepository {
    * @param {string} userId
    * @param {string} productId
    * @param {number} quantity
+   * @param {number} price - The product price at the time of adding
    * @returns {Promise<Object>}
    */
-  async addItem(userId, productId, quantity = 1) {
+  async addItem(userId, productId, quantity = 1, price) {
     // Get or create cart
     const cart = await this.getOrCreateCart(userId);
 
@@ -99,7 +100,7 @@ class CartRepository extends BaseRepository {
       const newQuantity = existingItem.quantity + quantity;
       const { data, error } = await this.db
         .from('cart_items')
-        .update({ quantity: newQuantity })
+        .update({ quantity: newQuantity, price_at_add: price })
         .eq('id', existingItem.id)
         .select()
         .single();
@@ -113,7 +114,8 @@ class CartRepository extends BaseRepository {
         .insert({
           cart_id: cart.id,
           product_id: productId,
-          quantity
+          quantity,
+          price_at_add: price
         })
         .select()
         .single();
