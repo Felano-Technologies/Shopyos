@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,59 +12,83 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser } from '@/services/api';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('User');
   const [email, setEmail] = useState('user@example.com'); // Mock email
-  
+
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
 
-  useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const storedName = await SecureStore.getItemAsync('username');
-        if (storedName) setUsername(storedName);
-        
-        // Mocking email fetch
-        const storedEmail = await SecureStore.getItemAsync('email');
-        if (storedEmail) setEmail(storedEmail);
-      } catch (error) {
-        console.log('Error loading settings', error);
-      }
-    };
-    fetchUserData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchUserData = async () => {
+        try {
+          const userData = await getUserData();
+          if (userData) {
+            setUsername(userData.name || 'User');
+            setEmail(userData.email || '');
+          }
+
+          const prefs = await getNotificationPreferences();
+          if (prefs && prefs.success) {
+            setNotificationsEnabled(prefs.preferences.push_enabled);
+          }
+        } catch (error) {
+          console.log('Error loading settings', error);
+        }
+      };
+      fetchUserData();
+    }, [])
+  );
+
+  const handleNotificationToggle = async (value: boolean) => {
+    setNotificationsEnabled(value);
+    try {
+      await updateNotificationPreferences({ push_enabled: value });
+    } catch (error) {
+      console.error('Failed to update notification preference:', error);
+      // Revert UI on failure
+      setNotificationsEnabled(!value);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { 
-        text: 'Log Out', 
-        style: 'destructive', 
+      {
+        text: 'Log Out',
+        style: 'destructive',
         onPress: async () => {
-          await SecureStore.deleteItemAsync('userToken');
-          router.replace('/login');
-        } 
+          try {
+            await logoutUser();
+            router.replace('/login');
+          } catch (error) {
+            console.error('Logout error:', error);
+            // Even if API fails, we should clear local and redirect
+            router.replace('/login');
+          }
+        }
       },
     ]);
   };
 
-  const renderSettingItem = ({ 
-    icon, 
-    label, 
-    onPress, 
-    color = '#0F172A', 
+  const renderSettingItem = ({
+    icon,
+    label,
+    onPress,
+    color = '#0F172A',
     isDestructive = false,
-    rightElement = null 
+    rightElement = null
   }: any) => (
-    <TouchableOpacity 
-      style={styles.settingItem} 
+    <TouchableOpacity
+      style={styles.settingItem}
       onPress={onPress}
       activeOpacity={0.7}
       disabled={!!rightElement && !onPress} // Disable press if it's a switch row only
@@ -86,7 +110,7 @@ export default function SettingsScreen() {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
-      
+
       {/* --- HEADER --- */}
       <View style={styles.headerContainer}>
         <Image
@@ -96,101 +120,101 @@ export default function SettingsScreen() {
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.headerContent}>
             <Text style={styles.screenTitle}>Settings</Text>
-            
+
             {/* Profile Card */}
             <View style={styles.profileCard}>
-                <View style={styles.avatarContainer}>
-                    <Text style={styles.avatarText}>{username.charAt(0)}</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                    <Text style={styles.profileName}>{username}</Text>
-                    <Text style={styles.profileEmail}>{email}</Text>
-                </View>
-                <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')}>
-                    <Feather name="edit-2" size={16} color="#FFF" />
-                </TouchableOpacity>
+              <View style={styles.avatarContainer}>
+                <Text style={styles.avatarText}>{username.charAt(0)}</Text>
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{username}</Text>
+                <Text style={styles.profileEmail}>{email}</Text>
+              </View>
+              <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')}>
+                <Feather name="edit-2" size={16} color="#FFF" />
+              </TouchableOpacity>
             </View>
           </View>
         </SafeAreaView>
       </View>
 
       {/* --- CONTENT --- */}
-      <ScrollView 
-        style={styles.scrollView} 
+      <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        
+
         {/* Section: Account */}
         <Text style={styles.sectionHeader}>Account</Text>
         <View style={styles.sectionCard}>
-            {renderSettingItem({ 
-                icon: 'user', 
-                label: 'Personal Information', 
-                onPress: () => router.push('/settings/Account') 
-            })}
-            <View style={styles.separator} />
-            {renderSettingItem({ 
-                icon: 'credit-card', 
-                label: 'Payment Methods', 
-                onPress: () =>router.push('/settings/paymentMethods') 
-            })}
-            <View style={styles.separator} />
-            {renderSettingItem({ 
-                icon: 'list', 
-                label: 'Transaction History', 
-                onPress: () => router.push('/settings/Transactions') 
-            })}
+          {renderSettingItem({
+            icon: 'user',
+            label: 'Personal Information',
+            onPress: () => router.push('/settings/Account')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'credit-card',
+            label: 'Payment Methods',
+            onPress: () => router.push('/settings/paymentMethods')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'list',
+            label: 'Transaction History',
+            onPress: () => router.push('/settings/Transactions')
+          })}
         </View>
 
         {/* Section: Preferences */}
         <Text style={styles.sectionHeader}>Preferences</Text>
         <View style={styles.sectionCard}>
-            {renderSettingItem({ 
-                icon: 'bell', 
-                label: 'Push Notifications', 
-                onPress: null, // No navigation
-                rightElement: (
-                    <Switch
-                        value={notificationsEnabled}
-                        onValueChange={setNotificationsEnabled}
-                        trackColor={{ false: '#E2E8F0', true: '#84cc16' }}
-                        thumbColor={'#FFF'}
-                    />
-                )
-            })}
-            <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'bell',
+            label: 'Push Notifications',
+            onPress: null, // No navigation
+            rightElement: (
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={handleNotificationToggle}
+                trackColor={{ false: '#E2E8F0', true: '#84cc16' }}
+                thumbColor={'#FFF'}
+              />
+            )
+          })}
+          <View style={styles.separator} />
         </View>
 
         {/* Section: Support & Legal */}
         <Text style={styles.sectionHeader}>Support</Text>
         <View style={styles.sectionCard}>
-            {renderSettingItem({ 
-                icon: 'help-circle', 
-                label: 'Help Center', 
-                onPress: () => {} 
-            })}
-            <View style={styles.separator} />
-            {renderSettingItem({ 
-                icon: 'shield', 
-                label: 'Privacy & Security', 
-                onPress: () => router.push('/security') 
-            })}
-             <View style={styles.separator} />
-            {renderSettingItem({ 
-                icon: 'info', 
-                label: 'About App', 
-                onPress: () => {} 
-            })}
+          {renderSettingItem({
+            icon: 'help-circle',
+            label: 'Help Center',
+            onPress: () => { }
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'shield',
+            label: 'Privacy & Security',
+            onPress: () => router.push('/security')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'info',
+            label: 'About App',
+            onPress: () => { }
+          })}
         </View>
 
         {/* Logout */}
         <View style={styles.logoutContainer}>
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-                <Feather name="log-out" size={20} color="#EF4444" />
-                <Text style={styles.logoutText}>Log Out</Text>
-            </TouchableOpacity>
-            <Text style={styles.versionText}>Version 1.0.0</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <Feather name="log-out" size={20} color="#EF4444" />
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+          <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
 
         {/* Bottom Padding */}
@@ -206,7 +230,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  
+
   // Header
   headerContainer: {
     backgroundColor: '#0C1559',
@@ -236,7 +260,7 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginBottom: 20,
   },
-  
+
   // Profile Card
   profileCard: {
     flexDirection: 'row',
@@ -316,7 +340,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     marginLeft: 60, // Indent separator to align with text
   },
-  
+
   // Setting Item
   settingItem: {
     flexDirection: 'row',

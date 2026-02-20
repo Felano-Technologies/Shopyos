@@ -115,6 +115,19 @@ export const registerUser = async (name: string, email: string, password: string
   }
 };
 
+// Logout user
+export const logoutUser = async () => {
+  try {
+    await api.post('/auth/logout');
+  } catch (error) {
+    console.error('Error calling logout API:', error);
+  } finally {
+    await storage.removeItem('userToken');
+    await storage.removeItem('userId');
+  }
+};
+
+
 // Function to handle user login
 export const loginUser = async (email: string, password: string, latitude: number, longitude: number) => {
   try {
@@ -123,6 +136,16 @@ export const loginUser = async (email: string, password: string, latitude: numbe
     // Store token automatically after successful login
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
+
+      // Fetch and store the userId for chat and other features
+      try {
+        const meResponse = await api.get('/auth/me');
+        if (meResponse.data?.id) {
+          await storage.setItem('userId', meResponse.data.id);
+        }
+      } catch (meErr) {
+        console.warn('Could not fetch userId after login:', meErr);
+      }
     }
 
     // Check if user needs to select a role
@@ -158,6 +181,29 @@ export const getUserData = async () => {
     } else {
       console.error('Error fetching user data:', error.message);
       throw new Error(error.message || 'Network error fetching user data');
+    }
+  }
+};
+
+export const updateProfile = async (profileData: {
+  name?: string;
+  phone?: string;
+  avatar_url?: string;
+  country?: string;
+  state_province?: string;
+  city?: string;
+  address_line1?: string;
+}) => {
+  try {
+    const response = await api.put('/auth/profile', profileData);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Failed to update profile');
+    } else {
+      console.error('Error updating profile:', error.message);
+      throw new Error(error.message || 'Network error updating profile');
     }
   }
 };
@@ -270,6 +316,25 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
   }
 };
 
+// Submit business verification details
+export const verifyBusinessDetails = async (businessId: string, details: any) => {
+  try {
+    const response = await api.put(`/business/update/${businessId}`, {
+      ...details,
+      verificationStatus: 'pending',
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) {
+      console.error('Server Error:', error.response.data);
+      throw new Error(error.response.data.error || 'Failed to submit verification');
+    } else {
+      console.error('Error submitting verification:', error.message);
+      throw new Error(error.message || 'Network error submitting verification');
+    }
+  }
+};
+
 // --- Cart API ---
 
 export const addToCart = async (productId: string, quantity: number) => {
@@ -299,6 +364,7 @@ export const createOrder = async (orderData: {
   deliveryPhone: string;
   deliveryNotes?: string;
   paymentMethod: string;
+  paymentMethodId?: string | null;
 }) => {
   try {
     const response = await api.post('/orders/create', orderData);
@@ -683,6 +749,28 @@ export const startConversation = async (participantId: string) => {
   }
 };
 
+export const deleteMessage = async (messageId: string) => {
+  try {
+    const response = await api.delete(`/messaging/messages/${messageId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting message:", error);
+    throw error;
+  }
+};
+
+// --- Reviews API ---
+
+export const getStoreReviews = async (storeId: string) => {
+  try {
+    const response = await api.get(`/reviews/store/${storeId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching store reviews:", error);
+    throw error;
+  }
+};
+
 // --- Advertising API ---
 export const getPromotedProducts = async (category?: string) => {
   try {
@@ -796,6 +884,74 @@ export const getUnreadNotificationCount = async () => {
     throw error;
   }
 }
+
+export const getNotificationPreferences = async () => {
+  try {
+    const response = await api.get('/notifications/preferences');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching preferences:", error);
+    throw error;
+  }
+};
+
+export const updateNotificationPreferences = async (preferences: any) => {
+  try {
+    const response = await api.put('/notifications/preferences', preferences);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating preferences:", error);
+    throw error;
+  }
+};
+
+// --- Payment Methods API ---
+
+export const getPaymentMethods = async () => {
+  try {
+    const response = await api.get('/payment-methods');
+    return response.data;
+  } catch (error: any) {
+    console.error("Error fetching payment methods:", error);
+    throw error;
+  }
+};
+
+export const addPaymentMethod = async (methodData: {
+  type: 'card' | 'momo';
+  provider: string;
+  title: string;
+  identifier: string;
+  is_default?: boolean;
+}) => {
+  try {
+    const response = await api.post('/payment-methods', methodData);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error adding payment method:", error);
+    throw error;
+  }
+};
+
+export const deletePaymentMethod = async (id: string) => {
+  try {
+    const response = await api.delete(`/payment-methods/${id}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting payment method:", error);
+    throw error;
+  }
+};
+
+export const setDefaultPaymentMethod = async (id: string) => {
+  try {
+    const response = await api.put(`/payment-methods/${id}/default`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error setting default payment method:", error);
+    throw error;
+  }
+};
 
 // --- Delivery API ---
 
@@ -998,6 +1154,27 @@ export const verifyPayment = async (reference: string) => {
     return response.data;
   } catch (error) {
     console.error("Error verifying payment:", error);
+    throw error;
+  }
+};
+
+// --- Store Follow API ---
+export const followStore = async (storeId: string) => {
+  try {
+    const response = await api.post(`/business/${storeId}/follow`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error following store:", error);
+    throw error;
+  }
+};
+
+export const unfollowStore = async (storeId: string) => {
+  try {
+    const response = await api.delete(`/business/${storeId}/follow`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error unfollowing store:", error);
     throw error;
   }
 };

@@ -29,6 +29,7 @@ const advertisingRoutes = require('./routes/advertisingRoutes');
 const payoutRoutes = require('./routes/payoutRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const paymentMethodRoutes = require('./routes/paymentMethodRoutes');
 
 // Import middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
@@ -124,7 +125,8 @@ app.get('/api/v1', (req, res) => {
       notifications: '/api/v1/notifications',
       favorites: '/api/v1/favorites',
       admin: '/api/v1/admin',
-      advertising: '/api/v1/advertising'
+      advertising: '/api/v1/advertising',
+      paymentMethods: '/api/v1/payment-methods'
     }
   });
 });
@@ -157,6 +159,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/advertising', advertisingRoutes);
 app.use('/api/v1/payouts', payoutRoutes);
 app.use('/api/v1/categories', categoryRoutes);
+app.use('/api/v1/payment-methods', paymentMethodRoutes);
 
 // Legacy routes (redirect to v1 for backward compatibility)
 app.use('/api/auth', (req, res, next) => {

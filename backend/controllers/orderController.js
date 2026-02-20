@@ -63,7 +63,7 @@ const createOrder = async (req, res) => {
     const createdOrders = [];
 
     for (const [storeId, items] of Object.entries(itemsByStore)) {
-      // Calculate order total
+      // Calculate order total (following frontend logic)
       let subtotal = 0;
       const orderItems = items.map(item => {
         const price = item.products.price;
@@ -79,9 +79,14 @@ const createOrder = async (req, res) => {
         };
       });
 
-      // TODO: Calculate delivery fee based on location
-      const deliveryFee = 0;
-      const totalAmount = subtotal + deliveryFee;
+      const nhilAmount = subtotal * 0.025;
+      const getFundAmount = subtotal * 0.025;
+      const vatAmount = subtotal * 0.15;
+      const serviceCharge = 5.00;
+
+      const tax = nhilAmount + getFundAmount + vatAmount + serviceCharge;
+      const deliveryFee = 15.00;
+      const totalAmount = subtotal + tax + deliveryFee;
 
       // Create order
       const orderData = {
@@ -90,9 +95,10 @@ const createOrder = async (req, res) => {
         store_id: storeId,
         status: 'pending',
         subtotal: subtotal,
+        tax: tax,
         delivery_fee: deliveryFee,
         total_amount: totalAmount,
-        delivery_address: deliveryAddress,
+        delivery_address_line1: deliveryAddress,
         delivery_city: deliveryCity,
         delivery_country: deliveryCountry || 'Ghana',
         delivery_phone: deliveryPhone,

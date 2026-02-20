@@ -17,6 +17,15 @@ class StoreRepository extends BaseRepository {
   }
 
   /**
+   * Find all stores owned by user (Alias for findByOwnerId)
+   * @param {string} ownerId
+   * @returns {Promise<Array>}
+   */
+  async findByOwner(ownerId) {
+    return this.findByOwnerId(ownerId);
+  }
+
+  /**
    * Find all stores owned by user
    * @param {string} ownerId
    * @returns {Promise<Array>}
@@ -224,6 +233,58 @@ class StoreRepository extends BaseRepository {
 
     if (error) throw error;
     return data || [];
+  }
+
+  /**
+   * Follow a store
+   * @param {string} userId
+   * @param {string} storeId
+   * @returns {Promise<Object>}
+   */
+  async followStore(userId, storeId) {
+    const { data, error } = await this.db
+      .from('store_follows')
+      .insert({ user_id: userId, store_id: storeId })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Unfollow a store
+   * @param {string} userId
+   * @param {string} storeId
+   * @returns {Promise<Object>}
+   */
+  async unfollowStore(userId, storeId) {
+    const { data, error } = await this.db
+      .from('store_follows')
+      .delete()
+      .eq('user_id', userId)
+      .eq('store_id', storeId)
+      .select();
+
+    if (error) throw error;
+    return data;
+  }
+
+  /**
+   * Check if user is following a store
+   * @param {string} userId
+   * @param {string} storeId
+   * @returns {Promise<boolean>}
+   */
+  async isFollowing(userId, storeId) {
+    const { count, error } = await this.db
+      .from('store_follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('store_id', storeId);
+
+    if (error) throw error;
+    return count > 0;
   }
 }
 

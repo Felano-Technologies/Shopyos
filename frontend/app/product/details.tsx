@@ -42,13 +42,15 @@ export default function ProductDetails() {
     category: params.category as string,
     price: params.price ? parseFloat(params.price as string) : 0,
     oldPrice: params.oldPrice ? parseFloat(params.oldPrice as string) : null,
-    description: (params.description as string) || "Loading...",
-    sellerName: "Loading...",
+    description: (params.description as string) || "",
+    sellerName: "",
     sellerPhone: "",
     sellerId: "",
     storeId: "",
     image: params.image as string,
     storeImage: null as string | null,
+    rating: 0,
+    reviewsCount: 0
   });
 
   useEffect(() => {
@@ -63,10 +65,12 @@ export default function ProductDetails() {
             price: res.product.price,
             category: res.product.category,
             image: res.product.images?.[0] || prev.image,
-            sellerName: res.product.store?.name || "Verified Seller",
+            sellerName: res.product.store?.name || "Seller",
             sellerId: res.product.store?.ownerId || "",
             storeId: res.product.store?._id || res.product.businessId || "",
             storeImage: res.product.store?.logo || null,
+            rating: res.product.average_rating || 0,
+            reviewsCount: res.product.total_reviews || 0,
           }));
         }
       }).catch(err => console.log("Error loading product details", err));
@@ -110,7 +114,7 @@ export default function ProductDetails() {
           params: {
             conversationId: res.conversation.id,
             name: product.sellerName,
-            avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=' + product.sellerName,
+            avatar: product.storeImage || 'https://api.dicebear.com/7.x/avataaars/png?seed=' + product.sellerName,
             chatType: 'buyer'
           }
         });
@@ -180,7 +184,7 @@ export default function ProductDetails() {
               </View>
               <View style={styles.ratingRow}>
                 <Ionicons name="star" size={16} color="#FACC15" />
-                <Text style={styles.ratingText}>4.8 (120 reviews)</Text>
+                <Text style={styles.ratingText}>{product.rating ? product.rating.toFixed(1) : '0.0'} ({product.reviewsCount} reviews)</Text>
               </View>
             </View>
 

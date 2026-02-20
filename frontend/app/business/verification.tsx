@@ -8,7 +8,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  TouchableWithoutFeedback,
+  Pressable,
   Keyboard,
   ActivityIndicator,
   Image,
@@ -79,7 +79,7 @@ const BusinessVerification = () => {
     try {
       setLoading(true);
       const response = await verifyBusinessDetails(businessId, details);
-      
+
       if (response.success) {
         Toast.show({
           type: 'success',
@@ -108,12 +108,12 @@ const BusinessVerification = () => {
         type: ['application/pdf', 'image/*'],
       });
 
-      if (result.type === 'success') {
+      if (!result.canceled && result.assets && result.assets.length > 0) {
         // Here you would typically upload to your server
         // For demo, we'll just store the URI
         setDetails(prev => ({
           ...prev,
-          documents: [...prev.documents, result.uri]
+          documents: [...prev.documents, result.assets[0].uri]
         }));
       }
     } catch (error) {
@@ -154,12 +154,12 @@ const BusinessVerification = () => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}
     >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView 
+      <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
+        <ScrollView
           contentContainerStyle={styles.innerContainer}
           showsVerticalScrollIndicator={false}
         >
@@ -171,15 +171,15 @@ const BusinessVerification = () => {
           </View>
 
           {/* Business Logo Upload */}
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.logoUploadContainer}
             onPress={handleUploadLogo}
             disabled={uploading}
           >
             {details.logo ? (
-              <Image 
-                source={{ uri: details.logo }} 
-                style={styles.logoImage} 
+              <Image
+                source={{ uri: details.logo }}
+                style={styles.logoImage}
               />
             ) : (
               <View style={styles.logoPlaceholder}>
@@ -279,7 +279,7 @@ const BusinessVerification = () => {
             )}
           </TouchableOpacity>
         </ScrollView>
-      </TouchableWithoutFeedback>
+      </Pressable>
       <Toast />
     </KeyboardAvoidingView>
   );

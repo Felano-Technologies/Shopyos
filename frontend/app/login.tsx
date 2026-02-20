@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
+import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import * as Location from 'expo-location';
@@ -41,7 +41,7 @@ const LoginScreen = () => {
       const response = await loginUser(email, password, latitude, longitude);
 
 
-      
+
       if (response.message == "Login successful") {
 
         Toast.show({
@@ -57,12 +57,12 @@ const LoginScreen = () => {
         } else {
           // User has a role, proceed with normal navigation
           const userRole = response.role?.toLowerCase();
-          
+
           if (userRole === 'customer' || userRole === 'buyer') {
             router.push("/home");
-          } else if (userRole === 'seller') { 
+          } else if (userRole === 'seller') {
             router.push("/business/dashboard");
-          } else if (userRole === 'driver') { 
+          } else if (userRole === 'driver') {
             router.push("/driver"); // Update when driver dashboard is ready
           }
         }
@@ -92,7 +92,7 @@ const LoginScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
           <View style={styles.innerContainer}>
             {/* Logo */}
             <Image
@@ -185,7 +185,7 @@ const LoginScreen = () => {
               />
             </View>
           </View>
-        </TouchableWithoutFeedback>
+        </Pressable>
       </KeyboardAvoidingView>
       <Toast />
     </View>

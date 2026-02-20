@@ -81,8 +81,7 @@ class MessageRepository extends BaseRepository {
    */
   async markAsRead(messageId) {
     return this.update(messageId, {
-      is_read: true,
-      read_at: new Date().toISOString()
+      is_read: true
     });
   }
 
@@ -96,8 +95,7 @@ class MessageRepository extends BaseRepository {
     const { data, error } = await this.db
       .from(this.tableName)
       .update({
-        is_read: true,
-        read_at: new Date().toISOString()
+        is_read: true
       })
       .eq('conversation_id', conversationId)
       .neq('sender_id', userId)

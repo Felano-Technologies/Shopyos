@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Dimensions,
   Keyboard,
-  TouchableWithoutFeedback,
+  Pressable,
   Modal,
   Switch,
   ImageBackground // Added
@@ -146,7 +146,7 @@ export default function StoresScreen() {
   );
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.container}>
         <StatusBar style="dark" translucent backgroundColor="transparent" />
 
@@ -325,7 +325,7 @@ export default function StoresScreen() {
         </Modal>
 
       </View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 }
 

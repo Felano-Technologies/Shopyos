@@ -8,7 +8,7 @@ const crypto = require('crypto');
 // @access  Public
 const register = async (req, res) => {
   const { name, email, password, fullPhoneNumber } = req.body;
-  
+
   try {
     // Check if user exists
     const existingUser = await repositories.users.findByEmail(email);
@@ -145,6 +145,36 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// @desc    Update user profile data
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { name, phone, avatar_url, country, state_province, city, address_line1 } = req.body;
+
+    const updates = {};
+    if (name !== undefined) updates.full_name = name;
+    if (phone !== undefined) updates.phone = phone;
+    if (avatar_url !== undefined) updates.avatar_url = avatar_url;
+    if (country !== undefined) updates.country = country;
+    if (state_province !== undefined) updates.state_province = state_province;
+    if (city !== undefined) updates.city = city;
+    if (address_line1 !== undefined) updates.address_line1 = address_line1;
+
+    const profile = await repositories.userProfiles.updateByUserId(userId, updates);
+
+    res.status(200).json({
+      success: true,
+      data: profile,
+      message: 'Profile updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ success: false, error: 'Server error while updating profile' });
+  }
+};
+
 // @desc    Get user data
 // @route   GET /api/auth/me
 // @access  Private
@@ -211,6 +241,16 @@ const generateToken = (res, userId) => {
   });
 
   return token;
+};
+// @desc    Logout user / clear cookie
+// @route   POST /api/auth/logout
+// @access  Public
+const logout = async (req, res) => {
+  res.cookie('jwt', '', {
+    httpOnly: true,
+    expires: new Date(0)
+  });
+  res.status(200).json({ success: true, message: 'Logged out successfully' });
 };
 
 
@@ -317,7 +357,7 @@ const updateUserRole = async (req, res) => {
       'driver': 'driver',
       'none': 'none'
     };
-    
+
     const mappedRole = roleMapping[role];
     if (!mappedRole) {
       return res.status(400).json({
@@ -359,5 +399,7 @@ module.exports = {
   getUserData,
   addRole,
   getUserRoles,
-  updateUserRole
+  updateUserRole,
+  updateProfile,
+  logout
 };

@@ -250,7 +250,8 @@ const getBusinessById = async (req, res) => {
       rating: store.avg_rating || 0,
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
-      updatedAt: store.updated_at
+      updatedAt: store.updated_at,
+      isFollowing: await repositories.stores.isFollowing(userId, businessId)
     };
 
     res.status(200).json({
@@ -581,17 +582,17 @@ const getBusinessDashboard = async (req, res) => {
 
     // Fetch counts and recent orders in parallel
     const [totalProducts, totalOrders, pendingOrders, recentOrders, weeklyOrders] = await Promise.all([
-      repositories.products.count({ store_id: businessId, is_active: true, deleted_at: null }),
+      repositories.products.count({ store_id: businessId, deleted_at: null }),
       repositories.orders.count({ store_id: businessId }),
       repositories.orders.count({ store_id: businessId, status: 'pending' }),
       repositories.orders.getStoreOrders(businessId, { limit: 5 }), // Recent 5 orders
       // Fetch orders for the last 7 days for the chart
       repositories.orders.findAll({
         where: { store_id: businessId },
+        select: '*, payments(amount, status)',
         limit: 100, // Reasonable limit for chart data
         orderBy: 'created_at',
         ascending: true,
-        // We'll filter by date in memory if needed or trust the limit for now
       })
     ]);
 
@@ -800,7 +801,9 @@ const getAllBusinesses = async (req, res) => {
         products:products(count)
       `)
       .match(where)
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .is('products.deleted_at', null)
+      .eq('products.is_active', true);
 
     if (stores.error) throw stores.error;
 
@@ -826,6 +829,49 @@ const getAllBusinesses = async (req, res) => {
   }
 };
 
+// @desc    Follow a business
+// @route   POST /api/business/:id/follow
+// @access  Private
+const followBusiness = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user.id;
+
+    await repositories.stores.followStore(userId, businessId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Store followed successfully'
+    });
+  } catch (error) {
+    console.error('Error following business:', error);
+    if (error.code === '23505') { // Unique constraint violation
+      return res.status(200).json({ success: true, message: 'Already following' });
+    }
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
+// @desc    Unfollow a business
+// @route   DELETE /api/business/:id/follow
+// @access  Private
+const unfollowBusiness = async (req, res) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user.id;
+
+    await repositories.stores.unfollowStore(userId, businessId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Store unfollowed successfully'
+    });
+  } catch (error) {
+    console.error('Error unfollowing business:', error);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+};
+
 module.exports = {
   createBusiness,
   getMyBusinesses,
@@ -836,5 +882,7 @@ module.exports = {
   uploadLogo,
   uploadBanner,
   getBusinessDashboard,
-  getBusinessAnalytics
+  getBusinessAnalytics,
+  followBusiness,
+  unfollowBusiness
 };

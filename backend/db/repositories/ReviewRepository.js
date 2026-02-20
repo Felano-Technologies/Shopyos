@@ -18,7 +18,7 @@ class ReviewRepository extends BaseRepository {
       .from('product_reviews')
       .insert({
         product_id: reviewData.productId,
-        user_id: reviewData.userId,
+        buyer_id: reviewData.userId,
         order_id: reviewData.orderId,
         rating: reviewData.rating,
         review_text: reviewData.reviewText || null,
@@ -41,7 +41,7 @@ class ReviewRepository extends BaseRepository {
       .from('store_reviews')
       .insert({
         store_id: reviewData.storeId,
-        user_id: reviewData.userId,
+        buyer_id: reviewData.userId,
         order_id: reviewData.orderId,
         rating: reviewData.rating,
         review_text: reviewData.reviewText || null
@@ -63,7 +63,7 @@ class ReviewRepository extends BaseRepository {
       .from('driver_reviews')
       .insert({
         driver_id: reviewData.driverId,
-        user_id: reviewData.userId,
+        buyer_id: reviewData.userId,
         delivery_id: reviewData.deliveryId,
         rating: reviewData.rating,
         review_text: reviewData.reviewText || null
@@ -88,7 +88,7 @@ class ReviewRepository extends BaseRepository {
       .from('product_reviews')
       .select(`
         *,
-        user:user_id (
+        user:buyer_id (
           id,
           user_profiles (full_name, avatar_url)
         )
@@ -122,7 +122,7 @@ class ReviewRepository extends BaseRepository {
       .from('store_reviews')
       .select(`
         *,
-        user:user_id (
+        user:buyer_id (
           id,
           user_profiles (full_name, avatar_url)
         )
@@ -156,7 +156,7 @@ class ReviewRepository extends BaseRepository {
       .from('driver_reviews')
       .select(`
         *,
-        user:user_id (
+        user:buyer_id (
           id,
           user_profiles (full_name, avatar_url)
         )
@@ -281,7 +281,7 @@ class ReviewRepository extends BaseRepository {
     const { data, error } = await this.db
       .from('product_reviews')
       .select('*')
-      .eq('user_id', userId)
+      .eq('buyer_id', userId)
       .eq('product_id', productId)
       .is('deleted_at', null)
       .single();
@@ -304,7 +304,7 @@ class ReviewRepository extends BaseRepository {
     const { data, error } = await this.db
       .from('store_reviews')
       .select('*')
-      .eq('user_id', userId)
+      .eq('buyer_id', userId)
       .eq('store_id', storeId)
       .is('deleted_at', null)
       .single();
@@ -327,7 +327,7 @@ class ReviewRepository extends BaseRepository {
     const { data, error } = await this.db
       .from('driver_reviews')
       .select('*')
-      .eq('user_id', userId)
+      .eq('buyer_id', userId)
       .eq('delivery_id', deliveryId)
       .is('deleted_at', null)
       .single();
@@ -399,7 +399,7 @@ class ReviewRepository extends BaseRepository {
     const { data, error } = await this.db
       .from(table)
       .select('*')
-      .eq('user_id', userId)
+      .eq('buyer_id', userId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
 

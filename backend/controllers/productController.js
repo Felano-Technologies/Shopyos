@@ -128,7 +128,7 @@ const getStoreProducts = async (req, res) => {
       images: p.product_images ? p.product_images.map(img => img.image_url) : [],
       category: p.category,
       sku: p.sku,
-      stockQuantity: p.inventory ? p.inventory.quantity : 0,
+      stockQuantity: Array.isArray(p.inventory) ? p.inventory[0]?.quantity : (p.inventory?.quantity || 0),
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       isActive: p.is_active
@@ -193,7 +193,7 @@ const getProductById = async (req, res) => {
       category: product.category,
       brand: product.brand,
       sku: product.sku,
-      stockQuantity: product.inventory?.quantity || 0,
+      stockQuantity: Array.isArray(product.inventory) ? product.inventory[0]?.quantity : (product.inventory?.quantity || 0),
       viewCount: product.view_count,
       salesCount: product.sales_count,
       averageRating: product.avg_rating || 0,

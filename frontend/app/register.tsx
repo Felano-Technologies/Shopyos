@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Dimensions } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
@@ -14,16 +14,16 @@ import Swiper from 'react-native-swiper';
 const { width } = Dimensions.get('window');
 
 const RegisterScreen = () => {
-    const [name, setName] = useState('');
-    const [phoneNumber, setPhoneNumber] = useState('');
-    const [countryCode, setCountryCode] = useState('US');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [callingCode, setCallingCode] = useState('1');
-    const [showCountryPicker, setShowCountryPicker] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const isDarkMode = Appearance.getColorScheme() === 'dark';
+  const [name, setName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('US');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [callingCode, setCallingCode] = useState('1');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const isDarkMode = Appearance.getColorScheme() === 'dark';
 
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     // Remove leading zero if present
@@ -34,7 +34,7 @@ const RegisterScreen = () => {
 
   const handleRegister = async () => {
     try {
-      const fullPhoneNumber = formatPhoneNumber (callingCode, phoneNumber);
+      const fullPhoneNumber = formatPhoneNumber(callingCode, phoneNumber);
       setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber);
       if (data.message == "User created successfully") {
@@ -73,9 +73,9 @@ const RegisterScreen = () => {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-            
+
             {/* 🖼️ Top Banner Carousel */}
             <View style={styles.bannerContainer}>
               <Swiper
@@ -154,17 +154,17 @@ const RegisterScreen = () => {
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
                 />
-              <CountryPicker
-                visible={showCountryPicker}
-                onClose={() => setShowCountryPicker(false)}
-                onSelect={(country) => {
-                  // 1. Use 'code' instead of 'cca2'
-                  setCountryCode(country.code); 
-                  
-                  // 2. Use 'dial_code' instead of 'callingCode[0]'
-                  setCallingCode(country.dial_code); 
-                }}
-              />
+                <CountryPicker
+                  visible={showCountryPicker}
+                  onClose={() => setShowCountryPicker(false)}
+                  onSelect={(country) => {
+                    // 1. Use 'code' instead of 'cca2'
+                    setCountryCode(country.code);
+
+                    // 2. Use 'dial_code' instead of 'callingCode[0]'
+                    setCallingCode(country.dial_code);
+                  }}
+                />
               </View>
 
               <View style={styles.inputContainer}>
@@ -199,22 +199,22 @@ const RegisterScreen = () => {
 
               <Text style={styles.roleText}>Select your role to continue registration.</Text>
 
-            {/* Register (outlined pill) */}
-            <TouchableOpacity
-              style={styles.loginButton}
-              onPress={() => router.push('/login')}
-            >
-              <Text style={styles.loginText}>
-                Already registered? <Text style={styles.loginBold}>Sign in now!</Text>
-              </Text>
-            </TouchableOpacity>
+              {/* Register (outlined pill) */}
+              <TouchableOpacity
+                style={styles.loginButton}
+                onPress={() => router.push('/login')}
+              >
+                <Text style={styles.loginText}>
+                  Already registered? <Text style={styles.loginBold}>Sign in now!</Text>
+                </Text>
+              </TouchableOpacity>
               <View style={styles.bottomLogos}>
                 <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
                 <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
               </View>
             </View>
           </ScrollView>
-        </TouchableWithoutFeedback>
+        </Pressable>
         <Toast />
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -224,7 +224,7 @@ const RegisterScreen = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#e9f0ff' },
   scrollContent: { flexGrow: 1, alignItems: 'center', paddingVertical: 30 },
-  
+
   bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 30 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     marginLeft: -50,
     marginBottom: -200,
   },
-    loginButton: {
+  loginButton: {
     width: 250,
     borderRadius: 28,
     borderWidth: 1.5,

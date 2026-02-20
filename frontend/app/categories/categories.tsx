@@ -10,10 +10,10 @@ import {
   Dimensions,
   Image,
   Keyboard,
-  TouchableWithoutFeedback
+  Pressable
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
-import BottomNav from '../../components/BottomNav'; 
+import BottomNav from '../../components/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -55,31 +55,31 @@ export default function CategoryScreen() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // 🔍 Filter Logic
-  const filteredData = searchQuery.length === 0 
-    ? CATEGORIES 
-    : ALL_ITEMS.filter(item => 
-        item.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  const filteredData = searchQuery.length === 0
+    ? CATEGORIES
+    : ALL_ITEMS.filter(item =>
+      item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
-// ✅ FIXED: Matches app/categories/[id].tsx
+  // ✅ FIXED: Matches app/categories/[id].tsx
   const handlePress = (item: any) => {
     // Debug log to confirm what we are sending
-    console.log(`Navigating to: /categories/${item.id}`); 
+    console.log(`Navigating to: /categories/${item.id}`);
 
     if (item.type === 'category') {
-        // We must use the 'id' (e.g. c1, c2) because your [id].tsx file expects it
-        router.push(`/categories/${item.id}`);
+      // We must use the 'id' (e.g. c1, c2) because your [id].tsx file expects it
+      router.push(`/categories/${item.id}`);
     } else {
-        router.push({
-            pathname: '/product/details',
-            params: {
-                id: item.id,
-                title: item.title,
-                price: item.price,
-                image: item.image, 
-                category: item.category
-            }
-        });
+      router.push({
+        pathname: '/product/details',
+        params: {
+          id: item.id,
+          title: item.title,
+          price: item.price,
+          image: item.image,
+          category: item.category
+        }
+      });
     }
   };
   // --- Renderers ---
@@ -97,7 +97,7 @@ export default function CategoryScreen() {
         >
           <Text style={styles.categoryText}>{item.title}</Text>
           <View style={styles.arrowContainer}>
-             <Feather name="grid" size={12} color="#FFF" />
+            <Feather name="grid" size={12} color="#FFF" />
           </View>
         </LinearGradient>
       </ImageBackground>
@@ -106,32 +106,32 @@ export default function CategoryScreen() {
 
   const renderProductCard = (item: any) => (
     <TouchableOpacity
-        style={styles.productCard}
-        activeOpacity={0.9}
-        onPress={() => handlePress(item)}
+      style={styles.productCard}
+      activeOpacity={0.9}
+      onPress={() => handlePress(item)}
     >
-        <Image source={item.image} style={styles.productImage} />
-        <View style={styles.productInfo}>
-            <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
-            <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>
-            <View style={styles.productTag}>
-                <Text style={styles.productTagText}>Product</Text>
-            </View>
+      <Image source={item.image} style={styles.productImage} />
+      <View style={styles.productInfo}>
+        <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>
+        <View style={styles.productTag}>
+          <Text style={styles.productTagText}>Product</Text>
         </View>
+      </View>
     </TouchableOpacity>
   );
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.mainContainer}>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
-          
+
           {/* 🟢 Header */}
           <View style={styles.headerContainer}>
             <Text style={styles.headerTitle}>Explore</Text>
             <Text style={styles.headerSubtitle}>
-                {searchQuery.length > 0 ? `Searching for "${searchQuery}"` : 'Find items by category'}
+              {searchQuery.length > 0 ? `Searching for "${searchQuery}"` : 'Find items by category'}
             </Text>
           </View>
 
@@ -161,8 +161,8 @@ export default function CategoryScreen() {
             numColumns={2}
             contentContainerStyle={styles.gridContent}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => 
-                item.type === 'category' ? renderCategoryCard(item) : renderProductCard(item)
+            renderItem={({ item }) =>
+              item.type === 'category' ? renderCategoryCard(item) : renderProductCard(item)
             }
             ListEmptyComponent={
               <View style={styles.emptyState}>
@@ -175,7 +175,7 @@ export default function CategoryScreen() {
         </SafeAreaView>
         <BottomNav />
       </View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 }
 
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
   },
-  
+
   // Header
   headerContainer: {
     paddingHorizontal: 20,
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingBottom: 100,
   },
-  
+
   // 1. Category Card Style
   cardContainer: {
     flex: 1,

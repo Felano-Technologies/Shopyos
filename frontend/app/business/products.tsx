@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
   Switch,
   Modal,
-  TouchableWithoutFeedback,
+  Pressable,
   KeyboardAvoidingView,
   Platform
 } from 'react-native';
@@ -580,7 +580,7 @@ const ProductsScreen = () => {
         visible={categoryModalVisible}
         onRequestClose={() => setCategoryModalVisible(false)}
       >
-        <TouchableWithoutFeedback onPress={() => setCategoryModalVisible(false)}>
+        <Pressable onPress={() => setCategoryModalVisible(false)} style={styles.modalOverlay}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
@@ -657,7 +657,7 @@ const ProductsScreen = () => {
               </ScrollView>
             </View>
           </View>
-        </TouchableWithoutFeedback>
+        </Pressable>
       </Modal>
 
     </View >

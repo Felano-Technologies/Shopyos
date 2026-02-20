@@ -13,7 +13,9 @@ const {
   uploadBanner,
   getBusinessDashboard,
   getBusinessAnalytics,
-  getAllBusinesses
+  getAllBusinesses,
+  followBusiness,
+  unfollowBusiness
 } = require('../controllers/businessController');
 
 // Business routes
@@ -31,5 +33,9 @@ router.post('/:id/upload-banner', protect, upload.single('banner'), uploadBanner
 // Dashboard
 router.get('/dashboard/:id', protect, getBusinessDashboard);
 router.get('/analytics/:id', protect, getBusinessAnalytics);
+
+// Follow routes
+router.post('/:id/follow', protect, followBusiness);
+router.delete('/:id/follow', protect, unfollowBusiness);
 
 module.exports = router;

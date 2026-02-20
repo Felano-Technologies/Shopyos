@@ -12,7 +12,7 @@ import {
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-// import { getUserTransactions } from '@/services/api'; // Enable this when backend is ready
+import { getMyOrders } from '@/services/api';
 
 // --- Types ---
 interface Transaction {
@@ -36,25 +36,27 @@ export default function SettingsTransactionsScreen() {
 
   const fetchTransactions = async () => {
     try {
-      // --- SIMULATED API CALL ---
-      // Replace this block with: const data = await getUserTransactions();
-      setTimeout(() => {
-        const mockData: Transaction[] = [
-          { id: '1', title: 'Order #ORD-2024-001', type: 'order', amount: -150.00, date: '2024-01-20T10:30:00', status: 'completed', paymentMethod: 'Mobile Money' },
-          { id: '2', title: 'Wallet Top Up', type: 'topup', amount: 500.00, date: '2024-01-18T14:20:00', status: 'completed', paymentMethod: 'Visa Card' },
-          { id: '3', title: 'Order #ORD-2024-002', type: 'order', amount: -75.50, date: '2024-01-15T09:15:00', status: 'pending', paymentMethod: 'Cash on Delivery' },
-          { id: '4', title: 'Refund: Item Unavailable', type: 'refund', amount: 45.00, date: '2024-01-10T16:45:00', status: 'completed', paymentMethod: 'Wallet' },
-          { id: '5', title: 'Order #ORD-2024-003', type: 'order', amount: -320.00, date: '2024-01-05T11:00:00', status: 'failed', paymentMethod: 'Mobile Money' },
-        ];
-        setTransactions(mockData);
-        setLoading(false);
-      }, 1500); 
-      // --------------------------
+      const response = await getMyOrders();
+      if (response && response.success) {
+        const mappedData: Transaction[] = response.orders.map((order: any) => ({
+          id: order.id,
+          title: `Order #${order.order_number}`,
+          type: 'order',
+          amount: parseFloat(order.total_amount),
+          date: order.created_at,
+          status: order.status === 'paid' || order.status === 'completed' ? 'completed' :
+            order.status === 'cancelled' ? 'failed' : 'pending',
+          paymentMethod: order.payments?.[0]?.payment_method || 'Other'
+        }));
+        setTransactions(mappedData);
+      }
     } catch (error) {
       console.error('Error fetching transactions:', error);
+    } finally {
       setLoading(false);
     }
   };
+
 
   // Helper to format currency
   const formatCurrency = (amount: number) => {
@@ -97,23 +99,23 @@ export default function SettingsTransactionsScreen() {
         {/* Amount & Status */}
         <View style={styles.rightContainer}>
           <Text style={[
-            styles.amountText, 
+            styles.amountText,
             { color: isCredit ? '#16A34A' : '#0F172A' }
           ]}>
             {isCredit ? '+' : '-'} {formatCurrency(item.amount)}
           </Text>
-          
+
           <View style={[
-            styles.statusBadge, 
-            item.status === 'completed' ? styles.statusSuccess : 
-            item.status === 'pending' ? styles.statusPending : styles.statusFailed
+            styles.statusBadge,
+            item.status === 'completed' ? styles.statusSuccess :
+              item.status === 'pending' ? styles.statusPending : styles.statusFailed
           ]}>
             <Text style={[
-                styles.statusText,
-                item.status === 'completed' ? styles.textSuccess : 
+              styles.statusText,
+              item.status === 'completed' ? styles.textSuccess :
                 item.status === 'pending' ? styles.textPending : styles.textFailed
             ]}>
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
             </Text>
           </View>
         </View>
@@ -129,41 +131,41 @@ export default function SettingsTransactionsScreen() {
       {/* --- Header --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
-            <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#A3E635" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Transactions</Text>
-                <View style={{ width: 40 }} /> 
-            </View>
+          <View style={styles.navBar}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#A3E635" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Transactions</Text>
+            <View style={{ width: 40 }} />
+          </View>
         </SafeAreaView>
       </View>
 
       {/* --- Content --- */}
       <View style={styles.contentContainer}>
         {loading ? (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#0C1559" />
-                <Text style={styles.loadingText}>Loading history...</Text>
-            </View>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#0C1559" />
+            <Text style={styles.loadingText}>Loading history...</Text>
+          </View>
         ) : (
-            <FlatList
-                data={transactions}
-                keyExtractor={(item) => item.id}
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                ListEmptyComponent={
-                    <View style={styles.emptyContainer}>
-                        <Image 
-                            source={require('../../assets/images/icon.png')} 
-                            style={{ width: 80, height: 80, opacity: 0.3, marginBottom: 15 }}
-                            resizeMode="contain"
-                        />
-                        <Text style={styles.emptyText}>No transactions yet</Text>
-                    </View>
-                }
-            />
+          <FlatList
+            data={transactions}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Image
+                  source={require('../../assets/images/icon.png')}
+                  style={{ width: 80, height: 80, opacity: 0.3, marginBottom: 15 }}
+                  resizeMode="contain"
+                />
+                <Text style={styles.emptyText}>No transactions yet</Text>
+              </View>
+            }
+          />
         )}
       </View>
     </View>
@@ -175,7 +177,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  
+
   // Header
   header: {
     backgroundColor: '#0C1559',
@@ -212,7 +214,7 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 50,
   },
-  
+
   // Card
   card: {
     flexDirection: 'row',
@@ -258,7 +260,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     marginBottom: 6,
   },
-  
+
   // Status Badges
   statusBadge: {
     paddingHorizontal: 8,
@@ -268,7 +270,7 @@ const styles = StyleSheet.create({
   statusSuccess: { backgroundColor: '#DCFCE7' },
   statusPending: { backgroundColor: '#FEF3C7' },
   statusFailed: { backgroundColor: '#FEE2E2' },
-  
+
   statusText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
   textSuccess: { color: '#16A34A' },
   textPending: { color: '#D97706' },

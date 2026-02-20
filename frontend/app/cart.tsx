@@ -7,7 +7,8 @@ import { useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from './context/CartContext';
-import { createOrder, addToCart as apiAddToCart, clearBackendCart } from '@/services/api';
+import { createOrder, addToCart as apiAddToCart, clearBackendCart, getUserData, getPaymentMethods } from '@/services/api';
+import Toast from 'react-native-toast-message';
 const { width, height } = Dimensions.get('window');
 
 export default function CartScreen() {
@@ -15,7 +16,7 @@ export default function CartScreen() {
   const navigation = useNavigation();
 
   // Use Global Cart Context
-  const { items: cartItems, removeFromCart, updateQuantity } = useCart();
+  const { items: cartItems, removeFromCart, updateQuantity, clearCart } = useCart();
 
   // Calculation States
   const [subtotal, setSubtotal] = useState(0);
@@ -25,11 +26,14 @@ export default function CartScreen() {
   const [total, setTotal] = useState(0);
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'momo' | 'card' | 'cod'>('momo');
+  const [paymentMethodType, setPaymentMethodType] = useState<'momo' | 'card' | 'cod'>('momo');
+  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
+  const [savedMethods, setSavedMethods] = useState<any[]>([]);
   const [saveAddress, setSaveAddress] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryPhone, setDeliveryPhone] = useState('');
   const [isOrdering, setIsOrdering] = useState(false);
+  const [isPreloading, setIsPreloading] = useState(false);
 
   const DELIVERY_FEE = 15.00;
   const SERVICE_CHARGE = 5.00;
@@ -76,14 +80,55 @@ export default function CartScreen() {
     setTotal(finalTotal);
   }, [cartItems]);
 
-  const handleCheckoutPress = () => {
+  const handleCheckoutPress = async () => {
     if (cartItems.length === 0) return;
-    setModalVisible(true);
+
+    // Pre-load user info and payment methods
+    try {
+      setIsPreloading(true);
+      const [profileResponse, paymentResponse] = await Promise.all([
+        getUserData(),
+        getPaymentMethods()
+      ]);
+
+      const profile = profileResponse.user || profileResponse;
+      if (profile) {
+        setDeliveryAddress(profile.address_line1 || '');
+        setDeliveryPhone(profile.phone || '');
+      }
+
+      if (paymentResponse && paymentResponse.success) {
+        setSavedMethods(paymentResponse.data);
+        const defaultMethod = paymentResponse.data.find((m: any) => m.is_default);
+        if (defaultMethod) {
+          setPaymentMethodType(defaultMethod.type);
+          setSelectedMethodId(defaultMethod.id);
+        }
+      }
+    } catch (error) {
+      console.log('Error pre-loading checkout info:', error);
+    } finally {
+      setIsPreloading(false);
+      setModalVisible(true);
+    }
   };
 
   const handleFinalPayment = async () => {
-    if (!deliveryAddress || !deliveryPhone) {
-      Alert.alert("Error", "Please provide delivery address and phone number");
+    if (!deliveryAddress.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Address Required',
+        text2: 'Please enter your delivery address before placing the order.',
+      });
+      return;
+    }
+
+    if (!deliveryPhone.trim()) {
+      Toast.show({
+        type: 'error',
+        text1: 'Phone Required',
+        text2: 'Please enter your phone number for delivery.',
+      });
       return;
     }
 
@@ -106,14 +151,24 @@ export default function CartScreen() {
         deliveryCity: 'Accra',
         deliveryCountry: 'Ghana',
         deliveryPhone: deliveryPhone,
-        paymentMethod
+        paymentMethod: paymentMethodType,
+        paymentMethodId: selectedMethodId
       });
 
       if (res.success) {
         closeModal();
+        clearCart(); // Clear local cart after successful order
+
+        // Also clear backend cart
+        try {
+          await clearBackendCart();
+        } catch (clearErr) {
+          console.warn('Failed to clear backend cart:', clearErr);
+        }
+
         const orderId = res.orders[0].id;
 
-        if (paymentMethod === 'cod') {
+        if (paymentMethodType === 'cod') {
           Alert.alert(
             "Order Placed!",
             `Your order has been placed successfully. Order #: ${res.orders[0].order_number}. You will pay on delivery.`,
@@ -123,37 +178,85 @@ export default function CartScreen() {
           // Redirect to simulated gateway
           router.push({
             pathname: `/payment/${orderId}`,
-            params: { method: paymentMethod }
+            params: {
+              method: paymentMethodType,
+              methodId: selectedMethodId
+            }
           } as any);
         }
       } else {
-        Alert.alert("Checkout Failed", res.error || "Something went wrong");
+        Toast.show({
+          type: 'error',
+          text1: 'Checkout Failed',
+          text2: res.error || 'Something went wrong',
+        });
       }
     } catch (e: any) {
       console.error("Order error", e);
-      Alert.alert("Error", e.message || "Failed to place order");
+      Toast.show({
+        type: 'error',
+        text1: 'Order Failed',
+        text2: e.message || 'Failed to place order. Please try again.',
+      });
     } finally {
       setIsOrdering(false);
     }
   };
 
-  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card' | 'cod', icon: any, label: string, sub: string }) => (
-    <TouchableOpacity
-      style={[styles.paymentOption, paymentMethod === type && styles.paymentOptionSelected]}
-      onPress={() => setPaymentMethod(type)}
-    >
-      <View style={[styles.optionIconContainer, paymentMethod === type && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-        <MaterialCommunityIcons name={icon} size={24} color={paymentMethod === type ? '#FFF' : '#0C1559'} />
+  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card' | 'cod', icon: any, label: string, sub: string }) => {
+    const isSelected = paymentMethodType === type;
+    const filteredSaved = savedMethods.filter(m => m.type === type);
+
+    return (
+      <View style={{ marginBottom: 12 }}>
+        <TouchableOpacity
+          style={[styles.paymentOption, isSelected && styles.paymentOptionSelected]}
+          onPress={() => {
+            setPaymentMethodType(type);
+            if (filteredSaved.length > 0) {
+              const defaultForType = filteredSaved.find(m => m.is_default) || filteredSaved[0];
+              setSelectedMethodId(defaultForType.id);
+            } else {
+              setSelectedMethodId(null);
+            }
+          }}
+        >
+          <View style={[styles.optionIconContainer, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <MaterialCommunityIcons name={icon} size={24} color={isSelected ? '#FFF' : '#0C1559'} />
+          </View>
+          <View style={{ flex: 1, marginLeft: 15 }}>
+            <Text style={[styles.optionLabel, isSelected && { color: '#FFF' }]}>{label}</Text>
+            <Text style={[styles.optionSub, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
+          </View>
+          <View style={[styles.radioOuter, isSelected && { borderColor: '#FFF' }]}>
+            {isSelected && <View style={[styles.radioInner, { backgroundColor: '#FFF' }]} />}
+          </View>
+        </TouchableOpacity>
+
+        {/* Show Saved Methods for this type if selected */}
+        {isSelected && filteredSaved.length > 0 && (
+          <View style={styles.savedMethodsContainer}>
+            {filteredSaved.map(m => (
+              <TouchableOpacity
+                key={m.id}
+                style={[styles.savedMethodItem, selectedMethodId === m.id && styles.savedMethodItemActive]}
+                onPress={() => setSelectedMethodId(m.id)}
+              >
+                <Ionicons
+                  name={selectedMethodId === m.id ? "checkmark-circle" : "ellipse-outline"}
+                  size={18}
+                  color={selectedMethodId === m.id ? "#A3E635" : "#64748B"}
+                />
+                <Text style={[styles.savedMethodText, selectedMethodId === m.id && styles.savedMethodTextActive]}>
+                  {m.title} ({m.type === 'card' ? `**** ${m.identifier.slice(-4)}` : m.identifier})
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
-      <View style={{ flex: 1, marginLeft: 15 }}>
-        <Text style={[styles.optionLabel, paymentMethod === type && { color: '#FFF' }]}>{label}</Text>
-        <Text style={[styles.optionSub, paymentMethod === type && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
-      </View>
-      <View style={[styles.radioOuter, paymentMethod === type && { borderColor: '#FFF' }]}>
-        {paymentMethod === type && <View style={[styles.radioInner, { backgroundColor: '#FFF' }]} />}
-      </View>
-    </TouchableOpacity>
-  );
+    );
+  };
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.cartItem}>
@@ -319,6 +422,19 @@ export default function CartScreen() {
                   sub="Pay when you receive"
                 />
 
+                {paymentMethodType !== 'cod' && savedMethods.filter(m => m.type === paymentMethodType).length === 0 && (
+                  <TouchableOpacity
+                    style={styles.addPaymentPrompt}
+                    onPress={() => {
+                      closeModal();
+                      router.push('/settings/paymentMethods' as any);
+                    }}
+                  >
+                    <Ionicons name="add-circle-outline" size={20} color="#0C1559" />
+                    <Text style={styles.addPaymentPromptText}>Add a new {paymentMethodType} payment method</Text>
+                  </TouchableOpacity>
+                )}
+
                 <TouchableOpacity
                   style={[styles.payButton, isOrdering && { opacity: 0.7 }]}
                   onPress={handleFinalPayment}
@@ -333,6 +449,7 @@ export default function CartScreen() {
           </Animated.View>
         </View>
       </Modal>
+      <Toast />
     </View>
   );
 }
@@ -407,6 +524,55 @@ const styles = StyleSheet.create({
   optionSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#0C1559' },
+
+  savedMethodsContainer: {
+    backgroundColor: '#FFF',
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    padding: 10,
+    marginTop: -10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderTopWidth: 0,
+    marginBottom: 5,
+  },
+  savedMethodItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    gap: 10,
+  },
+  savedMethodItemActive: {
+    backgroundColor: '#F7FEE7',
+  },
+  savedMethodText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+  },
+  savedMethodTextActive: {
+    color: '#0C1559',
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  addPaymentPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: 15,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    borderRadius: 15,
+    marginTop: 5,
+  },
+  addPaymentPromptText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#0C1559',
+  },
 
   payButton: { borderRadius: 20, overflow: 'hidden', marginTop: 20, marginBottom: 30 },
   payGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },

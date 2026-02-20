@@ -66,17 +66,20 @@ class ConversationRepository extends BaseRepository {
         *,
         participant1:users!conversations_participant1_id_fkey (
           id,
-          user_profiles (full_name, avatar_url)
+          user_profiles (full_name, avatar_url),
+          stores (id, store_name, logo_url)
         ),
         participant2:users!conversations_participant2_id_fkey (
           id,
-          user_profiles (full_name, avatar_url)
+          user_profiles (full_name, avatar_url),
+          stores (id, store_name, logo_url)
         ),
         messages (
           id,
           content,
           created_at,
-          is_read
+          is_read,
+          sender_id
         )
       `)
       .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
@@ -91,14 +94,26 @@ class ConversationRepository extends BaseRepository {
       const isParticipant1 = conv.participant1_id === userId;
       const otherParticipant = isParticipant1 ? conv.participant2 : conv.participant1;
 
+      // Handle potentially array-wrapped relations (Supabase quirk)
+      if (otherParticipant) {
+        if (Array.isArray(otherParticipant.user_profiles)) {
+          otherParticipant.user_profiles = otherParticipant.user_profiles[0];
+        }
+        if (Array.isArray(otherParticipant.stores)) {
+          otherParticipant.store = otherParticipant.stores[0]; // Attach first store as primary
+        } else if (otherParticipant.stores) {
+          otherParticipant.store = otherParticipant.stores;
+        }
+      }
+
       // Get last message
       const lastMessage = conv.messages && conv.messages.length > 0
         ? conv.messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
         : null;
 
-      // Count unread messages
+      // Count unread messages (received from others)
       const unreadCount = conv.messages
-        ? conv.messages.filter(m => !m.is_read).length
+        ? conv.messages.filter(m => !m.is_read && m.sender_id !== userId).length
         : 0;
 
       return {

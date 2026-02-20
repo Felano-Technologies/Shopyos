@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Dimensions,
   Modal,
-  TouchableWithoutFeedback,
+  Pressable,
   Animated,
   TextInput,
   ActivityIndicator
@@ -31,7 +31,7 @@ export default function RecentScreen() {
   const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Sorting State
   const [modalVisible, setModalVisible] = useState(false);
   const [activeSort, setActiveSort] = useState('created_at');
@@ -49,12 +49,12 @@ export default function RecentScreen() {
   // Filter Logic
   useEffect(() => {
     if (searchQuery) {
-        const filtered = products.filter(p => 
-            p.title.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-        setFilteredProducts(filtered);
+      const filtered = products.filter(p =>
+        p.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredProducts(filtered);
     } else {
-        setFilteredProducts(products);
+      setFilteredProducts(products);
     }
   }, [searchQuery, products]);
 
@@ -71,7 +71,7 @@ export default function RecentScreen() {
           title: p.name,
           category: p.category || 'General',
           price: p.price,
-          oldPrice: null, 
+          oldPrice: null,
           image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
           timestamp: 'Just now'
         }));
@@ -92,7 +92,7 @@ export default function RecentScreen() {
         title: item.title,
         price: item.price,
         category: item.category,
-        image: typeof item.image === 'string' ? item.image : item.image.uri 
+        image: typeof item.image === 'string' ? item.image : item.image.uri
       }
     });
   };
@@ -188,53 +188,53 @@ export default function RecentScreen() {
       {/* --- Header --- */}
       <View style={styles.headerWrapper}>
         <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
-            <SafeAreaView edges={['top', 'left', 'right']}>
+          <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.headerContent}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#FFF" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Just Arrived</Text>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)}>
-                    <Ionicons name="filter" size={22} color="#FFF" />
-                </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <Ionicons name="arrow-back" size={24} color="#FFF" />
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Just Arrived</Text>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => setModalVisible(true)}>
+                <Ionicons name="filter" size={22} color="#FFF" />
+              </TouchableOpacity>
             </View>
 
             {/* Search Bar */}
             <View style={styles.searchContainer}>
-                <Feather name="search" size={18} color="#94A3B8" />
-                <TextInput 
-                    style={styles.searchInput}
-                    placeholder="Search recent items..."
-                    placeholderTextColor="#94A3B8"
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                />
+              <Feather name="search" size={18} color="#94A3B8" />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search recent items..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
             </View>
-            </SafeAreaView>
+          </SafeAreaView>
         </LinearGradient>
       </View>
 
       {/* --- Content --- */}
       {loading ? (
-          <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0C1559" />
-          </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#0C1559" />
+        </View>
       ) : (
-          <FlatList
-            data={filteredProducts}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            contentContainerStyle={styles.listContainer}
-            columnWrapperStyle={styles.columnWrapper}
-            showsVerticalScrollIndicator={false}
-            renderItem={renderItem}
-            ListEmptyComponent={
-                <View style={styles.emptyState}>
-                    <Feather name="box" size={40} color="#CBD5E1" />
-                    <Text style={styles.emptyText}>No items found.</Text>
-                </View>
-            }
-          />
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.listContainer}
+          columnWrapperStyle={styles.columnWrapper}
+          showsVerticalScrollIndicator={false}
+          renderItem={renderItem}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Feather name="box" size={40} color="#CBD5E1" />
+              <Text style={styles.emptyText}>No items found.</Text>
+            </View>
+          }
+        />
       )}
 
       {/* --- TOAST NOTIFICATION --- */}
@@ -262,9 +262,9 @@ export default function RecentScreen() {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <Pressable onPress={() => setModalVisible(false)} style={styles.modalBackdrop}>
             <View style={styles.modalBackdrop} />
-          </TouchableWithoutFeedback>
+          </Pressable>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Sort Products</Text>
@@ -273,29 +273,29 @@ export default function RecentScreen() {
               </TouchableOpacity>
             </View>
             <View style={styles.modalDivider} />
-            
+
             {[
-                { id: 'created_at', label: 'Newest Arrivals', icon: 'new-releases' },
-                { id: 'low_high', label: 'Price: Low to High', icon: 'trending-up' },
-                { id: 'high_low', label: 'Price: High to Low', icon: 'trending-down' }
+              { id: 'created_at', label: 'Newest Arrivals', icon: 'new-releases' },
+              { id: 'low_high', label: 'Price: Low to High', icon: 'trending-up' },
+              { id: 'high_low', label: 'Price: High to Low', icon: 'trending-down' }
             ].map((opt) => (
-                <TouchableOpacity 
-                    key={opt.id} 
-                    style={styles.filterOption} 
-                    onPress={() => applySort(opt.id)}
-                >
-                    <View style={styles.optionRow}>
-                        <MaterialIcons 
-                            name={opt.icon as any} 
-                            size={22} 
-                            color={activeSort === opt.id ? "#0C1559" : "#64748B"} 
-                        />
-                        <Text style={[styles.optionText, activeSort === opt.id && styles.optionTextActive]}>
-                            {opt.label}
-                        </Text>
-                    </View>
-                    {activeSort === opt.id && <Ionicons name="checkmark-circle" size={22} color="#84cc16" />}
-                </TouchableOpacity>
+              <TouchableOpacity
+                key={opt.id}
+                style={styles.filterOption}
+                onPress={() => applySort(opt.id)}
+              >
+                <View style={styles.optionRow}>
+                  <MaterialIcons
+                    name={opt.icon as any}
+                    size={22}
+                    color={activeSort === opt.id ? "#0C1559" : "#64748B"}
+                  />
+                  <Text style={[styles.optionText, activeSort === opt.id && styles.optionTextActive]}>
+                    {opt.label}
+                  </Text>
+                </View>
+                {activeSort === opt.id && <Ionicons name="checkmark-circle" size={22} color="#84cc16" />}
+              </TouchableOpacity>
             ))}
             <View style={{ height: 20 }} />
           </View>
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
 
   // Header
   headerWrapper: {
-      marginBottom: 10,
+    marginBottom: 10,
   },
   header: {
     paddingBottom: 25,
@@ -362,20 +362,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   searchContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#FFF',
-      marginHorizontal: 20,
-      borderRadius: 14,
-      paddingHorizontal: 12,
-      height: 45,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    marginHorizontal: 20,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    height: 45,
   },
   searchInput: {
-      flex: 1,
-      marginLeft: 10,
-      fontSize: 14,
-      fontFamily: 'Montserrat-Medium',
-      color: '#0F172A',
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 14,
+    fontFamily: 'Montserrat-Medium',
+    color: '#0F172A',
   },
 
   // List
@@ -388,9 +388,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 
   // Card
@@ -599,12 +599,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
   emptyState: {
-      alignItems: 'center',
-      marginTop: 50,
+    alignItems: 'center',
+    marginTop: 50,
   },
   emptyText: {
-      marginTop: 10,
-      color: '#94A3B8',
-      fontFamily: 'Montserrat-Medium',
+    marginTop: 10,
+    color: '#94A3B8',
+    fontFamily: 'Montserrat-Medium',
   },
 });

@@ -10,25 +10,29 @@ import {
   FlatList,
   Dimensions,
   Linking,
-  Share, // Imported Share
-  Alert  // Imported Alert for filter menu
+  Share,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getBusinessById, getStoreProducts } from '@/services/api';
+import {
+  addToFavorites,
+  removeFromFavorites,
+  checkIsFavorite,
+  startConversation,
+  getBusinessById,
+  getStoreProducts,
+  getStoreReviews,
+  followStore,
+  unfollowStore
+} from '@/services/api';
+import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
-
-// --- Mock Data (Reviews still mock for now) ---
-
-const REVIEWS = [
-  { id: 'r1', user: 'Michael K.', rating: 5, date: '2 days ago', text: 'Fast delivery and great quality items!', avatar: 'https://randomuser.me/api/portraits/men/32.jpg' },
-  { id: 'r2', user: 'Sarah J.', rating: 4, date: '1 week ago', text: 'Good service, but packaging could be better.', avatar: 'https://randomuser.me/api/portraits/women/44.jpg' },
-  { id: 'r3', user: 'David L.', rating: 5, date: '2 weeks ago', text: 'Love this store! Will buy again.', avatar: 'https://randomuser.me/api/portraits/men/86.jpg' },
-];
 
 export default function StoreDetailsScreen() {
   const router = useRouter();
@@ -38,31 +42,35 @@ export default function StoreDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
 
   // Store Info (Legacy/Fallback)
   const store = storeData ? {
     id: storeData._id,
     name: storeData.businessName,
     category: storeData.category,
-    rating: storeData.rating || 4.5,
+    rating: storeData.rating || 0,
     reviews: storeData.totalReviews || 0,
     location: `${storeData.city}, ${storeData.country}`,
-    logo: storeData.logo ? { uri: storeData.logo } : require('../../assets/images/stores/astrotech.jpg'),
-    cover: storeData.coverImage ? { uri: storeData.coverImage } : require('../../assets/images/search/Arts1.png'),
-    bio: storeData.description || "No description available.",
+    logo: storeData.logo ? { uri: storeData.logo } : null,
+    cover: storeData.coverImage ? { uri: storeData.coverImage } : null,
+    bio: storeData.description || "",
     phone: storeData.phone || "",
     email: storeData.email || "",
     address: storeData.address || "",
-    hours: "Mon - Sat: 8:00 AM - 6:00 PM" // Still partially mock as not in schema
+    hours: ""
   } : {
     id: params.id,
-    name: params.name || "Loading...",
+    name: params.name || "",
     category: params.category || "",
-    rating: 4.5,
+    rating: 0,
     reviews: 0,
     location: "",
-    logo: params.logo ? (typeof params.logo === 'string' ? { uri: params.logo } : params.logo) : require('../../assets/images/stores/astrotech.jpg'),
-    cover: require('../../assets/images/search/Arts1.png'),
+    logo: params.logo ? { uri: Array.isArray(params.logo) ? params.logo[0] : params.logo } : null,
+    cover: null,
     bio: "",
     phone: "",
     email: "",
@@ -76,6 +84,15 @@ export default function StoreDetailsScreen() {
       fetchData();
     }
   }, [params.id]);
+
+  useEffect(() => {
+    if (storeData) {
+      // Sync follow status if available in storeData
+      if (storeData.isFollowing !== undefined) {
+        setIsFollowing(storeData.isFollowing);
+      }
+    }
+  }, [storeData]);
 
   const fetchData = async () => {
     try {
@@ -91,6 +108,9 @@ export default function StoreDetailsScreen() {
       if (prodRes.success) {
         setProducts(prodRes.products);
       }
+
+      // Fetch reviews
+      fetchReviews();
     } catch (error) {
       console.error("Error fetching store data", error);
     } finally {
@@ -98,12 +118,85 @@ export default function StoreDetailsScreen() {
     }
   };
 
+  const fetchReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const res = await getStoreReviews(params.id as string);
+      if (res.success && res.reviews) {
+        setReviews(res.reviews);
+      } else {
+        setReviews([]);
+      }
+    } catch (error) {
+      console.error("Error fetching reviews", error);
+      setReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   // --- Actions ---
-  const handleChat = () => {
-    router.push({
-      pathname: '/chat/conversation',
-      params: { recipientId: store.id, recipientName: store.name, chatType: 'buyer' }
-    });
+  const handleChat = async () => {
+    if (chatLoading) return;
+    try {
+      setChatLoading(true);
+      // The store owner's user ID is needed to start a conversation
+      const ownerId = storeData?.owner?._id || storeData?.owner;
+      if (!ownerId) {
+        Toast.show({ type: 'error', text1: 'Cannot Chat', text2: 'Store owner information not available.' });
+        return;
+      }
+
+      // Create or find existing conversation with the store owner
+      const res = await startConversation(ownerId);
+      if (res.success && res.conversation) {
+        router.push({
+          pathname: '/chat/conversation',
+          params: {
+            conversationId: res.conversation.id,
+            name: store.name,
+            avatar: store.logo?.uri || 'https://api.dicebear.com/7.x/initials/png?seed=' + store.name,
+            chatType: 'buyer'
+          }
+        });
+      } else {
+        Toast.show({ type: 'error', text1: 'Chat Error', text2: 'Could not start conversation.' });
+      }
+    } catch (error: any) {
+      console.error('Chat error:', error);
+      Toast.show({ type: 'error', text1: 'Chat Error', text2: error.message || 'Failed to start chat.' });
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    try {
+      if (isFollowing) {
+        await unfollowStore(store.id);
+        setIsFollowing(false);
+        Toast.show({
+          type: 'success',
+          text1: 'Unfollowed',
+          text2: `You unfollowed ${store.name}`
+        });
+      } else {
+        await followStore(store.id);
+        setIsFollowing(true);
+        Toast.show({
+          type: 'success',
+          text1: 'Following!',
+          text2: `You are now following ${store.name}. You'll get updates on new products.`
+        });
+      }
+    } catch (error) {
+      console.error("Follow error:", error);
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: 'Failed to update follow status'
+      });
+    }
   };
 
   // 1. Share Functionality
@@ -172,23 +265,29 @@ export default function StoreDetailsScreen() {
     );
   };
 
-  const renderReview = ({ item }: { item: any }) => (
-    <View style={styles.reviewCard}>
-      <View style={styles.reviewHeader}>
-        <Image source={{ uri: item.avatar }} style={styles.reviewAvatar} />
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.reviewUser}>{item.user}</Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {[...Array(5)].map((_, i) => (
-              <FontAwesome key={i} name="star" size={12} color={i < item.rating ? "#FACC15" : "#E2E8F0"} style={{ marginRight: 2 }} />
-            ))}
-            <Text style={styles.reviewDate}>• {item.date}</Text>
+  const renderReview = ({ item }: { item: any }) => {
+    const reviewerName = item.reviewer?.full_name || item.reviewer_name || 'Anonymous';
+    const avatarUrl = item.reviewer?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(reviewerName)}&background=0C1559&color=fff`;
+    const dateStr = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+
+    return (
+      <View style={styles.reviewCard}>
+        <View style={styles.reviewHeader}>
+          <Image source={{ uri: avatarUrl }} style={styles.reviewAvatar} />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={styles.reviewUser}>{reviewerName}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              {[...Array(5)].map((_, i) => (
+                <FontAwesome key={i} name="star" size={12} color={i < item.rating ? "#FACC15" : "#E2E8F0"} style={{ marginRight: 2 }} />
+              ))}
+              <Text style={styles.reviewDate}>• {dateStr}</Text>
+            </View>
           </View>
         </View>
+        {item.comment ? <Text style={styles.reviewText}>{item.comment}</Text> : null}
       </View>
-      <Text style={styles.reviewText}>{item.text}</Text>
-    </View>
-  );
+    );
+  };
 
   // --- Content Switcher ---
   const renderContent = () => {
@@ -255,14 +354,24 @@ export default function StoreDetailsScreen() {
                     <FontAwesome key={i} name="star" size={16} color={i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0"} />
                   ))}
                 </View>
-                <Text style={styles.totalReviews}>Based on {store.reviews} reviews</Text>
+                <Text style={styles.totalReviews}>Based on {reviews.length} review{reviews.length !== 1 ? 's' : ''}</Text>
               </View>
             </View>
-            {REVIEWS.map(item => (
-              <View key={item.id} style={{ marginBottom: 12 }}>
-                {renderReview({ item })}
+            {reviewsLoading ? (
+              <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 30 }} />
+            ) : reviews.length === 0 ? (
+              <View style={styles.emptyReviews}>
+                <MaterialCommunityIcons name="star-outline" size={60} color="#CBD5E1" />
+                <Text style={styles.emptyReviewsTitle}>No Reviews Yet</Text>
+                <Text style={styles.emptyReviewsText}>Be the first to leave a review for this store!</Text>
               </View>
-            ))}
+            ) : (
+              reviews.map(item => (
+                <View key={item.id} style={{ marginBottom: 12 }}>
+                  {renderReview({ item })}
+                </View>
+              ))
+            )}
           </View>
         );
       default:
@@ -278,7 +387,11 @@ export default function StoreDetailsScreen() {
 
         {/* 1. Header & Cover */}
         <View style={styles.headerContainer}>
-          <Image source={store.cover} style={styles.coverImage} resizeMode="cover" />
+          {store.cover ? (
+            <Image source={store.cover} style={styles.coverImage} resizeMode="cover" />
+          ) : (
+            <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.coverImage} />
+          )}
           <LinearGradient colors={['rgba(0,0,0,0.3)', 'transparent']} style={styles.headerOverlay} />
 
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
@@ -300,7 +413,13 @@ export default function StoreDetailsScreen() {
         {/* 2. Store Profile Info */}
         <View style={styles.profileSection}>
           <View style={styles.logoWrapper}>
-            <Image source={store.logo} style={styles.storeLogo} />
+            {store.logo ? (
+              <Image source={store.logo} style={styles.storeLogo} />
+            ) : (
+              <View style={[styles.storeLogo, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="storefront-outline" size={32} color="#94A3B8" />
+              </View>
+            )}
             <View style={styles.verifiedBadge}>
               <MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" />
             </View>
@@ -323,15 +442,23 @@ export default function StoreDetailsScreen() {
 
         {/* 3. Action Buttons */}
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat}>
-            <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" />
-            <Text style={styles.primaryActionText}>Chat</Text>
+          <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
+            {chatLoading ? (
+              <ActivityIndicator size="small" color="#FFF" />
+            ) : (
+              <>
+                <Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" />
+                <Text style={styles.primaryActionText}>Chat</Text>
+              </>
+            )}
           </TouchableOpacity>
 
-
-          <TouchableOpacity style={styles.secondaryActionBtn}>
-            <Ionicons name="notifications-outline" size={20} color="#0C1559" />
-            <Text style={styles.secondaryActionText}>Follow</Text>
+          <TouchableOpacity
+            style={[styles.secondaryActionBtn, isFollowing && styles.followingBtn]}
+            onPress={handleFollow}
+          >
+            <Ionicons name={isFollowing ? "checkmark-circle" : "notifications-outline"} size={20} color={isFollowing ? "#FFF" : "#0C1559"} />
+            <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Following' : 'Follow'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -358,6 +485,7 @@ export default function StoreDetailsScreen() {
         {renderContent()}
 
       </ScrollView>
+      <Toast />
     </View>
   );
 }
@@ -731,5 +859,34 @@ const styles = StyleSheet.create({
     color: '#334155',
     lineHeight: 20,
     fontFamily: 'Montserrat-Regular',
+  },
+
+  // Follow button active state
+  followingBtn: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
+  },
+  followingText: {
+    color: '#FFF',
+  },
+
+  // Empty reviews state
+  emptyReviews: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyReviewsTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#94A3B8',
+    marginTop: 12,
+  },
+  emptyReviewsText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: '#CBD5E1',
+    marginTop: 6,
+    textAlign: 'center',
   },
 });

@@ -95,7 +95,7 @@ class ProductRepository extends BaseRepository {
           store_name,
           slug
         ),
-        product_images!inner (
+        product_images (
           image_url,
           is_primary
         )
@@ -103,12 +103,13 @@ class ProductRepository extends BaseRepository {
       .eq('is_active', true)
       .is('deleted_at', null);
 
-    // Full-text search
+    // Partial search - match each word individually with ilike
     if (query) {
-      dbQuery = dbQuery.textSearch('title', query, {
-        config: 'english',
-        type: 'websearch'
-      });
+      const searchTerms = query.trim().split(/\s+/).filter(Boolean);
+      for (const term of searchTerms) {
+        const pattern = `%${term}%`;
+        dbQuery = dbQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern}`);
+      }
     }
 
     // Filter by category

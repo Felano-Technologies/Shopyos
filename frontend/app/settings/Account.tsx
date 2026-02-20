@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,19 +17,19 @@ import {
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Stack } from 'expo-router';
-import { getUserData } from '@/services/api';
+import { useRouter, Stack, useFocusEffect } from 'expo-router';
+import { getUserData, updateProfile } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
 // --- 1. DATA CONSTANTS ---
 const AVATAR_SEEDS = [
-  'Felix', 'Aneka', 'Zack', 'Molly', 'Garfield', 
-  'Bella', 'Jack', 'Oliver', 'Sophie', 'Leo', 
+  'Felix', 'Aneka', 'Zack', 'Molly', 'Garfield',
+  'Bella', 'Jack', 'Oliver', 'Sophie', 'Leo',
   'Max', 'Charlie', 'Lily', 'Sam', 'Chloe'
 ];
 
-const AVATARS = AVATAR_SEEDS.map(seed => 
+const AVATARS = AVATAR_SEEDS.map(seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}`
 );
 
@@ -45,14 +45,14 @@ const LOCATION_DATA: Record<string, string[]> = {
 const COUNTRIES = Object.keys(LOCATION_DATA);
 
 // --- 2. REUSABLE COMPONENT ---
-const ProfileField = ({ 
-  icon, 
-  library = "Ionicons", 
-  value, 
-  onChangeText, 
-  placeholder, 
-  isPhone = false, 
-  isCountry = false, 
+const ProfileField = ({
+  icon,
+  library = "Ionicons",
+  value,
+  onChangeText,
+  placeholder,
+  isPhone = false,
+  isCountry = false,
   isDropdown = false,
   loading = false,
   onPress
@@ -66,38 +66,37 @@ const ProfileField = ({
   const isSelectable = isCountry || isDropdown;
 
   return (
-    <TouchableOpacity 
-        style={styles.fieldRow} 
-        activeOpacity={isSelectable ? 0.7 : 1}
-        onPress={isSelectable ? onPress : undefined}
+    <TouchableOpacity
+      style={styles.fieldRow}
+      activeOpacity={isSelectable ? 0.7 : 1}
+      onPress={isSelectable ? onPress : undefined}
     >
       <View style={styles.inputWrapper}>
         <View style={styles.iconArea}>{renderIcon()}</View>
-        
+
         {isPhone && (
           <View style={styles.flagContainer}>
-             <Image source={{ uri: 'https://flagcdn.com/w40/gh.png' }} style={styles.flag} />
-             <Text style={styles.phonePrefix}>+233</Text>
-             <View style={styles.verticalDivider} />
+            <Image source={{ uri: 'https://flagcdn.com/w40/gh.png' }} style={styles.flag} />
+            <Text style={styles.phonePrefix}>+233</Text>
+            <View style={styles.verticalDivider} />
           </View>
         )}
-        
+
         <TextInput
-          style={styles.input}
+          style={[styles.input, { pointerEvents: isSelectable ? "none" : "auto" }]}
           value={value}
           onChangeText={onChangeText}
           placeholderTextColor="#94A3B8"
           placeholder={loading ? "Loading..." : placeholder}
-          editable={!isSelectable} 
-          pointerEvents={isSelectable ? "none" : "auto"}
+          editable={!isSelectable}
         />
-        
+
         {isSelectable ? (
-           <Ionicons name="chevron-down" size={20} color="#64748B" style={{ marginRight: 10 }} />
+          <Ionicons name="chevron-down" size={20} color="#64748B" style={{ marginRight: 10 }} />
         ) : (
-           <TouchableOpacity>
-              <FontAwesome5 name="pen" size={10} color="#0C1559" style={{ opacity: 0.6, marginRight: 10 }} />
-           </TouchableOpacity>
+          <TouchableOpacity>
+            <FontAwesome5 name="pen" size={10} color="#0C1559" style={{ opacity: 0.6, marginRight: 10 }} />
+          </TouchableOpacity>
         )}
       </View>
     </TouchableOpacity>
@@ -108,7 +107,7 @@ export default function AccountScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  
+
   // Modals
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
@@ -126,28 +125,30 @@ export default function AccountScreen() {
     avatar: AVATARS[0],
   });
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [])
+  );
 
   const fetchProfile = async () => {
     try {
       const data = await getUserData();
       const user = data.user || data;
 
-      const dateJoined = user.createdAt 
-        ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) 
+      const dateJoined = user.createdAt
+        ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
         : 'N/A';
 
       setUserData({
         name: user.name || '',
         email: user.email || '',
         phone: user.fullPhoneNumber || user.phone || '',
-        country: user.country || '', 
-        region: user.region || user.city || '', 
-        address: user.address || '',
+        country: user.country || '',
+        region: user.state_province || user.city || '',
+        address: user.address_line1 || '',
         createdAt: dateJoined,
-        avatar: user.avatar || `https://api.dicebear.com/9.x/adventurer/png?seed=${user.name || 'User'}`,
+        avatar: user.avatar_url || user.avatar || `https://api.dicebear.com/9.x/adventurer/png?seed=${user.name || 'User'}`,
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -157,13 +158,28 @@ export default function AccountScreen() {
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    // Simulate API save
-    setTimeout(() => {
-        setSaving(false);
-        // Show Custom Success Modal instead of Alert
-        setShowSuccessModal(true);
-    }, 1500);
+    try {
+      setSaving(true);
+
+      const payload = {
+        name: userData.name,
+        phone: userData.phone,
+        avatar_url: userData.avatar,
+        country: userData.country,
+        state_province: userData.region,
+        address_line1: userData.address
+      };
+
+      await updateProfile(payload);
+
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      // Fallback to simple alert for error
+      alert('Failed to update profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const selectCountry = (country: string) => {
@@ -179,37 +195,37 @@ export default function AccountScreen() {
   // Reusable Selection Modal
   const SelectionModal = ({ visible, onClose, title, data, onSelect }: any) => (
     <Modal
-        animationType="slide"
-        transparent={true}
-        visible={visible}
-        onRequestClose={onClose}
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
     >
-        <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>{title}</Text>
-                    <TouchableOpacity onPress={onClose}>
-                        <Ionicons name="close" size={24} color="#64748B" />
-                    </TouchableOpacity>
-                </View>
-                <FlatList
-                    data={data}
-                    keyExtractor={(item) => item}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity style={styles.optionItem} onPress={() => onSelect(item)}>
-                            <Text style={styles.optionText}>{item}</Text>
-                            {((title.includes('Country') && userData.country === item) || 
-                              (title.includes('Region') && userData.region === item)) && (
-                                <Ionicons name="checkmark" size={20} color="#A3E635" />
-                            )}
-                        </TouchableOpacity>
-                    )}
-                    ListEmptyComponent={
-                        <Text style={styles.emptyText}>No options available</Text>
-                    }
-                />
-            </View>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={data}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.optionItem} onPress={() => onSelect(item)}>
+                <Text style={styles.optionText}>{item}</Text>
+                {((title.includes('Country') && userData.country === item) ||
+                  (title.includes('Region') && userData.region === item)) && (
+                    <Ionicons name="checkmark" size={20} color="#A3E635" />
+                  )}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No options available</Text>
+            }
+          />
         </View>
+      </View>
     </Modal>
   );
 
@@ -221,123 +237,123 @@ export default function AccountScreen() {
       {/* --- Header Section --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
-            <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#A3E635" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Edit Profile</Text>
-                <View style={{ width: 40 }} /> 
+          <View style={styles.navBar}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#A3E635" />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Edit Profile</Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          <View style={styles.profileSection}>
+            <View style={styles.imageWrapper}>
+              <Image
+                source={{ uri: userData.avatar }}
+                style={styles.profileImage}
+                defaultSource={require('../../assets/images/icon.png')}
+              />
+              <TouchableOpacity
+                style={styles.cameraBadge}
+                onPress={() => setShowAvatarModal(true)}
+              >
+                <Ionicons name="camera" size={16} color="#0C1559" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.profileSection}>
-                <View style={styles.imageWrapper}>
-                    <Image 
-                        source={{ uri: userData.avatar }} 
-                        style={styles.profileImage} 
-                        defaultSource={require('../../assets/images/icon.png')} 
-                    />
-                    <TouchableOpacity 
-                        style={styles.cameraBadge}
-                        onPress={() => setShowAvatarModal(true)}
-                    >
-                        <Ionicons name="camera" size={16} color="#0C1559" />
-                    </TouchableOpacity>
+            {loading ? (
+              <ActivityIndicator color="#A3E635" style={{ marginTop: 10 }} />
+            ) : (
+              <>
+                <Text style={styles.profileName}>{userData.name || 'User'}</Text>
+                <View style={styles.dateBadge}>
+                  <Text style={styles.dateText}>Member since {userData.createdAt}</Text>
                 </View>
-                
-                {loading ? (
-                    <ActivityIndicator color="#A3E635" style={{ marginTop: 10 }} />
-                ) : (
-                    <>
-                        <Text style={styles.profileName}>{userData.name || 'User'}</Text>
-                        <View style={styles.dateBadge}>
-                            <Text style={styles.dateText}>Member since {userData.createdAt}</Text>
-                        </View>
-                    </>
-                )}
-            </View>
+              </>
+            )}
+          </View>
         </SafeAreaView>
       </View>
 
       {/* --- Content Area --- */}
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.contentArea}
       >
         <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>
-            <ScrollView 
-                contentContainerStyle={styles.scrollContent} 
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-                <ProfileField 
-                    icon="person" 
-                    value={userData.name} 
-                    placeholder="Enter your full name"
-                    onChangeText={(t: string) => setUserData({...userData, name: t})} 
-                    loading={loading}
-                />
-                
-                <ProfileField 
-                    icon="mail" 
-                    value={userData.email} 
-                    placeholder="Enter email address"
-                    onChangeText={(t: string) => setUserData({...userData, email: t})} 
-                    loading={loading}
-                />
-                
-                <ProfileField 
-                    icon="phone-alt" 
-                    library="FontAwesome5" 
-                    value={userData.phone} 
-                    placeholder="54 123 4567"
-                    isPhone={true} 
-                    onChangeText={(t: string) => setUserData({...userData, phone: t})} 
-                    loading={loading}
-                />
-                
-                <ProfileField 
-                    icon="map" 
-                    value={userData.country} 
-                    placeholder="Select Country"
-                    isCountry={true}
-                    onPress={() => setShowCountryModal(true)}
-                    loading={loading}
-                />
-                
-                <ProfileField 
-                    icon="location-sharp" 
-                    value={userData.region} 
-                    placeholder={userData.country ? "Select Region/State" : "Select Country First"}
-                    isDropdown={true} 
-                    onPress={() => {
-                        if(userData.country) setShowRegionModal(true);
-                        // Optional: Show a subtle toast here instead of alert if preferred
-                    }}
-                    loading={loading}
-                />
-                
-                <ProfileField 
-                    icon="home" 
-                    value={userData.address} 
-                    placeholder="Digital Address or GPS Code"
-                    onChangeText={(t: string) => setUserData({...userData, address: t})} 
-                    loading={loading}
-                />
-                
-                <View style={{ height: 20 }} />
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            <ProfileField
+              icon="person"
+              value={userData.name}
+              placeholder="Enter your full name"
+              onChangeText={(t: string) => setUserData({ ...userData, name: t })}
+              loading={loading}
+            />
 
-                <TouchableOpacity style={styles.saveButton} activeOpacity={0.8} onPress={handleSave} disabled={saving}>
-                    {saving ? <ActivityIndicator color="#A3E635" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
-                </TouchableOpacity>
-                
-                <View style={{ height: 40 }} />
-                
-            </ScrollView>
+            <ProfileField
+              icon="mail"
+              value={userData.email}
+              placeholder="Enter email address"
+              onChangeText={(t: string) => setUserData({ ...userData, email: t })}
+              loading={loading}
+            />
+
+            <ProfileField
+              icon="phone-alt"
+              library="FontAwesome5"
+              value={userData.phone}
+              placeholder="54 123 4567"
+              isPhone={true}
+              onChangeText={(t: string) => setUserData({ ...userData, phone: t })}
+              loading={loading}
+            />
+
+            <ProfileField
+              icon="map"
+              value={userData.country}
+              placeholder="Select Country"
+              isCountry={true}
+              onPress={() => setShowCountryModal(true)}
+              loading={loading}
+            />
+
+            <ProfileField
+              icon="location-sharp"
+              value={userData.region}
+              placeholder={userData.country ? "Select Region/State" : "Select Country First"}
+              isDropdown={true}
+              onPress={() => {
+                if (userData.country) setShowRegionModal(true);
+                // Optional: Show a subtle toast here instead of alert if preferred
+              }}
+              loading={loading}
+            />
+
+            <ProfileField
+              icon="home"
+              value={userData.address}
+              placeholder="Digital Address or GPS Code"
+              onChangeText={(t: string) => setUserData({ ...userData, address: t })}
+              loading={loading}
+            />
+
+            <View style={{ height: 20 }} />
+
+            <TouchableOpacity style={styles.saveButton} activeOpacity={0.8} onPress={handleSave} disabled={saving}>
+              {saving ? <ActivityIndicator color="#A3E635" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
+            </TouchableOpacity>
+
+            <View style={{ height: 40 }} />
+
+          </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
 
       {/* --- MODALS --- */}
-      <SelectionModal 
+      <SelectionModal
         visible={showCountryModal}
         onClose={() => setShowCountryModal(false)}
         title="Select Country"
@@ -345,7 +361,7 @@ export default function AccountScreen() {
         onSelect={selectCountry}
       />
 
-      <SelectionModal 
+      <SelectionModal
         visible={showRegionModal}
         onClose={() => setShowRegionModal(false)}
         title={`Select Region in ${userData.country}`}
@@ -361,43 +377,43 @@ export default function AccountScreen() {
         onRequestClose={() => setShowAvatarModal(false)}
       >
         <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Choose an Avatar</Text>
-                    <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
-                        <Ionicons name="close" size={24} color="#64748B" />
-                    </TouchableOpacity>
-                </View>
-                <FlatList
-                    data={AVATARS}
-                    keyExtractor={(item, index) => index.toString()}
-                    numColumns={3}
-                    contentContainerStyle={styles.avatarGrid}
-                    renderItem={({ item }) => (
-                        <TouchableOpacity 
-                            style={[
-                                styles.avatarOption, 
-                                userData.avatar === item && styles.avatarOptionSelected
-                            ]}
-                            onPress={() => {
-                                setUserData({ ...userData, avatar: item });
-                                setShowAvatarModal(false);
-                            }}
-                        >
-                            <Image 
-                                source={{ uri: item }} 
-                                style={styles.avatarImage} 
-                                resizeMode="cover"
-                            />
-                            {userData.avatar === item && (
-                                <View style={styles.checkmark}>
-                                    <Ionicons name="checkmark" size={12} color="#FFF" />
-                                </View>
-                            )}
-                        </TouchableOpacity>
-                    )}
-                />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose an Avatar</Text>
+              <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
             </View>
+            <FlatList
+              data={AVATARS}
+              keyExtractor={(item, index) => index.toString()}
+              numColumns={3}
+              contentContainerStyle={styles.avatarGrid}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.avatarOption,
+                    userData.avatar === item && styles.avatarOptionSelected
+                  ]}
+                  onPress={() => {
+                    setUserData({ ...userData, avatar: item });
+                    setShowAvatarModal(false);
+                  }}
+                >
+                  <Image
+                    source={{ uri: item }}
+                    style={styles.avatarImage}
+                    resizeMode="cover"
+                  />
+                  {userData.avatar === item && (
+                    <View style={styles.checkmark}>
+                      <Ionicons name="checkmark" size={12} color="#FFF" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
         </View>
       </Modal>
 
@@ -409,21 +425,21 @@ export default function AccountScreen() {
         onRequestClose={() => setShowSuccessModal(false)}
       >
         <View style={styles.successOverlay}>
-            <View style={styles.successCard}>
-                <View style={styles.successIconContainer}>
-                    <Ionicons name="checkmark" size={40} color="#FFF" />
-                </View>
-                <Text style={styles.successTitle}>Profile Updated!</Text>
-                <Text style={styles.successMessage}>
-                    Your account details have been successfully saved.
-                </Text>
-                <TouchableOpacity 
-                    style={styles.successButton}
-                    onPress={() => setShowSuccessModal(false)}
-                >
-                    <Text style={styles.successButtonText}>Continue</Text>
-                </TouchableOpacity>
+          <View style={styles.successCard}>
+            <View style={styles.successIconContainer}>
+              <Ionicons name="checkmark" size={40} color="#FFF" />
             </View>
+            <Text style={styles.successTitle}>Profile Updated!</Text>
+            <Text style={styles.successMessage}>
+              Your account details have been successfully saved.
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => setShowSuccessModal(false)}
+            >
+              <Text style={styles.successButtonText}>Continue</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
 
@@ -433,7 +449,7 @@ export default function AccountScreen() {
 
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  
+
   // Header
   header: {
     backgroundColor: '#0C1559',
@@ -457,7 +473,7 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 8 },
   headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-  
+
   profileSection: { alignItems: 'center' },
   imageWrapper: { position: 'relative', marginBottom: 12 },
   profileImage: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#A3E635', backgroundColor: '#F1F5F9' },
@@ -488,7 +504,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginLeft: 4,
   },
   input: { flex: 1, fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium', paddingHorizontal: 12, height: '100%' },
-  
+
   flagContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 10 },
   flag: { width: 24, height: 16, borderRadius: 2 },
   phonePrefix: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-SemiBold', marginLeft: 6 },

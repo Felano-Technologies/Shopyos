@@ -9,7 +9,7 @@ import {
   Dimensions,
   Image,
   Keyboard,
-  TouchableWithoutFeedback,
+  Pressable,
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -131,7 +131,7 @@ export default function SearchScreen() {
   );
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+    <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.mainContainer}>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
@@ -212,7 +212,7 @@ export default function SearchScreen() {
         </SafeAreaView>
         <BottomNav />
       </View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 }
 
