@@ -3,30 +3,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Ionicons, Feather, FontAwesome } from '@expo/vector-icons';
 
-// Mock Data
-const REVIEWS = [
-  {
-    id: '1',
-    user: 'Sarah Jenkins',
-    rating: 5,
-    date: '2 days ago',
-    comment: 'Absolutely love the quality of the shoes! Delivery was super fast too.',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    reply: null,
-  },
-  {
-    id: '2',
-    user: 'Michael Ofori',
-    rating: 4,
-    date: '1 week ago',
-    comment: 'Great product, but the packaging was a bit damaged.',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    reply: 'Thank you for the feedback Michael. We will improve packaging.',
-  },
-];
-
 export default function ReviewsScreen() {
-  const [reviews, setReviews] = useState(REVIEWS);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [replyModalVisible, setReplyModalVisible] = useState(false);
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
@@ -58,28 +36,28 @@ export default function ReviewsScreen() {
       <View style={styles.cardHeader}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
         <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.userName}>{item.user}</Text>
-            <View style={styles.ratingRow}>
-                {renderStars(item.rating)}
-                <Text style={styles.dateText}>{item.date}</Text>
-            </View>
+          <Text style={styles.userName}>{item.user}</Text>
+          <View style={styles.ratingRow}>
+            {renderStars(item.rating)}
+            <Text style={styles.dateText}>{item.date}</Text>
+          </View>
         </View>
       </View>
       <Text style={styles.commentText}>{item.comment}</Text>
-      
+
       {item.reply ? (
-          <View style={styles.adminReplyBox}>
-              <View style={styles.adminReplyHeader}>
-                  <Ionicons name="return-down-forward" size={16} color="#0C1559" />
-                  <Text style={styles.replyTitle}>Your Response</Text>
-              </View>
-              <Text style={styles.adminReplyText}>{item.reply}</Text>
+        <View style={styles.adminReplyBox}>
+          <View style={styles.adminReplyHeader}>
+            <Ionicons name="return-down-forward" size={16} color="#0C1559" />
+            <Text style={styles.replyTitle}>Your Response</Text>
           </View>
+          <Text style={styles.adminReplyText}>{item.reply}</Text>
+        </View>
       ) : (
-          <TouchableOpacity style={styles.replyBtn} onPress={() => openReplyModal(item)}>
-              <Feather name="message-circle" size={16} color="#0C1559" />
-              <Text style={styles.replyBtnText}>Reply</Text>
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.replyBtn} onPress={() => openReplyModal(item)}>
+          <Feather name="message-circle" size={16} color="#0C1559" />
+          <Text style={styles.replyBtnText}>Reply</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -91,32 +69,43 @@ export default function ReviewsScreen() {
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconBg}>
+              <Feather name="star" size={40} color="#94A3B8" />
+            </View>
+            <Text style={styles.emptyTitle}>No Reviews Yet</Text>
+            <Text style={styles.emptySub}>
+              When customers leave reviews for your business, they will appear here.
+            </Text>
+          </View>
+        }
       />
 
       {/* Reply Modal */}
       <Modal visible={replyModalVisible} animationType="slide" transparent={true}>
-         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-            <View style={styles.modalContainer}>
-                <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Reply to {selectedReview?.user}</Text>
-                    <TouchableOpacity onPress={() => setReplyModalVisible(false)}>
-                        <Ionicons name="close" size={24} color="#64748B" />
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.originalComment}>"{selectedReview?.comment}"</Text>
-                <TextInput 
-                    style={styles.input}
-                    placeholder="Write your reply..."
-                    multiline
-                    value={replyText}
-                    onChangeText={setReplyText}
-                    autoFocus
-                />
-                <TouchableOpacity style={styles.sendBtn} onPress={sendReply}>
-                    <Text style={styles.sendText}>Post Reply</Text>
-                </TouchableOpacity>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Reply to {selectedReview?.user}</Text>
+              <TouchableOpacity onPress={() => setReplyModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
             </View>
-         </KeyboardAvoidingView>
+            <Text style={styles.originalComment}>"{selectedReview?.comment}"</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Write your reply..."
+              multiline
+              value={replyText}
+              onChangeText={setReplyText}
+              autoFocus
+            />
+            <TouchableOpacity style={styles.sendBtn} onPress={sendReply}>
+              <Text style={styles.sendText}>Post Reply</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -138,7 +127,7 @@ const styles = StyleSheet.create({
   adminReplyText: { fontSize: 13, color: '#475569' },
   replyBtn: { marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 10, backgroundColor: '#F1F5F9', borderRadius: 8 },
   replyBtnText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
-  
+
   // Modal
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' },
   modalContainer: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, minHeight: 300 },
@@ -148,4 +137,34 @@ const styles = StyleSheet.create({
   input: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 15, height: 100, textAlignVertical: 'top', fontSize: 14, marginBottom: 20 },
   sendBtn: { backgroundColor: '#0C1559', paddingVertical: 14, borderRadius: 12, alignItems: 'center' },
   sendText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+    paddingHorizontal: 40,
+  },
+  emptyIconBg: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Regular',
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
 });

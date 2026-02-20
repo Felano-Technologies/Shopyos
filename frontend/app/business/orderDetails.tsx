@@ -36,10 +36,9 @@ export default function OrderDetailsScreen() {
   const fetchOrder = async () => {
     try {
       const data = await getOrderDetails(id as string);
-      if (data && data.status !== 'error') {
-        // Check mapping if returned data is just the order object or wrapped in 'order' key
-        // Repository getOrderDetails returns the object directly
-        const o = data;
+      if (data && data.success !== false) {
+        // The controller returns { success: true, order }
+        const o = data.order || data;
 
         // Map items
         const mappedItems = o.order_items.map((i: any) => ({
@@ -56,7 +55,7 @@ export default function OrderDetailsScreen() {
           subtotal: mappedItems.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0),
           deliveryFee: 0, // Need to implement delivery fee logic
           tax: 0,
-          total: o.payments?.[0]?.amount ? parseFloat(o.payments[0].amount) : 0,
+          total: parseFloat(o.total_amount || 0),
           method: o.payments?.[0]?.payment_method || 'N/A'
         };
 
@@ -121,21 +120,27 @@ export default function OrderDetailsScreen() {
     Linking.openURL(`tel:${order.customer.phone}`);
   };
 
-  const handleUpdateStatus = () => {
-    const update = async (newStatus: string) => {
-      try {
-        await updateOrderStatus(id as string, newStatus.toLowerCase()); // backend expects lowercase usually?
-        setCurrentStatus(newStatus);
-        fetchOrder();
-      } catch (e) {
-        Alert.alert("Error", "Failed to update status");
-      }
-    };
+  const updateStatus = async (newStatus: string) => {
+    try {
+      setLoading(true);
+      await updateOrderStatus(id as string, newStatus.toLowerCase());
+      setCurrentStatus(newStatus);
+      await fetchOrder();
+    } catch (e) {
+      Alert.alert("Error", "Failed to update status");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleUpdateStatus = () => {
     Alert.alert('Update Status', 'Change order status to:', [
-      { text: 'Processing', onPress: () => update('Processing') },
-      { text: 'Delivered', onPress: () => update('Delivered') },
-      { text: 'Cancelled', onPress: () => update('Cancelled'), style: 'destructive' },
+      { text: 'Confirmed', onPress: () => updateStatus('Confirmed') },
+      { text: 'Preparing', onPress: () => updateStatus('Preparing') },
+      { text: 'Ready for Pickup', onPress: () => updateStatus('Ready_for_pickup') },
+      { text: 'Delivered', onPress: () => updateStatus('Delivered') },
+      { text: 'Cancelled', onPress: () => updateStatus('Cancelled'), style: 'destructive' },
+      { text: 'Close', style: 'cancel' }
     ]);
   };
 
@@ -154,7 +159,11 @@ export default function OrderDetailsScreen() {
         Alert.alert("Success", "Driver request sent successfully!");
         fetchOrder();
       } else {
-        Alert.alert("Error", res.error || "Failed to request driver");
+        if (res.error === "Delivery already exists for this order") {
+          Alert.alert("Info", "Driver already requested for this order.");
+        } else {
+          Alert.alert("Error", res.error || "Failed to request driver");
+        }
       }
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to request driver");
@@ -219,15 +228,63 @@ export default function OrderDetailsScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Request Driver Button */}
-          {currentStatus === 'Processing' && (
+          {/* Status Actions */}
+          {currentStatus !== 'Completed' && currentStatus !== 'Cancelled' && (
             <View style={styles.sectionContainer}>
-              <TouchableOpacity style={styles.requestDriverBtn} onPress={handleRequestDriver}>
-                <LinearGradient colors={['#84cc16', '#65a30d']} style={styles.requestDriverGradient}>
-                  <MaterialCommunityIcons name="moped" size={24} color="#FFF" />
-                  <Text style={styles.requestDriverText}>Request a Driver</Text>
-                </LinearGradient>
-              </TouchableOpacity>
+              <Text style={styles.sectionHeader}>Quick Actions</Text>
+              <View style={styles.actionGrid}>
+                {currentStatus === 'Pending' && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#E0E7FF' }]}
+                    onPress={() => updateStatus('Paid')}
+                  >
+                    <Ionicons name="card-outline" size={20} color="#4338CA" />
+                    <Text style={[styles.actionBtnText, { color: '#4338CA' }]}>Mark as Paid</Text>
+                  </TouchableOpacity>
+                )}
+                {(currentStatus === 'Pending' || currentStatus === 'Paid') && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#DBEAFE' }]}
+                    onPress={() => updateStatus('Confirmed')}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={20} color="#1D4ED8" />
+                    <Text style={[styles.actionBtnText, { color: '#1D4ED8' }]}>Confirm Order</Text>
+                  </TouchableOpacity>
+                )}
+                {currentStatus === 'Confirmed' && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#F0FDF4' }]}
+                    onPress={() => updateStatus('ready_for_pickup')}
+                  >
+                    <Feather name="package" size={20} color="#15803D" />
+                    <Text style={[styles.actionBtnText, { color: '#15803D' }]}>Mark Ready for Pickup</Text>
+                  </TouchableOpacity>
+                )}
+                {['Pending', 'Paid', 'Confirmed'].includes(currentStatus) && (
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: '#FEF2F2' }]}
+                    onPress={() => {
+                      Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
+                        { text: 'No' },
+                        { text: 'Yes, Cancel', style: 'destructive', onPress: () => updateStatus('Cancelled') }
+                      ]);
+                    }}
+                  >
+                    <Ionicons name="close-circle-outline" size={20} color="#B91C1C" />
+                    <Text style={[styles.actionBtnText, { color: '#B91C1C' }]}>Cancel Order</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Request Driver moved here for flow */}
+              {currentStatus === 'Ready_for_pickup' && (
+                <TouchableOpacity style={[styles.requestDriverBtn, { marginTop: 12 }]} onPress={handleRequestDriver}>
+                  <LinearGradient colors={['#84cc16', '#65a30d']} style={styles.requestDriverGradient}>
+                    <MaterialCommunityIcons name="moped" size={24} color="#FFF" />
+                    <Text style={styles.requestDriverText}>Assign to Driver</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              )}
             </View>
           )}
 
@@ -636,5 +693,25 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  actionBtn: {
+    padding: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: (width - 64) / 2,
+    flex: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+  },
+  actionBtnText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Bold',
+    marginTop: 6,
   },
 });

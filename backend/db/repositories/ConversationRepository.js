@@ -64,17 +64,17 @@ class ConversationRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        participant1:users!conversations_participant1_id_fkey (
+        participant1:users!participant1_id (
           id,
           user_profiles (full_name, avatar_url),
           stores (id, store_name, logo_url)
         ),
-        participant2:users!conversations_participant2_id_fkey (
+        participant2:users!participant2_id (
           id,
           user_profiles (full_name, avatar_url),
           stores (id, store_name, logo_url)
         ),
-        messages (
+        messages!messages_conversation_id_fkey (
           id,
           content,
           created_at,
@@ -84,15 +84,25 @@ class ConversationRepository extends BaseRepository {
       `)
       .or(`participant1_id.eq.${userId},participant2_id.eq.${userId}`)
       .order('updated_at', { ascending: false })
-      .limit(limit)
       .range(offset, offset + limit - 1);
 
-    if (error) throw error;
+    if (error) {
+      console.error('[getUserConversations] Error:', error);
+      throw error;
+    }
+
 
     // Process conversations to get last message and other participant
     return (data || []).map(conv => {
+      // Handle potentially array-wrapped participants (PostgREST quirk with some join types)
+      let p1 = conv.participant1;
+      let p2 = conv.participant2;
+
+      if (Array.isArray(p1)) p1 = p1[0];
+      if (Array.isArray(p2)) p2 = p2[0];
+
       const isParticipant1 = conv.participant1_id === userId;
-      const otherParticipant = isParticipant1 ? conv.participant2 : conv.participant1;
+      const otherParticipant = isParticipant1 ? p2 : p1;
 
       // Handle potentially array-wrapped relations (Supabase quirk)
       if (otherParticipant) {

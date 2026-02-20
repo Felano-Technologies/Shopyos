@@ -581,15 +581,16 @@ const getBusinessDashboard = async (req, res) => {
     }
 
     // Fetch counts and recent orders in parallel
-    const [totalProducts, totalOrders, pendingOrders, recentOrders, weeklyOrders] = await Promise.all([
+    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrders, weeklyOrders] = await Promise.all([
       repositories.products.count({ store_id: businessId, deleted_at: null }),
       repositories.orders.count({ store_id: businessId }),
       repositories.orders.count({ store_id: businessId, status: 'pending' }),
+      repositories.orders.count({ store_id: businessId, status: 'completed' }),
       repositories.orders.getStoreOrders(businessId, { limit: 5 }), // Recent 5 orders
       // Fetch orders for the last 7 days for the chart
       repositories.orders.findAll({
         where: { store_id: businessId },
-        select: '*, payments(amount, status)',
+        select: '*, total_amount, status, created_at',
         limit: 100, // Reasonable limit for chart data
         orderBy: 'created_at',
         ascending: true,
@@ -624,12 +625,11 @@ const getBusinessDashboard = async (req, res) => {
       // Simpler approach:
       const dayIndex = 6 - Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
       if (dayIndex >= 0 && dayIndex <= 6) {
-        // Sum amounts (assuming payments table or amount field)
-        // The order object from getStoreOrders has payments array or amount?
-        // Checking OrderRepository.getStoreOrders: 
-        // selects: payments (status, amount)
-        const amount = order.payments?.length > 0 ? order.payments[0].amount : 0;
-        chartData[dayIndex] += parseFloat(amount || 0);
+        // Only count paid/completed orders in revenue
+        const revenueStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
+        if (revenueStatuses.includes(order.status)) {
+          chartData[dayIndex] += parseFloat(order.total_amount || 0);
+        }
       }
     });
 
@@ -637,12 +637,13 @@ const getBusinessDashboard = async (req, res) => {
       stats: {
         totalProducts,
         totalOrders,
-        pendingOrders
+        pendingOrders,
+        completedOrders
       },
       recentOrders: recentOrders.map(order => ({
         _id: order.id,
         orderNumber: order.order_number,
-        totalAmount: order.payments?.length > 0 ? order.payments[0].amount : 0,
+        totalAmount: order.total_amount || 0,
         status: order.status,
         createdAt: order.created_at
       })),
@@ -711,9 +712,12 @@ const getBusinessAnalytics = async (req, res) => {
     // Optimization: In a real app, join products table or store category in order_items. 
     // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
 
+    const revenueStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
+
     filteredOrders.forEach(order => {
-      const amount = order.payments?.[0]?.amount || 0;
-      totalRevenue += parseFloat(amount);
+      if (revenueStatuses.includes(order.status)) {
+        totalRevenue += parseFloat(order.total_amount || 0);
+      }
 
       order.order_items?.forEach(item => {
         if (!productSales[item.product_title]) {
@@ -743,8 +747,8 @@ const getBusinessAnalytics = async (req, res) => {
 
         // Sum revenue for this day
         const dayRevenue = filteredOrders
-          .filter(o => new Date(o.created_at).getDate() === d.getDate())
-          .reduce((sum, o) => sum + parseFloat(o.payments?.[0]?.amount || 0), 0);
+          .filter(o => new Date(o.created_at).getDate() === d.getDate() && revenueStatuses.includes(o.status))
+          .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
         chartData.push(dayRevenue);
       }
     } else {

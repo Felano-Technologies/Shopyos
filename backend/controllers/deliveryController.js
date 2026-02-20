@@ -144,7 +144,7 @@ const assignDriver = async (req, res) => {
       });
     }
 
-    if (delivery.status !== 'pending') {
+    if (delivery.status !== 'unassigned') {
       return res.status(400).json({
         success: false,
         error: `Delivery cannot be assigned in ${delivery.status} status`

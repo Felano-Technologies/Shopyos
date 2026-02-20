@@ -21,11 +21,11 @@ class DeliveryRepository extends BaseRepository {
         driver_id: deliveryData.driverId || null,
         pickup_address: deliveryData.pickupAddress,
         delivery_address: deliveryData.deliveryAddress,
-        pickup_latitude: deliveryData.pickupLatitude || null,
-        pickup_longitude: deliveryData.pickupLongitude || null,
-        delivery_latitude: deliveryData.deliveryLatitude || null,
-        delivery_longitude: deliveryData.deliveryLongitude || null,
-        status: deliveryData.status || 'pending',
+        pickup_latitude: deliveryData.pickupLatitude || 0,
+        pickup_longitude: deliveryData.pickupLongitude || 0,
+        delivery_latitude: deliveryData.deliveryLatitude || 0,
+        delivery_longitude: deliveryData.deliveryLongitude || 0,
+        status: deliveryData.status || 'unassigned',
         estimated_pickup_time: deliveryData.estimatedPickupTime || null,
         estimated_delivery_time: deliveryData.estimatedDeliveryTime || null
       })
@@ -190,7 +190,7 @@ class DeliveryRepository extends BaseRepository {
           )
         )
       `)
-      .eq('status', 'pending')
+      .eq('status', 'unassigned')
       .is('driver_id', null)
       .order('created_at', { ascending: true })
       .limit(limit)

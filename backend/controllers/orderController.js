@@ -322,7 +322,7 @@ const updateOrderStatus = async (req, res) => {
 
     // Validate status
     const validStatuses = [
-      'pending', 'paid', 'confirmed', 'preparing',
+      'pending', 'paid', 'confirmed',
       'ready_for_pickup', 'in_transit', 'delivered',
       'completed', 'cancelled', 'refunded'
     ];
@@ -432,8 +432,13 @@ const cancelOrder = async (req, res) => {
       });
     }
 
-    // Only buyer can cancel their own orders
-    if (order.buyer_id !== userId) {
+    // Verify authorization
+    const store = await repositories.stores.findById(order.store_id);
+    const isSeller = store && store.owner_id === userId;
+    const isBuyer = order.buyer_id === userId;
+    const isAdmin = await repositories.users.hasRole(userId, 'admin');
+
+    if (!isBuyer && !isSeller && !isAdmin) {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to cancel this order'

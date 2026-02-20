@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import { getStoreReviews, storage } from '@/services/api';
 
 const ReviewsScreen = () => {
   const theme = useColorScheme();
@@ -26,38 +27,46 @@ const ReviewsScreen = () => {
 
   const [sortBy, setSortBy] = useState<'Latest' | 'Highest'>('Latest');
   const [replyText, setReplyText] = useState('');
-  const [replyingTo, setReplyingTo] = useState(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const reviews = [
-    {
-      id: 'r1',
-      customerName: 'Kwadwo Mensah',
-      rating: 5,
-      comment: 'Excellent service! Highly recommend.',
-      date: '2024-06-17T12:30:00',
-    },
-    {
-      id: 'r2',
-      customerName: 'Koo Kusi',
-      rating: 4,
-      comment: 'Great experience, just a little slow.',
-      date: '2024-06-15T10:00:00',
-    },
-    {
-      id: 'r3',
-      customerName: 'Jackie Johnson',
-      rating: 3,
-      comment: 'Average service, nothing special.',
-      date: '2024-06-10T09:15:00',
-    },
-  ];
+  const fetchReviews = async () => {
+    try {
+      const businessId = await storage.getItem('currentBusinessId');
+      if (businessId) {
+        const data = await getStoreReviews(businessId);
+        if (data.success) {
+          const mappedReviews = data.reviews.map((r: any) => ({
+            id: r.id,
+            customerName: r.buyer?.user_profiles?.full_name || 'Guest',
+            rating: r.rating,
+            comment: r.review_text || 'No comment provided.',
+            date: r.created_at,
+          }));
+          setReviews(mappedReviews);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch reviews:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchReviews();
+  }, []);
 
   const sortedReviews = [...reviews].sort((a, b) => {
-    if (sortBy === 'Latest') return new Date(b.date) - new Date(a.date);
+    if (sortBy === 'Latest') return new Date(b.date).getTime() - new Date(a.date).getTime();
     if (sortBy === 'Highest') return b.rating - a.rating;
+    return 0;
   });
 
-  const handleReply = (id) => {
+  const handleReply = (id: string) => {
     if (!replyText.trim()) return;
     console.log(`Reply to ${id}: ${replyText}`);
     setReplyingTo(null);
@@ -74,7 +83,7 @@ const ReviewsScreen = () => {
             <TouchableOpacity
               key={option}
               style={[styles.sortBtn, sortBy === option && styles.sortBtnActive]}
-              onPress={() => setSortBy(option)}
+              onPress={() => setSortBy(option as any)}
             >
               <Text style={[styles.sortText, sortBy === option && styles.sortTextActive]}>{option}</Text>
             </TouchableOpacity>

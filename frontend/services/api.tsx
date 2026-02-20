@@ -525,7 +525,7 @@ export const getAllCategories = async () => {
   try {
     // This could be a dedicated endpoint or we derive from products
     // For now, let's assume /products/categories exists or we use a set list
-    const response = await api.get('/products/categories');
+    const response = await api.get('/categories');
     return response.data;
   } catch (error: any) {
     console.error("Error fetching categories:", error);
@@ -971,6 +971,9 @@ export const createDelivery = async (deliveryData: {
     return response.data;
   } catch (error: any) {
     console.error("Error creating delivery:", error);
+    if (error.response && error.response.data) {
+      return error.response.data;
+    }
     throw error;
   }
 };

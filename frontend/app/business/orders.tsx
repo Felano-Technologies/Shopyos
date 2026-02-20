@@ -18,8 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { getStoreOrders } from '@/services/api';
-import * as SecureStore from 'expo-secure-store';
+import { getStoreOrders, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -40,7 +39,7 @@ const OrdersScreen = () => {
 
   const fetchOrders = async () => {
     try {
-      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getStoreOrders(businessId);
         if (data.success) {
@@ -49,7 +48,7 @@ const OrdersScreen = () => {
             orderNumber: o.order_number,
             customerName: o.buyer?.user_profiles?.full_name || 'Guest',
             itemsCount: o.order_items?.length || 0,
-            totalAmount: o.payments?.length > 0 ? parseFloat(o.payments[0].amount) : 0,
+            totalAmount: parseFloat(o.total_amount || 0),
             date: o.created_at,
             status: (o.status.charAt(0).toUpperCase() + o.status.slice(1)) as any
           }));

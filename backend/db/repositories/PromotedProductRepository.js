@@ -28,7 +28,7 @@ class PromotedProductRepository extends BaseRepository {
       })
       .select(`
         *,
-        product:products(id, product_name, price, images),
+        product:products(id, title, price, product_images(image_url)),
         store:stores(id, store_name)
       `)
       .single();
@@ -51,8 +51,8 @@ class PromotedProductRepository extends BaseRepository {
       .select(`
         *,
         product:products!inner(
-          id, product_name, description, price, images, category, 
-          stores:store_id(id, store_name, logo)
+          id, title, description, price, product_images(image_url), category, 
+          stores:store_id(id, store_name, logo_url)
         )
       `)
       .eq('status', 'active')
@@ -93,7 +93,7 @@ class PromotedProductRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        product:products(id, product_name, price, images)
+        product:products(id, title, price, product_images(image_url))
       `)
       .eq('store_id', storeId)
       .order('created_at', { ascending: false })
@@ -118,8 +118,8 @@ class PromotedProductRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        product:products(id, product_name, description, price, images, category),
-        store:stores(id, store_name, logo)
+        product:products(id, title, description, price, product_images(image_url), category),
+        store:stores(id, store_name, logo_url)
       `)
       .eq('id', campaignId)
       .single();
@@ -137,7 +137,7 @@ class PromotedProductRepository extends BaseRepository {
   async updateCampaignStatus(campaignId, status) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .update({ 
+      .update({
         status,
         updated_at: new Date().toISOString()
       })
@@ -158,7 +158,7 @@ class PromotedProductRepository extends BaseRepository {
   async updateCampaignBudget(campaignId, newBudget) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .update({ 
+      .update({
         budget: newBudget,
         updated_at: new Date().toISOString()
       })

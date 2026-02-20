@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getUserData } from '../services/api';
+import { getUserData, storage } from '../services/api';
 
 
 interface User {
@@ -39,7 +38,7 @@ export default function UserProfile() {
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
-        const token = await SecureStore.getItemAsync('userId');
+        const token = await storage.getItem('userId');
         if (!token) throw new Error('No auth token found');
 
         const response = await getUserData();

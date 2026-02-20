@@ -85,14 +85,14 @@ class ReportRepository extends BaseRepository {
     if (data.reported_type === 'product') {
       const { data: product } = await this.supabase
         .from('products')
-        .select('id, product_name, description, images, status')
+        .select('id, title, description, product_images(image_url), is_active')
         .eq('id', data.reported_id)
         .single();
       reportedEntity = product;
     } else if (data.reported_type === 'store') {
       const { data: store } = await this.supabase
         .from('stores')
-        .select('id, store_name, business_name, status')
+        .select('id, store_name, is_active')
         .eq('id', data.reported_id)
         .single();
       reportedEntity = store;

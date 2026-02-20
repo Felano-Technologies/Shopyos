@@ -20,8 +20,7 @@ import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { getStoreProducts } from '@/services/api';
-import * as SecureStore from 'expo-secure-store';
+import { getStoreProducts, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -42,7 +41,7 @@ const Inventory = () => {
 
   const fetchInventory = async () => {
     try {
-      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getStoreProducts(businessId);
         if (data.success) {

@@ -17,8 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
-import { getBusinessAnalytics, storage } from '@/services/api'; // Ensure this is imported correctly
-import * as SecureStore from 'expo-secure-store';
+import { getBusinessAnalytics, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -38,7 +37,7 @@ const Analytics = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getBusinessAnalytics(businessId, timeframe);
         if (data && data.success) {
@@ -93,9 +92,9 @@ const Analytics = () => {
 
   if (loading && !refreshing) {
     return (
-        <View style={[styles.mainContainer, styles.centered]}>
-            <ActivityIndicator size="large" color="#0C1559" />
-        </View>
+      <View style={[styles.mainContainer, styles.centered]}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
     );
   }
 
@@ -143,8 +142,8 @@ const Analytics = () => {
             </View>
 
             <View style={styles.headerTextContainer}>
-                <Text style={styles.headerTitle}>Analytics</Text>
-                <Text style={styles.headerSubtitle}>Overview & Performance</Text>
+              <Text style={styles.headerTitle}>Analytics</Text>
+              <Text style={styles.headerSubtitle}>Overview & Performance</Text>
             </View>
           </LinearGradient>
 
@@ -182,25 +181,25 @@ const Analytics = () => {
 
             <View style={styles.card}>
               {hasChartData ? (
-                  <LineChart
-                    data={analyticsData.chart}
-                    width={width - 48}
-                    height={220}
-                    chartConfig={chartConfig}
-                    bezier
-                    style={styles.chartStyle}
-                    withInnerLines={true}
-                    withOuterLines={false}
-                    withVerticalLines={false}
-                    yAxisLabel="₵"
-                    yAxisSuffix="k"
-                    yAxisInterval={1}
-                  />
+                <LineChart
+                  data={analyticsData.chart}
+                  width={width - 48}
+                  height={220}
+                  chartConfig={chartConfig}
+                  bezier
+                  style={styles.chartStyle}
+                  withInnerLines={true}
+                  withOuterLines={false}
+                  withVerticalLines={false}
+                  yAxisLabel="₵"
+                  yAxisSuffix="k"
+                  yAxisInterval={1}
+                />
               ) : (
-                  <View style={styles.emptyChart}>
-                      <MaterialCommunityIcons name="chart-line-variant" size={40} color="#CBD5E1" />
-                      <Text style={styles.emptyText}>No revenue data for this period</Text>
-                  </View>
+                <View style={styles.emptyChart}>
+                  <MaterialCommunityIcons name="chart-line-variant" size={40} color="#CBD5E1" />
+                  <Text style={styles.emptyText}>No revenue data for this period</Text>
+                </View>
               )}
             </View>
 
@@ -213,10 +212,10 @@ const Analytics = () => {
                 <Text style={styles.statLabel}>Total Revenue</Text>
                 <Text style={styles.statValue}>₵{analyticsData.stats.revenue.toLocaleString()}</Text>
                 <View style={styles.growthRow}>
-                    <Feather name={analyticsData.stats.growth >= 0 ? "trending-up" : "trending-down"} size={14} color={analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444"} />
-                    <Text style={[styles.statGrowth, { color: analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444" }]}>
-                        {Math.abs(analyticsData.stats.growth)}%
-                    </Text>
+                  <Feather name={analyticsData.stats.growth >= 0 ? "trending-up" : "trending-down"} size={14} color={analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444"} />
+                  <Text style={[styles.statGrowth, { color: analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444" }]}>
+                    {Math.abs(analyticsData.stats.growth)}%
+                  </Text>
                 </View>
               </View>
 
@@ -232,23 +231,23 @@ const Analytics = () => {
 
             {/* Sales Distribution */}
             {hasPieData && (
-                <>
-                    <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionTitle}>Category Breakdown</Text>
-                    </View>
-                    <View style={styles.card}>
-                    <PieChart
-                        data={analyticsData.categoryDistribution}
-                        width={width - 48}
-                        height={200}
-                        chartConfig={chartConfig}
-                        accessor="sales"
-                        backgroundColor="transparent"
-                        paddingLeft="15"
-                        absolute
-                    />
-                    </View>
-                </>
+              <>
+                <View style={styles.sectionHeaderRow}>
+                  <Text style={styles.sectionTitle}>Category Breakdown</Text>
+                </View>
+                <View style={styles.card}>
+                  <PieChart
+                    data={analyticsData.categoryDistribution}
+                    width={width - 48}
+                    height={200}
+                    chartConfig={chartConfig}
+                    accessor="sales"
+                    backgroundColor="transparent"
+                    paddingLeft="15"
+                    absolute
+                  />
+                </View>
+              </>
             )}
 
             {/* Top Products */}
@@ -257,22 +256,22 @@ const Analytics = () => {
             </View>
 
             {analyticsData.topProducts.length > 0 ? (
-                analyticsData.topProducts.map((product: any, index: number) => (
+              analyticsData.topProducts.map((product: any, index: number) => (
                 <View key={index} style={styles.productCard}>
-                    <View style={[styles.rankBadge, { backgroundColor: index === 0 ? '#EAB308' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : '#0C1559' }]}>
+                  <View style={[styles.rankBadge, { backgroundColor: index === 0 ? '#EAB308' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : '#0C1559' }]}>
                     <Text style={styles.rankText}>{index + 1}</Text>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
                     <Text style={styles.productSales}>{product.sales} items sold</Text>
-                    </View>
-                    <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
+                  </View>
+                  <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
                 </View>
-                ))
+              ))
             ) : (
-                <View style={styles.emptyList}>
-                    <Text style={styles.emptyText}>No top products yet.</Text>
-                </View>
+              <View style={styles.emptyList}>
+                <Text style={styles.emptyText}>No top products yet.</Text>
+              </View>
             )}
 
             {/* Performance Score */}
@@ -284,12 +283,12 @@ const Analytics = () => {
               <View>
                 <Text style={styles.scoreTitle}>Performance Score</Text>
                 <Text style={styles.scoreDesc}>
-                    {analyticsData.stats.growth > 0 ? "You're growing fast! Keep it up." : "Steady progress. Try adding new items."}
+                  {analyticsData.stats.growth > 0 ? "You're growing fast! Keep it up." : "Steady progress. Try adding new items."}
                 </Text>
               </View>
               <View style={styles.scoreCircle}>
                 <Text style={styles.scoreNum}>
-                    {analyticsData.stats.orders > 0 ? '9.2' : '-'}
+                  {analyticsData.stats.orders > 0 ? '9.2' : '-'}
                 </Text>
               </View>
             </LinearGradient>
@@ -313,8 +312,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
   centered: {
-      justifyContent: 'center',
-      alignItems: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   bottomLogos: {
     position: 'absolute',
@@ -449,19 +448,19 @@ const styles = StyleSheet.create({
     paddingRight: 0,
   },
   emptyChart: {
-      height: 180,
-      justifyContent: 'center',
-      alignItems: 'center',
+    height: 180,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   emptyList: {
-      padding: 20,
-      alignItems: 'center',
+    padding: 20,
+    alignItems: 'center',
   },
   emptyText: {
-      color: '#94A3B8',
-      fontFamily: 'Montserrat-Medium',
-      marginTop: 8,
-      fontSize: 14,
+    color: '#94A3B8',
+    fontFamily: 'Montserrat-Medium',
+    marginTop: 8,
+    fontSize: 14,
   },
 
   // Stats Grid
@@ -502,9 +501,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   growthRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
   },
   statGrowth: {
     fontFamily: 'Montserrat-SemiBold',
@@ -512,10 +511,10 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   statSubText: {
-      fontFamily: 'Montserrat-Regular',
-      fontSize: 11,
-      color: '#94A3B8',
-      marginTop: 4,
+    fontFamily: 'Montserrat-Regular',
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 4,
   },
 
   // Products

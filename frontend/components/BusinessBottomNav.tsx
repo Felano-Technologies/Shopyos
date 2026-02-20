@@ -3,8 +3,7 @@ import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, 
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getBusinessDashboard, getConversations } from '@/services/api';
-import * as SecureStore from 'expo-secure-store';
+import { getBusinessDashboard, getConversations, storage } from '@/services/api';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -22,7 +21,7 @@ const BusinessBottomNav = () => {
     // Fetch real stats
     const fetchCounts = async () => {
       try {
-        const businessId = await SecureStore.getItemAsync('currentBusinessId');
+        const businessId = await storage.getItem('currentBusinessId');
         if (businessId) {
           // Fetch order count
           const dashResp = await getBusinessDashboard(businessId);

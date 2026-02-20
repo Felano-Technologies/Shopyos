@@ -25,8 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct, getAllCategories, createCategory, deleteCategory, updateCategory } from '@/services/api';
-import * as SecureStore from 'expo-secure-store';
+import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct, getAllCategories, createCategory, deleteCategory, updateCategory, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -57,7 +56,7 @@ const ProductsScreen = () => {
   // --- Actions ---
   const fetchProducts = async () => {
     try {
-      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getStoreProducts(businessId, { includeInactive: true });
         if (data.success) {
@@ -214,7 +213,7 @@ const ProductsScreen = () => {
     setIsSubmitting(true);
 
     try {
-      const businessId = await SecureStore.getItemAsync('currentBusinessId');
+      const businessId = await storage.getItem('currentBusinessId');
       if (!businessId) {
         Alert.alert("Error", "No active business found");
         return;

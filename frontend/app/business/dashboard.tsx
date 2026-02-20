@@ -12,9 +12,8 @@ import {
   Dimensions,
   Modal, // <--- Added Modal
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { router } from 'expo-router';
-import { getMyBusinesses, getBusinessDashboard, getUnreadNotificationCount } from '@/services/api';
+import { getMyBusinesses, getBusinessDashboard, getUnreadNotificationCount, storage } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -100,7 +99,7 @@ const BusinessDashboard = () => {
       setSelectedBusiness(currentBusiness);
 
       if (currentBusiness._id) {
-        await SecureStore.setItemAsync('currentBusinessId', currentBusiness._id);
+        await storage.setItem('currentBusinessId', currentBusiness._id);
 
         const dashResp = await getBusinessDashboard(currentBusiness._id);
         if (dashResp.success) {

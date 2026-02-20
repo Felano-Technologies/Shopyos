@@ -111,7 +111,7 @@ const getConversationDetails = async (req, res) => {
     }
 
     const conversation = await repositories.conversations.getConversationDetails(conversationId);
-    
+
     if (!conversation) {
       return res.status(404).json({
         success: false,
@@ -295,7 +295,7 @@ const deleteMessage = async (req, res) => {
     });
   } catch (error) {
     console.error('Delete message error:', error);
-    
+
     if (error.message === 'Message not found') {
       return res.status(404).json({
         success: false,

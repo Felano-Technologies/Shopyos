@@ -20,8 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
-import { businessRegister } from '@/services/api';
+import { businessRegister, storage } from '@/services/api';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 
 const { width } = Dimensions.get('window');
@@ -29,20 +28,20 @@ const { width } = Dimensions.get('window');
 // --- MOVED OUTSIDE: Input Component to prevent re-render issues ---
 const InputField = ({ label, icon, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: any) => (
   <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
-          <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />
-          <TextInput
-              style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
-              value={value}
-              onChangeText={onChangeText} // Direct prop passing
-              placeholder={placeholder}
-              placeholderTextColor="#94A3B8"
-              multiline={multiline}
-              textAlignVertical={multiline ? 'top' : 'center'}
-              keyboardType={keyboardType}
-          />
-      </View>
+    <Text style={styles.label}>{label}</Text>
+    <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
+      <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />
+      <TextInput
+        style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
+        value={value}
+        onChangeText={onChangeText} // Direct prop passing
+        placeholder={placeholder}
+        placeholderTextColor="#94A3B8"
+        multiline={multiline}
+        textAlignVertical={multiline ? 'top' : 'center'}
+        keyboardType={keyboardType}
+      />
+    </View>
   </View>
 );
 
@@ -110,7 +109,7 @@ const BusinessSetupScreen = () => {
     setLoading(true);
 
     try {
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await storage.getItem('userToken');
       if (!token) return router.replace('/login');
 
       let logoUrl = '';
@@ -131,8 +130,8 @@ const BusinessSetupScreen = () => {
         logo: logoUrl,
         coverImage: coverImageUrl,
         socialMedia: {
-            instagram: formData.instagram,
-            facebook: formData.facebook
+          instagram: formData.instagram,
+          facebook: formData.facebook
         }
       };
 
@@ -143,24 +142,24 @@ const BusinessSetupScreen = () => {
           { text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }
         ]);
       }
-} catch (error: any) {
-        // --- DEBUG LOGGING ---
-        console.log("FULL ERROR OBJECT:", JSON.stringify(error, null, 2));
-        if (error.response) {
-            console.log("STATUS:", error.response.status);
-            console.log("DATA:", error.response.data);
-        }
-        // ---------------------
+    } catch (error: any) {
+      // --- DEBUG LOGGING ---
+      console.log("FULL ERROR OBJECT:", JSON.stringify(error, null, 2));
+      if (error.response) {
+        console.log("STATUS:", error.response.status);
+        console.log("DATA:", error.response.data);
+      }
+      // ---------------------
 
-        let errorMessage = 'Registration failed. Please try again.';
-        
-        if (error.response && error.response.data && error.response.data.error) {
-            errorMessage = error.response.data.error;
-        } else if (error.message) {
-            errorMessage = error.message;
-        }
+      let errorMessage = 'Registration failed. Please try again.';
 
-        Alert.alert('Registration Error', errorMessage);
+      if (error.response && error.response.data && error.response.data.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      Alert.alert('Registration Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -169,7 +168,7 @@ const BusinessSetupScreen = () => {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      
+
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
@@ -179,209 +178,209 @@ const BusinessSetupScreen = () => {
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         {/* Keyboard Avoiding View Wrapper */}
-        <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
-            style={{ flex: 1 }}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20} 
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-            <ScrollView 
-                contentContainerStyle={styles.scrollContent} 
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-            >
-            
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+
             {/* Header */}
             <LinearGradient
-                colors={['#0C1559', '#1e3a8a']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.headerContainer}
+              colors={['#0C1559', '#1e3a8a']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+              style={styles.headerContainer}
             >
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#FFF" />
-                </TouchableOpacity>
-                <View style={{ alignItems: 'center' }}>
-                    <Text style={styles.headerTitle}>Setup Business</Text>
-                    <Text style={styles.headerSubtitle}>Let's get your store online</Text>
-                </View>
-                <View style={{ width: 40 }} />
+              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color="#FFF" />
+              </TouchableOpacity>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={styles.headerTitle}>Setup Business</Text>
+                <Text style={styles.headerSubtitle}>Let's get your store online</Text>
+              </View>
+              <View style={{ width: 40 }} />
             </LinearGradient>
 
             {/* --- Media Upload Section --- */}
             <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Brand Identity</Text>
-                
-                {/* Cover Image */}
-                <TouchableOpacity style={styles.coverUpload} onPress={() => pickImage('cover')}>
-                    {coverImage ? (
-                        <Image source={{ uri: coverImage }} style={styles.uploadedCover} />
-                    ) : (
-                        <View style={styles.uploadPlaceholder}>
-                            <Feather name="image" size={32} color="#94A3B8" />
-                            <Text style={styles.uploadText}>Add Cover Photo (16:9)</Text>
-                        </View>
-                    )}
-                    {coverImage && <View style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF"/></View>}
-                </TouchableOpacity>
+              <Text style={styles.sectionTitle}>Brand Identity</Text>
 
-                {/* Logo Upload */}
-                <View style={styles.logoRow}>
-                    <TouchableOpacity style={styles.logoUpload} onPress={() => pickImage('logo')}>
-                        {logo ? (
-                            <Image source={{ uri: logo }} style={styles.uploadedLogo} />
-                        ) : (
-                            <View style={styles.logoPlaceholder}>
-                                <Feather name="camera" size={24} color="#94A3B8" />
-                            </View>
-                        )}
-                        <View style={styles.addLogoBadge}><Feather name="plus" size={10} color="#FFF"/></View>
-                    </TouchableOpacity>
-                    <View style={styles.logoTextContainer}>
-                        <Text style={styles.logoLabel}>Business Logo</Text>
-                        <Text style={styles.logoSub}>Tap to upload a square logo</Text>
+              {/* Cover Image */}
+              <TouchableOpacity style={styles.coverUpload} onPress={() => pickImage('cover')}>
+                {coverImage ? (
+                  <Image source={{ uri: coverImage }} style={styles.uploadedCover} />
+                ) : (
+                  <View style={styles.uploadPlaceholder}>
+                    <Feather name="image" size={32} color="#94A3B8" />
+                    <Text style={styles.uploadText}>Add Cover Photo (16:9)</Text>
+                  </View>
+                )}
+                {coverImage && <View style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF" /></View>}
+              </TouchableOpacity>
+
+              {/* Logo Upload */}
+              <View style={styles.logoRow}>
+                <TouchableOpacity style={styles.logoUpload} onPress={() => pickImage('logo')}>
+                  {logo ? (
+                    <Image source={{ uri: logo }} style={styles.uploadedLogo} />
+                  ) : (
+                    <View style={styles.logoPlaceholder}>
+                      <Feather name="camera" size={24} color="#94A3B8" />
                     </View>
+                  )}
+                  <View style={styles.addLogoBadge}><Feather name="plus" size={10} color="#FFF" /></View>
+                </TouchableOpacity>
+                <View style={styles.logoTextContainer}>
+                  <Text style={styles.logoLabel}>Business Logo</Text>
+                  <Text style={styles.logoSub}>Tap to upload a square logo</Text>
                 </View>
+              </View>
             </View>
 
             {/* --- Business Info Section --- */}
             <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Basic Details</Text>
-                
-                <InputField 
-                    label="Business Name" 
-                    icon="briefcase" 
-                    value={formData.businessName} 
-                    onChangeText={(t: string) => handleInputChange('businessName', t)} 
-                    placeholder="e.g. Urban Trends" 
-                />
-                
-                <InputField 
-                    label="Description" 
-                    icon="file-text" 
-                    value={formData.description} 
-                    onChangeText={(t: string) => handleInputChange('description', t)} 
-                    placeholder="Tell us about what you sell..." 
-                    multiline 
-                />
+              <Text style={styles.sectionTitle}>Basic Details</Text>
 
-                {/* Category Pills */}
-                <Text style={styles.label}>Category</Text>
-                <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false} 
-                    contentContainerStyle={styles.catScroll}
-                    keyboardShouldPersistTaps="handled"
-                >
-                    {categories.map((cat) => (
-                        <TouchableOpacity 
-                            key={cat} 
-                            style={[styles.catChip, formData.category === cat && styles.catActive]}
-                            onPress={() => handleInputChange('category', cat)}
-                        >
-                            <Text style={[styles.catText, formData.category === cat && styles.catTextActive]}>{cat}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
+              <InputField
+                label="Business Name"
+                icon="briefcase"
+                value={formData.businessName}
+                onChangeText={(t: string) => handleInputChange('businessName', t)}
+                placeholder="e.g. Urban Trends"
+              />
+
+              <InputField
+                label="Description"
+                icon="file-text"
+                value={formData.description}
+                onChangeText={(t: string) => handleInputChange('description', t)}
+                placeholder="Tell us about what you sell..."
+                multiline
+              />
+
+              {/* Category Pills */}
+              <Text style={styles.label}>Category</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.catScroll}
+                keyboardShouldPersistTaps="handled"
+              >
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.catChip, formData.category === cat && styles.catActive]}
+                    onPress={() => handleInputChange('category', cat)}
+                  >
+                    <Text style={[styles.catText, formData.category === cat && styles.catTextActive]}>{cat}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
             </View>
 
             {/* --- Contact & Location --- */}
             <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Contact & Location</Text>
-                
-                <InputField 
-                    label="Phone Number" 
-                    icon="phone" 
-                    value={formData.phone} 
-                    onChangeText={(t: string) => handleInputChange('phone', t)} 
-                    placeholder="+233 24 123 4567" 
-                    keyboardType="phone-pad" 
-                />
-                
-                <View style={styles.row}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                        <InputField 
-                            label="City" 
-                            icon="map-pin" 
-                            value={formData.city} 
-                            onChangeText={(t: string) => handleInputChange('city', t)} 
-                            placeholder="Accra" 
-                        />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <InputField 
-                            label="Country" 
-                            icon="flag" 
-                            value={formData.country} 
-                            onChangeText={(t: string) => handleInputChange('country', t)} 
-                            placeholder="Ghana" 
-                        />
-                    </View>
+              <Text style={styles.sectionTitle}>Contact & Location</Text>
+
+              <InputField
+                label="Phone Number"
+                icon="phone"
+                value={formData.phone}
+                onChangeText={(t: string) => handleInputChange('phone', t)}
+                placeholder="+233 24 123 4567"
+                keyboardType="phone-pad"
+              />
+
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <InputField
+                    label="City"
+                    icon="map-pin"
+                    value={formData.city}
+                    onChangeText={(t: string) => handleInputChange('city', t)}
+                    placeholder="Accra"
+                  />
                 </View>
-                
-                <InputField 
-                    label="Full Address" 
-                    icon="map" 
-                    value={formData.address} 
-                    onChangeText={(t: string) => handleInputChange('address', t)} 
-                    placeholder="Street name, PLT number..." 
-                />
+                <View style={{ flex: 1 }}>
+                  <InputField
+                    label="Country"
+                    icon="flag"
+                    value={formData.country}
+                    onChangeText={(t: string) => handleInputChange('country', t)}
+                    placeholder="Ghana"
+                  />
+                </View>
+              </View>
+
+              <InputField
+                label="Full Address"
+                icon="map"
+                value={formData.address}
+                onChangeText={(t: string) => handleInputChange('address', t)}
+                placeholder="Street name, PLT number..."
+              />
             </View>
 
             {/* --- Social Links --- */}
             <View style={styles.sectionCard}>
-                <Text style={styles.sectionTitle}>Online Presence (Optional)</Text>
-                <InputField 
-                    label="Website" 
-                    icon="globe" 
-                    value={formData.website} 
-                    onChangeText={(t: string) => handleInputChange('website', t)} 
-                    placeholder="https://yourstore.com" 
-                />
-                
-                <View style={styles.row}>
-                    <View style={{ flex: 1, marginRight: 10 }}>
-                        <InputField 
-                            label="Instagram" 
-                            icon="instagram" 
-                            value={formData.instagram} 
-                            onChangeText={(t: string) => handleInputChange('instagram', t)} 
-                            placeholder="@handle" 
-                        />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <InputField 
-                            label="Facebook" 
-                            icon="facebook" 
-                            value={formData.facebook} 
-                            onChangeText={(t: string) => handleInputChange('facebook', t)} 
-                            placeholder="Page Name" 
-                        />
-                    </View>
+              <Text style={styles.sectionTitle}>Online Presence (Optional)</Text>
+              <InputField
+                label="Website"
+                icon="globe"
+                value={formData.website}
+                onChangeText={(t: string) => handleInputChange('website', t)}
+                placeholder="https://yourstore.com"
+              />
+
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginRight: 10 }}>
+                  <InputField
+                    label="Instagram"
+                    icon="instagram"
+                    value={formData.instagram}
+                    onChangeText={(t: string) => handleInputChange('instagram', t)}
+                    placeholder="@handle"
+                  />
                 </View>
+                <View style={{ flex: 1 }}>
+                  <InputField
+                    label="Facebook"
+                    icon="facebook"
+                    value={formData.facebook}
+                    onChangeText={(t: string) => handleInputChange('facebook', t)}
+                    placeholder="Page Name"
+                  />
+                </View>
+              </View>
             </View>
 
             {/* --- Submit Button --- */}
-            <TouchableOpacity 
-                style={styles.submitBtn} 
-                onPress={handleCreateBusiness}
-                disabled={loading || uploadLoading}
+            <TouchableOpacity
+              style={styles.submitBtn}
+              onPress={handleCreateBusiness}
+              disabled={loading || uploadLoading}
             >
-                <LinearGradient
-                    colors={['#0C1559', '#1e3a8a']}
-                    style={styles.submitGradient}
-                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                >
-                    {loading || uploadLoading ? (
-                        <ActivityIndicator color="#FFF" />
-                    ) : (
-                        <>
-                            <Text style={styles.submitText}>Launch Business</Text>
-                            <Ionicons name="rocket" size={20} color="#FFF" />
-                        </>
-                    )}
-                </LinearGradient>
+              <LinearGradient
+                colors={['#0C1559', '#1e3a8a']}
+                style={styles.submitGradient}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              >
+                {loading || uploadLoading ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Text style={styles.submitText}>Launch Business</Text>
+                    <Ionicons name="rocket" size={20} color="#FFF" />
+                  </>
+                )}
+              </LinearGradient>
             </TouchableOpacity>
 
-            </ScrollView>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -399,7 +398,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 50,
   },
-  
+
   // Background
   bottomLogos: {
     position: 'absolute',
