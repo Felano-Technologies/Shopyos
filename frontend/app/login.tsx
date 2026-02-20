@@ -200,9 +200,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  keyboardView: {
+    flex: 1,
+  },
+  pressableContainer: {
+    flex: 1,
+    justifyContent: 'center', // Fix vertical alignment
+    alignItems: 'center',     // Fix horizontal alignment (prevents shift to left)
+    width: '100%',
+  },
   innerContainer: {
-    width: '92%',
-    alignItems: 'center',
+    width: '100%',
+    paddingHorizontal: 24, // Use padding instead of percentage width
+    alignItems: 'center', // Centers contents horizontally
     justifyContent: 'center',
     flex: 1,
   },
