@@ -1,15 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  RefreshControl,
-  Image,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text, FlatList, StyleSheet, TouchableOpacity, Dimensions, RefreshControl, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -17,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { getMyOrders } from '@/services/api';
+import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -85,6 +76,7 @@ const OrdersScreen = () => {
     return (
       <TouchableOpacity
         style={styles.orderCard}
+        activeOpacity={0.8}
         onPress={() => router.push(`/order/${item.id}` as any)}
       >
         <View style={styles.cardHeader}>
@@ -124,6 +116,7 @@ const OrdersScreen = () => {
     <View style={styles.mainContainer}>
       <StatusBar style="light" backgroundColor="#0C1559" />
 
+      {/* Static Header - Always Visible */}
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.headerRow}>
@@ -136,10 +129,10 @@ const OrdersScreen = () => {
         </SafeAreaView>
       </LinearGradient>
 
+      {/* Content Area */}
       {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#0C1559" />
-        </View>
+        // Render Skeleton directly (it handles its own scrolling)
+        <OrdersSkeleton />
       ) : (
         <FlatList
           data={orders}
@@ -170,7 +163,8 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   listContent: { padding: 20, paddingBottom: 40 },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  
+  // Card Styles
   orderCard: { backgroundColor: '#FFF', borderRadius: 20, marginBottom: 16, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   storeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -188,6 +182,8 @@ const styles = StyleSheet.create({
   itemsCount: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
   viewDetailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   viewDetailsText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
+  
+  // Empty State
   emptyState: { alignItems: 'center', marginTop: 100 },
   emptyText: { marginTop: 16, fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 24, textAlign: 'center' },
   shopBtn: { paddingVertical: 12, paddingHorizontal: 24, backgroundColor: '#0C1559', borderRadius: 20 },

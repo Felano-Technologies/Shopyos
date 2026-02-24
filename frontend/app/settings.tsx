@@ -313,6 +313,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 24,
+    paddingBottom: 75,
   },
   sectionHeader: {
     fontSize: 14,

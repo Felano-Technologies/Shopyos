@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from './context/CartContext'; // Ensure path is correct based on your structure
 import { searchProducts } from '@/services/api';
+import { RecentSkeleton } from '../components/skeletons/RecentSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -217,7 +218,7 @@ export default function RecentScreen() {
       {/* --- Content --- */}
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0C1559" />
+          <RecentSkeleton  />
         </View>
       ) : (
         <FlatList

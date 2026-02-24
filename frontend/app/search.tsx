@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,61 @@ import {
   Image,
   Keyboard,
   Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
-import { searchProducts, getAllCategories, getActiveDeliveries } from '@/services/api';
-import { useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { searchProducts, getAllCategories } from '@/services/api';
+
+// IMPORT THE SKELETON
+import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
 
 const { width } = Dimensions.get('window');
+
+// --- MOCK DATA FOR UI TESTING ---
+const MOCK_PRODUCTS = [
+  {
+    _id: '1',
+    name: 'Wireless Noise Cancelling Headphones Pro',
+    price: '450.00',
+    images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80'],
+    averageRating: '4.8',
+    store: { name: 'TechHaven' }
+  },
+  {
+    _id: '2',
+    name: 'Minimalist Ceramic Coffee Mug',
+    price: '45.50',
+    images: ['https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=500&q=80'],
+    averageRating: '4.5',
+    store: { name: 'HomeEssentials' }
+  },
+  {
+    _id: '3',
+    name: 'Smart Fitness Tracker Watch',
+    price: '299.00',
+    images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80'],
+    averageRating: '4.9',
+    store: { name: 'FitGear' }
+  },
+  {
+    _id: '4',
+    name: 'Premium Leather Crossbody Bag',
+    price: '180.00',
+    images: ['https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500&q=80'],
+    averageRating: '4.7',
+    store: { name: 'LuxeLeather' }
+  },
+];
+
+const MOCK_CATEGORIES = [
+  { id: '1', name: 'Electronics' },
+  { id: '2', name: 'Fashion' },
+  { id: '3', name: 'Home & Living' },
+  { id: '4', name: 'Sports' },
+];
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -29,8 +72,13 @@ export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  
+  // Set initial loading to true so the skeleton shows immediately on mount
+  const [loading, setLoading] = useState(true); 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // --- DEBUG TOGGLE STATE ---
+  const [forceEmpty, setForceEmpty] = useState(false);
 
   // Fetch categories once
   useEffect(() => {
@@ -50,6 +98,9 @@ export default function SearchScreen() {
     const delayDebounceFn = setTimeout(() => {
       if (!searchQuery && !selectedCategory && !params.sortBy && !params.minPrice) {
         setProducts([]);
+        
+        // If there's no search query, we still want to simulate loading the initial "Explore" page
+        setTimeout(() => setLoading(false), 800); 
         return;
       }
 
@@ -86,7 +137,7 @@ export default function SearchScreen() {
       params: {
         name: product.name,
         price: product.price,
-        image: product.images[0]
+        image: product.images?.[0] || 'https://via.placeholder.com/150'
       }
     } as any);
   };
@@ -97,78 +148,115 @@ export default function SearchScreen() {
       activeOpacity={0.9}
       onPress={() => handleProductPress(item)}
     >
-      <Image
-        source={{ uri: item.images[0] || 'https://via.placeholder.com/150' }}
-        style={styles.productImage}
-      />
+      <View style={styles.imageContainer}>
+        <Image
+          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+          style={styles.productImage}
+        />
+        <TouchableOpacity style={styles.favoriteBtn}>
+            <Ionicons name="heart-outline" size={16} color="#0C1559" />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.productInfo}>
+        <Text style={styles.storeName} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
         <Text style={styles.productTitle} numberOfLines={2}>{item.name}</Text>
+        
         <View style={styles.priceRow}>
           <Text style={styles.productPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={12} color="#F59E0B" />
+          <View style={styles.ratingBadge}>
+            <Ionicons name="star" size={10} color="#F59E0B" />
             <Text style={styles.ratingText}>{item.averageRating || '0.0'}</Text>
           </View>
         </View>
-        <Text style={styles.storeName} numberOfLines={1}>by {item.store?.name || 'Shopyos'}</Text>
       </View>
     </TouchableOpacity>
   );
 
-  const renderCategoryItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={[
-        styles.catChip,
-        selectedCategory === item.name && styles.catChipActive
-      ]}
-      onPress={() => setSelectedCategory(selectedCategory === item.name ? null : item.name)}
-    >
-      <Text style={[
-        styles.catText,
-        selectedCategory === item.name && styles.catTextActive
-      ]}>{item.name}</Text>
-    </TouchableOpacity>
-  );
+  const renderCategoryItem = ({ item }: { item: any }) => {
+    const isActive = selectedCategory === item.name;
+    return (
+      <TouchableOpacity
+        style={[styles.catChip, isActive && styles.catChipActive]}
+        onPress={() => setSelectedCategory(isActive ? null : item.name)}
+      >
+        <Text style={[styles.catText, isActive && styles.catTextActive]}>{item.name}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  // Decide what data to show for testing purposes
+  const displayProducts = forceEmpty ? [] : (products.length > 0 ? products : MOCK_PRODUCTS);
+  const displayCategories = categories.length > 0 ? categories : MOCK_CATEGORIES;
+
+  // === RENDER SKELETON IF LOADING ===
+  if (loading) {
+    return (
+      <View style={styles.mainContainer}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <SearchSkeleton />
+        <BottomNav />
+      </View>
+    );
+  }
 
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.mainContainer}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
 
+        {/* --- BACKGROUND WATERMARK LAYER --- */}
+        <View style={styles.bottomLogos}>
+          <Image
+            source={require('../assets/images/splash-icon.png')}
+            style={styles.fadedLogo}
+          />
+        </View>
+
+        <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
+          
+          {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>Explore</Text>
+            <View>
+                <Text style={styles.headerSubtitle}>Find your favorite</Text>
+                <Text style={styles.headerTitle}>Products</Text>
+            </View>
             <TouchableOpacity
               style={styles.filterBtn}
               onPress={() => router.push('/filter' as any)}
             >
-              <Feather name="sliders" size={18} color="#0C1559" />
+              <Feather name="sliders" size={20} color="#0C1559" />
             </TouchableOpacity>
           </View>
 
+          {/* Search Bar */}
           <View style={styles.searchWrapper}>
             <View style={styles.searchBar}>
-              <Feather name="search" size={20} color="#0C1559" />
+              <Feather name="search" size={22} color="#94A3B8" />
               <TextInput
-                placeholder="What are you looking for?"
+                placeholder="Search everything..."
                 placeholderTextColor="#94A3B8"
                 style={styles.searchInput}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                returnKeyType="search"
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearBtn}>
+                  <Ionicons name="close" size={16} color="#FFF" />
                 </TouchableOpacity>
               )}
             </View>
           </View>
 
-          {/* Categories Horizontal List */}
-          <View style={styles.categoriesWrapper}>
+          {/* Categories Section */}
+          <View style={styles.categoriesSection}>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Browse Categories</Text>
+            </View>
             <FlatList
               horizontal
-              data={categories}
+              data={displayCategories}
               keyExtractor={(item) => item.id || item.name}
               renderItem={renderCategoryItem}
               showsHorizontalScrollIndicator={false}
@@ -176,40 +264,49 @@ export default function SearchScreen() {
             />
           </View>
 
-          {loading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color="#0C1559" />
-              <Text style={styles.loadingText}>Finding best matches...</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={products}
-              keyExtractor={(item) => item._id}
-              numColumns={2}
-              contentContainerStyle={styles.gridContent}
-              showsVerticalScrollIndicator={false}
-              renderItem={renderProductCard}
-              ListEmptyComponent={
-                <View style={styles.emptyState}>
-                  <MaterialCommunityIcons
-                    name={searchQuery || selectedCategory ? "magnify-close" : "store-search-outline"}
-                    size={64}
-                    color="#CBD5E1"
-                  />
-                  <Text style={styles.emptyTitle}>
-                    {searchQuery || selectedCategory ? 'No matches found' : 'Start Searching'}
-                  </Text>
-                  <Text style={styles.emptySubtitle}>
-                    {searchQuery || selectedCategory
-                      ? 'Try adjusting your filters or search keywords'
-                      : 'Browse thousands of unique items from local sellers'}
-                  </Text>
+          {/* Product Grid */}
+          <FlatList
+            data={displayProducts}
+            keyExtractor={(item) => item._id}
+            numColumns={2}
+            contentContainerStyle={styles.gridContent}
+            columnWrapperStyle={styles.columnWrapper}
+            showsVerticalScrollIndicator={false}
+            renderItem={renderProductCard}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconBg}>
+                    <MaterialCommunityIcons
+                      name={searchQuery || selectedCategory ? "archive-search-outline" : "shopping-search"}
+                      size={50}
+                      color="#0C1559"
+                    />
                 </View>
-              }
-            />
-          )}
+                <Text style={styles.emptyTitle}>
+                  {searchQuery || selectedCategory ? 'No items found' : 'Start Exploring'}
+                </Text>
+                <Text style={styles.emptySubtitle}>
+                  {searchQuery || selectedCategory
+                    ? 'Try using different keywords or removing filters to find what you need.'
+                    : 'Search for products, brands, or browse our categories above.'}
+                </Text>
+              </View>
+            }
+          />
 
         </SafeAreaView>
+
+        {/* --- TEMPORARY UI TOGGLE BUTTON --- */}
+        <TouchableOpacity 
+          style={styles.debugToggleBtn} 
+          onPress={() => setForceEmpty(!forceEmpty)}
+        >
+          <Feather name={forceEmpty ? "eye" : "eye-off"} size={16} color="#FFF" style={{ marginRight: 6 }} />
+          <Text style={styles.debugToggleText}>
+            {forceEmpty ? 'Show Loaded State' : 'Show Empty State'}
+          </Text>
+        </TouchableOpacity>
+
         <BottomNav />
       </View>
     </Pressable>
@@ -217,33 +314,146 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+  mainContainer: { flex: 1, backgroundColor: '#e9f0ff' }, 
   safeContainer: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, marginTop: 15, marginBottom: 15 },
+
+  // Background Watermark
+  bottomLogos: { position: 'absolute', bottom: -10, left: -40 },
+  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.10 },
+
+  // Header
+  header: { 
+      flexDirection: 'row', 
+      justifyContent: 'space-between', 
+      alignItems: 'center', 
+      paddingHorizontal: 20, 
+      marginTop: 20, 
+      marginBottom: 20 
+  },
+  headerSubtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 2 },
   headerTitle: { fontSize: 28, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  filterBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  searchWrapper: { paddingHorizontal: 20, marginBottom: 15 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 4 },
-  searchInput: { flex: 1, marginLeft: 12, fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
-  categoriesWrapper: { marginBottom: 15 },
-  catList: { paddingHorizontal: 20 },
-  catChip: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12, backgroundColor: '#FFF', marginRight: 10, borderWidth: 1, borderColor: '#F1F5F9' },
-  catChipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
+  filterBtn: { 
+      width: 48, 
+      height: 48, 
+      borderRadius: 16, 
+      backgroundColor: '#FFF', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      shadowColor: '#0C1559', 
+      shadowOpacity: 0.08, 
+      shadowRadius: 10, 
+      elevation: 4 
+  },
+
+  // Search
+  searchWrapper: { paddingHorizontal: 20, marginBottom: 25 },
+  searchBar: { 
+      flexDirection: 'row', 
+      alignItems: 'center', 
+      backgroundColor: '#FFFFFF', 
+      paddingHorizontal: 16, 
+      height: 56, 
+      borderRadius: 16, 
+      shadowColor: '#0C1559', 
+      shadowOffset: { width: 0, height: 6 }, 
+      shadowOpacity: 0.05, 
+      shadowRadius: 12, 
+      elevation: 4 
+  },
+  searchInput: { flex: 1, marginLeft: 12, fontSize: 15, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
+  clearBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+
+  // Categories
+  categoriesSection: { marginBottom: 20 },
+  sectionHeader: { paddingHorizontal: 20, marginBottom: 12 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  catList: { paddingHorizontal: 20, paddingBottom: 5 },
+  catChip: { 
+      paddingHorizontal: 20, 
+      paddingVertical: 10, 
+      borderRadius: 20, 
+      backgroundColor: '#FFF', 
+      marginRight: 10, 
+      shadowColor: '#000', 
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.03,
+      shadowRadius: 4,
+      elevation: 2
+  },
+  catChipActive: { backgroundColor: '#0C1559' },
   catText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
   catTextActive: { color: '#FFF' },
-  gridContent: { paddingHorizontal: 15, paddingBottom: 100 },
-  productCard: { flex: 1, margin: 5, backgroundColor: '#FFF', borderRadius: 20, padding: 10, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-  productImage: { width: '100%', height: 140, borderRadius: 16, backgroundColor: '#F8FAFC', resizeMode: 'cover' },
-  productInfo: { marginTop: 10 },
-  productTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
+
+  // Grid
+  gridContent: { paddingHorizontal: 20, paddingBottom: 100 },
+  columnWrapper: { justifyContent: 'space-between' },
+  
+  // Product Card
+  productCard: { 
+      width: (width - 55) / 2, 
+      backgroundColor: '#FFF', 
+      borderRadius: 20, 
+      marginBottom: 15,
+      paddingBottom: 12,
+      shadowColor: '#0C1559', 
+      shadowOffset: { width: 0, height: 4 }, 
+      shadowOpacity: 0.06, 
+      shadowRadius: 12, 
+      elevation: 4,
+      overflow: 'hidden'
+  },
+  imageContainer: { width: '100%', height: 140, backgroundColor: '#F8FAFC', position: 'relative' },
+  productImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  favoriteBtn: { 
+      position: 'absolute', 
+      top: 10, 
+      right: 10, 
+      width: 28, 
+      height: 28, 
+      borderRadius: 14, 
+      backgroundColor: '#FFF', 
+      justifyContent: 'center', 
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2
+  },
+  productInfo: { paddingHorizontal: 12, paddingTop: 12 },
+  storeName: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginBottom: 4, textTransform: 'uppercase' },
+  productTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, lineHeight: 18 },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   productPrice: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  ratingText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
-  storeName: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 4 },
-  loadingState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
-  loadingText: { marginTop: 15, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 80, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginTop: 20 },
-  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 20 },
+  ratingBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, gap: 2 },
+  ratingText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#B45309' },
+
+  // Empty States
+  emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 40, paddingHorizontal: 30 },
+  emptyIconBg: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#0C1559', shadowOpacity: 0.05, shadowRadius: 15, elevation: 5 },
+  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
+  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 },
+
+  // Temporary Debug Button
+  debugToggleBtn: {
+      position: 'absolute',
+      bottom: 90,
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#111827',
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 25,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      elevation: 10,
+      zIndex: 1000,
+  },
+  debugToggleText: {
+      color: '#FFF',
+      fontFamily: 'Montserrat-Bold',
+      fontSize: 13,
+  }
 });

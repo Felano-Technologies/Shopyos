@@ -1,5 +1,4 @@
-// app/deals.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,74 +8,55 @@ import {
   StyleSheet,
   Dimensions,
 } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
-const { width } = Dimensions.get('window');
+// API and Components
+import { searchProducts } from '@/services/api';
+import { DealsSkeleton } from '@/components/skeletons/DealsSkeleton';
 
-// Data without specific discount percentages
-const DEALS_FOR_YOU = [
-  {
-    id: 'd1',
-    title: 'Nike Air Max 97',
-    price: 199.0,
-    oldPrice: 250.0,
-    image: require('../assets/images/products/nike.jpg'),
-    tag: 'Hot',
-    category: 'Sneakers'
-  },
-  {
-    id: 'd2',
-    title: 'Artisan Denim Jacket',
-    price: 120.0,
-    oldPrice: 180.0,
-    image: require('../assets/images/categories/jacket.jpg'),
-    tag: 'Limited',
-    category: 'Fashion'
-  },
-  {
-    id: 'd3',
-    title: 'Sony WH-1000XM5',
-    price: 299.0,
-    oldPrice: 350.0,
-    image: require('../assets/images/categories/headset.jpg'),
-    tag: 'Best Seller',
-    category: 'Electronics'
-  },
-  {
-    id: 'd4',
-    title: 'Abstract Wall Art',
-    price: 85.0,
-    oldPrice: 120.0,
-    image: require('../assets/images/products/artwork2.jpg'),
-    tag: null,
-    category: 'Art'
-  },
-  {
-    id: 'd5',
-    title: 'Travel Backpack',
-    price: 45.0,
-    oldPrice: 90.0,
-    image: require('../assets/images/search/bag1.jpg'),
-    tag: 'Flash Deal',
-    category: 'Bags'
-  },
-  {
-    id: 'd6',
-    title: 'Running Sneakers',
-    price: 110.0,
-    oldPrice: 160.0,
-    image: require('../assets/images/categories/sneakers.jpg'),
-    tag: null,
-    category: 'Sneakers'
-  },
-];
+const { width } = Dimensions.get('window');
 
 export default function DealsScreen() {
   const router = useRouter();
+  
+  const [loading, setLoading] = useState(true);
+  const [deals, setDeals] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchDeals();
+  }, []);
+
+  const fetchDeals = async () => {
+    try {
+      setLoading(true);
+      // Fetch cheapest items for the "Deals" page
+      const res = await searchProducts({ limit: 30, sortBy: 'price_asc' });
+      
+      if (res.success) {
+        // Map backend products to match the Deals UI
+        const mappedDeals = res.products.map((p: any) => ({
+          id: p._id,
+          title: p.name,
+          price: p.price,
+          // If backend has oldPrice, use it. Otherwise, simulate a 25% discount for the UI
+          oldPrice: p.oldPrice || p.price * 1.25, 
+          image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
+          category: p.category || 'General',
+          tag: p.price < 100 ? 'Hot' : 'Sale', // Dynamic tags based on price
+        }));
+        
+        setDeals(mappedDeals);
+      }
+    } catch (error) {
+      console.error("Failed to fetch deals", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleProductPress = (item: any) => {
     router.push({
@@ -86,13 +66,13 @@ export default function DealsScreen() {
         title: item.title, 
         price: item.price, 
         oldPrice: item.oldPrice,
-        image: item.image,
+        image: typeof item.image === 'string' ? item.image : item.image.uri, // Handle URI mapping safely
         category: item.category 
       }
     });
   };
 
-  const renderDeal = ({ item }: { item: typeof DEALS_FOR_YOU[0] }) => (
+  const renderDeal = ({ item }: { item: any }) => (
     <TouchableOpacity 
       style={styles.card} 
       activeOpacity={0.9}
@@ -124,7 +104,7 @@ export default function DealsScreen() {
             <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
         </View>
 
-        {/* Grab Deal Button - Visual cue only, parent touchable handles nav */}
+        {/* Grab Deal Button */}
         <View style={styles.addBtn}>
             <Text style={styles.addBtnText}>Grab Deal</Text>
             <Feather name="arrow-right" size={14} color="#FFF" />
@@ -132,6 +112,10 @@ export default function DealsScreen() {
       </View>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return <DealsSkeleton />;
+  }
 
   return (
     <View style={styles.container}>
@@ -152,16 +136,20 @@ export default function DealsScreen() {
         </SafeAreaView>
       </LinearGradient>
 
-
       {/* --- List --- */}
       <FlatList
-        data={DEALS_FOR_YOU}
+        data={deals}
         keyExtractor={(item) => item.id}
         numColumns={2}
         contentContainerStyle={styles.listContainer}
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
         renderItem={renderDeal}
+        ListEmptyComponent={
+          <View style={{ alignItems: 'center', marginTop: 50 }}>
+            <Text style={{ color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No deals available at the moment.</Text>
+          </View>
+        }
       />
     </View>
   );
@@ -201,52 +189,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
 
-  // Countdown Banner
-  countdownBanner: {
-    backgroundColor: '#EF4444', // Alert Red
-    marginHorizontal: 20,
-    marginTop: -25, // Overlap header
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    zIndex: 20,
-    shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  timerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  timerLabel: {
-    color: '#FFF',
-    fontFamily: 'Montserrat-Bold',
-    marginLeft: 8,
-    marginRight: 12,
-    fontSize: 14,
-  },
-  timerBox: {
-    backgroundColor: '#FFF',
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    minWidth: 28,
-    alignItems: 'center',
-  },
-  timerText: {
-    color: '#EF4444',
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 14,
-  },
-  colon: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    marginHorizontal: 4,
-  },
-
   // List
   listContainer: {
     paddingHorizontal: 16,
@@ -274,6 +216,7 @@ const styles = StyleSheet.create({
     height: 140,
     width: '100%',
     position: 'relative',
+    backgroundColor: '#F1F5F9', // Fallback color
   },
   dealImage: {
     width: '100%',

@@ -13,7 +13,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { usePathname, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
-// Enable LayoutAnimation for Android to ensure smooth pill expansion
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
@@ -23,19 +22,19 @@ const { width } = Dimensions.get('window');
 const BottomNav = () => {
   const pathname = usePathname();
 
-  // Define the navigation items
   const navItems = [
     { name: 'Home', icon: 'home-outline', activeIcon: 'home', route: '/home' },
     { name: 'Search', icon: 'search-outline', activeIcon: 'search', route: '/search' },
     { name: 'Stores', icon: 'storefront-outline', activeIcon: 'storefront', route: '/stores' },
-    // New Tracking/Orders Route
-    { name: 'Orders', icon: 'cube-outline', activeIcon: 'cube', route: '/order/tracking' },
+    { name: 'Orders', icon: 'cube-outline', activeIcon: 'cube', route: '/order' },
     { name: 'Settings', icon: 'settings-outline', activeIcon: 'settings', route: '/settings' },
   ];
 
   const handlePress = (route: string) => {
-    // Trigger smooth layout transition when switching tabs
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    LayoutAnimation.configureNext({
+      duration: 200, // Faster duration reduces ghosting
+      update: { type: 'easeInEaseOut' },
+    });
     router.push(route as any);
   };
 
@@ -48,30 +47,37 @@ const BottomNav = () => {
           return (
             <TouchableOpacity
               key={item.name}
-              activeOpacity={0.8}
+              activeOpacity={1} // Prevents extra flashing
               onPress={() => handlePress(item.route)}
               style={[
                 styles.navItem,
                 isActive ? styles.navItemActive : styles.navItemInactive
               ]}
             >
-              {isActive ? (
+              {/* This is the background layer */}
+              {isActive && (
                 <LinearGradient
                   colors={['#0C1559', '#1e3a8a']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.activePill}
-                >
-                  <Ionicons name={item.activeIcon as any} size={18} color="#FFF" />
+                  style={StyleSheet.absoluteFillObject}
+                />
+              )}
+
+              {/* Only ONE icon component used per item */}
+              <View style={styles.contentRow}>
+                <Ionicons 
+                  name={(isActive ? item.activeIcon : item.icon) as any} 
+                  size={isActive ? 20 : 22} 
+                  color={isActive ? "#FFF" : "#64748B"} 
+                />
+                
+                {isActive && (
                   <Text style={styles.activeText} numberOfLines={1}>
                     {item.name}
                   </Text>
-                </LinearGradient>
-              ) : (
-                <View style={styles.iconWrapper}>
-                  <Ionicons name={item.icon as any} size={24} color="#94A3B8" />
-                </View>
-              )}
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -83,7 +89,7 @@ const BottomNav = () => {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 25 : 15,
+    bottom: Platform.OS === 'ios' ? 35 : 20,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -91,62 +97,47 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    width: width - 30, // Much wider to comfortably fit 5 items
-    height: 70, 
-    borderRadius: 35,
-    padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)', 
+    width: width * 0.88, 
+    height: 60, 
+    borderRadius: 30,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    // Premium Shadow
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.15,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    overflow: 'hidden', // Keeps the gradient inside the rounded corners
   },
-  
-  // --- Flex Logic for Animation ---
   navItem: {
-    height: '100%',
+    height: 48,
     justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 30,
+    borderRadius: 24,
+    overflow: 'hidden', // Clip the gradient background
   },
   navItemActive: {
-    flex: 1, // Expands to fill available space
-    marginLeft: 4,
-    marginRight: 4,
+    flex: 2.8, 
+    marginHorizontal: 4,
   },
   navItemInactive: {
-    width: 45, // Fixed width for inactive icons
+    flex: 1, 
   },
-
-  // --- Active State Styling ---
-  activePill: {
+  contentRow: {
     flexDirection: 'row',
-    width: '100%',
-    height: '100%',
     alignItems: 'center',
-    justifyContent: 'center', 
-    borderRadius: 30,
+    justifyContent: 'center',
     paddingHorizontal: 12,
   },
   activeText: {
     color: '#FFF',
     fontSize: 12, 
     fontFamily: 'Montserrat-Bold',
-    marginLeft: 6, 
-  },
-
-  // --- Inactive State Styling ---
-  iconWrapper: {
-    width: 40,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: 8, 
   },
 });
 

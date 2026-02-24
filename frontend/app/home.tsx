@@ -1,20 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ImageBackground,
-  TextInput,
-  FlatList,
-  TouchableOpacity,
-  StyleSheet,
-  useColorScheme,
-  Animated,
-  RefreshControl,
-  Dimensions,
-  ScrollView,
-  ActivityIndicator,
-} from 'react-native';
+import { View, Text,Image,ImageBackground,TextInput,FlatList,TouchableOpacity,StyleSheet, useColorScheme, Animated,RefreshControl, Dimensions, ScrollView, ActivityIndicator,} from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
@@ -23,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { searchProducts } from '@/services/api';
+import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -217,10 +203,11 @@ export default function Home() {
   );
 
   if (loading) {
+    
     return (
       <View style={[styles.container, { backgroundColor: '#E9F0FF' }]}>
         <SafeAreaView style={{ flex: 1 }}>
-          <ActivityIndicator size="large" color="#1e3a8a" style={{ marginTop: 50 }} />
+          <HomeSkeleton />
         </SafeAreaView>
       </View>
     );

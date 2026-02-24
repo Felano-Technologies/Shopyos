@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import BottomNav from '@/components/BottomNav';
 import { getAllStores } from '@/services/api';
+import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -144,6 +145,15 @@ export default function StoresScreen() {
       </TouchableOpacity>
     </TouchableOpacity>
   );
+  if (loading) {
+    return (
+      <View style={{ flex: 1 }}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <StoresSkeleton />
+        <BottomNav />
+      </View>
+    );
+  }
 
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
