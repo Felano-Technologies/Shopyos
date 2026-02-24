@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Animated,
-  RefreshControl,
   Dimensions,
   Image,
   ActivityIndicator,
@@ -18,6 +17,8 @@ import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { getBusinessAnalytics, storage } from '@/services/api';
+import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
+import { set } from 'date-fns';
 
 const { width } = Dimensions.get('window');
 
@@ -48,6 +49,7 @@ const Analytics = () => {
       console.error("Failed to fetch analytics", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -57,10 +59,9 @@ const Analytics = () => {
     fetchAnalytics();
   }, [timeframe]);
 
-  const onRefresh = async () => {
-    setRefreshing(true);
+const onRefresh = async () => {
+    setRefreshing(true); // This will now trigger the centered overlay instead of the native pull-down
     await fetchAnalytics();
-    setRefreshing(false);
   };
 
   // --- Chart Configuration ---
@@ -93,7 +94,7 @@ const Analytics = () => {
   if (loading && !refreshing) {
     return (
       <View style={[styles.mainContainer, styles.centered]}>
-        <ActivityIndicator size="large" color="#0C1559" />
+        <BusinessAnalyticsSkeleton />
       </View>
     );
   }
@@ -113,15 +114,15 @@ const Analytics = () => {
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <Animated.ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={'#FFF'} />}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-        >
+              {/* CHANGE 3: Removed refreshControl prop from ScrollView to prevent shifting down */}
+              <Animated.ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                onScroll={Animated.event(
+                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+                  { useNativeDriver: true }
+                )}
+              >
           {/* --- HEADER SECTION --- */}
           <LinearGradient
             colors={['#0C1559', '#1e3a8a']}
@@ -136,6 +137,7 @@ const Analytics = () => {
                   resizeMode="contain"
                 />
               </View>
+              {/* CHANGE 4: The refresh button now triggers our custom centered animation */}
               <TouchableOpacity style={styles.headerIconButton} onPress={onRefresh}>
                 <Feather name="refresh-cw" size={20} color="#FFF" />
               </TouchableOpacity>
@@ -298,6 +300,15 @@ const Analytics = () => {
 
         <BusinessBottomNav />
       </SafeAreaView>
+
+      {refreshing && (
+        <View style={styles.refreshOverlay}>
+          <View style={styles.refreshCircle}>
+            <ActivityIndicator size="small" color="#0C1559" />
+          </View>
+        </View>
+      )}
+
     </View>
   );
 };
@@ -595,6 +606,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     fontSize: 16,
     color: '#FFF',
+  },
+  refreshOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(241, 245, 249, 0.4)', // Faint tint over the screen
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999, // Ensure it sits on top of everything
+  },
+  refreshCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Elevated shadow to look like it's floating
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
 });
 

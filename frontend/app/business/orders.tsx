@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { getStoreOrders, storage } from '@/services/api';
+import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -35,9 +36,11 @@ interface Order {
 const OrdersScreen = () => {
   const [filter, setFilter] = useState<'All' | 'Pending' | 'Processing' | 'Delivered' | 'Cancelled'>('All');
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true); // <--- Added Loading State
   const [orders, setOrders] = useState<Order[]>([]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = async (showLoading = false) => {
+    if (showLoading) setLoading(true);
     try {
       const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
@@ -57,27 +60,28 @@ const OrdersScreen = () => {
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  React.useEffect(() => {
-    fetchOrders();
+  useEffect(() => {
+    fetchOrders(true); // Initial fetch with loading state
   }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchOrders();
+    await fetchOrders(false); // Refresh without re-triggering skeleton
     setRefreshing(false);
   };
 
-  const ordersToUse = orders;
-  const filteredOrders = filter === 'All' ? ordersToUse : ordersToUse.filter(order => order.status === filter);
+  const filteredOrders = filter === 'All' ? orders : orders.filter(order => order.status === filter);
 
   // Stats
-  const totalOrders = ordersToUse.length;
-  const pendingOrders = ordersToUse.filter(o => o.status === 'Pending').length;
-  const deliveredOrders = ordersToUse.filter(o => o.status === 'Delivered').length;
-  const totalRevenue = ordersToUse.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalOrders = orders.length;
+  const pendingOrders = orders.filter(o => o.status === 'Pending').length;
+  const deliveredOrders = orders.filter(o => o.status === 'Delivered').length;
+  const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -91,10 +95,8 @@ const OrdersScreen = () => {
 
   const renderOrder = ({ item }: { item: Order }) => {
     const { color, bg, icon } = getStatusBadge(item.status);
-
     return (
       <View style={styles.orderCard}>
-        {/* Top Row: ID and Status */}
         <View style={styles.cardHeader}>
           <View style={styles.orderIdContainer}>
             <View style={styles.iconCircle}>
@@ -107,43 +109,17 @@ const OrdersScreen = () => {
             <Text style={[styles.statusText, { color: color }]}>{item.status}</Text>
           </View>
         </View>
-
-        {/* Divider */}
         <View style={styles.dashedDivider}>
-          {Array.from({ length: 20 }).map((_, i) => (
-            <View key={i} style={styles.dash} />
-          ))}
+          {Array.from({ length: 20 }).map((_, i) => <View key={i} style={styles.dash} />)}
         </View>
-
-        {/* Middle Row: Details */}
         <View style={styles.cardBody}>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Customer</Text>
-            <Text style={styles.value}>{item.customerName}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Date</Text>
-            <Text style={styles.value}>{format(new Date(item.date), "MMM dd, hh:mm a")}</Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Text style={styles.label}>Items</Text>
-            <Text style={styles.value}>{item.itemsCount} Items</Text>
-          </View>
+          <View style={styles.infoRow}><Text style={styles.label}>Customer</Text><Text style={styles.value}>{item.customerName}</Text></View>
+          <View style={styles.infoRow}><Text style={styles.label}>Date</Text><Text style={styles.value}>{format(new Date(item.date), "MMM dd, hh:mm a")}</Text></View>
+          <View style={styles.infoRow}><Text style={styles.label}>Items</Text><Text style={styles.value}>{item.itemsCount} Items</Text></View>
         </View>
-
-        {/* Bottom Row: Price and Action */}
         <View style={styles.cardFooter}>
-          <View>
-            <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.amount}>GH₵ {item.totalAmount.toFixed(2)}</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.detailsBtn}
-            onPress={() => router.push({
-              pathname: '/business/orderDetails',
-              params: { id: item.id }
-            })}
-          >
+          <View><Text style={styles.totalLabel}>Total Amount</Text><Text style={styles.amount}>GH₵ {item.totalAmount.toFixed(2)}</Text></View>
+          <TouchableOpacity style={styles.detailsBtn} onPress={() => router.push({ pathname: '/business/orderDetails', params: { id: item.id } })}>
             <Text style={styles.detailsBtnText}>Details</Text>
             <Feather name="chevron-right" size={16} color="#FFF" />
           </TouchableOpacity>
@@ -154,116 +130,96 @@ const OrdersScreen = () => {
 
   return (
     <View style={styles.mainContainer}>
-      {/* Light Status Bar for Dark Header */}
       <StatusBar style="light" />
 
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image
-            source={require('../../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
-          />
+          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={'#FFF'} />}
-        >
-          {/* --- HEADER SECTION (Matched to Products Screen) --- */}
-          <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.headerContainer}
+        {loading ? (
+          /* --- SKELETON STATE --- */
+          <View style={{ flex: 1 }}>
+             <BusinessOrdersSkeleton />
+          </View>
+        ) : (
+          /* --- ACTUAL CONTENT --- */
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={'#FFF'} />}
           >
-            <View style={styles.headerTop}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../assets/images/iconwhite.png')}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
-
-            {/* Featured Revenue Card inside Header */}
-            <View style={styles.revenueCard}>
-              <View>
-                <Text style={styles.revenueLabel}>Total Revenue</Text>
-                <Text style={styles.revenueAmount}>GH₵ {totalRevenue.toFixed(2)}</Text>
-              </View>
-              <View style={styles.revenueIconContainer}>
-                <MaterialCommunityIcons name="finance" size={28} color="#84cc16" />
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* --- QUICK STATS GRID --- */}
-          <View style={styles.statsRow}>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Total</Text>
-              <Text style={styles.statNumber}>{totalOrders}</Text>
-              <View style={[styles.statBar, { backgroundColor: '#0C1559' }]} />
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Pending</Text>
-              <Text style={styles.statNumber}>{pendingOrders}</Text>
-              <View style={[styles.statBar, { backgroundColor: '#F59E0B' }]} />
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Delivered</Text>
-              <Text style={styles.statNumber}>{deliveredOrders}</Text>
-              <View style={[styles.statBar, { backgroundColor: '#10B981' }]} />
-            </View>
-          </View>
-
-          {/* --- FILTER PILLS --- */}
-          <View style={styles.filterWrapper}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
-              {["All", "Pending", "Processing", "Delivered", "Cancelled"].map((tab) => {
-                const isActive = filter === tab;
-                return (
-                  <TouchableOpacity
-                    key={tab}
-                    onPress={() => setFilter(tab as any)}
-                    style={[
-                      styles.filterPill,
-                      isActive ? styles.filterPillActive : styles.filterPillInactive,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.filterText,
-                      isActive ? styles.filterTextActive : styles.filterTextInactive
-                    ]}>
-                      {tab}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* --- ORDERS LIST --- */}
-          <View style={styles.listContainer}>
-            <FlatList
-              data={filteredOrders}
-              keyExtractor={(item) => item.id}
-              renderItem={renderOrder}
-              scrollEnabled={false}
-              ListEmptyComponent={() => (
-                <View style={styles.emptyState}>
-                  <Feather name="inbox" size={40} color="#CBD5E1" />
-                  <Text style={styles.emptyStateText}>No {filter} orders found.</Text>
+            <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerContainer}>
+              <View style={styles.headerTop}>
+                <View style={styles.logoContainer}>
+                  <Image source={require('../../assets/images/iconwhite.png')} style={styles.logo} resizeMode="contain" />
                 </View>
-              )}
-            />
-          </View>
+              </View>
+              <View style={styles.revenueCard}>
+                <View>
+                  <Text style={styles.revenueLabel}>Total Revenue</Text>
+                  <Text style={styles.revenueAmount}>GH₵ {totalRevenue.toFixed(2)}</Text>
+                </View>
+                <View style={styles.revenueIconContainer}>
+                  <MaterialCommunityIcons name="finance" size={28} color="#84cc16" />
+                </View>
+              </View>
+            </LinearGradient>
 
-        </ScrollView>
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Total</Text>
+                <Text style={styles.statNumber}>{totalOrders}</Text>
+                <View style={[styles.statBar, { backgroundColor: '#0C1559' }]} />
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Pending</Text>
+                <Text style={styles.statNumber}>{pendingOrders}</Text>
+                <View style={[styles.statBar, { backgroundColor: '#F59E0B' }]} />
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statLabel}>Delivered</Text>
+                <Text style={styles.statNumber}>{deliveredOrders}</Text>
+                <View style={[styles.statBar, { backgroundColor: '#10B981' }]} />
+              </View>
+            </View>
 
+            <View style={styles.filterWrapper}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
+                {["All", "Pending", "Processing", "Delivered", "Cancelled"].map((tab) => {
+                  const isActive = filter === tab;
+                  return (
+                    <TouchableOpacity
+                      key={tab}
+                      onPress={() => setFilter(tab as any)}
+                      style={[styles.filterPill, isActive ? styles.filterPillActive : styles.filterPillInactive]}
+                    >
+                      <Text style={[styles.filterText, isActive ? styles.filterTextActive : styles.filterTextInactive]}>{tab}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
+            <View style={styles.listContainer}>
+              <FlatList
+                data={filteredOrders}
+                keyExtractor={(item) => item.id}
+                renderItem={renderOrder}
+                scrollEnabled={false}
+                ListEmptyComponent={() => (
+                  <View style={styles.emptyState}>
+                    <Feather name="inbox" size={40} color="#CBD5E1" />
+                    <Text style={styles.emptyStateText}>No {filter} orders found.</Text>
+                  </View>
+                )}
+              />
+            </View>
+          </ScrollView>
+        )}
         <BusinessBottomNav />
       </SafeAreaView>
     </View>

@@ -1,17 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  useColorScheme,
-  RefreshControl,
-  Dimensions,
-  Modal, // <--- Added Modal
-} from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Image, useColorScheme, RefreshControl, Dimensions, Modal,} from 'react-native';
 import { router } from 'expo-router';
 import { getMyBusinesses, getBusinessDashboard, getUnreadNotificationCount, storage } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
+
 
 const { width } = Dimensions.get('window');
 
@@ -137,15 +127,15 @@ const BusinessDashboard = () => {
     fetchDashboardData();
   }, []);
 
-  // --- Loading State ---
-  if (loading) {
-    return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0C1559" />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
-      </View>
-    );
-  }
+if (loading) {
+  return (
+    <View style={styles.mainContainer}>
+       <StatusBar style="light" />
+       <BusinessDashboardSkeleton />
+       <BusinessBottomNav />
+    </View>
+  );
+}
 
 
 
