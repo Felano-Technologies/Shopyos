@@ -32,12 +32,22 @@ export default function RootLayout() {
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const screenBg = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
 
-  // --- NAVIGATION LOGIC ---
+  // --- CUSTOMER NAV LOGIC ---
   const mainCustomerTabs = ['/home', '/stores', '/search', '/settings', '/order'];
-  const shouldShowNav = mainCustomerTabs.includes(pathname) || pathname.startsWith('/categories');
+  
+  const shouldShowNav = 
+    (mainCustomerTabs.includes(pathname) || pathname.startsWith('/categories/categories')) &&
+    !pathname.startsWith('/driver');
 
+  // --- DRIVER NAV LOGIC ---
   const isDriverRoute = pathname.startsWith('/driver');
-  const showDriverNav = ['/driver/dashboard', '/driver/earnings', '/driver/history', '/driver/settings'].includes(pathname);
+  const showDriverNav = [
+    '/driver/index',
+    '/driver/dashboard',
+    '/driver/earnings',
+    '/driver/history',
+    '/driver/settings',
+  ].includes(pathname);
 
   return (
     <CartProvider>
@@ -47,20 +57,22 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: false,
-                animation: 'slide_from_right', // Default animation for most screens
+                animation: 'slide_from_right', 
               }}
             >
-              {/* --- FADE ANIMATIONS FOR SEARCH & CATEGORIES --- */}
+              {/* --- MAIN CUSTOMER SCREENS --- */}
+              <Stack.Screen name="index" options={{ animation: 'fade' }} />
+              <Stack.Screen name="home" options={{ animation: 'none' }} />
+              <Stack.Screen name="search" options={{ animation: 'fade' }} />
+              <Stack.Screen name="order" options={{ animation: 'none' }} />
+              <Stack.Screen name="settings" options={{ animation: 'none' }} />
+              <Stack.Screen name="stores" options={{ animation: 'none' }} />
+              
+              {/* --- PREMIUM ORDER ANIMATIONS --- */}
               <Stack.Screen 
-                name="search" 
-                options={{ animation: 'fade' }} 
+                name="order/[id]" 
+                options={{ animation: 'slide_from_right', gestureEnabled: true }} 
               />
-              <Stack.Screen 
-                name="categories/[id]" 
-                options={{ animation: 'fade_from_bottom' }} 
-              />
-
-              {/* --- PREMIUM MODAL FOR TRACKING --- */}
               <Stack.Screen 
                 name="order/tracking" 
                 options={{ 
@@ -70,25 +82,66 @@ export default function RootLayout() {
                 }} 
               />
 
-              {/* --- STANDARD SLIDE FOR DETAILS --- */}
-              <Stack.Screen 
-                name="order/[id]" 
-                options={{ 
-                  animation: 'slide_from_right',
-                  gestureEnabled: true 
-                }} 
-              />
+              {/* --- AUTH & ROLE --- */}
+              <Stack.Screen name="login" />
+              <Stack.Screen name="register" options={{ animation: 'fade' }} />
+              <Stack.Screen name="role" />
+              <Stack.Screen name="userProfile" />
+              <Stack.Screen name="notification" />
+              <Stack.Screen name="forgotPassword" />
+              <Stack.Screen name="resetPassword" />
+              <Stack.Screen name="getstarted" />
 
-              {/* Main Screens */}
-              <Stack.Screen name="index" />
-              <Stack.Screen name="home" />
-              <Stack.Screen name="order" />
-              <Stack.Screen name="settings" />
-              <Stack.Screen name="stores" />
+              {/* --- BUSINESS SCREENS (FADE ADDED) --- */}
+              <Stack.Screen name="business/dashboard" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/inventory" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/analytics" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/orders" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/products" options={{ animation: 'fade' }} />
               
-              {/* Driver & Other */}
+              <Stack.Screen name="business/register" />
+              <Stack.Screen name="business/verification" />
+              <Stack.Screen name="business/notifications" />
+              <Stack.Screen name="business/settings" />
+              <Stack.Screen name="business/orderDetails" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="business/Registration" options={{ animation: 'slide_from_right' }} />   
+              <Stack.Screen name="business/earnings" options={{ animation: 'slide_from_bottom' }} />
+
+              {/* --- DRIVER SCREENS --- */}
               <Stack.Screen name="driver/index" />
-              <Stack.Screen name="login" options={{ animation: 'fade' }} />
+              <Stack.Screen name="driver/dashboard" />
+              <Stack.Screen name="driver/activeOrder" options={{ presentation: 'fullScreenModal' }} />
+              <Stack.Screen name="driver/earnings" />
+              <Stack.Screen name="driver/history" />
+              <Stack.Screen name="driver/settings" />
+              <Stack.Screen name="driver/verification" />
+
+              {/* --- CATEGORIES & CHAT --- */}
+              <Stack.Screen name="categories/categories" />
+              <Stack.Screen name="categories/[id]" options={{ animation: 'fade_from_bottom' }} />
+              <Stack.Screen name="chat/index" />
+              <Stack.Screen name="chat/conversation" />
+              <Stack.Screen name="cart" options={{ presentation: 'modal' }} />
+
+
+              <Stack.Screen name="stores/details" />
+              <Stack.Screen name="stores/map" />
+              <Stack.Screen name="reviews/[id]" options={{ presentation: 'modal', animation:'slide_from_bottom', headerShown: false }} />
+
+              {/* --- SETTINGS SUB-SCREENS --- */}
+              <Stack.Screen name='settings/Account' />
+              <Stack.Screen name='settings/Transactions' />
+              <Stack.Screen name='settings/changePassword' />
+              <Stack.Screen name='settings/contactUs' />
+              <Stack.Screen name='settings/helpCenter' />
+              <Stack.Screen name='settings/paymentMethods' />
+              <Stack.Screen name='settings/pushNotifications' />
+
+            
+
+
+
+              <Stack.Screen name="+not-found" />
             </Stack>
 
             {shouldShowNav && <BottomNav />}

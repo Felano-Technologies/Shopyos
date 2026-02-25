@@ -210,7 +210,7 @@ const ReviewScreen = () => {
                             <View style={styles.productHeader}>
                                 <View style={styles.productImageContainer}>
                                     <Image
-                                        source={item.product?.product_images?.[0]?.image_url ? { uri: item.product.product_images[0].image_url } : require('../../../assets/images/icon.png')}
+                                        source={item.product?.product_images?.[0]?.image_url ? { uri: item.product.product_images[0].image_url } : require('../../assets/images/icon.png')}
                                         style={styles.productImage}
                                     />
                                 </View>
