@@ -1,4 +1,3 @@
-// controllers/productController.js
 const repositories = require('../db/repositories');
 const {
   uploadFileToCloudinary,
@@ -7,6 +6,7 @@ const {
   extractPublicId
 } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
+const { invalidateProduct } = require('../config/cacheInvalidation');
 
 // @desc    Create a new product
 // @route   POST /api/products
@@ -94,6 +94,8 @@ const createProduct = async (req, res) => {
         updatedAt: product.updated_at
       }
     });
+
+    await invalidateProduct(product.id, storeId);
 
   } catch (error) {
     logger.error('Error creating product', { error: error.message, requestId: req.requestId });
@@ -368,6 +370,8 @@ const updateProduct = async (req, res) => {
       }
     });
 
+    await invalidateProduct(id, updated.store_id);
+
   } catch (error) {
     logger.error('Error updating product', { error: error.message, requestId: req.requestId });
     res.status(500).json({
@@ -422,6 +426,8 @@ const deleteProduct = async (req, res) => {
       success: true,
       message: 'Product deleted successfully'
     });
+
+    await invalidateProduct(id, product.store_id);
 
   } catch (error) {
     logger.error('Error deleting product', { error: error.message, requestId: req.requestId });

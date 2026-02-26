@@ -1,11 +1,8 @@
-// controllers/businessController.js
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
+const { invalidateStore } = require('../config/cacheInvalidation');
 
-// @desc    Create a new business/store
-// @route   POST /api/business/create
-// @access  Private
 const createBusiness = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -116,6 +113,8 @@ const createBusiness = async (req, res) => {
       createdAt: store.created_at,
       updatedAt: store.updated_at
     };
+
+    await invalidateStore('all');
 
     res.status(201).json({
       success: true,
@@ -354,6 +353,8 @@ const updateBusiness = async (req, res) => {
       updatedAt: updatedStore.updated_at
     };
 
+    await invalidateStore(businessId);
+
     res.status(200).json({
       success: true,
       message: 'Business updated successfully',
@@ -420,6 +421,8 @@ const deleteBusiness = async (req, res) => {
     // Soft delete the store
     await repositories.stores.softDelete(businessId);
 
+    await invalidateStore(businessId);
+
     res.status(200).json({
       success: true,
       message: 'Business deleted successfully'
@@ -483,6 +486,8 @@ const uploadLogo = async (req, res) => {
       logo_url: result.url,
       logo_cloudinary_id: result.public_id
     });
+
+    await invalidateStore(businessId);
 
     res.status(200).json({
       success: true,
@@ -548,6 +553,8 @@ const uploadBanner = async (req, res) => {
       banner_url: result.url,
       banner_cloudinary_id: result.public_id
     });
+
+    await invalidateStore(businessId);
 
     res.status(200).json({
       success: true,
@@ -844,6 +851,8 @@ const followBusiness = async (req, res) => {
 
     await repositories.stores.followStore(userId, businessId);
 
+    await invalidateStore(businessId);
+
     res.status(200).json({
       success: true,
       message: 'Store followed successfully'
@@ -866,6 +875,8 @@ const unfollowBusiness = async (req, res) => {
     const userId = req.user.id;
 
     await repositories.stores.unfollowStore(userId, businessId);
+
+    await invalidateStore(businessId);
 
     res.status(200).json({
       success: true,

@@ -3,6 +3,7 @@
 
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const { invalidateReviews } = require('../config/cacheInvalidation');
 
 /**
  * @route   POST /api/reviews/product
@@ -58,6 +59,8 @@ const createProductReview = async (req, res) => {
       reviewText: reviewText || null,
       images: images || null
     });
+
+    await invalidateReviews(productId, null);
 
     res.status(201).json({
       success: true,
@@ -127,6 +130,8 @@ const createStoreReview = async (req, res) => {
       rating,
       reviewText: reviewText || null
     });
+
+    await invalidateReviews(null, storeId);
 
     res.status(201).json({
       success: true,
@@ -369,6 +374,8 @@ const updateProductReview = async (req, res) => {
       images: images !== undefined ? images : existingReview.images
     });
 
+    await invalidateReviews(existingReview.product_id, null);
+
     res.status(200).json({
       success: true,
       message: 'Review updated successfully',
@@ -433,6 +440,9 @@ const deleteReview = async (req, res) => {
 
     // Delete review
     await repositories.reviews.deleteReview(reviewId, table);
+
+    if (table === 'product_reviews') await invalidateReviews(review.product_id, null);
+    else if (table === 'store_reviews') await invalidateReviews(null, review.store_id);
 
     res.status(200).json({
       success: true,

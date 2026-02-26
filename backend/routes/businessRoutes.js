@@ -1,40 +1,37 @@
-// routes/businessRoutes.js
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
+const { cacheMiddleware, storeCacheKey, hashParams } = require('../middleware/cache');
 const {
-  createBusiness,
-  getMyBusinesses,
-  getBusinessById,
-  updateBusiness,
-  deleteBusiness,
-  uploadLogo,
-  uploadBanner,
-  getBusinessDashboard,
-  getBusinessAnalytics,
-  getAllBusinesses,
-  followBusiness,
-  unfollowBusiness
+  createBusiness, getMyBusinesses, getBusinessById,
+  updateBusiness, deleteBusiness, uploadLogo,
+  uploadBanner, getBusinessDashboard, getBusinessAnalytics,
+  getAllBusinesses, followBusiness, unfollowBusiness
 } = require('../controllers/businessController');
 
-// Business routes
+// Define cache keys for business routes
+const dashboardCacheKey = (id) => `shopyos:stores:dashboard:${id}`;
+const analyticsCacheKey = (id, params) => `shopyos:stores:analytics:${id}:${hashParams(params)}`;
+
 router.post('/create', protect, createBusiness);
+
+// Usually skip caching for user-specific views unless they are heavily hit, but we'll leave this uncached since it relies on req.user.id
 router.get('/my-businesses', protect, getMyBusinesses);
-router.get('/all', protect, getAllBusinesses);
-router.get('/:id', protect, getBusinessById);
+
+router.get('/all', protect, cacheMiddleware((req) => storeCacheKey.all(req.query), 300), getAllBusinesses);
+router.get('/:id', protect, cacheMiddleware((req) => storeCacheKey.detail(req.params.id), 300), getBusinessById);
+
 router.put('/update/:id', protect, updateBusiness);
 router.delete('/:id', protect, deleteBusiness);
 
-// Image upload routes
 router.post('/:id/upload-logo', protect, upload.single('logo'), uploadLogo);
 router.post('/:id/upload-banner', protect, upload.single('banner'), uploadBanner);
 
-// Dashboard
-router.get('/dashboard/:id', protect, getBusinessDashboard);
-router.get('/analytics/:id', protect, getBusinessAnalytics);
+// Dashboard/Analytics routes have intensive DB queries. Cache for 60 seconds (near real-time)
+router.get('/dashboard/:id', protect, cacheMiddleware((req) => dashboardCacheKey(req.params.id), 60), getBusinessDashboard);
+router.get('/analytics/:id', protect, cacheMiddleware((req) => analyticsCacheKey(req.params.id, req.query), 60), getBusinessAnalytics);
 
-// Follow routes
 router.post('/:id/follow', protect, followBusiness);
 router.delete('/:id/follow', protect, unfollowBusiness);
 
