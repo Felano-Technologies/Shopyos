@@ -10,7 +10,7 @@ const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
  * @route   POST /api/v1/payments/initialize
  * @access  Private
  */
-const initializePayment = async (req, res) => {
+const initializePayment = async (req, res, next) => {
     try {
         let { orderId, email } = req.body;
 
@@ -84,8 +84,7 @@ const initializePayment = async (req, res) => {
             res.status(400).json({ success: false, error: response.data.message });
         }
     } catch (error) {
-        logger.error('Paystack Initialization Error:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Failed to initialize payment' });
+        next(error);
     }
 };
 
@@ -94,7 +93,7 @@ const initializePayment = async (req, res) => {
  * @route   GET /api/v1/payments/verify/:reference
  * @access  Private
  */
-const verifyPayment = async (req, res) => {
+const verifyPayment = async (req, res, next) => {
     try {
         const { reference } = req.params;
 
@@ -154,8 +153,7 @@ const verifyPayment = async (req, res) => {
             res.status(400).json({ success: false, error: 'Payment verification failed' });
         }
     } catch (error) {
-        logger.error('Paystack Verification Error:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Failed to verify payment' });
+        next(error);
     }
 };
 
@@ -164,7 +162,7 @@ const verifyPayment = async (req, res) => {
  * @route   POST /api/v1/payments/webhook
  * @access  Public
  */
-const handleWebhook = async (req, res) => {
+const handleWebhook = async (req, res, next) => {
     // In a production app, you should verify the signature (x-paystack-signature)
     // For now, we'll implement the basic logic
     const event = req.body;

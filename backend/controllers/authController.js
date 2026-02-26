@@ -65,7 +65,7 @@ const clearAuthCookies = (res) => {
   res.cookie(REFRESH_COOKIE_NAME, '', { ...COOKIE_OPTIONS, maxAge: 0, path: '/api/v1/auth' });
 };
 
-const register = async (req, res) => {
+const register = async (req, res, next) => {
   const { name, email, password, fullPhoneNumber } = req.body;
 
   try {
@@ -87,12 +87,11 @@ const register = async (req, res) => {
       expiresIn: ACCESS_TOKEN_EXPIRY
     });
   } catch (err) {
-    logger.error('Registration error', { error: err.message });
-    res.status(500).json({ error: 'Server error' });
+    next(err);
   }
 };
 
-const login = async (req, res) => {
+const login = async (req, res, next) => {
   const { email, password, latitude, longitude } = req.body;
 
   try {
@@ -126,14 +125,13 @@ const login = async (req, res) => {
       message: 'Login successful'
     });
   } catch (err) {
-    logger.error('Login error', { error: err.message });
-    res.status(500).json({ error: 'Server error' });
+    next(err);
   }
 };
 
 // Rotation: revoke used token, issue new pair in same family.
 // Reuse detection: if a revoked token appears again, revoke the entire family (theft signal).
-const refreshAccessToken = async (req, res) => {
+const refreshAccessToken = async (req, res, next) => {
   try {
     const incomingToken = req.body.refreshToken || req.cookies?.[REFRESH_COOKIE_NAME];
     if (!incomingToken) return res.status(401).json({ error: 'Refresh token required' });
@@ -193,12 +191,11 @@ const refreshAccessToken = async (req, res) => {
       message: 'Tokens refreshed successfully'
     });
   } catch (error) {
-    logger.error('Refresh token error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({ error: 'Failed to refresh token' });
+    next(error);
   }
 };
 
-const logout = async (req, res) => {
+const logout = async (req, res, next) => {
   try {
     // Blacklist the access token in Redis for its remaining lifetime
     const authHeader = req.headers.authorization;
@@ -233,7 +230,7 @@ const logout = async (req, res) => {
   }
 };
 
-const logoutAll = async (req, res) => {
+const logoutAll = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -252,12 +249,11 @@ const logoutAll = async (req, res) => {
     const revokedCount = data?.length || 0;
     res.status(200).json({ success: true, message: `Logged out from all ${revokedCount} session(s)`, revokedSessions: revokedCount });
   } catch (error) {
-    logger.error('Logout-all error', { error: error.message });
-    res.status(500).json({ error: 'Failed to logout from all sessions' });
+    next(error);
   }
 };
 
-const getSessions = async (req, res) => {
+const getSessions = async (req, res, next) => {
   try {
     const { data: sessions, error } = await repositories.users.db
       .from('refresh_tokens')
@@ -277,12 +273,11 @@ const getSessions = async (req, res) => {
       count: sessions?.length || 0
     });
   } catch (error) {
-    logger.error('Get sessions error', { error: error.message });
-    res.status(500).json({ error: 'Failed to get sessions' });
+    next(error);
   }
 };
 
-const revokeSession = async (req, res) => {
+const revokeSession = async (req, res, next) => {
   try {
     const { data, error } = await repositories.users.db
       .from('refresh_tokens')
@@ -296,12 +291,11 @@ const revokeSession = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Session revoked' });
   } catch (error) {
-    logger.error('Revoke session error', { error: error.message });
-    res.status(500).json({ error: 'Failed to revoke session' });
+    next(error);
   }
 };
 
-const resetPassword = async (req, res) => {
+const resetPassword = async (req, res, next) => {
   const { email } = req.body;
 
   try {
@@ -323,12 +317,11 @@ const resetPassword = async (req, res) => {
 
     res.status(200).json({ message: 'Recovery email sent' });
   } catch (err) {
-    logger.error('Password reset error', { error: err.message });
-    res.status(500).json({ error: 'Server error' });
+    next(err);
   }
 };
 
-const updateProfile = async (req, res) => {
+const updateProfile = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { name, phone, avatar_url, country, state_province, city, address_line1 } = req.body;
@@ -347,12 +340,11 @@ const updateProfile = async (req, res) => {
 
     res.status(200).json({ success: true, data: profile, message: 'Profile updated successfully' });
   } catch (error) {
-    logger.error('Error updating profile', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error while updating profile' });
+    next(error);
   }
 };
 
-const getUserData = async (req, res) => {
+const getUserData = async (req, res, next) => {
   try {
     const user = await repositories.users.findById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -382,12 +374,11 @@ const getUserData = async (req, res) => {
       created_at: user.created_at
     });
   } catch (error) {
-    logger.error('Error getting user data', { error: error.message });
-    res.status(500).json({ error: 'Server error' });
+    next(error);
   }
 };
 
-const addRole = async (req, res) => {
+const addRole = async (req, res, next) => {
   const { role } = req.body;
   const userId = req.user.id;
 
@@ -408,12 +399,11 @@ const addRole = async (req, res) => {
 
     res.status(200).json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully` });
   } catch (error) {
-    logger.error('Error adding role', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error while adding role' });
+    next(error);
   }
 };
 
-const getUserRoles = async (req, res) => {
+const getUserRoles = async (req, res, next) => {
   try {
     const roles = await repositories.roles.getUserRoles(req.user.id);
 
@@ -425,12 +415,11 @@ const getUserRoles = async (req, res) => {
       }))
     });
   } catch (error) {
-    logger.error('Error fetching roles', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error while fetching roles' });
+    next(error);
   }
 };
 
-const updateUserRole = async (req, res) => {
+const updateUserRole = async (req, res, next) => {
   try {
     const { role } = req.body;
     const userId = req.user.id;
@@ -451,8 +440,7 @@ const updateUserRole = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Role updated successfully' });
   } catch (error) {
-    logger.error('Error updating user role', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error while updating role' });
+    next(error);
   }
 };
 

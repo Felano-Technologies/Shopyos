@@ -20,7 +20,7 @@ const generateOrderNumber = () => {
  * @desc    Create order from cart
  * @access  Private
  */
-const createOrder = async (req, res) => {
+const createOrder = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const {
@@ -106,28 +106,12 @@ const createOrder = async (req, res) => {
         delivery_notes: deliveryNotes || null
       };
 
-      const order = await repositories.orders.createOrderWithItems(orderData, orderItems);
-
       // Map payment method to DB enum
       let dbPaymentMethod = 'card';
       if (paymentMethod === 'momo') dbPaymentMethod = 'mobile_money';
       else if (paymentMethod === 'cod') dbPaymentMethod = 'bank_transfer'; // Placeholder for COD until enum is updated
 
-      // Create payment record
-      const { data: payment, error: paymentError } = await repositories.orders.db
-        .from('payments')
-        .insert({
-          order_id: order.id,
-          payment_method: dbPaymentMethod,
-          amount: totalAmount,
-          status: 'pending'
-        })
-        .select()
-        .single();
-
-      if (paymentError) {
-        logger.error('Payment creation error', { error: paymentError.message, orderId: order.id });
-      }
+      const order = await repositories.orders.createOrderWithItems(orderData, orderItems, dbPaymentMethod);
 
       // Notify customer about order confirmation
       await repositories.notifications.create({
@@ -176,12 +160,7 @@ const createOrder = async (req, res) => {
       count: createdOrders.length
     });
   } catch (error) {
-    logger.error('Create order error', { error: error.message, userId: req.user?.id, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create order',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -190,7 +169,7 @@ const createOrder = async (req, res) => {
  * @desc    Get user's orders (buyer perspective)
  * @access  Private
  */
-const getMyOrders = async (req, res) => {
+const getMyOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { status, limit = 20, offset = 0 } = req.query;
@@ -207,12 +186,7 @@ const getMyOrders = async (req, res) => {
       count: orders.length
     });
   } catch (error) {
-    logger.error('Get my orders error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get orders',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -221,7 +195,7 @@ const getMyOrders = async (req, res) => {
  * @desc    Get store orders (seller perspective)
  * @access  Private (Seller/Admin)
  */
-const getStoreOrders = async (req, res) => {
+const getStoreOrders = async (req, res, next) => {
   try {
     const { storeId } = req.params;
     const userId = req.user.id;
@@ -255,12 +229,7 @@ const getStoreOrders = async (req, res) => {
       count: orders.length
     });
   } catch (error) {
-    logger.error('Get store orders error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get store orders',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -269,7 +238,7 @@ const getStoreOrders = async (req, res) => {
  * @desc    Get order details
  * @access  Private
  */
-const getOrderDetails = async (req, res) => {
+const getOrderDetails = async (req, res, next) => {
   try {
     const { orderId } = req.params;
     const userId = req.user.id;
@@ -301,12 +270,7 @@ const getOrderDetails = async (req, res) => {
       order
     });
   } catch (error) {
-    logger.error('Get order details error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get order details',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -315,7 +279,7 @@ const getOrderDetails = async (req, res) => {
  * @desc    Update order status
  * @access  Private (Seller/Admin)
  */
-const updateOrderStatus = async (req, res) => {
+const updateOrderStatus = async (req, res, next) => {
   try {
     const { orderId } = req.params;
     const { status } = req.body;
@@ -404,12 +368,7 @@ const updateOrderStatus = async (req, res) => {
       order: updatedOrder
     });
   } catch (error) {
-    logger.error('Update order status error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update order status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -418,7 +377,7 @@ const updateOrderStatus = async (req, res) => {
  * @desc    Cancel order
  * @access  Private
  */
-const cancelOrder = async (req, res) => {
+const cancelOrder = async (req, res, next) => {
   try {
     const { orderId } = req.params;
     const { reason } = req.body;
@@ -467,12 +426,7 @@ const cancelOrder = async (req, res) => {
       order: cancelledOrder
     });
   } catch (error) {
-    logger.error('Cancel order error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to cancel order',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -481,7 +435,7 @@ const cancelOrder = async (req, res) => {
  * @desc    Get order by order number
  * @access  Private
  */
-const getOrderByNumber = async (req, res) => {
+const getOrderByNumber = async (req, res, next) => {
   try {
     const { orderNumber } = req.params;
     const userId = req.user.id;
@@ -516,12 +470,7 @@ const getOrderByNumber = async (req, res) => {
       order: orderDetails
     });
   } catch (error) {
-    logger.error('Get order by number error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get order',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -530,7 +479,7 @@ const getOrderByNumber = async (req, res) => {
  * @desc    Simulate and verify payment (DEVELOPMENT ONLY — use Paystack webhooks in production)
  * @access  Private
  */
-const verifyPayment = async (req, res) => {
+const verifyPayment = async (req, res, next) => {
   // ── Guard: this endpoint is dev-only ──
   if (process.env.NODE_ENV === 'production') {
     return res.status(404).json({
@@ -587,12 +536,7 @@ const verifyPayment = async (req, res) => {
       order: updatedOrder
     });
   } catch (error) {
-    logger.error('Verify payment error', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to verify payment',
-      details: error.message
-    });
+    next(error);
   }
 };
 

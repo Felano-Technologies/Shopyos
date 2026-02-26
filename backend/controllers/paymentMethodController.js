@@ -2,18 +2,17 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 
-const getPaymentMethods = async (req, res) => {
+const getPaymentMethods = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const methods = await repositories.paymentMethods.findByUserId(userId);
         res.status(200).json({ success: true, data: methods });
     } catch (error) {
-        logger.error('Get payment methods error:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
-const addPaymentMethod = async (req, res) => {
+const addPaymentMethod = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { type, provider, title, identifier, is_default } = req.body;
@@ -29,12 +28,11 @@ const addPaymentMethod = async (req, res) => {
 
         res.status(201).json({ success: true, data: method });
     } catch (error) {
-        logger.error('Add payment method error:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
-const deletePaymentMethod = async (req, res) => {
+const deletePaymentMethod = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -48,12 +46,11 @@ const deletePaymentMethod = async (req, res) => {
         await repositories.paymentMethods.delete(id);
         res.status(200).json({ success: true, message: 'Payment method deleted' });
     } catch (error) {
-        logger.error('Delete payment method error:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
-const setDefaultMethod = async (req, res) => {
+const setDefaultMethod = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { id } = req.params;
@@ -61,8 +58,7 @@ const setDefaultMethod = async (req, res) => {
         const method = await repositories.paymentMethods.setDefault(userId, id);
         res.status(200).json({ success: true, data: method });
     } catch (error) {
-        logger.error('Set default payment method error:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 

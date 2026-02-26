@@ -10,7 +10,7 @@ const { invalidateReviews } = require('../config/cacheInvalidation');
  * @desc    Create product review
  * @access  Private
  */
-const createProductReview = async (req, res) => {
+const createProductReview = async (req, res, next) => {
   try {
     const { productId, orderId, rating, reviewText, images } = req.body;
     const userId = req.user.id;
@@ -68,12 +68,7 @@ const createProductReview = async (req, res) => {
       review
     });
   } catch (error) {
-    logger.error('Create product review error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create review',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -82,7 +77,7 @@ const createProductReview = async (req, res) => {
  * @desc    Create store review
  * @access  Private
  */
-const createStoreReview = async (req, res) => {
+const createStoreReview = async (req, res, next) => {
   try {
     const { storeId, orderId, rating, reviewText } = req.body;
     const userId = req.user.id;
@@ -139,12 +134,7 @@ const createStoreReview = async (req, res) => {
       review
     });
   } catch (error) {
-    logger.error('Create store review error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create store review',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -153,7 +143,7 @@ const createStoreReview = async (req, res) => {
  * @desc    Create driver review
  * @access  Private
  */
-const createDriverReview = async (req, res) => {
+const createDriverReview = async (req, res, next) => {
   try {
     const { driverId, deliveryId, rating, reviewText } = req.body;
     const userId = req.user.id;
@@ -213,12 +203,7 @@ const createDriverReview = async (req, res) => {
       review
     });
   } catch (error) {
-    logger.error('Create driver review error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create driver review',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -227,7 +212,7 @@ const createDriverReview = async (req, res) => {
  * @desc    Get product reviews
  * @access  Public
  */
-const getProductReviews = async (req, res) => {
+const getProductReviews = async (req, res, next) => {
   try {
     const { productId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
@@ -248,12 +233,7 @@ const getProductReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    logger.error('Get product reviews error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get product reviews',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -262,7 +242,7 @@ const getProductReviews = async (req, res) => {
  * @desc    Get store reviews
  * @access  Public
  */
-const getStoreReviews = async (req, res) => {
+const getStoreReviews = async (req, res, next) => {
   try {
     const { storeId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
@@ -283,12 +263,7 @@ const getStoreReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    logger.error('Get store reviews error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get store reviews',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -297,7 +272,7 @@ const getStoreReviews = async (req, res) => {
  * @desc    Get driver reviews
  * @access  Public
  */
-const getDriverReviews = async (req, res) => {
+const getDriverReviews = async (req, res, next) => {
   try {
     const { driverId } = req.params;
     const { limit = 20, offset = 0 } = req.query;
@@ -317,12 +292,7 @@ const getDriverReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    logger.error('Get driver reviews error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get driver reviews',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -331,7 +301,7 @@ const getDriverReviews = async (req, res) => {
  * @desc    Update product review
  * @access  Private
  */
-const updateProductReview = async (req, res) => {
+const updateProductReview = async (req, res, next) => {
   try {
     const { reviewId } = req.params;
     const { rating, reviewText, images } = req.body;
@@ -382,12 +352,7 @@ const updateProductReview = async (req, res) => {
       review: updatedReview
     });
   } catch (error) {
-    logger.error('Update product review error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update review',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -396,7 +361,7 @@ const updateProductReview = async (req, res) => {
  * @desc    Delete review
  * @access  Private
  */
-const deleteReview = async (req, res) => {
+const deleteReview = async (req, res, next) => {
   try {
     const { reviewType, reviewId } = req.params;
     const userId = req.user.id;
@@ -449,12 +414,7 @@ const deleteReview = async (req, res) => {
       message: 'Review deleted successfully'
     });
   } catch (error) {
-    logger.error('Delete review error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete review',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -463,7 +423,7 @@ const deleteReview = async (req, res) => {
  * @desc    Get user's reviews
  * @access  Private
  */
-const getMyReviews = async (req, res) => {
+const getMyReviews = async (req, res, next) => {
   try {
     const { type } = req.params;
     const userId = req.user.id;
@@ -483,12 +443,7 @@ const getMyReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    logger.error('Get my reviews error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get reviews',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -497,7 +452,7 @@ const getMyReviews = async (req, res) => {
  * @desc    Get products user can review
  * @access  Private
  */
-const getReviewableProducts = async (req, res) => {
+const getReviewableProducts = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -509,12 +464,7 @@ const getReviewableProducts = async (req, res) => {
       count: reviewableProducts.length
     });
   } catch (error) {
-    logger.error('Get reviewable products error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get reviewable products',
-      details: error.message
-    });
+    next(error);
   }
 };
 

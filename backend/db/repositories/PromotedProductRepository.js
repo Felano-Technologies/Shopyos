@@ -176,35 +176,11 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<boolean>} Success status
    */
   async recordImpression(campaignId) {
-    const costPerImpression = 0.01; // GHS 0.01 per impression
-
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select('impressions, spent_amount, budget')
-      .eq('id', campaignId)
-      .single();
+    const { error } = await this.db.rpc('record_promotion_impression', {
+      p_campaign_id: campaignId
+    });
 
     if (error) throw error;
-
-    const newSpent = parseFloat(data.spent_amount) + costPerImpression;
-    const newImpressions = data.impressions + 1;
-
-    // Check if budget exceeded
-    if (newSpent >= parseFloat(data.budget)) {
-      // Pause campaign if budget exhausted
-      await this.updateCampaignStatus(campaignId, 'paused');
-    }
-
-    const { error: updateError } = await this.supabase
-      .from(this.tableName)
-      .update({
-        impressions: newImpressions,
-        spent_amount: newSpent,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', campaignId);
-
-    if (updateError) throw updateError;
     return true;
   }
 
@@ -214,34 +190,11 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<boolean>} Success status
    */
   async recordClick(campaignId) {
-    const costPerClick = 0.10; // GHS 0.10 per click
-
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select('clicks, spent_amount, budget')
-      .eq('id', campaignId)
-      .single();
+    const { error } = await this.db.rpc('record_promotion_click', {
+      p_campaign_id: campaignId
+    });
 
     if (error) throw error;
-
-    const newSpent = parseFloat(data.spent_amount) + costPerClick;
-    const newClicks = data.clicks + 1;
-
-    // Check if budget exceeded
-    if (newSpent >= parseFloat(data.budget)) {
-      await this.updateCampaignStatus(campaignId, 'paused');
-    }
-
-    const { error: updateError } = await this.supabase
-      .from(this.tableName)
-      .update({
-        clicks: newClicks,
-        spent_amount: newSpent,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', campaignId);
-
-    if (updateError) throw updateError;
     return true;
   }
 

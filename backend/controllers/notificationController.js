@@ -9,7 +9,7 @@ const { logger } = require('../config/logger');
  * @route   GET /api/notifications
  * @access  Private
  */
-const getNotifications = async (req, res) => {
+const getNotifications = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { limit = 20, offset = 0, unreadOnly = false } = req.query;
@@ -33,12 +33,7 @@ const getNotifications = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get notifications error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch notifications',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -47,7 +42,7 @@ const getNotifications = async (req, res) => {
  * @route   GET /api/notifications/unread-count
  * @access  Private
  */
-const getUnreadCount = async (req, res) => {
+const getUnreadCount = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const count = await repositories.notifications.getUnreadCount(userId);
@@ -57,12 +52,7 @@ const getUnreadCount = async (req, res) => {
       unreadCount: count
     });
   } catch (error) {
-    logger.error('Get unread count error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get unread count',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -71,7 +61,7 @@ const getUnreadCount = async (req, res) => {
  * @route   PUT /api/notifications/:notificationId/read
  * @access  Private
  */
-const markAsRead = async (req, res) => {
+const markAsRead = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { notificationId } = req.params;
@@ -84,12 +74,7 @@ const markAsRead = async (req, res) => {
       notification
     });
   } catch (error) {
-    logger.error('Mark as read error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to mark notification as read',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -98,7 +83,7 @@ const markAsRead = async (req, res) => {
  * @route   PUT /api/notifications/read-all
  * @access  Private
  */
-const markAllAsRead = async (req, res) => {
+const markAllAsRead = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const count = await repositories.notifications.markAllAsRead(userId);
@@ -109,12 +94,7 @@ const markAllAsRead = async (req, res) => {
       updatedCount: count
     });
   } catch (error) {
-    logger.error('Mark all as read error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to mark all notifications as read',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -123,7 +103,7 @@ const markAllAsRead = async (req, res) => {
  * @route   DELETE /api/notifications/:notificationId
  * @access  Private
  */
-const deleteNotification = async (req, res) => {
+const deleteNotification = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { notificationId } = req.params;
@@ -135,12 +115,7 @@ const deleteNotification = async (req, res) => {
       message: 'Notification deleted successfully'
     });
   } catch (error) {
-    logger.error('Delete notification error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete notification',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -149,7 +124,7 @@ const deleteNotification = async (req, res) => {
  * @route   DELETE /api/notifications
  * @access  Private
  */
-const deleteAllNotifications = async (req, res) => {
+const deleteAllNotifications = async (req, res, next) => {
   try {
     const userId = req.user.id;
     await repositories.notifications.deleteAllNotifications(userId);
@@ -159,12 +134,7 @@ const deleteAllNotifications = async (req, res) => {
       message: 'All notifications deleted successfully'
     });
   } catch (error) {
-    logger.error('Delete all notifications error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete notifications',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -173,7 +143,7 @@ const deleteAllNotifications = async (req, res) => {
  * @route   GET /api/notifications/preferences
  * @access  Private
  */
-const getPreferences = async (req, res) => {
+const getPreferences = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const preferences = await repositories.notifications.getUserPreferences(userId);
@@ -183,12 +153,7 @@ const getPreferences = async (req, res) => {
       preferences
     });
   } catch (error) {
-    logger.error('Get preferences error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch preferences',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -197,7 +162,7 @@ const getPreferences = async (req, res) => {
  * @route   PUT /api/notifications/preferences
  * @access  Private
  */
-const updatePreferences = async (req, res) => {
+const updatePreferences = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const updates = req.body;
@@ -236,12 +201,7 @@ const updatePreferences = async (req, res) => {
       preferences
     });
   } catch (error) {
-    logger.error('Update preferences error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update preferences',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -250,7 +210,7 @@ const updatePreferences = async (req, res) => {
  * @route   GET /api/notifications/type/:type
  * @access  Private
  */
-const getNotificationsByType = async (req, res) => {
+const getNotificationsByType = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { type } = req.params;
@@ -267,12 +227,7 @@ const getNotificationsByType = async (req, res) => {
       type
     });
   } catch (error) {
-    logger.error('Get notifications by type error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch notifications',
-      details: error.message
-    });
+    next(error);
   }
 };
 

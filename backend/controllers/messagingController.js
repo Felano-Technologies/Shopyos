@@ -9,7 +9,7 @@ const { logger } = require('../config/logger');
  * @desc    Start a conversation with another user
  * @access  Private
  */
-const startConversation = async (req, res) => {
+const startConversation = async (req, res, next) => {
   try {
     const { participantId } = req.body;
     const userId = req.user.id;
@@ -53,12 +53,7 @@ const startConversation = async (req, res) => {
       conversation: details
     });
   } catch (error) {
-    logger.error('Start conversation error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to start conversation',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -67,7 +62,7 @@ const startConversation = async (req, res) => {
  * @desc    Get user's conversations
  * @access  Private
  */
-const getConversations = async (req, res) => {
+const getConversations = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { limit = 50, offset = 0 } = req.query;
@@ -83,12 +78,7 @@ const getConversations = async (req, res) => {
       count: conversations.length
     });
   } catch (error) {
-    logger.error('Get conversations error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get conversations',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -97,7 +87,7 @@ const getConversations = async (req, res) => {
  * @desc    Get conversation details
  * @access  Private
  */
-const getConversationDetails = async (req, res) => {
+const getConversationDetails = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user.id;
@@ -125,12 +115,7 @@ const getConversationDetails = async (req, res) => {
       conversation
     });
   } catch (error) {
-    logger.error('Get conversation details error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get conversation details',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -139,7 +124,7 @@ const getConversationDetails = async (req, res) => {
  * @desc    Send a message
  * @access  Private
  */
-const sendMessage = async (req, res) => {
+const sendMessage = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const { content, messageType = 'text', attachmentUrl } = req.body;
@@ -192,12 +177,7 @@ const sendMessage = async (req, res) => {
       message: messageWithSender || message
     });
   } catch (error) {
-    logger.error('Send message error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to send message',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -206,7 +186,7 @@ const sendMessage = async (req, res) => {
  * @desc    Get messages in a conversation
  * @access  Private
  */
-const getMessages = async (req, res) => {
+const getMessages = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user.id;
@@ -233,12 +213,7 @@ const getMessages = async (req, res) => {
       count: messages.length
     });
   } catch (error) {
-    logger.error('Get messages error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get messages',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -247,7 +222,7 @@ const getMessages = async (req, res) => {
  * @desc    Mark all messages in conversation as read
  * @access  Private
  */
-const markConversationAsRead = async (req, res) => {
+const markConversationAsRead = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const userId = req.user.id;
@@ -269,12 +244,7 @@ const markConversationAsRead = async (req, res) => {
       updatedCount
     });
   } catch (error) {
-    logger.error('Mark as read error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to mark messages as read',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -283,7 +253,7 @@ const markConversationAsRead = async (req, res) => {
  * @desc    Delete a message
  * @access  Private
  */
-const deleteMessage = async (req, res) => {
+const deleteMessage = async (req, res, next) => {
   try {
     const { messageId } = req.params;
     const userId = req.user.id;
@@ -295,27 +265,7 @@ const deleteMessage = async (req, res) => {
       message: 'Message deleted'
     });
   } catch (error) {
-    logger.error('Delete message error:', { error: error.message });
-
-    if (error.message === 'Message not found') {
-      return res.status(404).json({
-        success: false,
-        error: 'Message not found'
-      });
-    }
-
-    if (error.message === 'Not authorized to delete this message') {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to delete this message'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete message',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -324,7 +274,7 @@ const deleteMessage = async (req, res) => {
  * @desc    Search messages in conversation
  * @access  Private
  */
-const searchMessages = async (req, res) => {
+const searchMessages = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const { q, limit = 20 } = req.query;
@@ -359,12 +309,7 @@ const searchMessages = async (req, res) => {
       searchTerm: q.trim()
     });
   } catch (error) {
-    logger.error('Search messages error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to search messages',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -373,7 +318,7 @@ const searchMessages = async (req, res) => {
  * @desc    Get unread conversations count
  * @access  Private
  */
-const getUnreadCount = async (req, res) => {
+const getUnreadCount = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -384,12 +329,7 @@ const getUnreadCount = async (req, res) => {
       unreadCount: count
     });
   } catch (error) {
-    logger.error('Get unread count error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get unread count',
-      details: error.message
-    });
+    next(error);
   }
 };
 

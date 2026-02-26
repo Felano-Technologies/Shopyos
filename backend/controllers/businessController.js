@@ -3,7 +3,7 @@ const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../uti
 const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
 
-const createBusiness = async (req, res) => {
+const createBusiness = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -123,27 +123,14 @@ const createBusiness = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error creating business:', { error: error.message });
-
-    // Handle unique constraint violations
-    if (error.code === '23505') {
-      return res.status(400).json({
-        success: false,
-        error: 'Business with this name or email already exists'
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      error: 'Server error while creating business'
-    });
+    next(error);
   }
 };
 
 // @desc    Get user's businesses
 // @route   GET /api/business/my-businesses
 // @access  Private
-const getMyBusinesses = async (req, res) => {
+const getMyBusinesses = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -184,18 +171,14 @@ const getMyBusinesses = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching businesses:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while fetching businesses'
-    });
+    next(error);
   }
 };
 
 // @desc    Get business by ID
 // @route   GET /api/business/:id
 // @access  Private
-const getBusinessById = async (req, res) => {
+const getBusinessById = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -260,18 +243,14 @@ const getBusinessById = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching business:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while fetching business'
-    });
+    next(error);
   }
 };
 
 // @desc    Update business
 // @route   PUT /api/business/update/:id
 // @access  Private
-const updateBusiness = async (req, res) => {
+const updateBusiness = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -362,19 +341,14 @@ const updateBusiness = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error updating business:', { error: error.message });
-
-    res.status(500).json({
-      success: false,
-      error: 'Server error while updating business'
-    });
+    next(error);
   }
 };
 
 // @desc    Delete business
 // @route   DELETE /api/business/:id
 // @access  Private
-const deleteBusiness = async (req, res) => {
+const deleteBusiness = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -429,18 +403,14 @@ const deleteBusiness = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error deleting business:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while deleting business'
-    });
+    next(error);
   }
 };
 
 // @desc    Upload business logo
 // @route   POST /api/business/:id/upload-logo
 // @access  Private
-const uploadLogo = async (req, res) => {
+const uploadLogo = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -496,18 +466,14 @@ const uploadLogo = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error uploading logo:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to upload logo'
-    });
+    next(error);
   }
 };
 
 // @desc    Upload business banner
 // @route   POST /api/business/:id/upload-banner
 // @access  Private
-const uploadBanner = async (req, res) => {
+const uploadBanner = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -563,18 +529,14 @@ const uploadBanner = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error uploading banner:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to upload banner'
-    });
+    next(error);
   }
 };
 
 // @desc    Get business dashboard stats
 // @route   GET /api/business/dashboard/:id
 // @access  Private
-const getBusinessDashboard = async (req, res) => {
+const getBusinessDashboard = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -669,18 +631,14 @@ const getBusinessDashboard = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching dashboard data:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while fetching dashboard data'
-    });
+    next(error);
   }
 };
 
 // @desc    Get business analytics
 // @route   GET /api/business/analytics/:id
 // @access  Private
-const getBusinessAnalytics = async (req, res) => {
+const getBusinessAnalytics = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -784,15 +742,14 @@ const getBusinessAnalytics = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching analytics:', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error' });
+    next(error);
   }
 };
 
 // @desc    Get all businesses (Public/Customer)
 // @route   GET /api/business/all
 // @access  Private (Logged in user)
-const getAllBusinesses = async (req, res) => {
+const getAllBusinesses = async (req, res, next) => {
   try {
     const { search, category } = req.query;
 
@@ -836,15 +793,14 @@ const getAllBusinesses = async (req, res) => {
 
     res.status(200).json({ success: true, businesses: mapped });
   } catch (error) {
-    logger.error('Error fetching all businesses:', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error' });
+    next(error);
   }
 };
 
 // @desc    Follow a business
 // @route   POST /api/business/:id/follow
 // @access  Private
-const followBusiness = async (req, res) => {
+const followBusiness = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -858,18 +814,14 @@ const followBusiness = async (req, res) => {
       message: 'Store followed successfully'
     });
   } catch (error) {
-    logger.error('Error following business:', { error: error.message });
-    if (error.code === '23505') { // Unique constraint violation
-      return res.status(200).json({ success: true, message: 'Already following' });
-    }
-    res.status(500).json({ success: false, error: 'Server error' });
+    next(error);
   }
 };
 
 // @desc    Unfollow a business
 // @route   DELETE /api/business/:id/follow
 // @access  Private
-const unfollowBusiness = async (req, res) => {
+const unfollowBusiness = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
@@ -883,8 +835,7 @@ const unfollowBusiness = async (req, res) => {
       message: 'Store unfollowed successfully'
     });
   } catch (error) {
-    logger.error('Error unfollowing business:', { error: error.message });
-    res.status(500).json({ success: false, error: 'Server error' });
+    next(error);
   }
 };
 

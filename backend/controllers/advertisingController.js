@@ -9,7 +9,7 @@ const { logger } = require('../config/logger');
  * @route   POST /api/advertising/campaigns
  * @access  Seller
  */
-const createCampaign = async (req, res) => {
+const createCampaign = async (req, res, next) => {
   try {
     const { productId, budget, startDate, endDate, targetAudience } = req.body;
 
@@ -63,12 +63,7 @@ const createCampaign = async (req, res) => {
       campaign
     });
   } catch (error) {
-    logger.error('Create campaign error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create campaign',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -77,7 +72,7 @@ const createCampaign = async (req, res) => {
  * @route   GET /api/advertising/promoted
  * @access  Public
  */
-const getPromotedProducts = async (req, res) => {
+const getPromotedProducts = async (req, res, next) => {
   try {
     const { limit, category, minPrice, maxPrice } = req.query;
 
@@ -93,12 +88,7 @@ const getPromotedProducts = async (req, res) => {
       promotedProducts
     });
   } catch (error) {
-    logger.error('Get promoted products error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch promoted products',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -107,7 +97,7 @@ const getPromotedProducts = async (req, res) => {
  * @route   GET /api/advertising/my-campaigns
  * @access  Seller
  */
-const getMyCampaigns = async (req, res) => {
+const getMyCampaigns = async (req, res, next) => {
   try {
     const { status, limit, offset } = req.query;
 
@@ -138,12 +128,7 @@ const getMyCampaigns = async (req, res) => {
       campaigns
     });
   } catch (error) {
-    logger.error('Get my campaigns error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch campaigns',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -152,7 +137,7 @@ const getMyCampaigns = async (req, res) => {
  * @route   GET /api/advertising/campaigns/:campaignId
  * @access  Seller (owner)
  */
-const getCampaignDetails = async (req, res) => {
+const getCampaignDetails = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
 
@@ -184,12 +169,7 @@ const getCampaignDetails = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get campaign details error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch campaign details',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -198,7 +178,7 @@ const getCampaignDetails = async (req, res) => {
  * @route   PUT /api/advertising/campaigns/:campaignId/status
  * @access  Seller (owner)
  */
-const updateCampaignStatus = async (req, res) => {
+const updateCampaignStatus = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
     const { status } = req.body;
@@ -235,12 +215,7 @@ const updateCampaignStatus = async (req, res) => {
       campaign: updatedCampaign
     });
   } catch (error) {
-    logger.error('Update campaign status error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update campaign status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -249,7 +224,7 @@ const updateCampaignStatus = async (req, res) => {
  * @route   PUT /api/advertising/campaigns/:campaignId/budget
  * @access  Seller (owner)
  */
-const updateCampaignBudget = async (req, res) => {
+const updateCampaignBudget = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
     const { budget } = req.body;
@@ -286,12 +261,7 @@ const updateCampaignBudget = async (req, res) => {
       campaign: updatedCampaign
     });
   } catch (error) {
-    logger.error('Update campaign budget error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update campaign budget',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -300,7 +270,7 @@ const updateCampaignBudget = async (req, res) => {
  * @route   POST /api/advertising/campaigns/:campaignId/impression
  * @access  Public
  */
-const recordImpression = async (req, res) => {
+const recordImpression = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
 
@@ -320,12 +290,7 @@ const recordImpression = async (req, res) => {
       message: 'Impression recorded'
     });
   } catch (error) {
-    logger.error('Record impression error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to record impression',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -334,7 +299,7 @@ const recordImpression = async (req, res) => {
  * @route   POST /api/advertising/campaigns/:campaignId/click
  * @access  Public
  */
-const recordClick = async (req, res) => {
+const recordClick = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
 
@@ -345,12 +310,7 @@ const recordClick = async (req, res) => {
       message: 'Click recorded'
     });
   } catch (error) {
-    logger.error('Record click error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to record click',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -359,7 +319,7 @@ const recordClick = async (req, res) => {
  * @route   POST /api/advertising/reports
  * @access  Private
  */
-const createReport = async (req, res) => {
+const createReport = async (req, res, next) => {
   try {
     const { reportedId, reportedType, reason, description } = req.body;
 
@@ -398,12 +358,7 @@ const createReport = async (req, res) => {
       report
     });
   } catch (error) {
-    logger.error('Create report error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create report',
-      details: error.message
-    });
+    next(error);
   }
 };
 

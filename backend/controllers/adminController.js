@@ -9,7 +9,7 @@ const { logger } = require('../config/logger');
  * @route   GET /api/admin/dashboard
  * @access  Admin
  */
-const getDashboard = async (req, res) => {
+const getDashboard = async (req, res, next) => {
   try {
     const [userCount, storeCount, orderCount, revenueRes] = await Promise.all([
       repositories.users.count(),
@@ -32,8 +32,7 @@ const getDashboard = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get dashboard error:', { error: error.message });
-    res.status(500).json({ success: false, error: 'Failed' });
+    next(error);
   }
 };
 
@@ -42,7 +41,7 @@ const getDashboard = async (req, res) => {
  * @route   GET /api/admin/users
  * @access  Admin
  */
-const getAllUsers = async (req, res) => {
+const getAllUsers = async (req, res, next) => {
   try {
     const { limit, offset, role, accountStatus, search } = req.query;
 
@@ -63,12 +62,7 @@ const getAllUsers = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get all users error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch users',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -77,7 +71,7 @@ const getAllUsers = async (req, res) => {
  * @route   PUT /api/admin/users/:userId/status
  * @access  Admin
  */
-const updateUserStatus = async (req, res) => {
+const updateUserStatus = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { status, reason } = req.body;
@@ -108,12 +102,7 @@ const updateUserStatus = async (req, res) => {
       user
     });
   } catch (error) {
-    logger.error('Update user status error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update user status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -122,7 +111,7 @@ const updateUserStatus = async (req, res) => {
  * @route   PUT /api/admin/users/:userId/role
  * @access  Admin
  */
-const updateUserRole = async (req, res) => {
+const updateUserRole = async (req, res, next) => {
   try {
     const { userId } = req.params;
     const { role } = req.body;
@@ -153,12 +142,7 @@ const updateUserRole = async (req, res) => {
       user
     });
   } catch (error) {
-    logger.error('Update user role error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update user role',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -167,7 +151,7 @@ const updateUserRole = async (req, res) => {
  * @route   GET /api/admin/stores
  * @access  Admin
  */
-const getAllStores = async (req, res) => {
+const getAllStores = async (req, res, next) => {
   try {
     const { limit, offset, verificationStatus, search } = req.query;
 
@@ -187,12 +171,7 @@ const getAllStores = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get all stores error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch stores',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -201,7 +180,7 @@ const getAllStores = async (req, res) => {
  * @route   PUT /api/admin/stores/:storeId/verify
  * @access  Admin
  */
-const verifyStore = async (req, res) => {
+const verifyStore = async (req, res, next) => {
   try {
     const { storeId } = req.params;
     const { status, reason } = req.body;
@@ -232,12 +211,7 @@ const verifyStore = async (req, res) => {
       store
     });
   } catch (error) {
-    logger.error('Verify store error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update verification status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -246,7 +220,7 @@ const verifyStore = async (req, res) => {
  * @route   PUT /api/admin/stores/:storeId/status
  * @access  Admin
  */
-const updateStoreStatus = async (req, res) => {
+const updateStoreStatus = async (req, res, next) => {
   try {
     const { storeId } = req.params;
     const { status } = req.body;
@@ -277,12 +251,7 @@ const updateStoreStatus = async (req, res) => {
       store
     });
   } catch (error) {
-    logger.error('Update store status error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update store status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -291,7 +260,7 @@ const updateStoreStatus = async (req, res) => {
  * @route   GET /api/admin/reports
  * @access  Admin
  */
-const getAllReports = async (req, res) => {
+const getAllReports = async (req, res, next) => {
   try {
     const { status, reportedType, limit, offset } = req.query;
 
@@ -311,12 +280,7 @@ const getAllReports = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get all reports error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch reports',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -325,7 +289,7 @@ const getAllReports = async (req, res) => {
  * @route   GET /api/admin/reports/:reportId
  * @access  Admin
  */
-const getReportDetails = async (req, res) => {
+const getReportDetails = async (req, res, next) => {
   try {
     const { reportId } = req.params;
     const report = await repositories.reports.getReportDetails(reportId);
@@ -335,12 +299,7 @@ const getReportDetails = async (req, res) => {
       report
     });
   } catch (error) {
-    logger.error('Get report details error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch report details',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -349,7 +308,7 @@ const getReportDetails = async (req, res) => {
  * @route   PUT /api/admin/reports/:reportId
  * @access  Admin
  */
-const updateReportStatus = async (req, res) => {
+const updateReportStatus = async (req, res, next) => {
   try {
     const { reportId } = req.params;
     const { status, resolution } = req.body;
@@ -385,12 +344,7 @@ const updateReportStatus = async (req, res) => {
       report
     });
   } catch (error) {
-    logger.error('Update report status error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update report status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -399,7 +353,7 @@ const updateReportStatus = async (req, res) => {
  * @route   GET /api/admin/audit-logs
  * @access  Admin
  */
-const getAuditLogs = async (req, res) => {
+const getAuditLogs = async (req, res, next) => {
   try {
     const { userId, action, entityType, startDate, endDate, limit, offset } = req.query;
 
@@ -422,12 +376,7 @@ const getAuditLogs = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get audit logs error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch audit logs',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -436,7 +385,7 @@ const getAuditLogs = async (req, res) => {
  * @route   GET /api/admin/audit-logs/:entityType/:entityId
  * @access  Admin
  */
-const getEntityHistory = async (req, res) => {
+const getEntityHistory = async (req, res, next) => {
   try {
     const { entityType, entityId } = req.params;
     const history = await repositories.auditLogs.getEntityHistory(entityId, entityType);
@@ -446,12 +395,7 @@ const getEntityHistory = async (req, res) => {
       history
     });
   } catch (error) {
-    logger.error('Get entity history error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch entity history',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -460,7 +404,7 @@ const getEntityHistory = async (req, res) => {
  * @route   GET /api/admin/payouts
  * @access  Admin
  */
-const getAllPayouts = async (req, res) => {
+const getAllPayouts = async (req, res, next) => {
   try {
     const { status, limit, offset } = req.query;
     const payouts = await repositories.payouts.findAll({
@@ -476,8 +420,7 @@ const getAllPayouts = async (req, res) => {
       data: payouts
     });
   } catch (error) {
-    logger.error('Get all payouts error:', { error: error.message });
-    res.status(500).json({ success: false, error: 'Failed to fetch payouts' });
+    next(error);
   }
 };
 
@@ -486,7 +429,7 @@ const getAllPayouts = async (req, res) => {
  * @route   PUT /api/admin/payouts/:payoutId
  * @access  Admin
  */
-const updatePayoutStatus = async (req, res) => {
+const updatePayoutStatus = async (req, res, next) => {
   try {
     const { payoutId } = req.params;
     const { status, notes } = req.body;
@@ -507,8 +450,7 @@ const updatePayoutStatus = async (req, res) => {
       data: updated
     });
   } catch (error) {
-    logger.error('Update payout status error:', { error: error.message });
-    res.status(500).json({ success: false, error: 'Failed' });
+    next(error);
   }
 };
 

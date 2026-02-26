@@ -413,8 +413,8 @@ class ReviewRepository extends BaseRepository {
    * @returns {Promise<Array>}
    */
   async getReviewableProducts(userId) {
-    // Get completed orders with products not yet reviewed
-    const { data, error } = await this.db
+    // 1. Get completed orders
+    const { data: orders, error: ordersError } = await this.db
       .from('orders')
       .select(`
         id,
@@ -432,14 +432,25 @@ class ReviewRepository extends BaseRepository {
       .eq('status', 'completed')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (ordersError) throw ordersError;
 
-    // Filter out already reviewed products
+    // 2. Fetch all existing reviews by this user to avoid N+1 queries
+    const { data: userReviews, error: reviewsError } = await this.db
+      .from('product_reviews')
+      .select('product_id')
+      .eq('buyer_id', userId)
+      .is('deleted_at', null);
+
+    if (reviewsError) throw reviewsError;
+
+    // Create a set of reviewed product IDs for O(1) lookups
+    const reviewedProductIds = new Set((userReviews || []).map(r => r.product_id));
+
+    // 3. Filter out already reviewed products
     const reviewableProducts = [];
-    for (const order of data || []) {
+    for (const order of orders || []) {
       for (const item of order.order_items) {
-        const existingReview = await this.findProductReviewByUser(userId, item.product_id);
-        if (!existingReview) {
+        if (!reviewedProductIds.has(item.product_id)) {
           reviewableProducts.push({
             orderId: order.id,
             productId: item.product_id,

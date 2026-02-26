@@ -195,31 +195,34 @@ class OrderRepository extends BaseRepository {
    * @param {Array} orderItems - Order items
    * @returns {Promise<Object>}
    */
-  async createOrderWithItems(orderData, orderItems) {
-    // This should be wrapped in a transaction
-    // For now, we'll do sequential inserts
-    // TODO: Implement proper transaction support
+  async createOrderWithItems(orderData, orderItems, paymentMethod = 'card') {
+    const { data: orderResponse, error } = await this.db.rpc('create_order_atomic', {
+      p_order_number: orderData.order_number,
+      p_buyer_id: orderData.buyer_id,
+      p_store_id: orderData.store_id,
+      p_subtotal: orderData.subtotal,
+      p_tax: orderData.tax,
+      p_delivery_fee: orderData.delivery_fee,
+      p_total_amount: orderData.total_amount,
+      p_delivery_address: orderData.delivery_address_line1,
+      p_delivery_city: orderData.delivery_city,
+      p_delivery_country: orderData.delivery_country || 'Ghana',
+      p_delivery_phone: orderData.delivery_phone,
+      p_delivery_notes: orderData.delivery_notes || null,
+      p_payment_method: paymentMethod,
+      p_items: orderItems
+    });
 
-    // Create order
-    const order = await this.create(orderData);
+    if (error) {
+      if (error.message.includes('Insufficient stock')) {
+        const err = new Error(error.message);
+        err.code = 'INSUFFICIENT_STOCK';
+        throw err;
+      }
+      throw error;
+    }
 
-    // Create order items
-    const itemsData = orderItems.map(item => ({
-      ...item,
-      order_id: order.id
-    }));
-
-    const { data: items, error: itemsError } = await this.db
-      .from('order_items')
-      .insert(itemsData)
-      .select();
-
-    if (itemsError) throw itemsError;
-
-    return {
-      ...order,
-      order_items: items
-    };
+    return orderResponse;
   }
 
   /**

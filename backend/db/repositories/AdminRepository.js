@@ -15,7 +15,7 @@ class AdminRepository extends BaseRepository {
    */
   async getAllUsers(options = {}) {
     const { limit = 50, offset = 0, role, accountStatus, search } = options;
-    
+
     let query = this.supabase
       .from('user_profiles')
       .select(`
@@ -90,7 +90,7 @@ class AdminRepository extends BaseRepository {
   async updateUserStatus(userId, status, reason = null) {
     const { data, error } = await this.supabase
       .from('user_profiles')
-      .update({ 
+      .update({
         account_status: status,
         updated_at: new Date().toISOString()
       })
@@ -111,7 +111,7 @@ class AdminRepository extends BaseRepository {
   async updateUserRole(userId, role) {
     const { data, error } = await this.supabase
       .from('user_profiles')
-      .update({ 
+      .update({
         role: role,
         updated_at: new Date().toISOString()
       })
@@ -130,7 +130,7 @@ class AdminRepository extends BaseRepository {
    */
   async getAllStores(options = {}) {
     const { limit = 50, offset = 0, verificationStatus, search } = options;
-    
+
     let query = this.supabase
       .from('stores')
       .select(`
@@ -200,7 +200,7 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated store
    */
   async updateStoreVerification(storeId, status, reason = null) {
-    const updateData = { 
+    const updateData = {
       verification_status: status,
       updated_at: new Date().toISOString()
     };
@@ -233,7 +233,7 @@ class AdminRepository extends BaseRepository {
   async updateStoreStatus(storeId, status) {
     const { data, error } = await this.supabase
       .from('stores')
-      .update({ 
+      .update({
         status: status,
         updated_at: new Date().toISOString()
       })
@@ -250,46 +250,38 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Object>} Platform statistics
    */
   async getPlatformAnalytics() {
-    // Get order statistics
-    const { data: orders } = await this.supabase
-      .from('orders')
-      .select('total_amount, status');
+    // Get stats from optimized RPC endpoints concurrently
+    const [
+      { data: orderStats, error: orderError },
+      { data: productStats, error: productError },
+      { data: reviewStats, error: reviewError }
+    ] = await Promise.all([
+      this.supabase.rpc('get_admin_order_stats'),
+      this.supabase.rpc('get_admin_product_stats'),
+      this.supabase.rpc('get_admin_review_stats')
+    ]);
 
-    const orderStats = {
-      total: orders?.length || 0,
-      completed: orders?.filter(o => o.status === 'delivered').length || 0,
-      pending: orders?.filter(o => ['pending', 'confirmed', 'processing'].includes(o.status)).length || 0,
-      cancelled: orders?.filter(o => o.status === 'cancelled').length || 0,
-      totalRevenue: orders?.reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0) || 0
-    };
-
-    // Get product statistics
-    const { data: products } = await this.supabase
-      .from('products')
-      .select('status');
-
-    const productStats = {
-      total: products?.length || 0,
-      active: products?.filter(p => p.status === 'active').length || 0,
-      outOfStock: products?.filter(p => p.status === 'out_of_stock').length || 0
-    };
-
-    // Get review statistics
-    const { data: reviews } = await this.supabase
-      .from('product_reviews')
-      .select('rating');
-
-    const reviewStats = {
-      total: reviews?.length || 0,
-      averageRating: reviews?.length > 0 
-        ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
-        : 0
-    };
+    if (orderError) throw orderError;
+    if (productError) throw productError;
+    if (reviewError) throw reviewError;
 
     return {
-      orders: orderStats,
-      products: productStats,
-      reviews: reviewStats
+      orders: {
+        total: orderStats?.total_orders || 0,
+        completed: orderStats?.completed_orders || 0,
+        pending: orderStats?.pending_orders || 0,
+        cancelled: orderStats?.cancelled_orders || 0,
+        totalRevenue: orderStats?.total_revenue || 0
+      },
+      products: {
+        total: productStats?.total_products || 0,
+        active: productStats?.active_products || 0,
+        outOfStock: productStats?.out_of_stock_products || 0
+      },
+      reviews: {
+        total: reviewStats?.total_reviews || 0,
+        averageRating: reviewStats?.average_rating || 0
+      }
     };
   }
 

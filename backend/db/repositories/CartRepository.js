@@ -14,14 +14,14 @@ class CartRepository extends BaseRepository {
    * @returns {Promise<Object>}
    */
   async getOrCreateCart(userId) {
-    // Try to find existing cart
-    let cart = await this.findOne({ user_id: userId });
+    // Atomic check-and-create using upsert
+    const { data: cart, error } = await this.db
+      .from('carts')
+      .upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: true })
+      .select()
+      .single();
 
-    // Create if doesn't exist
-    if (!cart) {
-      cart = await this.create({ user_id: userId });
-    }
-
+    if (error) throw error;
     return cart;
   }
 

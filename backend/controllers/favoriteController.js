@@ -5,7 +5,7 @@ const { logger } = require('../config/logger');
 // @desc    Add product to favorites
 // @route   POST /api/favorites
 // @access  Private
-const addFavorite = async (req, res) => {
+const addFavorite = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { productId } = req.body;
@@ -47,15 +47,14 @@ const addFavorite = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error adding to favorites:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
 // @desc    Remove product from favorites
 // @route   DELETE /api/favorites/:productId
 // @access  Private
-const removeFavorite = async (req, res) => {
+const removeFavorite = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { productId } = req.params;
@@ -78,15 +77,14 @@ const removeFavorite = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error removing from favorites:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
 // @desc    Get user's favorites
 // @route   GET /api/favorites
 // @access  Private
-const getUserFavorites = async (req, res) => {
+const getUserFavorites = async (req, res, next) => {
     try {
         const userId = req.user.id;
 
@@ -120,15 +118,14 @@ const getUserFavorites = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error fetching favorites:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
 // @desc    Check if product is favorited
 // @route   GET /api/favorites/check/:productId
 // @access  Private
-const checkFavorite = async (req, res) => {
+const checkFavorite = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const { productId } = req.params;
@@ -145,8 +142,7 @@ const checkFavorite = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error checking favorite:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 

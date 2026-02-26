@@ -11,7 +11,7 @@ const { invalidateProduct } = require('../config/cacheInvalidation');
 // @desc    Create a new product
 // @route   POST /api/products
 // @access  Private (Seller)
-const createProduct = async (req, res) => {
+const createProduct = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -98,18 +98,14 @@ const createProduct = async (req, res) => {
     await invalidateProduct(product.id, storeId);
 
   } catch (error) {
-    logger.error('Error creating product', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while creating product'
-    });
+    next(error);
   }
 };
 
 // @desc    Get all products for a store
 // @route   GET /api/products/store/:storeId
 // @access  Public
-const getStoreProducts = async (req, res) => {
+const getStoreProducts = async (req, res, next) => {
   try {
     const { storeId } = req.params;
     const { limit = 20, offset = 0, includeInactive } = req.query;
@@ -144,18 +140,14 @@ const getStoreProducts = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching store products', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while fetching products'
-    });
+    next(error);
   }
 };
 
 // @desc    Get product by ID
 // @route   GET /api/products/:id
 // @access  Public
-const getProductById = async (req, res) => {
+const getProductById = async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -218,18 +210,14 @@ const getProductById = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error fetching product', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while fetching product'
-    });
+    next(error);
   }
 };
 
 // @desc    Get all categories
 // @route   GET /api/products/categories
 // @access  Public
-const getCategories = async (req, res) => {
+const getCategories = async (req, res, next) => {
   try {
     // Fetch categories from the new table
     const { data: dbCategories, error: catError } = await repositories.products.db
@@ -244,18 +232,14 @@ const getCategories = async (req, res) => {
       // But we just seeded it.
     }
 
-    // Get product counts for these categories
-    // efficient way: group by category
+    // Get product counts for these categories efficiently using RPC
     const { data: productCounts, error: countError } = await repositories.products.db
-      .from('products')
-      .select('category')
-      .is('deleted_at', null)
-      .eq('is_active', true);
+      .rpc('get_category_counts');
 
     const counts = {};
-    if (productCounts) {
+    if (productCounts && !countError) {
       productCounts.forEach(p => {
-        if (p.category) counts[p.category] = (counts[p.category] || 0) + 1;
+        counts[p.category] = parseInt(p.product_count, 10);
       });
     }
 
@@ -282,18 +266,14 @@ const getCategories = async (req, res) => {
       categories
     });
   } catch (error) {
-    logger.error('Error fetching categories', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch categories'
-    });
+    next(error);
   }
 };
 
 // @desc    Update product
 // @route   PUT /api/products/:id
 // @access  Private (Seller)
-const updateProduct = async (req, res) => {
+const updateProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -373,18 +353,14 @@ const updateProduct = async (req, res) => {
     await invalidateProduct(id, updated.store_id);
 
   } catch (error) {
-    logger.error('Error updating product', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while updating product'
-    });
+    next(error);
   }
 };
 
 // @desc    Delete product
 // @route   DELETE /api/products/:id
 // @access  Private (Seller)
-const deleteProduct = async (req, res) => {
+const deleteProduct = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -430,18 +406,14 @@ const deleteProduct = async (req, res) => {
     await invalidateProduct(id, product.store_id);
 
   } catch (error) {
-    logger.error('Error deleting product', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while deleting product'
-    });
+    next(error);
   }
 };
 
 // @desc    Upload product images
 // @route   POST /api/products/:id/images
 // @access  Private (Seller)
-const uploadProductImages = async (req, res) => {
+const uploadProductImages = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user.id;
@@ -512,18 +484,14 @@ const uploadProductImages = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error uploading product images', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to upload images'
-    });
+    next(error);
   }
 };
 
 // @desc    Delete product image
 // @route   DELETE /api/products/:id/images/:imageId
 // @access  Private (Seller)
-const deleteProductImage = async (req, res) => {
+const deleteProductImage = async (req, res, next) => {
   try {
     const { id, imageId } = req.params;
     const userId = req.user.id;
@@ -579,18 +547,14 @@ const deleteProductImage = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error deleting product image', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to delete image'
-    });
+    next(error);
   }
 };
 
 // @desc    Search products
 // @route   GET /api/products/search
 // @access  Public
-const searchProducts = async (req, res) => {
+const searchProducts = async (req, res, next) => {
   try {
     const {
       query,
@@ -660,11 +624,7 @@ const searchProducts = async (req, res) => {
     });
 
   } catch (error) {
-    logger.error('Error searching products', { error: error.message, requestId: req.requestId });
-    res.status(500).json({
-      success: false,
-      error: 'Server error while searching products'
-    });
+    next(error);
   }
 };
 

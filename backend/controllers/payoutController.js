@@ -5,7 +5,7 @@ const { logger } = require('../config/logger');
 // @desc    Request a payout
 // @route   POST /api/payouts/request
 // @access  Private (Seller)
-const requestPayout = async (req, res) => {
+const requestPayout = async (req, res, next) => {
     try {
         const { storeId, amount, method, details } = req.body;
         const userId = req.user.id;
@@ -54,15 +54,14 @@ const requestPayout = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error requesting payout:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 
 // @desc    Get payout history
 // @route   GET /api/payouts/history/:storeId
 // @access  Private (Seller)
-const getPayoutHistory = async (req, res) => {
+const getPayoutHistory = async (req, res, next) => {
     try {
         const { storeId } = req.params;
         const userId = req.user.id;
@@ -81,8 +80,7 @@ const getPayoutHistory = async (req, res) => {
         });
 
     } catch (error) {
-        logger.error('Error fetching payout history:', { error: error.message });
-        res.status(500).json({ success: false, error: 'Server error' });
+        next(error);
     }
 };
 

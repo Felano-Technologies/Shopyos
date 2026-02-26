@@ -7,7 +7,7 @@ class CategoryController {
         this.repo = repositories.products;
     }
 
-    getAll = async (req, res) => {
+    getAll = async (req, res, next) => {
         try {
             const { data: categories, error } = await this.repo.db
                 .from('categories')
@@ -17,12 +17,11 @@ class CategoryController {
             if (error) throw error;
             res.status(200).json({ success: true, categories });
         } catch (error) {
-            logger.error('Error fetching categories', { error: error.message });
-            res.status(500).json({ success: false, error: 'Server Error' });
+            next(error);
         }
     };
 
-    create = async (req, res) => {
+    create = async (req, res, next) => {
         try {
             const { name, description } = req.body;
             if (!name) return res.status(400).json({ success: false, error: 'Name is required' });
@@ -42,12 +41,11 @@ class CategoryController {
             await invalidateCategories();
             res.status(201).json({ success: true, category });
         } catch (error) {
-            logger.error('Error creating category', { error: error.message });
-            res.status(500).json({ success: false, error: 'Server Error' });
+            next(error);
         }
     };
 
-    update = async (req, res) => {
+    update = async (req, res, next) => {
         try {
             const { id } = req.params;
             const { name, description, is_active } = req.body;
@@ -79,12 +77,11 @@ class CategoryController {
             await invalidateCategories();
             res.status(200).json({ success: true, category });
         } catch (error) {
-            logger.error('Error updating category', { error: error.message });
-            res.status(500).json({ success: false, error: 'Server Error' });
+            next(error);
         }
     };
 
-    delete = async (req, res) => {
+    delete = async (req, res, next) => {
         try {
             const { id } = req.params;
             const { force } = req.query;
@@ -114,8 +111,7 @@ class CategoryController {
             await invalidateCategories();
             res.status(200).json({ success: true, message: 'Category deleted successfully' });
         } catch (error) {
-            logger.error('Error deleting category', { error: error.message });
-            res.status(500).json({ success: false, error: 'Server Error' });
+            next(error);
         }
     };
 }

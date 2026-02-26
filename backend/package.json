@@ -28,6 +28,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "jscodeshift": "^17.3.0",
     "nodemon": "^3.1.10"
   }
 }

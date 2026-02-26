@@ -29,7 +29,7 @@ const errorHandler = (err, req, res, next) => {
     message = 'Service temporarily unavailable — please try again shortly';
   }
 
-  const logData = { message: err.message, path: req.path, method: req.method, requestId: req.requestId, statusCode };
+  const logData = { message: err.message, path: req.path, method: req.method, requestId: req.requestId, statusCode, userId: req.user?.id };
   if (statusCode >= 500) {
     logger.error('Server Error', logData);
   } else {

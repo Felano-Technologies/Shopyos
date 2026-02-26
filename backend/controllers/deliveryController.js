@@ -9,7 +9,7 @@ const { logger } = require('../config/logger');
  * @desc    Create delivery for order (Admin/Seller)
  * @access  Private (Admin/Seller)
  */
-const createDelivery = async (req, res) => {
+const createDelivery = async (req, res, next) => {
   try {
     const {
       orderId,
@@ -81,12 +81,7 @@ const createDelivery = async (req, res) => {
       delivery
     });
   } catch (error) {
-    logger.error('Create delivery error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to create delivery',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -95,7 +90,7 @@ const createDelivery = async (req, res) => {
  * @desc    Get available deliveries (for drivers)
  * @access  Private (Driver)
  */
-const getAvailableDeliveries = async (req, res) => {
+const getAvailableDeliveries = async (req, res, next) => {
   try {
     const { limit = 20, offset = 0 } = req.query;
 
@@ -110,12 +105,7 @@ const getAvailableDeliveries = async (req, res) => {
       count: deliveries.length
     });
   } catch (error) {
-    logger.error('Get available deliveries error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get available deliveries',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -124,7 +114,7 @@ const getAvailableDeliveries = async (req, res) => {
  * @desc    Assign driver to delivery
  * @access  Private (Driver)
  */
-const assignDriver = async (req, res) => {
+const assignDriver = async (req, res, next) => {
   try {
     const { deliveryId } = req.params;
     const driverId = req.user.id;
@@ -181,12 +171,7 @@ const assignDriver = async (req, res) => {
       delivery: updatedDelivery
     });
   } catch (error) {
-    logger.error('Assign driver error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to assign driver',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -195,7 +180,7 @@ const assignDriver = async (req, res) => {
  * @desc    Get driver's deliveries
  * @access  Private (Driver)
  */
-const getMyDeliveries = async (req, res) => {
+const getMyDeliveries = async (req, res, next) => {
   try {
     const driverId = req.user.id;
     const { status, limit = 50, offset = 0 } = req.query;
@@ -212,12 +197,7 @@ const getMyDeliveries = async (req, res) => {
       count: deliveries.length
     });
   } catch (error) {
-    logger.error('Get my deliveries error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get deliveries',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -226,7 +206,7 @@ const getMyDeliveries = async (req, res) => {
  * @desc    Get driver's active deliveries
  * @access  Private (Driver)
  */
-const getActiveDeliveries = async (req, res) => {
+const getActiveDeliveries = async (req, res, next) => {
   try {
     const driverId = req.user.id;
 
@@ -238,12 +218,7 @@ const getActiveDeliveries = async (req, res) => {
       count: deliveries.length
     });
   } catch (error) {
-    logger.error('Get active deliveries error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get active deliveries',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -252,7 +227,7 @@ const getActiveDeliveries = async (req, res) => {
  * @desc    Get delivery details
  * @access  Private
  */
-const getDeliveryDetails = async (req, res) => {
+const getDeliveryDetails = async (req, res, next) => {
   try {
     const { deliveryId } = req.params;
     const userId = req.user.id;
@@ -284,12 +259,7 @@ const getDeliveryDetails = async (req, res) => {
       delivery
     });
   } catch (error) {
-    logger.error('Get delivery details error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get delivery details',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -298,7 +268,7 @@ const getDeliveryDetails = async (req, res) => {
  * @desc    Update delivery status
  * @access  Private (Driver)
  */
-const updateDeliveryStatus = async (req, res) => {
+const updateDeliveryStatus = async (req, res, next) => {
   try {
     const { deliveryId } = req.params;
     const { status } = req.body;
@@ -407,12 +377,7 @@ const updateDeliveryStatus = async (req, res) => {
       delivery: updatedDelivery
     });
   } catch (error) {
-    logger.error('Update delivery status error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update delivery status',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -421,7 +386,7 @@ const updateDeliveryStatus = async (req, res) => {
  * @desc    Add location update
  * @access  Private (Driver)
  */
-const addLocationUpdate = async (req, res) => {
+const addLocationUpdate = async (req, res, next) => {
   try {
     const { deliveryId } = req.params;
     const { latitude, longitude, notes } = req.body;
@@ -457,12 +422,7 @@ const addLocationUpdate = async (req, res) => {
       locationUpdate
     });
   } catch (error) {
-    logger.error('Add location update error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add location update',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -471,7 +431,7 @@ const addLocationUpdate = async (req, res) => {
  * @desc    Get location updates for delivery
  * @access  Private
  */
-const getLocationUpdates = async (req, res) => {
+const getLocationUpdates = async (req, res, next) => {
   try {
     const { deliveryId } = req.params;
     const { limit = 50 } = req.query;
@@ -509,12 +469,7 @@ const getLocationUpdates = async (req, res) => {
       count: locationUpdates.length
     });
   } catch (error) {
-    logger.error('Get location updates error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get location updates',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -523,7 +478,7 @@ const getLocationUpdates = async (req, res) => {
  * @desc    Get latest location for delivery
  * @access  Private
  */
-const getLatestLocation = async (req, res) => {
+const getLatestLocation = async (req, res, next) => {
   try {
     const { deliveryId } = req.params;
     const userId = req.user.id;
@@ -556,12 +511,7 @@ const getLatestLocation = async (req, res) => {
       location: latestLocation
     });
   } catch (error) {
-    logger.error('Get latest location error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get latest location',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -570,7 +520,7 @@ const getLatestLocation = async (req, res) => {
  * @desc    Get delivery by order ID
  * @access  Private
  */
-const getDeliveryByOrder = async (req, res) => {
+const getDeliveryByOrder = async (req, res, next) => {
   try {
     const { orderId } = req.params;
     const userId = req.user.id;
@@ -613,12 +563,7 @@ const getDeliveryByOrder = async (req, res) => {
       delivery: deliveryDetails
     });
   } catch (error) {
-    logger.error('Get delivery by order error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get delivery',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -627,7 +572,7 @@ const getDeliveryByOrder = async (req, res) => {
  * @desc    Get delivery statistics for driver
  * @access  Private (Driver)
  */
-const getDriverStats = async (req, res) => {
+const getDriverStats = async (req, res, next) => {
   try {
     const driverId = req.user.id;
     const { timeframe = 'today' } = req.query;
@@ -656,12 +601,7 @@ const getDriverStats = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Get driver stats error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get driver stats',
-      details: error.message
-    });
+    next(error);
   }
 };
 

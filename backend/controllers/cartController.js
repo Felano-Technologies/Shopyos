@@ -9,7 +9,7 @@ const { logger } = require('../config/logger');
  * @desc    Add item to cart
  * @access  Private
  */
-const addToCart = async (req, res) => {
+const addToCart = async (req, res, next) => {
   try {
     const { productId, quantity = 1 } = req.body;
     const userId = req.user.id;
@@ -61,12 +61,7 @@ const addToCart = async (req, res) => {
       cart
     });
   } catch (error) {
-    logger.error('Add to cart error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to add item to cart',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -75,7 +70,7 @@ const addToCart = async (req, res) => {
  * @desc    Get user's cart with items
  * @access  Private
  */
-const getCart = async (req, res) => {
+const getCart = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -107,12 +102,7 @@ const getCart = async (req, res) => {
       itemCount: cartTotal.itemCount
     });
   } catch (error) {
-    logger.error('Get cart error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get cart',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -121,7 +111,7 @@ const getCart = async (req, res) => {
  * @desc    Update cart item quantity
  * @access  Private
  */
-const updateCartItem = async (req, res) => {
+const updateCartItem = async (req, res, next) => {
   try {
     const { itemId } = req.params;
     const { quantity } = req.body;
@@ -157,12 +147,7 @@ const updateCartItem = async (req, res) => {
       cart
     });
   } catch (error) {
-    logger.error('Update cart item error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to update cart item',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -171,7 +156,7 @@ const updateCartItem = async (req, res) => {
  * @desc    Remove item from cart
  * @access  Private
  */
-const removeFromCart = async (req, res) => {
+const removeFromCart = async (req, res, next) => {
   try {
     const { itemId } = req.params;
     const userId = req.user.id;
@@ -197,12 +182,7 @@ const removeFromCart = async (req, res) => {
       cart
     });
   } catch (error) {
-    logger.error('Remove from cart error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to remove item from cart',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -211,7 +191,7 @@ const removeFromCart = async (req, res) => {
  * @desc    Clear all items from cart
  * @access  Private
  */
-const clearCart = async (req, res) => {
+const clearCart = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -226,12 +206,7 @@ const clearCart = async (req, res) => {
       itemCount: 0
     });
   } catch (error) {
-    logger.error('Clear cart error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to clear cart',
-      details: error.message
-    });
+    next(error);
   }
 };
 
@@ -240,7 +215,7 @@ const clearCart = async (req, res) => {
  * @desc    Get cart item count
  * @access  Private
  */
-const getCartItemCount = async (req, res) => {
+const getCartItemCount = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -251,12 +226,7 @@ const getCartItemCount = async (req, res) => {
       count
     });
   } catch (error) {
-    logger.error('Get cart count error:', { error: error.message });
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get cart count',
-      details: error.message
-    });
+    next(error);
   }
 };
 
