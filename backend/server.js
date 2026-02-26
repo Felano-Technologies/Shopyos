@@ -78,6 +78,8 @@ app.use((req, res, next) => {
 
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
+app.get('/', (req, res) => res.status(200).send('Shopyos API is live.'));
+
 app.get('/health', async (req, res) => {
   const mem = process.memoryUsage();
   res.status(200).json({
