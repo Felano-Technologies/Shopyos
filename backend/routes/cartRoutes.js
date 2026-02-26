@@ -12,6 +12,7 @@ const {
   getCartItemCount
 } = require('../controllers/cartController');
 const { protect } = require('../middleware/authMiddleware');
+const { validateAddToCart } = require('../middleware/validators');
 
 // All cart routes require authentication
 router.use(protect);
@@ -19,7 +20,7 @@ router.use(protect);
 // @route   POST /api/cart/add
 // @desc    Add item to cart
 // @access  Private
-router.post('/add', addToCart);
+router.post('/add', validateAddToCart, addToCart);
 
 // @route   GET /api/cart
 // @desc    Get user's cart

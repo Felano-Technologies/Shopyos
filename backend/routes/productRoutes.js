@@ -8,8 +8,9 @@ const {
   updateProduct, deleteProduct, uploadProductImages,
   deleteProductImage, searchProducts
 } = require('../controllers/productController');
+const { validateSearch, validateCreateProduct } = require('../middleware/validators');
 
-router.get('/search', cacheMiddleware(
+router.get('/search', validateSearch, cacheMiddleware(
   (req) => productCacheKey.search(req.query), 300
 ), searchProducts);
 
@@ -21,7 +22,7 @@ router.get('/:id', cacheMiddleware(
   (req) => productCacheKey.detail(req.params.id), 600
 ), getProductById);
 
-router.post('/', protect, hasAnyRole('seller', 'admin'), createProduct);
+router.post('/', protect, hasAnyRole('seller', 'admin'), validateCreateProduct, createProduct);
 router.put('/:id', protect, hasAnyRole('seller', 'admin'), updateProduct);
 router.delete('/:id', protect, hasAnyRole('seller', 'admin'), deleteProduct);
 

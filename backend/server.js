@@ -71,8 +71,35 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 app.use((req, res, next) => {
-  req.setTimeout(productionConfig.timeout);
-  res.setTimeout(productionConfig.timeout);
+  let timeout = productionConfig.timeout || 30000;
+
+  // Extend timeout for file uploads
+  if (req.path.startsWith('/api/v1/upload')) {
+    timeout = 60000;
+  }
+
+  req.setTimeout(timeout, () => {
+    let err = new Error('Request Timeout');
+    err.status = 408;
+    next(err);
+  });
+
+  res.setTimeout(timeout, () => {
+    let err = new Error('Service Unavailable - Timeout');
+    err.status = 503;
+    next(err);
+  });
+
+  // TCP level timeout to aggressively free sockets
+  if (req.socket) {
+    req.socket.setTimeout(timeout);
+  }
+
+  // Inject AbortController for Supabase queries
+  req.abortController = new AbortController();
+  req.on('aborted', () => req.abortController.abort());
+  req.on('close', () => req.abortController.abort());
+
   next();
 });
 

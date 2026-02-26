@@ -14,6 +14,7 @@ const {
   verifyPayment
 } = require('../controllers/orderController');
 const { protect, hasAnyRole } = require('../middleware/authMiddleware');
+const { validateCreateOrder } = require('../middleware/validators');
 
 // All order routes require authentication
 router.use(protect);
@@ -21,7 +22,7 @@ router.use(protect);
 // @route   POST /api/orders/create
 // @desc    Create order from cart
 // @access  Private
-router.post('/create', createOrder);
+router.post('/create', validateCreateOrder, createOrder);
 
 // @route   GET /api/orders/my-orders
 // @desc    Get user's orders
