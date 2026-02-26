@@ -6,6 +6,7 @@ const { protect } = require('../middleware/authMiddleware');
 // Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/refresh', authController.refreshAccessToken); // NEW: Token refresh
 router.post('/reset-password', authController.resetPassword);
 router.post('/logout', authController.logout);
 
@@ -15,5 +16,10 @@ router.post('/add-role', protect, authController.addRole);
 router.get('/roles', protect, authController.getUserRoles);
 router.put('/profile', protect, authController.updateProfile);
 router.put('/role', protect, authController.updateUserRole); // Deprecated - use add-role
+
+// Session management (NEW)
+router.post('/logout-all', protect, authController.logoutAll);
+router.get('/sessions', protect, authController.getSessions);
+router.delete('/sessions/:sessionId', protect, authController.revokeSession);
 
 module.exports = router;

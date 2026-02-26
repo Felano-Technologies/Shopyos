@@ -1,54 +1,42 @@
-// middleware/errorHandler.js
-// Global error handling middleware
+const { logger } = require('../config/logger');
 
 const errorHandler = (err, req, res, next) => {
-  // Log error for debugging
-  console.error('Error:', {
-    message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    path: req.path,
-    method: req.method,
-    ip: req.ip,
-    userId: req.user?.id
-  });
-
-  // Default error
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
-  // Handle specific error types
   if (err.name === 'ValidationError') {
     statusCode = 400;
     message = Object.values(err.errors).map(e => e.message).join(', ');
   }
 
-  if (err.name === 'JsonWebTokenError') {
-    statusCode = 401;
-    message = 'Invalid token';
+  if (err.name === 'JsonWebTokenError') { statusCode = 401; message = 'Invalid token'; }
+  if (err.name === 'TokenExpiredError') { statusCode = 401; message = 'Token expired'; }
+
+  if (err.code === 'PGRST116') { statusCode = 404; message = 'Resource not found'; }
+  if (err.code === '23505') { statusCode = 409; message = 'Duplicate entry'; }
+  if (err.code === '23503') { statusCode = 400; message = 'Referenced resource does not exist'; }
+  if (err.code === '23502') { statusCode = 400; message = 'Missing required field'; }
+
+  // Redis down — degrade gracefully, don't crash
+  if (err.message?.includes('ECONNREFUSED') && (err.message.includes('6379') || err.message.includes('redis'))) {
+    statusCode = statusCode === 500 ? 503 : statusCode;
+    message = statusCode === 503 ? 'Service temporarily unavailable' : message;
   }
 
-  if (err.name === 'TokenExpiredError') {
-    statusCode = 401;
-    message = 'Token expired';
+  // Supabase connection pool exhausted
+  if (err.message?.includes('remaining connection slots are reserved')) {
+    statusCode = 503;
+    message = 'Service temporarily unavailable — please try again shortly';
   }
 
-  if (err.code === 'PGRST116') {
-    statusCode = 404;
-    message = 'Resource not found';
+  const logData = { message: err.message, path: req.path, method: req.method, requestId: req.requestId, statusCode };
+  if (statusCode >= 500) {
+    logger.error('Server Error', logData);
+  } else {
+    logger.warn('Client Error', logData);
   }
 
-  if (err.code === '23505') {
-    statusCode = 409;
-    message = 'Duplicate entry';
-  }
-
-  // Don't leak error details in production
-  const response = {
-    success: false,
-    error: message
-  };
-
-  // Add error details in development
+  const response = { success: false, error: message, requestId: req.requestId };
   if (process.env.NODE_ENV === 'development') {
     response.details = err.message;
     response.stack = err.stack;
@@ -57,23 +45,10 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).json(response);
 };
 
-// 404 handler for undefined routes
 const notFoundHandler = (req, res) => {
-  res.status(404).json({
-    success: false,
-    error: `Route ${req.originalUrl} not found`
-  });
+  res.status(404).json({ success: false, error: `Route ${req.originalUrl} not found` });
 };
 
-// Async error wrapper to catch promise rejections
-const asyncHandler = (fn) => {
-  return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-};
+const asyncHandler = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-module.exports = {
-  errorHandler,
-  notFoundHandler,
-  asyncHandler
-};
+module.exports = { errorHandler, notFoundHandler, asyncHandler };

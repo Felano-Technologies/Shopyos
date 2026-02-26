@@ -1,5 +1,6 @@
 // controllers/payoutController.js
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 // @desc    Request a payout
 // @route   POST /api/payouts/request
@@ -53,7 +54,7 @@ const requestPayout = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error requesting payout:', error);
+        logger.error('Error requesting payout:', { error: error.message });
         res.status(500).json({ success: false, error: 'Server error' });
     }
 };
@@ -80,7 +81,7 @@ const getPayoutHistory = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error fetching payout history:', error);
+        logger.error('Error fetching payout history:', { error: error.message });
         res.status(500).json({ success: false, error: 'Server error' });
     }
 };

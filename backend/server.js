@@ -4,15 +4,19 @@ const helmet = require('helmet');
 const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
+const { v4: uuidv4 } = require('uuid');
 
-// Load environment variables
 dotenv.config();
 
-// Validate environment variables
 const validateEnv = require('./utils/validateEnv');
 validateEnv();
 
-// Import routes
+const { logger, httpLogMiddleware } = require('./config/logger');
+const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
+
+const redis = getRedis();
+
 const authRoutes = require('./routes/authRoutes');
 const businessRoutes = require('./routes/businessRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -31,24 +35,23 @@ const paymentRoutes = require('./routes/paymentRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const paymentMethodRoutes = require('./routes/paymentMethodRoutes');
 
-// Import middleware
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const {
-  apiLimiter,
-  authLimiter,
-  uploadLimiter,
-  orderLimiter,
-  messageLimiter
-} = require('./middleware/rateLimiter');
+const { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter } = require('./middleware/rateLimiter');
 const productionConfig = require('./config/production');
 
 const app = express();
 
-// Trust proxy - Required for Render.com and other reverse proxies
-// This allows express-rate-limit to correctly identify users
+// Required for express-rate-limit behind reverse proxies (Render, Railway)
 app.set('trust proxy', 1);
 
-// Security middleware
+app.use((req, res, next) => {
+  req.requestId = req.headers['x-request-id'] || uuidv4();
+  res.setHeader('X-Request-ID', req.requestId);
+  next();
+});
+
+app.use(httpLogMiddleware);
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -61,88 +64,67 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// CORS configuration
 app.use(cors(productionConfig.cors));
-
-// Compression middleware
 app.use(compression());
-
-// Body parser middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(cookieParser());
 
-// Request timeout
 app.use((req, res, next) => {
   req.setTimeout(productionConfig.timeout);
   res.setTimeout(productionConfig.timeout);
   next();
 });
 
-// Static files
 app.use('/public', express.static(path.join(__dirname, 'public')));
 
-// Health check endpoint (no rate limiting)
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const mem = process.memoryUsage();
   res.status(200).json({
     success: true,
     status: 'healthy',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// API info endpoint
-app.get('/api', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Shopyos API',
-    version: '1.0.0',
-    currentVersion: 'v1',
-    endpoints: {
-      v1: '/api/v1',
-      health: '/health'
-    },
-    availableVersions: ['v1']
-  });
-});
-
-// API v1 info endpoint
-app.get('/api/v1', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Shopyos API v1',
-    version: '1.0.0',
-    endpoints: {
-      auth: '/api/v1/auth',
-      stores: '/api/v1/business',
-      products: '/api/v1/products',
-      cart: '/api/v1/cart',
-      orders: '/api/v1/orders',
-      messaging: '/api/v1/messaging',
-      deliveries: '/api/v1/deliveries',
-      reviews: '/api/v1/reviews',
-      notifications: '/api/v1/notifications',
-      favorites: '/api/v1/favorites',
-      admin: '/api/v1/admin',
-      advertising: '/api/v1/advertising',
-      paymentMethods: '/api/v1/payment-methods'
+    environment: process.env.NODE_ENV || 'development',
+    checks: {
+      redis: await redisHealthCheck(),
+      memory: {
+        heapUsed: `${Math.round(mem.heapUsed / 1024 / 1024)}MB`,
+        heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)}MB`,
+        rss: `${Math.round(mem.rss / 1024 / 1024)}MB`
+      }
     }
   });
 });
 
-// Apply rate limiters to specific routes (v1)
+app.get('/api', (req, res) => {
+  res.status(200).json({
+    success: true, message: 'Shopyos API', version: '1.0.0',
+    currentVersion: 'v1', endpoints: { v1: '/api/v1', health: '/health' }, availableVersions: ['v1']
+  });
+});
+
+app.get('/api/v1', (req, res) => {
+  res.status(200).json({
+    success: true, message: 'Shopyos API v1', version: '1.0.0',
+    endpoints: {
+      auth: '/api/v1/auth', stores: '/api/v1/business', products: '/api/v1/products',
+      cart: '/api/v1/cart', orders: '/api/v1/orders', messaging: '/api/v1/messaging',
+      deliveries: '/api/v1/deliveries', reviews: '/api/v1/reviews',
+      notifications: '/api/v1/notifications', favorites: '/api/v1/favorites',
+      admin: '/api/v1/admin', advertising: '/api/v1/advertising', paymentMethods: '/api/v1/payment-methods'
+    }
+  });
+});
+
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
 app.use('/api/v1/auth/forgot-password', authLimiter);
 app.use('/api/v1/upload', uploadLimiter);
 app.use('/api/v1/orders/create', orderLimiter);
 app.use('/api/v1/messaging', messageLimiter);
-
-// Apply general API rate limiter to all API routes
 app.use('/api', apiLimiter);
 
-// API v1 Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/business', businessRoutes);
 app.use('/api/v1/products', productRoutes);
@@ -161,106 +143,53 @@ app.use('/api/v1/payouts', payoutRoutes);
 app.use('/api/v1/categories', categoryRoutes);
 app.use('/api/v1/payment-methods', paymentMethodRoutes);
 
-// Legacy routes (redirect to v1 for backward compatibility)
-app.use('/api/auth', (req, res, next) => {
-  req.url = '/api/v1/auth' + req.url.substring('/api/auth'.length);
-  authRoutes(req, res, next);
-});
-app.use('/api/business', (req, res, next) => {
-  req.url = '/api/v1/business' + req.url.substring('/api/business'.length);
-  businessRoutes(req, res, next);
-});
-app.use('/api/products', (req, res, next) => {
-  req.url = '/api/v1/products' + req.url.substring('/api/products'.length);
-  productRoutes(req, res, next);
-});
-app.use('/api/upload', (req, res, next) => {
-  req.url = '/api/v1/upload' + req.url.substring('/api/upload'.length);
-  uploadRoutes(req, res, next);
-});
-app.use('/api/cart', (req, res, next) => {
-  req.url = '/api/v1/cart' + req.url.substring('/api/cart'.length);
-  cartRoutes(req, res, next);
-});
-app.use('/api/orders', (req, res, next) => {
-  req.url = '/api/v1/orders' + req.url.substring('/api/orders'.length);
-  orderRoutes(req, res, next);
-});
-app.use('/api/messaging', (req, res, next) => {
-  req.url = '/api/v1/messaging' + req.url.substring('/api/messaging'.length);
-  messagingRoutes(req, res, next);
-});
-app.use('/api/deliveries', (req, res, next) => {
-  req.url = '/api/v1/deliveries' + req.url.substring('/api/deliveries'.length);
-  deliveryRoutes(req, res, next);
-});
-app.use('/api/reviews', (req, res, next) => {
-  req.url = '/api/v1/reviews' + req.url.substring('/api/reviews'.length);
-  reviewRoutes(req, res, next);
-});
-app.use('/api/notifications', (req, res, next) => {
-  req.url = '/api/v1/notifications' + req.url.substring('/api/notifications'.length);
-  notificationRoutes(req, res, next);
-});
-app.use('/api/favorites', (req, res, next) => {
-  req.url = '/api/v1/favorites' + req.url.substring('/api/favorites'.length);
-  favoriteRoutes(req, res, next);
-});
-app.use('/api/admin', (req, res, next) => {
-  req.url = '/api/v1/admin' + req.url.substring('/api/admin'.length);
-  adminRoutes(req, res, next);
-});
-app.use('/api/advertising', (req, res, next) => {
-  req.url = '/api/v1/advertising' + req.url.substring('/api/advertising'.length);
-  advertisingRoutes(req, res, next);
+// Legacy route forwarding for backward compatibility
+const legacyRoutes = {
+  '/api/auth': authRoutes, '/api/business': businessRoutes, '/api/products': productRoutes,
+  '/api/upload': uploadRoutes, '/api/cart': cartRoutes, '/api/orders': orderRoutes,
+  '/api/messaging': messagingRoutes, '/api/deliveries': deliveryRoutes, '/api/reviews': reviewRoutes,
+  '/api/notifications': notificationRoutes, '/api/favorites': favoriteRoutes,
+  '/api/admin': adminRoutes, '/api/advertising': advertisingRoutes,
+};
+Object.entries(legacyRoutes).forEach(([prefix, handler]) => {
+  app.use(prefix, (req, res, next) => {
+    req.url = prefix.replace('/api/', '/api/v1/') + req.url.substring(prefix.length);
+    handler(req, res, next);
+  });
 });
 
-// 404 handler
 app.use(notFoundHandler);
-
-// Global error handler
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-// Start server
 const server = app.listen(PORT, () => {
-  console.log('=================================');
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-  console.log('=================================');
+  logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] | Redis: ${redis ? 'enabled' : 'disabled'}`);
 });
 
-// Graceful shutdown
-const gracefulShutdown = () => {
-  console.log('\n🛑 Received shutdown signal, closing server gracefully...');
-
-  server.close(() => {
-    console.log('✅ Server closed successfully');
+const gracefulShutdown = async (signal) => {
+  logger.warn(`Received ${signal}, shutting down...`);
+  server.close(async () => {
+    await redisDisconnect();
     process.exit(0);
   });
-
-  // Force close after 30 seconds
-  setTimeout(() => {
-    console.error('❌ Forced shutdown due to timeout');
-    process.exit(1);
-  }, 30000);
+  setTimeout(() => { process.exit(1); }, 30000);
 };
 
-// Handle shutdown signals
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-// Handle uncaught errors
 process.on('uncaughtException', (error) => {
-  console.error('❌ Uncaught Exception:', error);
-  gracefulShutdown();
+  logger.error('Uncaught Exception', { error: error.message, stack: error.stack });
+  gracefulShutdown('uncaughtException');
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-  gracefulShutdown();
+// Log but don't crash — a single rejected promise shouldn't kill the server
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Rejection', {
+    reason: reason instanceof Error ? reason.message : reason,
+    stack: reason instanceof Error ? reason.stack : undefined
+  });
 });
 
 module.exports = app;

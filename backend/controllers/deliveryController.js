@@ -2,6 +2,7 @@
 // Delivery tracking and management controller
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * @route   POST /api/deliveries/create
@@ -80,7 +81,7 @@ const createDelivery = async (req, res) => {
       delivery
     });
   } catch (error) {
-    console.error('Create delivery error:', error);
+    logger.error('Create delivery error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to create delivery',
@@ -109,7 +110,7 @@ const getAvailableDeliveries = async (req, res) => {
       count: deliveries.length
     });
   } catch (error) {
-    console.error('Get available deliveries error:', error);
+    logger.error('Get available deliveries error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get available deliveries',
@@ -180,7 +181,7 @@ const assignDriver = async (req, res) => {
       delivery: updatedDelivery
     });
   } catch (error) {
-    console.error('Assign driver error:', error);
+    logger.error('Assign driver error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to assign driver',
@@ -211,7 +212,7 @@ const getMyDeliveries = async (req, res) => {
       count: deliveries.length
     });
   } catch (error) {
-    console.error('Get my deliveries error:', error);
+    logger.error('Get my deliveries error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get deliveries',
@@ -237,7 +238,7 @@ const getActiveDeliveries = async (req, res) => {
       count: deliveries.length
     });
   } catch (error) {
-    console.error('Get active deliveries error:', error);
+    logger.error('Get active deliveries error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get active deliveries',
@@ -283,7 +284,7 @@ const getDeliveryDetails = async (req, res) => {
       delivery
     });
   } catch (error) {
-    console.error('Get delivery details error:', error);
+    logger.error('Get delivery details error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get delivery details',
@@ -406,7 +407,7 @@ const updateDeliveryStatus = async (req, res) => {
       delivery: updatedDelivery
     });
   } catch (error) {
-    console.error('Update delivery status error:', error);
+    logger.error('Update delivery status error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update delivery status',
@@ -456,7 +457,7 @@ const addLocationUpdate = async (req, res) => {
       locationUpdate
     });
   } catch (error) {
-    console.error('Add location update error:', error);
+    logger.error('Add location update error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to add location update',
@@ -508,7 +509,7 @@ const getLocationUpdates = async (req, res) => {
       count: locationUpdates.length
     });
   } catch (error) {
-    console.error('Get location updates error:', error);
+    logger.error('Get location updates error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get location updates',
@@ -555,7 +556,7 @@ const getLatestLocation = async (req, res) => {
       location: latestLocation
     });
   } catch (error) {
-    console.error('Get latest location error:', error);
+    logger.error('Get latest location error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get latest location',
@@ -612,7 +613,7 @@ const getDeliveryByOrder = async (req, res) => {
       delivery: deliveryDetails
     });
   } catch (error) {
-    console.error('Get delivery by order error:', error);
+    logger.error('Get delivery by order error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get delivery',
@@ -655,7 +656,7 @@ const getDriverStats = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get driver stats error:', error);
+    logger.error('Get driver stats error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get driver stats',

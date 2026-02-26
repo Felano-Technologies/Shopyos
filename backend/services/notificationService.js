@@ -4,6 +4,7 @@
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 class NotificationService {
   constructor() {
@@ -80,7 +81,7 @@ class NotificationService {
 
       return true;
     } catch (error) {
-      console.error('Notification service error:', error);
+      logger.error('Notification service error:', error);
       // Don't throw - notification failures shouldn't break the main flow
       return false;
     }
@@ -101,10 +102,10 @@ class NotificationService {
       };
 
       await this.emailTransporter.sendMail(mailOptions);
-      console.log(`Email sent to ${emailData.to}`);
+      logger.debug(`Email sent to ${emailData.to}`);
       return true;
     } catch (error) {
-      console.error('Email send error:', error);
+      logger.error('Email send error:', error);
       throw error;
     }
   }
@@ -130,10 +131,10 @@ class NotificationService {
         }
       );
 
-      console.log(`SMS sent to ${smsData.to}:`, response.data);
+      logger.debug(`SMS sent to ${smsData.to}:`, response.data);
       return response.data;
     } catch (error) {
-      console.error('SMS send error:', error.response?.data || error.message);
+      logger.error('SMS send error:', error.response?.data || error.message);
       throw error;
     }
   }
@@ -155,7 +156,7 @@ class NotificationService {
   async sendPushNotification(pushData) {
     // TODO: Integrate with Firebase Cloud Messaging (FCM) or OneSignal
     // For now, just log the notification
-    console.log('Push notification (not implemented):', pushData);
+    logger.debug('Push notification (not implemented):', pushData);
     
     // Example FCM implementation:
     // const message = {

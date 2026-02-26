@@ -6,6 +6,7 @@ const {
   deleteImage,
   extractPublicId
 } = require('../utils/uploadHelpers');
+const { logger } = require('../config/logger');
 
 // @desc    Create a new product
 // @route   POST /api/products
@@ -95,7 +96,7 @@ const createProduct = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating product:', error);
+    logger.error('Error creating product', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Server error while creating product'
@@ -141,7 +142,7 @@ const getStoreProducts = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching store products:', error);
+    logger.error('Error fetching store products', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Server error while fetching products'
@@ -179,7 +180,7 @@ const getProductById = async (req, res) => {
       await repositories.products.incrementViewCount(id);
     } catch (err) {
       // Ignore errors for view count increment (it's non-critical)
-      console.warn('Failed to increment view count:', err.message);
+      logger.warn('Failed to increment view count:', err.message);
     }
 
     // Format response
@@ -215,7 +216,7 @@ const getProductById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching product:', error);
+    logger.error('Error fetching product', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Server error while fetching product'
@@ -236,7 +237,7 @@ const getCategories = async (req, res) => {
       .order('name');
 
     if (catError) {
-      console.error('Error fetching categories table:', catError);
+      logger.error('Error fetching categories table', { error: catError.message });
       // Fallback to extraction from products if table fails (or empty?)
       // But we just seeded it.
     }
@@ -279,7 +280,7 @@ const getCategories = async (req, res) => {
       categories
     });
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    logger.error('Error fetching categories', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch categories'
@@ -296,7 +297,7 @@ const updateProduct = async (req, res) => {
     const userId = req.user.id;
     const updateData = req.body;
 
-    console.log(`Updating product ${id} with data:`, JSON.stringify(updateData, null, 2));
+    logger.debug('Updating product', { productId: id, requestId: req.requestId });
 
     // Get product and verify ownership
     const product = await repositories.products.getProductDetails(id);
@@ -339,7 +340,7 @@ const updateProduct = async (req, res) => {
       mappedData.is_active = String(updateData.isActive) === 'true';
     }
 
-    console.log('Mapped update data:', mappedData);
+    logger.debug('Mapped update data', { productId: id, fields: Object.keys(mappedData) });
 
     // Update product
     const updated = await repositories.products.update(id, mappedData);
@@ -368,7 +369,7 @@ const updateProduct = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating product:', error);
+    logger.error('Error updating product', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Server error while updating product'
@@ -408,7 +409,7 @@ const deleteProduct = async (req, res) => {
       const deletePromises = product.product_images.map(img => {
         const publicId = extractPublicId(img.image_url);
         return publicId ? deleteImage(publicId).catch(err =>
-          console.warn(`Failed to delete image ${publicId}:`, err.message)
+          logger.warn(`Failed to delete image ${publicId}:`, err.message)
         ) : Promise.resolve();
       });
       await Promise.all(deletePromises);
@@ -423,7 +424,7 @@ const deleteProduct = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting product:', error);
+    logger.error('Error deleting product', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Server error while deleting product'
@@ -505,7 +506,7 @@ const uploadProductImages = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error uploading product images:', error);
+    logger.error('Error uploading product images', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to upload images'
@@ -556,7 +557,7 @@ const deleteProductImage = async (req, res) => {
     // Delete from Cloudinary
     if (image.cloudinary_public_id) {
       await deleteImage(image.cloudinary_public_id).catch(err =>
-        console.warn('Failed to delete from Cloudinary:', err.message)
+        logger.warn('Failed to delete from Cloudinary:', err.message)
       );
     }
 
@@ -572,7 +573,7 @@ const deleteProductImage = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting product image:', error);
+    logger.error('Error deleting product image', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to delete image'
@@ -653,7 +654,7 @@ const searchProducts = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error searching products:', error);
+    logger.error('Error searching products', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Server error while searching products'

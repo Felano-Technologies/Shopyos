@@ -1,75 +1,50 @@
-// middleware/rateLimiter.js
-// Rate limiting middleware to prevent abuse
-
 const rateLimit = require('express-rate-limit');
+const { getRedis } = require('../config/redis');
+const { logger } = require('../config/logger');
 
-// General API rate limiter - 100 requests per 15 minutes
+const createStore = () => {
+  const redis = getRedis();
+  if (!redis) return undefined;
+
+  try {
+    const RedisStore = require('rate-limit-redis');
+    return new RedisStore({ sendCommand: (...args) => redis.call(...args), prefix: 'shopyos:rl:' });
+  } catch (err) {
+    logger.warn('rate-limit-redis unavailable, using in-memory store', { error: err.message });
+    return undefined;
+  }
+};
+
+const store = createStore();
+const commonOpts = { standardHeaders: true, legacyHeaders: false, store };
+
+const rateLimitError = (msg) => ({ success: false, error: msg });
+
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: {
-    success: false,
-    error: 'Too many requests from this IP, please try again later'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  // Skip rate limiting for successful requests to health check
+  ...commonOpts, windowMs: 15 * 60 * 1000, max: 300,
+  message: rateLimitError('Too many requests from this IP, please try again later'),
   skip: (req) => req.path === '/health'
 });
 
-// Strict limiter for auth endpoints - 5 requests per 15 minutes
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  message: {
-    success: false,
-    error: 'Too many login attempts, please try again later'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-  skipSuccessfulRequests: true // Don't count successful auth attempts
+  ...commonOpts, windowMs: 15 * 60 * 1000, max: 10,
+  message: rateLimitError('Too many login attempts, please try again later'),
+  skipSuccessfulRequests: true
 });
 
-// Upload limiter - 20 uploads per hour
 const uploadLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 20,
-  message: {
-    success: false,
-    error: 'Too many uploads, please try again later'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
+  ...commonOpts, windowMs: 60 * 60 * 1000, max: 30,
+  message: rateLimitError('Too many uploads, please try again later')
 });
 
-// Payment/Order limiter - 10 orders per hour
 const orderLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  message: {
-    success: false,
-    error: 'Too many orders, please try again later'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
+  ...commonOpts, windowMs: 60 * 60 * 1000, max: 20,
+  message: rateLimitError('Too many orders, please try again later')
 });
 
-// Message limiter - 50 messages per 15 minutes
 const messageLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  message: {
-    success: false,
-    error: 'Too many messages, please slow down'
-  },
-  standardHeaders: true,
-  legacyHeaders: false
+  ...commonOpts, windowMs: 15 * 60 * 1000, max: 100,
+  message: rateLimitError('Too many messages, please slow down')
 });
 
-module.exports = {
-  apiLimiter,
-  authLimiter,
-  uploadLimiter,
-  orderLimiter,
-  messageLimiter
-};
+module.exports = { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter };

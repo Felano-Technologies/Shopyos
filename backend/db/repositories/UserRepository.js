@@ -2,7 +2,7 @@
 // Data access layer for users table
 
 const BaseRepository = require('./BaseRepository');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 class UserRepository extends BaseRepository {
   constructor(supabaseClient) {

@@ -2,6 +2,7 @@
 // Messaging system controller
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * @route   POST /api/messaging/conversations
@@ -52,7 +53,7 @@ const startConversation = async (req, res) => {
       conversation: details
     });
   } catch (error) {
-    console.error('Start conversation error:', error);
+    logger.error('Start conversation error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to start conversation',
@@ -82,7 +83,7 @@ const getConversations = async (req, res) => {
       count: conversations.length
     });
   } catch (error) {
-    console.error('Get conversations error:', error);
+    logger.error('Get conversations error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get conversations',
@@ -124,7 +125,7 @@ const getConversationDetails = async (req, res) => {
       conversation
     });
   } catch (error) {
-    console.error('Get conversation details error:', error);
+    logger.error('Get conversation details error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get conversation details',
@@ -191,7 +192,7 @@ const sendMessage = async (req, res) => {
       message: messageWithSender || message
     });
   } catch (error) {
-    console.error('Send message error:', error);
+    logger.error('Send message error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to send message',
@@ -232,7 +233,7 @@ const getMessages = async (req, res) => {
       count: messages.length
     });
   } catch (error) {
-    console.error('Get messages error:', error);
+    logger.error('Get messages error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get messages',
@@ -268,7 +269,7 @@ const markConversationAsRead = async (req, res) => {
       updatedCount
     });
   } catch (error) {
-    console.error('Mark as read error:', error);
+    logger.error('Mark as read error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to mark messages as read',
@@ -294,7 +295,7 @@ const deleteMessage = async (req, res) => {
       message: 'Message deleted'
     });
   } catch (error) {
-    console.error('Delete message error:', error);
+    logger.error('Delete message error:', { error: error.message });
 
     if (error.message === 'Message not found') {
       return res.status(404).json({
@@ -358,7 +359,7 @@ const searchMessages = async (req, res) => {
       searchTerm: q.trim()
     });
   } catch (error) {
-    console.error('Search messages error:', error);
+    logger.error('Search messages error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to search messages',
@@ -383,7 +384,7 @@ const getUnreadCount = async (req, res) => {
       unreadCount: count
     });
   } catch (error) {
-    console.error('Get unread count error:', error);
+    logger.error('Get unread count error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get unread count',

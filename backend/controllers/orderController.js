@@ -3,6 +3,7 @@
 
 const repositories = require('../db/repositories');
 const crypto = require('crypto');
+const { logger } = require('../config/logger');
 
 /**
  * Generate unique order number
@@ -125,7 +126,7 @@ const createOrder = async (req, res) => {
         .single();
 
       if (paymentError) {
-        console.error('Payment creation error:', paymentError);
+        logger.error('Payment creation error', { error: paymentError.message, orderId: order.id });
       }
 
       // Notify customer about order confirmation
@@ -175,7 +176,7 @@ const createOrder = async (req, res) => {
       count: createdOrders.length
     });
   } catch (error) {
-    console.error('Create order error:', error);
+    logger.error('Create order error', { error: error.message, userId: req.user?.id, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to create order',
@@ -206,7 +207,7 @@ const getMyOrders = async (req, res) => {
       count: orders.length
     });
   } catch (error) {
-    console.error('Get my orders error:', error);
+    logger.error('Get my orders error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to get orders',
@@ -254,7 +255,7 @@ const getStoreOrders = async (req, res) => {
       count: orders.length
     });
   } catch (error) {
-    console.error('Get store orders error:', error);
+    logger.error('Get store orders error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to get store orders',
@@ -300,7 +301,7 @@ const getOrderDetails = async (req, res) => {
       order
     });
   } catch (error) {
-    console.error('Get order details error:', error);
+    logger.error('Get order details error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to get order details',
@@ -403,7 +404,7 @@ const updateOrderStatus = async (req, res) => {
       order: updatedOrder
     });
   } catch (error) {
-    console.error('Update order status error:', error);
+    logger.error('Update order status error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to update order status',
@@ -466,7 +467,7 @@ const cancelOrder = async (req, res) => {
       order: cancelledOrder
     });
   } catch (error) {
-    console.error('Cancel order error:', error);
+    logger.error('Cancel order error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to cancel order',
@@ -515,7 +516,7 @@ const getOrderByNumber = async (req, res) => {
       order: orderDetails
     });
   } catch (error) {
-    console.error('Get order by number error:', error);
+    logger.error('Get order by number error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to get order',
@@ -526,10 +527,18 @@ const getOrderByNumber = async (req, res) => {
 
 /**
  * @route   POST /api/orders/:orderId/verify-payment
- * @desc    Simulate and verify payment
+ * @desc    Simulate and verify payment (DEVELOPMENT ONLY — use Paystack webhooks in production)
  * @access  Private
  */
 const verifyPayment = async (req, res) => {
+  // ── Guard: this endpoint is dev-only ──
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({
+      success: false,
+      error: 'This endpoint is not available in production. Use the Paystack payment flow instead.'
+    });
+  }
+
   try {
     const { orderId } = req.params;
     const { status = 'success', paymentId = 'SIM-' + Date.now() } = req.body;
@@ -578,7 +587,7 @@ const verifyPayment = async (req, res) => {
       order: updatedOrder
     });
   } catch (error) {
-    console.error('Verify payment error:', error);
+    logger.error('Verify payment error', { error: error.message, requestId: req.requestId });
     res.status(500).json({
       success: false,
       error: 'Failed to verify payment',

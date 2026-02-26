@@ -2,6 +2,7 @@
 // Controller for promoted products and advertising campaigns
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * Create advertising campaign
@@ -62,7 +63,7 @@ const createCampaign = async (req, res) => {
       campaign
     });
   } catch (error) {
-    console.error('Create campaign error:', error);
+    logger.error('Create campaign error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to create campaign',
@@ -92,7 +93,7 @@ const getPromotedProducts = async (req, res) => {
       promotedProducts
     });
   } catch (error) {
-    console.error('Get promoted products error:', error);
+    logger.error('Get promoted products error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch promoted products',
@@ -137,7 +138,7 @@ const getMyCampaigns = async (req, res) => {
       campaigns
     });
   } catch (error) {
-    console.error('Get my campaigns error:', error);
+    logger.error('Get my campaigns error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch campaigns',
@@ -183,7 +184,7 @@ const getCampaignDetails = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get campaign details error:', error);
+    logger.error('Get campaign details error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch campaign details',
@@ -234,7 +235,7 @@ const updateCampaignStatus = async (req, res) => {
       campaign: updatedCampaign
     });
   } catch (error) {
-    console.error('Update campaign status error:', error);
+    logger.error('Update campaign status error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update campaign status',
@@ -285,7 +286,7 @@ const updateCampaignBudget = async (req, res) => {
       campaign: updatedCampaign
     });
   } catch (error) {
-    console.error('Update campaign budget error:', error);
+    logger.error('Update campaign budget error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update campaign budget',
@@ -319,7 +320,7 @@ const recordImpression = async (req, res) => {
       message: 'Impression recorded'
     });
   } catch (error) {
-    console.error('Record impression error:', error);
+    logger.error('Record impression error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to record impression',
@@ -344,7 +345,7 @@ const recordClick = async (req, res) => {
       message: 'Click recorded'
     });
   } catch (error) {
-    console.error('Record click error:', error);
+    logger.error('Record click error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to record click',
@@ -397,7 +398,7 @@ const createReport = async (req, res) => {
       report
     });
   } catch (error) {
-    console.error('Create report error:', error);
+    logger.error('Create report error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to create report',

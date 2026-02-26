@@ -1,5 +1,6 @@
 // controllers/favoriteController.js
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 // @desc    Add product to favorites
 // @route   POST /api/favorites
@@ -46,7 +47,7 @@ const addFavorite = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error adding to favorites:', error);
+        logger.error('Error adding to favorites:', { error: error.message });
         res.status(500).json({ success: false, error: 'Server error' });
     }
 };
@@ -77,7 +78,7 @@ const removeFavorite = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error removing from favorites:', error);
+        logger.error('Error removing from favorites:', { error: error.message });
         res.status(500).json({ success: false, error: 'Server error' });
     }
 };
@@ -119,7 +120,7 @@ const getUserFavorites = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error fetching favorites:', error);
+        logger.error('Error fetching favorites:', { error: error.message });
         res.status(500).json({ success: false, error: 'Server error' });
     }
 };
@@ -144,7 +145,7 @@ const checkFavorite = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error checking favorite:', error);
+        logger.error('Error checking favorite:', { error: error.message });
         res.status(500).json({ success: false, error: 'Server error' });
     }
 };

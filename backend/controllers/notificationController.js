@@ -2,6 +2,7 @@
 // Controller for notification management
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * Get user notifications
@@ -32,7 +33,7 @@ const getNotifications = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get notifications error:', error);
+    logger.error('Get notifications error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch notifications',
@@ -56,7 +57,7 @@ const getUnreadCount = async (req, res) => {
       unreadCount: count
     });
   } catch (error) {
-    console.error('Get unread count error:', error);
+    logger.error('Get unread count error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get unread count',
@@ -83,7 +84,7 @@ const markAsRead = async (req, res) => {
       notification
     });
   } catch (error) {
-    console.error('Mark as read error:', error);
+    logger.error('Mark as read error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to mark notification as read',
@@ -108,7 +109,7 @@ const markAllAsRead = async (req, res) => {
       updatedCount: count
     });
   } catch (error) {
-    console.error('Mark all as read error:', error);
+    logger.error('Mark all as read error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to mark all notifications as read',
@@ -134,7 +135,7 @@ const deleteNotification = async (req, res) => {
       message: 'Notification deleted successfully'
     });
   } catch (error) {
-    console.error('Delete notification error:', error);
+    logger.error('Delete notification error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to delete notification',
@@ -158,7 +159,7 @@ const deleteAllNotifications = async (req, res) => {
       message: 'All notifications deleted successfully'
     });
   } catch (error) {
-    console.error('Delete all notifications error:', error);
+    logger.error('Delete all notifications error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to delete notifications',
@@ -182,7 +183,7 @@ const getPreferences = async (req, res) => {
       preferences
     });
   } catch (error) {
-    console.error('Get preferences error:', error);
+    logger.error('Get preferences error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch preferences',
@@ -235,7 +236,7 @@ const updatePreferences = async (req, res) => {
       preferences
     });
   } catch (error) {
-    console.error('Update preferences error:', error);
+    logger.error('Update preferences error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update preferences',
@@ -266,7 +267,7 @@ const getNotificationsByType = async (req, res) => {
       type
     });
   } catch (error) {
-    console.error('Get notifications by type error:', error);
+    logger.error('Get notifications by type error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch notifications',

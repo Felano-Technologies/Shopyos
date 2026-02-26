@@ -1,6 +1,7 @@
 // controllers/businessController.js
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
+const { logger } = require('../config/logger');
 
 // @desc    Create a new business/store
 // @route   POST /api/business/create
@@ -123,7 +124,7 @@ const createBusiness = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error creating business:', error);
+    logger.error('Error creating business:', { error: error.message });
 
     // Handle unique constraint violations
     if (error.code === '23505') {
@@ -184,7 +185,7 @@ const getMyBusinesses = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching businesses:', error);
+    logger.error('Error fetching businesses:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Server error while fetching businesses'
@@ -260,7 +261,7 @@ const getBusinessById = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching business:', error);
+    logger.error('Error fetching business:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Server error while fetching business'
@@ -360,7 +361,7 @@ const updateBusiness = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error updating business:', error);
+    logger.error('Error updating business:', { error: error.message });
 
     res.status(500).json({
       success: false,
@@ -411,7 +412,7 @@ const deleteBusiness = async (req, res) => {
     if (imagesToDelete.length > 0) {
       await Promise.all(imagesToDelete.map(id =>
         deleteImage(id).catch(err =>
-          console.warn(`Failed to delete image ${id}:`, err.message)
+          logger.warn(`Failed to delete image ${id}:`, err.message)
         )
       ));
     }
@@ -425,7 +426,7 @@ const deleteBusiness = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error deleting business:', error);
+    logger.error('Error deleting business:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Server error while deleting business'
@@ -469,7 +470,7 @@ const uploadLogo = async (req, res) => {
       const oldPublicId = extractPublicId(store.logo_url);
       if (oldPublicId) {
         await deleteImage(oldPublicId).catch(err =>
-          console.warn('Failed to delete old logo:', err.message)
+          logger.warn('Failed to delete old logo:', err.message)
         );
       }
     }
@@ -490,7 +491,7 @@ const uploadLogo = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error uploading logo:', error);
+    logger.error('Error uploading logo:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to upload logo'
@@ -534,7 +535,7 @@ const uploadBanner = async (req, res) => {
       const oldPublicId = extractPublicId(store.banner_url);
       if (oldPublicId) {
         await deleteImage(oldPublicId).catch(err =>
-          console.warn('Failed to delete old banner:', err.message)
+          logger.warn('Failed to delete old banner:', err.message)
         );
       }
     }
@@ -555,7 +556,7 @@ const uploadBanner = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error uploading banner:', error);
+    logger.error('Error uploading banner:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to upload banner'
@@ -661,7 +662,7 @@ const getBusinessDashboard = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching dashboard data:', error);
+    logger.error('Error fetching dashboard data:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Server error while fetching dashboard data'
@@ -776,7 +777,7 @@ const getBusinessAnalytics = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    logger.error('Error fetching analytics:', { error: error.message });
     res.status(500).json({ success: false, error: 'Server error' });
   }
 };
@@ -828,7 +829,7 @@ const getAllBusinesses = async (req, res) => {
 
     res.status(200).json({ success: true, businesses: mapped });
   } catch (error) {
-    console.error('Error fetching all businesses:', error);
+    logger.error('Error fetching all businesses:', { error: error.message });
     res.status(500).json({ success: false, error: 'Server error' });
   }
 };
@@ -848,7 +849,7 @@ const followBusiness = async (req, res) => {
       message: 'Store followed successfully'
     });
   } catch (error) {
-    console.error('Error following business:', error);
+    logger.error('Error following business:', { error: error.message });
     if (error.code === '23505') { // Unique constraint violation
       return res.status(200).json({ success: true, message: 'Already following' });
     }
@@ -871,7 +872,7 @@ const unfollowBusiness = async (req, res) => {
       message: 'Store unfollowed successfully'
     });
   } catch (error) {
-    console.error('Error unfollowing business:', error);
+    logger.error('Error unfollowing business:', { error: error.message });
     res.status(500).json({ success: false, error: 'Server error' });
   }
 };

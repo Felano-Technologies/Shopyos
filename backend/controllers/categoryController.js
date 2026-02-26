@@ -1,4 +1,5 @@
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 class CategoryController {
     constructor() {
@@ -22,7 +23,7 @@ class CategoryController {
                 categories
             });
         } catch (error) {
-            console.error('Error fetching categories:', error);
+            logger.error('Error fetching categories:', { error: error.message });
             res.status(500).json({ success: false, error: 'Server Error' });
         }
     };
@@ -71,7 +72,7 @@ class CategoryController {
                 category
             });
         } catch (error) {
-            console.error('Error creating category:', error);
+            logger.error('Error creating category:', { error: error.message });
             res.status(500).json({ success: false, error: 'Server Error' });
         }
     };
@@ -126,7 +127,7 @@ class CategoryController {
                 category
             });
         } catch (error) {
-            console.error('Error updating category:', error);
+            logger.error('Error updating category:', { error: error.message });
             res.status(500).json({ success: false, error: 'Server Error' });
         }
     };
@@ -185,7 +186,7 @@ class CategoryController {
                 message: 'Category deleted successfully'
             });
         } catch (error) {
-            console.error('Error deleting category:', error);
+            logger.error('Error deleting category:', { error: error.message });
             res.status(500).json({ success: false, error: 'Server Error' });
         }
     };

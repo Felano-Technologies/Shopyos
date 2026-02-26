@@ -1,6 +1,7 @@
 // controllers/paymentController.js
 const axios = require('axios');
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
@@ -83,7 +84,7 @@ const initializePayment = async (req, res) => {
             res.status(400).json({ success: false, error: response.data.message });
         }
     } catch (error) {
-        console.error('Paystack Initialization Error:', error.response?.data || error.message);
+        logger.error('Paystack Initialization Error:', { error: error.message });
         res.status(500).json({ success: false, error: 'Failed to initialize payment' });
     }
 };
@@ -153,7 +154,7 @@ const verifyPayment = async (req, res) => {
             res.status(400).json({ success: false, error: 'Payment verification failed' });
         }
     } catch (error) {
-        console.error('Paystack Verification Error:', error.response?.data || error.message);
+        logger.error('Paystack Verification Error:', { error: error.message });
         res.status(500).json({ success: false, error: 'Failed to verify payment' });
     }
 };

@@ -2,6 +2,7 @@
 // Cart management controller
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * @route   POST /api/cart/add
@@ -60,7 +61,7 @@ const addToCart = async (req, res) => {
       cart
     });
   } catch (error) {
-    console.error('Add to cart error:', error);
+    logger.error('Add to cart error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to add item to cart',
@@ -106,7 +107,7 @@ const getCart = async (req, res) => {
       itemCount: cartTotal.itemCount
     });
   } catch (error) {
-    console.error('Get cart error:', error);
+    logger.error('Get cart error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get cart',
@@ -156,7 +157,7 @@ const updateCartItem = async (req, res) => {
       cart
     });
   } catch (error) {
-    console.error('Update cart item error:', error);
+    logger.error('Update cart item error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update cart item',
@@ -196,7 +197,7 @@ const removeFromCart = async (req, res) => {
       cart
     });
   } catch (error) {
-    console.error('Remove from cart error:', error);
+    logger.error('Remove from cart error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to remove item from cart',
@@ -225,7 +226,7 @@ const clearCart = async (req, res) => {
       itemCount: 0
     });
   } catch (error) {
-    console.error('Clear cart error:', error);
+    logger.error('Clear cart error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to clear cart',
@@ -250,7 +251,7 @@ const getCartItemCount = async (req, res) => {
       count
     });
   } catch (error) {
-    console.error('Get cart count error:', error);
+    logger.error('Get cart count error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get cart count',

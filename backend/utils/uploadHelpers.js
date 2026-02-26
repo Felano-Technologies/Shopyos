@@ -3,6 +3,7 @@
 
 const { uploadImage, uploadMultipleImages, deleteImage } = require('../config/cloudinary');
 const { Readable } = require('stream');
+const { logger } = require('../config/logger');
 
 /**
  * Convert buffer to base64 data URI
@@ -42,7 +43,7 @@ const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
       size: file.size
     };
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Upload error:', error);
     throw new Error(`Failed to upload file: ${error.message}`);
   }
 };
@@ -62,7 +63,7 @@ const uploadMultipleFilesToCloudinary = async (files, folder = 'shopyos') => {
     const uploadPromises = files.map(file => uploadFileToCloudinary(file, folder));
     return await Promise.all(uploadPromises);
   } catch (error) {
-    console.error('Multiple upload error:', error);
+    logger.error('Multiple upload error:', error);
     throw new Error(`Failed to upload files: ${error.message}`);
   }
 };
@@ -82,13 +83,13 @@ const replaceImage = async (oldPublicId, newFile, folder = 'shopyos') => {
     // Delete old image if upload successful
     if (oldPublicId) {
       await deleteImage(oldPublicId).catch(err =>
-        console.warn('Failed to delete old image:', err.message)
+        logger.warn('Failed to delete old image:', err.message)
       );
     }
 
     return uploadResult;
   } catch (error) {
-    console.error('Replace image error:', error);
+    logger.error('Replace image error:', error);
     throw new Error(`Failed to replace image: ${error.message}`);
   }
 };
@@ -136,7 +137,7 @@ const extractPublicId = (url) => {
     const matches = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/);
     return matches ? matches[1] : null;
   } catch (error) {
-    console.error('Error extracting public ID:', error);
+    logger.error('Error extracting public ID:', error);
     return null;
   }
 };

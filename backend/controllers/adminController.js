@@ -2,6 +2,7 @@
 // Admin controller for user management, store verification, and platform analytics
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * Get dashboard analytics
@@ -31,7 +32,7 @@ const getDashboard = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get dashboard error:', error);
+    logger.error('Get dashboard error:', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed' });
   }
 };
@@ -62,7 +63,7 @@ const getAllUsers = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get all users error:', error);
+    logger.error('Get all users error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch users',
@@ -107,7 +108,7 @@ const updateUserStatus = async (req, res) => {
       user
     });
   } catch (error) {
-    console.error('Update user status error:', error);
+    logger.error('Update user status error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update user status',
@@ -152,7 +153,7 @@ const updateUserRole = async (req, res) => {
       user
     });
   } catch (error) {
-    console.error('Update user role error:', error);
+    logger.error('Update user role error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update user role',
@@ -186,7 +187,7 @@ const getAllStores = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get all stores error:', error);
+    logger.error('Get all stores error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch stores',
@@ -231,7 +232,7 @@ const verifyStore = async (req, res) => {
       store
     });
   } catch (error) {
-    console.error('Verify store error:', error);
+    logger.error('Verify store error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update verification status',
@@ -276,7 +277,7 @@ const updateStoreStatus = async (req, res) => {
       store
     });
   } catch (error) {
-    console.error('Update store status error:', error);
+    logger.error('Update store status error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update store status',
@@ -310,7 +311,7 @@ const getAllReports = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get all reports error:', error);
+    logger.error('Get all reports error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch reports',
@@ -334,7 +335,7 @@ const getReportDetails = async (req, res) => {
       report
     });
   } catch (error) {
-    console.error('Get report details error:', error);
+    logger.error('Get report details error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch report details',
@@ -384,7 +385,7 @@ const updateReportStatus = async (req, res) => {
       report
     });
   } catch (error) {
-    console.error('Update report status error:', error);
+    logger.error('Update report status error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update report status',
@@ -421,7 +422,7 @@ const getAuditLogs = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get audit logs error:', error);
+    logger.error('Get audit logs error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch audit logs',
@@ -445,7 +446,7 @@ const getEntityHistory = async (req, res) => {
       history
     });
   } catch (error) {
-    console.error('Get entity history error:', error);
+    logger.error('Get entity history error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to fetch entity history',
@@ -475,7 +476,7 @@ const getAllPayouts = async (req, res) => {
       data: payouts
     });
   } catch (error) {
-    console.error('Get all payouts error:', error);
+    logger.error('Get all payouts error:', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed to fetch payouts' });
   }
 };
@@ -506,7 +507,7 @@ const updatePayoutStatus = async (req, res) => {
       data: updated
     });
   } catch (error) {
-    console.error('Update payout status error:', error);
+    logger.error('Update payout status error:', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed' });
   }
 };

@@ -2,6 +2,7 @@
 // Reviews and ratings management controller
 
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
 
 /**
  * @route   POST /api/reviews/product
@@ -64,7 +65,7 @@ const createProductReview = async (req, res) => {
       review
     });
   } catch (error) {
-    console.error('Create product review error:', error);
+    logger.error('Create product review error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to create review',
@@ -133,7 +134,7 @@ const createStoreReview = async (req, res) => {
       review
     });
   } catch (error) {
-    console.error('Create store review error:', error);
+    logger.error('Create store review error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to create store review',
@@ -207,7 +208,7 @@ const createDriverReview = async (req, res) => {
       review
     });
   } catch (error) {
-    console.error('Create driver review error:', error);
+    logger.error('Create driver review error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to create driver review',
@@ -242,7 +243,7 @@ const getProductReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    console.error('Get product reviews error:', error);
+    logger.error('Get product reviews error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get product reviews',
@@ -277,7 +278,7 @@ const getStoreReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    console.error('Get store reviews error:', error);
+    logger.error('Get store reviews error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get store reviews',
@@ -311,7 +312,7 @@ const getDriverReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    console.error('Get driver reviews error:', error);
+    logger.error('Get driver reviews error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get driver reviews',
@@ -374,7 +375,7 @@ const updateProductReview = async (req, res) => {
       review: updatedReview
     });
   } catch (error) {
-    console.error('Update product review error:', error);
+    logger.error('Update product review error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to update review',
@@ -438,7 +439,7 @@ const deleteReview = async (req, res) => {
       message: 'Review deleted successfully'
     });
   } catch (error) {
-    console.error('Delete review error:', error);
+    logger.error('Delete review error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to delete review',
@@ -472,7 +473,7 @@ const getMyReviews = async (req, res) => {
       count: reviews.length
     });
   } catch (error) {
-    console.error('Get my reviews error:', error);
+    logger.error('Get my reviews error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get reviews',
@@ -498,7 +499,7 @@ const getReviewableProducts = async (req, res) => {
       count: reviewableProducts.length
     });
   } catch (error) {
-    console.error('Get reviewable products error:', error);
+    logger.error('Get reviewable products error:', { error: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to get reviewable products',

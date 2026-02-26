@@ -2,152 +2,332 @@ const repositories = require('../db/repositories');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const { logger } = require('../config/logger');
+const { cacheSet, cacheDel } = require('../config/redis');
+const {
+  ACCESS_TOKEN_EXPIRY,
+  REFRESH_TOKEN_EXPIRY_MS,
+  ACCESS_TOKEN_BLACKLIST_PREFIX,
+  COOKIE_OPTIONS,
+  ACCESS_COOKIE_NAME,
+  REFRESH_COOKIE_NAME,
+  generateRefreshToken,
+  hashToken
+} = require('../config/auth');
 
-// @desc    Register new user
-// @route   POST /api/auth/register
-// @access  Public
+let _transporter = null;
+const getTransporter = () => {
+  if (!_transporter) {
+    _transporter = nodemailer.createTransport({
+      service: 'Gmail',
+      auth: {
+        user: process.env.EMAIL_USERNAME || process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+  }
+  return _transporter;
+};
+
+const generateAccessToken = (userId) => {
+  return jwt.sign({ id: userId, type: 'access' }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+};
+
+const createRefreshToken = async (userId, req, familyId = null) => {
+  const rawToken = generateRefreshToken();
+  const tokenHash = hashToken(rawToken);
+  const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS);
+
+  const { data, error } = await repositories.users.db
+    .from('refresh_tokens')
+    .insert({
+      user_id: userId,
+      token_hash: tokenHash,
+      family_id: familyId || crypto.randomUUID(),
+      device_info: req.get('user-agent') || 'unknown',
+      ip_address: req.ip,
+      expires_at: expiresAt.toISOString()
+    })
+    .select('id, family_id')
+    .single();
+
+  if (error) throw error;
+  return { rawToken, expiresAt, tokenId: data.id, familyId: data.family_id };
+};
+
+const setAuthCookies = (res, accessToken, refreshToken) => {
+  res.cookie(ACCESS_COOKIE_NAME, accessToken, { ...COOKIE_OPTIONS, maxAge: 15 * 60 * 1000 });
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, { ...COOKIE_OPTIONS, maxAge: REFRESH_TOKEN_EXPIRY_MS, path: '/api/v1/auth' });
+};
+
+const clearAuthCookies = (res) => {
+  res.cookie(ACCESS_COOKIE_NAME, '', { ...COOKIE_OPTIONS, maxAge: 0 });
+  res.cookie(REFRESH_COOKIE_NAME, '', { ...COOKIE_OPTIONS, maxAge: 0, path: '/api/v1/auth' });
+};
+
 const register = async (req, res) => {
   const { name, email, password, fullPhoneNumber } = req.body;
 
   try {
-    // Check if user exists
     const existingUser = await repositories.users.findByEmail(email);
+    if (existingUser) return res.status(400).json({ error: 'User already exists' });
 
-    if (existingUser) {
-      return res.status(400).json({ error: 'User already exists' });
-    }
+    const user = await repositories.users.createUser({ email, password });
+    await repositories.userProfiles.updateByUserId(user.id, { full_name: name, phone: fullPhoneNumber });
 
-    // Create user (password will be auto-hashed by repository)
-    // Note: Database trigger automatically creates user_profile with default values
-    const user = await repositories.users.createUser({
-      email,
-      password
-    });
-
-    // Update user profile with provided data (trigger creates it with defaults)
-    await repositories.userProfiles.updateByUserId(user.id, {
-      full_name: name,
-      phone: fullPhoneNumber
-    });
-
-    // DO NOT assign role here - user will select role on first login
-
-    // Generate token
-    const token = generateToken(res, user.id);
+    const accessToken = generateAccessToken(user.id);
+    const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
+    setAuthCookies(res, accessToken, refreshToken);
 
     res.status(201).json({
       message: 'User created successfully',
       requiresRoleSelection: true,
-      token
+      token: accessToken,
+      refreshToken,
+      expiresIn: ACCESS_TOKEN_EXPIRY
     });
   } catch (err) {
-    console.error(err.message);
+    logger.error('Registration error', { error: err.message });
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-// @desc    Authenticate a user
-// @route   POST /api/auth/login
-// @access  Public
 const login = async (req, res) => {
   const { email, password, latitude, longitude } = req.body;
 
   try {
     const user = await repositories.users.findByEmail(email);
-
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
+    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
 
     const isMatch = await repositories.users.verifyPassword(user.id, password);
+    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
 
-    if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid credentials' });
-    }
-
-    // Update user location if provided (store in user_profiles)
     if (latitude && longitude) {
-      await repositories.userProfiles.updateByUserId(user.id, {
-        latitude: latitude,
-        longitude: longitude
-      });
+      await repositories.userProfiles.updateByUserId(user.id, { latitude, longitude });
     }
 
-    // Update last login time
-    await repositories.users.update(user.id, {
-      last_login_at: new Date().toISOString()
-    });
+    await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
 
-    // Get user roles
     const userRoles = await repositories.roles.getUserRoles(user.id);
     const hasRole = userRoles.length > 0;
     const role = userRoles?.[0]?.role?.name || 'none';
 
-    const token = generateToken(res, user.id);
+    const accessToken = generateAccessToken(user.id);
+    const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
+    setAuthCookies(res, accessToken, refreshToken);
 
     res.status(200).json({
-      token,
+      token: accessToken,
+      refreshToken,
+      expiresIn: ACCESS_TOKEN_EXPIRY,
       role,
       roles: userRoles.map(r => r.role.name),
-      requiresRoleSelection: !hasRole, // Flag to indicate if user needs to select a role
+      requiresRoleSelection: !hasRole,
       message: 'Login successful'
     });
   } catch (err) {
-    console.error(err.message);
+    logger.error('Login error', { error: err.message });
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-// @desc    Reset password
-// @route   POST /api/auth/reset-password
-// @access  Public
+// Rotation: revoke used token, issue new pair in same family.
+// Reuse detection: if a revoked token appears again, revoke the entire family (theft signal).
+const refreshAccessToken = async (req, res) => {
+  try {
+    const incomingToken = req.body.refreshToken || req.cookies?.[REFRESH_COOKIE_NAME];
+    if (!incomingToken) return res.status(401).json({ error: 'Refresh token required' });
+
+    const tokenHash = hashToken(incomingToken);
+
+    const { data: storedToken, error: lookupError } = await repositories.users.db
+      .from('refresh_tokens')
+      .select('*')
+      .eq('token_hash', tokenHash)
+      .single();
+
+    if (lookupError || !storedToken) return res.status(401).json({ error: 'Invalid refresh token' });
+
+    if (storedToken.is_revoked) {
+      logger.warn('Refresh token reuse detected — revoking family', {
+        userId: storedToken.user_id, familyId: storedToken.family_id, ip: req.ip
+      });
+
+      await repositories.users.db
+        .from('refresh_tokens')
+        .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'compromised' })
+        .eq('family_id', storedToken.family_id);
+
+      await cacheDel(`shopyos:users:${storedToken.user_id}:auth`);
+      return res.status(401).json({ error: 'Token compromised — all sessions revoked. Please log in again.' });
+    }
+
+    if (new Date(storedToken.expires_at) < new Date()) {
+      return res.status(401).json({ error: 'Refresh token expired' });
+    }
+
+    const user = await repositories.users.findById(storedToken.user_id);
+    if (!user || !user.is_active) return res.status(401).json({ error: 'Account not found or deactivated' });
+
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'rotation' })
+      .eq('id', storedToken.id);
+
+    const accessToken = generateAccessToken(user.id);
+    const { rawToken: newRefreshToken, tokenId: newTokenId } =
+      await createRefreshToken(user.id, req, storedToken.family_id);
+
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ replaced_by: newTokenId })
+      .eq('id', storedToken.id);
+
+    await cacheDel(`shopyos:users:${user.id}:auth`);
+    setAuthCookies(res, accessToken, newRefreshToken);
+
+    res.status(200).json({
+      token: accessToken,
+      refreshToken: newRefreshToken,
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+      message: 'Tokens refreshed successfully'
+    });
+  } catch (error) {
+    logger.error('Refresh token error', { error: error.message, requestId: req.requestId });
+    res.status(500).json({ error: 'Failed to refresh token' });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    // Blacklist the access token in Redis for its remaining lifetime
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer')) {
+      const accessToken = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+        const remainingTTL = decoded.exp - Math.floor(Date.now() / 1000);
+        if (remainingTTL > 0) {
+          await cacheSet(`${ACCESS_TOKEN_BLACKLIST_PREFIX}${accessToken}`, { userId: decoded.id }, remainingTTL);
+        }
+      } catch {
+        // Token already expired — no need to blacklist
+      }
+    }
+
+    const refreshToken = req.body.refreshToken || req.cookies?.[REFRESH_COOKIE_NAME];
+    if (refreshToken) {
+      await repositories.users.db
+        .from('refresh_tokens')
+        .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'logout' })
+        .eq('token_hash', hashToken(refreshToken));
+    }
+
+    if (req.user?.id) await cacheDel(`shopyos:users:${req.user.id}:auth`);
+    clearAuthCookies(res);
+    res.status(200).json({ success: true, message: 'Logged out successfully' });
+  } catch (error) {
+    logger.error('Logout error', { error: error.message });
+    clearAuthCookies(res);
+    res.status(200).json({ success: true, message: 'Logged out' });
+  }
+};
+
+const logoutAll = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const { data, error } = await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'logout_all' })
+      .eq('user_id', userId)
+      .eq('is_revoked', false)
+      .select('id');
+
+    if (error) throw error;
+
+    await cacheDel(`shopyos:users:${userId}:auth`);
+    clearAuthCookies(res);
+
+    const revokedCount = data?.length || 0;
+    res.status(200).json({ success: true, message: `Logged out from all ${revokedCount} session(s)`, revokedSessions: revokedCount });
+  } catch (error) {
+    logger.error('Logout-all error', { error: error.message });
+    res.status(500).json({ error: 'Failed to logout from all sessions' });
+  }
+};
+
+const getSessions = async (req, res) => {
+  try {
+    const { data: sessions, error } = await repositories.users.db
+      .from('refresh_tokens')
+      .select('id, device_info, ip_address, created_at, expires_at')
+      .eq('user_id', req.user.id)
+      .eq('is_revoked', false)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    res.status(200).json({
+      success: true,
+      sessions: (sessions || []).map(s => ({
+        id: s.id, device: s.device_info, ip: s.ip_address, createdAt: s.created_at, expiresAt: s.expires_at
+      })),
+      count: sessions?.length || 0
+    });
+  } catch (error) {
+    logger.error('Get sessions error', { error: error.message });
+    res.status(500).json({ error: 'Failed to get sessions' });
+  }
+};
+
+const revokeSession = async (req, res) => {
+  try {
+    const { data, error } = await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'user_revoked' })
+      .eq('id', req.params.sessionId)
+      .eq('user_id', req.user.id)
+      .select('id');
+
+    if (error) throw error;
+    if (!data?.length) return res.status(404).json({ error: 'Session not found' });
+
+    res.status(200).json({ success: true, message: 'Session revoked' });
+  } catch (error) {
+    logger.error('Revoke session error', { error: error.message });
+    res.status(500).json({ error: 'Failed to revoke session' });
+  }
+};
+
 const resetPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
     const user = await repositories.users.findByEmail(email);
-
-    if (!user) {
-      return res.status(400).json({ error: 'User not found' });
-    }
+    if (!user) return res.status(400).json({ error: 'User not found' });
 
     const token = crypto.randomBytes(20).toString('hex');
-    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+    const expiresAt = new Date(Date.now() + 3600000);
 
     await repositories.users.setPasswordResetToken(user.id, token, expiresAt);
 
-    const transporter = nodemailer.createTransport({
-      service: 'Gmail',
-      auth: {
-        user: process.env.EMAIL_USERNAME,
-        pass: process.env.EMAIL_PASSWORD
-      }
-    });
-
     const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${token}`;
-
-    const mailOptions = {
+    await getTransporter().sendMail({
       to: user.email,
       from: process.env.EMAIL_FROM,
       subject: 'Password Reset',
-      text: `You are receiving this because you (or someone else) have requested the reset of the password for your account.\n\n
-        Please click on the following link, or paste this into your browser to complete the process:\n\n
-        ${resetUrl}\n\n
-        If you did not request this, please ignore this email and your password will remain unchanged.\n`
-    };
-
-    await transporter.sendMail(mailOptions);
+      text: `You requested a password reset.\n\nClick here to reset: ${resetUrl}\n\nIf you didn't request this, ignore this email.`
+    });
 
     res.status(200).json({ message: 'Recovery email sent' });
   } catch (err) {
-    console.error(err.message);
+    logger.error('Password reset error', { error: err.message });
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-// @desc    Update user profile data
-// @route   PUT /api/auth/profile
-// @access  Private
 const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
@@ -163,37 +343,24 @@ const updateProfile = async (req, res) => {
     if (address_line1 !== undefined) updates.address_line1 = address_line1;
 
     const profile = await repositories.userProfiles.updateByUserId(userId, updates);
+    await cacheDel(`shopyos:users:${userId}:auth`);
 
-    res.status(200).json({
-      success: true,
-      data: profile,
-      message: 'Profile updated successfully'
-    });
+    res.status(200).json({ success: true, data: profile, message: 'Profile updated successfully' });
   } catch (error) {
-    console.error('Error updating profile:', error);
+    logger.error('Error updating profile', { error: error.message });
     res.status(500).json({ success: false, error: 'Server error while updating profile' });
   }
 };
 
-// @desc    Get user data
-// @route   GET /api/auth/me
-// @access  Private
 const getUserData = async (req, res) => {
   try {
     const user = await repositories.users.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    // Get user profile
     const profile = await repositories.userProfiles.findByUserId(user.id);
-
-    // Get user roles
     const userRoles = await repositories.roles.getUserRoles(user.id);
 
-    // Format response
-    const userData = {
+    res.status(200).json({
       id: user.id,
       email: user.email,
       name: profile?.full_name || user.email,
@@ -208,198 +375,89 @@ const getUserData = async (req, res) => {
       latitude: profile?.latitude,
       longitude: profile?.longitude,
       role: userRoles?.[0]?.role?.name || 'none',
-      roles: userRoles.map(r => ({
-        name: r.role.name,
-        displayName: r.role.display_name,
-        assignedAt: r.assigned_at
-      })),
+      roles: userRoles.map(r => ({ name: r.role.name, displayName: r.role.display_name, assignedAt: r.assigned_at })),
       email_verified: user.email_verified,
       is_active: user.is_active,
       last_login_at: user.last_login_at,
       created_at: user.created_at
-    };
-
-    res.status(200).json(userData);
+    });
   } catch (error) {
-    console.error('Error getting user data:', error);
+    logger.error('Error getting user data', { error: error.message });
     res.status(500).json({ error: 'Server error' });
   }
 };
 
-// Generate JWT token and set cookie
-const generateToken = (res, userId) => {
-  const token = jwt.sign({ id: userId }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE
-  });
-
-  // Set cookie
-  res.cookie('jwt', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV !== 'development',
-    sameSite: 'strict',
-    maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-  });
-
-  return token;
-};
-// @desc    Logout user / clear cookie
-// @route   POST /api/auth/logout
-// @access  Public
-const logout = async (req, res) => {
-  res.cookie('jwt', '', {
-    httpOnly: true,
-    expires: new Date(0)
-  });
-  res.status(200).json({ success: true, message: 'Logged out successfully' });
-};
-
-
-
-// @desc    Add role to user (users can have multiple roles)
-// @route   POST /api/auth/add-role
-// @access  Private
 const addRole = async (req, res) => {
   const { role } = req.body;
   const userId = req.user.id;
 
   try {
-    // Validate role
     const validRoles = ['buyer', 'seller', 'driver'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid role. Must be buyer, seller, or driver'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid role. Must be buyer, seller, or driver' });
     }
 
-    // Check if user already has this role
     const hasRole = await repositories.roles.userHasRole(userId, role);
-    if (hasRole) {
-      return res.status(400).json({
-        success: false,
-        error: `You already have the ${role} role`
-      });
-    }
+    if (hasRole) return res.status(400).json({ success: false, error: `You already have the ${role} role` });
 
-    // Get role and assign to user
     const roleData = await repositories.roles.findByName(role);
-    if (!roleData) {
-      return res.status(404).json({
-        success: false,
-        error: 'Role not found'
-      });
-    }
+    if (!roleData) return res.status(404).json({ success: false, error: 'Role not found' });
 
     await repositories.roles.assignRoleToUser(userId, roleData.id);
+    await cacheDel(`shopyos:users:${userId}:auth`);
 
-    res.status(200).json({
-      success: true,
-      message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully`
-    });
-
+    res.status(200).json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully` });
   } catch (error) {
-    console.error('Error adding role:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error while adding role'
-    });
+    logger.error('Error adding role', { error: error.message });
+    res.status(500).json({ success: false, error: 'Server error while adding role' });
   }
 };
 
-// @desc    Get user roles
-// @route   GET /api/auth/roles
-// @access  Private
 const getUserRoles = async (req, res) => {
   try {
-    const userId = req.user.id;
-    const roles = await repositories.roles.getUserRoles(userId);
+    const roles = await repositories.roles.getUserRoles(req.user.id);
 
     res.status(200).json({
       success: true,
       roles: roles.map(r => ({
-        id: r.id,
-        name: r.role.name,
-        displayName: r.role.display_name,
-        description: r.role.description,
-        assignedAt: r.assigned_at
+        id: r.id, name: r.role.name, displayName: r.role.display_name,
+        description: r.role.description, assignedAt: r.assigned_at
       }))
     });
   } catch (error) {
-    console.error('Error fetching roles:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error while fetching roles'
-    });
+    logger.error('Error fetching roles', { error: error.message });
+    res.status(500).json({ success: false, error: 'Server error while fetching roles' });
   }
 };
 
-// @desc    Update user role (DEPRECATED - use addRole instead)
-// @route   PUT /api/auth/update-role
-// @access  Private
 const updateUserRole = async (req, res) => {
   try {
     const { role } = req.body;
-    const userId = req.user.id; // From auth middleware
+    const userId = req.user.id;
 
-    // Validate role input
-    if (!role) {
-      return res.status(400).json({
-        success: false,
-        error: 'Role is required'
-      });
-    }
+    if (!role) return res.status(400).json({ success: false, error: 'Role is required' });
 
-    // Validate role value (map old names to new if needed)
-    const roleMapping = {
-      'customer': 'buyer',
-      'buyer': 'buyer',
-      'seller': 'seller',
-      'driver': 'driver',
-      'none': 'none'
-    };
-
+    const roleMapping = { customer: 'buyer', buyer: 'buyer', seller: 'seller', driver: 'driver', none: 'none' };
     const mappedRole = roleMapping[role];
     if (!mappedRole) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid role. Must be one of: customer, buyer, seller, driver, none'
-      });
+      return res.status(400).json({ success: false, error: 'Invalid role. Must be one of: customer, buyer, seller, driver, none' });
     }
 
-    // Check if user exists
     const user = await repositories.users.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
+    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
 
-    // Set role (replaces all existing roles)
     await repositories.users.setRole(userId, mappedRole);
+    await cacheDel(`shopyos:users:${userId}:auth`);
 
-    res.status(200).json({
-      success: true,
-      message: 'Role updated successfully',
-    });
-
+    res.status(200).json({ success: true, message: 'Role updated successfully' });
   } catch (error) {
-    console.error('Error updating user role:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error while updating role'
-    });
+    logger.error('Error updating user role', { error: error.message });
+    res.status(500).json({ success: false, error: 'Server error while updating role' });
   }
 };
 
 module.exports = {
-  register,
-  login,
-  resetPassword,
-  getUserData,
-  addRole,
-  getUserRoles,
-  updateUserRole,
-  updateProfile,
-  logout
+  register, login, refreshAccessToken, logout, logoutAll,
+  getSessions, revokeSession, resetPassword, getUserData,
+  addRole, getUserRoles, updateUserRole, updateProfile
 };

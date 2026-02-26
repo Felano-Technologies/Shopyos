@@ -1,156 +1,101 @@
 const jwt = require('jsonwebtoken');
 const repositories = require('../db/repositories');
+const { logger } = require('../config/logger');
+const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
+const { ACCESS_TOKEN_BLACKLIST_PREFIX } = require('../config/auth');
 
-// Protect routes with JWT
+const USER_CACHE_TTL = 300;
+
 const protect = async (req, res, next) => {
-  let token;
+  if (!req.headers.authorization?.startsWith('Bearer')) {
+    return res.status(401).json({ error: 'Not authorized, no token provided' });
+  }
 
-  // Check for token in Authorization header
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
-    try {
-      // Get token from header
-      token = req.headers.authorization.split(' ')[1];
+  const token = req.headers.authorization.split(' ')[1];
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+  try {
+    // Reject tokens that have been blacklisted on logout
+    const blacklisted = await cacheGet(`${ACCESS_TOKEN_BLACKLIST_PREFIX}${token}`);
+    if (blacklisted) {
+      return res.status(401).json({ error: 'Token has been revoked. Please log in again.' });
+    }
 
-      // Get user from the token
-      const user = await repositories.users.findById(decoded.id);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      if (!user) {
-        return res.status(401).json({ error: 'Not authorized, user not found' });
-      }
+    if (decoded.type && decoded.type !== 'access') {
+      return res.status(401).json({ error: 'Invalid token type' });
+    }
 
-      // Check if user is active
-      if (!user.is_active) {
-        return res.status(401).json({ error: 'Account is deactivated' });
-      }
+    const userId = decoded.id;
+    const cacheKey = `shopyos:users:${userId}:auth`;
+    let userData = await cacheGet(cacheKey);
 
-      // Attach user to request (excluding password)
-      req.user = {
+    if (!userData) {
+      const [user, userWithRoles] = await Promise.all([
+        repositories.users.findById(userId),
+        repositories.users.getUserWithRoles(userId)
+      ]);
+
+      if (!user) return res.status(401).json({ error: 'Not authorized, user not found' });
+      if (!user.is_active) return res.status(401).json({ error: 'Account is deactivated' });
+
+      userData = {
         id: user.id,
         email: user.email,
         email_verified: user.email_verified,
-        is_active: user.is_active
+        is_active: user.is_active,
+        roles: (userWithRoles?.user_roles || [])
+          .filter(ur => ur.is_active)
+          .map(ur => ur.roles?.name)
+          .filter(Boolean)
       };
 
-      next();
-    } catch (error) {
-      console.error('Auth middleware error:', error);
-
-      // Handle specific JWT errors
-      if (error.name === 'JsonWebTokenError') {
-        return res.status(401).json({ error: 'Not authorized, invalid token' });
-      }
-      if (error.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Not authorized, token expired' });
-      }
-
-      res.status(401).json({ error: 'Not authorized, token failed' });
+      await cacheSet(cacheKey, userData, USER_CACHE_TTL);
     }
-  } else {
-    return res.status(401).json({ error: 'Not authorized, no token provided' });
+
+    req.user = userData;
+    next();
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Not authorized, invalid token' });
+    }
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({ error: 'Access token expired', code: 'TOKEN_EXPIRED' });
+    }
+    logger.warn('Auth error', { error: error.message, requestId: req.requestId });
+    res.status(401).json({ error: 'Not authorized, token failed' });
   }
 };
 
-// Admin middleware
-const admin = async (req, res, next) => {
-  if (req.user && req.user.id) {
-    try {
-      // Check if user has admin role
-      const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-      const hasAdminRole = userWithRoles?.user_roles?.some(ur =>
-        ur.roles?.name === 'admin' && ur.is_active
-      );
-
-      if (hasAdminRole) {
-        next();
-      } else {
-        res.status(403).json({ error: 'Access denied. Admin role required' });
-      }
-    } catch (error) {
-      console.error('Admin middleware error:', error);
-      res.status(500).json({ error: 'Error verifying admin status' });
-    }
-  } else {
-    res.status(401).json({ error: 'Not authorized' });
+const optionalAuth = async (req, res, next) => {
+  if (!req.headers.authorization?.startsWith('Bearer')) {
+    req.user = null;
+    return next();
   }
+  return protect(req, res, (err) => {
+    if (err) req.user = null;
+    next();
+  });
 };
 
-// Seller middleware - check if user has seller role
-const seller = async (req, res, next) => {
-  if (req.user && req.user.id) {
-    try {
-      const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-      const hasSellerRole = userWithRoles?.user_roles?.some(ur =>
-        ur.roles?.name === 'seller' && ur.is_active
-      );
-
-      if (hasSellerRole) {
-        next();
-      } else {
-        res.status(403).json({ error: 'Access denied. Seller role required' });
-      }
-    } catch (error) {
-      console.error('Seller middleware error:', error);
-      res.status(500).json({ error: 'Error verifying seller status' });
-    }
-  } else {
-    res.status(401).json({ error: 'Not authorized' });
-  }
+const checkRole = (roleName) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Not authorized' });
+  if (req.user.roles?.includes(roleName)) return next();
+  res.status(403).json({ error: `Access denied. ${roleName.charAt(0).toUpperCase() + roleName.slice(1)} role required` });
 };
 
-// Driver middleware - check if user has driver role
-const driver = async (req, res, next) => {
-  if (req.user && req.user.id) {
-    try {
-      const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-      const hasDriverRole = userWithRoles?.user_roles?.some(ur =>
-        ur.roles?.name === 'driver' && ur.is_active
-      );
+const admin = checkRole('admin');
+const seller = checkRole('seller');
+const driver = checkRole('driver');
 
-      if (hasDriverRole) {
-        next();
-      } else {
-        res.status(403).json({ error: 'Access denied. Driver role required' });
-      }
-    } catch (error) {
-      console.error('Driver middleware error:', error);
-      res.status(500).json({ error: 'Error verifying driver status' });
-    }
-  } else {
-    res.status(401).json({ error: 'Not authorized' });
-  }
+const hasAnyRole = (...roleNames) => (req, res, next) => {
+  if (!req.user) return res.status(401).json({ error: 'Not authorized' });
+  if (req.user.roles?.some(r => roleNames.includes(r))) return next();
+  res.status(403).json({ error: `Access denied. Required role: ${roleNames.join(' or ')}` });
 };
 
-// Check for any of the specified roles
-const hasAnyRole = (...roleNames) => {
-  return async (req, res, next) => {
-    if (req.user && req.user.id) {
-      try {
-        const userWithRoles = await repositories.users.getUserWithRoles(req.user.id);
-        const hasRole = userWithRoles?.user_roles?.some(ur =>
-          roleNames.includes(ur.roles?.name) && ur.is_active
-        );
-
-        if (hasRole) {
-          next();
-        } else {
-          res.status(403).json({
-            error: `Access denied. Required role: ${roleNames.join(' or ')}`
-          });
-        }
-      } catch (error) {
-        console.error('Role check middleware error:', error);
-        res.status(500).json({ error: 'Error verifying user role' });
-      }
-    } else {
-      res.status(401).json({ error: 'Not authorized' });
-    }
-  };
+const invalidateUserAuthCache = async (userId) => {
+  await cacheDel(`shopyos:users:${userId}:auth`);
 };
 
-module.exports = { protect, admin, seller, driver, hasAnyRole };
+module.exports = { protect, optionalAuth, admin, seller, driver, hasAnyRole, invalidateUserAuthCache };

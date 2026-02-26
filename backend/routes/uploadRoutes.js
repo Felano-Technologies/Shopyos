@@ -10,6 +10,7 @@ const {
   uploadMultipleFilesToCloudinary,
   validateImage 
 } = require('../utils/uploadHelpers');
+const { logger } = require('../config/logger');
 
 /**
  * @route   POST /api/upload/single
@@ -47,7 +48,7 @@ router.post('/single', protect, upload.single('image'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Upload error:', error);
+    logger.error('Upload error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to upload image'
@@ -101,7 +102,7 @@ router.post('/multiple', protect, upload.multiple('images', 10), async (req, res
     });
 
   } catch (error) {
-    console.error('Multiple upload error:', error);
+    logger.error('Multiple upload error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to upload images'
@@ -149,7 +150,7 @@ router.post('/avatar', protect, upload.single('avatar'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Avatar upload error:', error);
+    logger.error('Avatar upload error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to upload avatar'
@@ -189,7 +190,7 @@ router.post('/product-images', protect, upload.multiple('images', 5), async (req
     });
 
   } catch (error) {
-    console.error('Product images upload error:', error);
+    logger.error('Product images upload error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to upload product images'
@@ -230,7 +231,7 @@ router.post('/store-logo', protect, upload.single('logo'), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Store logo upload error:', error);
+    logger.error('Store logo upload error:', error);
     res.status(500).json({
       success: false,
       error: error.message || 'Failed to upload store logo'
