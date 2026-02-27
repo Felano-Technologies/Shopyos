@@ -217,20 +217,33 @@ const getProductReviews = async (req, res, next) => {
     const { productId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
 
-    const reviews = await repositories.reviews.getProductReviews(productId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: reviews, count: totalCount } = await repositories.reviews.getProductReviews(productId, {
+      limit: limitNum,
+      offset: offsetNum,
       rating: rating ? parseInt(rating) : null
     });
 
     // Get rating stats
     const stats = await repositories.reviews.getProductRatingStats(productId);
 
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.status(200).json({
       success: true,
-      reviews,
+      data: reviews,
       stats,
-      count: reviews.length
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);
@@ -247,20 +260,33 @@ const getStoreReviews = async (req, res, next) => {
     const { storeId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
 
-    const reviews = await repositories.reviews.getStoreReviews(storeId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: reviews, count: totalCount } = await repositories.reviews.getStoreReviews(storeId, {
+      limit: limitNum,
+      offset: offsetNum,
       rating: rating ? parseInt(rating) : null
     });
 
     // Get rating stats
     const stats = await repositories.reviews.getStoreRatingStats(storeId);
 
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.status(200).json({
       success: true,
-      reviews,
+      data: reviews,
       stats,
-      count: reviews.length
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);
@@ -275,21 +301,35 @@ const getStoreReviews = async (req, res, next) => {
 const getDriverReviews = async (req, res, next) => {
   try {
     const { driverId } = req.params;
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit = 20, offset = 0, rating } = req.query;
 
-    const reviews = await repositories.reviews.getDriverReviews(driverId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: reviews, count: totalCount } = await repositories.reviews.getDriverReviews(driverId, {
+      limit: limitNum,
+      offset: offsetNum,
+      rating: rating ? parseInt(rating) : null
     });
 
     // Get rating stats
     const stats = await repositories.reviews.getDriverRatingStats(driverId);
 
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.status(200).json({
       success: true,
-      reviews,
+      data: reviews,
       stats,
-      count: reviews.length
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);
@@ -420,13 +460,14 @@ const deleteReview = async (req, res, next) => {
 
 /**
  * @route   GET /api/reviews/my-reviews/:type
- * @desc    Get user's reviews
+ * @desc    Get user's reviews with pagination and sorting
  * @access  Private
  */
 const getMyReviews = async (req, res, next) => {
   try {
     const { type } = req.params;
     const userId = req.user.id;
+    const { limit = 20, offset = 0, sortBy = 'created_at', order = 'desc' } = req.query;
 
     if (!['product', 'store', 'driver'].includes(type)) {
       return res.status(400).json({
@@ -435,12 +476,31 @@ const getMyReviews = async (req, res, next) => {
       });
     }
 
-    const reviews = await repositories.reviews.getUserReviews(userId, type);
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+    const ascending = order === 'asc';
+
+    const { data: reviews, count: totalCount } = await repositories.reviews.getUserReviews(userId, type, {
+      limit: limitNum,
+      offset: offsetNum,
+      sortBy,
+      ascending
+    });
+
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
 
     res.status(200).json({
       success: true,
-      reviews,
-      count: reviews.length
+      data: reviews,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);
@@ -455,13 +515,30 @@ const getMyReviews = async (req, res, next) => {
 const getReviewableProducts = async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const { limit = 20, offset = 0 } = req.query;
 
-    const reviewableProducts = await repositories.reviews.getReviewableProducts(userId);
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: reviewableProducts, count: totalCount } = await repositories.reviews.getReviewableProducts(userId, {
+      limit: limitNum,
+      offset: offsetNum
+    });
+
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
 
     res.status(200).json({
       success: true,
-      products: reviewableProducts,
-      count: reviewableProducts.length
+      data: reviewableProducts,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);

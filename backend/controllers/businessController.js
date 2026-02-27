@@ -134,10 +134,20 @@ const getMyBusinesses = async (req, res, next) => {
   try {
     const userId = req.user.id;
 
-    const stores = await repositories.stores.findByOwner(userId);
+    const { limit, offset } = req.query;
+    const limitNum = parseInt(limit || 20);
+    const offsetNum = parseInt(offset || 0);
+
+    const { data: rawStores, count: totalCount } = await repositories.stores.findAll({
+      where: { owner_id: userId },
+      orderBy: 'created_at',
+      ascending: false,
+      limit: limitNum,
+      offset: offsetNum
+    });
 
     // Format response for backward compatibility
-    const businesses = stores.map(store => ({
+    const businesses = rawStores.map(store => ({
       _id: store.id,
       owner: userId,
       businessName: store.store_name,
@@ -164,10 +174,20 @@ const getMyBusinesses = async (req, res, next) => {
       updatedAt: store.updated_at
     }));
 
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.status(200).json({
       success: true,
-      count: businesses.length,
-      businesses
+      data: businesses,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
 
   } catch (error) {
@@ -751,14 +771,21 @@ const getBusinessAnalytics = async (req, res, next) => {
 // @access  Private (Logged in user)
 const getAllBusinesses = async (req, res, next) => {
   try {
-    const { search, category } = req.query;
+    const { search, category, sortBy = 'rating', limit = 20, offset = 0 } = req.query;
 
-    let where = {};
-    if (category && category !== 'All') {
-      where.category = category;
-    }
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
 
-    const stores = await repositories.stores.db
+    // Sort allowlist
+    const sortConfig = {
+      rating: { column: 'average_rating', ascending: false },
+      name: { column: 'store_name', ascending: true },
+      newest: { column: 'created_at', ascending: false }
+    };
+    const sort = sortConfig[sortBy] || sortConfig.rating;
+
+    // --- Data query ---
+    let dataQuery = repositories.stores.db
       .from('stores')
       .select(`
         id,
@@ -769,19 +796,47 @@ const getAllBusinesses = async (req, res, next) => {
         is_verified,
         products:products(count)
       `)
-      .match(where)
       .eq('is_active', true)
       .is('products.deleted_at', null)
       .eq('products.is_active', true);
 
-    if (stores.error) throw stores.error;
-
-    let results = stores.data || [];
+    // DB-level search (replaces old in-memory filter)
     if (search) {
-      results = results.filter(s => s.store_name.toLowerCase().includes(search.toLowerCase()));
+      dataQuery = dataQuery.ilike('store_name', `%${search}%`);
     }
 
-    const mapped = results.map(s => ({
+    // Category filter
+    if (category && category !== 'All') {
+      dataQuery = dataQuery.eq('category', category);
+    }
+
+    // Apply sorting and pagination
+    dataQuery = dataQuery
+      .order(sort.column, { ascending: sort.ascending })
+      .range(offsetNum, offsetNum + limitNum - 1);
+
+    // --- Count query (same filters, no joins/pagination) ---
+    let countQuery = repositories.stores.db
+      .from('stores')
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true);
+
+    if (search) {
+      countQuery = countQuery.ilike('store_name', `%${search}%`);
+    }
+    if (category && category !== 'All') {
+      countQuery = countQuery.eq('category', category);
+    }
+
+    // Execute both in parallel
+    const [storesResult, countResult] = await Promise.all([dataQuery, countQuery]);
+
+    if (storesResult.error) throw storesResult.error;
+    if (countResult.error) throw countResult.error;
+
+    const totalCount = countResult.count || 0;
+
+    const mapped = (storesResult.data || []).map(s => ({
       id: s.id,
       name: s.store_name,
       category: s.category,
@@ -791,7 +846,22 @@ const getAllBusinesses = async (req, res, next) => {
       catalogues: s.products?.[0]?.count || 0
     }));
 
-    res.status(200).json({ success: true, businesses: mapped });
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
+    res.status(200).json({
+      success: true,
+      data: mapped,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
+        sortConfig: { field: sortBy, direction: sort.ascending ? 'asc' : 'desc' }
+      }
+    });
   } catch (error) {
     next(error);
   }

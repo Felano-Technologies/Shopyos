@@ -134,11 +134,40 @@ class ProductRepository extends BaseRepository {
     // Pagination
     dbQuery = dbQuery.range(offset, offset + limit - 1);
 
-    const { data, error } = await dbQuery;
+    // Get total count for pagination metadata
+    let countQuery = this.db
+      .from(this.tableName)
+      .select('id', { count: 'exact', head: true })
+      .eq('is_active', true)
+      .is('deleted_at', null);
+
+    if (query) {
+      const searchTerms = query.trim().split(/\s+/).filter(Boolean);
+      for (const term of searchTerms) {
+        const pattern = `%${term}%`;
+        countQuery = countQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern}`);
+      }
+    }
+    if (category) countQuery = countQuery.eq('category', category);
+    if (minPrice !== undefined) countQuery = countQuery.gte('price', minPrice);
+    if (maxPrice !== undefined) countQuery = countQuery.lte('price', maxPrice);
+
+    // Run queries concurrently
+    const [
+      { data, error },
+      { count, error: countError }
+    ] = await Promise.all([
+      dbQuery,
+      countQuery
+    ]);
 
     if (error) throw error;
+    if (countError) throw countError;
 
-    return data || [];
+    return {
+      data: data || [],
+      count: count || 0
+    };
   }
 
   /**

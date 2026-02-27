@@ -92,7 +92,7 @@ class ReviewRepository extends BaseRepository {
           id,
           user_profiles (full_name, avatar_url)
         )
-      `)
+      `, { count: 'exact' })
       .eq('product_id', productId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
@@ -101,12 +101,12 @@ class ReviewRepository extends BaseRepository {
       query = query.eq('rating', rating);
     }
 
-    query = query.limit(limit).range(offset, offset + limit - 1);
+    query = query.range(offset, offset + limit - 1);
 
-    const { data, error } = await query;
+    const { data, count, error } = await query;
 
     if (error) throw error;
-    return data || [];
+    return { data: data || [], count: count || 0 };
   }
 
   /**
@@ -126,7 +126,7 @@ class ReviewRepository extends BaseRepository {
           id,
           user_profiles (full_name, avatar_url)
         )
-      `)
+      `, { count: 'exact' })
       .eq('store_id', storeId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false });
@@ -135,24 +135,24 @@ class ReviewRepository extends BaseRepository {
       query = query.eq('rating', rating);
     }
 
-    query = query.limit(limit).range(offset, offset + limit - 1);
+    query = query.range(offset, offset + limit - 1);
 
-    const { data, error } = await query;
+    const { data, count, error } = await query;
 
     if (error) throw error;
-    return data || [];
+    return { data: data || [], count: count || 0 };
   }
 
   /**
    * Get driver reviews
    * @param {string} driverId
    * @param {Object} options
-   * @returns {Promise<Array>}
+   * @returns {Promise<{ data: Array, count: number }>}
    */
   async getDriverReviews(driverId, options = {}) {
-    const { limit = 20, offset = 0 } = options;
+    const { limit = 20, offset = 0, rating } = options;
 
-    const { data, error } = await this.db
+    let query = this.db
       .from('driver_reviews')
       .select(`
         *,
@@ -160,15 +160,21 @@ class ReviewRepository extends BaseRepository {
           id,
           user_profiles (full_name, avatar_url)
         )
-      `)
+      `, { count: 'exact' })
       .eq('driver_id', driverId)
       .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(limit)
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    if (rating) {
+      query = query.eq('rating', rating);
+    }
+
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, count, error } = await query;
 
     if (error) throw error;
-    return data || [];
+    return { data: data || [], count: count || 0 };
   }
 
   /**
@@ -381,38 +387,49 @@ class ReviewRepository extends BaseRepository {
   }
 
   /**
-   * Get user's reviews
+   * Get user's reviews with pagination
    * @param {string} userId
    * @param {string} type - 'product', 'store', or 'driver'
-   * @returns {Promise<Array>}
+   * @param {Object} options - { limit, offset, sortBy, ascending }
+   * @returns {Promise<{ data: Array, count: number }>}
    */
-  async getUserReviews(userId, type = 'product') {
+  async getUserReviews(userId, type = 'product', options = {}) {
+    const { limit = 20, offset = 0, sortBy = 'created_at', ascending = false } = options;
+
     const tables = {
       product: 'product_reviews',
       store: 'store_reviews',
       driver: 'driver_reviews'
     };
 
+    // Allowlist for safe sort fields
+    const allowedSortFields = ['created_at', 'rating'];
+    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'created_at';
+
     const table = tables[type];
     if (!table) throw new Error('Invalid review type');
 
-    const { data, error } = await this.db
+    const { data, count, error } = await this.db
       .from(table)
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('buyer_id', userId)
       .is('deleted_at', null)
-      .order('created_at', { ascending: false });
+      .order(safeSortBy, { ascending })
+      .range(offset, offset + limit - 1);
 
     if (error) throw error;
-    return data || [];
+    return { data: data || [], count: count || 0 };
   }
 
   /**
    * Get reviewable products for user (from completed orders)
    * @param {string} userId
-   * @returns {Promise<Array>}
+   * @param {Object} options - { limit, offset }
+   * @returns {Promise<{ data: Array, count: number }>}
    */
-  async getReviewableProducts(userId) {
+  async getReviewableProducts(userId, options = {}) {
+    const { limit = 20, offset = 0 } = options;
+
     // 1. Get completed orders
     const { data: orders, error: ordersError } = await this.db
       .from('orders')
@@ -446,12 +463,14 @@ class ReviewRepository extends BaseRepository {
     // Create a set of reviewed product IDs for O(1) lookups
     const reviewedProductIds = new Set((userReviews || []).map(r => r.product_id));
 
-    // 3. Filter out already reviewed products
-    const reviewableProducts = [];
+    // 3. Filter out already reviewed products (deduplicate by productId)
+    const seen = new Set();
+    const allReviewable = [];
     for (const order of orders || []) {
       for (const item of order.order_items) {
-        if (!reviewedProductIds.has(item.product_id)) {
-          reviewableProducts.push({
+        if (!reviewedProductIds.has(item.product_id) && !seen.has(item.product_id)) {
+          seen.add(item.product_id);
+          allReviewable.push({
             orderId: order.id,
             productId: item.product_id,
             product: item.products
@@ -460,7 +479,11 @@ class ReviewRepository extends BaseRepository {
       }
     }
 
-    return reviewableProducts;
+    // 4. Apply pagination in-memory (cross-table join makes DB pagination impractical)
+    const totalCount = allReviewable.length;
+    const paginatedData = allReviewable.slice(offset, offset + limit);
+
+    return { data: paginatedData, count: totalCount };
   }
 }
 

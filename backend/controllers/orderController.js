@@ -174,16 +174,29 @@ const getMyOrders = async (req, res, next) => {
     const userId = req.user.id;
     const { status, limit = 20, offset = 0 } = req.query;
 
-    const orders = await repositories.orders.getBuyerOrders(userId, {
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: orders, count: totalCount } = await repositories.orders.getBuyerOrders(userId, {
       status,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: limitNum,
+      offset: offsetNum
     });
+
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
 
     res.status(200).json({
       success: true,
-      orders,
-      count: orders.length
+      data: orders,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);
@@ -217,16 +230,29 @@ const getStoreOrders = async (req, res, next) => {
       });
     }
 
-    const orders = await repositories.orders.getStoreOrders(storeId, {
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: orders, count: totalCount } = await repositories.orders.getStoreOrders(storeId, {
       status,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: limitNum,
+      offset: offsetNum
     });
+
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
 
     res.status(200).json({
       success: true,
-      orders,
-      count: orders.length
+      data: orders,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1
+      }
     });
   } catch (error) {
     next(error);

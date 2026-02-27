@@ -262,10 +262,15 @@ export const businessRegister = async (businessData: {
 };
 
 // Get user's businesses
-export const getMyBusinesses = async () => {
+export const getMyBusinesses = async (params: { limit?: number, offset?: number } = {}) => {
   try {
-    const response = await api.get('/business/my-businesses');
-    return response.data;
+    const response = await api.get('/business/my-businesses', { params });
+    const res = response.data;
+    // Backend returns { success, data, pagination } — map data → businesses for backward compat
+    return {
+      ...res,
+      businesses: res.data || res.businesses || [],
+    };
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
@@ -378,17 +383,27 @@ export const createOrder = async (orderData: {
 export const getMyOrders = async (params: { status?: string, limit?: number, offset?: number } = {}) => {
   try {
     const response = await api.get('/orders/my-orders', { params });
-    return response.data;
+    const res = response.data;
+    // Backend returns { success, data, pagination } — map data → orders for backward compat
+    return {
+      ...res,
+      orders: res.data || res.orders || [],
+    };
   } catch (error: any) {
     console.error("Error fetching my orders:", error);
     throw error;
   }
 };
 
-export const getAllStores = async (params: { search?: string, category?: string } = {}) => {
+export const getAllStores = async (params: { search?: string, category?: string, sortBy?: string, limit?: number, offset?: number } = {}) => {
   try {
     const response = await api.get('/business/all', { params });
-    return response.data;
+    const res = response.data;
+    // Backend returns { success, data, pagination } — map data → businesses for backward compat
+    return {
+      ...res,
+      businesses: res.data || res.businesses || [],
+    };
   } catch (error: any) {
     console.error("Error fetching all stores:", error);
     throw error;
@@ -448,10 +463,15 @@ export const checkIsFavorite = async (productId: string) => {
 };
 
 // Get store orders
-export const getStoreOrders = async (storeId: string) => {
+export const getStoreOrders = async (storeId: string, params: { status?: string, limit?: number, offset?: number } = {}) => {
   try {
-    const response = await api.get(`/orders/store/${storeId}`);
-    return response.data;
+    const response = await api.get(`/orders/store/${storeId}`, { params });
+    const res = response.data;
+    // Backend returns { success, data, pagination } — map data → orders for backward compat
+    return {
+      ...res,
+      orders: res.data || res.orders || [],
+    };
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);
@@ -503,7 +523,12 @@ export const cancelOrder = async (orderId: string, reason?: string) => {
 export const getStoreProducts = async (storeId: string, params: any = {}) => {
   try {
     const response = await api.get(`/products/store/${storeId}`, { params });
-    return response.data;
+    const res = response.data;
+    // Backend returns { success, data, pagination } — map data → products for backward compat
+    return {
+      ...res,
+      products: res.data || res.products || [],
+    };
   } catch (error: any) {
     console.error("Error fetching store products", error);
     throw error;
@@ -514,7 +539,12 @@ export const getStoreProducts = async (storeId: string, params: any = {}) => {
 export const searchProducts = async (params: { query?: string, category?: string, limit?: number, offset?: number, sortBy?: string, minPrice?: number, maxPrice?: number }) => {
   try {
     const response = await api.get('/products/search', { params });
-    return response.data;
+    const res = response.data;
+    // Backend returns { success, data, pagination } — map data → products for backward compat
+    return {
+      ...res,
+      products: res.data || res.products || [],
+    };
   } catch (error: any) {
     console.error("Error searching products:", error);
     throw error;
@@ -761,10 +791,15 @@ export const deleteMessage = async (messageId: string) => {
 
 // --- Reviews API ---
 
-export const getStoreReviews = async (storeId: string) => {
+export const getStoreReviews = async (storeId: string, params: { limit?: number, offset?: number, rating?: number } = {}) => {
   try {
-    const response = await api.get(`/reviews/store/${storeId}`);
-    return response.data;
+    const response = await api.get(`/reviews/store/${storeId}`, { params });
+    const res = response.data;
+    // Backend returns { success, data, stats, pagination } — map data → reviews for backward compat
+    return {
+      ...res,
+      reviews: res.data || res.reviews || [],
+    };
   } catch (error: any) {
     console.error("Error fetching store reviews:", error);
     throw error;
@@ -1079,10 +1114,15 @@ export const createDriverReview = async (reviewData: { driverId: string; deliver
   }
 };
 
-export const getProductReviews = async (productId: string) => {
+export const getProductReviews = async (productId: string, params: { limit?: number, offset?: number, rating?: number } = {}) => {
   try {
-    const response = await api.get(`/reviews/product/${productId}`);
-    return response.data;
+    const response = await api.get(`/reviews/product/${productId}`, { params });
+    const res = response.data;
+    // Backend returns { success, data, stats, pagination } — map data → reviews for backward compat
+    return {
+      ...res,
+      reviews: res.data || res.reviews || [],
+    };
   } catch (error: any) {
     console.error("Error fetching product reviews:", error);
     throw error;

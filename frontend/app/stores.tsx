@@ -48,10 +48,10 @@ export default function StoresScreen() {
   const fetchStores = async () => {
     try {
       setLoading(true);
-      // In a real app, pass filterSort & filterVerified to API
       const res = await getAllStores({
         search: searchQuery || undefined,
-        category: activeCategory !== 'All' ? activeCategory : undefined
+        category: activeCategory !== 'All' ? activeCategory : undefined,
+        sortBy: filterSort
       });
 
       if (res.success) {
@@ -65,15 +65,9 @@ export default function StoresScreen() {
           verified: b.verified || false
         }));
 
-        // Apply Client-Side Filters (Simulated)
+        // Apply Client-Side Filters (verified filter not yet handled server-side)
         if (filterVerified) {
           mapped = mapped.filter((s: any) => s.verified);
-        }
-
-        if (filterSort === 'name') {
-          mapped.sort((a: any, b: any) => a.name.localeCompare(b.name));
-        } else if (filterSort === 'rating') {
-          mapped.sort((a: any, b: any) => b.rating - a.rating);
         }
 
         setStores(mapped);

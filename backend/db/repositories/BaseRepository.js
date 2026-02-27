@@ -74,33 +74,52 @@ class BaseRepository {
       offset
     } = options;
 
-    let query = this.db.from(this.tableName).select(select);
+    // Build count query
+    let countQuery = this.db.from(this.tableName).select('*', { count: 'exact', head: true });
+    Object.entries(where).forEach(([key, value]) => {
+      if (value === null) {
+        countQuery = countQuery.is(key, null);
+      } else if (Array.isArray(value)) {
+        countQuery = countQuery.in(key, value);
+      } else {
+        countQuery = countQuery.eq(key, value);
+      }
+    });
+
+    let dataQuery = this.db.from(this.tableName).select(select);
 
     // Apply where conditions
     Object.entries(where).forEach(([key, value]) => {
       if (value === null) {
-        query = query.is(key, null);
+        dataQuery = dataQuery.is(key, null);
       } else if (Array.isArray(value)) {
-        query = query.in(key, value);
+        dataQuery = dataQuery.in(key, value);
       } else {
-        query = query.eq(key, value);
+        dataQuery = dataQuery.eq(key, value);
       }
     });
 
     // Apply ordering
     if (orderBy) {
-      query = query.order(orderBy, { ascending });
+      dataQuery = dataQuery.order(orderBy, { ascending });
     }
 
     // Apply pagination
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    if (limit) dataQuery = dataQuery.limit(limit);
+    if (offset !== undefined) dataQuery = dataQuery.range(offset, offset + (limit || 10) - 1);
 
-    const { data, error } = await query;
+    const [
+      { data, error },
+      { count, error: countError }
+    ] = await Promise.all([dataQuery, countQuery]);
 
     if (error) throw error;
+    if (countError) throw countError;
 
-    return data || [];
+    return {
+      data: data || [],
+      count: count || 0
+    };
   }
 
   /**

@@ -110,15 +110,18 @@ const getStoreProducts = async (req, res, next) => {
     const { storeId } = req.params;
     const { limit = 20, offset = 0, includeInactive } = req.query;
 
-    const products = await repositories.products.findByStore(storeId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: rawProducts, count: totalCount } = await repositories.products.findByStore(storeId, {
+      limit: limitNum,
+      offset: offsetNum,
       includeInactive: includeInactive === 'true',
       select: '*, inventory(quantity), product_images(image_url)'
     });
 
     // Format for backward compatibility
-    const formattedProducts = products.map(p => ({
+    const formattedProducts = rawProducts.map(p => ({
       _id: p.id,
       businessId: p.store_id,
       name: p.title,
@@ -133,10 +136,21 @@ const getStoreProducts = async (req, res, next) => {
       isActive: p.is_active
     }));
 
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.status(200).json({
       success: true,
-      count: formattedProducts.length,
-      products: formattedProducts
+      data: formattedProducts,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
+        sortConfig: null // inherited default order
+      }
     });
 
   } catch (error) {
@@ -589,19 +603,22 @@ const searchProducts = async (req, res, next) => {
     }
     // If relevance and query exists, repo handles it (usually) or defaults to rank
 
-    const products = await repositories.products.search({
+    const limitNum = parseInt(limit);
+    const offsetNum = parseInt(offset);
+
+    const { data: rawProducts, count: totalCount } = await repositories.products.search({
       query,
       category,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
       sortBy: sortColumn,
       ascending: sortAscending,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: limitNum,
+      offset: offsetNum
     });
 
     // Format response
-    const formattedProducts = products.map(p => ({
+    const formattedProducts = rawProducts.map(p => ({
       _id: p.id,
       businessId: p.store_id,
       name: p.title,
@@ -617,10 +634,21 @@ const searchProducts = async (req, res, next) => {
       } : null
     }));
 
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const totalPages = Math.ceil(totalCount / limitNum);
+
     res.status(200).json({
       success: true,
-      count: formattedProducts.length,
-      products: formattedProducts
+      data: formattedProducts,
+      pagination: {
+        totalItems: totalCount,
+        totalPages: totalPages,
+        currentPage: currentPage,
+        itemsPerPage: limitNum,
+        hasNext: currentPage < totalPages,
+        hasPrev: currentPage > 1,
+        sortConfig: { field: sortBy, direction: sortAscending ? 'asc' : 'desc' }
+      }
     });
 
   } catch (error) {
