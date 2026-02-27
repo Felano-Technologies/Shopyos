@@ -175,7 +175,14 @@ export default function CartScreen() {
             [{ text: "OK", onPress: () => router.push(`/order/${orderId}` as any) }]
           );
         } else {
-          // Redirect to simulated gateway
+          // Redirect to payment gateway
+          console.log('🛒 Order created, redirecting to payment:', {
+            orderId,
+            orderNumber: res.orders[0].order_number,
+            method: paymentMethodType,
+            methodId: selectedMethodId
+          });
+          
           router.push({
             pathname: `/payment/${orderId}`,
             params: {

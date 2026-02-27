@@ -1298,10 +1298,17 @@ interface InitializePaymentParams {
 
 export const initializePayment = async (params: InitializePaymentParams) => {
   try {
+    console.log('🚀 API: Initializing payment with params:', params);
     const response = await api.post('/payments/initialize', params);
+    console.log('✅ API: Payment initialized successfully:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error initializing payment:", error);
+    console.error("❌ API: Error initializing payment:", error);
+    console.error("Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     if (error.response?.data) return error.response.data;
     return { success: false, error: error.message || 'Failed to initialize payment' };
   }
@@ -1309,10 +1316,17 @@ export const initializePayment = async (params: InitializePaymentParams) => {
 
 export const verifyPayment = async (reference: string) => {
   try {
+    console.log('🔍 API: Verifying payment for reference:', reference);
     const response = await api.get(`/payments/verify/${reference}`);
+    console.log('✅ API: Verification response:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error("Error verifying payment:", error);
+    console.error("❌ API: Error verifying payment:", error);
+    console.error("Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
     if (error.response?.data) return error.response.data;
     return { success: false, error: error.message || 'Failed to verify payment' };
   }

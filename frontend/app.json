@@ -2,6 +2,7 @@
   "expo": {
     "name": "Shopyos",
     "slug": "Shopyos",
+    "owner": "eugeneanokye99",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/adaptive-icon.png",

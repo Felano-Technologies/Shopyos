@@ -23,49 +23,6 @@ import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
 
 const { width } = Dimensions.get('window');
 
-// --- MOCK DATA FOR UI TESTING ---
-const MOCK_PRODUCTS = [
-  {
-    _id: '1',
-    name: 'Wireless Noise Cancelling Headphones Pro',
-    price: '450.00',
-    images: ['https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&q=80'],
-    averageRating: '4.8',
-    store: { name: 'TechHaven' }
-  },
-  {
-    _id: '2',
-    name: 'Minimalist Ceramic Coffee Mug',
-    price: '45.50',
-    images: ['https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=500&q=80'],
-    averageRating: '4.5',
-    store: { name: 'HomeEssentials' }
-  },
-  {
-    _id: '3',
-    name: 'Smart Fitness Tracker Watch',
-    price: '299.00',
-    images: ['https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&q=80'],
-    averageRating: '4.9',
-    store: { name: 'FitGear' }
-  },
-  {
-    _id: '4',
-    name: 'Premium Leather Crossbody Bag',
-    price: '180.00',
-    images: ['https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=500&q=80'],
-    averageRating: '4.7',
-    store: { name: 'LuxeLeather' }
-  },
-];
-
-const MOCK_CATEGORIES = [
-  { id: '1', name: 'Electronics' },
-  { id: '2', name: 'Fashion' },
-  { id: '3', name: 'Home & Living' },
-  { id: '4', name: 'Sports' },
-];
-
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -77,9 +34,6 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(true); 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // --- DEBUG TOGGLE STATE ---
-  const [forceEmpty, setForceEmpty] = useState(false);
-
   // Fetch categories once
   useEffect(() => {
     const fetchCats = async () => {
@@ -87,23 +41,43 @@ export default function SearchScreen() {
         const data = await getAllCategories();
         setCategories(data.data || []);
       } catch (error) {
-        console.error(error);
+        console.error('Error fetching categories:', error);
+        setCategories([]);
       }
     };
     fetchCats();
   }, []);
 
+  // Load all products on initial mount
+  useEffect(() => {
+    const loadAllProducts = async () => {
+      try {
+        setLoading(true);
+        const res = await searchProducts({ limit: 50 });
+        if (res.success) {
+          setProducts(res.products);
+        }
+      } catch (error) {
+        console.error('Error loading products:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Only load all products on initial mount (no search query or filters)
+    if (!searchQuery && !selectedCategory && !params.sortBy && !params.minPrice && !params.category) {
+      loadAllProducts();
+    }
+  }, []);
+
   // Search effect with debounce
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (!searchQuery && !selectedCategory && !params.sortBy && !params.minPrice) {
-        setProducts([]);
-        
-        // If there's no search query, we still want to simulate loading the initial "Explore" page
-        setTimeout(() => setLoading(false), 800); 
-        return;
-      }
+    // Skip if initial load hasn't happened yet and there's no search/filter
+    if (!searchQuery && !selectedCategory && !params.sortBy && !params.minPrice && !params.category) {
+      return;
+    }
 
+    const delayDebounceFn = setTimeout(() => {
       const performSearch = async () => {
         try {
           setLoading(true);
@@ -113,13 +87,13 @@ export default function SearchScreen() {
             sortBy: params.sortBy as string || undefined,
             minPrice: params.minPrice ? parseFloat(params.minPrice as string) : undefined,
             maxPrice: params.maxPrice ? parseFloat(params.maxPrice as string) : undefined,
-            limit: 20
+            limit: 50
           });
           if (res.success) {
             setProducts(res.products);
           }
         } catch (error) {
-          console.error(error);
+          console.error('Error searching products:', error);
         } finally {
           setLoading(false);
         }
@@ -184,10 +158,6 @@ export default function SearchScreen() {
       </TouchableOpacity>
     );
   };
-
-  // Decide what data to show for testing purposes
-  const displayProducts = forceEmpty ? [] : (products.length > 0 ? products : MOCK_PRODUCTS);
-  const displayCategories = categories.length > 0 ? categories : MOCK_CATEGORIES;
 
   // === RENDER SKELETON IF LOADING ===
   if (loading) {
@@ -256,7 +226,7 @@ export default function SearchScreen() {
             </View>
             <FlatList
               horizontal
-              data={displayCategories}
+              data={categories}
               keyExtractor={(item) => item.id || item.name}
               renderItem={renderCategoryItem}
               showsHorizontalScrollIndicator={false}
@@ -266,7 +236,7 @@ export default function SearchScreen() {
 
           {/* Product Grid */}
           <FlatList
-            data={displayProducts}
+            data={products}
             keyExtractor={(item) => item._id}
             numColumns={2}
             contentContainerStyle={styles.gridContent}
@@ -295,17 +265,6 @@ export default function SearchScreen() {
           />
 
         </SafeAreaView>
-
-        {/* --- TEMPORARY UI TOGGLE BUTTON --- */}
-        <TouchableOpacity 
-          style={styles.debugToggleBtn} 
-          onPress={() => setForceEmpty(!forceEmpty)}
-        >
-          <Feather name={forceEmpty ? "eye" : "eye-off"} size={16} color="#FFF" style={{ marginRight: 6 }} />
-          <Text style={styles.debugToggleText}>
-            {forceEmpty ? 'Show Loaded State' : 'Show Empty State'}
-          </Text>
-        </TouchableOpacity>
 
         <BottomNav />
       </View>
@@ -431,29 +390,5 @@ const styles = StyleSheet.create({
   emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 40, paddingHorizontal: 30 },
   emptyIconBg: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#0C1559', shadowOpacity: 0.05, shadowRadius: 15, elevation: 5 },
   emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
-  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 },
-
-  // Temporary Debug Button
-  debugToggleBtn: {
-      position: 'absolute',
-      bottom: 90,
-      alignSelf: 'center',
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#111827',
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 25,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 10,
-      elevation: 10,
-      zIndex: 1000,
-  },
-  debugToggleText: {
-      color: '#FFF',
-      fontFamily: 'Montserrat-Bold',
-      fontSize: 13,
-  }
+  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', lineHeight: 20 }
 });

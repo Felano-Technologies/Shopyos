@@ -37,6 +37,8 @@ export default function PaymentProcessingScreen() {
             setErrorMessage('');
             startAnimation();
 
+            console.log('🔄 Initializing payment for order:', id, 'method:', method);
+
             // Determine channel from method param
             const channel = method === 'momo' ? 'mobile_money' : method === 'card' ? 'card' : undefined;
 
@@ -45,25 +47,42 @@ export default function PaymentProcessingScreen() {
                 channel: channel as any,
             });
 
+            console.log('📦 Payment initialization response:', initRes);
+
             if (initRes.success && initRes.data) {
-                setPaymentRef(initRes.data.reference);
+                const { authorization_url, reference } = initRes.data;
+                
+                if (!authorization_url) {
+                    console.error('❌ No authorization URL in response:', initRes.data);
+                    setErrorMessage('Payment provider did not return a valid payment URL');
+                    setStatus('failed');
+                    return;
+                }
+
+                setPaymentRef(reference);
                 setStatus('waiting');
+
+                console.log('🌐 Opening Paystack URL:', authorization_url);
 
                 // Open Paystack checkout in browser
                 // For MoMo: Paystack will show the MoMo prompt (USSD/STK push)
                 // For Card: Paystack will show the card form
-                const result = await WebBrowser.openBrowserAsync(initRes.data.authorization_url);
+                const result = await WebBrowser.openBrowserAsync(authorization_url);
+
+                console.log('📱 WebBrowser result:', result);
 
                 // When browser closes, verify
                 if (result.type === 'cancel' || result.type === 'dismiss') {
-                    handleVerify(initRes.data.reference);
+                    console.log('ℹ️ User closed browser, verifying payment...');
+                    handleVerify(reference);
                 }
             } else {
+                console.error('❌ Payment initialization failed:', initRes.error);
                 setErrorMessage(initRes.error || 'Failed to initialize payment');
                 setStatus('failed');
             }
         } catch (e: any) {
-            console.error("Payment Init Error:", e);
+            console.error("❌ Payment Init Error:", e);
             setErrorMessage(e.message || 'An unexpected error occurred');
             setStatus('failed');
         }
@@ -75,20 +94,29 @@ export default function PaymentProcessingScreen() {
             verifyAttempts.current = 0;
             const maxAttempts = 6;
 
+            console.log('🔍 Starting payment verification for reference:', ref);
+
             const check = async (): Promise<void> => {
+                console.log(`🔄 Verification attempt ${verifyAttempts.current + 1}/${maxAttempts}`);
                 const res = await verifyPayment(ref);
 
+                console.log('📊 Verification response:', res);
+
                 if (res.success) {
+                    console.log('✅ Payment verified successfully!');
                     setStatus('success');
                     return;
                 }
 
                 // Check if it's a pending MoMo transaction (user hasn't confirmed yet)
                 const txnStatus = res.data?.status;
+                console.log('💳 Transaction status:', txnStatus);
+                
                 if (txnStatus === 'pending' || txnStatus === 'send_otp' || txnStatus === 'ongoing') {
                     // Still processing, retry
                     if (verifyAttempts.current < maxAttempts) {
                         verifyAttempts.current++;
+                        console.log('⏳ MoMo transaction pending, retrying in 4s...');
                         await new Promise(r => setTimeout(r, 4000)); // MoMo takes longer
                         return check();
                     }
@@ -96,18 +124,20 @@ export default function PaymentProcessingScreen() {
 
                 if (verifyAttempts.current < maxAttempts) {
                     verifyAttempts.current++;
+                    console.log('⏳ Retrying verification in 3s...');
                     await new Promise(r => setTimeout(r, 3000));
                     return check();
                 }
 
                 // Max attempts reached
+                console.error('❌ Max verification attempts reached');
                 setErrorMessage(res.error || 'Could not confirm payment. If you were charged, it will be reconciled automatically.');
                 setStatus('failed');
             };
 
             await check();
         } catch (e: any) {
-            console.error("Verification Error:", e);
+            console.error("❌ Verification Error:", e);
             setErrorMessage(e.message || 'Verification failed');
             setStatus('failed');
         }
