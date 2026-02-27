@@ -7,18 +7,10 @@ import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { searchProducts } from '@/services/api';
+import { searchProducts, getAllCategories } from '@/services/api';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 
 const { width } = Dimensions.get('window');
-
-const CATEGORIES = [
-  { id: 'c1', label: 'Sneakers', image: require('../assets/images/categories/sneakers.jpg') },
-  { id: 'c2', label: 'Headsets', image: require('../assets/images/categories/headset.jpg') },
-  { id: 'c3', label: 'Jackets', image: require('../assets/images/categories/jacket.jpg') },
-  { id: 'c4', label: 'Art', image: require('../assets/images/categories/art.jpg') },
-  { id: 'c5', label: 'more', image: null },
-];
 
 export default function Home() {
   const router = useRouter();
@@ -27,6 +19,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>('All');
+  const [categories, setCategories] = useState<any[]>([]);
 
   // --- Search State ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,10 +30,24 @@ export default function Home() {
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const allCategoryNames = ['All', ...CATEGORIES.filter(c => c.label !== 'more').map((c) => c.label)];
+  const allCategoryNames = ['All', ...categories.map(c => c.name)];
 
   // --- Search Logic ---
   const [searchResults, setSearchResults] = useState<any[]>([]);
+
+  // Fetch categories from database
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const data = await getAllCategories();
+        setCategories(data.data || []);
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+        setCategories([]);
+      }
+    };
+    fetchCategories();
+  }, []);
 
   useEffect(() => {
     if (searchQuery.length > 2) {
