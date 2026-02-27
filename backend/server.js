@@ -14,6 +14,8 @@ validateEnv();
 
 const { logger, httpLogMiddleware } = require('./config/logger');
 const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
+const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
+const { supabaseAdmin } = require('./config/supabase');
 
 const redis = getRedis();
 
@@ -51,6 +53,7 @@ app.use((req, res, next) => {
 });
 
 app.use(httpLogMiddleware);
+app.use(performanceMiddleware);
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -108,21 +111,45 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.status(200).send('Shopyos API is live.'));
 
 app.get('/health', async (req, res) => {
-  const mem = process.memoryUsage();
-  res.status(200).json({
+  // Supabase connectivity check
+  let supabaseStatus = { connected: false, latency: null };
+  try {
+    const start = Date.now();
+    await supabaseAdmin.from('stores').select('id', { count: 'exact', head: true }).limit(1);
+    supabaseStatus = { connected: true, latency: `${Date.now() - start}ms` };
+  } catch (err) {
+    supabaseStatus = { connected: false, reason: err.message };
+  }
+
+  const appMetrics = getMetrics();
+
+  const overallStatus = supabaseStatus.connected ? 'healthy' : 'degraded';
+
+  res.status(overallStatus === 'healthy' ? 200 : 503).json({
     success: true,
-    status: 'healthy',
+    status: overallStatus,
     timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    uptime: appMetrics.uptime,
+    startedAt: appMetrics.startedAt,
     environment: process.env.NODE_ENV || 'development',
     checks: {
       redis: await redisHealthCheck(),
-      memory: {
-        heapUsed: `${Math.round(mem.heapUsed / 1024 / 1024)}MB`,
-        heapTotal: `${Math.round(mem.heapTotal / 1024 / 1024)}MB`,
-        rss: `${Math.round(mem.rss / 1024 / 1024)}MB`
-      }
-    }
+      supabase: supabaseStatus,
+      memory: appMetrics.memory
+    },
+    performance: appMetrics.performance,
+    cache: appMetrics.cache,
+    requests: appMetrics.requests
+  });
+});
+
+// Detailed metrics endpoint (for internal monitoring)
+app.get('/metrics', async (req, res) => {
+  const appMetrics = getMetrics();
+  res.status(200).json({
+    success: true,
+    ...appMetrics,
+    redis: await redisHealthCheck()
   });
 });
 

@@ -395,7 +395,7 @@ export const getMyOrders = async (params: { status?: string, limit?: number, off
   }
 };
 
-export const getAllStores = async (params: { search?: string, category?: string, sortBy?: string, limit?: number, offset?: number } = {}) => {
+export const getAllStores = async (params: { search?: string, category?: string, sortBy?: string, limit?: number, offset?: number, verified?: string } = {}) => {
   try {
     const response = await api.get('/business/all', { params });
     const res = response.data;

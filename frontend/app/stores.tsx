@@ -51,11 +51,12 @@ export default function StoresScreen() {
       const res = await getAllStores({
         search: searchQuery || undefined,
         category: activeCategory !== 'All' ? activeCategory : undefined,
-        sortBy: filterSort
+        sortBy: filterSort,
+        verified: filterVerified ? 'true' : undefined
       });
 
       if (res.success) {
-        let mapped = res.businesses.map((b: any) => ({
+        const mapped = res.businesses.map((b: any) => ({
           id: b.id,
           name: b.name,
           category: b.category,
@@ -64,11 +65,6 @@ export default function StoresScreen() {
           catalogues: b.catalogues || 0,
           verified: b.verified || false
         }));
-
-        // Apply Client-Side Filters (verified filter not yet handled server-side)
-        if (filterVerified) {
-          mapped = mapped.filter((s: any) => s.verified);
-        }
 
         setStores(mapped);
         setPopularStores(mapped.slice(0, 5));

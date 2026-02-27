@@ -771,7 +771,7 @@ const getBusinessAnalytics = async (req, res, next) => {
 // @access  Private (Logged in user)
 const getAllBusinesses = async (req, res, next) => {
   try {
-    const { search, category, sortBy = 'rating', limit = 20, offset = 0 } = req.query;
+    const { search, category, sortBy = 'rating', limit = 20, offset = 0, verified } = req.query;
 
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
@@ -810,6 +810,11 @@ const getAllBusinesses = async (req, res, next) => {
       dataQuery = dataQuery.eq('category', category);
     }
 
+    // Verified filter
+    if (verified === 'true') {
+      dataQuery = dataQuery.eq('is_verified', true);
+    }
+
     // Apply sorting and pagination
     dataQuery = dataQuery
       .order(sort.column, { ascending: sort.ascending })
@@ -826,6 +831,9 @@ const getAllBusinesses = async (req, res, next) => {
     }
     if (category && category !== 'All') {
       countQuery = countQuery.eq('category', category);
+    }
+    if (verified === 'true') {
+      countQuery = countQuery.eq('is_verified', true);
     }
 
     // Execute both in parallel
