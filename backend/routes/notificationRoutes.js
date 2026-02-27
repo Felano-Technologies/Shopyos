@@ -12,7 +12,8 @@ const {
   deleteAllNotifications,
   getPreferences,
   updatePreferences,
-  getNotificationsByType
+  getNotificationsByType,
+  registerPushToken
 } = require('../controllers/notificationController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -63,5 +64,10 @@ router.delete('/:notificationId', deleteNotification);
 // @desc    Delete all notifications
 // @access  Private
 router.delete('/', deleteAllNotifications);
+
+// @route   POST /api/notifications/push-token
+// @desc    Register a device push token
+// @access  Private
+router.post('/push-token', registerPushToken);
 
 module.exports = router;

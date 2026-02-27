@@ -231,6 +231,31 @@ const getNotificationsByType = async (req, res, next) => {
   }
 };
 
+/**
+ * Register push token for user device
+ * @route   POST /api/notifications/push-token
+ * @access  Private
+ */
+const registerPushToken = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { token, deviceName } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Push token is required' });
+    }
+
+    await repositories.notifications.savePushToken(userId, token, deviceName);
+
+    res.status(200).json({
+      success: true,
+      message: 'Push token registered successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getNotifications,
   getUnreadCount,
@@ -240,5 +265,6 @@ module.exports = {
   deleteAllNotifications,
   getPreferences,
   updatePreferences,
-  getNotificationsByType
+  getNotificationsByType,
+  registerPushToken
 };

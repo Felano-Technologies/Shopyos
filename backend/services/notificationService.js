@@ -34,7 +34,7 @@ class NotificationService {
 
     try {
       // Create in-app notification
-      await repositories.notifications.createNotification({
+      const dbNotification = await repositories.notifications.createNotification({
         userId,
         type,
         title,
@@ -71,12 +71,24 @@ class NotificationService {
 
       // Send push notification if enabled
       if (preferences.push_enabled && params.push) {
-        await this.sendPushNotification({
+        const pushResult = await this.sendPushNotification({
           userId,
           title,
           body: message,
-          data: params.push.data || data
+          data: {
+            ...(params.push.data || data),
+            notificationId: dbNotification.id,
+            relatedType,
+            relatedId
+          }
         });
+
+        if (pushResult) {
+          await repositories.notifications.db
+            .from('notifications')
+            .update({ sent_via_push: true })
+            .eq('id', dbNotification.id);
+        }
       }
 
       return true;
@@ -156,7 +168,13 @@ class NotificationService {
   async sendPushNotification(pushData) {
     // TODO: Integrate with Firebase Cloud Messaging (FCM) or OneSignal
     // For now, just log the notification
-    logger.debug('Push notification (not implemented):', pushData);
+    try {
+      const expoPushService = require('./expoPushService');
+      return await expoPushService.sendPushNotificationToUser(pushData.userId, pushData);
+    } catch (error) {
+      logger.error('Failed to trigger Expo push service:', error);
+      return false;
+    }
     
     // Example FCM implementation:
     // const message = {

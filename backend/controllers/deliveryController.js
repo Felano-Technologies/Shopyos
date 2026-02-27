@@ -3,6 +3,7 @@
 
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const notificationService = require('../services/notificationService');
 
 /**
  * @route   POST /api/deliveries/create
@@ -151,17 +152,20 @@ const assignDriver = async (req, res, next) => {
 
     // Notify customer that driver has been assigned
     if (order && driver) {
-      await repositories.notifications.create({
-        user_id: order.buyer_id,
+      await notificationService.sendNotification({
+        userId: order.buyer_id,
         type: 'delivery_assigned',
         title: 'Driver Assigned',
         message: `${driver.full_name || 'A driver'} has been assigned to your order #${order.order_number}`,
+        relatedId: updatedDelivery.id,
+        relatedType: 'delivery',
         data: {
           orderId: order.id,
           deliveryId: updatedDelivery.id,
           driverId: driver.id,
           driverName: driver.full_name
-        }
+        },
+        push: { data: { screen: 'order', orderId: order.id } }
       });
     }
 
@@ -310,31 +314,37 @@ const updateDeliveryStatus = async (req, res, next) => {
 
       // Notify customer that order has been picked up
       if (order && driver) {
-        await repositories.notifications.create({
-          user_id: order.buyer_id,
+        await notificationService.sendNotification({
+          userId: order.buyer_id,
           type: 'order_picked_up',
           title: 'Order Picked Up',
           message: `${driver.full_name || 'Your driver'} has picked up your order #${order.order_number} and is on the way!`,
+          relatedId: updatedDelivery.id,
+          relatedType: 'delivery',
           data: {
             orderId: order.id,
             deliveryId: updatedDelivery.id,
             status: 'picked_up'
-          }
+          },
+          push: { data: { screen: 'order', orderId: order.id } }
         });
       }
     } else if (status === 'in_transit') {
       // Notify customer that driver is on the way
       if (order && driver) {
-        await repositories.notifications.create({
-          user_id: order.buyer_id,
+        await notificationService.sendNotification({
+          userId: order.buyer_id,
           type: 'delivery_in_transit',
           title: 'Driver On The Way',
           message: `${driver.full_name || 'Your driver'} is heading to your location with order #${order.order_number}`,
+          relatedId: updatedDelivery.id,
+          relatedType: 'delivery',
           data: {
             orderId: order.id,
             deliveryId: updatedDelivery.id,
             status: 'in_transit'
-          }
+          },
+          push: { data: { screen: 'order', orderId: order.id } }
         });
       }
     } else if (status === 'delivered') {
@@ -342,31 +352,37 @@ const updateDeliveryStatus = async (req, res, next) => {
 
       // Notify customer that order has been delivered
       if (order) {
-        await repositories.notifications.create({
-          user_id: order.buyer_id,
+        await notificationService.sendNotification({
+          userId: order.buyer_id,
           type: 'order_delivered',
           title: 'Order Delivered',
           message: `Your order #${order.order_number} has been successfully delivered. Enjoy!`,
+          relatedId: updatedDelivery.id,
+          relatedType: 'delivery',
           data: {
             orderId: order.id,
             deliveryId: updatedDelivery.id,
             status: 'delivered'
-          }
+          },
+          push: { data: { screen: 'order', orderId: order.id } }
         });
       }
     } else if (status === 'failed' || status === 'cancelled') {
       // Notify customer of delivery issue
       if (order) {
-        await repositories.notifications.create({
-          user_id: order.buyer_id,
+        await notificationService.sendNotification({
+          userId: order.buyer_id,
           type: 'delivery_issue',
           title: status === 'failed' ? 'Delivery Failed' : 'Delivery Cancelled',
           message: `There was an issue with your order #${order.order_number}. Please contact support.`,
+          relatedId: updatedDelivery.id,
+          relatedType: 'delivery',
           data: {
             orderId: order.id,
             deliveryId: updatedDelivery.id,
             status: status
-          }
+          },
+          push: { data: { screen: 'order', orderId: order.id } }
         });
       }
     }

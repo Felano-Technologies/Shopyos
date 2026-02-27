@@ -51,6 +51,33 @@ class NotificationRepository extends BaseRepository {
     return this.createNotification(notificationData);
   }
 
+  // --- Push Token Management ---
+
+  async savePushToken(userId, token, deviceName = null) {
+    const { data: existing } = await this.db.from('expo_push_tokens').select('id').eq('token', token).single();
+    if (existing) {
+      // Just update last_used
+      await this.db.from('expo_push_tokens').update({ last_used_at: new Date() }).eq('token', token);
+      return;
+    }
+
+    await this.db.from('expo_push_tokens').insert({
+      user_id: userId,
+      token,
+      device_name: deviceName
+    });
+  }
+
+  async getUserPushTokens(userId) {
+    const { data, error } = await this.db.from('expo_push_tokens').select('token').eq('user_id', userId);
+    if (error) return [];
+    return data.map(d => d.token);
+  }
+
+  async removePushToken(token) {
+    await this.db.from('expo_push_tokens').delete().eq('token', token);
+  }
+
   /**
    * Get user notifications with pagination
    * @param {string} userId - User ID

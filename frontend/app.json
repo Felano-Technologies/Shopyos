@@ -36,11 +36,16 @@
         {
           "image": "./assets/images/icon dark.png",
           "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "resizeMode": "contain"
         }
       ],
-
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff"
+        }
+      ],
       "expo-font",
       "expo-secure-store",
       "expo-web-browser"

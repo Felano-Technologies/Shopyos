@@ -5,6 +5,7 @@ const repositories = require('../db/repositories');
 const crypto = require('crypto');
 const { logger } = require('../config/logger');
 const rabbitMQService = require('../services/rabbitmq');
+const notificationService = require('../services/notificationService');
 
 /**
  * Generate unique order number
@@ -115,33 +116,39 @@ const createOrder = async (req, res, next) => {
       const order = await repositories.orders.createOrderWithItems(orderData, orderItems, dbPaymentMethod);
 
       // Notify customer about order confirmation
-      await repositories.notifications.create({
-        user_id: userId,
+      await notificationService.sendNotification({
+        userId: userId,
         type: 'order_placed',
         title: 'Order Placed Successfully',
         message: `Your order #${order.order_number} has been placed successfully. Total: ₵${totalAmount.toFixed(2)}`,
+        relatedId: order.id,
+        relatedType: 'order',
         data: {
           orderId: order.id,
           orderNumber: order.order_number,
           totalAmount: totalAmount
-        }
+        },
+        push: { data: { screen: 'order', orderId: order.id } }
       });
 
       // Notify seller about new order via in-app
       const store = await repositories.stores.findById(storeId);
       if (store && store.owner_id) {
-        await repositories.notifications.create({
-          user_id: store.owner_id,
+        await notificationService.sendNotification({
+          userId: store.owner_id,
           type: 'new_order',
           title: 'New Order Received',
           message: `You have a new order #${order.order_number} worth ₵${totalAmount.toFixed(2)}`,
+          relatedId: order.id,
+          relatedType: 'order',
           data: {
             orderId: order.id,
             orderNumber: order.order_number,
             storeId: storeId,
             totalAmount: totalAmount,
             itemCount: orderItems.length
-          }
+          },
+          push: { data: { screen: 'order', orderId: order.id } }
         });
 
         // Publish to RabbitMQ for seller email / sms
@@ -414,16 +421,19 @@ const updateOrderStatus = async (req, res, next) => {
     };
 
     if (statusMessages[status]) {
-      await repositories.notifications.create({
-        user_id: order.buyer_id,
+      await notificationService.sendNotification({
+        userId: order.buyer_id,
         type: `order_${status}`,
         title: statusMessages[status].title,
         message: statusMessages[status].message,
+        relatedId: order.id,
+        relatedType: 'order',
         data: {
           orderId: order.id,
           orderNumber: order.order_number,
           status: status
-        }
+        },
+        push: { data: { screen: 'order', orderId: order.id } }
       });
     }
 
@@ -587,12 +597,15 @@ const verifyPayment = async (req, res, next) => {
     const updatedOrder = await repositories.orders.updateStatus(orderId, 'paid');
 
     // Notify user
-    await repositories.notifications.create({
-      user_id: userId,
+    await notificationService.sendNotification({
+      userId: userId,
       type: 'payment_success',
       title: 'Payment Confirmed',
       message: `Payment for order #${order.order_number} has been confirmed. The store will start preparing it soon.`,
-      data: { orderId: order.id, orderNumber: order.order_number }
+      relatedId: order.id,
+      relatedType: 'order',
+      data: { orderId: order.id, orderNumber: order.order_number },
+      push: { data: { screen: 'order', orderId: order.id } }
     });
 
     res.status(200).json({

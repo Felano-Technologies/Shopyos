@@ -5,21 +5,25 @@ import { useFonts } from 'expo-font';
 import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import BottomNav from '../components/BottomNav'; 
-import DriverBottomNav from '../components/DriverBottomNav'; 
+import BottomNav from '../components/BottomNav';
+import DriverBottomNav from '../components/DriverBottomNav';
 import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const pathname = usePathname();  
+  const pathname = usePathname();
   const [loaded] = useFonts({
     'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
     'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
     'Montserrat-SemiBold': require('../assets/fonts/Montserrat-SemiBold.ttf'),
   });
+
+  // Apply Push Hook globally
+  usePushNotifications();
 
   useEffect(() => {
     if (loaded) {
@@ -34,8 +38,8 @@ export default function RootLayout() {
 
   // --- CUSTOMER NAV LOGIC ---
   const mainCustomerTabs = ['/home', '/stores', '/search', '/settings', '/order'];
-  
-  const shouldShowNav = 
+
+  const shouldShowNav =
     (mainCustomerTabs.includes(pathname) || pathname.startsWith('/categories/categories')) &&
     !pathname.startsWith('/driver');
 
@@ -57,7 +61,7 @@ export default function RootLayout() {
             <Stack
               screenOptions={{
                 headerShown: false,
-                animation: 'slide_from_right', 
+                animation: 'slide_from_right',
               }}
             >
               {/* --- MAIN CUSTOMER SCREENS --- */}
@@ -67,19 +71,19 @@ export default function RootLayout() {
               <Stack.Screen name="order" options={{ animation: 'none' }} />
               <Stack.Screen name="settings" options={{ animation: 'none' }} />
               <Stack.Screen name="stores" options={{ animation: 'none' }} />
-              
+
               {/* --- PREMIUM ORDER ANIMATIONS --- */}
-              <Stack.Screen 
-                name="order/[id]" 
-                options={{ animation: 'slide_from_right', gestureEnabled: true }} 
+              <Stack.Screen
+                name="order/[id]"
+                options={{ animation: 'slide_from_right', gestureEnabled: true }}
               />
-              <Stack.Screen 
-                name="order/tracking" 
-                options={{ 
-                  presentation: 'modal', 
+              <Stack.Screen
+                name="order/tracking"
+                options={{
+                  presentation: 'modal',
                   animation: 'slide_from_bottom',
-                  gestureEnabled: true 
-                }} 
+                  gestureEnabled: true
+                }}
               />
 
               {/* --- AUTH & ROLE --- */}
@@ -98,13 +102,13 @@ export default function RootLayout() {
               <Stack.Screen name="business/analytics" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/orders" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/products" options={{ animation: 'fade' }} />
-              
+
               <Stack.Screen name="business/register" />
               <Stack.Screen name="business/verification" />
               <Stack.Screen name="business/notifications" />
               <Stack.Screen name="business/settings" />
               <Stack.Screen name="business/orderDetails" options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="business/Registration" options={{ animation: 'slide_from_right' }} />   
+              <Stack.Screen name="business/Registration" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/earnings" options={{ animation: 'slide_from_bottom' }} />
 
               {/* --- DRIVER SCREENS --- */}
@@ -126,7 +130,7 @@ export default function RootLayout() {
 
               <Stack.Screen name="stores/details" />
               <Stack.Screen name="stores/map" />
-              <Stack.Screen name="reviews/[id]" options={{ presentation: 'modal', animation:'slide_from_bottom', headerShown: false }} />
+              <Stack.Screen name="reviews/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
 
               {/* --- SETTINGS SUB-SCREENS --- */}
               <Stack.Screen name='settings/Account' />
@@ -137,7 +141,7 @@ export default function RootLayout() {
               <Stack.Screen name='settings/paymentMethods' />
               <Stack.Screen name='settings/pushNotifications' />
 
-            
+
 
 
 

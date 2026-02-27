@@ -167,6 +167,20 @@ export const registerUser = async (name: string, email: string, password: string
   }
 };
 
+// Register Push Token
+export const registerPushTokenInBackend = async (token: string) => {
+  try {
+    const response = await api.post('/notifications/push-token', {
+      token,
+      deviceName: 'Mobile App'
+    });
+    return response.data;
+  } catch (err: any) {
+    console.warn('Failed to sync push token with backend:', err.message);
+    throw err;
+  }
+};
+
 // Logout user
 export const logoutUser = async () => {
   try {
@@ -197,6 +211,16 @@ export const loginUser = async (email: string, password: string, latitude: numbe
         }
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
+      }
+
+      // Sync push token if one exists
+      try {
+        const pushToken = await storage.getItem('expoPushToken');
+        if (pushToken) {
+          await registerPushTokenInBackend(pushToken);
+        }
+      } catch (err) {
+        console.warn('Failed syncing expo push token on login:', err);
       }
     }
 
