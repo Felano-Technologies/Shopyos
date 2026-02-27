@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 const { logger } = require('../config/logger');
 const { cacheSet, cacheDel } = require('../config/redis');
+const rabbitMQService = require('../services/rabbitmq');
 const {
   ACCESS_TOKEN_EXPIRY,
   REFRESH_TOKEN_EXPIRY_MS,
@@ -78,6 +79,19 @@ const register = async (req, res, next) => {
     const accessToken = generateAccessToken(user.id);
     const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
     setAuthCookies(res, accessToken, refreshToken);
+
+    // Queue Welcome Notification (Default format)
+    const publishPayload = {
+      eventType: 'WELCOME_EMAIL',
+      userId: user.id,
+      role: 'buyer', // Default role until updated
+      email: email,
+      phone: fullPhoneNumber,
+      templateData: { name: name, phone: fullPhoneNumber }
+    };
+
+    if (email) rabbitMQService.publishMessage('email', publishPayload);
+    if (fullPhoneNumber) rabbitMQService.publishMessage('sms', { ...publishPayload, eventType: 'WELCOME_SMS' });
 
     res.status(201).json({
       message: 'User created successfully',
@@ -396,6 +410,23 @@ const addRole = async (req, res, next) => {
 
     await repositories.roles.assignRoleToUser(userId, roleData.id);
     await cacheDel(`shopyos:users:${userId}:auth`);
+
+    const user = await repositories.users.findById(userId);
+    const profile = await repositories.userProfiles.findByUserId(userId);
+
+    // If upgraded to seller or driver, send a welcome orientation message
+    if (role === 'seller' || role === 'driver') {
+      const payload = {
+        eventType: 'WELCOME_EMAIL',
+        userId: userId,
+        role: role,
+        email: user?.email,
+        phone: profile?.phone,
+        templateData: { name: profile?.full_name || 'User', phone: profile?.phone }
+      };
+      if (user?.email) rabbitMQService.publishMessage('email', payload);
+      if (profile?.phone) rabbitMQService.publishMessage('sms', { ...payload, eventType: 'WELCOME_SMS' });
+    }
 
     res.status(200).json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully` });
   } catch (error) {

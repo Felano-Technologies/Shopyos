@@ -4,6 +4,7 @@
 const repositories = require('../db/repositories');
 const crypto = require('crypto');
 const { logger } = require('../config/logger');
+const rabbitMQService = require('../services/rabbitmq');
 
 /**
  * Generate unique order number
@@ -126,7 +127,7 @@ const createOrder = async (req, res, next) => {
         }
       });
 
-      // Notify seller about new order
+      // Notify seller about new order via in-app
       const store = await repositories.stores.findById(storeId);
       if (store && store.owner_id) {
         await repositories.notifications.create({
@@ -142,7 +143,45 @@ const createOrder = async (req, res, next) => {
             itemCount: orderItems.length
           }
         });
+
+        // Publish to RabbitMQ for seller email / sms
+        const storeOwner = await repositories.users.findById(store.owner_id);
+        const storeProfile = await repositories.userProfiles.findByUserId(store.owner_id);
+
+        const sellerPayload = {
+          eventType: 'ORDER_CREATED',
+          userId: store.owner_id,
+          role: 'seller',
+          email: storeOwner?.email,
+          phone: storeProfile?.phone,
+          orderId: order.id,
+          templateData: { orderId: order.order_number, amount: totalAmount.toFixed(2), itemsCount: orderItems.length }
+        };
+        if (storeOwner?.email) rabbitMQService.publishMessage('email', sellerPayload);
+        if (storeProfile?.phone) rabbitMQService.publishMessage('sms', sellerPayload);
       }
+
+      // Publish to RabbitMQ for buyer email / sms
+      const buyerInfo = await repositories.users.findById(userId);
+      const buyerProfile = await repositories.userProfiles.findByUserId(userId);
+
+      const buyerPayload = {
+        eventType: 'ORDER_CREATED',
+        userId: userId,
+        role: 'buyer',
+        email: buyerInfo?.email,
+        phone: deliveryPhone || buyerProfile?.phone,
+        orderId: order.id,
+        templateData: {
+          orderId: order.order_number,
+          amount: totalAmount.toFixed(2),
+          customerName: buyerProfile?.full_name || 'Customer',
+          itemsCount: orderItems.length
+        }
+      };
+
+      if (buyerInfo?.email) rabbitMQService.publishMessage('email', buyerPayload);
+      if (buyerPayload.phone) rabbitMQService.publishMessage('sms', buyerPayload);
 
       createdOrders.push({
         ...order,
