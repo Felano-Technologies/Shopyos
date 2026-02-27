@@ -28,7 +28,6 @@ import {
   getStoreReviews,
   followStore,
   unfollowStore,
-  // --- Added Community API Functions ---
   likeReview,
   getReviewComments,
   createReviewComment
@@ -49,7 +48,7 @@ export default function StoreDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
-  
+
   // --- Community States ---
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -150,7 +149,7 @@ export default function StoreDetailsScreen() {
         const updated = await getReviewComments(selectedReviewId);
         setActiveComments(updated.comments);
       }
-    } catch (err) { Alert.alert("Error", "Could not post comment"); }
+    } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
     finally { setCommentSubmitting(false); }
   };
 
@@ -255,7 +254,7 @@ export default function StoreDetailsScreen() {
                 </View>
                 <Text style={styles.totalReviews}>Based on {reviews.length} reviews</Text>
               </View>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.writeBtn}
                 onPress={() => router.push(`/review/${store.id}` as any)}
               >
@@ -272,9 +271,9 @@ export default function StoreDetailsScreen() {
               </View>
             ) : (
               reviews.map(item => (
-                <ReviewCard 
-                  key={item.id} 
-                  review={item} 
+                <ReviewCard
+                  key={item.id}
+                  review={item}
                   onLike={handleLikeReview}
                   onComment={handleOpenComments}
                 />
@@ -290,7 +289,7 @@ export default function StoreDetailsScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        
+
         {/* Header & Cover */}
         <View style={styles.headerContainer}>
           {store.cover ? <Image source={store.cover} style={styles.coverImage} /> : <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.coverImage} />}
@@ -326,7 +325,7 @@ export default function StoreDetailsScreen() {
         {/* Tabs */}
         <View style={styles.tabContainer}>
           {['Catalogue', 'About', 'Reviews'].map((tab) => (
-            <TouchableOpacity key={tab} style={[styles.tabItem, activeTab === tab && styles.activeTabItem]} onPress={() => setActiveTab(tab)}>
+            <TouchableOpacity key={tab} style={styles.tabItem} onPress={() => setActiveTab(tab)}>
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
               {activeTab === tab && <View style={styles.activeIndicator} />}
             </TouchableOpacity>

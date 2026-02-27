@@ -24,7 +24,6 @@ import {
     removeFromFavorites,
     checkIsFavorite,
     startConversation,
-    // --- Added API Functions ---
     getProductReviews,
     likeReview,
     getReviewComments,
@@ -44,7 +43,7 @@ export default function ProductDetails() {
 
     const [isLiked, setIsLiked] = useState(false);
     const [successModalVisible, setSuccessModalVisible] = useState(false);
-    
+
     // --- Review States ---
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -144,7 +143,7 @@ export default function ProductDetails() {
                 const updated = await getReviewComments(selectedReviewId);
                 setActiveComments(updated.comments);
             }
-        } catch (err) { Alert.alert("Error", "Could not post comment"); }
+        } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
         finally { setCommentSubmitting(false); }
     };
 
@@ -157,7 +156,7 @@ export default function ProductDetails() {
                 await addToFavorites(product.id);
                 setIsLiked(true);
             }
-        } catch (error) { Alert.alert("Error", "Failed to update favorites"); }
+        } catch (error: any) { Alert.alert("Error", error.message || "Failed to update favorites"); }
     };
 
     const handleChat = async () => {
@@ -178,7 +177,7 @@ export default function ProductDetails() {
                     }
                 });
             }
-        } catch (error) { Alert.alert("Error", "Failed to start chat with seller"); }
+        } catch (error: any) { Alert.alert("Error", error.message || "Failed to start chat with seller"); }
     };
 
     const handleAddToCart = () => {

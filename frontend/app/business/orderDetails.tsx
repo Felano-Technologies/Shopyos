@@ -79,9 +79,8 @@ export default function OrderDetailsScreen() {
         Alert.alert("Error", "Order not found");
         router.back();
       }
-    } catch (e) {
-      Alert.alert("Error", "Failed to fetch order");
-      console.error(e);
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to fetch order");
       router.back();
     } finally {
       setLoading(false);
@@ -126,8 +125,8 @@ export default function OrderDetailsScreen() {
       await updateOrderStatus(id as string, newStatus.toLowerCase());
       setCurrentStatus(newStatus);
       await fetchOrder();
-    } catch (e) {
-      Alert.alert("Error", "Failed to update status");
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to update status");
     } finally {
       setLoading(false);
     }

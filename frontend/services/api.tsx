@@ -47,6 +47,60 @@ export const storage = {
   }
 };
 
+/**
+ * Extracts a user-friendly error message from any API error.
+ * Handles Axios errors, network failures, validation errors, and HTTP status codes.
+ */
+export const extractErrorMessage = (error: any): string => {
+  // Axios error with server response
+  if (error?.response) {
+    const { status, data } = error.response;
+
+    // The backend sends error messages in these fields
+    const serverMsg = data?.error || data?.message;
+
+    // Validation errors (express-validator) come as comma-separated
+    if (serverMsg && typeof serverMsg === 'string' && serverMsg !== 'Internal Server Error') {
+      return serverMsg;
+    }
+
+    // Fallback by HTTP status code
+    switch (status) {
+      case 400: return serverMsg || 'Invalid request. Please check your input and try again.';
+      case 401: return 'Your session has expired. Please log in again.';
+      case 403: return serverMsg || "You don't have permission to perform this action.";
+      case 404: return serverMsg || 'The requested resource was not found.';
+      case 408: return 'Request timed out. Please check your connection and try again.';
+      case 409: return serverMsg || 'This action conflicts with existing data (e.g. duplicate entry).';
+      case 413: return 'The file you uploaded is too large. Please try a smaller file.';
+      case 422: return serverMsg || 'Please check your input — some fields are invalid.';
+      case 429: return 'Too many requests. Please wait a moment and try again.';
+      case 500: return 'Server error. Our team has been notified. Please try again later.';
+      case 502: return 'Server is temporarily unreachable. Please try again in a moment.';
+      case 503: return 'Service is temporarily unavailable. Please try again later.';
+      default: return serverMsg || `Something went wrong (error ${status}). Please try again.`;
+    }
+  }
+
+  // Network / connection errors (no response received)
+  if (error?.request) {
+    if (error.code === 'ECONNABORTED') {
+      return 'Request timed out. Please check your internet connection.';
+    }
+    return 'No internet connection. Please check your network and try again.';
+  }
+
+  // JS errors with a message
+  if (error?.message) {
+    if (error.message.includes('Network Error')) {
+      return 'No internet connection. Please check your network and try again.';
+    }
+    return error.message;
+  }
+
+  return 'An unexpected error occurred. Please try again.';
+};
+
 export const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -72,19 +126,17 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle token expiration
+// Add response interceptor to handle token expiration and attach user-friendly messages
 api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
+  (response) => response,
   async (error) => {
+    // Attach a user-friendly message to every error for easy toast display
+    error.userMessage = extractErrorMessage(error);
+
     if (error.response?.status === 401) {
-      // Token expired or invalid
       try {
         await storage.removeItem('userToken');
         await storage.removeItem('userId');
-        // You might want to redirect to login screen here
-        // or trigger a global logout event
       } catch (storageError) {
         console.error('Error clearing tokens:', storageError);
       }
@@ -348,7 +400,7 @@ export const addToCart = async (productId: string, quantity: number) => {
     return response.data;
   } catch (error: any) {
     console.error("Error adding to cart:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -358,7 +410,7 @@ export const clearBackendCart = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error clearing backend cart:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -376,7 +428,7 @@ export const createOrder = async (orderData: {
     return response.data;
   } catch (error: any) {
     console.error("Error creating order:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -391,7 +443,7 @@ export const getMyOrders = async (params: { status?: string, limit?: number, off
     };
   } catch (error: any) {
     console.error("Error fetching my orders:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -406,7 +458,7 @@ export const getAllStores = async (params: { search?: string, category?: string,
     };
   } catch (error: any) {
     console.error("Error fetching all stores:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -416,7 +468,7 @@ export const getBusinessById = async (id: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching business details:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -428,7 +480,7 @@ export const addToFavorites = async (productId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error adding to favorites:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -438,7 +490,7 @@ export const removeFromFavorites = async (productId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error removing from favorites:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -448,7 +500,7 @@ export const getFavorites = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching favorites:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -531,7 +583,7 @@ export const getStoreProducts = async (storeId: string, params: any = {}) => {
     };
   } catch (error: any) {
     console.error("Error fetching store products", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -547,7 +599,7 @@ export const searchProducts = async (params: { query?: string, category?: string
     };
   } catch (error: any) {
     console.error("Error searching products:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -559,7 +611,7 @@ export const getAllCategories = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching categories:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -668,7 +720,7 @@ export const uploadProductImages = async (productId: string, imageUris: string[]
     return response.data;
   } catch (error: any) {
     console.error("Error uploading images", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -735,7 +787,7 @@ export const getConversations = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching conversations:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -745,7 +797,7 @@ export const getMessages = async (conversationId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching messages:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -755,7 +807,7 @@ export const sendMessage = async (conversationId: string, content: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error sending message:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -765,7 +817,7 @@ export const markConversationRead = async (conversationId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error marking conversation read:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -775,7 +827,7 @@ export const startConversation = async (participantId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error starting conversation:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -785,7 +837,7 @@ export const deleteMessage = async (messageId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error deleting message:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -802,7 +854,7 @@ export const getStoreReviews = async (storeId: string, params: { limit?: number,
     };
   } catch (error: any) {
     console.error("Error fetching store reviews:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -813,7 +865,7 @@ export const getPromotedProducts = async (category?: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching promoted products:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -823,7 +875,7 @@ export const createCampaign = async (campaignData: any) => {
     return response.data;
   } catch (error: any) {
     console.error("Error creating campaign:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -833,7 +885,7 @@ export const getMyCampaigns = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching my campaigns:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -843,7 +895,7 @@ export const updateCampaignStatus = async (id: string, status: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error updating campaign status:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -853,7 +905,7 @@ export const recordAdClick = async (id: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error recording click:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -864,7 +916,7 @@ export const getPayoutHistory = async (storeId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching payout history:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -874,7 +926,7 @@ export const requestPayout = async (payoutData: any) => {
     return response.data;
   } catch (error: any) {
     console.error("Error requesting payout:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -886,7 +938,7 @@ export const getNotifications = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching notifications:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 }
 
@@ -896,7 +948,7 @@ export const markNotificationRead = async (notificationId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error marking notification read:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 }
 
@@ -906,7 +958,7 @@ export const markAllNotificationsRead = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error marking all notifications read:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 }
 
@@ -916,7 +968,7 @@ export const getUnreadNotificationCount = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching unread count:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 }
 
@@ -926,7 +978,7 @@ export const getNotificationPreferences = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching preferences:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -936,7 +988,7 @@ export const updateNotificationPreferences = async (preferences: any) => {
     return response.data;
   } catch (error: any) {
     console.error("Error updating preferences:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -948,7 +1000,7 @@ export const getPaymentMethods = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching payment methods:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -964,7 +1016,7 @@ export const addPaymentMethod = async (methodData: {
     return response.data;
   } catch (error: any) {
     console.error("Error adding payment method:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -974,7 +1026,7 @@ export const deletePaymentMethod = async (id: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error deleting payment method:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -984,7 +1036,7 @@ export const setDefaultPaymentMethod = async (id: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error setting default payment method:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1006,10 +1058,10 @@ export const createDelivery = async (deliveryData: {
     return response.data;
   } catch (error: any) {
     console.error("Error creating delivery:", error);
-    if (error.response && error.response.data) {
+    if (error.response?.data) {
       return error.response.data;
     }
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1019,7 +1071,7 @@ export const getAvailableDeliveries = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching available deliveries:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1029,7 +1081,7 @@ export const assignDriver = async (deliveryId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error assigning driver:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1039,7 +1091,7 @@ export const getMyDeliveries = async (status?: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching my deliveries:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1049,7 +1101,7 @@ export const getDeliveryDetails = async (deliveryId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching delivery details:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1059,7 +1111,7 @@ export const updateDeliveryStatus = async (deliveryId: string, status: string) =
     return response.data;
   } catch (error: any) {
     console.error("Error updating delivery status:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1069,7 +1121,7 @@ export const getActiveDeliveries = async () => {
     return response.data;
   } catch (error: any) {
     console.error("Error fetching active deliveries:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1079,7 +1131,7 @@ export const getDriverStats = async (timeframe: 'today' | 'week' | 'month' = 'to
     return response.data;
   } catch (error: any) {
     console.error("Error fetching driver stats:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1090,7 +1142,7 @@ export const createProductReview = async (reviewData: { productId: string; order
     return response.data;
   } catch (error: any) {
     console.error("Error creating product review:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1100,7 +1152,7 @@ export const createStoreReview = async (reviewData: { storeId: string; orderId: 
     return response.data;
   } catch (error: any) {
     console.error("Error creating store review:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1110,7 +1162,7 @@ export const createDriverReview = async (reviewData: { driverId: string; deliver
     return response.data;
   } catch (error: any) {
     console.error("Error creating driver review:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1125,7 +1177,37 @@ export const getProductReviews = async (productId: string, params: { limit?: num
     };
   } catch (error: any) {
     console.error("Error fetching product reviews:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const likeReview = async (reviewId: string) => {
+  try {
+    const response = await api.post(`/reviews/${reviewId}/like`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error liking review:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getReviewComments = async (reviewId: string) => {
+  try {
+    const response = await api.get(`/reviews/${reviewId}/comments`);
+    return { success: true, comments: response.data?.data || response.data?.comments || [] };
+  } catch (error: any) {
+    console.error("Error fetching review comments:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const createReviewComment = async (reviewId: string, text: string) => {
+  try {
+    const response = await api.post(`/reviews/${reviewId}/comments`, { text });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error creating review comment:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1134,9 +1216,9 @@ export const getAdminDashboard = async () => {
   try {
     const response = await api.get('/admin/dashboard');
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching admin dashboard:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1144,9 +1226,9 @@ export const getAdminUsers = async (params = {}) => {
   try {
     const response = await api.get('/admin/users', { params });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching admin users:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1154,9 +1236,9 @@ export const getAdminStores = async (params = {}) => {
   try {
     const response = await api.get('/admin/stores', { params });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching admin stores:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1164,9 +1246,9 @@ export const getAdminPayouts = async (status?: string) => {
   try {
     const response = await api.get('/admin/payouts', { params: { status } });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching admin payouts:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1174,9 +1256,9 @@ export const updateAdminPayoutStatus = async (payoutId: string, status: 'complet
   try {
     const response = await api.put(`/admin/payouts/${payoutId}`, { status, notes });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating admin payout status:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1219,7 +1301,7 @@ export const followStore = async (storeId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error following store:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
@@ -1229,6 +1311,6 @@ export const unfollowStore = async (storeId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error unfollowing store:", error);
-    throw error;
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };

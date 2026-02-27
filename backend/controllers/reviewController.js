@@ -545,6 +545,150 @@ const getReviewableProducts = async (req, res, next) => {
   }
 };
 
+// --- Community Features ---
+
+// @route   POST /api/reviews/:reviewId/like
+// @desc    Toggle like on a review
+// @access  Private
+const likeReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const userId = req.user.id;
+
+    // Check if review exists across all 3 tables
+    const polymorphicReview = await repositories.reviews.findPolymorphicReviewById(reviewId);
+    if (!polymorphicReview) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    const { type: reviewType } = polymorphicReview;
+
+    // Check if already liked
+    const { data: existingLike } = await repositories.reviews.db
+      .from('review_likes')
+      .select('id')
+      .eq('review_id', reviewId)
+      .eq('user_id', userId)
+      .single();
+
+    if (existingLike) {
+      // Unlike
+      await repositories.reviews.db
+        .from('review_likes')
+        .delete()
+        .eq('id', existingLike.id);
+
+      // Decrement count using RPC
+      await repositories.reviews.db
+        .rpc('decrement_review_likes', { target_review_id: reviewId, target_type: reviewType })
+        .catch(() => { });
+
+      res.status(200).json({ success: true, message: 'Review unliked', isLiked: false });
+    } else {
+      // Like
+      await repositories.reviews.db
+        .from('review_likes')
+        .insert({ review_id: reviewId, review_type: reviewType, user_id: userId });
+
+      // Increment count using RPC
+      await repositories.reviews.db
+        .rpc('increment_review_likes', { target_review_id: reviewId, target_type: reviewType })
+        .catch(() => { });
+
+      res.status(200).json({ success: true, message: 'Review liked', isLiked: true });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @route   GET /api/reviews/:reviewId/comments
+// @desc    Get comments for a review
+// @access  Public
+const getReviewComments = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+
+    const polymorphicReview = await repositories.reviews.findPolymorphicReviewById(reviewId);
+    if (!polymorphicReview) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    const { data: comments, error } = await repositories.reviews.db
+      .from('review_comments')
+      .select(`
+        id,
+        comment,
+        created_at,
+        profiles:user_id (
+          id,
+          full_name,
+          avatar_url
+        )
+      `)
+      .eq('review_id', reviewId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Map output to match frontend expectations
+    const mappedComments = comments.map(c => ({
+      id: c.id,
+      text: c.comment,
+      createdAt: c.created_at,
+      user: c.profiles ? {
+        name: c.profiles.full_name,
+        avatar: c.profiles.avatar_url
+      } : { name: 'Unknown User' }
+    }));
+
+    res.status(200).json({ success: true, data: mappedComments });
+  } catch (error) {
+    if (error.code === '42P01') {
+      // Table doesn't exist yet, return empty array gracefully
+      return res.status(200).json({ success: true, data: [] });
+    }
+    next(error);
+  }
+};
+
+// @route   POST /api/reviews/:reviewId/comments
+// @desc    Add a comment to a review
+// @access  Private
+const createReviewComment = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { text } = req.body;
+    const userId = req.user.id;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'Comment text is required' });
+    }
+
+    const polymorphicReview = await repositories.reviews.findPolymorphicReviewById(reviewId);
+    if (!polymorphicReview) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    const { data: comment, error } = await repositories.reviews.db
+      .from('review_comments')
+      .insert({
+        review_id: reviewId,
+        review_type: polymorphicReview.type,
+        user_id: userId,
+        comment: text.trim()
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ success: true, message: 'Comment added', data: comment });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProductReview,
   createStoreReview,
@@ -555,5 +699,8 @@ module.exports = {
   updateProductReview,
   deleteReview,
   getMyReviews,
-  getReviewableProducts
+  getReviewableProducts,
+  likeReview,
+  getReviewComments,
+  createReviewComment
 };

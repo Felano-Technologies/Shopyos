@@ -9,6 +9,26 @@ class ReviewRepository extends BaseRepository {
   }
 
   /**
+   * Check all three review tables for a given ID (product, store, driver)
+   * returns { id, type } if found, null otherwise
+   */
+  async findPolymorphicReviewById(id) {
+    // Try product
+    const { data: p } = await this.db.from('product_reviews').select('id').eq('id', id).single();
+    if (p) return { id, type: 'product' };
+
+    // Try store
+    const { data: s } = await this.db.from('store_reviews').select('id').eq('id', id).single();
+    if (s) return { id, type: 'store' };
+
+    // Try driver
+    const { data: d } = await this.db.from('driver_reviews').select('id').eq('id', id).single();
+    if (d) return { id, type: 'driver' };
+
+    return null;
+  }
+
+  /**
    * Create product review
    * @param {Object} reviewData
    * @returns {Promise<Object>}
