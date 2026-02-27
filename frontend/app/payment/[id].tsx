@@ -4,17 +4,21 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { StatusBar } from 'expo-status-bar';
-import { initializePayment, verifyPayment, getUserData } from '@/services/api';
+import { initializePayment, verifyPayment } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
+type PaymentStatus = 'initializing' | 'waiting' | 'verifying' | 'success' | 'failed';
+
 export default function PaymentProcessingScreen() {
-    const { id, method } = useLocalSearchParams();
+    const { id, method } = useLocalSearchParams<{ id: string; method: string }>();
     const router = useRouter();
-    const [status, setStatus] = useState<'initializing' | 'waiting' | 'verifying' | 'success' | 'failed'>('initializing');
+    const [status, setStatus] = useState<PaymentStatus>('initializing');
+    const [errorMessage, setErrorMessage] = useState<string>('');
     const [progress] = useState(new Animated.Value(0));
     const [paymentRef, setPaymentRef] = useState<string | null>(null);
     const appState = useRef(AppState.currentState);
+    const verifyAttempts = useRef(0);
 
     const startAnimation = () => {
         progress.setValue(0);
@@ -30,35 +34,37 @@ export default function PaymentProcessingScreen() {
     const handleInitialize = async () => {
         try {
             setStatus('initializing');
+            setErrorMessage('');
             startAnimation();
 
-            // 1. Get user email (usually should be in a context)
-            const userRes = await getUserData();
-            if (!userRes?.user?.email) throw new Error("User email not found");
+            // Determine channel from method param
+            const channel = method === 'momo' ? 'mobile_money' : method === 'card' ? 'card' : undefined;
 
-            // 2. Initialize with backend (use a fixed amount or fetch from order)
-            // For now, we'll assume the backend can fetch order total if we send it
-            // but let's send a dummy amount if we don't have it, or fetch it first.
-            // Better: Backend should handle amount fetching from orderId.
-            // I'll update the backend controller to fetch amount if not provided.
-            const initRes = await initializePayment(id as string, userRes.user.email, 1.0); // Amount will be overridden by backend or handled there
+            const initRes = await initializePayment({
+                orderId: id,
+                channel: channel as any,
+            });
 
-            if (initRes.success) {
+            if (initRes.success && initRes.data) {
                 setPaymentRef(initRes.data.reference);
                 setStatus('waiting');
 
-                // 3. Open Paystack
+                // Open Paystack checkout in browser
+                // For MoMo: Paystack will show the MoMo prompt (USSD/STK push)
+                // For Card: Paystack will show the card form
                 const result = await WebBrowser.openBrowserAsync(initRes.data.authorization_url);
 
-                // 4. When browser closes, check status
+                // When browser closes, verify
                 if (result.type === 'cancel' || result.type === 'dismiss') {
                     handleVerify(initRes.data.reference);
                 }
             } else {
+                setErrorMessage(initRes.error || 'Failed to initialize payment');
                 setStatus('failed');
             }
-        } catch (e) {
+        } catch (e: any) {
             console.error("Payment Init Error:", e);
+            setErrorMessage(e.message || 'An unexpected error occurred');
             setStatus('failed');
         }
     };
@@ -66,29 +72,48 @@ export default function PaymentProcessingScreen() {
     const handleVerify = async (ref: string) => {
         try {
             setStatus('verifying');
-            let attempts = 0;
-            const maxAttempts = 5;
+            verifyAttempts.current = 0;
+            const maxAttempts = 6;
 
-            const check = async () => {
+            const check = async (): Promise<void> => {
                 const res = await verifyPayment(ref);
+
                 if (res.success) {
                     setStatus('success');
-                } else if (attempts < maxAttempts) {
-                    attempts++;
-                    setTimeout(check, 3000); // Wait 3s and try again
-                } else {
-                    setStatus('failed');
+                    return;
                 }
+
+                // Check if it's a pending MoMo transaction (user hasn't confirmed yet)
+                const txnStatus = res.data?.status;
+                if (txnStatus === 'pending' || txnStatus === 'send_otp' || txnStatus === 'ongoing') {
+                    // Still processing, retry
+                    if (verifyAttempts.current < maxAttempts) {
+                        verifyAttempts.current++;
+                        await new Promise(r => setTimeout(r, 4000)); // MoMo takes longer
+                        return check();
+                    }
+                }
+
+                if (verifyAttempts.current < maxAttempts) {
+                    verifyAttempts.current++;
+                    await new Promise(r => setTimeout(r, 3000));
+                    return check();
+                }
+
+                // Max attempts reached
+                setErrorMessage(res.error || 'Could not confirm payment. If you were charged, it will be reconciled automatically.');
+                setStatus('failed');
             };
 
             await check();
-        } catch (e) {
+        } catch (e: any) {
             console.error("Verification Error:", e);
+            setErrorMessage(e.message || 'Verification failed');
             setStatus('failed');
         }
     };
 
-    // Listen for AppState changes (if user returns to app)
+    // Listen for app returning to foreground (user completed MoMo USSD/STK push)
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
             if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -107,11 +132,21 @@ export default function PaymentProcessingScreen() {
     }, []);
 
     const getProcessingText = () => {
-        if (status === 'initializing') return "Initializing secure payment...";
-        if (status === 'waiting') return "Please complete payment in the browser";
-        if (status === 'verifying') return "Verifying transaction with Paystack...";
-        if (status === 'success') return "Payment Confirmed!";
-        return "Transaction Failed";
+        switch (status) {
+            case 'initializing': return 'Initializing secure payment...';
+            case 'waiting':
+                return method === 'momo'
+                    ? 'Please approve the payment on your phone'
+                    : 'Please complete payment in the browser';
+            case 'verifying': return 'Verifying transaction with Paystack...';
+            case 'success': return 'Payment Confirmed!';
+            case 'failed': return 'Transaction Failed';
+        }
+    };
+
+    const getIcon = () => {
+        if (method === 'momo') return 'cellphone-nfc';
+        return 'credit-card-outline';
     };
 
     const progressWidth = progress.interpolate({
@@ -145,10 +180,19 @@ export default function PaymentProcessingScreen() {
                             <Ionicons name="close" size={60} color="#FFF" />
                         </View>
                         <Text style={styles.title}>Payment Failed</Text>
-                        <Text style={styles.subtitle}>We couldn't verify your payment. If you were debited, please contact support.</Text>
+                        <Text style={styles.subtitle}>
+                            {errorMessage || "We couldn't verify your payment. If you were debited, please contact support."}
+                        </Text>
 
                         <TouchableOpacity
-                            style={[styles.doneBtn, { backgroundColor: '#0C1559' }]}
+                            style={[styles.doneBtn, { backgroundColor: '#0C1559', marginBottom: 12 }]}
+                            onPress={() => handleInitialize()}
+                        >
+                            <Text style={styles.doneBtnText}>Try Again</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.doneBtn, { backgroundColor: '#64748B' }]}
                             onPress={() => router.back()}
                         >
                             <Text style={styles.doneBtnText}>Return to Cart</Text>
@@ -158,7 +202,7 @@ export default function PaymentProcessingScreen() {
                     <View style={styles.center}>
                         <View style={styles.iconContainer}>
                             <MaterialCommunityIcons
-                                name={"credit-card-outline"}
+                                name={getIcon()}
                                 size={50}
                                 color="#0C1559"
                             />

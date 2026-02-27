@@ -1181,13 +1181,23 @@ export const updateAdminPayoutStatus = async (payoutId: string, status: 'complet
 };
 
 // --- Payments API ---
-export const initializePayment = async (orderId: string, email: string, amount: number) => {
+
+interface InitializePaymentParams {
+  orderId: string;
+  email?: string;
+  channel?: 'mobile_money' | 'card';
+  momoPhone?: string;
+  momoProvider?: 'mtn' | 'vod' | 'tgo';
+}
+
+export const initializePayment = async (params: InitializePaymentParams) => {
   try {
-    const response = await api.post('/payments/initialize', { orderId, email, amount });
+    const response = await api.post('/payments/initialize', params);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error initializing payment:", error);
-    throw error;
+    if (error.response?.data) return error.response.data;
+    return { success: false, error: error.message || 'Failed to initialize payment' };
   }
 };
 
@@ -1195,9 +1205,10 @@ export const verifyPayment = async (reference: string) => {
   try {
     const response = await api.get(`/payments/verify/${reference}`);
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error verifying payment:", error);
-    throw error;
+    if (error.response?.data) return error.response.data;
+    return { success: false, error: error.message || 'Failed to verify payment' };
   }
 };
 
