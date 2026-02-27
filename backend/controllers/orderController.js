@@ -191,8 +191,7 @@ const createOrder = async (req, res, next) => {
       if (buyerPayload.phone) rabbitMQService.publishMessage('sms', buyerPayload);
 
       createdOrders.push({
-        ...order,
-        payment
+        ...order
       });
     }
 
