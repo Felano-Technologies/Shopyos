@@ -14,15 +14,25 @@ class CartRepository extends BaseRepository {
    * @returns {Promise<Object>}
    */
   async getOrCreateCart(userId) {
-    // Atomic check-and-create using upsert
-    const { data: cart, error } = await this.db
+    // First try to get existing cart
+    const { data: existingCart, error: fetchError } = await this.db
       .from('carts')
-      .upsert({ user_id: userId }, { onConflict: 'user_id', ignoreDuplicates: true })
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (fetchError) throw fetchError;
+    if (existingCart) return existingCart;
+
+    // If no cart exists, create one
+    const { data: newCart, error: createError } = await this.db
+      .from('carts')
+      .insert({ user_id: userId })
       .select()
       .single();
 
-    if (error) throw error;
-    return cart;
+    if (createError) throw createError;
+    return newCart;
   }
 
   /**
@@ -61,13 +71,9 @@ class CartRepository extends BaseRepository {
         )
       `)
       .eq('user_id', userId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null;
-      throw error;
-    }
-
+    if (error) throw error;
     return data;
   }
 
@@ -89,11 +95,9 @@ class CartRepository extends BaseRepository {
       .select('*')
       .eq('cart_id', cart.id)
       .eq('product_id', productId)
-      .single();
+      .maybeSingle();
 
-    if (checkError && checkError.code !== 'PGRST116') {
-      throw checkError;
-    }
+    if (checkError) throw checkError;
 
     if (existingItem) {
       // Update quantity

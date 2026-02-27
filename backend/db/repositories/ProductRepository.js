@@ -11,19 +11,17 @@ class ProductRepository extends BaseRepository {
   /**
    * Get product inventory
    * @param {string} productId
-   * @returns {Promise<Object>}
+   * @returns {Promise<Object|null>}
    */
   async getInventory(productId) {
     const { data, error } = await this.db
       .from('inventory')
       .select('quantity, reserved_quantity, allow_backorder, track_inventory')
       .eq('product_id', productId)
-      .single();
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null;
-      throw error;
-    }
+    if (error) throw error;
+    if (!data) return null;
 
     return {
       stock_quantity: data.quantity,
