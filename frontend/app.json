@@ -8,7 +8,6 @@
     "icon": "./assets/images/adaptive-icon.png",
     "scheme": "shopyos",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
