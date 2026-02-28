@@ -53,7 +53,10 @@ function initializeSocket(httpServer) {
       const token = socket.handshake.auth.token || 
                     socket.handshake.headers.authorization?.replace('Bearer ', '');
 
+      logger.info(`Socket auth attempt: hasToken=${!!token}, tokenLength=${token?.length || 0}`);
+
       if (!token) {
+        logger.error('Socket authentication failed: No token provided');
         return next(new Error('Authentication token required'));
       }
 
@@ -61,6 +64,7 @@ function initializeSocket(httpServer) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       if (!decoded.id) {
+        logger.error('Socket authentication failed: Invalid token payload (no id)');
         return next(new Error('Invalid token payload'));
       }
 
@@ -71,8 +75,12 @@ function initializeSocket(httpServer) {
       logger.info(`Socket authenticated: user=${socket.userId}, socket=${socket.id}`);
       next();
     } catch (error) {
-      logger.error('Socket authentication failed:', error.message);
-      next(new Error('Authentication failed'));
+      logger.error('Socket authentication failed:', {
+        error: error.message,
+        name: error.name,
+        hasToken: !!socket.handshake.auth.token
+      });
+      next(new Error('Authentication failed: ' + error.message));
     }
   });
 

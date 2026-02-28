@@ -17,9 +17,9 @@ class SocketService {
    * Get backend socket URL
    */
   private getSocketURL(): string {
-    // Use same base URL as API
-    const apiUrl = require('./api').baseURL;
-    return apiUrl.replace('/api/v1', ''); // Remove /api/v1 suffix for socket
+    const socketURL = 'https://dios-mnxg.onrender.com';
+    console.log('📡 Socket URL:', socketURL);
+    return socketURL;
   }
 
   /**
@@ -41,10 +41,13 @@ class SocketService {
         const token = await storage.getItem('userToken');
         
         if (!token) {
+          console.error('❌ No authentication token found');
           throw new Error('No authentication token found');
         }
 
         const socketURL = this.getSocketURL();
+        console.log('🔌 Connecting to Socket.IO:', socketURL);
+        console.log('🔑 Token available:', !!token, 'Length:', token?.length);
 
         this.socket = io(socketURL, {
           auth: { token },
