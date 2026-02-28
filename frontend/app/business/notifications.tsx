@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,14 @@ import {
   Image,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getNotifications, markAllNotificationsRead, markNotificationRead } from '@/services/api';
+import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { format, isToday, isYesterday } from 'date-fns';
 
 const { width } = Dimensions.get('window');
@@ -25,51 +26,42 @@ const { width } = Dimensions.get('window');
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data, isLoading, refetch } = useNotifications();
+  const markAllReadMutation = useMarkAllNotificationsRead();
+  const markReadMutation = useMarkNotificationRead();
 
-  const fetchNotificationsData = async () => {
-    try {
-      const response = await getNotifications();
-      if (response && response.notifications) {
-        // Group by date
-        const groupedArray: any[] = [];
-        const today: any[] = [];
-        const yesterday: any[] = [];
-        const earlier: any[] = [];
+  useEffect(() => {
+    if (data?.notifications) {
+      // Group by date
+      const groupedArray: any[] = [];
+      const today: any[] = [];
+      const yesterday: any[] = [];
+      const earlier: any[] = [];
 
-        response.notifications.forEach((n: any) => {
-          const date = new Date(n.created_at);
-          const item = {
-            id: n.id,
-            type: n.type || 'info', // Map backend types if needed
-            title: n.title,
-            message: n.message,
-            time: format(date, 'h:mm a'),
-            read: n.read,
-            fullDate: date
-          };
+      data.notifications.forEach((n: any) => {
+        const date = new Date(n.created_at);
+        const item = {
+          id: n.id,
+          type: n.type || 'info',
+          title: n.title,
+          message: n.message,
+          time: format(date, 'h:mm a'),
+          read: n.read,
+          fullDate: date
+        };
 
-          if (isToday(date)) today.push(item);
-          else if (isYesterday(date)) yesterday.push(item);
-          else earlier.push(item);
-        });
+        if (isToday(date)) today.push(item);
+        else if (isYesterday(date)) yesterday.push(item);
+        else earlier.push(item);
+      });
 
-        if (today.length > 0) groupedArray.push({ title: 'Today', data: today });
-        if (yesterday.length > 0) groupedArray.push({ title: 'Yesterday', data: yesterday });
-        if (earlier.length > 0) groupedArray.push({ title: 'Earlier', data: earlier });
+      if (today.length > 0) groupedArray.push({ title: 'Today', data: today });
+      if (yesterday.length > 0) groupedArray.push({ title: 'Yesterday', data: yesterday });
+      if (earlier.length > 0) groupedArray.push({ title: 'Earlier', data: earlier });
 
-        setNotifications(groupedArray);
-      }
-    } catch (error) {
-      console.error("Failed to load notifications", error);
-    } finally {
-      setLoading(false);
+      setNotifications(groupedArray);
     }
-  };
-
-  React.useEffect(() => {
-    fetchNotificationsData();
-  }, []);
+  }, [data]);
 
   // --- Logic ---
   const getIcon = (type: string) => {
@@ -83,8 +75,7 @@ export default function NotificationsScreen() {
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllNotificationsRead();
-      fetchNotificationsData();
+      await markAllReadMutation.mutateAsync();
     } catch (error) {
       console.error("Failed to mark all read", error);
     }
@@ -97,11 +88,11 @@ export default function NotificationsScreen() {
       data: section.data.map((item: any) => item.id === id ? { ...item, read: true } : item)
     }));
     setNotifications(updated);
-
+    
     try {
-      await markNotificationRead(id);
+      await markReadMutation.mutateAsync(id);
     } catch (error) {
-      console.error("Failed to mark read", error);
+      console.error("Failed to mark notification as read", error);
     }
   };
 

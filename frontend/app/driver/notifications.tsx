@@ -1,5 +1,5 @@
 // app/driver/notifications.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
     View,
     Text,
@@ -7,13 +7,14 @@ import {
     FlatList,
     TouchableOpacity,
     RefreshControl,
-    Dimensions
+    Dimensions,
+    ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { getNotifications, markNotificationRead } from '@/services/api';
+import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -30,41 +31,19 @@ type Notification = {
 
 export default function DriverNotificationsScreen() {
     const router = useRouter();
-    const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [refreshing, setRefreshing] = useState(false);
-    const [loading, setLoading] = useState(true);
-
-    const fetchNotifications = async () => {
-        try {
-            const res = await getNotifications();
-            if (res && res.notifications) {
-                setNotifications(res.notifications);
-            }
-        } catch (error) {
-            console.error("Failed to load notifications", error);
-        } finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchNotifications();
-    }, []);
+    const { data, isLoading, refetch, isRefetching } = useNotifications();
+    const markReadMutation = useMarkNotificationRead();
+    const notifications = data?.notifications || [];
 
     const onRefresh = () => {
-        setRefreshing(true);
-        fetchNotifications();
+        refetch();
     };
 
     const handleNotificationPress = async (notification: Notification) => {
         // Mark as read
         if (!notification.is_read) {
             try {
-                await markNotificationRead(notification.id);
-                setNotifications(prev =>
-                    prev.map(n => n.id === notification.id ? { ...n, is_read: true } : n)
-                );
+                await markReadMutation.mutateAsync(notification.id);
             } catch (error) {
                 console.error("Failed to mark notification as read", error);
             }
@@ -193,7 +172,7 @@ export default function DriverNotificationsScreen() {
                 ListEmptyComponent={renderEmptyState}
                 refreshControl={
                     <RefreshControl
-                        refreshing={refreshing}
+                        refreshing={isRefetching}
                         onRefresh={onRefresh}
                         tintColor="#84cc16"
                         colors={['#84cc16']}

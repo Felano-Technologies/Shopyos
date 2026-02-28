@@ -14,7 +14,7 @@ import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-ico
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { getDeliveryDetails, updateDeliveryStatus } from '@/services/api';
+import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
 
 const { width, height } = Dimensions.get('window');
 
@@ -25,56 +25,38 @@ export default function ActiveOrderScreen() {
   const params = useLocalSearchParams();
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
-  const [delivery, setDelivery] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false);
 
-  const fetchDetails = async () => {
-    try {
-      const d = await getDeliveryDetails(deliveryId);
-      if (d.success) {
-        setDelivery(d.delivery);
-        // Sync step with status
-        const status = d.delivery.status;
-        if (status === 'picked_up' || status === 'in_transit') {
-          setStep(2);
-        } else if (status === 'delivered') {
-          router.replace('/driver/dashboard');
-        } else {
-          // assigned
-          setStep(0);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // --- TanStack Query Hooks ---
+  const { data, isLoading, refetch } = useDeliveryDetails(deliveryId);
+  const delivery = data?.delivery;
+  const updateStatusMutation = useUpdateDeliveryStatus();
 
+  // Sync step with delivery status
   useEffect(() => {
-    if (deliveryId) {
-      fetchDetails();
+    if (delivery) {
+      const status = delivery.status;
+      if (status === 'picked_up' || status === 'in_transit') {
+        setStep(2);
+      } else if (status === 'delivered') {
+        router.replace('/driver/dashboard');
+      } else {
+        setStep(0);
+      }
     }
-  }, [deliveryId]);
+  }, [delivery?.status]);
 
   const handleProgress = async () => {
     try {
-      setUpdating(true);
       if (step === 0) {
-        // Arrived at Restaurant - optional status update if backend supports 'at_pickup'
         setStep(1);
       } else if (step === 1) {
-        // Confirm Pickup -> Move to step 2 & update backend
-        await updateDeliveryStatus(deliveryId, 'picked_up');
+        await updateStatusMutation.mutateAsync({ deliveryId, status: 'picked_up' });
         setStep(2);
       } else if (step === 2) {
-        // Arrived at Customer / On the way -> Update to in_transit
-        await updateDeliveryStatus(deliveryId, 'in_transit');
+        await updateStatusMutation.mutateAsync({ deliveryId, status: 'in_transit' });
         setStep(3);
       } else if (step === 3) {
-        // Complete Delivery
-        await updateDeliveryStatus(deliveryId, 'delivered');
+        await updateStatusMutation.mutateAsync({ deliveryId, status: 'delivered' });
         Alert.alert("Order Completed", "Great job! Your earnings have been updated.", [
           { text: "OK", onPress: () => router.replace('/driver/dashboard') }
         ]);
@@ -82,8 +64,6 @@ export default function ActiveOrderScreen() {
       }
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to update status");
-    } finally {
-      setUpdating(false);
     }
   };
 
@@ -97,7 +77,7 @@ export default function ActiveOrderScreen() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#0C1559" />
@@ -218,12 +198,12 @@ export default function ActiveOrderScreen() {
         {/* --- MAIN ACTION BUTTON --- */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.mainBtn, step === 3 && styles.completeBtn, updating && { opacity: 0.8 }]}
+            style={[styles.mainBtn, step === 3 && styles.completeBtn, updateStatusMutation.isPending && { opacity: 0.8 }]}
             onPress={handleProgress}
             activeOpacity={0.8}
-            disabled={updating}
+            disabled={updateStatusMutation.isPending}
           >
-            {updating ? (
+            {updateStatusMutation.isPending ? (
               <ActivityIndicator color={step === 3 ? "#FFF" : "#0C1559"} />
             ) : (
               <>

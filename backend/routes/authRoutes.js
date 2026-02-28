@@ -10,6 +10,7 @@ router.post('/register', validateRegister, authController.register);
 router.post('/login', validateLogin, authController.login);
 router.post('/refresh', authController.refreshAccessToken); // NEW: Token refresh
 router.post('/reset-password', authController.resetPassword);
+router.post('/reset-password/confirm', authController.confirmResetPassword);
 router.post('/logout', authController.logout);
 
 // Protected routes

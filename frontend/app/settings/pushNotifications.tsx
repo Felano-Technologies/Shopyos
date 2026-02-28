@@ -141,11 +141,10 @@ export default function PushNotificationsScreen() {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: 'Test Notification',
-          body: 'This is a test push notification for Dios.',
+          body: 'This is a test push notification for Shopyos.',
           data: { test: true },
         },
-        trigger: { seconds: 3 },
-        channelId: 'default',
+        trigger: { seconds: 3, repeats: false, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
       });
       Alert.alert('Test Scheduled', 'A test notification will appear in ~3 seconds.');
     } catch (e) {

@@ -13,50 +13,28 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-
-// API and Components
-import { searchProducts } from '@/services/api';
 import { DealsSkeleton } from '@/components/skeletons/DealsSkeleton';
+import { useProducts } from '@/hooks/useProducts';
 
 const { width } = Dimensions.get('window');
 
 export default function DealsScreen() {
   const router = useRouter();
   
-  const [loading, setLoading] = useState(true);
-  const [deals, setDeals] = useState<any[]>([]);
+  // --- TanStack Query Hook ---
+  const { data, isLoading } = useProducts({ limit: 30, sortBy: 'price_asc' });
+  
+  const deals = data?.products?.map((p: any) => ({
+    id: p._id,
+    title: p.name,
+    price: p.price,
+    oldPrice: p.oldPrice || p.price * 1.25,
+    image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
+    category: p.category || 'General',
+    tag: p.price < 100 ? 'Hot' : 'Sale',
+  })) || [];
 
-  useEffect(() => {
-    fetchDeals();
-  }, []);
-
-  const fetchDeals = async () => {
-    try {
-      setLoading(true);
-      // Fetch cheapest items for the "Deals" page
-      const res = await searchProducts({ limit: 30, sortBy: 'price_asc' });
-      
-      if (res.success) {
-        // Map backend products to match the Deals UI
-        const mappedDeals = res.products.map((p: any) => ({
-          id: p._id,
-          title: p.name,
-          price: p.price,
-          // If backend has oldPrice, use it. Otherwise, simulate a 25% discount for the UI
-          oldPrice: p.oldPrice || p.price * 1.25, 
-          image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
-          category: p.category || 'General',
-          tag: p.price < 100 ? 'Hot' : 'Sale', // Dynamic tags based on price
-        }));
-        
-        setDeals(mappedDeals);
-      }
-    } catch (error) {
-      console.error("Failed to fetch deals", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = isLoading;
 
   const handleProductPress = (item: any) => {
     router.push({

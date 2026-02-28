@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,20 +7,68 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
+import { confirmResetPassword } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
 const ResetPasswordScreen = () => {
+  const { token } = useLocalSearchParams();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const isFormValid = newPassword.length > 0 && confirmPassword.length > 0;
+  useEffect(() => {
+    if (!token) {
+      Alert.alert(
+        'Invalid Link',
+        'This password reset link is invalid. Please request a new one.',
+        [{ text: 'OK', onPress: () => router.replace('/forgotPassword') }]
+      );
+    }
+  }, [token]);
+
+  const isFormValid = 
+    newPassword.length >= 6 && 
+    confirmPassword.length >= 6 && 
+    newPassword === confirmPassword;
+
+  const handleResetPassword = async () => {
+    if (!isFormValid) {
+      Alert.alert('Invalid Input', 'Please ensure both passwords match and are at least 6 characters.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await confirmResetPassword(token as string, newPassword);
+      
+      Alert.alert(
+        'Success!',
+        'Your password has been reset successfully. Please log in with your new password.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/login')
+          }
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert(
+        'Reset Failed',
+        error.message || 'Failed to reset password. The link may have expired. Please request a new one.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -80,12 +128,24 @@ const ResetPasswordScreen = () => {
 
       {/* Save Button */}
       <TouchableOpacity
-        style={[styles.saveButton, !isFormValid && { opacity: 0.4 }]}
-        disabled={!isFormValid}
-        onPress={() => router.push('/login')}
+        style={[styles.saveButton, (!isFormValid || loading) && { opacity: 0.4 }]}
+        disabled={!isFormValid || loading}
+        onPress={handleResetPassword}
       >
-        <Text style={styles.saveText}>Save</Text>
+        {loading ? (
+          <ActivityIndicator color="#FFF" />
+        ) : (
+          <Text style={styles.saveText}>Reset Password</Text>
+        )}
       </TouchableOpacity>
+
+      {newPassword.length > 0 && newPassword !== confirmPassword && (
+        <Text style={styles.errorText}>Passwords do not match</Text>
+      )}
+
+      {newPassword.length > 0 && newPassword.length < 6 && (
+        <Text style={styles.errorText}>Password must be at least 6 characters</Text>
+      )}
 
       {/* Footer Logos */}
       <View style={styles.bottomLogos}>
@@ -164,6 +224,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: '700',
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+    fontFamily: 'Montserrat-Medium',
   },
   bottomLogos: {
     flexDirection: 'row',

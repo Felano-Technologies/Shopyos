@@ -7,7 +7,8 @@ import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { searchProducts, getAllCategories } from '@/services/api';
+import { useProducts, useProductSearch } from '@/hooks/useProducts';
+import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 
 const { width } = Dimensions.get('window');
@@ -16,99 +17,49 @@ export default function Home() {
   const router = useRouter();
 
   const [locationText, setLocationText] = useState<'Locating…' | string>('Locating…');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedCat, setSelectedCat] = useState<string>('All');
-  const [categories, setCategories] = useState<any[]>([]);
-
-  // --- Search State ---
   const [searchQuery, setSearchQuery] = useState('');
-
-  const [recentProducts, setRecentProducts] = useState<any[]>([]);
-  const [dealsProducts, setDealsProducts] = useState<any[]>([]);
-
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  const allCategoryNames = ['All', ...categories.map(c => c.name)];
+  const { data: categoriesData } = useCategories();
+  const categories = categoriesData || [];
+  const allCategoryNames = ['All', ...categories.map((c: any) => c.name)];
 
-  // --- Search Logic ---
-  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const categoryFilter = selectedCat !== 'All' ? selectedCat : undefined;
+  
+  const { data: recentData, isLoading: isLoadingRecent, refetch: refetchRecent, isRefetching: isRefetchingRecent } = useProducts({ 
+    category: categoryFilter,
+    sortBy: 'newest'
+  }, 10);
+  
+  const { data: dealsData, isLoading: isLoadingDeals, refetch: refetchDeals, isRefetching:  isRefetchingDeals } = useProducts({ 
+    sortBy: 'price_asc'
+  }, 5);
+  
+  const { data: searchData } = useProductSearch(searchQuery, undefined, 10);
 
-  // Fetch categories from database
+  const loading = isLoadingRecent || isLoadingDeals;
+  const refreshing = isRefetchingRecent || isRefetchingDeals;
+  const recentProducts = recentData?.success ? recentData.products : [];
+  const dealsProducts = dealsData?.success ? dealsData.products : [];
+  const searchResults = searchQuery.length > 2 && searchData?.success ? searchData.products : [];
+
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const data = await getAllCategories();
-        setCategories(data.data || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        setCategories([]);
-      }
-    };
-    fetchCategories();
-  }, []);
-
-  useEffect(() => {
-    if (searchQuery.length > 2) {
-      const delayDebounce = setTimeout(async () => {
-        try {
-          const res = await searchProducts({ query: searchQuery, limit: 10 });
-          if (res.success) setSearchResults(res.products);
-        } catch (e) {
-          console.log("Search error", e);
-        }
-      }, 500);
-      return () => clearTimeout(delayDebounce);
-    } else {
-      setSearchResults([]);
+    if (recentProducts.length > 0) {
+      const vals = recentProducts.map(() => new Animated.Value(0));
+      setAnimationValues(vals);
+      const animations = vals.map((anim: any, i: number) =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 500,
+          delay: i * 100,
+          useNativeDriver: true,
+        })
+      );
+      Animated.stagger(100, animations).start();
     }
-  }, [searchQuery]);
-
-  useEffect(() => {
-    loadHomePageData();
-  }, [selectedCat]);
-
-  const loadHomePageData = async () => {
-    setLoading(true);
-    try {
-      // Fetch Recent (Filter by category if selected)
-      // We sort by 'created_at' or 'newest' to ensure they are the most recent
-      const catFilter = selectedCat !== 'All' ? selectedCat : undefined;
-      const recentRes = await searchProducts({ 
-          limit: 10, 
-          offset: 0, 
-          category: catFilter,
-          sortBy: 'created_at' // Ensure we get the newest items
-      });
-      
-      if (recentRes.success) {
-        setRecentProducts(recentRes.products);
-        
-        // Animation values for recent items
-        const vals = recentRes.products.map(() => new Animated.Value(0));
-        setAnimationValues(vals);
-        const animations = vals.map((anim: any, i: number) =>
-          Animated.timing(anim, {
-            toValue: 1,
-            duration: 500,
-            delay: i * 100,
-            useNativeDriver: true,
-          })
-        );
-        Animated.stagger(100, animations).start();
-      }
-
-      // Fetch Deals (Cheapest)
-      const dealsRes = await searchProducts({ limit: 5, sortBy: 'price_asc' });
-      if (dealsRes.success) setDealsProducts(dealsRes.products);
-
-    } catch (error) {
-      console.error("Failed to load home data", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [recentProducts]);
 
   // Fetch location
   useEffect(() => {
@@ -137,9 +88,7 @@ export default function Home() {
   }, []);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await loadHomePageData();
-    setRefreshing(false);
+    await Promise.all([refetchRecent(), refetchDeals()]);
   };
 
   const goToDetails = (item: any) => {

@@ -9,6 +9,7 @@ import BottomNav from '../components/BottomNav';
 import DriverBottomNav from '../components/DriverBottomNav';
 import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
+import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 
 SplashScreen.preventAutoHideAsync();
@@ -54,16 +55,17 @@ export default function RootLayout() {
   ].includes(pathname);
 
   return (
-    <CartProvider>
-      <ChatProvider>
-        <ThemeProvider value={navTheme}>
-          <View style={[styles.container, { backgroundColor: screenBg }]}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            >
+    <QueryProvider>
+      <CartProvider>
+        <ChatProvider>
+          <ThemeProvider value={navTheme}>
+            <View style={[styles.container, { backgroundColor: screenBg }]}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              >
               {/* --- MAIN CUSTOMER SCREENS --- */}
               <Stack.Screen name="index" options={{ animation: 'fade' }} />
               <Stack.Screen name="home" options={{ animation: 'none' }} />
@@ -156,6 +158,7 @@ export default function RootLayout() {
         </ThemeProvider>
       </ChatProvider>
     </CartProvider>
+    </QueryProvider>
   );
 }
 

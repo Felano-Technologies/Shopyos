@@ -317,19 +317,83 @@ const resetPassword = async (req, res, next) => {
     if (!user) return res.status(400).json({ error: 'User not found' });
 
     const token = crypto.randomBytes(20).toString('hex');
-    const expiresAt = new Date(Date.now() + 3600000);
+    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
 
     await repositories.users.setPasswordResetToken(user.id, token, expiresAt);
 
-    const resetUrl = `${req.protocol}://${req.get('host')}/api/auth/reset-password/${token}`;
+    const appScheme = process.env.APP_SCHEME || 'shopyos';
+    const resetUrl = `${appScheme}://reset-password?token=${token}`;
+
     await getTransporter().sendMail({
       to: user.email,
       from: process.env.EMAIL_FROM,
-      subject: 'Password Reset',
-      text: `You requested a password reset.\n\nClick here to reset: ${resetUrl}\n\nIf you didn't request this, ignore this email.`
+      subject: 'Shopyos - Password Reset Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2>Password Reset Request</h2>
+          <p>You requested a password reset for your Shopyos account.</p>
+          <p>Click the button below to open the app and reset your password (link expires in 1 hour):</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0C1559; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">Reset Password in App</a>
+          <p style="margin-top: 30px; color: #999; font-size: 12px;">If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
+        </div>
+      `,
+      text: `You requested a password reset.\n\nOpen this link in your mobile device to reset your password: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`
     });
 
-    res.status(200).json({ message: 'Recovery email sent' });
+    res.status(200).json({ success: true, message: 'Recovery email sent' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const confirmResetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res.status(400).json({ success: false, error: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+    }
+
+    // Find user by reset token
+    const { data: user, error } = await repositories.users.db
+      .from('users')
+      .select('id, password_reset_token, password_reset_expires')
+      .eq('password_reset_token', token)
+      .single();
+
+    if (error || !user) {
+      return res.status(400).json({ success: false, error: 'Invalid or expired reset token' });
+    }
+
+    // Check if token is expired
+    if (new Date(user.password_reset_expires) < new Date()) {
+      return res.status(400).json({ success: false, error: 'Reset token has expired. Please request a new one.' });
+    }
+
+    // Update password
+    await repositories.users.updatePassword(user.id, newPassword);
+
+    // Clear reset token
+    await repositories.users.db
+      .from('users')
+      .update({ password_reset_token: null, password_reset_expires: null })
+      .eq('id', user.id);
+
+    // Revoke all existing sessions for security
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'password_reset' })
+      .eq('user_id', user.id);
+
+    await cacheDel(`shopyos:users:${user.id}:auth`);
+
+    logger.info('Password reset successful', { userId: user.id });
+
+    res.status(200).json({ success: true, message: 'Password reset successful. Please log in with your new password.' });
   } catch (err) {
     next(err);
   }
@@ -477,6 +541,6 @@ const updateUserRole = async (req, res, next) => {
 
 module.exports = {
   register, login, refreshAccessToken, logout, logoutAll,
-  getSessions, revokeSession, resetPassword, getUserData,
+  getSessions, revokeSession, resetPassword, confirmResetPassword, getUserData,
   addRole, getUserRoles, updateUserRole, updateProfile
 };

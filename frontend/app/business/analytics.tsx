@@ -16,52 +16,37 @@ import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
-import { getBusinessAnalytics, storage } from '@/services/api';
+import { storage } from '@/services/api';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
-import { set } from 'date-fns';
+import { useBusinessAnalytics } from '@/hooks/useBusiness';
 
 const { width } = Dimensions.get('window');
 
 const Analytics = () => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('week');
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
-  // --- Data State with Defaults ---
-  const [analyticsData, setAnalyticsData] = useState<any>({
+  // --- Get current business ID ---
+  useEffect(() => {
+    storage.getItem('currentBusinessId').then(setBusinessId);
+  }, []);
+
+  // --- TanStack Query Hook ---
+  const { data, isLoading, refetch, isRefetching } = useBusinessAnalytics(businessId || '', timeframe);
+  
+  const analyticsData = data || {
     chart: { labels: [], datasets: [{ data: [0] }] },
     stats: { revenue: 0, orders: 0, growth: 0 },
     topProducts: [],
     categoryDistribution: []
-  });
-
-  const fetchAnalytics = async () => {
-    try {
-      const businessId = await storage.getItem('currentBusinessId');
-      if (businessId) {
-        const data = await getBusinessAnalytics(businessId, timeframe);
-        if (data && data.success) {
-          setAnalyticsData(data.data);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to fetch analytics", error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
   };
 
-  // Initial Load & Timeframe Change
-  useEffect(() => {
-    setLoading(true);
-    fetchAnalytics();
-  }, [timeframe]);
+  const loading = isLoading;
+  const refreshing = isRefetching;
 
-const onRefresh = async () => {
-    setRefreshing(true); // This will now trigger the centered overlay instead of the native pull-down
-    await fetchAnalytics();
+  const onRefresh = async () => {
+    await refetch();
   };
 
   // --- Chart Configuration ---

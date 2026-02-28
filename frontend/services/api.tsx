@@ -181,6 +181,30 @@ export const registerPushTokenInBackend = async (token: string) => {
   }
 };
 
+// Password Reset APIs
+export const requestPasswordReset = async (email: string) => {
+  try {
+    const response = await api.post('/auth/reset-password', { email });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error requesting password reset:', error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const confirmResetPassword = async (token: string, newPassword: string) => {
+  try {
+    const response = await api.post('/auth/reset-password/confirm', { token, newPassword });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error confirming password reset:', error);
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 // Logout user
 export const logoutUser = async () => {
   try {
