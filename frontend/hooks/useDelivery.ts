@@ -1,8 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
 
-export const useAvailableDeliveries = () => {
+interface DeliveryQueryOptions {
+  enabled?: boolean;
+  refetchInterval?: number | false;
+}
+
+export const useAvailableDeliveries = (options?: DeliveryQueryOptions) => {
   return useQuery({
     queryKey: queryKeys.delivery.available(),
     queryFn: async () => {
@@ -11,10 +16,12 @@ export const useAvailableDeliveries = () => {
     },
     staleTime: 1 * 60 * 1000, // 1 minute - available deliveries change frequently
     gcTime: 5 * 60 * 1000,
+    enabled: options?.enabled !== undefined ? options.enabled : true,
+    refetchInterval: options?.refetchInterval,
   });
 };
 
-export const useActiveDeliveries = () => {
+export const useActiveDeliveries = (options?: DeliveryQueryOptions) => {
   return useQuery({
     queryKey: queryKeys.delivery.active(),
     queryFn: async () => {
@@ -23,6 +30,8 @@ export const useActiveDeliveries = () => {
     },
     staleTime: 1 * 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000,
+    enabled: options?.enabled !== undefined ? options.enabled : true,
+    refetchInterval: options?.refetchInterval,
   });
 };
 

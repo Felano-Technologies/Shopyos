@@ -27,6 +27,17 @@ const { width } = Dimensions.get('window');
 
 const CATEGORIES = ['All', 'Sneakers', 'Electronics', 'Clothing', 'Art'];
 
+// Type definition for inventory items
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  sku: string;
+  stock: number;
+  price: number;
+  lowStock: boolean;
+  image: any;
+}
 
 
 const Inventory = () => {
@@ -45,9 +56,9 @@ const Inventory = () => {
   }, []);
 
   // --- TanStack Query Hook ---
-  const { data, isLoading, refetch, isRefetching } = useStoreProducts(businessId);
+  const { data, isLoading, refetch, isRefetching } = useStoreProducts(businessId || '');
   
-  const inventory = data?.products?.map((p: any) => ({
+  const inventory: InventoryItem[] = data?.products?.map((p: any) => ({
     id: p._id,
     name: p.name,
     category: p.category || 'General',
@@ -61,7 +72,7 @@ const Inventory = () => {
   const refreshing = isRefetching;
 
   // Filter inventory based on category and search
-  const filteredInventory = inventory.filter((item) => {
+  const filteredInventory = inventory.filter((item: InventoryItem) => {
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -82,9 +93,9 @@ const Inventory = () => {
 
   // Calculate stats
   const totalItems = inventory.length;
-  const totalStock = inventory.reduce((sum, item) => sum + item.stock, 0);
-  const lowStockItems = inventory.filter(item => item.lowStock).length;
-  const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock), 0);
+  const totalStock = inventory.reduce((sum: number, item: InventoryItem) => sum + item.stock, 0);
+  const lowStockItems = inventory.filter((item: InventoryItem) => item.lowStock).length;
+  const totalValue = inventory.reduce((sum: number, item: InventoryItem) => sum + (item.price * item.stock), 0);
 
   const onRefresh = async () => {
     await refetch();

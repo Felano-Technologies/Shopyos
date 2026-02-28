@@ -211,7 +211,7 @@ export default function Dashboard() {
             {activeDeliveries.length > 0 && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={styles.sectionTitle}>Current Task</Text>
-                {activeDeliveries.map(d => <ActiveMissionCard key={d.id} delivery={d} />)}
+                {activeDeliveries.map((d: any) => <ActiveMissionCard key={d.id} delivery={d} />)}
               </View>
             )}
 
