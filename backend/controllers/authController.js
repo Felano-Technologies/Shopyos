@@ -539,8 +539,30 @@ const updateUserRole = async (req, res, next) => {
   }
 };
 
+const updateUserLocation = async (req, res, next) => {
+  try {
+    const { latitude, longitude } = req.body;
+    const userId = req.user.id;
+
+    if (!latitude || !longitude) {
+      return res.status(400).json({ success: false, error: 'Latitude and longitude are required' });
+    }
+
+    // Update user profile with location
+    await repositories.userProfiles.updateByUserId(userId, {
+      latitude: parseFloat(latitude),
+      longitude: parseFloat(longitude)
+    });
+
+    res.status(200).json({ success: true, message: 'Location updated successfully' });
+  } catch (error) {
+    logger.error('Error updating user location:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   register, login, refreshAccessToken, logout, logoutAll,
   getSessions, revokeSession, resetPassword, confirmResetPassword, getUserData,
-  addRole, getUserRoles, updateUserRole, updateProfile
+  addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation
 };
