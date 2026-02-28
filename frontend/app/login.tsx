@@ -3,12 +3,12 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-import * as Location from 'expo-location';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
 import { Appearance } from 'react-native';
+import { updateUserLocationOnce } from '@/src/utils/location';
 
 const { width } = Dimensions.get('window');
 
@@ -26,18 +26,14 @@ const LoginScreen = () => {
     try {
       setLoading(true);
 
-      // Request location permissions
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to proceed.');
-        setLoading(false); // Hide loading indicator
+      // Get location coordinates using shared utility
+      const coords = await updateUserLocationOnce(true);
+      if (!coords) {
+        setLoading(false);
         return;
       }
 
-      // Get the current location
-      const location = await Location.getCurrentPositionAsync({});
-      const { latitude, longitude } = location.coords;
-
+      const { latitude, longitude } = coords;
       const response = await loginUser(email, password, latitude, longitude);
 
 

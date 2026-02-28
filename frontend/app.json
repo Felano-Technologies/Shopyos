@@ -9,14 +9,26 @@
     "scheme": "shopyos",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track deliveries in real-time for better customer experience.",
+        "NSLocationWhenInUseUsageDescription": "We need your location to provide accurate delivery services.",
+        "UIBackgroundModes": ["location"]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.eugeneanokye99.Shopyos"
+      "package": "com.eugeneanokye99.Shopyos",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -25,6 +37,17 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Shopyos to track your location during deliveries for real-time updates.",
+          "locationAlwaysPermission": "Allow Shopyos to track your location in the background during active deliveries.",
+          "locationWhenInUsePermission": "Allow Shopyos to access your location to provide better service.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      "expo-task-manager",
       [
         "expo-camera",
         {

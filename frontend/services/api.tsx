@@ -1376,3 +1376,38 @@ export const unfollowStore = async (storeId: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+// --- Location API ---
+
+/**
+ * Update user location (one-time, used on login and app foreground)
+ */
+export const updateUserLocation = async (latitude: number, longitude: number) => {
+  try {
+    const response = await api.put('/auth/location', { latitude, longitude });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating user location:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+/**
+ * Update driver location during active delivery (background task)
+ */
+export const updateDriverLocation = async (
+  deliveryId: string,
+  latitude: number,
+  longitude: number
+) => {
+  try {
+    const response = await api.put(`/deliveries/${deliveryId}/location`, {
+      latitude,
+      longitude,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating driver location:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

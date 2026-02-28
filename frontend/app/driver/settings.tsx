@@ -1,12 +1,81 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Switch, Alert } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
+import {
+  getLocationSharingPreference,
+  setLocationSharingPreference,
+  requestLocationPermissions,
+} from '@/src/background/controller';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function DriverSettings() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [shareLiveLocation, setShareLiveLocation] = useState(false);
+
+  // Load location sharing preference on mount
+  useEffect(() => {
+    loadLocationPreference();
+  }, []);
+
+  const loadLocationPreference = async () => {
+    const enabled = await getLocationSharingPreference();
+    setShareLiveLocation(enabled);
+  };
+
+  const handleLocationToggle = async (value: boolean) => {
+    try {
+      // If enabling, request permissions first
+      if (value) {
+        const permissions = await requestLocationPermissions();
+        
+        if (!permissions.foreground) {
+          Alert.alert(
+            'Permission Required',
+            'Location permission is required to share your live location during deliveries.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+
+        if (!permissions.background) {
+          Alert.alert(
+            'Background Permission Required',
+            'Background location permission is needed to track your location while delivering. Please enable it in your device settings.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => {
+                // TODO: Open device settings
+                console.log('Open settings');
+              }}
+            ]
+          );
+          return;
+        }
+      }
+
+      // Save preference
+      await setLocationSharingPreference(value);
+      setShareLiveLocation(value);
+
+      // Invalidate queries to trigger useBackgroundTasks to re-evaluate
+      queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
+
+      Alert.alert(
+        value ? 'Location Sharing Enabled' : 'Location Sharing Disabled',
+        value
+          ? 'Your location will be shared during active deliveries.'
+          : 'Your location will no longer be shared.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error toggling location sharing:', error);
+      Alert.alert('Error', 'Failed to update location sharing preference.');
+    }
+  };
 
   const SettingRow = ({ icon, label, value }: any) => (
     <TouchableOpacity style={styles.row}>
@@ -21,6 +90,26 @@ export default function DriverSettings() {
             <Feather name="chevron-right" size={18} color="#94A3B8" />
         </View>
     </TouchableOpacity>
+  );
+
+  const ToggleRow = ({ icon, label, value, onToggle, description }: any) => (
+    <View style={styles.row}>
+        <View style={styles.rowLeft}>
+            <View style={styles.iconCircle}>
+                <Feather name={icon} size={20} color="#0C1559" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>{label}</Text>
+              {description && <Text style={styles.rowDescription}>{description}</Text>}
+            </View>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onToggle}
+          trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
+          thumbColor={value ? '#0C1559' : '#CBD5E1'}
+        />
+    </View>
   );
 
   return (
@@ -65,7 +154,14 @@ export default function DriverSettings() {
 
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.section}>
-            <SettingRow icon="map-pin" label="Navigation App" value="Google Maps" />
+            <ToggleRow 
+              icon="map-pin" 
+              label="Share Live Location" 
+              description="Share your location during active deliveries"
+              value={shareLiveLocation}
+              onToggle={handleLocationToggle}
+            />
+            <SettingRow icon="map" label="Navigation App" value="Google Maps" />
             <SettingRow icon="bell" label="Sound & Notification" value="On" />
         </View>
 
@@ -108,9 +204,10 @@ const styles = StyleSheet.create({
   section: { backgroundColor: '#FFF', borderRadius: 16, padding: 5, marginBottom: 10 },
   
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  rowLeft: { flexDirection: 'row', alignItems: 'center' },
+  rowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   iconCircle: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   rowLabel: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
+  rowDescription: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Regular', marginTop: 2 },
   rowRight: { flexDirection: 'row', alignItems: 'center' },
   rowValue: { fontSize: 14, color: '#64748B', marginRight: 8, fontFamily: 'Montserrat-Regular' },
   

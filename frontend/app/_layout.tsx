@@ -11,6 +11,10 @@ import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
 import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
+
+// Import task definitions once (safe to import multiple times, but only define once)
+import '../src/background/tasks';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -25,6 +29,9 @@ export default function RootLayout() {
 
   // Apply Push Hook globally
   usePushNotifications();
+
+  // Apply Background Tasks Hook globally (manages driver location tracking)
+  useBackgroundTasks();
 
   useEffect(() => {
     if (loaded) {
