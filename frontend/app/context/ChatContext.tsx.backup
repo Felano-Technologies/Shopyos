@@ -1,7 +1,8 @@
 // context/ChatContext.tsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getConversations, sendMessage as apiSendMessage, markConversationRead, storage } from '../../services/api';
 import { socketService } from '../../services/socket';
+import { useFocusEffect } from 'expo-router';
 
 export type Message = {
   id: string;
@@ -32,6 +33,14 @@ type ChatContextType = {
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
+
+// --- Real Data State ---
+// We will fetch these from the backend
+// For now, the backend returns a flat list of conversations.
+// We might need to differentiate based on the context (if the user is acting as a buyer or seller).
+// But for simplicity, we'll store all fetched conversations.
+
+
 
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [buyerConversations, setBuyerChats] = useState<Conversation[]>([]);
@@ -132,7 +141,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Initialize socket connection (removed polling)
+  // Initialize socket connection
   useEffect(() => {
     const initSocket = async () => {
       try {
@@ -141,31 +150,45 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         await socketService.connect();
         setSocketConnected(true);
+tempId = `temp-${Date.now()}`;
+    const newMessage: Message = { id: tempId, text, sender: 'me', time };
 
-        // Listen for new messages from all conversations
-        await socketService.onNewMessage((data: { message: any; conversationId: string }) => {
-          const { message, conversationId } = data;
+    // Update local state immediately
+    const updater = type === 'buyer' ? setBuyerChats : setSellerChats;
+    updater(prev => prev.map(conv => {
+      if (conv.id === id) {
+        return {
+          ...conv,
+          lastMessage: text,
+          time,
+          messages: [...(conv.messages || []), newMessage]
+        };
+      }
+      return conv;
+    }));
 
-          // Update conversations when new message arrives
-          const updateConversations = (prev: Conversation[]) => {
-            return prev.map(conv => {
-              if (conv.id === conversationId) {
-                // Determine if message is from me
-                const isMe = currentUserId && message.sender_id === currentUserId;
-                const newMsg: Message = {
-                  id: message.id,
-                  text: message.content,
-                  sender: isMe ? 'me' : 'them',
-                  time: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                };
-
-                return {
-                  ...conv,
-                  lastMessage: message.content,
-                  time: newMsg.time,
-                  unread: isMe ? conv.unread : conv.unread + 1,
-                  messages: [...(conv.messages || []), newMsg]
-                };
+    // Send via Socket.IO for real-time delivery (fallback to REST)
+    try {
+      if (socketConnected && socketService.isConnected()) {
+        await socketService.sendMessage(id, text);
+      } else {
+        // Fallback to REST API
+        await apiSendMessage(id, text);
+        // Manually emit update since socket isn't connected
+        fetchChats();
+      }
+    } catch (error) {
+      console.error("Failed to send message", error);
+      // Revert optimistic update on failure
+      updater(prev => prev.map(conv => {
+        if (conv.id === id) {
+          return {
+            ...conv,
+            messages: conv.messages.filter(m => m.id !== tempId)
+          };
+        }
+        return conv;
+      }));
               }
               return conv;
             });
@@ -205,12 +228,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const sendMessage = async (id: string, text: string, type: 'buyer' | 'seller') => {
     // Optimistic update
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const tempId = `temp-${Date.now()}`;
-    const newMessage: Message = { id: tempId, text, sender: 'me', time };
+    const newMessage: Message = { id: Date.now().toString(), text, sender: 'me', time };
 
     // Update local state immediately
     const updater = type === 'buyer' ? setBuyerChats : setSellerChats;
-    updater((prev: Conversation[]) => prev.map(conv => {
+    updater(prev => prev.map(conv => {
       if (conv.id === id) {
         return {
           ...conv,
@@ -222,41 +244,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       return conv;
     }));
 
-    // Send via Socket.IO for real-time delivery (fallback to REST)
-    try {
-      if (socketConnected && socketService.isConnected()) {
-        await socketService.sendMessage(id, text);
+    // Call API
+    trif (socketConnected && socketService.isConnected()) {
+        await socketService.markConversationRead(id);
       } else {
-        // Fallback to REST API
-        await apiSendMessage(id, text);
-        // Manually emit update since socket isn't connected
-        fetchChats();
-      }
+        await markConversationRead(id);
+      }Message(id, text);
+      // Refresh to confirm and get real ID/timestamp
+      fetchChats();
     } catch (error) {
       console.error("Failed to send message", error);
-      // Revert optimistic update on failure
-      updater((prev: Conversation[]) => prev.map(conv => {
-        if (conv.id === id) {
-          return {
-            ...conv,
-            messages: conv.messages.filter(m => m.id !== tempId)
-          };
-        }
-        return conv;
-      }));
+      // revert optimistic update if needed
     }
   };
 
   const markAsRead = async (id: string, type: 'buyer' | 'seller') => {
     const updater = type === 'buyer' ? setBuyerChats : setSellerChats;
-    updater((prev: Conversation[]) => prev.map(conv => conv.id === id ? { ...conv, unread: 0 } : conv));
+    updater(prev => prev.map(conv => conv.id === id ? { ...conv, unread: 0 } : conv));
 
     try {
-      if (socketConnected && socketService.isConnected()) {
-        await socketService.markConversationRead(id);
-      } else {
-        await markConversationRead(id);
-      }
+      await markConversationRead(id);
       fetchChats();
     } catch (error) {
       console.error("Failed to mark as read", error);

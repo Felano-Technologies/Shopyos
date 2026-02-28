@@ -28,6 +28,7 @@ import {
   markConversationRead,
   storage
 } from '../../services/api';
+import { socketService } from '../../services/socket';
 import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
@@ -107,11 +108,68 @@ export default function ConversationScreen() {
 
       // Mark as read
       markConversationRead(conversationId).catch(() => { });
-
-      // Poll every 4 seconds
-      const interval = setInterval(() => fetchMessages(false), 4000);
-      return () => clearInterval(interval);
     }
+  }, [conversationId, currentUserId]);
+
+  // Socket.IO real-time messaging
+  useEffect(() => {
+    if (!conversationId) return;
+
+    let isActive = true;
+
+    const setupSocket = async () => {
+      try {
+        // Connect socket and join conversation room
+        await socketService.connect();
+        await socketService.joinConversation(conversationId);
+        console.log('✅ Joined conversation room:', conversationId);
+
+        // Listen for new messages
+        const handleNewMessage = ({ message, conversationId: msgConvId }: any) => {
+          if (msgConvId !== conversationId || !isActive) return;
+
+          console.log('📩 Real-time message received:', message);
+
+          // Dedupe and add message
+          setMessages(prev => {
+            // Check if message already exists
+            if (prev.some(m => m.id === message.id)) {
+              return prev;
+            }
+            return [...prev, message];
+          });
+
+          // Mark as read if from other person
+          if (message.sender_id !== currentUserId) {
+            socketService.markConversationRead(conversationId).catch(() => {});
+          }
+        };
+
+        socketService.onNewMessage(handleNewMessage);
+
+        // On reconnection, refetch messages
+        const socket = socketService.getSocket();
+        if (socket) {
+          socket.on('connect', () => {
+            console.log('🔄 Socket reconnected, refetching messages...');
+            if (isActive) {
+              fetchMessages(false);
+              socketService.joinConversation(conversationId);
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Failed to setup socket for conversation:', error);
+      }
+    };
+
+    setupSocket();
+
+    return () => {
+      isActive = false;
+      socketService.leaveConversation(conversationId).catch(() => {});
+      socketService.offNewMessage();
+    };
   }, [conversationId, currentUserId]);
 
   const fetchMessages = async (showLoader: boolean) => {
@@ -164,13 +222,24 @@ export default function ConversationScreen() {
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      const response = await apiSendMessage(conversationId, msgText);
-      if (response.success) {
-        // Replace optimistic message with real one
-        setMessages(prev =>
-          prev.map(m => m.id === tempId ? { ...response.message, pending: false } : m)
-        );
+      // Send via Socket.IO for instant delivery (fallback to REST)
+      let sentMessage;
+      if (socketService.isConnected()) {
+        sentMessage = await socketService.sendMessage(conversationId, msgText);
+      } else {
+        const response = await apiSendMessage(conversationId, msgText);
+        sentMessage = response.message;
       }
+
+      // Replace optimistic message with real one (dedupe)
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.id !== tempId);
+        // Check if real message already received via socket
+        if (filtered.some(m => m.id === sentMessage.id)) {
+          return filtered;
+        }
+        return [...filtered, { ...sentMessage, pending: false }];
+      });
     } catch (error) {
       console.error('Failed to send message', error);
       // Remove optimistic message on failure

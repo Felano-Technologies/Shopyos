@@ -4,6 +4,7 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
+const { emitToConversation } = require('../config/socket');
 
 /**
  * @route   POST /api/messaging/conversations
@@ -208,6 +209,12 @@ const sendMessage = async (req, res, next) => {
     } catch (notifErr) {
       logger.error('Failed to notify recipient of message:', notifErr);
     }
+
+    // Emit real-time event to conversation room
+    emitToConversation(conversationId, 'message:new', {
+      message: messageWithSender || message,
+      conversationId
+    });
 
     res.status(201).json({
       success: true,
