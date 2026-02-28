@@ -4,7 +4,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { updateDriverLocation } from '@/services/api';
+import { updateDriverLocation } from '../../services/api';
 
 const QUEUE_KEY = 'LOCATION_QUEUE';
 

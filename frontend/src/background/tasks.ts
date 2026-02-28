@@ -6,7 +6,7 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import { TASK_DRIVER_LOCATION } from './taskNames';
-import { updateDriverLocation } from '@/services/api';
+import { updateDriverLocation } from '../../services/api';
 import { enqueueLocation } from './queue';
 
 /**

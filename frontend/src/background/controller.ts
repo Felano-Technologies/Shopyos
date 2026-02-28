@@ -6,7 +6,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { storage } from '@/services/api';
+import { storage } from '../../services/api';
 import { TASK_DRIVER_LOCATION } from './taskNames';
 import { flushQueue, clearQueue } from './queue';
 

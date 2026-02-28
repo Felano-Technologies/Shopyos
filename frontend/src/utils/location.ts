@@ -5,7 +5,7 @@
 
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
-import { updateUserLocation } from '@/services/api';
+import { updateUserLocation } from '../../services/api';
 
 /**
  * Request foreground location permission
