@@ -8,7 +8,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
 import { Appearance } from 'react-native';
-import { updateUserLocationOnce } from '@/src/utils/location';
 
 const { width } = Dimensions.get('window');
 
@@ -26,15 +25,7 @@ const LoginScreen = () => {
     try {
       setLoading(true);
 
-      // Get location coordinates using shared utility
-      const coords = await updateUserLocationOnce(true);
-      if (!coords) {
-        setLoading(false);
-        return;
-      }
-
-      const { latitude, longitude } = coords;
-      const response = await loginUser(email, password, latitude, longitude);
+      const response = await loginUser(email, password);
 
 
 
