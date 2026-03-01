@@ -12,7 +12,9 @@ import {
   KeyboardAvoidingView,
   Alert,
   Modal,
-  FlatList
+  FlatList,
+  ActivityIndicator,
+  Keyboard
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5, FontAwesome } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -20,8 +22,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 // --- Mock City Data ---
 const CITIES = [
@@ -29,7 +32,7 @@ const CITIES = [
   'Cape Coast', 'Sunyani', 'Koforidua', 'Ho', 'Wa', 'Bolgatanga'
 ];
 
-// --- REUSABLE FIELD COMPONENT (Outside main function) ---
+// --- REUSABLE FIELD COMPONENT ---
 const RegistrationField = ({ 
   icon, 
   library = "Ionicons", 
@@ -41,8 +44,10 @@ const RegistrationField = ({
   isDropdown = false,
   isUpload = false,
   isAdd = false,
+  isMap = false, 
   onAction,
-  disabled = false
+  disabled = false,
+  loading = false 
 }: any) => {
   
   const renderIcon = () => {
@@ -55,18 +60,20 @@ const RegistrationField = ({
     return <Ionicons name={icon} size={size} color={color} />;
   };
 
-  // Determine display text for non-text inputs
   let displayValue = value;
   let textColor = '#0F172A';
 
   if (isUpload) {
       if (value) {
           displayValue = "Document Attached ✓";
-          textColor = "#16A34A"; // Green
+          textColor = "#16A34A"; 
       } else {
           displayValue = placeholder;
-          textColor = "#94A3B8"; // Placeholder Grey
+          textColor = "#94A3B8"; 
       }
+  } else if (isMap) {
+      displayValue = value ? "Coordinates Set ✓" : placeholder;
+      textColor = value ? "#16A34A" : "#94A3B8";
   } else if (isDropdown && !value) {
       displayValue = placeholder;
       textColor = "#94A3B8";
@@ -75,12 +82,7 @@ const RegistrationField = ({
   return (
     <View style={styles.inputContainer}>
       <View style={styles.inputIconBox}>{renderIcon()}</View>
-
-      <TouchableOpacity 
-        style={styles.inputWrapper} 
-        onPress={isDropdown || isUpload ? onAction : undefined}
-        activeOpacity={(isDropdown || isUpload) ? 0.7 : 1}
-      >
+      <View style={styles.inputWrapper}>
         {isPhone && (
           <View style={styles.flagContainer}>
              <Image source={{ uri: 'https://flagcdn.com/w40/gh.png' }} style={styles.flag} />
@@ -89,10 +91,12 @@ const RegistrationField = ({
           </View>
         )}
         
-        {(isUpload || isDropdown) ? (
-           <Text style={[styles.inputText, { color: textColor }]}>
-             {displayValue}
-           </Text>
+        {(isUpload || isDropdown || isMap) ? (
+           <TouchableOpacity style={{ flex: 1 }} onPress={onAction} disabled={disabled || loading}>
+             <Text style={[styles.inputText, { color: textColor }]}>
+               {displayValue}
+             </Text>
+           </TouchableOpacity>
         ) : (
            <TextInput
              style={styles.inputText}
@@ -103,12 +107,15 @@ const RegistrationField = ({
              editable={!disabled} 
            />
         )}
-      </TouchableOpacity>
+      </View>
 
-      {/* Action Button */}
-      {(isUpload || isAdd || isDropdown) && (
-          <TouchableOpacity style={styles.actionBtn} onPress={onAction}>
-              {isUpload ? (
+      {(isUpload || isAdd || isDropdown || isMap) && (
+          <TouchableOpacity style={styles.actionBtn} onPress={onAction} disabled={loading}>
+              {loading ? (
+                  <ActivityIndicator size="small" color="#0C1559" />
+              ) : isMap ? (
+                  <MaterialCommunityIcons name="map-marker-outline" size={22} color={value ? "#16A34A" : "#0C1559"} />
+              ) : isUpload ? (
                   <Feather name={value ? "check" : "upload-cloud"} size={20} color={value ? "#16A34A" : "#0C1559"} />
               ) : isAdd ? (
                   <Feather name="plus-circle" size={20} color="#0C1559" />
@@ -123,35 +130,44 @@ const RegistrationField = ({
 
 export default function BusinessRegistrationScreen() {
   const router = useRouter();
+  const mapRef = React.useRef<MapView>(null);
 
   // --- Form State ---
   const [formData, setFormData] = useState<any>({
     businessName: '',
     ownerName: '',
     ownerEmail: '',
-    businessEmail: '',
+    businessEmail: '', 
     ownerPhone: '',
     businessPhone: '',
     country: 'Ghana',
     city: '',
     address: '',
+    latitude: null, 
+    longitude: null,
     website: '',
     socialMedia: '',
-    businessCert: null, // URI string
+    businessCert: null,
     taxId: '',
-    businessLicense: null, // URI string
-    ownerId: null, // URI string
+    businessLicense: null,
+    ownerId: null,
     bankName: '',
     accountName: '',
     accountNumber: '',
-    proofOfBank: null, // URI string
+    proofOfBank: null,
     refundPolicy: '',
     adminNotes: '',
-    storePhotos: [] as string[] // Array of URIs
+    storePhotos: []
   });
 
-  // --- Modal State ---
+  // --- Modal & Map State ---
   const [showCityModal, setShowCityModal] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [tempCoords, setTempCoords] = useState({
+    latitude: 6.6745, // Default Kumasi
+    longitude: -1.5716,
+  });
 
   // --- Actions ---
   const handleInputChange = (field: string, value: string) => {
@@ -163,15 +179,37 @@ export default function BusinessRegistrationScreen() {
     setShowCityModal(false);
   };
 
-  const pickImage = async (field: string, isArray: boolean = false) => {
-    // Request Permission
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to make this work!');
-        return;
-    }
+  const confirmMapSelection = () => {
+    setFormData((prev: any) => ({
+      ...prev,
+      latitude: tempCoords.latitude,
+      longitude: tempCoords.longitude
+    }));
+    setMapVisible(false);
+    Alert.alert("Location Pinned", "Your store location has been saved.");
+  };
 
-    // Launch Picker
+  // --- Simulated Search (Use Google Geocoding API in Production) ---
+  const handleMapSearch = () => {
+    if (!searchQuery.trim()) return;
+    Keyboard.dismiss();
+    // For production: Use fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=YOUR_KEY`)
+    Alert.alert("Search", `Searching for "${searchQuery}"...`);
+    // Placeholder logic: map centers on a random point nearby for demo
+    const newLat = 6.6745 + (Math.random() - 0.5) * 0.02;
+    const newLng = -1.5716 + (Math.random() - 0.5) * 0.02;
+    mapRef.current?.animateToRegion({
+        latitude: newLat,
+        longitude: newLng,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005
+    }, 1000);
+  };
+
+  const pickImage = async (field: string, isArray: boolean = false) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -181,15 +219,9 @@ export default function BusinessRegistrationScreen() {
 
     if (!result.canceled) {
         const uri = result.assets[0].uri;
-        
         if (isArray) {
-            // Add to array (Store Photos)
-            setFormData((prev: any) => ({
-                ...prev,
-                [field]: [...prev[field], uri]
-            }));
+            setFormData((prev: any) => ({ ...prev, [field]: [...prev[field], uri] }));
         } else {
-            // Set single field
             setFormData((prev: any) => ({ ...prev, [field]: uri }));
         }
     }
@@ -202,20 +234,17 @@ export default function BusinessRegistrationScreen() {
   };
 
   const handleSubmit = () => {
-    // Basic Validation
-    if(!formData.businessName || !formData.city || !formData.businessPhone) {
-        Alert.alert("Missing Fields", "Please fill in all required fields.");
+    if(!formData.businessName || !formData.latitude || !formData.businessEmail) {
+        Alert.alert("Missing Information", "Please ensure Store Name, Business Email, and Map Location are set.");
         return;
     }
     Alert.alert("Success", "Application submitted successfully!");
-    // router.push('/business/dashboard'); // Navigate after success
   };
 
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
 
-      {/* Background */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
           <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
@@ -226,13 +255,8 @@ export default function BusinessRegistrationScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
                 
-                {/* Header */}
                 <View style={styles.headerWrapper}>
-                    <LinearGradient
-                        colors={['#0C1559', '#1e3a8a']}
-                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                        style={styles.headerGradient}
-                    >
+                    <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerGradient}>
                         <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
                             <View style={styles.headerContent}>
                                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -241,200 +265,146 @@ export default function BusinessRegistrationScreen() {
                                 <Text style={styles.headerTitle}>Business Registration</Text>
                                 <View style={{ width: 40 }} /> 
                             </View>
-                            <Text style={styles.headerSubtitle}>
-                                Complete your profile to start selling.
-                            </Text>
+                            <Text style={styles.headerSubtitle}>Complete your profile to start selling.</Text>
                         </SafeAreaView>
                     </LinearGradient>
                 </View>
 
-                {/* Content */}
                 <View style={styles.contentContainer}>
-                    
-                    {/* 1. Basic Info */}
                     <Text style={styles.sectionHeader}>Basic Information</Text>
                     <View style={styles.sectionCard}>
-                        <RegistrationField 
-                            icon="storefront-outline" 
-                            value={formData.businessName} 
-                            placeholder="Business Name"
-                            onChangeText={(t: string) => handleInputChange('businessName', t)}
-                        />
+                        <RegistrationField icon="storefront-outline" value={formData.businessName} placeholder="Business Name" onChangeText={(t: string) => handleInputChange('businessName', t)} />
                         <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="person-outline" 
-                            value={formData.ownerName} 
-                            placeholder="Owner's Full Name"
-                            onChangeText={(t: string) => handleInputChange('ownerName', t)}
-                        />
+                        <RegistrationField icon="person-outline" value={formData.ownerName} placeholder="Owner's Full Name" onChangeText={(t: string) => handleInputChange('ownerName', t)} />
                         <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="mail-outline" 
-                            value={formData.businessEmail} 
-                            placeholder="Business Email"
-                            onChangeText={(t: string) => handleInputChange('businessEmail', t)}
-                        />
+                        <RegistrationField icon="mail-outline" value={formData.businessEmail} placeholder="Business Email" onChangeText={(t: string) => handleInputChange('businessEmail', t)} />
                         <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="call-outline" 
-                            value={formData.businessPhone} 
-                            placeholder="Business Phone"
-                            isPhone={true}
-                            onChangeText={(t: string) => handleInputChange('businessPhone', t)}
-                        />
+                        <RegistrationField icon="call-outline" value={formData.businessPhone} placeholder="Business Phone" isPhone={true} onChangeText={(t: string) => handleInputChange('businessPhone', t)} />
                     </View>
 
-                    {/* 2. Location */}
-                    <Text style={styles.sectionHeader}>Location</Text>
+                    <Text style={styles.sectionHeader}>Map & Address</Text>
                     <View style={styles.sectionCard}>
-                        <RegistrationField 
-                            icon="globe-outline" 
-                            value={formData.country} 
-                            placeholder="Country"
-                            isCountry={true}
-                            disabled={true} // Fixed to Ghana for now
-                        />
-                        <View style={styles.divider} />
                         <RegistrationField 
                             icon="map-outline" 
-                            value={formData.city} 
-                            isDropdown={true}
-                            placeholder="Select City / Town"
-                            onAction={() => setShowCityModal(true)}
+                            value={formData.latitude} 
+                            placeholder="Set Store Location on Map"
+                            isMap={true}
+                            onAction={() => setMapVisible(true)}
                         />
                         <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="location-outline" 
-                            value={formData.address} 
-                            placeholder="Digital Address / GPS"
-                            onChangeText={(t: string) => handleInputChange('address', t)}
-                        />
+                        <RegistrationField icon="location-outline" value={formData.address} placeholder="Street Address / Shop No. / GPS" onChangeText={(t: string) => handleInputChange('address', t)} />
+                        <View style={styles.divider} />
+                        <RegistrationField icon="map-outline" value={formData.city} isDropdown={true} placeholder="Select City" onAction={() => setShowCityModal(true)} />
                     </View>
 
-                    {/* 3. Documents */}
-                    <Text style={styles.sectionHeader}>Verification Documents</Text>
+                    <Text style={styles.sectionHeader}>Verification & Finance</Text>
                     <View style={styles.sectionCard}>
-                        <RegistrationField 
-                            icon="document-text-outline" 
-                            value={formData.businessCert} 
-                            placeholder="Business Certificate"
-                            isUpload={true}
-                            onAction={() => pickImage('businessCert')}
-                        />
+                        <RegistrationField icon="document-text-outline" value={formData.businessCert} placeholder="Business Certificate" isUpload={true} onAction={() => pickImage('businessCert')} />
                         <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="card-outline" 
-                            value={formData.taxId} 
-                            placeholder="Tax ID (TIN)"
-                            onChangeText={(t: string) => handleInputChange('taxId', t)}
-                        />
+                        <RegistrationField icon="card-outline" value={formData.taxId} placeholder="Tax ID (TIN)" onChangeText={(t: string) => handleInputChange('taxId', t)} />
                         <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="id-card-outline" 
-                            library="MaterialCommunityIcons"
-                            value={formData.ownerId} 
-                            placeholder="Valid ID of Owner"
-                            isUpload={true}
-                            onAction={() => pickImage('ownerId')}
-                        />
+                        <RegistrationField icon="bank-outline" library="MaterialCommunityIcons" value={formData.bankName} placeholder="Bank Name" onChangeText={(t: string) => handleInputChange('bankName', t)} />
+                        <View style={styles.divider} />
+                        <RegistrationField icon="credit-card" library="Feather" value={formData.accountNumber} placeholder="Account Number" onChangeText={(t: string) => handleInputChange('accountNumber', t)} />
                     </View>
 
-                    {/* 4. Finance */}
-                    <Text style={styles.sectionHeader}>Financial Details</Text>
-                    <View style={styles.sectionCard}>
-                        <RegistrationField 
-                            icon="bank-outline" 
-                            library="MaterialCommunityIcons"
-                            value={formData.bankName} 
-                            placeholder="Bank Name"
-                            onChangeText={(t: string) => handleInputChange('bankName', t)}
-                        />
-                        <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="credit-card" 
-                            library="Feather"
-                            value={formData.accountNumber} 
-                            placeholder="Account Number"
-                            onChangeText={(t: string) => handleInputChange('accountNumber', t)}
-                        />
-                        <View style={styles.divider} />
-                        <RegistrationField 
-                            icon="image" 
-                            library="Feather"
-                            value={formData.proofOfBank} 
-                            placeholder="Proof of Bank Account"
-                            isUpload={true}
-                            onAction={() => pickImage('proofOfBank')}
-                        />
-                    </View>
-
-                    {/* 5. Store Photos (Array Logic) */}
-                    <Text style={styles.sectionHeader}>Store Photos</Text>
-                    
-                    {/* Horizontal Scroll for Uploaded Photos */}
+                    <Text style={styles.sectionHeader}>Store Gallery</Text>
                     {formData.storePhotos.length > 0 && (
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoList}>
                             {formData.storePhotos.map((uri: string, index: number) => (
                                 <View key={index} style={styles.photoThumbnailContainer}>
                                     <Image source={{ uri }} style={styles.photoThumbnail} />
-                                    <TouchableOpacity 
-                                        style={styles.removePhotoBtn} 
-                                        onPress={() => removeStorePhoto(index)}
-                                    >
-                                        <Ionicons name="close" size={12} color="#FFF" />
-                                    </TouchableOpacity>
+                                    <TouchableOpacity style={styles.removePhotoBtn} onPress={() => removeStorePhoto(index)}><Ionicons name="close" size={12} color="#FFF" /></TouchableOpacity>
                                 </View>
                             ))}
                         </ScrollView>
                     )}
-
                     <View style={styles.photoUploadContainer}>
                         <TouchableOpacity style={styles.photoUploadBox} onPress={() => pickImage('storePhotos', true)}>
-                            <Feather name="image" size={24} color="#0C1559" />
-                            <Text style={styles.uploadBoxText}>Add Photo</Text>
+                            <Feather name="image" size={24} color="#0C1559" /><Text style={styles.uploadBoxText}>Add Photo</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {/* Submit */}
                     <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
                         <Text style={styles.submitBtnText}>Submit Application</Text>
                         <Feather name="arrow-right" size={20} color="#FFF" />
                     </TouchableOpacity>
-
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
 
+      {/* --- MANUAL MAP PICKER MODAL WITH SEARCH --- */}
+      <Modal visible={mapVisible} animationType="slide">
+        <View style={{ flex: 1 }}>
+          <MapView
+            ref={mapRef}
+            provider={PROVIDER_GOOGLE}
+            style={{ flex: 1 }}
+            initialRegion={{
+              latitude: tempCoords.latitude,
+              longitude: tempCoords.longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+            onRegionChangeComplete={(region) => {
+              setTempCoords({ latitude: region.latitude, longitude: region.longitude });
+            }}
+          />
+          
+          <View style={styles.mapMarkerFixed} pointerEvents="none">
+            <View style={styles.markerCircle}><MaterialCommunityIcons name="store" size={26} color="#FFF" /></View>
+            <View style={styles.markerArrow} />
+          </View>
+
+          <SafeAreaView style={styles.mapOverlay} pointerEvents="box-none">
+            <View style={styles.mapSearchContainer}>
+                <TouchableOpacity onPress={() => setMapVisible(false)} style={styles.mapSearchClose}>
+                    <Ionicons name="arrow-back" size={24} color="#0C1559" />
+                </TouchableOpacity>
+                <View style={styles.mapSearchWrapper}>
+                    <Ionicons name="search" size={18} color="#94A3B8" />
+                    <TextInput 
+                        style={styles.mapSearchInput}
+                        placeholder="Search street or landmark..."
+                        placeholderTextColor="#94A3B8"
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        onSubmitEditing={handleMapSearch}
+                        returnKeyType="search"
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
+            
+            <TouchableOpacity style={styles.confirmBtn} onPress={confirmMapSelection}>
+                <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.confirmGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                    <Text style={styles.confirmText}>Set Store Location</Text>
+                    <Feather name="check" size={20} color="#FFF" style={{ marginLeft: 10 }} />
+                </LinearGradient>
+            </TouchableOpacity>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
       {/* --- City Selection Modal --- */}
-      <Modal
-        visible={showCityModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowCityModal(false)}
-      >
+      <Modal visible={showCityModal} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
                 <View style={styles.modalHeader}>
                     <Text style={styles.modalTitle}>Select City</Text>
-                    <TouchableOpacity onPress={() => setShowCityModal(false)}>
-                        <Ionicons name="close" size={24} color="#0F172A" />
-                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => setShowCityModal(false)}><Ionicons name="close" size={24} color="#0F172A" /></TouchableOpacity>
                 </View>
                 <FlatList
                     data={CITIES}
                     keyExtractor={(item) => item}
                     renderItem={({ item }) => (
-                        <TouchableOpacity 
-                            style={styles.modalItem}
-                            onPress={() => handleCitySelect(item)}
-                        >
-                            <Text style={[
-                                styles.modalItemText, 
-                                formData.city === item && { color: '#0C1559', fontFamily: 'Montserrat-Bold' }
-                            ]}>
-                                {item}
-                            </Text>
+                        <TouchableOpacity style={styles.modalItem} onPress={() => handleCitySelect(item)}>
+                            <Text style={[styles.modalItemText, formData.city === item && { color: '#0C1559', fontFamily: 'Montserrat-Bold' }]}>{item}</Text>
                             {formData.city === item && <Ionicons name="checkmark" size={20} color="#0C1559" />}
                         </TouchableOpacity>
                     )}
@@ -448,255 +418,59 @@ export default function BusinessRegistrationScreen() {
 }
 
 const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  safeArea: {
-    flex: 1,
-  },
+  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+  safeArea: { flex: 1 },
+  bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
+  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.08 },
+  headerWrapper: { marginBottom: 20 },
+  headerGradient: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  headerSafeArea: { paddingHorizontal: 20 },
+  headerContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, marginTop: 10 },
+  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  headerSubtitle: { textAlign: 'center', color: 'rgba(255,255,255,0.8)', fontSize: 14, fontFamily: 'Montserrat-Regular' },
+  contentContainer: { paddingHorizontal: 20 },
+  sectionHeader: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 10, marginTop: 10, textTransform: 'uppercase', marginLeft: 4 },
+  sectionCard: { backgroundColor: '#FFF', borderRadius: 16, paddingHorizontal: 16, marginBottom: 10, elevation: 1 },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginLeft: 40 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  inputIconBox: { width: 30, alignItems: 'center', marginRight: 10 },
+  inputWrapper: { flex: 1, flexDirection: 'row', alignItems: 'center' },
+  inputText: { flex: 1, fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
+  flagContainer: { flexDirection: 'row', alignItems: 'center', marginRight: 10 },
+  flag: { width: 20, height: 14, borderRadius: 2, marginRight: 6 },
+  phonePrefix: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  dividerVertical: { width: 1, height: 16, backgroundColor: '#CBD5E1', marginLeft: 8 },
+  actionBtn: { padding: 8 },
+  photoList: { flexDirection: 'row', marginBottom: 10 },
+  photoThumbnailContainer: { position: 'relative', marginRight: 10 },
+  photoThumbnail: { width: 70, height: 70, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+  removePhotoBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
+  photoUploadContainer: { flexDirection: 'row', marginBottom: 30 },
+  photoUploadBox: { width: 100, height: 100, backgroundColor: '#FFF', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed' },
+  uploadBoxText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 8 },
+  submitBtn: { flexDirection: 'row', backgroundColor: '#0C1559', paddingVertical: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 40 },
+  submitBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '60%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalItemText: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
+
+  // --- Map Selection Styles ---
+  mapMarkerFixed: { position: 'absolute', top: '50%', left: '50%', marginLeft: -24, marginTop: -48, alignItems: 'center', zIndex: 1 },
+  markerCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFF', elevation: 10 },
+  markerArrow: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderBottomWidth: 12, borderLeftColor: 'transparent', borderRightColor: 'transparent', borderBottomColor: '#0C1559', transform: [{ rotate: '180deg' }], marginTop: -2 },
+  mapOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between', padding: 20 },
   
-  // Background
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 20,
-    left: -20,
-  },
-  fadedLogo: {
-    width: 150,
-    height: 150,
-    resizeMode: 'contain',
-    opacity: 0.08,
-  },
-
-  // Header
-  headerWrapper: {
-    marginBottom: 20,
-  },
-  headerGradient: {
-    paddingBottom: 25,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  headerSafeArea: {
-    paddingHorizontal: 20,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-    marginTop: 10,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
-  },
-  headerSubtitle: {
-    textAlign: 'center',
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Regular',
-  },
-
-  // Content
-  contentContainer: {
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
-    marginBottom: 12,
-    marginTop: 10,
-    textTransform: 'uppercase',
-    marginLeft: 4,
-  },
-  sectionCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 5,
-    elevation: 1,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginLeft: 40, 
-  },
-
-  // Input Fields
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  inputIconBox: {
-    width: 30,
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  inputWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
-    fontFamily: 'Montserrat-Medium',
-  },
-  flagContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  flag: {
-    width: 20,
-    height: 14,
-    borderRadius: 2,
-    marginRight: 6,
-  },
-  phonePrefix: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
-  },
-  dividerVertical: {
-    width: 1,
-    height: 16,
-    backgroundColor: '#CBD5E1',
-    marginLeft: 8,
-  },
-  actionBtn: {
-    padding: 8,
-  },
-
-  // Store Photos List
-  photoList: {
-      flexDirection: 'row',
-      marginBottom: 10,
-  },
-  photoThumbnailContainer: {
-      position: 'relative',
-      marginRight: 10,
-  },
-  photoThumbnail: {
-      width: 70,
-      height: 70,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: '#E2E8F0',
-  },
-  removePhotoBtn: {
-      position: 'absolute',
-      top: -6,
-      right: -6,
-      backgroundColor: '#EF4444',
-      borderRadius: 10,
-      width: 20,
-      height: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1.5,
-      borderColor: '#FFF',
-  },
-
-  // Photos Upload Box
-  photoUploadContainer: {
-    flexDirection: 'row',
-    marginBottom: 30,
-  },
-  photoUploadBox: {
-    width: 100,
-    height: 100,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-  },
-  uploadBoxText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-    marginTop: 8,
-  },
-
-  // Submit Btn
-  submitBtn: {
-    flexDirection: 'row',
-    backgroundColor: '#0C1559',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    marginBottom: 40,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  submitBtnText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-  },
-
-  // Modal
-  modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      justifyContent: 'flex-end',
-  },
-  modalContent: {
-      backgroundColor: '#FFF',
-      borderTopLeftRadius: 20,
-      borderTopRightRadius: 20,
-      padding: 20,
-      maxHeight: '60%',
-  },
-  modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 20,
-  },
-  modalTitle: {
-      fontSize: 18,
-      fontFamily: 'Montserrat-Bold',
-      color: '#0F172A',
-  },
-  modalItem: {
-      paddingVertical: 15,
-      borderBottomWidth: 1,
-      borderBottomColor: '#F1F5F9',
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-  },
-  modalItemText: {
-      fontSize: 15,
-      color: '#0F172A',
-      fontFamily: 'Montserrat-Medium',
-  },
+  // New Search Styles
+  mapSearchContainer: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  mapSearchWrapper: { flex: 1, height: 50, backgroundColor: '#FFF', borderRadius: 15, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 15, elevation: 5, shadowColor: '#000', shadowOpacity: 0.1 },
+  mapSearchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', color: '#0F172A', fontSize: 14 },
+  mapSearchClose: { width: 50, height: 50, backgroundColor: '#FFF', borderRadius: 15, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+  
+  confirmBtn: { borderRadius: 18, overflow: 'hidden', elevation: 10, marginBottom: 20 },
+  confirmGradient: { paddingVertical: 18, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+  confirmText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },
 });

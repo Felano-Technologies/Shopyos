@@ -14,13 +14,14 @@ import {
   Switch,
   ImageBackground // Added
 } from 'react-native';
-import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import BottomNav from '@/components/BottomNav';
 import { getAllStores } from '@/services/api';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
 
@@ -266,6 +267,21 @@ export default function StoresScreen() {
           />
 
         </SafeAreaView>
+
+        {/* --- ADD THIS: FLOATING MAP BUTTON --- */}
+        <LinearGradient
+          colors={['#0C1559', '#1e3a8a']}
+          style={styles.floatingMapBtn}
+        >
+          <TouchableOpacity 
+            style={styles.mapGradient}
+            activeOpacity={0.9}
+            onPress={() => router.push('/stores/storesMap')}
+          >
+            <MaterialCommunityIcons name="map-marker-radius" size={26} color="#FFF" />
+            <Text style={styles.mapBtnText}>Map</Text>
+          </TouchableOpacity>
+        </LinearGradient>
         <BottomNav />
 
         {/* --- FILTER MODAL --- */}
@@ -669,5 +685,29 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
+  },
+  floatingMapBtn: {
+    position: 'absolute',
+    bottom: 110, // Above the bottom nav
+    right: 20,
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  mapGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 30,
+    gap: 8,
+  },
+  mapBtnText: {
+    color: '#FFF',
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 14,
   },
 });
