@@ -10,6 +10,7 @@ router.post('/register', validateRegister, authController.register);
 router.post('/login', validateLogin, authController.login);
 router.post('/refresh', authController.refreshAccessToken); // NEW: Token refresh
 router.post('/reset-password', authController.resetPassword);
+router.post('/reset-password/confirm', authController.confirmResetPassword);
 router.post('/logout', authController.logout);
 
 // Protected routes
@@ -18,6 +19,7 @@ router.post('/add-role', protect, authController.addRole);
 router.get('/roles', protect, authController.getUserRoles);
 router.put('/profile', protect, authController.updateProfile);
 router.put('/role', protect, authController.updateUserRole); // Deprecated - use add-role
+router.put('/location', protect, authController.updateUserLocation);
 
 // Session management (NEW)
 router.post('/logout-all', protect, authController.logoutAll);

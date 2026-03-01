@@ -181,6 +181,30 @@ export const registerPushTokenInBackend = async (token: string) => {
   }
 };
 
+// Password Reset APIs
+export const requestPasswordReset = async (email: string) => {
+  try {
+    const response = await api.post('/auth/reset-password', { email });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error requesting password reset:', error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const confirmResetPassword = async (token: string, newPassword: string) => {
+  try {
+    const response = await api.post('/auth/reset-password/confirm', { token, newPassword });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error confirming password reset:', error);
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 // Logout user
 export const logoutUser = async () => {
   try {
@@ -1349,6 +1373,41 @@ export const unfollowStore = async (storeId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error unfollowing store:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+// --- Location API ---
+
+/**
+ * Update user location (one-time, used on login and app foreground)
+ */
+export const updateUserLocation = async (latitude: number, longitude: number) => {
+  try {
+    const response = await api.put('/auth/location', { latitude, longitude });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating user location:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+/**
+ * Update driver location during active delivery (background task)
+ */
+export const updateDriverLocation = async (
+  deliveryId: string,
+  latitude: number,
+  longitude: number
+) => {
+  try {
+    const response = await api.put(`/deliveries/${deliveryId}/location`, {
+      latitude,
+      longitude,
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error updating driver location:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };

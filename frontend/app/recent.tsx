@@ -18,9 +18,9 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCart } from './context/CartContext'; // Ensure path is correct based on your structure
-import { searchProducts } from '@/services/api';
+import { useCart } from './context/CartContext';
 import { RecentSkeleton } from '../components/skeletons/RecentSkeleton';
+import { useProducts } from '@/hooks/useProducts';
 
 const { width } = Dimensions.get('window');
 
@@ -28,14 +28,9 @@ export default function RecentScreen() {
   const router = useRouter();
   const { addToCart } = useCart();
 
-  const [products, setProducts] = useState<any[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Sorting State
-  const [modalVisible, setModalVisible] = useState(false);
   const [activeSort, setActiveSort] = useState('created_at');
+  const [modalVisible, setModalVisible] = useState(false);
 
   // --- Toast Animation State ---
   const [toastMessage, setToastMessage] = useState('');
@@ -43,47 +38,26 @@ export default function RecentScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
-  useEffect(() => {
-    fetchRecentProducts();
-  }, [activeSort]);
+  // --- TanStack Query Hook ---
+  const sortByParam = activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'created_at';
+  const { data, isLoading } = useProducts({ limit: 50, sortBy: sortByParam });
+  
+  const products = data?.products?.map((p: any) => ({
+    id: p._id,
+    title: p.name,
+    category: p.category || 'General',
+    price: p.price,
+    oldPrice: null,
+    image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
+    timestamp: 'Just now'
+  })) || [];
 
-  // Filter Logic
-  useEffect(() => {
-    if (searchQuery) {
-      const filtered = products.filter(p =>
-        p.title.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredProducts(filtered);
-    } else {
-      setFilteredProducts(products);
-    }
-  }, [searchQuery, products]);
+  // Filter products based on search query
+  const filteredProducts = searchQuery
+    ? products.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    : products;
 
-  const fetchRecentProducts = async () => {
-    try {
-      setLoading(true);
-      const res = await searchProducts({
-        limit: 50,
-        sortBy: activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'created_at'
-      });
-      if (res.success) {
-        const mapped = res.products.map((p: any) => ({
-          id: p._id,
-          title: p.name,
-          category: p.category || 'General',
-          price: p.price,
-          oldPrice: null,
-          image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
-          timestamp: 'Just now'
-        }));
-        setProducts(mapped);
-      }
-    } catch (e) {
-      console.error("Failed to fetch recent products", e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = isLoading;
 
   const handleProductPress = (item: any) => {
     router.push({

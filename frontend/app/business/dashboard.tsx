@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Image, useColorScheme, RefreshControl, Dimensions, Modal,} from 'react-native';
 import { router } from 'expo-router';
-import { getMyBusinesses, getBusinessDashboard, getUnreadNotificationCount, storage } from '@/services/api';
+import { storage } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,6 +9,8 @@ import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
+import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 
 const { width } = Dimensions.get('window');
@@ -60,72 +62,38 @@ const BusinessDashboard = () => {
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
 
-  const [loading, setLoading] = useState(true);
-  const [businesses, setBusinesses] = useState<Business[]>([]);
-  const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
-  const [refreshing, setRefreshing] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // --- New State for Custom Modal ---
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
 
+  // --- TanStack Query Hooks ---
+  const { data: businessesData, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses } = useMyBusinesses();
+  const businesses = businessesData?.businesses || [];
+  const selectedBusiness = businesses[0] || null;
+  
+  const { data: dashboardData, isLoading: isLoadingDashboard, refetch: refetchDashboard, isRefetching: isRefetchingDashboard } = useBusinessDashboard(selectedBusiness?._id);
+  const { data: unreadData } = useUnreadNotificationCount();
+  const unreadCount = unreadData?.unreadCount || 0;
 
+  const loading = isLoadingBusinesses || isLoadingDashboard;
+  const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
 
-  // --- Data Fetching ---
-  const fetchDashboardData = async () => {
-    try {
-      const data = await getMyBusinesses();
-
-      if (!data.success || !data.businesses || data.businesses.length === 0) {
-        setShowNoBusinessModal(true);
-        setLoading(false);
-        return;
-      }
-
-      setBusinesses(data.businesses);
-      const currentBusiness = data.businesses[0];
-      setSelectedBusiness(currentBusiness);
-
-      if (currentBusiness._id) {
-        await storage.setItem('currentBusinessId', currentBusiness._id);
-
-        const dashResp = await getBusinessDashboard(currentBusiness._id);
-        if (dashResp.success) {
-          setDashboardData(dashResp.data);
-
-          // --- OPTIONAL: If your API returns notification count, set it here ---
-          // setUnreadCount(dashResp.data.unreadNotifications || 0); 
-        }
-
-        // Fetch real unread notification count
-        try {
-          const notificationRes = await getUnreadNotificationCount();
-          if (notificationRes.success) {
-            setUnreadCount(notificationRes.unreadCount || 0);
-          }
-        } catch (err) {
-          console.error('Error fetching unread count:', err);
-          setUnreadCount(0);
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
+  // --- Store current business ID ---
+  useEffect(() => {
+    if (selectedBusiness?._id) {
+      storage.setItem('currentBusinessId', selectedBusiness._id);
     }
-  };
+  }, [selectedBusiness?._id]);
+
+  // --- Show modal if no businesses ---
+  useEffect(() => {
+    if (!isLoadingBusinesses && businesses.length === 0) {
+      setShowNoBusinessModal(true);
+    }
+  }, [isLoadingBusinesses, businesses.length]);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchDashboardData();
-    setRefreshing(false);
+    await Promise.all([refetchBusinesses(), refetchDashboard()]);
   };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
 
 if (loading) {
   return (

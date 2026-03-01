@@ -1,4 +1,5 @@
 const express = require('express');
+const http = require('http');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const compression = require('compression');
@@ -16,6 +17,8 @@ const { logger, httpLogMiddleware } = require('./config/logger');
 const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
 const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
 const { supabaseAdmin } = require('./config/supabase');
+const { initializeSocket } = require('./config/socket');
+const { registerMessagingHandlers } = require('./sockets/messagingSocket');
 
 const redis = getRedis();
 
@@ -217,14 +220,27 @@ Object.entries(legacyRoutes).forEach(([prefix, handler]) => {
 app.use(notFoundHandler);
 app.use(errorHandler);
 
+// Create HTTP server and attach Socket.IO
+const server = http.createServer(app);
+const io = initializeSocket(server);
+registerMessagingHandlers(io);
+
 const PORT = process.env.PORT || 5000;
 
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] | Redis: ${redis ? 'enabled' : 'disabled'}`);
 });
 
 const gracefulShutdown = async (signal) => {
   logger.warn(`Received ${signal}, shutting down...`);
+  
+  // Close Socket.IO connections
+  if (io) {
+    io.close(() => {
+      logger.info('Socket.IO connections closed');
+    });
+  }
+  
   server.close(async () => {
     await redisDisconnect();
     process.exit(0);

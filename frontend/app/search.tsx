@@ -16,9 +16,8 @@ import BottomNav from '../components/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { searchProducts, getAllCategories } from '@/services/api';
-
-// IMPORT THE SKELETON
+import { useProducts, useProductSearch } from '@/hooks/useProducts';
+import { useCategories } from '@/hooks/useCategories';
 import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
 
 const { width } = Dimensions.get('window');
@@ -27,83 +26,25 @@ export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  
-  // Set initial loading to true so the skeleton shows immediately on mount
-  const [loading, setLoading] = useState(true); 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Fetch categories once
-  useEffect(() => {
-    const fetchCats = async () => {
-      try {
-        const data = await getAllCategories();
-        setCategories(data.data || []);
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        setCategories([]);
-      }
-    };
-    fetchCats();
-  }, []);
+  const { data: categoriesData } = useCategories();
+  const categories = categoriesData || [];
 
-  // Load all products on initial mount
-  useEffect(() => {
-    const loadAllProducts = async () => {
-      try {
-        setLoading(true);
-        const res = await searchProducts({ limit: 50 });
-        if (res.success) {
-          setProducts(res.products);
-        }
-      } catch (error) {
-        console.error('Error loading products:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const filters = {
+    category: (selectedCategory || params.category) as string | undefined,
+    sortBy: params.sortBy as any,
+    minPrice: params.minPrice ? parseFloat(params.minPrice as string) : undefined,
+    maxPrice: params.maxPrice ? parseFloat(params.maxPrice as string) : undefined,
+  };
 
-    // Only load all products on initial mount (no search query or filters)
-    if (!searchQuery && !selectedCategory && !params.sortBy && !params.minPrice && !params.category) {
-      loadAllProducts();
-    }
-  }, []);
+  const { data: allProductsData, isLoading: isLoadingAll } = useProducts(filters, 50);
+  const { data: searchData, isLoading: isSearching } = useProductSearch(searchQuery, filters, 50);
 
-  // Search effect with debounce
-  useEffect(() => {
-    // Skip if initial load hasn't happened yet and there's no search/filter
-    if (!searchQuery && !selectedCategory && !params.sortBy && !params.minPrice && !params.category) {
-      return;
-    }
-
-    const delayDebounceFn = setTimeout(() => {
-      const performSearch = async () => {
-        try {
-          setLoading(true);
-          const res = await searchProducts({
-            query: searchQuery || undefined,
-            category: (selectedCategory || params.category) as string || undefined,
-            sortBy: params.sortBy as string || undefined,
-            minPrice: params.minPrice ? parseFloat(params.minPrice as string) : undefined,
-            maxPrice: params.maxPrice ? parseFloat(params.maxPrice as string) : undefined,
-            limit: 50
-          });
-          if (res.success) {
-            setProducts(res.products);
-          }
-        } catch (error) {
-          console.error('Error searching products:', error);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      performSearch();
-    }, 500);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, selectedCategory, params.sortBy, params.category, params.minPrice, params.maxPrice]);
+  const loading = searchQuery.length >= 2 ? isSearching : isLoadingAll;
+  const products = searchQuery.length >= 2 
+    ? (searchData?.success ? searchData.products : [])
+    : (allProductsData?.success ? allProductsData.products : []);
 
   const handleProductPress = (product: any) => {
     router.push({

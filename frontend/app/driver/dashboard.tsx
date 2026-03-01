@@ -17,18 +17,35 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getAvailableDeliveries, assignDriver, getDriverStats, getActiveDeliveries, getUserData } from '@/services/api';
+import { getUserData } from '@/services/api';
+import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 
 const { width } = Dimensions.get('window');
 
 export default function Dashboard() {
   const router = useRouter();
   const [isOnline, setIsOnline] = useState(false);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [stats, setStats] = useState({ total: 0, completed: 0, inProgress: 0, earnings: 0 });
-  const [activeDeliveries, setActiveDeliveries] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
+
+  // --- TanStack Query Hooks ---
+  const { data: statsData } = useDriverStats('today');
+  const stats = statsData?.stats || { total: 0, completed: 0, inProgress: 0, earnings: 0 };
+  
+  const { data: activeData, refetch: refetchActive } = useActiveDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
+  const activeDeliveries = activeData?.deliveries || [];
+  
+  const { data: availableData, refetch: refetchAvailable } = useAvailableDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
+  const requests = availableData?.deliveries?.map((d: any) => ({
+    id: d.id || d._id,
+    restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
+    destination: d.delivery_address || 'Destination',
+    price: 15.0,
+    distance: 'Calculated km',
+    time: 'Est. mins',
+    items: d.order?.order_items?.length || 1
+  })) || [];
+
+  const assignDriverMutation = useAssignDriver();
 
   // Fetch User Info
   useEffect(() => {
@@ -42,52 +59,6 @@ export default function Dashboard() {
     setIsOnline(!isOnline);
   };
 
-  const fetchDashboardData = async () => {
-    if (!isOnline) return;
-    try {
-      const [statsRes, activeRes, availableRes] = await Promise.all([
-        getDriverStats('today'),
-        getActiveDeliveries(),
-        getAvailableDeliveries()
-      ]);
-
-      if (statsRes.success) {
-        setStats(statsRes.stats);
-      }
-
-      if (activeRes.success) {
-        setActiveDeliveries(activeRes.deliveries);
-      }
-
-      if (availableRes.success) {
-        const mapped = availableRes.deliveries.map((d: any) => ({
-          id: d.id || d._id,
-          restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
-          destination: d.delivery_address || 'Destination',
-          price: 15.0, // Base fee
-          distance: 'Calculated km',
-          time: 'Est. mins',
-          items: d.order?.order_items?.length || 1
-        }));
-        setRequests(mapped);
-      }
-    } catch (e) {
-      console.log("Error fetching dashboard data", e);
-    }
-  };
-
-  useEffect(() => {
-    let interval: any;
-    if (isOnline) {
-      fetchDashboardData();
-      interval = setInterval(fetchDashboardData, 10000); // Poll every 10s
-    } else {
-      setRequests([]);
-      setActiveDeliveries([]);
-    }
-    return () => clearInterval(interval);
-  }, [isOnline]);
-
   const handleAccept = async (id: string) => {
     if (activeDeliveries.length > 0) {
       Alert.alert("Active Delivery", "Please complete your current delivery before accepting a new one.");
@@ -95,17 +66,10 @@ export default function Dashboard() {
     }
 
     try {
-      setLoading(true);
-      const res = await assignDriver(id);
-      if (res.success) {
-        router.push({ pathname: '/driver/activeOrder', params: { deliveryId: id } } as any);
-      } else {
-        Alert.alert("Error", res.error || "Failed to accept order");
-      }
+      await assignDriverMutation.mutateAsync(id);
+      router.push({ pathname: '/driver/activeOrder', params: { deliveryId: id } } as any);
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to accept order");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -143,11 +107,11 @@ export default function Dashboard() {
           <Text style={styles.itemText}>{item.items} Items</Text>
         </View>
         <TouchableOpacity
-          style={[styles.acceptBtn, loading && { opacity: 0.7 }]}
+          style={[styles.acceptBtn, assignDriverMutation.isPending && { opacity: 0.7 }]}
           onPress={() => handleAccept(item.id)}
-          disabled={loading}
+          disabled={assignDriverMutation.isPending}
         >
-          {loading ? <ActivityIndicator size="small" color="#A3E635" /> : <Text style={styles.acceptText}>Accept Order</Text>}
+          {assignDriverMutation.isPending ? <ActivityIndicator size="small" color="#A3E635" /> : <Text style={styles.acceptText}>Accept Order</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -247,7 +211,7 @@ export default function Dashboard() {
             {activeDeliveries.length > 0 && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={styles.sectionTitle}>Current Task</Text>
-                {activeDeliveries.map(d => <ActiveMissionCard key={d.id} delivery={d} />)}
+                {activeDeliveries.map((d: any) => <ActiveMissionCard key={d.id} delivery={d} />)}
               </View>
             )}
 

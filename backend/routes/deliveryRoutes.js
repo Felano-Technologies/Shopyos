@@ -72,6 +72,11 @@ router.put('/:deliveryId/status', driver, updateDeliveryStatus);
 // @access  Private (Driver)
 router.post('/:deliveryId/location', driver, addLocationUpdate);
 
+// @route   PUT /api/deliveries/:deliveryId/location (alias for POST)
+// @desc    Update driver location (alias for background tracking)
+// @access  Private (Driver)
+router.put('/:deliveryId/location', driver, addLocationUpdate);
+
 // @route   GET /api/deliveries/:deliveryId/location
 // @desc    Get location updates
 // @access  Private

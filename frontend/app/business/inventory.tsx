@@ -20,12 +20,24 @@ import { BlurView } from 'expo-blur';
 import { StatusBar } from 'expo-status-bar';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { getStoreProducts, storage } from '@/services/api';
+import { storage } from '@/services/api';
+import { useStoreProducts } from '@/hooks/useBusiness';
 
 const { width } = Dimensions.get('window');
 
 const CATEGORIES = ['All', 'Sneakers', 'Electronics', 'Clothing', 'Art'];
 
+// Type definition for inventory items
+interface InventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  sku: string;
+  stock: number;
+  price: number;
+  lowStock: boolean;
+  image: any;
+}
 
 
 const Inventory = () => {
@@ -34,42 +46,33 @@ const Inventory = () => {
 
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'price'>('name');
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [inventory, setInventory] = useState<any[]>([]);
+  const [businessId, setBusinessId] = useState<string | null>(null);
 
-  const fetchInventory = async () => {
-    try {
-      const businessId = await storage.getItem('currentBusinessId');
-      if (businessId) {
-        const data = await getStoreProducts(businessId);
-        if (data.success) {
-          const mappedData = data.products.map((p: any) => ({
-            id: p._id,
-            name: p.name,
-            category: p.category || 'General',
-            sku: p.sku || 'N/A',
-            stock: p.stockQuantity || 0,
-            price: parseFloat(p.price),
-            lowStock: (p.stockQuantity || 0) < 10,
-            // Use a placeholder if no image, or the first image
-            image: p.images && p.images.length > 0 ? { uri: p.images[0] } : require('../../assets/images/icon.png'),
-          }));
-          setInventory(mappedData);
-        }
-      }
-    } catch (e) {
-      console.error("Fetch inventory error", e);
-    }
-  };
-
+  // --- Get current business ID ---
   useEffect(() => {
-    fetchInventory();
+    storage.getItem('currentBusinessId').then(setBusinessId);
   }, []);
 
+  // --- TanStack Query Hook ---
+  const { data, isLoading, refetch, isRefetching } = useStoreProducts(businessId || '');
+  
+  const inventory: InventoryItem[] = data?.products?.map((p: any) => ({
+    id: p._id,
+    name: p.name,
+    category: p.category || 'General',
+    sku: p.sku || 'N/A',
+    stock: p.stockQuantity || 0,
+    price: parseFloat(p.price),
+    lowStock: (p.stockQuantity || 0) < 10,
+    image: p.images && p.images.length > 0 ? { uri: p.images[0] } : require('../../assets/images/icon.png'),
+  })) || [];
+
+  const refreshing = isRefetching;
+
   // Filter inventory based on category and search
-  const filteredInventory = inventory.filter((item) => {
+  const filteredInventory = inventory.filter((item: InventoryItem) => {
     const matchesCategory = selectedCategory === 'All' || item.category === selectedCategory;
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.sku && item.sku.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -90,14 +93,12 @@ const Inventory = () => {
 
   // Calculate stats
   const totalItems = inventory.length;
-  const totalStock = inventory.reduce((sum, item) => sum + item.stock, 0);
-  const lowStockItems = inventory.filter(item => item.lowStock).length;
-  const totalValue = inventory.reduce((sum, item) => sum + (item.price * item.stock), 0);
+  const totalStock = inventory.reduce((sum: number, item: InventoryItem) => sum + item.stock, 0);
+  const lowStockItems = inventory.filter((item: InventoryItem) => item.lowStock).length;
+  const totalValue = inventory.reduce((sum: number, item: InventoryItem) => sum + (item.price * item.stock), 0);
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchInventory();
-    setRefreshing(false);
+    await refetch();
   };
 
   const renderInventoryItem = ({ item }: { item: any }) => (

@@ -1,7 +1,7 @@
 // context/ChatContext.tsx
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getConversations, sendMessage as apiSendMessage, markConversationRead, storage } from '../../services/api';
-import { useFocusEffect } from 'expo-router';
+import { socketService } from '../../services/socket';
 
 export type Message = {
   id: string;
@@ -33,18 +33,11 @@ type ChatContextType = {
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
-// --- Real Data State ---
-// We will fetch these from the backend
-// For now, the backend returns a flat list of conversations.
-// We might need to differentiate based on the context (if the user is acting as a buyer or seller).
-// But for simplicity, we'll store all fetched conversations.
-
-
-
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [buyerConversations, setBuyerChats] = useState<Conversation[]>([]);
   const [sellerConversations, setSellerChats] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [socketConnected, setSocketConnected] = useState(false);
 
   const fetchChats = async () => {
     try {
@@ -139,21 +132,85 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // Initialize socket connection (removed polling)
+  useEffect(() => {
+    const initSocket = async () => {
+      try {
+        const token = await storage.getItem('userToken');
+        if (!token) return;
+
+        await socketService.connect();
+        setSocketConnected(true);
+
+        // Listen for new messages from all conversations
+        await socketService.onNewMessage((data: { message: any; conversationId: string }) => {
+          const { message, conversationId } = data;
+
+          // Update conversations when new message arrives
+          const updateConversations = (prev: Conversation[]) => {
+            return prev.map(conv => {
+              if (conv.id === conversationId) {
+                // Determine if message is from me
+                const isMe = currentUserId && message.sender_id === currentUserId;
+                const newMsg: Message = {
+                  id: message.id,
+                  text: message.content,
+                  sender: isMe ? 'me' : 'them',
+                  time: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                };
+
+                return {
+                  ...conv,
+                  lastMessage: message.content,
+                  time: newMsg.time,
+                  unread: isMe ? conv.unread : conv.unread + 1,
+                  messages: [...(conv.messages || []), newMsg]
+                };
+              }
+              return conv;
+            });
+          };
+
+          setBuyerChats(updateConversations);
+          setSellerChats(updateConversations);
+        });
+
+        // On reconnection, refetch conversations
+        const socket = socketService.getSocket();
+        if (socket) {
+          socket.on('connect', () => {
+            console.log('🔄 Socket reconnected, refetching conversations...');
+            fetchChats();
+          });
+        }
+
+      } catch (error) {
+        console.error('Failed to initialize socket:', error);
+      }
+    };
+
+    initSocket();
+
+    return () => {
+      // Cleanup: remove listeners but keep connection
+      socketService.offNewMessage();
+    };
+  }, [currentUserId]);
+
+  // Initial fetch on mount (no polling)
   useEffect(() => {
     fetchChats();
-    // Optional: Poll every 30s
-    const interval = setInterval(fetchChats, 30000);
-    return () => clearInterval(interval);
   }, []);
 
   const sendMessage = async (id: string, text: string, type: 'buyer' | 'seller') => {
     // Optimistic update
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const newMessage: Message = { id: Date.now().toString(), text, sender: 'me', time };
+    const tempId = `temp-${Date.now()}`;
+    const newMessage: Message = { id: tempId, text, sender: 'me', time };
 
     // Update local state immediately
     const updater = type === 'buyer' ? setBuyerChats : setSellerChats;
-    updater(prev => prev.map(conv => {
+    updater((prev: Conversation[]) => prev.map(conv => {
       if (conv.id === id) {
         return {
           ...conv,
@@ -165,23 +222,41 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       return conv;
     }));
 
-    // Call API
+    // Send via Socket.IO for real-time delivery (fallback to REST)
     try {
-      await apiSendMessage(id, text);
-      // Refresh to confirm and get real ID/timestamp
-      fetchChats();
+      if (socketConnected && socketService.isConnected()) {
+        await socketService.sendMessage(id, text);
+      } else {
+        // Fallback to REST API
+        await apiSendMessage(id, text);
+        // Manually emit update since socket isn't connected
+        fetchChats();
+      }
     } catch (error) {
       console.error("Failed to send message", error);
-      // revert optimistic update if needed
+      // Revert optimistic update on failure
+      updater((prev: Conversation[]) => prev.map(conv => {
+        if (conv.id === id) {
+          return {
+            ...conv,
+            messages: conv.messages.filter(m => m.id !== tempId)
+          };
+        }
+        return conv;
+      }));
     }
   };
 
   const markAsRead = async (id: string, type: 'buyer' | 'seller') => {
     const updater = type === 'buyer' ? setBuyerChats : setSellerChats;
-    updater(prev => prev.map(conv => conv.id === id ? { ...conv, unread: 0 } : conv));
+    updater((prev: Conversation[]) => prev.map(conv => conv.id === id ? { ...conv, unread: 0 } : conv));
 
     try {
-      await markConversationRead(id);
+      if (socketConnected && socketService.isConnected()) {
+        await socketService.markConversationRead(id);
+      } else {
+        await markConversationRead(id);
+      }
       fetchChats();
     } catch (error) {
       console.error("Failed to mark as read", error);

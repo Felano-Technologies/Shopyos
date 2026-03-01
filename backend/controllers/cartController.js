@@ -38,14 +38,20 @@ const addToCart = async (req, res, next) => {
       });
     }
 
-    // Check inventory
+    // Check inventory if tracking is enabled
     const inventory = await repositories.products.getInventory(productId);
-    if (!inventory || inventory.stock_quantity < quantity) {
-      return res.status(400).json({
-        success: false,
-        error: 'Insufficient stock',
-        available: inventory?.stock_quantity || 0
-      });
+    
+    // Only check stock if inventory exists and tracking is enabled
+    if (inventory && inventory.track_inventory) {
+      const availableStock = inventory.stock_quantity - (inventory.reserved_quantity || 0);
+      
+      if (availableStock < quantity) {
+        return res.status(400).json({
+          success: false,
+          error: 'Insufficient stock',
+          available: availableStock
+        });
+      }
     }
 
     // Add to cart (pass product price for price_at_add column)

@@ -6,6 +6,7 @@
     "worker": "node workers/notificationWorker.js"
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
     "@supabase/supabase-js": "^2.39.3",
     "amqplib": "^0.10.9",
     "axios": "^1.13.2",
@@ -27,6 +28,7 @@
     "nodemailer": "^6.9.14",
     "path": "^0.12.7",
     "rate-limit-redis": "^4.3.1",
+    "socket.io": "^4.8.3",
     "uuid": "^13.0.0",
     "winston": "^3.19.0"
   },

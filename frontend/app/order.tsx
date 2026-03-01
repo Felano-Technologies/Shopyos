@@ -6,8 +6,8 @@ import { format } from 'date-fns';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { getMyOrders } from '@/services/api';
 import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
+import { useOrders } from '@/hooks/useOrders';
 
 const { width } = Dimensions.get('window');
 
@@ -23,40 +23,25 @@ interface Order {
 
 const OrdersScreen = () => {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [orders, setOrders] = useState<Order[]>([]);
+  
+  // --- TanStack Query Hook ---
+  const { data, isLoading, refetch, isRefetching } = useOrders();
+  
+  const orders = data?.orders?.map((o: any) => ({
+    id: o.id,
+    orderNumber: o.order_number,
+    totalAmount: o.payments?.[0]?.amount ? parseFloat(o.payments[0].amount) : 0,
+    date: o.created_at,
+    status: o.status.charAt(0).toUpperCase() + o.status.slice(1),
+    itemsCount: o.order_items?.length || 0,
+    storeName: o.store?.store_name || 'Shopyos Store'
+  })) || [];
 
-  const fetchOrders = async () => {
-    try {
-      const data = await getMyOrders();
-      if (data.success) {
-        const mappedOrders = data.orders.map((o: any) => ({
-          id: o.id,
-          orderNumber: o.order_number,
-          totalAmount: o.payments?.[0]?.amount ? parseFloat(o.payments[0].amount) : 0,
-          date: o.created_at,
-          status: o.status.charAt(0).toUpperCase() + o.status.slice(1),
-          itemsCount: o.order_items?.length || 0,
-          storeName: o.store?.store_name || 'Shopyos Store'
-        }));
-        setOrders(mappedOrders);
-      }
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
+  const loading = isLoading;
+  const refreshing = isRefetching;
 
   const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchOrders();
-    setRefreshing(false);
+    await refetch();
   };
 
   const getStatusBadge = (status: string) => {

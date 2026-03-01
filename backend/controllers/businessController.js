@@ -592,7 +592,8 @@ const getBusinessDashboard = async (req, res, next) => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const weeklyData = weeklyOrders.filter(o => new Date(o.created_at) >= sevenDaysAgo);
+    // weeklyOrders.data is the actual array from findAll()
+    const weeklyData = (weeklyOrders.data || []).filter(o => new Date(o.created_at) >= sevenDaysAgo);
 
     // Group by day
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

@@ -9,29 +9,26 @@ import BottomNav from '../components/BottomNav';
 import DriverBottomNav from '../components/DriverBottomNav';
 import { CartProvider } from './context/CartContext';
 import { ChatProvider } from './context/ChatContext';
+import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
+import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
+
+// Import task definitions once (safe to import multiple times, but only define once)
+import '../src/background/tasks';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+// Inner component that uses hooks requiring QueryClient
+function AppContent() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
-  const [loaded] = useFonts({
-    'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
-    'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
-    'Montserrat-SemiBold': require('../assets/fonts/Montserrat-SemiBold.ttf'),
-  });
 
   // Apply Push Hook globally
   usePushNotifications();
 
-  useEffect(() => {
-    if (loaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [loaded]);
-
-  if (!loaded) return null;
+  // Apply Background Tasks Hook globally (manages driver location tracking)
+  // This needs to be inside QueryProvider context
+  useBackgroundTasks();
 
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const screenBg = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
@@ -57,13 +54,13 @@ export default function RootLayout() {
     <CartProvider>
       <ChatProvider>
         <ThemeProvider value={navTheme}>
-          <View style={[styles.container, { backgroundColor: screenBg }]}>
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                animation: 'slide_from_right',
-              }}
-            >
+            <View style={[styles.container, { backgroundColor: screenBg }]}>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  animation: 'slide_from_right',
+                }}
+              >
               {/* --- MAIN CUSTOMER SCREENS --- */}
               <Stack.Screen name="index" options={{ animation: 'fade' }} />
               <Stack.Screen name="home" options={{ animation: 'none' }} />
@@ -156,6 +153,28 @@ export default function RootLayout() {
         </ThemeProvider>
       </ChatProvider>
     </CartProvider>
+  );
+}
+
+export default function RootLayout() {
+  const [loaded] = useFonts({
+    'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
+    'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
+    'Montserrat-SemiBold': require('../assets/fonts/Montserrat-SemiBold.ttf'),
+  });
+
+  useEffect(() => {
+    if (loaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [loaded]);
+
+  if (!loaded) return null;
+
+  return (
+    <QueryProvider>
+      <AppContent />
+    </QueryProvider>
   );
 }
 

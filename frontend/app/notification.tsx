@@ -1,27 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { getNotifications } from '@/services/api';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const NotificationScreen = () => {
     const navigation = useNavigation();
-    const [notifications, setNotifications] = useState<any[]>([]);
+    const { data, isLoading, error } = useNotifications();
+    const notifications = data?.notifications || [];
 
-    useEffect(() => {
-        const fetchNotifications = async () => {
-            try {
-                const res = await getNotifications();
-                if (res && res.notifications) {
-                    setNotifications(res.notifications);
-                }
-            } catch (error) {
-                console.error("Failed to load notifications", error);
-            }
-        };
-        fetchNotifications();
-    }, []);
+    if (isLoading) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#069E2D" />
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
