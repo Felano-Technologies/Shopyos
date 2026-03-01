@@ -32,7 +32,14 @@ const validateLogin = [
 
 const validateCreateProduct = [
     body('storeId').isUUID().withMessage('Store ID must be a valid UUID'),
-    body('title').isString().isLength({ min: 1, max: 200 }).withMessage('Title must be between 1 and 200 characters').trim(),
+    body('name').optional().isString().isLength({ min: 1, max: 200 }).withMessage('Name must be between 1 and 200 characters').trim(),
+    body('title').optional().isString().isLength({ min: 1, max: 200 }).withMessage('Title must be between 1 and 200 characters').trim(),
+    body().custom((value, { req }) => {
+        if (!req.body.name && !req.body.title) {
+            throw new Error('Either name or title is required');
+        }
+        return true;
+    }),
     body('price').isFloat({ gt: 0 }).withMessage('Price must be a positive number'),
     executeValidation
 ];
