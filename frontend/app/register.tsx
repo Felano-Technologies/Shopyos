@@ -277,15 +277,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    width: '90%',
-    marginTop: 25,
+    width: '100%',
+    marginTop: -20,
+    paddingHorizontal: 6,
+    marginBottom: 20,
   },
   circleLogo: {
-    width: 150,
+    width: 130,
     height: 150,
     resizeMode: 'contain',
-    marginLeft: -50,
-    marginBottom: -280,
+    marginLeft: -30,
+    marginBottom: -270,
 
   },
   brandLogo: {
@@ -293,7 +295,7 @@ const styles = StyleSheet.create({
     height: 30,
     resizeMode: 'contain',
     marginLeft: -50,
-    marginBottom: -200,
+    marginBottom: -280,
   },
   loginButton: {
     width: 250,

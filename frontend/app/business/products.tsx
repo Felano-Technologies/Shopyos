@@ -573,92 +573,104 @@ const ProductsScreen = () => {
         <BusinessBottomNav />
       </SafeAreaView>
 
+     {/* --- FIXED CATEGORY MODAL --- */}
       <Modal
         animationType="slide"
         transparent={true}
         visible={categoryModalVisible}
         onRequestClose={() => setCategoryModalVisible(false)}
       >
-        <Pressable onPress={() => setCategoryModalVisible(false)} style={styles.modalOverlay}>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Select Category</Text>
-                <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
-                  <Ionicons name="close" size={24} color="#0C1559" />
-                </TouchableOpacity>
-              </View>
-              <View style={styles.addCategoryRow}>
-                <TextInput
-                  placeholder="New Category Name"
-                  value={newCategoryName}
-                  onChangeText={setNewCategoryName}
-                  style={styles.categoryInput}
-                />
+        {/* Outer Pressable: This covers the darkened background */}
+        <Pressable 
+          onPress={() => setCategoryModalVisible(false)} 
+          style={styles.modalOverlay}
+        >
+          {/* Inner Pressable: This is the actual white box. 
+              We use e.stopPropagation() so that touches here DON'T close the modal */}
+          <Pressable 
+            onPress={(e) => e.stopPropagation()} 
+            style={styles.modalContent}
+          >
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#0C1559" />
+              </TouchableOpacity>
+            </View>
 
-                {editingCategoryId && (
-                  <TouchableOpacity
-                    style={[styles.addCategoryBtn, { backgroundColor: '#94A3B8', marginRight: 5 }]}
-                    onPress={cancelEditingCategory}
-                    disabled={isCreatingCategory}
-                  >
-                    <Feather name="x" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                )}
+            <View style={styles.addCategoryRow}>
+              <TextInput
+                placeholder="New Category Name"
+                value={newCategoryName}
+                onChangeText={setNewCategoryName}
+                style={styles.categoryInput}
+              />
 
+              {editingCategoryId && (
                 <TouchableOpacity
-                  style={styles.addCategoryBtn}
-                  onPress={handleDefaultCategoryAction}
+                  style={[styles.addCategoryBtn, { backgroundColor: '#94A3B8', marginRight: 5 }]}
+                  onPress={cancelEditingCategory}
                   disabled={isCreatingCategory}
                 >
-                  {isCreatingCategory ? (
-                    <ActivityIndicator color="#FFF" size="small" />
-                  ) : (
-                    <Feather name={editingCategoryId ? "save" : "plus"} size={20} color="#FFF" />
-                  )}
+                  <Feather name="x" size={20} color="#FFF" />
                 </TouchableOpacity>
-              </View>
+              )}
 
-              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 300 }}>
-                {categories.map((cat, index) => (
-                  <View key={index} style={styles.categoryItem}>
-                    <TouchableOpacity
-                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                      onPress={() => {
-                        setCategory(cat.name);
-                        setCategoryModalVisible(false);
-                      }}
-                    >
-                      <Text style={[
-                        styles.categoryText,
-                        category === cat.name && { color: '#0C1559', fontFamily: 'Montserrat-Bold' }
-                      ]}>
-                        {cat.name} {cat.count ? `(${cat.count})` : ''}
-                      </Text>
-                      {category === cat.name && (
-                        <Ionicons name="checkmark" size={20} color="#0C1559" style={{ marginLeft: 10 }} />
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Actions for DB categories */}
-                    {cat.id && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        <TouchableOpacity onPress={() => startEditingCategory(cat)} style={{ padding: 8 }}>
-                          <Feather name="edit-2" size={16} color="#64748B" />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteCategory(cat)} style={{ padding: 8 }}>
-                          <Feather name="trash-2" size={16} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    )}
-                  </View>
-                ))}
-              </ScrollView>
+              <TouchableOpacity
+                style={styles.addCategoryBtn}
+                onPress={handleDefaultCategoryAction}
+                disabled={isCreatingCategory}
+              >
+                {isCreatingCategory ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <Feather name={editingCategoryId ? "save" : "plus"} size={20} color="#FFF" />
+                )}
+              </TouchableOpacity>
             </View>
-          </View>
+
+            {/* ScrollView now works because the parent Pressable isn't stealing the touch */}
+            <ScrollView 
+              showsVerticalScrollIndicator={true} 
+              style={{ maxHeight: 400 }} // Increased height for better scrolling
+              keyboardShouldPersistTaps="handled"
+            >
+              {categories.map((cat, index) => (
+                <View key={index} style={styles.categoryItem}>
+                  <TouchableOpacity
+                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                    onPress={() => {
+                      setCategory(cat.name);
+                      setCategoryModalVisible(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.categoryText,
+                      category === cat.name && { color: '#0C1559', fontFamily: 'Montserrat-Bold' }
+                    ]}>
+                      {cat.name} {cat.count ? `(${cat.count})` : ''}
+                    </Text>
+                    {category === cat.name && (
+                      <Ionicons name="checkmark" size={20} color="#0C1559" style={{ marginLeft: 10 }} />
+                    )}
+                  </TouchableOpacity>
+
+                  {cat.id && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity onPress={() => startEditingCategory(cat)} style={{ padding: 8 }}>
+                        <Feather name="edit-2" size={16} color="#64748B" />
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteCategory(cat)} style={{ padding: 8 }}>
+                        <Feather name="trash-2" size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+          </Pressable>
         </Pressable>
       </Modal>
-
     </View >
   );
 };
