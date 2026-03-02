@@ -41,7 +41,8 @@ const createBusiness = async (req, res, next) => {
     }
 
     // Check if business name already exists for this user
-    const existingStores = await repositories.stores.findByOwner(userId);
+    const existingStoresResult = await repositories.stores.findByOwner(userId);
+    const existingStores = Array.isArray(existingStoresResult) ? existingStoresResult : (existingStoresResult?.data || []);
     const nameExists = existingStores.some(
       store => store.store_name.toLowerCase() === businessName.toLowerCase()
     );
