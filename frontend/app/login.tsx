@@ -8,6 +8,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
 import { Appearance } from 'react-native';
+import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 
@@ -25,7 +26,21 @@ const LoginScreen = () => {
     try {
       setLoading(true);
 
-      const response = await loginUser(email, password);
+      // Get device location
+      let latitude = 0;
+      let longitude = 0;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          latitude = location.coords.latitude;
+          longitude = location.coords.longitude;
+        }
+      } catch (locationError) {
+        console.log('Location access denied or unavailable');
+      }
+
+      const response = await loginUser(email, password, latitude, longitude);
 
 
 
@@ -50,7 +65,9 @@ const LoginScreen = () => {
           } else if (userRole === 'seller') {
             router.push("/business/dashboard");
           } else if (userRole === 'driver') {
-            router.push("/driver"); // Update when driver dashboard is ready
+            router.push("/driver");
+          } else if (userRole === 'admin') {
+            router.push("/admin/dashboard");
           }
         }
       } else {
