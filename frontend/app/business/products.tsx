@@ -25,7 +25,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct, getAllCategories, createCategory, deleteCategory, updateCategory, storage } from '@/services/api';
+import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct, getAllCategories, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -45,9 +45,6 @@ const ProductsScreen = () => {
   const [category, setCategory] = useState('');
   const [categories, setCategories] = useState<{ id?: string, name: string, count?: number }[]>([]);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [newCategoryName, setNewCategoryName] = useState('');
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
-  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
 
   // --- Loading States ---
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,90 +86,7 @@ const ProductsScreen = () => {
     }
   };
 
-  const handleDefaultCategoryAction = async () => {
-    if (!newCategoryName.trim()) return;
-    setIsCreatingCategory(true);
 
-    try {
-      if (editingCategoryId) {
-        // Update existing
-        await updateCategory(editingCategoryId, newCategoryName.trim());
-        Alert.alert("Success", "Category updated");
-        setEditingCategoryId(null);
-      } else {
-        // Create new
-        await createCategory(newCategoryName.trim());
-        Alert.alert("Success", "Category created");
-      }
-      setNewCategoryName('');
-      await fetchCategories();
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to save category");
-    } finally {
-      setIsCreatingCategory(false);
-    }
-  };
-
-  const startEditingCategory = (cat: any) => {
-    setNewCategoryName(cat.name);
-    setEditingCategoryId(cat.id);
-  };
-
-  const cancelEditingCategory = () => {
-    setNewCategoryName('');
-    setEditingCategoryId(null);
-  };
-
-  const handleDeleteCategory = async (cat: any) => {
-    // If category has no ID (static fallback), we can't delete
-    if (!cat.id) {
-      Alert.alert("Cannot Delete", "This is a default category.");
-      return;
-    }
-
-    Alert.alert(
-      "Delete Category",
-      `Are you sure you want to delete "${cat.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await deleteCategory(cat.id);
-              fetchCategories();
-            } catch (e: any) {
-              if (e.requiresConfirmation) {
-                // Warning logic
-                Alert.alert(
-                  "Warning",
-                  e.error + "\n\nDo you want to force delete? Products will lose this category reference.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Force Delete",
-                      style: "destructive",
-                      onPress: async () => {
-                        try {
-                          await deleteCategory(cat.id, true);
-                          fetchCategories();
-                        } catch (err: any) {
-                          Alert.alert("Error", err.message);
-                        }
-                      }
-                    }
-                  ]
-                );
-              } else {
-                Alert.alert("Error", e.message);
-              }
-            }
-          }
-        }
-      ]
-    );
-  };
 
   React.useEffect(() => {
     fetchProducts();
@@ -598,37 +512,6 @@ const ProductsScreen = () => {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.addCategoryRow}>
-              <TextInput
-                placeholder="New Category Name"
-                value={newCategoryName}
-                onChangeText={setNewCategoryName}
-                style={styles.categoryInput}
-              />
-
-              {editingCategoryId && (
-                <TouchableOpacity
-                  style={[styles.addCategoryBtn, { backgroundColor: '#94A3B8', marginRight: 5 }]}
-                  onPress={cancelEditingCategory}
-                  disabled={isCreatingCategory}
-                >
-                  <Feather name="x" size={20} color="#FFF" />
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.addCategoryBtn}
-                onPress={handleDefaultCategoryAction}
-                disabled={isCreatingCategory}
-              >
-                {isCreatingCategory ? (
-                  <ActivityIndicator color="#FFF" size="small" />
-                ) : (
-                  <Feather name={editingCategoryId ? "save" : "plus"} size={20} color="#FFF" />
-                )}
-              </TouchableOpacity>
-            </View>
-
             {/* ScrollView now works because the parent Pressable isn't stealing the touch */}
             <ScrollView 
               showsVerticalScrollIndicator={true} 
@@ -655,16 +538,7 @@ const ProductsScreen = () => {
                     )}
                   </TouchableOpacity>
 
-                  {cat.id && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <TouchableOpacity onPress={() => startEditingCategory(cat)} style={{ padding: 8 }}>
-                        <Feather name="edit-2" size={16} color="#64748B" />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteCategory(cat)} style={{ padding: 8 }}>
-                        <Feather name="trash-2" size={16} color="#EF4444" />
-                      </TouchableOpacity>
-                    </View>
-                  )}
+
                 </View>
               ))}
             </ScrollView>
@@ -1064,28 +938,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     color: '#64748B',
   },
-  addCategoryRow: {
-    flexDirection: 'row',
-    marginBottom: 15,
-    gap: 10,
-  },
-  categoryInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
-  },
-  addCategoryBtn: {
-    backgroundColor: '#0C1559',
-    width: 44,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
 });
+
 
 export default ProductsScreen;
