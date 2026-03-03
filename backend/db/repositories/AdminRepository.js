@@ -135,7 +135,7 @@ class AdminRepository extends BaseRepository {
       .from('stores')
       .select(`
         *,
-        owner:user_profiles!stores_owner_id_fkey(id, full_name, email),
+        owner:users!owner_id(id, email, user_profiles(full_name)),
         products:products(count)
       `)
       .order('created_at', { ascending: false })
@@ -151,7 +151,18 @@ class AdminRepository extends BaseRepository {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data;
+
+    // Flatten nested user_profiles into owner.full_name
+    return (data || []).map(store => ({
+      ...store,
+      owner: store.owner ? {
+        id: store.owner.id,
+        email: store.owner.email,
+        full_name: Array.isArray(store.owner.user_profiles)
+          ? store.owner.user_profiles[0]?.full_name || null
+          : store.owner.user_profiles?.full_name || null,
+      } : null,
+    }));
   }
 
   /**
@@ -286,6 +297,61 @@ class AdminRepository extends BaseRepository {
   }
 
   /**
+   * Get all orders (admin view)
+   * @param {Object} options
+   */
+  async getAllOrders(options = {}) {
+    const { limit = 50, offset = 0, status, search } = options;
+
+    let query = this.supabase
+      .from('orders')
+      .select(`
+        id, order_number, status, total_amount, created_at,
+        store:stores(id, store_name),
+        buyer:users!buyer_id(id, email, user_profiles(full_name)),
+        order_items(count)
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      query = query.or(`order_number.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data || []).map(o => ({
+      ...o,
+      buyer_name: Array.isArray(o.buyer?.user_profiles)
+        ? o.buyer.user_profiles[0]?.full_name || o.buyer?.email || 'Unknown'
+        : o.buyer?.user_profiles?.full_name || o.buyer?.email || 'Unknown',
+      items_count: o.order_items?.[0]?.count ?? 0,
+    }));
+  }
+
+  /**
+   * Get revenue transactions (completed payments)
+   */
+  async getRevenueTransactions(options = {}) {
+    const { limit = 50, offset = 0 } = options;
+    const { data, error } = await this.supabase
+      .from('payments')
+      .select(`
+        id, amount, status, created_at,
+        order:orders(id, order_number, store:stores(store_name))
+      `)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    return data || [];
+  }
+
+  /**
    * Get recent activity
    * @param {number} limit - Number of activities to fetch
    * @returns {Promise<Array>} Recent activities
@@ -295,13 +361,22 @@ class AdminRepository extends BaseRepository {
       .from('audit_logs')
       .select(`
         *,
-        user:user_profiles(id, full_name, email)
+        user:users!user_id(id, email, user_profiles(full_name))
       `)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
-    return data || [];
+    return (data || []).map(log => ({
+      ...log,
+      user: log.user ? {
+        id: log.user.id,
+        email: log.user.email,
+        full_name: Array.isArray(log.user.user_profiles)
+          ? log.user.user_profiles[0]?.full_name || null
+          : log.user.user_profiles?.full_name || null,
+      } : null,
+    }));
   }
 }
 

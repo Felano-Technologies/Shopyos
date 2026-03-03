@@ -17,7 +17,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getMyBusinesses, storage } from '@/services/api'; // Import your API function
+import { getMyBusinesses, storage, logoutUser } from '@/services/api'; // Import your API function
 
 const { width } = Dimensions.get('window');
 
@@ -67,7 +67,14 @@ export default function BusinessSettingsScreen() {
   const confirmLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Log Out', onPress: () => router.replace('/login'), style: 'destructive' },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          await logoutUser();
+          router.replace('/login');
+        },
+      },
     ]);
   };
 

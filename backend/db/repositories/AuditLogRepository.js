@@ -21,7 +21,7 @@ class AuditLogRepository extends BaseRepository {
         action: logData.action,
         entity_type: logData.entityType,
         entity_id: logData.entityId,
-        changes: logData.changes || {},
+        metadata: logData.changes || logData.metadata || {},
         ip_address: logData.ipAddress,
         user_agent: logData.userAgent
       })
@@ -44,9 +44,9 @@ class AuditLogRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        user:user_profiles(id, full_name, email, role)
+        user:users!user_id(id, email, user_profiles(full_name))
       `)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (userId) {
@@ -62,11 +62,11 @@ class AuditLogRepository extends BaseRepository {
     }
 
     if (startDate) {
-      query = query.gte('created_at', startDate);
+      query = query.gte('timestamp', startDate);
     }
 
     if (endDate) {
-      query = query.lte('created_at', endDate);
+      query = query.lte('timestamp', endDate);
     }
 
     const { data, error } = await query;
@@ -85,11 +85,11 @@ class AuditLogRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        user:user_profiles(id, full_name, email)
+        user:users!user_id(id, email, user_profiles(full_name))
       `)
       .eq('entity_id', entityId)
       .eq('entity_type', entityType)
-      .order('created_at', { ascending: false });
+      .order('timestamp', { ascending: false });
 
     if (error) throw error;
     return data;
@@ -108,7 +108,7 @@ class AuditLogRepository extends BaseRepository {
       .from(this.tableName)
       .select('*')
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) throw error;
@@ -128,11 +128,11 @@ class AuditLogRepository extends BaseRepository {
       .select('action, entity_type');
 
     if (startDate) {
-      query = query.gte('created_at', startDate);
+      query = query.gte('timestamp', startDate);
     }
 
     if (endDate) {
-      query = query.lte('created_at', endDate);
+      query = query.lte('timestamp', endDate);
     }
 
     const { data, error } = await query;
@@ -164,7 +164,7 @@ class AuditLogRepository extends BaseRepository {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .delete()
-      .lt('created_at', cutoffDate.toISOString())
+      .lt('timestamp', cutoffDate.toISOString())
       .select();
 
     if (error) throw error;

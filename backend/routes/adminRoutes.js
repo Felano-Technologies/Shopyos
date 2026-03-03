@@ -17,7 +17,9 @@ const {
   updatePayoutStatus,
   getAllReports,
   getReportDetails,
-  updateReportStatus
+  updateReportStatus,
+  getAllOrders,
+  getRevenue,
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -99,5 +101,13 @@ router.get('/payouts', getAllPayouts);
 // @desc    Update payout status (approve/reject)
 // @access  Admin
 router.put('/payouts/:payoutId', updatePayoutStatus);
+
+// Order Management
+// @route   GET /api/admin/orders
+router.get('/orders', getAllOrders);
+
+// Revenue
+// @route   GET /api/admin/revenue
+router.get('/revenue', getRevenue);
 
 module.exports = router;

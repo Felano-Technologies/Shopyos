@@ -13,7 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getUserData, storage } from '../services/api';
+import { getUserData, logoutUser, storage } from '../services/api';
 
 
 interface User {
@@ -34,6 +34,24 @@ export default function UserProfile() {
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Log Out',
+      'Are you sure you want to log out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Log Out',
+          style: 'destructive',
+          onPress: async () => {
+            await logoutUser();
+            router.replace('/login');
+          },
+        },
+      ]
+    );
+  };
 
   useEffect(() => {
     const fetchUserDetails = async () => {
@@ -154,7 +172,7 @@ export default function UserProfile() {
 
         {/* Logout Button */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]}>
+          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]} onPress={handleLogout}>
             <Ionicons
               name="log-out-outline"
               size={20}

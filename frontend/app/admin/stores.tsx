@@ -67,7 +67,7 @@ export default function AdminStores() {
             if (search.trim())    params.search = search.trim();
 
             const res = await getAdminStores(params);
-            const data = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
+            const data = Array.isArray(res?.stores) ? res.stores : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
             setStores(data);
         } catch (err: any) {
             Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to load stores' });

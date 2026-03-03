@@ -16,7 +16,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getAdminDashboard, getAdminPayouts, updateAdminPayoutStatus } from '@/services/api';
+import { getAdminDashboard, getAdminPayouts, updateAdminPayoutStatus, getAdminAuditLogs } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -31,24 +31,23 @@ export default function AdminDashboard() {
         totalRevenue: 0,
     });
     const [pendingPayouts, setPendingPayouts] = useState<any[]>([]);
-
-    // --- Mock Activity Data ---
-    const activityFeed = [
-        { id: '1', type: 'user', title: 'New User Signup', desc: 'Kwame Mensah joined.', time: '2m ago', icon: 'person-add' },
-        { id: '2', type: 'store', title: 'New Store Request', desc: 'Star Electronics applied.', time: '15m ago', icon: 'storefront' },
-        { id: '3', type: 'order', title: 'Large Order Placed', desc: 'Order #8821 - ₵1,200.00', time: '1h ago', icon: 'cart' },
-    ];
+    const [activityFeed, setActivityFeed] = useState<any[]>([]);
 
     const loadData = async () => {
         try {
             setLoading(true);
-            const [dashboardRes, payoutsRes] = await Promise.all([
+            const [dashboardRes, payoutsRes, activityRes] = await Promise.all([
                 getAdminDashboard(),
-                getAdminPayouts('pending')
+                getAdminPayouts('pending'),
+                getAdminAuditLogs({ limit: 10 }).catch(() => ({ logs: [], data: [] }))
             ]);
 
             if (dashboardRes.success) setStats(dashboardRes.stats);
             if (payoutsRes.success) setPendingPayouts(payoutsRes.data);
+            const logs = Array.isArray(activityRes?.logs) ? activityRes.logs
+                : Array.isArray(activityRes?.data) ? activityRes.data
+                : Array.isArray(activityRes) ? activityRes : [];
+            setActivityFeed(logs);
         } catch (error) {
             console.error(error);
         } finally {
@@ -139,7 +138,7 @@ export default function AdminDashboard() {
                         <Text style={styles.statLabel}>Orders</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.statCard} onPress={() => router.push('/admin/sellers')}>
+                    <TouchableOpacity style={styles.statCard} onPress={() => router.push('/admin/stores' as any)}>
                         <View style={[styles.statIconBg, { backgroundColor: '#F3E8FF' }]}><Feather name="home" size={20} color="#7C3AED" /></View>
                         <Text style={styles.statValue}>{stats.totalStores}</Text>
                         <Text style={styles.statLabel}>Stores</Text>
@@ -156,18 +155,39 @@ export default function AdminDashboard() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Live Activity Feed</Text>
                     <View style={styles.activityContainer}>
-                        {activityFeed.map((item, index) => (
-                            <View key={item.id} style={styles.activityItem}>
-                                <View style={[styles.activityIconBg, { backgroundColor: index === 0 ? '#DBEAFE' : index === 1 ? '#F3E8FF' : '#DCFCE7' }]}>
-                                    <Ionicons name={item.icon as any} size={18} color="#0C1559" />
+                        {activityFeed.length === 0 ? (
+                            <Text style={[styles.activityDesc, { textAlign: 'center', paddingVertical: 20 }]}>No recent activity</Text>
+                        ) : activityFeed.slice(0, 8).map((item, index) => {
+                            const iconMap: Record<string, string> = {
+                                store_verified: 'shield-checkmark', store_rejected: 'close-circle',
+                                user_updated: 'person', payout_approved: 'cash', payout_rejected: 'close',
+                                order_status_changed: 'cart', report_resolved: 'flag',
+                            };
+                            const colorMap = ['#DBEAFE', '#F3E8FF', '#DCFCE7', '#FEF3C7', '#FCE7F3'];
+                            const icon = iconMap[item.action] || 'notifications';
+                            const actorName = item.user?.full_name || item.user?.email || 'System';
+                            const timeAgo = (() => {
+                                const diff = Date.now() - new Date(item.timestamp).getTime();
+                                const m = Math.floor(diff / 60000);
+                                if (m < 1) return 'just now';
+                                if (m < 60) return `${m}m ago`;
+                                const h = Math.floor(m / 60);
+                                if (h < 24) return `${h}h ago`;
+                                return `${Math.floor(h / 24)}d ago`;
+                            })();
+                            return (
+                                <View key={item.id} style={styles.activityItem}>
+                                    <View style={[styles.activityIconBg, { backgroundColor: colorMap[index % colorMap.length] }]}>
+                                        <Ionicons name={icon as any} size={18} color="#0C1559" />
+                                    </View>
+                                    <View style={styles.activityText}>
+                                        <Text style={styles.activityTitle}>{(item.action || '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}</Text>
+                                        <Text style={styles.activityDesc} numberOfLines={1}>{actorName} • {item.entity_type || ''}</Text>
+                                    </View>
+                                    <Text style={styles.activityTime}>{timeAgo}</Text>
                                 </View>
-                                <View style={styles.activityText}>
-                                    <Text style={styles.activityTitle}>{item.title}</Text>
-                                    <Text style={styles.activityDesc}>{item.desc}</Text>
-                                </View>
-                                <Text style={styles.activityTime}>{item.time}</Text>
-                            </View>
-                        ))}
+                            );
+                        })}
                     </View>
                 </View>
 
@@ -210,7 +230,7 @@ export default function AdminDashboard() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Platform Management</Text>
                     <View style={styles.controlsGrid}>
-                        <TouchableOpacity style={styles.controlItem} onPress={() => router.push('/admin/sellers')}>
+                        <TouchableOpacity style={styles.controlItem} onPress={() => router.push('/admin/stores' as any)}>
                             <View style={styles.controlIcon}><Ionicons name="shield-checkmark" size={22} color="#0C1559" /></View>
                             <Text style={styles.controlLabel}>Verify Stores</Text>
                         </TouchableOpacity>

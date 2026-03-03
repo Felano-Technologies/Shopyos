@@ -1,6 +1,8 @@
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { queryClient } from '@/lib/query/client';
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
@@ -126,6 +128,18 @@ api.interceptors.request.use(
   }
 );
 
+// Track whether a refresh is already in progress to avoid parallel refresh calls
+let isRefreshing = false;
+let failedQueue: { resolve: (value: any) => void; reject: (reason?: any) => void }[] = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+};
+
 // Add response interceptor to handle token expiration and attach user-friendly messages
 api.interceptors.response.use(
   (response) => response,
@@ -133,14 +147,69 @@ api.interceptors.response.use(
     // Attach a user-friendly message to every error for easy toast display
     error.userMessage = extractErrorMessage(error);
 
-    if (error.response?.status === 401) {
+    const originalRequest = error.config;
+    const isTokenExpired =
+      error.response?.status === 401 &&
+      (error.response?.data?.code === 'TOKEN_EXPIRED' ||
+        error.response?.data?.error === 'Access token expired');
+
+    // Attempt silent token refresh when access token has expired
+    if (isTokenExpired && !originalRequest._retry) {
+      if (isRefreshing) {
+        // Queue this request until the refresh completes
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          })
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const storedRefreshToken = await storage.getItem('refreshToken');
+        if (!storedRefreshToken) throw new Error('No refresh token stored');
+
+        const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
+        const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
+
+        await storage.setItem('userToken', newAccessToken);
+        if (newRefreshToken) await storage.setItem('refreshToken', newRefreshToken);
+
+        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+        processQueue(null, newAccessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        // Refresh failed — clear everything and force re-login
+        try {
+          await storage.removeItem('userToken');
+          await storage.removeItem('refreshToken');
+          await storage.removeItem('userId');
+        } catch (_) {}
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    // For non-expiry 401s (bad token, revoked, etc), clear storage
+    if (error.response?.status === 401 && !originalRequest._retry) {
       try {
         await storage.removeItem('userToken');
+        await storage.removeItem('refreshToken');
         await storage.removeItem('userId');
       } catch (storageError) {
         console.error('Error clearing tokens:', storageError);
       }
     }
+
     return Promise.reject(error);
   }
 );
@@ -153,6 +222,9 @@ export const registerUser = async (name: string, email: string, password: string
     // Store token if registration is successful
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
+      if (response.data.refreshToken) {
+        await storage.setItem('refreshToken', response.data.refreshToken);
+      }
     }
 
     return response.data;
@@ -212,8 +284,21 @@ export const logoutUser = async () => {
   } catch (error) {
     console.error('Error calling logout API:', error);
   } finally {
-    await storage.removeItem('userToken');
-    await storage.removeItem('userId');
+    // Clear in-memory TanStack Query cache
+    queryClient.clear();
+    // Clear persisted query cache from AsyncStorage
+    await AsyncStorage.removeItem('SHOPYOS_QUERY_CACHE');
+    // Clear all auth/session storage keys
+    await Promise.all([
+      storage.removeItem('userToken'),
+      storage.removeItem('refreshToken'),
+      storage.removeItem('userId'),
+      storage.removeItem('businessToken'),
+      storage.removeItem('currentBusinessId'),
+      storage.removeItem('currentBusinessVerificationStatus'),
+      storage.removeItem('userRole'),
+      storage.removeItem('cart'),
+    ]);
   }
 };
 
@@ -226,6 +311,9 @@ export const loginUser = async (email: string, password: string, latitude: numbe
     // Store token automatically after successful login
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
+      if (response.data.refreshToken) {
+        await storage.setItem('refreshToken', response.data.refreshToken);
+      }
 
       // Fetch and store the userId for chat and other features
       try {
@@ -1296,6 +1384,46 @@ export const adminVerifyStore = async (storeId: string, status: 'verified' | 're
     return response.data;
   } catch (error: any) {
     console.error("Error verifying store:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAdminAuditLogs = async (params: { limit?: number; offset?: number; action?: string; entityType?: string } = {}) => {
+  try {
+    const response = await api.get('/admin/audit-logs', { params });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching admin audit logs:', error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAdminOrders = async (params: { status?: string; search?: string; limit?: number; offset?: number } = {}) => {
+  try {
+    const response = await api.get('/admin/orders', { params });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching admin orders:', error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAdminRevenue = async (params: { limit?: number; offset?: number } = {}) => {
+  try {
+    const response = await api.get('/admin/revenue', { params });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching admin revenue:', error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminUpdateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned', reason?: string) => {
+  try {
+    const response = await api.put(`/admin/users/${userId}/status`, { status, reason });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error updating user status:', error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };

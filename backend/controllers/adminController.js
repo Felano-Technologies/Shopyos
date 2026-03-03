@@ -459,6 +459,43 @@ const updatePayoutStatus = async (req, res, next) => {
   }
 };
 
+/**
+ * Get all orders (admin)
+ * @route   GET /api/admin/orders
+ */
+const getAllOrders = async (req, res, next) => {
+  try {
+    const { status, search, limit, offset } = req.query;
+    const orders = await repositories.admin.getAllOrders({
+      limit: parseInt(limit) || 50,
+      offset: parseInt(offset) || 0,
+      status,
+      search,
+    });
+    res.status(200).json({ success: true, orders });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get revenue transactions
+ * @route   GET /api/admin/revenue
+ */
+const getRevenue = async (req, res, next) => {
+  try {
+    const { limit, offset } = req.query;
+    const transactions = await repositories.admin.getRevenueTransactions({
+      limit: parseInt(limit) || 50,
+      offset: parseInt(offset) || 0,
+    });
+    const total = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    res.status(200).json({ success: true, transactions, total });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllUsers,
@@ -473,5 +510,7 @@ module.exports = {
   getAuditLogs,
   getEntityHistory,
   getAllPayouts,
-  updatePayoutStatus
+  updatePayoutStatus,
+  getAllOrders,
+  getRevenue,
 };
