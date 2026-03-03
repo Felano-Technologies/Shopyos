@@ -61,7 +61,7 @@ export default function CategoryScreen() {
       item.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-  // ✅ FIXED: Matches app/categories/[id].tsx
+  // FIXED: Matches app/categories/[id].tsx
   const handlePress = (item: any) => {
     // Debug log to confirm what we are sending
     console.log(`Navigating to: /categories/${item.id}`);

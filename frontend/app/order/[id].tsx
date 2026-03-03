@@ -173,7 +173,7 @@ const OrderDetailsScreen = () => {
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
-                {/* --- TRACKING PROGRESS --- */}
+                {/* Tracking Steps */}
                 <View style={styles.progressContainer}>
                     {[
                         { id: 'pending', label: 'Ordered', icon: 'cart-outline' },
@@ -202,7 +202,7 @@ const OrderDetailsScreen = () => {
                     })}
                 </View>
 
-                {/* --- LIVE TRACKING HINT ALERT --- */}
+                {/* Live Tracking Hint */}
                 {(['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase())) && (
                     <TouchableOpacity 
                         style={styles.mapHintCard}
@@ -219,7 +219,7 @@ const OrderDetailsScreen = () => {
                     </TouchableOpacity>
                 )}
 
-                {/* Driver Information Card */}
+                {/* Driver Info */}
                 {driver && (
                     <View style={styles.section}>
                         <Text style={styles.sectionTitle}>Your Driver</Text>
@@ -301,31 +301,29 @@ const OrderDetailsScreen = () => {
                     </View>
                 </View>
 
-                {/* Payment Summary */}
+                {/* CLEANED PAYMENT SUMMARY */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Payment Summary</Text>
                     <View style={styles.paymentCard}>
                         <View style={styles.priceRow}>
                             <Text style={styles.priceLabel}>Subtotal</Text>
-                            <Text style={styles.priceValue}>₵{order.order_items?.reduce((sum: number, i: any) => sum + (parseFloat(i.price) * i.quantity), 0).toFixed(2)}</Text>
+                            <Text style={styles.priceValue}>
+                                ₵{order.order_items?.reduce((sum: number, i: any) => sum + (parseFloat(i.price) * i.quantity), 0).toFixed(2)}
+                            </Text>
                         </View>
-                        <View style={styles.priceRow}>
-                            <Text style={styles.priceLabel}>Delivery Fee</Text>
-                            <Text style={styles.priceValue}>₵15.00</Text>
-                        </View>
-                        <View style={styles.priceRow}>
-                            <Text style={styles.priceLabel}>VAT & Taxes</Text>
-                            <Text style={styles.priceValue}>₵{(parseFloat(order.payments?.[0]?.amount || 0) - 15 - order.order_items?.reduce((sum: number, i: any) => sum + (parseFloat(i.price) * i.quantity), 0)).toFixed(2)}</Text>
-                        </View>
+                        
                         <View style={styles.divider} />
+                        
                         <View style={styles.priceRow}>
                             <Text style={styles.totalLabel}>Grand Total</Text>
                             <Text style={styles.totalValue}>₵{parseFloat(order.payments?.[0]?.amount || 0).toFixed(2)}</Text>
                         </View>
+
                         <View style={styles.paymentMethodRow}>
                             <MaterialCommunityIcons name="credit-card-outline" size={16} color="#64748B" />
                             <Text style={styles.methodText}>Paid via {order.payments?.[0]?.payment_method || 'Momo'}</Text>
                         </View>
+
                         {order.status.toLowerCase() === 'paid' && (
                             <TouchableOpacity style={styles.receiptLink} onPress={() => router.push(`/receipt/${order.id}` as any)}>
                                 <Ionicons name="receipt-outline" size={16} color="#0C1559" />
@@ -335,7 +333,7 @@ const OrderDetailsScreen = () => {
                     </View>
                 </View>
 
-                {/* Action Buttons */}
+                {/* Actions */}
                 {order.status.toLowerCase() === 'delivered' && (
                     <TouchableOpacity style={styles.reviewBtn} onPress={() => router.push(`/order/review/${order.id}` as any)}>
                         <Text style={styles.reviewBtnText}>Leave a Review</Text>
@@ -365,66 +363,32 @@ const styles = StyleSheet.create({
     headerOrderInfo: { paddingHorizontal: 20, marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
     headerOrderId: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#FFF' },
     headerDate: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 4 },
-statusBadge: {
-
-    flexDirection: 'row',
-
-    alignItems: 'center',
-
-    paddingVertical: 6,
-
-    paddingHorizontal: 14,
-
-    borderRadius: 50, // Fully rounded pill shape
-
-    borderWidth: 1, // Adds a premium definition
-
-    // Shadow for depth (optional, remove if you want flat)
-
-    shadowColor: "#000",
-
-    shadowOffset: { width: 0, height: 2 },
-
-    shadowOpacity: 0.05,
-
-    shadowRadius: 3,
-
-    elevation: 2,
-
-    marginLeft: -100,
-
-    marginBottom: -10,
-
-},
-
-statusText: {
-
-    fontSize: 11,
-
-    fontFamily: 'Montserrat-Bold',
-
-    textTransform: 'uppercase',
-
-    letterSpacing: 0.5, // Makes the text breathe
-
-    includeFontPadding: false, // Centers text vertically on Android
-
-    textAlignVertical: 'center'
-
-},
-
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+        paddingHorizontal: 14,
+        borderRadius: 50,
+        borderWidth: 1,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 3,
+    },
+    statusText: {
+        fontSize: 11,
+        fontFamily: 'Montserrat-Bold',
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
     scrollContent: { padding: 20, paddingBottom: 110 },
-
     section: { marginBottom: 25 },
-
     sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 12, textTransform: 'uppercase' },
-    // Map Hint Alert Styles
     mapHintCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, marginBottom: 25, shadowColor: "#0C1559", shadowOpacity: 0.08, shadowRadius: 10, elevation: 4, borderWidth: 1, borderColor: '#ECFCCB' },
     mapHintIconBg: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#ECFCCB', justifyContent: 'center', alignItems: 'center' },
     mapHintTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
     mapHintDesc: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2, lineHeight: 18 },
-
-    // Progress
     progressContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30, paddingHorizontal: 5 },
     progressStep: { alignItems: 'center', flex: 1 },
     stepIconBg: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 2 },
@@ -434,8 +398,6 @@ statusText: {
     stepLabelActive: { color: '#0F172A', fontFamily: 'Montserrat-Bold' },
     stepConnector: { position: 'absolute', top: 18, left: '50%', right: '-50%', height: 2, backgroundColor: '#F1F5F9', zIndex: 1 },
     stepConnectorActive: { backgroundColor: '#84cc16' },
-
-    // Driver Card
     driverCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 24, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 12, elevation: 3 },
     driverAvatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F1F5F9' },
     driverInfo: { flex: 1, marginLeft: 15 },
@@ -444,7 +406,6 @@ statusText: {
     ratingText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginLeft: 4 },
     driverActions: { flexDirection: 'row', gap: 10 },
     actionCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#ECFCCB', justifyContent: 'center', alignItems: 'center' },
-
     storeHeader: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
     storeInfo: { flex: 1, marginLeft: 12 },
     storeName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },

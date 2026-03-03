@@ -33,15 +33,17 @@ interface BusinessStats {
   pendingOrders: number;
 }
 
+interface Order {
+  _id: string;
+  orderNumber: string;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+}
+
 interface DashboardData {
   stats: BusinessStats;
-  recentOrders: {
-    _id: string;
-    orderNumber: string;
-    totalAmount: number;
-    status: string;
-    createdAt: string;
-  }[];
+  recentOrders: Order[];
   chartData: {
     weekly: {
       labels: string[];
@@ -300,7 +302,7 @@ if (loading) {
                 </TouchableOpacity>
               </View>
 
-              {recentOrders.map((order) => (
+              {recentOrders.map((order: Order) => (
                 <View key={order._id} style={styles.orderCard}>
                   <View style={styles.orderLeft}>
                     <View style={[styles.orderIconBox, {
