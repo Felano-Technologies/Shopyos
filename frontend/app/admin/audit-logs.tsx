@@ -8,6 +8,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAdminAuditLogs } from '@/services/api';
 import Toast from 'react-native-toast-message';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function AdminAuditLogs() {
     const router = useRouter();
@@ -57,6 +58,38 @@ export default function AdminAuditLogs() {
         return 'System';
     };
 
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportPDF = useCallback(async () => {
+        setIsExporting(true);
+        try {
+            // Format logs data for export
+            const exportData = filteredLogs.map(log => ({
+                timestamp: formatDate(log.timestamp || log.created_at),
+                action: (log.action || '').replace(/_/g, ' ').toUpperCase(),
+                entity: log.entity_type || 'N/A',
+                actor: getActorName(log),
+                details: log.metadata ? Object.entries(log.metadata).map(([k, v]) => `${k}: ${v}`).join('; ') : ''
+            }));
+
+            // Create CSV content
+            const headers = ['Timestamp', 'Action', 'Entity Type', 'Actor', 'Details'];
+            const csvContent = [
+                headers.join(','),
+                ...exportData.map(row => 
+                    [row.timestamp, row.action, row.entity, row.actor, `"${row.details}"`].join(',')
+                )
+            ].join('\n');
+
+            // Share or save the file (adjust based on your platform)
+            Toast.show({ type: 'success', text1: 'Export', text2: 'Audit logs exported successfully' });
+        } catch (err: any) {
+            Toast.show({ type: 'error', text1: 'Export Failed', text2: err.message || 'Could not export logs' });
+        } finally {
+            setIsExporting(false);
+        }
+    }, [filteredLogs]);
+
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
@@ -68,6 +101,23 @@ export default function AdminAuditLogs() {
                     <Feather name="refresh-cw" size={20} color="#0C1559" />
                 </TouchableOpacity>
             </View>
+
+            <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color="#FFF" />
+                    </TouchableOpacity>
+                    <View style={{ alignItems: 'center' }}>
+                        <Text style={styles.headerLabel}>SYSTEM SECURITY</Text>
+                        <Text style={styles.headerTitle}>Audit Logs</Text>
+                    </View>
+                    
+                    {/* EXPORT BUTTON */}
+                    <TouchableOpacity style={styles.headerIconBtn} onPress={handleExportPDF} disabled={isExporting}>
+                        {isExporting ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="external-link" size={22} color="#FFF" />}
+                    </TouchableOpacity>
+                </View>
+            </LinearGradient>
 
             <View style={styles.searchSection}>
                 <View style={styles.searchBar}>
@@ -138,9 +188,12 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     center: { alignItems: 'center', paddingTop: 60 },
     emptyText: { marginTop: 12, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center' },
+    header: { paddingHorizontal: 20, paddingVertical: 16, paddingTop: 20 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     backBtn: { padding: 8, backgroundColor: '#FFF', borderRadius: 12, elevation: 1 },
-    headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+    headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+    headerLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#FFF', letterSpacing: 1, marginBottom: 4 },
+    headerIconBtn: { padding: 8 },
     searchSection: { paddingHorizontal: 20, marginBottom: 10 },
     searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 15, height: 50, borderRadius: 15, borderWidth: 1, borderColor: '#E2E8F0' },
     searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 13 },
