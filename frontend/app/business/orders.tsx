@@ -65,6 +65,13 @@ const OrdersScreen = () => {
     }
   };
 
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
+
   useEffect(() => {
     fetchOrders(true); // Initial fetch with loading state
   }, []);

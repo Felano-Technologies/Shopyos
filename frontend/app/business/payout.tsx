@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import * as SecureStore from 'expo-secure-store';
 
-import { getPayoutHistory, getMyBusinesses } from '@/services/api';
+import { getPayoutHistory, getMyBusinesses, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +27,13 @@ export default function PayoutScreen() {
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
+
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
 
   useEffect(() => {
     loadData();

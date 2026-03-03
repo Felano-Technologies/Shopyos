@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { getStoreReviews, storage } from '@/services/api';
+import { router } from 'expo-router';
 
 const ReviewsScreen = () => {
   const theme = useColorScheme();
@@ -31,6 +32,13 @@ const ReviewsScreen = () => {
   const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
 
   const fetchReviews = async () => {
     try {

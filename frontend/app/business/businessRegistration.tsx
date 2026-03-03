@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { businessRegister } from '@/services/api';
+import { queryKeys } from '@/lib/query/keys';
 import {
   View,
   Text,
@@ -130,7 +133,9 @@ const RegistrationField = ({
 
 export default function BusinessRegistrationScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const mapRef = React.useRef<MapView>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // --- Form State ---
   const [formData, setFormData] = useState<any>({
@@ -233,12 +238,39 @@ export default function BusinessRegistrationScreen() {
       setFormData((prev: any) => ({ ...prev, storePhotos: updated }));
   };
 
-  const handleSubmit = () => {
-    if(!formData.businessName || !formData.latitude || !formData.businessEmail) {
-        Alert.alert("Missing Information", "Please ensure Store Name, Business Email, and Map Location are set.");
-        return;
+  const handleSubmit = async () => {
+    if (!formData.businessName || !formData.latitude || !formData.businessEmail) {
+      Alert.alert('Missing Information', 'Please ensure Store Name, Business Email, and Map Location are set.');
+      return;
     }
-    Alert.alert("Success", "Application submitted successfully!");
+    setIsSubmitting(true);
+    try {
+      await businessRegister({
+        businessName: formData.businessName,
+        description: formData.adminNotes || '',
+        category: '',
+        address: formData.address || '',
+        city: formData.city || '',
+        country: formData.country || 'Ghana',
+        phone: formData.businessPhone || formData.ownerPhone || '',
+        website: formData.website || '',
+        instagram: formData.socialMedia || '',
+        facebook: '',
+        logo: formData.storePhotos?.[0] || '',
+        coverImage: formData.storePhotos?.[1] || '',
+      });
+      // Invalidate cached business list so dashboard fetches fresh data
+      await queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
+      Alert.alert(
+        'Application Submitted',
+        'Your business is pending verification. You can view the status in your dashboard.',
+        [{ text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }]
+      );
+    } catch (e: any) {
+      Alert.alert('Registration Failed', e.message || 'Something went wrong. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -325,8 +357,12 @@ export default function BusinessRegistrationScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8}>
-                        <Text style={styles.submitBtnText}>Submit Application</Text>
+                    <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8} disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <ActivityIndicator color="#FFF" size="small" />
+                        ) : (
+                          <Text style={styles.submitBtnText}>Submit Application</Text>
+                        )}
                         <Feather name="arrow-right" size={20} color="#FFF" />
                     </TouchableOpacity>
                 </View>

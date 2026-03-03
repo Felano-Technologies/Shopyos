@@ -18,7 +18,7 @@ import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/v
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getMyCampaigns, createCampaign, updateCampaignStatus, getMyBusinesses } from '@/services/api';
+import { getMyCampaigns, createCampaign, updateCampaignStatus, getMyBusinesses, storage } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -51,6 +51,13 @@ export default function AdvertisingScreen() {
     const [selectedProductId, setSelectedProductId] = useState('');
     const [budget, setBudget] = useState('50');
     const [duration, setDuration] = useState('7'); // days
+
+    // Verification guard — redirect unverified businesses
+    useEffect(() => {
+        storage.getItem('currentBusinessVerificationStatus').then(status => {
+            if (status && status !== 'verified') router.replace('/business/dashboard');
+        });
+    }, []);
 
     useEffect(() => {
         loadCampaigns();

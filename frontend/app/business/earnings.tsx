@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
+import { router } from 'expo-router';
+import { storage } from '@/services/api';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -22,6 +24,13 @@ const EarningsScreen = () => {
   const secondaryText = isDarkMode ? '#AAA' : '#555';
 
   const [range, setRange] = useState<'Week' | 'Month' | 'Quarter'>('Week');
+
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
 
   const earningsData = {
     Week: [120, 140, 170, 130, 160, 180, 210],

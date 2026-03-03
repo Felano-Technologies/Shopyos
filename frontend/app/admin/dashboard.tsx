@@ -213,7 +213,7 @@ export default function AdminDashboard() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Marketplace Controls</Text>
                     <View style={styles.actionGrid}>
-                        <TouchableOpacity style={styles.gridAction} onPress={() => Alert.alert("Coming Soon", "User moderation feature is being developed.")}>
+                        <TouchableOpacity style={styles.gridAction} onPress={() => router.push('/admin/stores' as any)}>
                             <View style={styles.actionIconBg}><Ionicons name="shield-checkmark-outline" size={24} color="#0C1559" /></View>
                             <Text style={styles.actionLabel}>Verify Stores</Text>
                         </TouchableOpacity>

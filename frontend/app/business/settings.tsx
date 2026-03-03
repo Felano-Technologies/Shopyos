@@ -17,7 +17,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getMyBusinesses } from '@/services/api'; // Import your API function
+import { getMyBusinesses, storage } from '@/services/api'; // Import your API function
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +34,13 @@ interface BusinessData {
 export default function BusinessSettingsScreen() {
   const router = useRouter();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
+
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
   
   // State for business data
   const [businessData, setBusinessData] = useState<BusinessData | null>(null);

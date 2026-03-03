@@ -50,6 +50,13 @@ const Inventory = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [businessId, setBusinessId] = useState<string | null>(null);
 
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
+
   // --- Get current business ID ---
   useEffect(() => {
     storage.getItem('currentBusinessId').then(setBusinessId);
