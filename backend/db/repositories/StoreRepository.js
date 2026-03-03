@@ -92,6 +92,7 @@ class StoreRepository extends BaseRepository {
       .select('*')
       .eq('is_featured', true)
       .eq('is_active', true)
+      .eq('is_verified', true)
       .gt('featured_until', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(limit);

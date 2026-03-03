@@ -319,6 +319,18 @@ export default function Home() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.recentList}
                 renderItem={renderRecent}
+                ListEmptyComponent={
+                  <View style={styles.emptyHorizontal}>
+                    <View style={styles.emptyIconCircle}>
+                      <Feather name="shopping-bag" size={28} color="#1e3a8a" />
+                    </View>
+                    <Text style={styles.emptyTitle}>Nothing here yet</Text>
+                    <Text style={styles.emptySubtitle}>New products will show up soon</Text>
+                    <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push('/stores')}>
+                      <Text style={styles.emptyBtnText}>Browse Stores</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
               />
 
               {/* Deals for You */}
@@ -335,6 +347,18 @@ export default function Home() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.dealsList}
                 renderItem={renderDeal}
+                ListEmptyComponent={
+                  <View style={styles.emptyHorizontal}>
+                    <View style={[styles.emptyIconCircle, { backgroundColor: '#f0fdf4' }]}>
+                      <MaterialCommunityIcons name="tag-outline" size={28} color="#16a34a" />
+                    </View>
+                    <Text style={styles.emptyTitle}>No deals right now</Text>
+                    <Text style={styles.emptySubtitle}>Check back later for great prices</Text>
+                    <TouchableOpacity style={[styles.emptyBtn, { backgroundColor: '#84cc16' }]} onPress={() => router.push('/filter')}>
+                      <Text style={styles.emptyBtnText}>Explore Products</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
               />
             </>
           )}
@@ -413,6 +437,14 @@ const styles = StyleSheet.create({
   dealImage: { width: '100%', height: 100, resizeMode: 'cover' },
   dealTitle: { fontSize: 13, fontWeight: '600', marginTop: 10, marginHorizontal: 8, textAlign: 'center' },
   dealPrice: { fontSize: 14, fontWeight: '700', marginTop: 6, marginBottom: 10, color: '#84cc16' },
+
+  // Empty state (horizontal)
+  emptyHorizontal: { width: width - 64, marginLeft: 16, backgroundColor: '#FFF', borderRadius: 20, paddingVertical: 32, paddingHorizontal: 24, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+  emptyIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  emptyTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
+  emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', textAlign: 'center', marginBottom: 16, lineHeight: 18 },
+  emptyBtn: { backgroundColor: '#1e3a8a', paddingHorizontal: 20, paddingVertical: 9, borderRadius: 20 },
+  emptyBtnText: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-Bold' },
 
   // Search Results
   searchResultsContainer: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 20 },

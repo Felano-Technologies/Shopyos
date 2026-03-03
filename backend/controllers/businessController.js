@@ -802,6 +802,9 @@ const getAllBusinesses = async (req, res, next) => {
       .is('products.deleted_at', null)
       .eq('products.is_active', true);
 
+    // Always show only verified stores to customers
+    dataQuery = dataQuery.eq('is_verified', true);
+
     // DB-level search (replaces old in-memory filter)
     if (search) {
       dataQuery = dataQuery.ilike('store_name', `%${search}%`);
@@ -810,11 +813,6 @@ const getAllBusinesses = async (req, res, next) => {
     // Category filter
     if (category && category !== 'All') {
       dataQuery = dataQuery.eq('category', category);
-    }
-
-    // Verified filter
-    if (verified === 'true') {
-      dataQuery = dataQuery.eq('is_verified', true);
     }
 
     // Apply sorting and pagination
@@ -828,14 +826,14 @@ const getAllBusinesses = async (req, res, next) => {
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true);
 
+    // Always count only verified stores
+    countQuery = countQuery.eq('is_verified', true);
+
     if (search) {
       countQuery = countQuery.ilike('store_name', `%${search}%`);
     }
     if (category && category !== 'All') {
       countQuery = countQuery.eq('category', category);
-    }
-    if (verified === 'true') {
-      countQuery = countQuery.eq('is_verified', true);
     }
 
     // Execute both in parallel
