@@ -84,6 +84,14 @@ class ProductRepository extends BaseRepository {
       offset = 0
     } = params;
 
+    // Only show products from verified stores
+    const { data: verifiedStores } = await this.db
+      .from('stores')
+      .select('id')
+      .eq('is_verified', true)
+      .eq('is_active', true);
+    const verifiedStoreIds = (verifiedStores || []).map(s => s.id);
+
     let dbQuery = this.db
       .from(this.tableName)
       .select(`
@@ -99,7 +107,8 @@ class ProductRepository extends BaseRepository {
         )
       `)
       .eq('is_active', true)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
 
     // Partial search - match each word individually with ilike
     if (query) {
@@ -137,7 +146,8 @@ class ProductRepository extends BaseRepository {
       .from(this.tableName)
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true)
-      .is('deleted_at', null);
+      .is('deleted_at', null)
+      .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
 
     if (query) {
       const searchTerms = query.trim().split(/\s+/).filter(Boolean);
@@ -185,7 +195,8 @@ class ProductRepository extends BaseRepository {
           average_rating,
           total_reviews,
           owner_id,
-          logo_url
+          logo_url,
+          is_verified
         ),
         product_images (
           id,

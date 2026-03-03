@@ -413,7 +413,7 @@ if (loading) {
                 </TouchableOpacity>
               </View>
 
-              {recentOrders.map((order) => (
+              {recentOrders.map((order: Order) => (
                 <View key={order._id} style={styles.orderCard}>
                   <View style={styles.orderLeft}>
                   <View style={[styles.orderIconBox, {

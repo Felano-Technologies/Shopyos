@@ -52,7 +52,7 @@ class PromotedProductRepository extends BaseRepository {
         *,
         product:products!inner(
           id, title, description, price, product_images(image_url), category, 
-          stores:store_id(id, store_name, logo_url)
+          stores:store_id(id, store_name, logo_url, is_verified)
         )
       `)
       .eq('status', 'active')
@@ -70,6 +70,8 @@ class PromotedProductRepository extends BaseRepository {
 
     // Filter by price if specified (client-side since we can't filter on joined table easily)
     let results = data || [];
+    // Only show promotions from verified stores
+    results = results.filter(p => p.product?.stores?.is_verified === true);
     if (minPrice !== undefined) {
       results = results.filter(p => parseFloat(p.product.price) >= minPrice);
     }

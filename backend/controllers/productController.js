@@ -110,6 +110,16 @@ const getStoreProducts = async (req, res, next) => {
     const { storeId } = req.params;
     const { limit = 20, offset = 0, includeInactive } = req.query;
 
+    // Only expose products from verified stores to the public
+    const store = await repositories.stores.findById(storeId);
+    if (!store || !store.is_verified) {
+      return res.status(200).json({
+        success: true,
+        data: [],
+        pagination: { totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: parseInt(limit), hasNext: false, hasPrev: false, sortConfig: null }
+      });
+    }
+
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);
 
@@ -177,6 +187,14 @@ const getProductById = async (req, res, next) => {
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
+      return res.status(404).json({
+        success: false,
+        error: 'Product not found'
+      });
+    }
+
+    // Do not expose products from unverified stores
+    if (!product.stores?.is_verified) {
       return res.status(404).json({
         success: false,
         error: 'Product not found'
