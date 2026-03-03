@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getAdminDashboard, getAdminPayouts, updateAdminPayoutStatus } from '@/services/api';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function AdminDashboard() {
     const router = useRouter();
@@ -32,11 +32,19 @@ export default function AdminDashboard() {
     });
     const [pendingPayouts, setPendingPayouts] = useState<any[]>([]);
 
-    // --- Mock Activity Data ---
+    // --- Mock Chart Data ---
+    const chartData = [
+        { month: 'Oct', value: 45, label: '₵4.5k' },
+        { month: 'Nov', value: 65, label: '₵6.5k' },
+        { month: 'Dec', value: 90, label: '₵9.0k' },
+        { month: 'Jan', value: 70, label: '₵7.0k' },
+        { month: 'Feb', value: 110, label: '₵11k' },
+        { month: 'Mar', value: 140, label: '₵14k' },
+    ];
+
     const activityFeed = [
-        { id: '1', type: 'user', title: 'New User Signup', desc: 'Kwame Mensah joined.', time: '2m ago', icon: 'person-add' },
-        { id: '2', type: 'store', title: 'New Store Request', desc: 'Star Electronics applied.', time: '15m ago', icon: 'storefront' },
-        { id: '3', type: 'order', title: 'Large Order Placed', desc: 'Order #8821 - ₵1,200.00', time: '1h ago', icon: 'cart' },
+        { id: '1', title: 'New User Signup', desc: 'Kwame Mensah joined.', time: '2m ago', icon: 'person-add' },
+        { id: '2', title: 'New Store Request', desc: 'Star Electronics applied.', time: '15m ago', icon: 'storefront' },
     ];
 
     const loadData = async () => {
@@ -46,7 +54,6 @@ export default function AdminDashboard() {
                 getAdminDashboard(),
                 getAdminPayouts('pending')
             ]);
-
             if (dashboardRes.success) setStats(dashboardRes.stats);
             if (payoutsRes.success) setPendingPayouts(payoutsRes.data);
         } catch (error) {
@@ -58,26 +65,6 @@ export default function AdminDashboard() {
     };
 
     useEffect(() => { loadData(); }, []);
-
-    const onRefresh = () => {
-        setRefreshing(true);
-        loadData();
-    };
-
-    const handlePayout = (id: string, action: 'completed' | 'rejected') => {
-        Alert.alert(`${action.toUpperCase()} Payout`, "Confirm this action?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Confirm", onPress: async () => {
-                try {
-                    const res = await updateAdminPayoutStatus(id, action);
-                    if (res.success) {
-                        Alert.alert("Success", `Payout ${action}`);
-                        loadData();
-                    }
-                } catch (e) { Alert.alert("Error", "Failed to update"); }
-            }}
-        ]);
-    };
 
     if (loading && !refreshing) {
         return (
@@ -94,14 +81,11 @@ export default function AdminDashboard() {
             {/* --- BACKGROUND WATERMARK --- */}
             <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
                 <View style={styles.watermarkContainer}>
-                    <Image 
-                        source={require('../../assets/images/splash-icon.png')} 
-                        style={styles.fadedLogo} 
-                    />
+                    <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
             </View>
 
-            {/* --- HEADER --- */}
+            {/* --- HEADER & REVENUE HERO --- */}
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
                 <SafeAreaView edges={['top', 'left', 'right']}>
                     <View style={styles.headerRow}>
@@ -109,16 +93,14 @@ export default function AdminDashboard() {
                             <Text style={styles.headerLabel}>ADMINISTRATOR</Text>
                             <Text style={styles.headerTitle}>System Hub</Text>
                         </View>
-                        <TouchableOpacity style={styles.profileBtn}>
-                             <View style={styles.avatarBorder}>
-                                <Image source={{ uri: 'https://api.dicebear.com/7.x/avataaars/png?seed=Admin' }} style={styles.avatar} />
-                             </View>
-                        </TouchableOpacity>
+                        <View style={styles.avatarBorder}>
+                            <Image source={{ uri: 'https://api.dicebear.com/7.x/avataaars/png?seed=Admin' }} style={styles.avatar} />
+                        </View>
                     </View>
 
-                    <TouchableOpacity style={styles.revenueHero} onPress={() => router.push('/admin/revenue')} activeOpacity={0.9}>
+                    <TouchableOpacity style={styles.revenueHero} onPress={() => router.push('/admin/revenue')}>
                         <View>
-                            <Text style={styles.heroLabel}>Platform Total Revenue</Text>
+                            <Text style={styles.heroLabel}>Platform Revenue</Text>
                             <Text style={styles.heroValue}>₵{stats.totalRevenue?.toLocaleString()}</Text>
                         </View>
                         <View style={styles.heroIconCircle}><Feather name="trending-up" size={24} color="#84cc16" /></View>
@@ -128,10 +110,29 @@ export default function AdminDashboard() {
 
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" />}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={loadData} tintColor="#0C1559" />}
                 contentContainerStyle={styles.scrollContent}
             >
-                {/* --- STATS GRID --- */}
+                {/* --- REVENUE GROWTH CHART --- */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Revenue Growth</Text>
+                    <View style={styles.chartContainer}>
+                        <View style={styles.chartBarsRow}>
+                            {chartData.map((item, index) => (
+                                <View key={index} style={styles.barWrapper}>
+                                    <View style={[styles.bar, { height: item.value }]} />
+                                    <Text style={styles.barMonth}>{item.month}</Text>
+                                </View>
+                            ))}
+                        </View>
+                        <View style={styles.chartInfo}>
+                            <Text style={styles.chartGrowthText}>+24% from last month</Text>
+                            <Ionicons name="caret-up" size={14} color="#84cc16" />
+                        </View>
+                    </View>
+                </View>
+
+                {/* --- QUICK STATS --- */}
                 <View style={styles.statsGrid}>
                     <TouchableOpacity style={styles.statCard} onPress={() => router.push('/admin/orders')}>
                         <View style={[styles.statIconBg, { backgroundColor: '#DBEAFE' }]}><Feather name="shopping-bag" size={20} color="#1E40AF" /></View>
@@ -157,10 +158,8 @@ export default function AdminDashboard() {
                     <Text style={styles.sectionTitle}>Live Activity Feed</Text>
                     <View style={styles.activityContainer}>
                         {activityFeed.map((item, index) => (
-                            <View key={item.id} style={styles.activityItem}>
-                                <View style={[styles.activityIconBg, { backgroundColor: index === 0 ? '#DBEAFE' : index === 1 ? '#F3E8FF' : '#DCFCE7' }]}>
-                                    <Ionicons name={item.icon as any} size={18} color="#0C1559" />
-                                </View>
+                            <View key={index} style={styles.activityItem}>
+                                <View style={styles.activityIconBg}><Ionicons name={item.icon as any} size={18} color="#0C1559" /></View>
                                 <View style={styles.activityText}>
                                     <Text style={styles.activityTitle}>{item.title}</Text>
                                     <Text style={styles.activityDesc}>{item.desc}</Text>
@@ -171,62 +170,24 @@ export default function AdminDashboard() {
                     </View>
                 </View>
 
-                {/* --- PENDING PAYOUTS --- */}
-                <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Pending Payouts</Text>
-                        <TouchableOpacity onPress={() => loadData()}><Text style={styles.refreshText}>Refresh</Text></TouchableOpacity>
-                    </View>
-
-                    {pendingPayouts.length === 0 ? (
-                        <View style={styles.emptyCard}>
-                            <MaterialCommunityIcons name="check-circle-outline" size={40} color="#CBD5E1" />
-                            <Text style={styles.emptyText}>All caught up!</Text>
-                        </View>
-                    ) : (
-                        pendingPayouts.map(item => (
-                            <View key={item.id} style={styles.payoutRow}>
-                                <View style={styles.payoutInfo}>
-                                    <Text style={styles.payoutStore}>{item.store?.store_name || "Store"}</Text>
-                                    <Text style={styles.payoutMethod}>{item.payout_method || "MoMo"}</Text>
-                                </View>
-                                <View style={styles.payoutActionRow}>
-                                    <Text style={styles.payoutAmount}>₵{parseFloat(item.amount).toFixed(2)}</Text>
-                                    <View style={styles.payoutButtons}>
-                                        <TouchableOpacity style={styles.approveBtn} onPress={() => handlePayout(item.id, 'completed')}>
-                                            <Ionicons name="checkmark" size={18} color="#FFF" />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity style={styles.rejectBtn} onPress={() => handlePayout(item.id, 'rejected')}>
-                                            <Ionicons name="close" size={18} color="#FFF" />
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                        ))
-                    )}
-                </View>
-
-                {/* --- MARKETPLACE CONTROLS --- */}
+                {/* --- CONTROLS --- */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Platform Management</Text>
                     <View style={styles.controlsGrid}>
                         <TouchableOpacity style={styles.controlItem} onPress={() => router.push('/admin/sellers')}>
                             <View style={styles.controlIcon}><Ionicons name="shield-checkmark" size={22} color="#0C1559" /></View>
-                            <Text style={styles.controlLabel}>Verify Stores</Text>
+                            <Text style={styles.controlLabel}>Verification</Text>
                         </TouchableOpacity>
-                        
                         <TouchableOpacity style={styles.controlItem} onPress={() => router.push('/admin/audit-logs')}>
                             <View style={styles.controlIcon}><Ionicons name="list" size={22} color="#0C1559" /></View>
                             <Text style={styles.controlLabel}>Audit Logs</Text>
                         </TouchableOpacity>
-
                         <TouchableOpacity style={styles.controlItem} onPress={() => Alert.alert("Coming Soon")}>
                             <View style={styles.controlIcon}><Ionicons name="settings-sharp" size={22} color="#0C1559" /></View>
                             <Text style={styles.controlLabel}>Settings</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
-
             </ScrollView>
         </View>
     );
@@ -235,62 +196,45 @@ export default function AdminDashboard() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    
-    // Background Watermark
-    watermarkContainer: { position: 'absolute', bottom: -10, left: 1, opacity: 0.05 },
-    fadedLogo: { width: 150, height: 150, resizeMode: 'contain' },
-
+    watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.05 },
+    fadedLogo: { width: 300, height: 300, resizeMode: 'contain' },
     header: { paddingBottom: 25, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, elevation: 12 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 25, paddingTop: 10 },
     headerLabel: { color: '#A3E635', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 2 },
     headerTitle: { color: '#FFF', fontSize: 24, fontFamily: 'Montserrat-Bold' },
-    profileBtn: { padding: 2 },
-    avatarBorder: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', padding: 2 },
+    avatarBorder: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', padding: 2 },
     avatar: { width: '100%', height: '100%', borderRadius: 20 },
-    
-    revenueHero: { backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 25, marginTop: 25, borderRadius: 24, padding: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
-    heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Montserrat-Medium', textTransform: 'uppercase' },
-    heroValue: { color: '#FFF', fontSize: 30, fontFamily: 'Montserrat-Bold', marginTop: 4 },
-    heroIconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
-
+    revenueHero: { backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 25, marginTop: 20, borderRadius: 24, padding: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)' },
+    heroLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Montserrat-Medium' },
+    heroValue: { color: '#FFF', fontSize: 28, fontFamily: 'Montserrat-Bold', marginTop: 4 },
+    heroIconCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center' },
     scrollContent: { paddingHorizontal: 25, paddingTop: 25, paddingBottom: 110 },
+    
+    // Chart Styles
+    chartContainer: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, marginBottom: 25 },
+    chartBarsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 150, paddingBottom: 10 },
+    barWrapper: { alignItems: 'center' },
+    bar: { width: 14, backgroundColor: '#84cc16', borderRadius: 10 },
+    barMonth: { fontSize: 10, color: '#94A3B8', fontFamily: 'Montserrat-Medium', marginTop: 10 },
+    chartInfo: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+    chartGrowthText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#84cc16' },
 
+    section: { marginBottom: 30 },
+    sectionTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
     statsGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 30 },
-    statCard: { width: (width - 75) / 3, backgroundColor: '#FFF', padding: 15, borderRadius: 24, alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.05 },
-    statIconBg: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    statValue: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-    statLabel: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 2, textTransform: 'uppercase' },
-
-    section: { marginBottom: 35 },
-    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-    refreshText: { fontSize: 12, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-
-    // Activity Feed
-    activityContainer: { backgroundColor: '#FFF', borderRadius: 24, padding: 15, elevation: 2, shadowColor: '#000', shadowOpacity: 0.03 },
+    statCard: { width: (width - 75) / 3, backgroundColor: '#FFF', padding: 15, borderRadius: 24, alignItems: 'center', elevation: 2 },
+    statIconBg: { width: 38, height: 38, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+    statValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+    statLabel: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 2 },
+    activityContainer: { backgroundColor: '#FFF', borderRadius: 24, padding: 15, elevation: 2 },
     activityItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-    activityIconBg: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    activityIconBg: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
     activityText: { flex: 1, marginLeft: 15 },
     activityTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-    activityDesc: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-    activityTime: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-
-    // Payout
-    payoutRow: { backgroundColor: '#FFF', padding: 18, borderRadius: 24, marginBottom: 12, elevation: 2, borderLeftWidth: 5, borderLeftColor: '#84cc16' },
-    payoutInfo: { marginBottom: 12 },
-    payoutStore: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-    payoutMethod: { fontSize: 12, color: '#94A3B8', fontFamily: 'Montserrat-Medium', marginTop: 2 },
-    payoutActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    payoutAmount: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-    payoutButtons: { flexDirection: 'row', gap: 10 },
-    approveBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center' },
-    rejectBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center' },
-
-    emptyCard: { backgroundColor: '#FFF', padding: 40, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
-    emptyText: { marginTop: 10, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-
+    activityDesc: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+    activityTime: { fontSize: 10, color: '#94A3B8' },
     controlsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-    controlItem: { width: (width - 75) / 3, backgroundColor: '#FFF', paddingVertical: 22, borderRadius: 24, alignItems: 'center', elevation: 3 },
-    controlIcon: { width: 50, height: 50, borderRadius: 15, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    controlLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#0C1559', textAlign: 'center' }
+    controlItem: { width: (width - 75) / 3, backgroundColor: '#FFF', paddingVertical: 20, borderRadius: 24, alignItems: 'center', elevation: 2 },
+    controlIcon: { width: 48, height: 48, borderRadius: 15, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+    controlLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#0C1559' }
 });

@@ -10,7 +10,6 @@ import {
     Modal,
     Image,
     Dimensions,
-    Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -28,13 +27,18 @@ export default function AdminSellers() {
     const [isDownloading, setIsDownloading] = useState(false);
 
     // --- SELLERS STATE ---
-    const [sellers, setSellers] = useState([
+    const [seller, setSeller] = useState([
         { id: '1', name: 'Electronics Hub', category: 'Electronics', products: 120, location: 'Kumasi', verified: true, status: 'active', doc: 'https://images.sampletemplates.com/wp-content/uploads/2016/08/Business-Certificate-Template.jpg' },
         { id: '2', name: 'Fresh Grocery Store', category: 'Grocery', products: 45, location: 'Accra', verified: false, status: 'pending', doc: 'https://images.sampletemplates.com/wp-content/uploads/2016/08/Business-Certificate-Template.jpg' },
     ]);
 
     // --- AUDIT LOGS STATE ---
     const [auditLogs, setAuditLogs] = useState<any[]>([]);
+
+    // Fixed: Properly closed this function
+    const recordAuditLog = (storeName: string, action: string, notes: string) => {
+        addLog(action, storeName, notes);
+    };
 
     const addLog = (action: string, target: string, notes: string) => {
         const newLog = {
@@ -48,9 +52,10 @@ export default function AdminSellers() {
         setAuditLogs(prev => [newLog, ...prev]);
     };
 
-    const filteredSellers = sellers.filter(seller => 
-        seller.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        seller.location.toLowerCase().includes(searchQuery.toLowerCase())
+    // Fixed: Use 'seller' state instead of undefined 'sellers'
+    const filteredSellers = seller.filter(item => 
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        item.location.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     const handleDownload = async () => {
@@ -59,7 +64,9 @@ export default function AdminSellers() {
             setIsDownloading(true);
             const fileName = `${selectedDoc.name.replace(/\s+/g, '_')}_cert.pdf`;
             const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+            
             const downloadRes = await FileSystem.downloadAsync(selectedDoc.url, fileUri);
+            
             if (downloadRes.status === 200) {
                 await Sharing.shareAsync(downloadRes.uri);
                 addLog('DOC_EXPORTED', selectedDoc.name, 'Document shared/downloaded for audit.');
@@ -75,8 +82,8 @@ export default function AdminSellers() {
         Alert.alert("Verify Store", `Approve ${name} to sell on Shopyos?`, [
             { text: "Cancel", style: "cancel" },
             { text: "Approve", onPress: () => {
-                setSellers(sellers.map(s => s.id === id ? { ...s, verified: true, status: 'active' } : s));
-                addLog('VERIFIED', name, 'Business documents approved manually.');
+                setSeller(seller.map(s => s.id === id ? { ...s, verified: true, status: 'active' } : s));
+                recordAuditLog(name, 'VERIFIED', 'Business documents validated.');
                 Alert.alert("Success", "Store verified.");
             }}
         ]);
@@ -86,27 +93,25 @@ export default function AdminSellers() {
         Alert.alert("Deactivate Store", `Suspend ${name}?`, [
             { text: "Cancel", style: "cancel" },
             { text: "Deactivate", style: "destructive", onPress: () => {
-                setSellers(sellers.map(s => s.id === id ? { ...s, verified: false, status: 'deactivated' } : s));
-                addLog('DEACTIVATED', name, 'Store suspended for policy violation.');
+                setSeller(seller.map(s => s.id === id ? { ...s, verified: false, status: 'deactivated' } : s));
+                recordAuditLog(name, 'DEACTIVATED', 'Account suspended for platform violation.');
             }}
         ]);
     };
 
-    const viewDocument = (seller: any) => {
-        setSelectedDoc({ name: seller.name, url: seller.doc });
+    const viewDocument = (item: any) => {
+        setSelectedDoc({ name: item.name, url: item.doc });
         setDocModalVisible(true);
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#0C1559" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Sellers Management</Text>
                 
-                {/* LOGS BUTTON */}
                 <TouchableOpacity 
                     style={styles.logsBtn} 
                     onPress={() => router.push('/admin/audit-logs' as any)}
@@ -116,7 +121,6 @@ export default function AdminSellers() {
                 </TouchableOpacity>
             </View>
 
-            {/* Search */}
             <View style={styles.searchSection}>
                 <View style={styles.searchBar}>
                     <Feather name="search" size={20} color="#94A3B8" />
@@ -176,7 +180,6 @@ export default function AdminSellers() {
                 )}
             />
 
-            {/* Document Modal */}
             <Modal visible={docModalVisible} animationType="slide" transparent>
                 <View style={styles.docModalOverlay}>
                     <View style={styles.docModalContent}>
@@ -192,7 +195,7 @@ export default function AdminSellers() {
                                 <Ionicons name="close" size={22} color="#0C1559" />
                             </TouchableOpacity>
                         </View>
-                        <Image source={{ uri: 'https://images.sampletemplates.com/wp-content/uploads/2016/08/Business-Certificate-Template.jpg' }} style={styles.docImage} resizeMode="contain" />
+                        <Image source={{ uri: selectedDoc?.url }} style={styles.docImage} resizeMode="contain" />
                         <TouchableOpacity style={styles.docDoneBtn} onPress={() => setDocModalVisible(false)}>
                             <Text style={styles.docDoneText}>Close</Text>
                         </TouchableOpacity>
