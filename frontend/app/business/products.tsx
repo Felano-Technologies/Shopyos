@@ -45,6 +45,8 @@ const ProductsScreen = () => {
   const [category, setCategory] = useState('');
   const [categories, setCategories] = useState<{ id?: string, name: string, count?: number }[]>([]);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const isBlocked = verificationStatus === 'pending' || verificationStatus === 'rejected';
 
   // --- Loading States ---
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,6 +93,9 @@ const ProductsScreen = () => {
   React.useEffect(() => {
     fetchProducts();
     fetchCategories();
+    storage.getItem('currentBusinessVerificationStatus').then((status) => {
+      setVerificationStatus(status || 'pending');
+    });
   }, []);
 
   const pickImage = async () => {
@@ -280,8 +285,29 @@ const ProductsScreen = () => {
             </View>
           </LinearGradient>
 
+          {/* --- Verification Status Banner --- */}
+          {isBlocked && (
+            <View style={[styles.verificationBanner, verificationStatus === 'rejected' && styles.verificationBannerRejected]}>
+              <Ionicons
+                name={verificationStatus === 'rejected' ? 'close-circle-outline' : 'time-outline'}
+                size={20}
+                color={verificationStatus === 'rejected' ? '#991B1B' : '#92400E'}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.verificationBannerTitle, verificationStatus === 'rejected' && { color: '#991B1B' }]}>
+                  {verificationStatus === 'rejected' ? 'Verification Rejected' : 'Awaiting Verification'}
+                </Text>
+                <Text style={styles.verificationBannerText}>
+                  {verificationStatus === 'rejected'
+                    ? 'Your business was not approved. Please contact support.'
+                    : 'Your business is under review. Product management is locked until approved.'}
+                </Text>
+              </View>
+            </View>
+          )}
+
           {/* --- Form Section --- */}
-          <View style={styles.formSection}>
+          <View pointerEvents={isBlocked ? 'none' : 'auto'} style={[styles.formSection, isBlocked && { opacity: 0.4 }]}>
             <View style={styles.formCard}>
               <View style={styles.formHeader}>
                 <Text style={styles.formTitle}>
@@ -389,7 +415,7 @@ const ProductsScreen = () => {
 
               <TouchableOpacity
                 onPress={handleSaveProduct}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isBlocked}
                 activeOpacity={0.8}
                 style={{ marginTop: 15 }}
               >
@@ -649,6 +675,22 @@ const styles = StyleSheet.create({
     marginTop: -10,
     marginBottom: 20,
   },
+  verificationBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    backgroundColor: '#FEF3C7',
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    marginTop: 8,
+    borderRadius: 12,
+    padding: 14,
+  },
+  verificationBannerRejected: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
+  verificationBannerTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: 2 },
+  verificationBannerText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: 18 },
   formCard: {
     backgroundColor: '#FFF',
     borderRadius: 20,

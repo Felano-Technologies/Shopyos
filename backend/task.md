@@ -835,3 +835,116 @@ graph TD
 | **Modified** | `db/repositories/AdminRepository.js` | 3 |
 | **Modified** | `db/repositories/PromotedProductRepository.js` | 3 |
 | **Modified** | All route files | 4 |
+
+---
+
+## 9. Business Verification Enforcement System
+
+> **Added:** 2026-02-26  
+> **Scope:** Full-stack lockout of unverified seller accounts + admin review workflow
+
+### 9.1 Overview
+
+All seller (business) accounts are created with `verification_status = 'pending'` and `is_verified = FALSE`. Until an admin explicitly approves the store, the seller is locked out of every platform feature. Only the verification form (`/business/verification`) remains accessible.
+
+### 9.2 Database Changes
+
+**Migration `023_stores_verification_columns.sql`**
+```sql
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS verification_notes TEXT;
+CREATE INDEX IF NOT EXISTS idx_stores_verification_status ON stores(verification_status);
+UPDATE stores SET verification_status = 'pending' WHERE verification_status IS NULL;
+```
+
+### 9.3 Backend Changes
+
+| File | Change |
+|---|---|
+| `controllers/adminController.js` → `verifyStore()` | Syncs `is_verified` boolean after `updateStoreVerification()` call |
+| `routes/adminRoutes.js` | Already has `PUT /stores/:storeId/verify` and `GET /stores` |
+| `db/repositories/AdminRepository.js` | `updateStoreVerification()` updates `verification_status`, `verified_at`, `rejection_reason` |
+
+**Key fix in `verifyStore()`:**
+```js
+await repositories.stores.update(storeId, { is_verified: status === 'verified' });
+```
+
+### 9.4 Frontend Changes
+
+#### Admin Screens
+| File | Change |
+|---|---|
+| `app/admin/stores.tsx` | **New** — Full store verification management screen |
+| `app/admin/dashboard.tsx` | "Verify Stores" button now navigates to `/admin/stores` |
+
+#### Admin Stores Screen Features
+- Filter tabs: All / Pending / Verified / Rejected
+- Store cards: name, owner, email, city, category, status badge, submission date
+- Approve button (pending & rejected stores)
+- Reject button with modal for rejection reason (required)
+- Toast notifications on action success/failure
+- Calls `getAdminStores({ verificationStatus })` and `adminVerifyStore(storeId, status, reason)`
+
+#### Business Screens — Full Lockout
+| File | Change |
+|---|---|
+| `app/business/dashboard.tsx` | Full lockout screen replacing dashboard when not verified |
+| `app/business/products.tsx` | Verification guard (blocking overlay) |
+| `app/business/orders.tsx` | Redirect guard to `/business/dashboard` |
+| `app/business/analytics.tsx` | Redirect guard |
+| `app/business/advertising.tsx` | Redirect guard |
+| `app/business/payout.tsx` | Redirect guard |
+| `app/business/inventory.tsx` | Redirect guard |
+| `app/business/transactions.tsx` | Redirect guard |
+| `app/business/reviews.tsx` | Redirect guard |
+| `app/business/earnings.tsx` | Redirect guard |
+| `app/business/settings.tsx` | Redirect guard |
+
+#### Lockout Screen (business/dashboard.tsx)
+When `selectedBusiness.verificationStatus !== 'verified'`:
+- Shows status icon (clock for pending, X for rejected)
+- Displays status badge and descriptive message
+- Shows rejection reason card (if rejected)
+- Step-by-step guidance (submit → review → approved)
+- CTA button → `/business/verification?businessId=<id>`
+- Normal dashboard content hidden entirely
+
+#### Redirect Guard Pattern (all other business screens)
+```tsx
+useEffect(() => {
+  storage.getItem('currentBusinessVerificationStatus').then(status => {
+    if (status && status !== 'verified') router.replace('/business/dashboard');
+  });
+}, []);
+```
+
+#### New API Function
+```tsx
+// frontend/services/api.tsx
+export const adminVerifyStore = async (
+  storeId: string,
+  status: 'verified' | 'rejected' | 'pending',
+  reason?: string
+) => {
+  const response = await api.put(`/admin/stores/${storeId}/verify`, { status, reason });
+  return response.data;
+};
+```
+
+### 9.5 Verification Status Flow
+
+```
+Business Registers → verification_status: 'pending', is_verified: FALSE
+         ↓
+Admin reviews in /admin/stores
+         ↓
+  [Approve]                    [Reject]
+is_verified: TRUE          is_verified: FALSE
+status: 'verified'         status: 'rejected'
+                           rejection_reason: <text>
+         ↓                         ↓
+Full platform access       Lockout screen with reason
+                           Seller can resubmit via /business/verification
+```

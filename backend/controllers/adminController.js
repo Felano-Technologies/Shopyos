@@ -194,6 +194,11 @@ const verifyStore = async (req, res, next) => {
 
     const store = await repositories.admin.updateStoreVerification(storeId, status, reason);
 
+    // Sync the is_verified boolean to match the verification_status
+    await repositories.stores.update(storeId, {
+      is_verified: status === 'verified'
+    });
+
     // Create audit log
     await repositories.auditLogs.createLog({
       userId: req.user.id,
@@ -207,7 +212,7 @@ const verifyStore = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Store verification status updated successfully',
+      message: `Store ${status === 'verified' ? 'approved' : status === 'rejected' ? 'rejected' : 'updated'} successfully`,
       store
     });
   } catch (error) {

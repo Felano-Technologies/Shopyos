@@ -17,6 +17,7 @@ import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { storage } from '@/services/api';
+import { router } from 'expo-router';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
 import { useBusinessAnalytics } from '@/hooks/useBusiness';
 
@@ -26,6 +27,13 @@ const Analytics = () => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('week');
   const scrollY = useRef(new Animated.Value(0)).current;
   const [businessId, setBusinessId] = useState<string | null>(null);
+
+  // Verification guard — redirect unverified businesses
+  useEffect(() => {
+    storage.getItem('currentBusinessVerificationStatus').then(status => {
+      if (status && status !== 'verified') router.replace('/business/dashboard');
+    });
+  }, []);
 
   // --- Get current business ID ---
   useEffect(() => {

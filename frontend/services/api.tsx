@@ -1290,6 +1290,16 @@ export const getAdminStores = async (params = {}) => {
   }
 };
 
+export const adminVerifyStore = async (storeId: string, status: 'verified' | 'rejected' | 'pending', reason?: string) => {
+  try {
+    const response = await api.put(`/admin/stores/${storeId}/verify`, { status, reason });
+    return response.data;
+  } catch (error: any) {
+    console.error("Error verifying store:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getAdminPayouts = async (status?: string) => {
   try {
     const response = await api.get('/admin/payouts', { params: { status } });

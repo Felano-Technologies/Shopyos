@@ -79,12 +79,13 @@ const BusinessDashboard = () => {
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
 
-  // --- Store current business ID ---
+  // --- Store current business ID and verification status ---
   useEffect(() => {
     if (selectedBusiness?._id) {
       storage.setItem('currentBusinessId', selectedBusiness._id);
+      storage.setItem('currentBusinessVerificationStatus', selectedBusiness.verificationStatus || 'pending');
     }
-  }, [selectedBusiness?._id]);
+  }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
 
   // --- Show modal if no businesses ---
   useEffect(() => {
@@ -113,6 +114,96 @@ if (loading) {
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
+
+  // ─── Full lockout for unverified businesses ───────────────────────────────
+  if (selectedBusiness && selectedBusiness.verificationStatus !== 'verified') {
+    const isPending  = selectedBusiness.verificationStatus === 'pending';
+    const isRejected = selectedBusiness.verificationStatus === 'rejected';
+
+    return (
+      <View style={styles.mainContainer}>
+        <StatusBar style="dark" />
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }} edges={['top', 'left', 'right']}>
+          <ScrollView contentContainerStyle={styles.lockoutScroll} showsVerticalScrollIndicator={false}>
+
+            {/* Icon */}
+            <View style={[styles.lockoutIconCircle, isRejected && styles.lockoutIconCircleRejected]}>
+              <Ionicons
+                name={isPending ? 'time-outline' : 'close-circle-outline'}
+                size={52}
+                color={isPending ? '#D97706' : '#DC2626'}
+              />
+            </View>
+
+            {/* Title */}
+            <Text style={styles.lockoutTitle}>
+              {isPending ? 'Awaiting Approval' : 'Verification Rejected'}
+            </Text>
+            <Text style={styles.lockoutSubtitle}>
+              {isPending
+                ? 'Your business is currently under review. You can access the full platform once an admin approves your store.'
+                : 'Your business verification was rejected. Please review the reason below and resubmit your details.'}
+            </Text>
+
+            {/* Status badge */}
+            <View style={[styles.lockoutBadge, isRejected && styles.lockoutBadgeRejected]}>
+              <Ionicons
+                name={isPending ? 'hourglass-outline' : 'alert-circle-outline'}
+                size={14}
+                color={isPending ? '#92400E' : '#991B1B'}
+              />
+              <Text style={[styles.lockoutBadgeText, isRejected && { color: '#991B1B' }]}>
+                {isPending ? 'Status: Under Review' : 'Status: Rejected'}
+              </Text>
+            </View>
+
+            {/* Rejection reason card */}
+            {isRejected && (selectedBusiness as any).rejectionReason && (
+              <View style={styles.lockoutReasonCard}>
+                <Text style={styles.lockoutReasonLabel}>Rejection Reason</Text>
+                <Text style={styles.lockoutReasonText}>{(selectedBusiness as any).rejectionReason}</Text>
+              </View>
+            )}
+
+            {/* Steps */}
+            <View style={styles.lockoutSteps}>
+              {(isPending
+                ? ['Submit your business details', 'Admin reviews your application', 'Get approved & go live']
+                : ['Review the rejection reason above', 'Update your business information', 'Resubmit for admin review']
+              ).map((step, i) => (
+                <View key={i} style={styles.lockoutStep}>
+                  <View style={[styles.lockoutStepNum, i === 0 && isPending && styles.lockoutStepNumActive]}>
+                    <Text style={styles.lockoutStepNumText}>{i + 1}</Text>
+                  </View>
+                  <Text style={styles.lockoutStepText}>{step}</Text>
+                </View>
+              ))}
+            </View>
+
+            {/* CTA */}
+            <TouchableOpacity
+              style={styles.lockoutBtn}
+              onPress={() => router.push(`/business/verification?businessId=${selectedBusiness._id}` as any)}
+            >
+              <LinearGradient colors={['#0C1559', '#1e40af']} style={styles.lockoutBtnGradient}>
+                <Ionicons name={isPending ? 'document-text-outline' : 'refresh-outline'} size={18} color="#FFF" />
+                <Text style={styles.lockoutBtnText}>
+                  {isPending ? 'View / Update Application' : 'Resubmit Application'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <Text style={styles.lockoutHelp}>
+              Need help? Contact{' '}
+              <Text style={{ color: '#0C1559', fontFamily: 'Montserrat-Bold' }}>support@shopyos.com</Text>
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+        <BusinessBottomNav />
+      </View>
+    );
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.mainContainer}>
@@ -222,6 +313,26 @@ if (loading) {
               </View>
             </View>
 
+            {/* --- VERIFICATION STATUS BANNER --- */}
+            {selectedBusiness?.verificationStatus === 'pending' && (
+              <View style={styles.verificationBanner}>
+                <Ionicons name="time-outline" size={20} color="#92400E" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.verificationBannerTitle}>Awaiting Verification</Text>
+                  <Text style={styles.verificationBannerText}>Your business is under review. You cannot add products until it is approved.</Text>
+                </View>
+              </View>
+            )}
+            {selectedBusiness?.verificationStatus === 'rejected' && (
+              <View style={[styles.verificationBanner, styles.verificationBannerRejected]}>
+                <Ionicons name="close-circle-outline" size={20} color="#991B1B" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.verificationBannerTitle, { color: '#991B1B' }]}>Verification Rejected</Text>
+                  <Text style={styles.verificationBannerText}>Your business was not approved. Please contact support for more details.</Text>
+                </View>
+              </View>
+            )}
+
             {/* --- QUICK ACTIONS GRID --- */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -302,26 +413,26 @@ if (loading) {
                 </TouchableOpacity>
               </View>
 
-              {recentOrders.map((order: Order) => (
+              {recentOrders.map((order) => (
                 <View key={order._id} style={styles.orderCard}>
                   <View style={styles.orderLeft}>
-                    <View style={[styles.orderIconBox, {
-                      backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7'
-                    }]}>
-                      <Feather
-                        name={order.status === 'completed' ? 'check' : 'clock'}
-                        size={18}
-                        color={order.status === 'completed' ? '#15803D' : '#B45309'}
-                      />
-                    </View>
-                    <View>
-                      <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                      <Text style={styles.orderStatus}>{order.status}</Text>
-                    </View>
+                  <View style={[styles.orderIconBox, {
+                    backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7'
+                  }]}>
+                    <Feather
+                    name={order.status === 'completed' ? 'check' : 'clock'}
+                    size={18}
+                    color={order.status === 'completed' ? '#15803D' : '#B45309'}
+                    />
+                  </View>
+                  <View>
+                    <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
+                    <Text style={styles.orderStatus}>{order.status}</Text>
+                  </View>
                   </View>
                   <Text style={styles.orderAmount}>₵{order.totalAmount.toFixed(2)}</Text>
                 </View>
-              ))}
+                ))}
             </View>
 
             {/* --- TIPS --- */}
@@ -489,6 +600,35 @@ const styles = StyleSheet.create({
   statNumber: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 4 },
   statLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
   statDivider: { width: 1, height: 30, backgroundColor: '#E2E8F0' },
+
+  // Verification Banner
+  verificationBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#FEF3C7', borderLeftWidth: 4, borderLeftColor: '#F59E0B', marginHorizontal: 20, marginTop: 16, borderRadius: 12, padding: 14 },
+  verificationBannerRejected: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
+  verificationBannerTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: 2 },
+  verificationBannerText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: 18 },
+
+  // Lockout Screen
+  lockoutScroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 48, paddingBottom: 40 },
+  lockoutIconCircle: { width: 104, height: 104, borderRadius: 52, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#FDE68A' },
+  lockoutIconCircleRejected: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
+  lockoutTitle: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0F172A', textAlign: 'center', marginBottom: 10 },
+  lockoutSubtitle: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 20 },
+  lockoutBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginBottom: 24 },
+  lockoutBadgeRejected: { backgroundColor: '#FEE2E2' },
+  lockoutBadgeText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#92400E' },
+  lockoutReasonCard: { width: '100%', backgroundColor: '#FEF2F2', borderRadius: 14, borderLeftWidth: 4, borderLeftColor: '#EF4444', padding: 14, marginBottom: 24 },
+  lockoutReasonLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#991B1B', letterSpacing: 0.5, marginBottom: 4, textTransform: 'uppercase' },
+  lockoutReasonText: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#7F1D1D', lineHeight: 20 },
+  lockoutSteps: { width: '100%', marginBottom: 28 },
+  lockoutStep: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 12 },
+  lockoutStepNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+  lockoutStepNumActive: { backgroundColor: '#0C1559' },
+  lockoutStepNumText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#475569' },
+  lockoutStepText: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155' },
+  lockoutBtn: { width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
+  lockoutBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, gap: 8 },
+  lockoutBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  lockoutHelp: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', textAlign: 'center' },
 
   // Quick Actions
   sectionContainer: {
