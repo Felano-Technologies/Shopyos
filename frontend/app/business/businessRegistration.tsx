@@ -263,8 +263,8 @@ export default function BusinessRegistrationScreen() {
       await queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
       Alert.alert(
         'Application Submitted',
-        'Your business is pending verification. You can view the status in your dashboard.',
-        [{ text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }]
+        'Your business is pending verification. You can view the status in the verification status page.',
+        [{ text: 'Go to Verification Status', onPress: () => router.replace('/business/verification-status') }]
       );
     } catch (e: any) {
       Alert.alert('Registration Failed', e.message || 'Something went wrong. Please try again.');

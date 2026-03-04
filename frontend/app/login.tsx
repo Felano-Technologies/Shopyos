@@ -107,7 +107,7 @@ const LoginScreen = () => {
             {/* Title */}
             <Text style={styles.title}>Hello, Sign into your account</Text>
             <Text style={styles.subtitle}>
-              Welcome back you’ve been missed!
+              Welcome back, you’ve been missed!
             </Text>
 
             {/* Email Input */}

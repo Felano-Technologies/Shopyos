@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView, Image, useColorScheme, RefreshControl, Dimensions, Modal,} from 'react-native';
+import { 
+    View, 
+    Text, 
+    StyleSheet, 
+    TouchableOpacity, 
+    ScrollView, 
+    Image, 
+    useColorScheme, 
+    RefreshControl, 
+    Dimensions, 
+    Modal 
+} from 'react-native';
 import { router } from 'expo-router';
 import { storage } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,27 +23,9 @@ import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashbo
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
-
 const { width } = Dimensions.get('window');
 
 // --- Interfaces ---
-interface Business {
-  _id: string;
-  businessName: string;
-  category: string;
-  logo: string;
-  verificationStatus: 'pending' | 'verified' | 'rejected';
-  totalProducts: number;
-  totalOrders: number;
-  rating: number;
-}
-
-interface BusinessStats {
-  totalProducts: number;
-  totalOrders: number;
-  pendingOrders: number;
-}
-
 interface Order {
   _id: string;
   orderNumber: string;
@@ -41,29 +34,8 @@ interface Order {
   createdAt: string;
 }
 
-interface DashboardData {
-  stats: BusinessStats;
-  recentOrders: Order[];
-  chartData: {
-    weekly: {
-      labels: string[];
-      datasets: { data: number[] }[];
-    };
-    monthly?: {
-      labels: string[];
-      datasets: { data: number[] }[];
-    };
-    yearly?: {
-      labels: string[];
-      datasets: { data: number[] }[];
-    };
-  }
-}
-
 const BusinessDashboard = () => {
   const theme = useColorScheme();
-  const isDarkMode = theme === 'dark';
-
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
 
@@ -79,7 +51,7 @@ const BusinessDashboard = () => {
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
 
-  // --- Store current business ID and verification status ---
+  // --- Sync Storage ---
   useEffect(() => {
     if (selectedBusiness?._id) {
       storage.setItem('currentBusinessId', selectedBusiness._id);
@@ -87,135 +59,42 @@ const BusinessDashboard = () => {
     }
   }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
 
-  // --- Show modal if no businesses ---
+// --- AUTO-PROTECTION LOGIC ---
   useEffect(() => {
-    if (!isLoadingBusinesses && businesses.length === 0) {
-      setShowNoBusinessModal(true);
+    if (!isLoadingBusinesses && selectedBusiness) {
+      // If the status is NOT verified, kick them out to the status page
+      if (selectedBusiness.verificationStatus !== 'verified') {
+        router.replace('/business/verification-status');
+      }
     }
-  }, [isLoadingBusinesses, businesses.length]);
+  }, [selectedBusiness?.verificationStatus, isLoadingBusinesses]);
 
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);
   };
 
-if (loading) {
-  return (
-    <View style={styles.mainContainer}>
-       <StatusBar style="light" />
-       <BusinessDashboardSkeleton />
-       <BusinessBottomNav />
-    </View>
-  );
-}
-
-
-
+  if (loading) {
+    return (
+      <View style={styles.mainContainer}>
+          <StatusBar style="light" />
+          <BusinessDashboardSkeleton />
+          <BusinessBottomNav />
+      </View>
+    );
+  }
 
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
-
-  // ─── Full lockout for unverified businesses ───────────────────────────────
-  if (selectedBusiness && selectedBusiness.verificationStatus !== 'verified') {
-    const isPending  = selectedBusiness.verificationStatus === 'pending';
-    const isRejected = selectedBusiness.verificationStatus === 'rejected';
-
-    return (
-      <View style={styles.mainContainer}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }} edges={['top', 'left', 'right']}>
-          <ScrollView contentContainerStyle={styles.lockoutScroll} showsVerticalScrollIndicator={false}>
-
-            {/* Icon */}
-            <View style={[styles.lockoutIconCircle, isRejected && styles.lockoutIconCircleRejected]}>
-              <Ionicons
-                name={isPending ? 'time-outline' : 'close-circle-outline'}
-                size={52}
-                color={isPending ? '#D97706' : '#DC2626'}
-              />
-            </View>
-
-            {/* Title */}
-            <Text style={styles.lockoutTitle}>
-              {isPending ? 'Awaiting Approval' : 'Verification Rejected'}
-            </Text>
-            <Text style={styles.lockoutSubtitle}>
-              {isPending
-                ? 'Your business is currently under review. You can access the full platform once an admin approves your store.'
-                : 'Your business verification was rejected. Please review the reason below and resubmit your details.'}
-            </Text>
-
-            {/* Status badge */}
-            <View style={[styles.lockoutBadge, isRejected && styles.lockoutBadgeRejected]}>
-              <Ionicons
-                name={isPending ? 'hourglass-outline' : 'alert-circle-outline'}
-                size={14}
-                color={isPending ? '#92400E' : '#991B1B'}
-              />
-              <Text style={[styles.lockoutBadgeText, isRejected && { color: '#991B1B' }]}>
-                {isPending ? 'Status: Under Review' : 'Status: Rejected'}
-              </Text>
-            </View>
-
-            {/* Rejection reason card */}
-            {isRejected && (selectedBusiness as any).rejectionReason && (
-              <View style={styles.lockoutReasonCard}>
-                <Text style={styles.lockoutReasonLabel}>Rejection Reason</Text>
-                <Text style={styles.lockoutReasonText}>{(selectedBusiness as any).rejectionReason}</Text>
-              </View>
-            )}
-
-            {/* Steps */}
-            <View style={styles.lockoutSteps}>
-              {(isPending
-                ? ['Submit your business details', 'Admin reviews your application', 'Get approved & go live']
-                : ['Review the rejection reason above', 'Update your business information', 'Resubmit for admin review']
-              ).map((step, i) => (
-                <View key={i} style={styles.lockoutStep}>
-                  <View style={[styles.lockoutStepNum, i === 0 && isPending && styles.lockoutStepNumActive]}>
-                    <Text style={styles.lockoutStepNumText}>{i + 1}</Text>
-                  </View>
-                  <Text style={styles.lockoutStepText}>{step}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* CTA */}
-            <TouchableOpacity
-              style={styles.lockoutBtn}
-              onPress={() => router.push(`/business/verification?businessId=${selectedBusiness._id}` as any)}
-            >
-              <LinearGradient colors={['#0C1559', '#1e40af']} style={styles.lockoutBtnGradient}>
-                <Ionicons name={isPending ? 'document-text-outline' : 'refresh-outline'} size={18} color="#FFF" />
-                <Text style={styles.lockoutBtnText}>
-                  {isPending ? 'View / Update Application' : 'Resubmit Application'}
-                </Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <Text style={styles.lockoutHelp}>
-              Need help? Contact{' '}
-              <Text style={{ color: '#0C1559', fontFamily: 'Montserrat-Bold' }}>support@shopyos.com</Text>
-            </Text>
-          </ScrollView>
-        </SafeAreaView>
-        <BusinessBottomNav />
-      </View>
-    );
-  }
-  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
 
       {/* --- Background Watermark --- */}
-      <View style={StyleSheet.absoluteFillObject}>
+      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.bottomLogos}>
-          <Image
-            source={require('../../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
-          />
+          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
 
@@ -224,49 +103,28 @@ if (loading) {
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" />}
             showsVerticalScrollIndicator={false}
           >
-
-            {/* --- HERO SECTION (Header + Business Info) --- */}
-            <LinearGradient
-              colors={['#0C1559', '#1e3a8a']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.heroContainer}
-            >
-              {/* Top Bar */}
+            {/* --- HERO SECTION --- */}
+            <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroContainer}>
               <View style={styles.topBar}>
-                <Image
-                  source={require('../../assets/images/iconwhite.png')}
-                  style={styles.appLogo}
-                  resizeMode="contain"
-                />
+                <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
                 <View style={styles.topIcons}>
-                  <TouchableOpacity
-                    style={styles.iconBtn}
-                    onPress={() => router.push('/business/notifications')}
-                  >
+                  <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
                     <Ionicons name="notifications-outline" size={22} color="#FFF" />
-
-                    {/* Only show badge if count > 0 */}
                     {unreadCount > 0 && (
                       <View style={styles.badgeContainer}>
-                        <Text style={styles.badgeText}>
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </Text>
+                        <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.iconBtn}
-                    onPress={() => router.push('/business/settings')}
-                  >
+                  <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
                     <Ionicons name="settings-outline" size={22} color="#FFF" />
                   </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Business Profile */}
               <View style={styles.businessProfile}>
                 <View style={styles.logoWrapper}>
                   {selectedBusiness?.logo ? (
@@ -276,16 +134,11 @@ if (loading) {
                       <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
                     </View>
                   )}
-                  {selectedBusiness?.verificationStatus === 'verified' && (
-                    <View style={styles.verifiedBadge}>
-                      <Ionicons name="checkmark" size={10} color="#FFF" />
-                    </View>
-                  )}
+                  <View style={styles.verifiedBadge}><Ionicons name="checkmark" size={10} color="#FFF" /></View>
                 </View>
-
                 <View style={styles.businessTexts}>
-                  <Text style={styles.welcomeLabel}>Welcome back,</Text>
-                  <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName || 'My Business'}</Text>
+                  <Text style={styles.welcomeLabel}>Store Dashboard</Text>
+                  <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={14} color="#F59E0B" />
                     <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
@@ -294,8 +147,7 @@ if (loading) {
               </View>
             </LinearGradient>
 
-            {/* --- FLOATING ANALYTICS CARD --- */}
-            {/* Overlaps the header */}
+            {/* --- FLOATING STATS --- */}
             <View style={styles.floatingStatsContainer}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.totalProducts}</Text>
@@ -304,7 +156,7 @@ if (loading) {
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.totalOrders}</Text>
-                <Text style={styles.statLabel}>Orders</Text>
+                <Text style={styles.statLabel}>Total Orders</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
@@ -313,78 +165,43 @@ if (loading) {
               </View>
             </View>
 
-            {/* --- VERIFICATION STATUS BANNER --- */}
-            {selectedBusiness?.verificationStatus === 'pending' && (
-              <View style={styles.verificationBanner}>
-                <Ionicons name="time-outline" size={20} color="#92400E" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.verificationBannerTitle}>Awaiting Verification</Text>
-                  <Text style={styles.verificationBannerText}>Your business is under review. You cannot add products until it is approved.</Text>
-                </View>
-              </View>
-            )}
-            {selectedBusiness?.verificationStatus === 'rejected' && (
-              <View style={[styles.verificationBanner, styles.verificationBannerRejected]}>
-                <Ionicons name="close-circle-outline" size={20} color="#991B1B" />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.verificationBannerTitle, { color: '#991B1B' }]}>Verification Rejected</Text>
-                  <Text style={styles.verificationBannerText}>Your business was not approved. Please contact support for more details.</Text>
-                </View>
-              </View>
-            )}
-
-            {/* --- QUICK ACTIONS GRID --- */}
+            {/* --- QUICK ACTIONS --- */}
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Quick Actions</Text>
               <View style={styles.servicesGrid}>
                 {[
-                  { icon: 'plus', family: 'Feather', color: '#FFF', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
-                  { icon: 'shopping-bag', family: 'Feather', color: '#FFF', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
-                  { icon: 'megaphone', family: 'Ionicons', color: '#FFF', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/advertising' },
-                  { icon: 'bar-chart-2', family: 'Feather', color: '#FFF', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
+                  { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
+                  { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
+                  { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/advertising' },
+                  { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
                 ].map((item, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={styles.actionCard}
-                    onPress={() => router.push(item.route as any)}
-                  >
-                    <LinearGradient
-                      colors={item.bg as [string, string, ...string[]]}
-                      style={styles.actionIconBox}
-                    >
-                      {item.family === 'Feather' && <Feather name={item.icon as any} size={20} color={item.color} />}
-                      {item.family === 'Ionicons' && <Ionicons name={item.icon as any} size={20} color={item.color} />}
-                      {item.family === 'MaterialCommunityIcons' && <MaterialCommunityIcons name={item.icon as any} size={20} color={item.color} />}
+                  <TouchableOpacity key={index} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
+                    <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
+                      {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
                     </LinearGradient>
                     <Text style={styles.actionLabel}>{item.label}</Text>
                   </TouchableOpacity>
-                ))
-                }
+                ))}
               </View>
             </View>
 
-            {/* --- SALES CHART --- */}
+            {/* --- PERFORMANCE CHART --- */}
             <View style={styles.chartCard}>
               <View style={styles.chartHeader}>
                 <View>
                   <Text style={styles.cardTitle}>Sales Performance</Text>
-                  <Text style={styles.cardSubtitle}>Revenue over time</Text>
+                  <Text style={styles.cardSubtitle}>Revenue tracking</Text>
                 </View>
-                {/* Simple Toggle */}
-                <TouchableOpacity onPress={() => {
-                  const next = timeframe === 'weekly' ? 'monthly' : timeframe === 'monthly' ? 'yearly' : 'weekly';
-                  setTimeframe(next);
-                }}>
+                <TouchableOpacity onPress={() => setTimeframe(t => t === 'weekly' ? 'monthly' : t === 'monthly' ? 'yearly' : 'weekly')}>
                   <View style={styles.timeToggle}>
-                    <Text style={styles.timeText}>{timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}</Text>
+                    <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
                     <Feather name="chevron-down" size={14} color="#64748B" />
                   </View>
                 </TouchableOpacity>
               </View>
-
               <LineChart
                 data={chartData}
-                width={width - 48} // Padding calculation
+                width={width - 48}
                 height={180}
                 chartConfig={{
                   backgroundGradientFrom: '#FFF',
@@ -393,13 +210,10 @@ if (loading) {
                   color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
                   labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
                   style: { borderRadius: 16 },
-                  propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' },
-                  propsForBackgroundLines: { strokeDasharray: "5", stroke: "rgba(0,0,0,0.05)" }
+                  propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' }
                 }}
                 bezier
                 style={styles.chartStyle}
-                withInnerLines={true}
-                withOuterLines={false}
                 withVerticalLines={false}
               />
             </View>
@@ -408,93 +222,49 @@ if (loading) {
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeaderRow}>
                 <Text style={styles.sectionTitle}>Recent Orders</Text>
-                <TouchableOpacity onPress={() => router.push('/business/orders')}>
-                  <Text style={styles.seeAllText}>View All</Text>
-                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
               </View>
-
               {recentOrders.map((order: Order) => (
                 <View key={order._id} style={styles.orderCard}>
                   <View style={styles.orderLeft}>
-                  <View style={[styles.orderIconBox, {
-                    backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7'
-                  }]}>
-                    <Feather
-                    name={order.status === 'completed' ? 'check' : 'clock'}
-                    size={18}
-                    color={order.status === 'completed' ? '#15803D' : '#B45309'}
-                    />
-                  </View>
-                  <View>
-                    <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                    <Text style={styles.orderStatus}>{order.status}</Text>
-                  </View>
+                    <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
+                        <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
+                    </View>
+                    <View>
+                        <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
+                        <Text style={styles.orderStatus}>{order.status}</Text>
+                    </View>
                   </View>
                   <Text style={styles.orderAmount}>₵{order.totalAmount.toFixed(2)}</Text>
                 </View>
-                ))}
+              ))}
             </View>
 
-            {/* --- TIPS --- */}
-            <LinearGradient
-              colors={['#111827', '#0f172a']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.tipCard}
-            >
+            {/* --- PRO TIP --- */}
+            <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
               <View style={styles.tipHeader}>
                 <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
                 <Text style={styles.tipTitle}>Pro Tip</Text>
               </View>
-              <Text style={styles.tipText}>
-                Adding high-quality images to your products can increase sales by up to 30%.
-              </Text>
+              <Text style={styles.tipText}>Keep your product inventory updated to avoid order cancellations and maintain a high rating.</Text>
             </LinearGradient>
 
           </ScrollView>
         ) : (
-          // Placeholder view if no business is selected yet
           <View style={styles.centered}>
-            <Image
-              source={require('../../assets/images/icon.png')}
-              style={{ width: 80, height: 80, opacity: 0.5, marginBottom: 20 }}
-              resizeMode="contain"
-            />
-            <Text style={{ fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 }}>No Business Found</Text>
-            <Text style={{ fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', marginBottom: 20 }}>Create a business to access the dashboard</Text>
-            <TouchableOpacity
-              style={{ backgroundColor: '#0C1559', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 }}
-              onPress={() => router.replace('/business/register')}
-            >
-              <Text style={{ color: '#FFF', fontFamily: 'Montserrat-Bold' }}>Create Business</Text>
-            </TouchableOpacity>
+            <Text style={styles.noBizText}>Initializing Dashboard...</Text>
           </View>
         )}
       </SafeAreaView>
 
-      {/* --- CUSTOM NO BUSINESS MODAL --- */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showNoBusinessModal}
-        onRequestClose={() => { }}
-      >
+      {/* --- NO BUSINESS MODAL --- */}
+      <Modal animationType="fade" transparent visible={showNoBusinessModal}>
         <View style={styles.alertOverlay}>
           <View style={styles.alertContent}>
-            <View style={styles.alertIconCircle}>
-              <MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" />
-            </View>
+            <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" /></View>
             <Text style={styles.alertTitle}>No Business Found</Text>
-            <Text style={styles.alertMessage}>
-              It looks like you haven't set up a store yet. Create your business profile to access the dashboard.
-            </Text>
-            <TouchableOpacity
-              style={styles.alertButton}
-              activeOpacity={0.9}
-              onPress={() => {
-                setShowNoBusinessModal(false);
-                router.replace('/business/register');
-              }}
-            >
+            <Text style={styles.alertMessage}>You haven't set up a store yet. Create your business profile to start selling.</Text>
+            <TouchableOpacity style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.replace('/business/register'); }}>
               <Text style={styles.alertButtonText}>Create Business</Text>
               <Feather name="arrow-right" size={18} color="#FFF" />
             </TouchableOpacity>
@@ -508,202 +278,69 @@ if (loading) {
 };
 
 const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F1F5F9' },
+  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 100 },
-
-  // Centered States
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-  },
-  loadingText: { marginTop: 10, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-
-  // Background Watermark
+  scrollContent: { paddingBottom: 120 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.08 },
-
-  // Hero Header
-  heroContainer: {
-    paddingTop: 50,
-    paddingBottom: 60,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 25,
-  },
-  appLogo: {
-    width: 100,
-    height: 35,
-  },
-  topIcons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
-    position: 'relative',
-  },
-  badgeContainer: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#EF4444', // Alert Red
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: '#0C1559', // Matches header bg for cutout effect
-    paddingHorizontal: 3,
-  },
-  badgeText: {
-    color: '#FFF',
-    fontSize: 9,
-    fontFamily: 'Montserrat-Bold', // Use your app font
-    textAlign: 'center',
-    lineHeight: 11, // Adjust slightly to center vertically
-  },
-
-  // Business Profile
+  heroContainer: { paddingTop: 50, paddingBottom: 60, paddingHorizontal: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  appLogo: { width: 100, height: 35 },
+  topIcons: { flexDirection: 'row', gap: 12 },
+  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  badgeContainer: { position: 'absolute', top: -5, right: -5, backgroundColor: '#EF4444', minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#0C1559' },
+  badgeText: { color: '#FFF', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   businessProfile: { flexDirection: 'row', alignItems: 'center' },
   logoWrapper: { position: 'relative', marginRight: 15 },
   businessLogo: { width: 56, height: 56, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
-  logoPlaceholder: { width: 56, height: 56, borderRadius: 20, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  logoPlaceholder: { width: 56, height: 56, borderRadius: 20, backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' },
   logoInitial: { fontSize: 24, color: '#FFF', fontFamily: 'Montserrat-Bold' },
   verifiedBadge: { position: 'absolute', bottom: -4, right: -4, backgroundColor: '#10B981', width: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#0C1559' },
   businessTexts: { flex: 1 },
-  welcomeLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontFamily: 'Montserrat-Medium', marginBottom: 2 },
-  businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold', marginBottom: 4 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+  welcomeLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontFamily: 'Montserrat-Medium', textTransform: 'uppercase', letterSpacing: 1 },
+  businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 4 },
   ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
-
-  // Floating Stats
-  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, shadowColor: "#0C1559", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10, justifyContent: 'space-between', alignItems: 'center' },
+  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center' },
   statItem: { alignItems: 'center', flex: 1 },
-  statNumber: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 4 },
-  statLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  statDivider: { width: 1, height: 30, backgroundColor: '#E2E8F0' },
-
-  // Verification Banner
-  verificationBanner: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#FEF3C7', borderLeftWidth: 4, borderLeftColor: '#F59E0B', marginHorizontal: 20, marginTop: 16, borderRadius: 12, padding: 14 },
-  verificationBannerRejected: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
-  verificationBannerTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: 2 },
-  verificationBannerText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: 18 },
-
-  // Lockout Screen
-  lockoutScroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 48, paddingBottom: 40 },
-  lockoutIconCircle: { width: 104, height: 104, borderRadius: 52, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#FDE68A' },
-  lockoutIconCircleRejected: { backgroundColor: '#FEE2E2', borderColor: '#FECACA' },
-  lockoutTitle: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0F172A', textAlign: 'center', marginBottom: 10 },
-  lockoutSubtitle: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 20 },
-  lockoutBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF3C7', paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, marginBottom: 24 },
-  lockoutBadgeRejected: { backgroundColor: '#FEE2E2' },
-  lockoutBadgeText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#92400E' },
-  lockoutReasonCard: { width: '100%', backgroundColor: '#FEF2F2', borderRadius: 14, borderLeftWidth: 4, borderLeftColor: '#EF4444', padding: 14, marginBottom: 24 },
-  lockoutReasonLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#991B1B', letterSpacing: 0.5, marginBottom: 4, textTransform: 'uppercase' },
-  lockoutReasonText: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#7F1D1D', lineHeight: 20 },
-  lockoutSteps: { width: '100%', marginBottom: 28 },
-  lockoutStep: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 12 },
-  lockoutStepNum: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-  lockoutStepNumActive: { backgroundColor: '#0C1559' },
-  lockoutStepNumText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#475569' },
-  lockoutStepText: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155' },
-  lockoutBtn: { width: '100%', borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
-  lockoutBtnGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, gap: 8 },
-  lockoutBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
-  lockoutHelp: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', textAlign: 'center' },
-
-  // Quick Actions
-  sectionContainer: {
-    paddingHorizontal: 20,
-    marginTop: 25,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-    marginBottom: 15,
-  },
-  servicesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  actionCard: {
-    width: '23%',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  actionIconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  actionLabel: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
-    textAlign: 'center',
-  },
-
-  // Chart
-  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 20, borderRadius: 20, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
-  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-  cardTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  cardSubtitle: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#64748B' },
-  timeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 },
-  timeText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#475569', marginRight: 4 },
+  statNumber: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  statLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
+  statDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
+  sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
+  sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
+  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  actionCard: { width: '23%', alignItems: 'center', marginBottom: 10 },
+  actionIconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 3 },
+  actionLabel: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#334155', textAlign: 'center' },
+  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 25, borderRadius: 20, padding: 16, elevation: 2 },
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
+  cardTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  cardSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8' },
+  timeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
+  timeText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#475569', marginRight: 4 },
   chartStyle: { marginVertical: 8, borderRadius: 16 },
-
-  // Recent Orders
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  seeAllText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
-  orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 14, borderRadius: 14, marginBottom: 10, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3, elevation: 1 },
+  seeAllText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 14, borderRadius: 16, marginBottom: 10, elevation: 1 },
   orderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   orderIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   orderNumber: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  orderStatus: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', textTransform: 'capitalize' },
+  orderStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', textTransform: 'capitalize' },
   orderAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-
-  // Tips
-  tipCard: { marginHorizontal: 20, marginTop: 10, borderRadius: 16, padding: 20 },
-  tipHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 6 },
+  tipCard: { marginHorizontal: 20, marginTop: 20, borderRadius: 18, padding: 20 },
+  tipHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   tipTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   tipText: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: 'rgba(255,255,255,0.8)', lineHeight: 20 },
-
-  // --- Custom Alert Styles ---
-  alertOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
-  alertContent: { backgroundColor: '#FFF', width: '100%', maxWidth: 340, borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 10 },
-  alertIconCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F0F4FC', justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
-  alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
-  alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
-  alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 24, borderRadius: 14, width: '100%', shadowColor: "#0C1559", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4, gap: 8 },
-  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  noBizText: { color: '#64748B', fontFamily: 'Montserrat-Medium' },
+  alertOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 25 },
+  alertContent: { backgroundColor: '#FFF', width: '100%', borderRadius: 30, padding: 30, alignItems: 'center', elevation: 10 },
+  alertIconCircle: { width: 70, height: 70, borderRadius: 35, backgroundColor: '#F0F4FC', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
+  alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 },
+  alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0C1559', paddingVertical: 15, paddingHorizontal: 30, borderRadius: 16, width: '100%', gap: 8 },
+  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' }
 });
 
 export default BusinessDashboard;
