@@ -1,7 +1,8 @@
 import React, { useCallback } from 'react';
-import { View, FlatList, StyleSheet, TouchableOpacity, Image, Text } from 'react-native';
+import { View, FlatList, StyleSheet, TouchableOpacity, Image, Text, Alert } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useChat } from '../context/ChatContext';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 
 export default function ChatInbox() {
   const router = useRouter();
-  const { buyerConversations, markAsRead, refresh } = useChat();
+  const { buyerConversations, markAsRead, refresh, deleteConversation } = useChat();
 
   useFocusEffect(
     useCallback(() => {
@@ -31,6 +32,28 @@ export default function ChatInbox() {
     });
   };
 
+  const handleLongPress = (item: any) => {
+    Alert.alert(
+      'Delete Chat',
+      `Are you sure you want to delete your conversation with ${item.name}? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            const success = await deleteConversation(item.id, 'buyer');
+            if (success) {
+              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Chat has been deleted.' });
+            } else {
+              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete chat.' });
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // --- EMPTY STATE COMPONENT ---
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
@@ -48,7 +71,12 @@ export default function ChatInbox() {
   );
 
   const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity style={styles.chatItem} onPress={() => openChat(item)}>
+    <TouchableOpacity
+      style={styles.chatItem}
+      onPress={() => openChat(item)}
+      onLongPress={() => handleLongPress(item)}
+      delayLongPress={500}
+    >
       <View style={styles.avatarContainer}>
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
         {item.online && <View style={styles.onlineDot} />}

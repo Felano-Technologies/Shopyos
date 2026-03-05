@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { queryClient } from '@/lib/query/client';
+import { socketService } from './socket';
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
@@ -192,7 +193,7 @@ api.interceptors.response.use(
           await storage.removeItem('userToken');
           await storage.removeItem('refreshToken');
           await storage.removeItem('userId');
-        } catch (_) {}
+        } catch (_) { }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -299,6 +300,8 @@ export const logoutUser = async () => {
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
     ]);
+    // Disconnect stale socket connection to prevent receiving previous user's events
+    socketService.disconnect();
   }
 };
 
@@ -973,6 +976,16 @@ export const deleteMessage = async (messageId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error deleting message:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const deleteConversation = async (conversationId: string) => {
+  try {
+    const response = await api.delete(`/messaging/conversations/${conversationId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting conversation:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };

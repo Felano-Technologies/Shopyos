@@ -23,19 +23,21 @@ interface Order {
 
 const OrdersScreen = () => {
   const router = useRouter();
-  
+
   // --- TanStack Query Hook ---
   const { data, isLoading, refetch, isRefetching } = useOrders();
-  
-  const orders = data?.orders?.map((o: any) => ({
+
+  const rawOrders = Array.isArray(data) ? data : data?.orders || [];
+
+  const orders = rawOrders.map((o: any) => ({
     id: o.id,
     orderNumber: o.order_number,
     totalAmount: o.payments?.[0]?.amount ? parseFloat(o.payments[0].amount) : 0,
     date: o.created_at,
-    status: o.status.charAt(0).toUpperCase() + o.status.slice(1),
+    status: o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Unknown',
     itemsCount: o.order_items?.length || 0,
     storeName: o.store?.store_name || 'Shopyos Store'
-  })) || [];
+  }));
 
   const loading = isLoading;
   const refreshing = isRefetching;
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   listContent: { padding: 20, paddingBottom: 40 },
-  
+
   // Card Styles
   orderCard: { backgroundColor: '#FFF', borderRadius: 20, marginBottom: 16, padding: 16, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 4 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -167,7 +169,7 @@ const styles = StyleSheet.create({
   itemsCount: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
   viewDetailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   viewDetailsText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
-  
+
   // Empty State
   emptyState: { alignItems: 'center', marginTop: 100 },
   emptyText: { marginTop: 16, fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 24, textAlign: 'center' },

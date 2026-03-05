@@ -10,6 +10,7 @@ const {
   sendMessage,
   getMessages,
   markConversationAsRead,
+  deleteConversation,
   deleteMessage,
   searchMessages,
   getUnreadCount
@@ -28,6 +29,11 @@ router.post('/conversations', startConversation);
 // @desc    Get user's conversations
 // @access  Private
 router.get('/conversations', getConversations);
+
+// @route   DELETE /api/messaging/conversations/:conversationId
+// @desc    Delete a conversation (and all messages)
+// @access  Private
+router.delete('/conversations/:conversationId', deleteConversation);
 
 // @route   GET /api/messaging/unread-count
 // @desc    Get unread conversations count

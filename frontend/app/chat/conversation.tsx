@@ -29,6 +29,7 @@ import {
   storage
 } from '../../services/api';
 import { socketService } from '../../services/socket';
+import { useChat } from '../context/ChatContext';
 import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
@@ -55,6 +56,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar } = params;
+  const { deleteConversation } = useChat();
 
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -141,7 +143,7 @@ export default function ConversationScreen() {
 
           // Mark as read if from other person
           if (message.sender_id !== currentUserId) {
-            socketService.markConversationRead(conversationId).catch(() => {});
+            socketService.markConversationRead(conversationId).catch(() => { });
           }
         };
 
@@ -167,7 +169,7 @@ export default function ConversationScreen() {
 
     return () => {
       isActive = false;
-      socketService.leaveConversation(conversationId).catch(() => {});
+      socketService.leaveConversation(conversationId).catch(() => { });
       socketService.offNewMessage();
     };
   }, [conversationId, currentUserId]);
@@ -308,11 +310,26 @@ export default function ConversationScreen() {
   const handleClearChat = () => {
     setMoreMenuVisible(false);
     Alert.alert(
-      'Clear Chat',
-      'This will clear messages from your view. The other person will still see them.',
+      'Delete Chat',
+      'This will permanently delete the conversation and all messages.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Clear', style: 'destructive', onPress: () => setMessages([]) }
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setMessages([]);
+            const success = await deleteConversation(conversationId, chatType as any);
+            if (success) {
+              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Chat has been deleted.' });
+              router.back();
+            } else {
+              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete chat.' });
+              // refresh messages if failed
+              fetchMessages(false);
+            }
+          }
+        }
       ]
     );
   };
@@ -565,8 +582,6 @@ export default function ConversationScreen() {
           </View>
         </Pressable>
       </Modal>
-
-      <Toast />
     </View>
   );
 }
