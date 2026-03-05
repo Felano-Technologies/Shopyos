@@ -114,19 +114,17 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.status(200).send('Shopyos API is live.'));
 
 app.get('/health', async (req, res) => {
-  // Supabase connectivity check
-  let supabaseStatus = { connected: false, latency: null };
-  try {
-    const start = Date.now();
-    await supabaseAdmin.from('stores').select('id', { count: 'exact', head: true }).limit(1);
-    supabaseStatus = { connected: true, latency: `${Date.now() - start}ms` };
-  } catch (err) {
-    supabaseStatus = { connected: false, reason: err.message };
-  }
+  // Run Supabase and Redis health checks in parallel
+  const supabaseStart = Date.now();
+  const [supabaseResult, redisResult, appMetrics] = await Promise.all([
+    supabaseAdmin.from('stores').select('id', { count: 'exact', head: true }).limit(1)
+      .then(() => ({ connected: true, latency: `${Date.now() - supabaseStart}ms` }))
+      .catch(err => ({ connected: false, reason: err.message })),
+    redisHealthCheck(),
+    Promise.resolve(getMetrics())
+  ]);
 
-  const appMetrics = getMetrics();
-
-  const overallStatus = supabaseStatus.connected ? 'healthy' : 'degraded';
+  const overallStatus = supabaseResult.connected ? 'healthy' : 'degraded';
 
   res.status(overallStatus === 'healthy' ? 200 : 503).json({
     success: true,
@@ -136,8 +134,8 @@ app.get('/health', async (req, res) => {
     startedAt: appMetrics.startedAt,
     environment: process.env.NODE_ENV || 'development',
     checks: {
-      redis: await redisHealthCheck(),
-      supabase: supabaseStatus,
+      redis: redisResult,
+      supabase: supabaseResult,
       memory: appMetrics.memory
     },
     performance: appMetrics.performance,
@@ -233,14 +231,14 @@ server.listen(PORT, () => {
 
 const gracefulShutdown = async (signal) => {
   logger.warn(`Received ${signal}, shutting down...`);
-  
+
   // Close Socket.IO connections
   if (io) {
     io.close(() => {
       logger.info('Socket.IO connections closed');
     });
   }
-  
+
   server.close(async () => {
     await redisDisconnect();
     process.exit(0);

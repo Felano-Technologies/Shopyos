@@ -18,8 +18,10 @@ class ConversationRepository extends BaseRepository {
     const { data, error } = await this.db
       .from(this.tableName)
       .select('*')
-      .or(`participant1_id.eq.${participant1Id},participant2_id.eq.${participant1Id}`)
-      .or(`participant1_id.eq.${participant2Id},participant2_id.eq.${participant2Id}`)
+      .or(
+        `and(participant1_id.eq.${participant1Id},participant2_id.eq.${participant2Id}),` +
+        `and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`
+      )
       .single();
 
     if (error) {
