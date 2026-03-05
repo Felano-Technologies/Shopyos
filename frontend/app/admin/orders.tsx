@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     listContent: { padding: 20, paddingBottom: 50 },
     orderCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, marginBottom: 18, elevation: 4, shadowColor: '#0C1559', shadowOpacity: 0.08, shadowRadius: 10, borderLeftWidth: 5, borderLeftColor: '#0C1559' },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
-    orderIdText: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+    orderIdText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
     timeText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 2 },
     statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, gap: 5 },
     statusText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
