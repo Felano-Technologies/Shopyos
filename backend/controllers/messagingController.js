@@ -158,68 +158,79 @@ const sendMessage = async (req, res, next) => {
       attachmentUrl
     });
 
-    // Update conversation last activity
-    await repositories.conversations.updateLastActivity(conversationId);
+    // Run updateLastActivity and sender-info query in parallel (they're independent)
+    const [, { data: messageWithSender }] = await Promise.all([
+      repositories.conversations.updateLastActivity(conversationId),
+      repositories.messages.db
+        .from('messages')
+        .select(`
+          *,
+          sender:sender_id (
+            id,
+            user_profiles (full_name, avatar_url)
+          )
+        `)
+        .eq('id', message.id)
+        .single()
+    ]);
 
-    // Get message with sender info
-    const { data: messageWithSender } = await repositories.messages.db
-      .from('messages')
-      .select(`
-        *,
-        sender:sender_id (
-          id,
-          user_profiles (full_name, avatar_url)
-        )
-      `)
-      .eq('id', message.id)
-      .single();
+    const fullMessage = messageWithSender || message;
 
-    // Trigger Notification for the recipient
-    try {
-      const conversation = await repositories.conversations.getConversationDetails(conversationId);
-      const recipientId = conversation.participant1_id === userId ? conversation.participant2_id : conversation.participant1_id;
-
-      let senderName = 'Someone';
-      if (messageWithSender && messageWithSender.sender && messageWithSender.sender.user_profiles) {
-        const profile = Array.isArray(messageWithSender.sender.user_profiles) ? messageWithSender.sender.user_profiles[0] : messageWithSender.sender.user_profiles;
-        if (profile) senderName = profile.full_name || senderName;
-      }
-
-      const notificationContent = messageType === 'text' ? content.substring(0, 50) : `Sent an ${messageType}`;
-
-      await notificationService.sendNotification({
-        userId: recipientId,
-        type: 'new_message',
-        title: `New message from ${senderName}`,
-        message: notificationContent,
-        relatedId: conversationId,
-        relatedType: 'conversation',
-        data: {
-          conversationId,
-          messageId: message.id
-        },
-        push: {
-          data: {
-            screen: 'messages',
-            conversationId,
-            messageId: message.id
-          }
-        }
-      });
-    } catch (notifErr) {
-      logger.error('Failed to notify recipient of message:', notifErr);
-    }
-
-    // Emit real-time event to conversation room
+    // Emit real-time event immediately
     emitToConversation(conversationId, 'message:new', {
-      message: messageWithSender || message,
+      message: fullMessage,
       conversationId
     });
 
+    // Send response immediately — don't wait for notifications
     res.status(201).json({
       success: true,
-      message: messageWithSender || message
+      message: fullMessage
     });
+
+    // Fire-and-forget: send notification to recipient after responding
+    (async () => {
+      try {
+        const conversation = await repositories.conversations.findById(conversationId);
+        if (!conversation) return;
+
+        const recipientId = conversation.participant1_id === userId
+          ? conversation.participant2_id
+          : conversation.participant1_id;
+
+        let senderName = 'Someone';
+        if (messageWithSender?.sender?.user_profiles) {
+          const profile = Array.isArray(messageWithSender.sender.user_profiles)
+            ? messageWithSender.sender.user_profiles[0]
+            : messageWithSender.sender.user_profiles;
+          if (profile) senderName = profile.full_name || senderName;
+        }
+
+        const notificationContent = messageType === 'text' ? content.substring(0, 50) : `Sent an ${messageType}`;
+
+        await notificationService.sendNotification({
+          userId: recipientId,
+          type: 'new_message',
+          title: `New message from ${senderName}`,
+          message: notificationContent,
+          relatedId: conversationId,
+          relatedType: 'conversation',
+          data: {
+            conversationId,
+            messageId: message.id
+          },
+          push: {
+            data: {
+              screen: 'messages',
+              conversationId,
+              messageId: message.id
+            }
+          }
+        });
+      } catch (notifErr) {
+        logger.error('Failed to notify recipient of message:', notifErr);
+      }
+    })();
   } catch (error) {
     next(error);
   }
