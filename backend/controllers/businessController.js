@@ -572,7 +572,7 @@ const getBusinessDashboard = async (req, res, next) => {
     }
 
     // Fetch counts and recent orders in parallel
-    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrders, weeklyOrders] = await Promise.all([
+    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders] = await Promise.all([
       repositories.products.count({ store_id: businessId, deleted_at: null }),
       repositories.orders.count({ store_id: businessId }),
       repositories.orders.count({ store_id: businessId, status: 'pending' }),
@@ -587,6 +587,9 @@ const getBusinessDashboard = async (req, res, next) => {
         ascending: true,
       })
     ]);
+
+    // Extract the data array from the getStoreOrders result
+    const recentOrders = recentOrdersResult?.data || [];
 
     // Process chart data (Weekly Sales)
     // Filter for last 7 days

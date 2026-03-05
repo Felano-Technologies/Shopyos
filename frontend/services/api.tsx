@@ -12,7 +12,7 @@ const getBaseURL = () => {
     if (Platform.OS === 'android') {
       return 'http://10.0.2.2:5000'; // Android Emulator
     } else {
-      return 'http://localhost:5000'; // iOS Simulator or Web
+      return 'https://dios-mnxg.onrender.com'
     }
   } else {
     // Production mode - use production server

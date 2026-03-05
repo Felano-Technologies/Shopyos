@@ -41,7 +41,7 @@ function registerMessagingHandlers(io) {
         // Join the room
         const room = `conversation:${conversationId}`;
         socket.join(room);
-        
+
         logger.info(`User ${userId} joined conversation ${conversationId}`);
         callback?.({ success: true, room });
       } catch (error) {
@@ -61,7 +61,7 @@ function registerMessagingHandlers(io) {
 
         const room = `conversation:${conversationId}`;
         socket.leave(room);
-        
+
         logger.info(`User ${userId} left conversation ${conversationId}`);
         callback?.({ success: true });
       } catch (error) {
@@ -126,8 +126,8 @@ function registerMessagingHandlers(io) {
         // Send push notification to other participants
         try {
           const conversation = await repositories.conversations.findById(conversationId);
-          const recipientId = conversation.participant1_id === userId 
-            ? conversation.participant2_id 
+          const recipientId = conversation.participant1_id === userId
+            ? conversation.participant2_id
             : conversation.participant1_id;
 
           if (recipientId) {
@@ -138,7 +138,7 @@ function registerMessagingHandlers(io) {
               userId: recipientId,
               type: 'new_message',
               title: `New message from ${senderName}`,
-              body: content.substring(0, 100),
+              message: content.substring(0, 100),
               data: {
                 conversationId,
                 messageId: message.id,
