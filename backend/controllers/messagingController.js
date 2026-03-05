@@ -388,6 +388,39 @@ const getUnreadCount = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   DELETE /api/messaging/conversations/:conversationId
+ * @desc    Delete a conversation (and all its messages)
+ * @access  Private
+ */
+const deleteConversation = async (req, res, next) => {
+  try {
+    const { conversationId } = req.params;
+    const userId = req.user.id;
+
+    // Verify user is participant
+    const isParticipant = await repositories.conversations.isParticipant(
+      conversationId,
+      userId
+    );
+
+    if (!isParticipant) {
+      return res.status(403).json({ success: false, error: 'Not authorized to delete this conversation' });
+    }
+
+    // Hard delete the conversation (cascades to messages)
+    await repositories.conversations.delete(conversationId);
+
+    // Emit event to inform other participant if needed
+    emitToConversation(conversationId, 'conversation:deleted', { conversationId });
+
+    res.json({ success: true, message: 'Conversation deleted successfully' });
+  } catch (error) {
+    logger.error(`Error deleting conversation: ${error.message}`);
+    next(error);
+  }
+};
+
 module.exports = {
   startConversation,
   getConversations,
@@ -395,6 +428,7 @@ module.exports = {
   sendMessage,
   getMessages,
   markConversationAsRead,
+  deleteConversation,
   deleteMessage,
   searchMessages,
   getUnreadCount

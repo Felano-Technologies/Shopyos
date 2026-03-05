@@ -192,7 +192,7 @@ api.interceptors.response.use(
           await storage.removeItem('userToken');
           await storage.removeItem('refreshToken');
           await storage.removeItem('userId');
-        } catch (_) {}
+        } catch (_) { }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -973,6 +973,16 @@ export const deleteMessage = async (messageId: string) => {
     return response.data;
   } catch (error: any) {
     console.error("Error deleting message:", error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const deleteConversation = async (conversationId: string) => {
+  try {
+    const response = await api.delete(`/messaging/conversations/${conversationId}`);
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting conversation:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };

@@ -1,6 +1,6 @@
 // context/ChatContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getConversations, sendMessage as apiSendMessage, markConversationRead, storage } from '../../services/api';
+import { getConversations, sendMessage as apiSendMessage, markConversationRead, deleteConversation as apiDeleteConversation, storage } from '../../services/api';
 import { socketService } from '../../services/socket';
 
 export type Message = {
@@ -27,6 +27,7 @@ type ChatContextType = {
   sellerConversations: Conversation[]; // Chats where I am the business
   sendMessage: (id: string, text: string, type: 'buyer' | 'seller') => void;
   markAsRead: (id: string, type: 'buyer' | 'seller') => void;
+  deleteConversation: (id: string, type: 'buyer' | 'seller') => Promise<boolean>;
   refresh: () => void;
   currentUserId: string | null;
 };
@@ -263,12 +264,29 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const deleteConversation = async (id: string, type: 'buyer' | 'seller'): Promise<boolean> => {
+    // Optimistic UI update
+    const updater = type === 'buyer' ? setBuyerChats : setSellerChats;
+    updater((prev: Conversation[]) => prev.filter(conv => conv.id !== id));
+
+    try {
+      await apiDeleteConversation(id);
+      return true;
+    } catch (error) {
+      console.error("Failed to delete conversation", error);
+      // Revert optimism by refetching
+      fetchChats();
+      return false;
+    }
+  };
+
   return (
     <ChatContext.Provider value={{
       buyerConversations,
       sellerConversations,
       sendMessage,
       markAsRead,
+      deleteConversation,
       refresh: fetchChats,
       currentUserId
     }}>
