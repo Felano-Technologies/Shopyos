@@ -205,7 +205,7 @@ export default function AdminDashboard() {
                             <View style={styles.controlIcon}><Ionicons name="list" size={22} color="#0C1559" /></View>
                             <Text style={styles.controlLabel}>Audit Logs</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.controlItem} onPress={() => Alert.alert("Coming Soon")}>
+                        <TouchableOpacity style={styles.controlItem} onPress={() =>router.push('/admin/settings')}>
                             <View style={styles.controlIcon}><Ionicons name="settings-sharp" size={22} color="#0C1559" /></View>
                             <Text style={styles.controlLabel}>Settings</Text>
                         </TouchableOpacity>

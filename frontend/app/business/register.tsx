@@ -138,8 +138,8 @@ const BusinessSetupScreen = () => {
       const response = await businessRegister(submitData);
 
       if (response.success) {
-        Alert.alert('Success!', 'Business created successfully!', [
-          { text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }
+        Alert.alert('Success!', 'Business created successfully! Let\'s get you verified.', [
+          { text: 'Go to Verification', onPress: () => router.replace('/business/verification') }
         ]);
       }
     } catch (error: any) {

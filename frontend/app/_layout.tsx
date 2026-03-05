@@ -15,6 +15,7 @@ import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
+import BusinessBottomNav from '@/components/BusinessBottomNav';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -22,6 +23,10 @@ SplashScreen.preventAutoHideAsync();
 function AppContent() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+
+  // --- DEBUG LOG ---
+  // Check your terminal/metro bundler to see what this prints when you are on the verification page
+  console.log("Current Path:", pathname);
 
   // Apply Push Hook globally
   usePushNotifications();
@@ -49,6 +54,18 @@ function AppContent() {
     '/driver/history',
     '/driver/settings',
   ].includes(pathname);
+
+  // --- BUSINESS NAV LOGIC (Updated to exclude verification) ---
+  const isBusinessRoute = pathname.startsWith('/business');
+  const showBusinessNav = [
+    '/business/dashboard',
+    '/business/inventory',
+    '/business/analytics',
+    '/business/orders',
+    '/business/products',
+    '/business/settings',
+    '/business/notifications',
+  ].includes(pathname); 
 
   return (
     <CartProvider>
@@ -102,6 +119,7 @@ function AppContent() {
 
               <Stack.Screen name="business/register" />
               <Stack.Screen name="business/verification" />
+              <Stack.Screen name="business/verification-status" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/notifications" />
               <Stack.Screen name="business/settings" />
               <Stack.Screen name="business/orderDetails" options={{ animation: 'slide_from_right' }} />
@@ -147,6 +165,7 @@ function AppContent() {
 
             {shouldShowNav && <BottomNav />}
             {isDriverRoute && showDriverNav && <DriverBottomNav />}
+            {isBusinessRoute && showBusinessNav && <BusinessBottomNav />}
 
             <StatusBar style="auto" />
           </View>

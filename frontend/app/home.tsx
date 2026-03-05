@@ -125,7 +125,7 @@ export default function Home() {
           <Text style={[styles.productTitle, { color: '#0F172A' }]} numberOfLines={1}>{item.name}</Text>
           <Text style={[styles.productCategory, { color: '#64748B' }]}>{item.category}</Text>
           <View style={styles.priceRow}>
-            <Text style={[styles.currentPrice, { color: '#84cc16' }]}>₵{item.price.toFixed(2)}</Text>
+            <Text style={[styles.currentPrice, { color: '#0d3804' }]}>₵{item.price.toFixed(2)}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
   dealCard: { width: 140, borderRadius: 16, marginRight: 16, elevation: 4, overflow: 'hidden', alignItems: 'center', padding: 0, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 8 },
   dealImage: { width: '100%', height: 100, resizeMode: 'cover' },
   dealTitle: { fontSize: 13, fontWeight: '600', marginTop: 10, marginHorizontal: 8, textAlign: 'center' },
-  dealPrice: { fontSize: 14, fontWeight: '700', marginTop: 6, marginBottom: 10, color: '#84cc16' },
+  dealPrice: { fontSize: 14, fontWeight: '700', marginTop: 6, marginBottom: 10, color: '#0d3804' },
 
   // Empty state (horizontal)
   emptyHorizontal: { width: width - 64, marginLeft: 16, backgroundColor: '#FFF', borderRadius: 20, paddingVertical: 32, paddingHorizontal: 24, alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
   searchResultImage: { width: '100%', height: 120, resizeMode: 'cover' },
   searchResultInfo: { padding: 8 },
   searchResultTitle: { fontSize: 13, fontWeight: '600', color: '#0F172A', marginBottom: 4 },
-  searchResultPrice: { fontSize: 14, fontWeight: '700', color: '#84cc16' },
+  searchResultPrice: { fontSize: 14, fontWeight: '700', color: '#0d3804' },
   noResultsContainer: { alignItems: 'center', marginTop: 50 },
   noResultsText: { marginTop: 10, fontSize: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' },
 

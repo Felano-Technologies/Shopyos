@@ -22,7 +22,7 @@ export default function DealsScreen() {
   const router = useRouter();
   
   // --- TanStack Query Hook ---
-  const { data, isLoading } = useProducts({ limit: 30, sortBy: 'price_asc' });
+  const { data, isLoading } = useProducts({ sortBy: 'price_asc' });
   
   const deals = data?.products?.map((p: any) => ({
     id: p._id,
@@ -248,7 +248,7 @@ const styles = StyleSheet.create({
   dealPrice: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#84cc16', // Lime Green
+    color: '#cf1302', // Lime Green
     marginRight: 8,
   },
   oldPrice: {

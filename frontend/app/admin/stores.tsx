@@ -14,7 +14,8 @@ import { getAdminStores, adminVerifyStore } from '@/services/api';
 type FilterType = 'all' | 'pending' | 'verified' | 'rejected';
 
 interface Store {
-    id: string;
+    id?: string;
+    _id?: string; // Handling MongoDB _id fallback
     store_name: string;
     description?: string;
     city?: string;
@@ -31,31 +32,41 @@ interface Store {
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-    pending:  { label: 'Pending',  color: '#92400E', bg: '#FEF3C7', icon: 'time-outline' },
+    pending: { label: 'Pending', color: '#92400E', bg: '#FEF3C7', icon: 'time-outline' },
     verified: { label: 'Verified', color: '#065F46', bg: '#D1FAE5', icon: 'checkmark-circle-outline' },
     rejected: { label: 'Rejected', color: '#991B1B', bg: '#FEE2E2', icon: 'close-circle-outline' },
 };
 
 const FILTER_TABS: { key: FilterType; label: string }[] = [
-    { key: 'all',      label: 'All' },
-    { key: 'pending',  label: 'Pending' },
+    { key: 'all', label: 'All' },
+    { key: 'pending', label: 'Pending' },
     { key: 'verified', label: 'Verified' },
     { key: 'rejected', label: 'Rejected' },
 ];
 
 export default function AdminStores() {
     const router = useRouter();
-    const [filter, setFilter]         = useState<FilterType>('pending');
-    const [search, setSearch]         = useState('');
-    const [stores, setStores]         = useState<Store[]>([]);
-    const [loading, setLoading]       = useState(true);
+    const [filter, setFilter] = useState<FilterType>('pending');
+    const [search, setSearch] = useState('');
+    const [stores, setStores] = useState<Store[]>([]);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [pendingCount, setPendingCount] = useState(0);
 
-    // Reject modal
-    const [rejectModal, setRejectModal]   = useState(false);
+    const [rejectModal, setRejectModal] = useState(false);
     const [rejectTarget, setRejectTarget] = useState<Store | null>(null);
     const [rejectReason, setRejectReason] = useState('');
+
+    const refreshPendingCount = async () => {
+        try {
+            const res = await getAdminStores({ verificationStatus: 'pending' });
+            const data = Array.isArray(res?.stores) ? res.stores : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
+            setPendingCount(data.length);
+        } catch (e) {
+            console.log("Error fetching pending count", e);
+        }
+    };
 
     const loadStores = useCallback(async (showRefreshing = false) => {
         try {
@@ -64,11 +75,12 @@ export default function AdminStores() {
 
             const params: Record<string, string> = {};
             if (filter !== 'all') params.verificationStatus = filter;
-            if (search.trim())    params.search = search.trim();
+            if (search.trim()) params.search = search.trim();
 
             const res = await getAdminStores(params);
             const data = Array.isArray(res?.stores) ? res.stores : (Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []));
             setStores(data);
+            refreshPendingCount();
         } catch (err: any) {
             Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to load stores' });
         } finally {
@@ -79,11 +91,11 @@ export default function AdminStores() {
 
     useEffect(() => { loadStores(); }, [loadStores]);
 
-    const handleApprove = async (store: Store) => {
+    const handleApprove = async (storeId: string, storeName: string) => {
         try {
-            setActionLoading(store.id);
-            await adminVerifyStore(store.id, 'verified');
-            Toast.show({ type: 'success', text1: 'Approved', text2: `${store.store_name} has been verified` });
+            setActionLoading(storeId);
+            await adminVerifyStore(storeId, 'verified');
+            Toast.show({ type: 'success', text1: 'Approved', text2: `${storeName} has been verified` });
             loadStores();
         } catch (err: any) {
             Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Could not approve store' });
@@ -99,16 +111,17 @@ export default function AdminStores() {
     };
 
     const handleReject = async () => {
-        if (!rejectTarget) return;
+        const storeId = rejectTarget?.id || rejectTarget?._id;
+        if (!storeId) return;
         if (!rejectReason.trim()) {
             Toast.show({ type: 'error', text1: 'Reason required', text2: 'Please provide a rejection reason' });
             return;
         }
         try {
-            setActionLoading(rejectTarget.id);
+            setActionLoading(storeId);
             setRejectModal(false);
-            await adminVerifyStore(rejectTarget.id, 'rejected', rejectReason.trim());
-            Toast.show({ type: 'success', text1: 'Rejected', text2: `${rejectTarget.store_name} has been rejected` });
+            await adminVerifyStore(storeId, 'rejected', rejectReason.trim());
+            Toast.show({ type: 'success', text1: 'Rejected', text2: `${rejectTarget?.store_name} has been rejected` });
             loadStores();
         } catch (err: any) {
             Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Could not reject store' });
@@ -119,11 +132,26 @@ export default function AdminStores() {
     };
 
     const StoreCard = ({ item }: { item: Store }) => {
+        // --- SAFE ID EXTRACTION ---
+        const actualId = item.id || item._id; 
+        
         const statusCfg = STATUS_CONFIG[item.verification_status] || STATUS_CONFIG.pending;
-        const isActioning = actionLoading === item.id;
+        const isActioning = actionLoading === actualId;
+
+        const goToDetails = () => {
+            if (!actualId) {
+                Toast.show({ type: 'error', text1: 'Invalid Store', text2: 'Missing store identifier.' });
+                return;
+            }
+            router.push(`/admin/store-details/${actualId}` as any);
+        };
 
         return (
-            <View style={styles.card}>
+            <TouchableOpacity 
+                style={styles.card} 
+                onPress={goToDetails}
+                activeOpacity={0.8}
+            >
                 <View style={styles.cardHeader}>
                     <View style={styles.storeAvatar}>
                         <Text style={styles.storeAvatarText}>
@@ -132,12 +160,8 @@ export default function AdminStores() {
                     </View>
                     <View style={styles.storeInfo}>
                         <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
-                        {item.owner?.full_name && (
-                            <Text style={styles.storeOwner}>{item.owner.full_name}</Text>
-                        )}
-                        {item.owner?.email && (
-                            <Text style={styles.storeEmail} numberOfLines={1}>{item.owner.email}</Text>
-                        )}
+                        <Text style={styles.storeOwner}>{item.owner?.full_name || 'No Owner Name'}</Text>
+                        <Text style={styles.storeEmail} numberOfLines={1}>{item.owner?.email}</Text>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusCfg.bg }]}>
                         <Ionicons name={statusCfg.icon as any} size={12} color={statusCfg.color} />
@@ -146,90 +170,70 @@ export default function AdminStores() {
                 </View>
 
                 <View style={styles.cardMeta}>
-                    {item.city && (
-                        <View style={styles.metaRow}>
-                            <Ionicons name="location-outline" size={13} color="#64748B" />
-                            <Text style={styles.metaText}>{item.city}</Text>
-                        </View>
-                    )}
-                    {item.category && (
-                        <View style={styles.metaRow}>
-                            <Ionicons name="pricetag-outline" size={13} color="#64748B" />
-                            <Text style={styles.metaText}>{item.category}</Text>
-                        </View>
-                    )}
                     <View style={styles.metaRow}>
-                        <Ionicons name="calendar-outline" size={13} color="#64748B" />
-                        <Text style={styles.metaText}>
-                            {item.created_at ? new Date(item.created_at).toLocaleDateString() : 'N/A'}
-                        </Text>
+                        <Ionicons name="location-outline" size={13} color="#64748B" />
+                        <Text style={styles.metaText}>{item.city || 'Location N/A'}</Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                        <Ionicons name="pricetag-outline" size={13} color="#64748B" />
+                        <Text style={styles.metaText}>{item.category || 'General'}</Text>
                     </View>
                 </View>
 
-                {item.rejection_reason && item.verification_status === 'rejected' && (
-                    <View style={styles.rejectionNote}>
-                        <Ionicons name="information-circle-outline" size={14} color="#991B1B" />
-                        <Text style={styles.rejectionText} numberOfLines={2}>{item.rejection_reason}</Text>
-                    </View>
-                )}
+                {/* --- CLICKABLE DOCUMENTATION LINK --- */}
+                <TouchableOpacity 
+                    style={styles.docLink} 
+                    onPress={(e) => {
+                        e.stopPropagation(); // Prevents double push
+                        goToDetails();
+                    }}
+                >
+                    <Feather name="file-text" size={14} color="#0C1559" />
+                    <Text style={styles.docLinkText}>See Store Documentation & Legal Assets</Text>
+                    <Feather name="chevron-right" size={14} color="#0C1559" />
+                </TouchableOpacity>
 
-                {item.verification_status === 'pending' && (
-                    <View style={styles.actions}>
-                        {isActioning ? (
-                            <ActivityIndicator size="small" color="#0C1559" />
-                        ) : (
-                            <>
+                <View style={styles.actions}>
+                    {isActioning ? (
+                        <ActivityIndicator size="small" color="#0C1559" />
+                    ) : (
+                        <>
+                            {item.verification_status === 'pending' && (
+                                <>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, styles.approveBtn]}
+                                        onPress={(e) => { e.stopPropagation(); handleApprove(actualId!, item.store_name); }}
+                                    >
+                                        <Text style={styles.actionBtnText}>Quick Approve</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.actionBtn, styles.rejectBtn]}
+                                        onPress={(e) => { e.stopPropagation(); openRejectModal(item); }}
+                                    >
+                                        <Text style={styles.actionBtnText}>Reject</Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                            {item.verification_status === 'verified' && (
                                 <TouchableOpacity
-                                    style={[styles.actionBtn, styles.approveBtn]}
-                                    onPress={() => handleApprove(item)}
+                                    style={[styles.actionBtn, styles.rejectBtn, { flex: 1 }]}
+                                    onPress={(e) => { e.stopPropagation(); openRejectModal(item); }}
                                 >
-                                    <Ionicons name="checkmark-circle-outline" size={16} color="#FFF" />
-                                    <Text style={styles.actionBtnText}>Approve</Text>
+                                    <Text style={styles.actionBtnText}>Revoke Approval</Text>
                                 </TouchableOpacity>
+                            )}
+                            {item.verification_status === 'rejected' && (
                                 <TouchableOpacity
-                                    style={[styles.actionBtn, styles.rejectBtn]}
-                                    onPress={() => openRejectModal(item)}
+                                    style={[styles.actionBtn, styles.approveBtn, { flex: 1 }]}
+                                    onPress={(e) => { e.stopPropagation(); handleApprove(actualId!, item.store_name); }}
                                 >
-                                    <Ionicons name="close-circle-outline" size={16} color="#FFF" />
-                                    <Text style={styles.actionBtnText}>Reject</Text>
+                                    <Text style={styles.actionBtnText}>Re-Approve</Text>
                                 </TouchableOpacity>
-                            </>
-                        )}
-                    </View>
-                )}
-
-                {item.verification_status === 'verified' && (
-                    <View style={styles.actions}>
-                        {isActioning ? (
-                            <ActivityIndicator size="small" color="#0C1559" />
-                        ) : (
-                            <TouchableOpacity
-                                style={[styles.actionBtn, styles.rejectBtn, { flex: 1 }]}
-                                onPress={() => openRejectModal(item)}
-                            >
-                                <Ionicons name="close-circle-outline" size={16} color="#FFF" />
-                                <Text style={styles.actionBtnText}>Revoke Approval</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                )}
-
-                {item.verification_status === 'rejected' && (
-                    <View style={styles.actions}>
-                        {isActioning ? (
-                            <ActivityIndicator size="small" color="#0C1559" />
-                        ) : (
-                            <TouchableOpacity
-                                style={[styles.actionBtn, styles.approveBtn, { flex: 1 }]}
-                                onPress={() => handleApprove(item)}
-                            >
-                                <Ionicons name="checkmark-circle-outline" size={16} color="#FFF" />
-                                <Text style={styles.actionBtnText}>Approve After Review</Text>
-                            </TouchableOpacity>
-                        )}
-                    </View>
-                )}
-            </View>
+                            )}
+                        </>
+                    )}
+                </View>
+            </TouchableOpacity>
         );
     };
 
@@ -243,16 +247,22 @@ export default function AdminStores() {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                             <Ionicons name="arrow-back" size={22} color="#FFF" />
                         </TouchableOpacity>
-                        <View>
-                            <Text style={styles.headerLabel}>ADMIN</Text>
-                            <Text style={styles.headerTitle}>Store Verification</Text>
+                        <View style={{ alignItems: 'center' }}>
+                            <Text style={styles.headerLabel}>ADMINISTRATION</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Text style={styles.headerTitle}>Store Verifications</Text>
+                                {pendingCount > 0 && (
+                                    <View style={styles.headerBadge}>
+                                        <Text style={styles.headerBadgeText}>{pendingCount}</Text>
+                                    </View>
+                                )}
+                            </View>
                         </View>
                         <View style={{ width: 40 }} />
                     </View>
                 </SafeAreaView>
             </LinearGradient>
 
-            {/* Search */}
             <View style={styles.searchContainer}>
                 <Ionicons name="search-outline" size={18} color="#94A3B8" style={styles.searchIcon} />
                 <TextInput
@@ -264,14 +274,8 @@ export default function AdminStores() {
                     returnKeyType="search"
                     onSubmitEditing={() => loadStores()}
                 />
-                {search.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearch('')}>
-                        <Ionicons name="close-circle" size={18} color="#94A3B8" />
-                    </TouchableOpacity>
-                )}
             </View>
 
-            {/* Filter Tabs */}
             <View style={styles.tabs}>
                 {FILTER_TABS.map(tab => (
                     <TouchableOpacity
@@ -279,67 +283,60 @@ export default function AdminStores() {
                         style={[styles.tab, filter === tab.key && styles.tabActive]}
                         onPress={() => setFilter(tab.key)}
                     >
-                        <Text style={[styles.tabText, filter === tab.key && styles.tabTextActive]}>
-                            {tab.label}
-                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={[styles.tabText, filter === tab.key && styles.tabTextActive]}>
+                                {tab.label}
+                            </Text>
+                            {tab.key === 'pending' && pendingCount > 0 && (
+                                <View style={[styles.tabIndicator, filter === 'pending' && styles.tabIndicatorActive]}>
+                                    <Text style={[styles.tabIndicatorText, filter === 'pending' && styles.tabIndicatorTextActive]}>
+                                        {pendingCount}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                     </TouchableOpacity>
                 ))}
             </View>
 
             {loading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#0C1559" />
-                </View>
+                <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
             ) : (
                 <FlatList
                     data={stores}
-                    keyExtractor={item => item.id}
+                    keyExtractor={(item, index) => (item.id || item._id || index).toString()}
                     renderItem={({ item }) => <StoreCard item={item} />}
                     contentContainerStyle={styles.listContent}
-                    refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={() => loadStores(true)} tintColor="#0C1559" />
-                    }
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStores(true)} tintColor="#0C1559" />}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <Ionicons name="storefront-outline" size={52} color="#CBD5E1" />
                             <Text style={styles.emptyTitle}>No Stores Found</Text>
-                            <Text style={styles.emptySubtitle}>No {filter === 'all' ? '' : filter} stores at this time</Text>
+                            <Text style={styles.emptySubtitle}>No {filter} stores at this time.</Text>
                         </View>
                     }
                 />
             )}
 
-            {/* Rejection Reason Modal */}
-            <Modal visible={rejectModal} transparent animationType="fade" onRequestClose={() => setRejectModal(false)}>
+            <Modal visible={rejectModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
-                        <Text style={styles.modalTitle}>Reject Store</Text>
-                        <Text style={styles.modalSubtitle}>
-                            Rejecting <Text style={{ fontFamily: 'Montserrat-Bold' }}>{rejectTarget?.store_name}</Text>.
-                            Please provide a reason for the seller.
-                        </Text>
+                        <Text style={styles.modalTitle}>Reject Application</Text>
+                        <Text style={styles.modalSubtitle}>Reason for <Text style={{fontWeight: 'bold'}}>{rejectTarget?.store_name}</Text>:</Text>
                         <TextInput
                             style={styles.reasonInput}
-                            placeholder="Enter rejection reason..."
-                            placeholderTextColor="#94A3B8"
+                            placeholder="Type rejection reason..."
+                            multiline
                             value={rejectReason}
                             onChangeText={setRejectReason}
-                            multiline
-                            numberOfLines={4}
                             textAlignVertical="top"
                         />
                         <View style={styles.modalActions}>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalCancelBtn]}
-                                onPress={() => { setRejectModal(false); setRejectTarget(null); }}
-                            >
+                            <TouchableOpacity style={[styles.modalBtn, styles.modalCancelBtn]} onPress={() => setRejectModal(false)}>
                                 <Text style={styles.modalCancelText}>Cancel</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.modalBtn, styles.modalConfirmBtn]}
-                                onPress={handleReject}
-                            >
-                                <Text style={styles.modalConfirmText}>Confirm Rejection</Text>
+                            <TouchableOpacity style={[styles.modalBtn, styles.modalConfirmBtn]} onPress={handleReject}>
+                                <Text style={styles.modalConfirmText}>Confirm</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -350,65 +347,60 @@ export default function AdminStores() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F1F5F9' },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-    header: { paddingBottom: 24, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 6 },
+    header: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
     backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-    headerLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 2, textAlign: 'center' },
-    headerTitle: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold', textAlign: 'center' },
-
-    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', marginHorizontal: 16, marginTop: 16, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, elevation: 2 },
-    searchIcon: { marginRight: 8 },
-    searchInput: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
-
-    tabs: { flexDirection: 'row', marginHorizontal: 16, marginTop: 12, backgroundColor: '#E2E8F0', borderRadius: 12, padding: 3 },
-    tab: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
-    tabActive: { backgroundColor: '#0C1559', elevation: 3, shadowColor: '#0C1559', shadowOpacity: 0.3, shadowRadius: 6 },
+    headerLabel: { color: '#A3E635', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 2 },
+    headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+    headerBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8, minWidth: 20, alignItems: 'center' },
+    headerBadgeText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
+    searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', marginHorizontal: 16, marginTop: 20, borderRadius: 16, paddingHorizontal: 15, height: 50, elevation: 2 },
+    searchIcon: { marginRight: 10 },
+    searchInput: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium' },
+    tabs: { flexDirection: 'row', marginHorizontal: 16, marginTop: 15, backgroundColor: '#E2E8F0', borderRadius: 14, padding: 4 },
+    tab: { flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+    tabActive: { backgroundColor: '#0C1559', elevation: 3 },
     tabText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
     tabTextActive: { color: '#FFF' },
-
+    tabIndicator: { backgroundColor: '#CBD5E1', borderRadius: 8, paddingHorizontal: 5, paddingVertical: 1, marginLeft: 5 },
+    tabIndicatorActive: { backgroundColor: 'rgba(255,255,255,0.2)' },
+    tabIndicatorText: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+    tabIndicatorTextActive: { color: '#FFF' },
     listContent: { padding: 16, paddingBottom: 40 },
-
-    card: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 14, elevation: 3, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 10 },
+    card: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, marginBottom: 16, elevation: 4, shadowColor: '#0C1559', shadowOpacity: 0.05 },
     cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
-    storeAvatar: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-    storeAvatarText: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+    storeAvatar: { width: 50, height: 50, borderRadius: 15, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    storeAvatarText: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
     storeInfo: { flex: 1 },
     storeName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-    storeOwner: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#334155', marginTop: 1 },
-    storeEmail: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 1 },
-
-    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, gap: 3 },
-    statusText: { fontSize: 11, fontFamily: 'Montserrat-Bold' },
-
-    cardMeta: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, gap: 10 },
-    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-    metaText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-
-    rejectionNote: { flexDirection: 'row', alignItems: 'flex-start', backgroundColor: '#FEF2F2', borderRadius: 10, padding: 10, marginTop: 10, gap: 6 },
-    rejectionText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#991B1B' },
-
-    actions: { flexDirection: 'row', marginTop: 14, gap: 10 },
-    actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 12, gap: 5 },
+    storeOwner: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginTop: 2 },
+    storeEmail: { fontSize: 10, color: '#94A3B8' },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, gap: 4 },
+    statusText: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
+    cardMeta: { flexDirection: 'row', marginTop: 12, gap: 15 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    metaText: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
+    docLink: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 12, borderRadius: 15, marginTop: 15, borderWidth: 1, borderColor: '#E2E8F0', gap: 10 },
+    docLinkText: { flex: 1, fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+    actions: { flexDirection: 'row', marginTop: 15, gap: 10 },
+    actionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 14 },
     approveBtn: { backgroundColor: '#10B981' },
     rejectBtn: { backgroundColor: '#EF4444' },
-    actionBtnText: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-Bold' },
-
-    emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-    emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#334155', marginTop: 12 },
-    emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 4 },
-
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
-    modalCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 24, width: '100%' },
-    modalTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 6 },
-    modalSubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 16 },
-    reasonInput: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 14, padding: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', minHeight: 100 },
-    modalActions: { flexDirection: 'row', marginTop: 16, gap: 10 },
-    modalBtn: { flex: 1, paddingVertical: 13, borderRadius: 14, alignItems: 'center' },
+    actionBtnText: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
+    emptyState: { alignItems: 'center', marginTop: 50 },
+    emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#334155', marginTop: 15 },
+    emptySubtitle: { fontSize: 13, color: '#94A3B8', marginTop: 5 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+    modalCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 25 },
+    modalTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+    modalSubtitle: { fontSize: 14, color: '#64748B', marginVertical: 10 },
+    reasonInput: { backgroundColor: '#F8FAFC', borderRadius: 15, padding: 15, height: 100, borderWidth: 1, borderColor: '#E2E8F0' },
+    modalActions: { flexDirection: 'row', gap: 10, marginTop: 20 },
+    modalBtn: { flex: 1, padding: 15, borderRadius: 15, alignItems: 'center' },
     modalCancelBtn: { backgroundColor: '#F1F5F9' },
     modalConfirmBtn: { backgroundColor: '#EF4444' },
-    modalCancelText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#475569' },
-    modalConfirmText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+    modalCancelText: { color: '#64748B', fontFamily: 'Montserrat-Bold' },
+    modalConfirmText: { color: '#FFF', fontFamily: 'Montserrat-Bold' }
 });

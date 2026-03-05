@@ -228,8 +228,8 @@ const BusinessVerification = () => {
                 <View style={styles.successIconBg}><Ionicons name="checkmark-done" size={50} color="#84cc16" /></View>
                 <Text style={styles.modalTitle}>Application Sent!</Text>
                 <Text style={styles.modalDesc}>Documents submitted. Our team will review your business within <Text style={{fontFamily: 'Montserrat-Bold'}}>24-48 hours</Text>.</Text>
-                <TouchableOpacity style={styles.modalBtn} onPress={() => { setShowSuccess(false); router.replace('/business/dashboard' as any); }}>
-                    <Text style={styles.modalBtnText}>Back to Dashboard</Text>
+                <TouchableOpacity style={styles.modalBtn} onPress={() => { setShowSuccess(false); router.replace('/business/verification-status' as any); }}>
+                    <Text style={styles.modalBtnText}>Back to Verification Page</Text>
                 </TouchableOpacity>
             </View>
         </View>

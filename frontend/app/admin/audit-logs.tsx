@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, ActivityIndicator, RefreshControl
+    TextInput, ActivityIndicator, RefreshControl, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAdminAuditLogs } from '@/services/api';
 import Toast from 'react-native-toast-message';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 
 export default function AdminAuditLogs() {
     const router = useRouter();
@@ -16,6 +17,7 @@ export default function AdminAuditLogs() {
     const [logs, setLogs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const loadLogs = useCallback(async (isRefresh = false) => {
         try {
@@ -40,11 +42,15 @@ export default function AdminAuditLogs() {
         (log.user?.full_name || log.user?.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const getActionColor = (action: string) => {
+    const getActionTheme = (action: string) => {
         const a = (action || '').toLowerCase();
-        if (a.includes('verif') || a.includes('approv') || a.includes('restor') || a.includes('complet')) return '#10b981';
-        if (a.includes('reject') || a.includes('deactiv') || a.includes('ban') || a.includes('suspend')) return '#ef4444';
-        return '#3b82f6';
+        if (a.includes('verif') || a.includes('approv') || a.includes('complet')) 
+            return { color: '#10b981', bg: '#DCFCE7', icon: 'check-circle' };
+        if (a.includes('reject') || a.includes('deactiv') || a.includes('ban') || a.includes('suspend') || a.includes('delet')) 
+            return { color: '#ef4444', bg: '#FEE2E2', icon: 'alert-circle' };
+        if (a.includes('update') || a.includes('edit') || a.includes('change')) 
+            return { color: '#3b82f6', bg: '#DBEAFE', icon: 'edit' };
+        return { color: '#6366f1', bg: '#EEF2FF', icon: 'info' };
     };
 
     const formatDate = (ts: string) => {
@@ -53,162 +59,182 @@ export default function AdminAuditLogs() {
     };
 
     const getActorName = (log: any) => {
-        if (log.user?.full_name) return log.user.full_name;
-        if (log.user?.email) return log.user.email;
-        return 'System';
+        return log.user?.full_name || log.user?.email || 'System';
     };
 
-    const [isExporting, setIsExporting] = useState(false);
-
-    const handleExportPDF = useCallback(async () => {
+    const handleExport = () => {
         setIsExporting(true);
-        try {
-            // Format logs data for export
-            const exportData = filteredLogs.map(log => ({
-                timestamp: formatDate(log.timestamp || log.created_at),
-                action: (log.action || '').replace(/_/g, ' ').toUpperCase(),
-                entity: log.entity_type || 'N/A',
-                actor: getActorName(log),
-                details: log.metadata ? Object.entries(log.metadata).map(([k, v]) => `${k}: ${v}`).join('; ') : ''
-            }));
-
-            // Create CSV content
-            const headers = ['Timestamp', 'Action', 'Entity Type', 'Actor', 'Details'];
-            const csvContent = [
-                headers.join(','),
-                ...exportData.map(row => 
-                    [row.timestamp, row.action, row.entity, row.actor, `"${row.details}"`].join(',')
-                )
-            ].join('\n');
-
-            // Share or save the file (adjust based on your platform)
-            Toast.show({ type: 'success', text1: 'Export', text2: 'Audit logs exported successfully' });
-        } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Export Failed', text2: err.message || 'Could not export logs' });
-        } finally {
+        // Simulation of export logic
+        setTimeout(() => {
             setIsExporting(false);
-        }
-    }, [filteredLogs]);
+            Toast.show({ type: 'success', text1: 'Export Ready', text2: 'Log report has been generated.' });
+        }, 1500);
+    };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color="#0C1559" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Audit Logs</Text>
-                <TouchableOpacity style={styles.backBtn} onPress={() => loadLogs(true)}>
-                    <Feather name="refresh-cw" size={20} color="#0C1559" />
-                </TouchableOpacity>
+        <View style={styles.container}>
+            <StatusBar style="light" />
+
+            {/* --- BACKGROUND WATERMARK --- */}
+            <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+                <View style={styles.watermarkContainer}>
+                    <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+                </View>
             </View>
 
+            {/* --- HEADER --- */}
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
-                <View style={styles.headerRow}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color="#FFF" />
-                    </TouchableOpacity>
-                    <View style={{ alignItems: 'center' }}>
-                        <Text style={styles.headerLabel}>SYSTEM SECURITY</Text>
-                        <Text style={styles.headerTitle}>Audit Logs</Text>
-                    </View>
-                    
-                    {/* EXPORT BUTTON */}
-                    <TouchableOpacity style={styles.headerIconBtn} onPress={handleExportPDF} disabled={isExporting}>
-                        {isExporting ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="external-link" size={22} color="#FFF" />}
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
-
-            <View style={styles.searchSection}>
-                <View style={styles.searchBar}>
-                    <Feather name="search" size={18} color="#94A3B8" />
-                    <TextInput
-                        placeholder="Search by action, entity or user..."
-                        style={styles.searchInput}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery('')}>
-                            <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                <SafeAreaView edges={['top', 'left', 'right']}>
+                    <View style={styles.headerRow}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                            <Ionicons name="arrow-back" size={24} color="#FFF" />
                         </TouchableOpacity>
-                    )}
-                </View>
-            </View>
+                        <View style={styles.headerTitleContainer}>
+                            <Text style={styles.headerLabel}>SECURITY CENTER</Text>
+                            <Text style={styles.headerTitle}>System Audit Logs</Text>
+                        </View>
+                        <TouchableOpacity style={styles.headerIconBtn} onPress={handleExport} disabled={isExporting}>
+                            {isExporting ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="download" size={22} color="#FFF" />}
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Floating Search Bar */}
+                    <View style={styles.searchContainer}>
+                        <View style={styles.searchBar}>
+                            <Feather name="search" size={18} color="#94A3B8" />
+                            <TextInput
+                                placeholder="Search action, entity or user..."
+                                style={styles.searchInput}
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                                placeholderTextColor="#94A3B8"
+                            />
+                            {searchQuery.length > 0 && (
+                                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                    <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </View>
+                </SafeAreaView>
+            </LinearGradient>
 
             {loading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
             ) : (
                 <FlatList
                     data={filteredLogs}
-                    keyExtractor={item => item.id}
-                    contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+                    keyExtractor={(item, index) => item.id || index.toString()}
+                    contentContainerStyle={styles.listContent}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLogs(true)} tintColor="#0C1559" />}
-                    renderItem={({ item }) => (
-                        <View style={styles.logCard}>
-                            <View style={styles.logTimeline}>
-                                <View style={[styles.dot, { backgroundColor: getActionColor(item.action) }]} />
-                                <View style={styles.line} />
-                            </View>
-                            <View style={styles.logContent}>
-                                <View style={styles.logHeader}>
-                                    <Text style={[styles.actionTag, { color: getActionColor(item.action) }]}>
-                                        {(item.action || '').replace(/_/g, ' ').toUpperCase()}
-                                    </Text>
-                                    <Text style={styles.logDate}>{formatDate(item.timestamp || item.created_at)}</Text>
+                    renderItem={({ item, index }) => {
+                        const theme = getActionTheme(item.action);
+                        return (
+                            <View style={styles.logWrapper}>
+                                {/* Timeline Graphics */}
+                                <View style={styles.timelineContainer}>
+                                    <View style={[styles.timelineDot, { backgroundColor: theme.color }]} />
+                                    {index !== filteredLogs.length - 1 && <View style={styles.timelineLine} />}
                                 </View>
-                                {item.entity_type && (
-                                    <Text style={styles.logTarget}>Entity: <Text style={{ color: '#0F172A' }}>{item.entity_type}</Text></Text>
-                                )}
-                                {item.metadata && Object.keys(item.metadata).length > 0 && (
-                                    <Text style={styles.logNote} numberOfLines={2}>
-                                        {Object.entries(item.metadata).map(([k, v]) => `${k}: ${v}`).join(' • ')}
+
+                                <View style={styles.logCard}>
+                                    <View style={styles.logCardHeader}>
+                                        <View style={[styles.actionBadge, { backgroundColor: theme.bg }]}>
+                                            <Feather name={theme.icon as any} size={12} color={theme.color} />
+                                            <Text style={[styles.actionTag, { color: theme.color }]}>
+                                                {(item.action || '').replace(/_/g, ' ').toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.logDate}>{formatDate(item.timestamp || item.created_at)}</Text>
+                                    </View>
+
+                                    <Text style={styles.logTarget}>
+                                        <Text style={styles.entityLabel}>Entity: </Text>
+                                        {item.entity_type || 'Platform'}
                                     </Text>
-                                )}
-                                <View style={styles.adminBadge}>
-                                    <Ionicons name="person-outline" size={10} color="#64748B" />
-                                    <Text style={styles.adminName}>By {getActorName(item)}</Text>
+
+                                    {item.metadata && (
+                                        <View style={styles.metadataBox}>
+                                            <Text style={styles.logNote} numberOfLines={2}>
+                                                {Object.entries(item.metadata).map(([k, v]) => `${k}: ${v}`).join(' • ')}
+                                            </Text>
+                                        </View>
+                                    )}
+
+                                    <View style={styles.footerRow}>
+                                        <View style={styles.actorContainer}>
+                                            <View style={styles.actorAvatar}>
+                                                <Text style={styles.actorInitial}>{getActorName(item).charAt(0).toUpperCase()}</Text>
+                                            </View>
+                                            <Text style={styles.adminName}>By {getActorName(item)}</Text>
+                                        </View>
+                                        <TouchableOpacity style={styles.detailBtn}>
+                                            <Feather name="more-horizontal" size={16} color="#94A3B8" />
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-                    )}
+                        );
+                    }}
                     ListEmptyComponent={
-                        <View style={styles.center}>
-                            <Ionicons name="document-text-outline" size={50} color="#CBD5E1" />
-                            <Text style={styles.emptyText}>No audit logs found</Text>
+                        <View style={styles.emptyState}>
+                            <MaterialCommunityIcons name="clipboard-text-search-outline" size={60} color="#CBD5E1" />
+                            <Text style={styles.emptyTitle}>No Records Found</Text>
+                            <Text style={styles.emptySubtitle}>Adjust your search to find specific logs.</Text>
                         </View>
                     }
                 />
             )}
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
-    center: { alignItems: 'center', paddingTop: 60 },
-    emptyText: { marginTop: 12, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-    header: { paddingHorizontal: 20, paddingVertical: 16, paddingTop: 20 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    backBtn: { padding: 8, backgroundColor: '#FFF', borderRadius: 12, elevation: 1 },
-    headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-    headerLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#FFF', letterSpacing: 1, marginBottom: 4 },
-    headerIconBtn: { padding: 8 },
-    searchSection: { paddingHorizontal: 20, marginBottom: 10 },
-    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 15, height: 50, borderRadius: 15, borderWidth: 1, borderColor: '#E2E8F0' },
-    searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 13 },
-    logCard: { flexDirection: 'row', marginBottom: 5 },
-    logTimeline: { alignItems: 'center', marginRight: 15, width: 20 },
-    dot: { width: 10, height: 10, borderRadius: 5, marginTop: 5, zIndex: 2 },
-    line: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginTop: -5 },
-    logContent: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 20, marginBottom: 20, elevation: 1, borderWidth: 1, borderColor: '#F1F5F9' },
-    logHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    actionTag: { fontSize: 10, fontFamily: 'Montserrat-Bold' },
-    logDate: { fontSize: 11, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-    logTarget: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
-    logNote: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium', marginTop: 4, lineHeight: 18 },
-    adminBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10, backgroundColor: '#F8FAFC', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, alignSelf: 'flex-start' },
-    adminName: { fontSize: 10, color: '#64748B', fontFamily: 'Montserrat-SemiBold' }
-});
+    watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.04 },
+    fadedLogo: { width: 300, height: 300, resizeMode: 'contain' },
+    
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-   
+    header: { paddingBottom: 35, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, elevation: 12 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 },
+    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+    headerTitleContainer: { alignItems: 'center' },
+    headerLabel: { color: '#A3E635', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 1.5 },
+    headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+    headerIconBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+
+    searchContainer: { paddingHorizontal: 20, marginTop: 25 },
+    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 15, height: 52, borderRadius: 16, elevation: 5, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 10 },
+    searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', color: '#0F172A', fontSize: 14 },
+
+    listContent: { padding: 20, paddingTop: 10, paddingBottom: 60 },
+    
+    logWrapper: { flexDirection: 'row' },
+    timelineContainer: { width: 30, alignItems: 'center' },
+    timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 25, zIndex: 2, borderWidth: 2, borderColor: '#FFF' },
+    timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginVertical: -10 },
+
+    logCard: { flex: 1, backgroundColor: '#FFF', padding: 18, borderRadius: 24, marginBottom: 20, elevation: 2, shadowColor: '#000', shadowOpacity: 0.03, borderWidth: 1, borderColor: '#F1F5F9' },
+    logCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    actionBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, gap: 5 },
+    actionTag: { fontSize: 9, fontFamily: 'Montserrat-Bold' },
+    logDate: { fontSize: 11, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
+
+    logTarget: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
+    entityLabel: { color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-Medium' },
+
+    metadataBox: { backgroundColor: '#F8FAFC', padding: 12, borderRadius: 12, marginBottom: 15, borderLeftWidth: 3, borderLeftColor: '#E2E8F0' },
+    logNote: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium', lineHeight: 18 },
+
+    footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 12 },
+    actorContainer: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    actorAvatar: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
+    actorInitial: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
+    adminName: { fontSize: 11, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
+    detailBtn: { padding: 5 },
+
+    emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 80 },
+    emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#334155', marginTop: 15 },
+    emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 5, textAlign: 'center' }
+});
