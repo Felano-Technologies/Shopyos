@@ -5,6 +5,7 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const { emitToUser } = require('../config/socket');
 
 class NotificationService {
   constructor() {
@@ -44,9 +45,21 @@ class NotificationService {
         relatedType
       });
 
+      // Emit real-time in-app notification to the user via socket
+      try {
+        emitToUser(userId, 'notification:new', {
+          notification: dbNotification,
+          type,
+          title,
+          message
+        });
+      } catch (socketErr) {
+        logger.warn('Failed to emit real-time notification:', socketErr.message);
+      }
+
       // Get user preferences
       const preferences = await repositories.notifications.getUserPreferences(userId);
-      
+
       // Get user details for contact info
       const user = await repositories.users.findById(userId);
       if (!user) return;
@@ -166,8 +179,6 @@ class NotificationService {
    * @param {Object} pushData - { userId, title, body, data }
    */
   async sendPushNotification(pushData) {
-    // TODO: Integrate with Firebase Cloud Messaging (FCM) or OneSignal
-    // For now, just log the notification
     try {
       const expoPushService = require('./expoPushService');
       return await expoPushService.sendPushNotificationToUser(pushData.userId, pushData);
@@ -175,19 +186,6 @@ class NotificationService {
       logger.error('Failed to trigger Expo push service:', error);
       return false;
     }
-    
-    // Example FCM implementation:
-    // const message = {
-    //   notification: {
-    //     title: pushData.title,
-    //     body: pushData.body
-    //   },
-    //   data: pushData.data,
-    //   token: userDeviceToken
-    // };
-    // await admin.messaging().send(message);
-    
-    return true;
   }
 
   /**
@@ -227,6 +225,12 @@ class NotificationService {
       },
       sms: {
         text: `${message}. Track at: ${process.env.FRONTEND_URL}/orders/${order.id}`
+      },
+      push: {
+        data: {
+          screen: 'order',
+          orderId: order.id
+        }
       }
     });
   }
@@ -259,6 +263,12 @@ class NotificationService {
       relatedType: 'delivery',
       sms: {
         text: message
+      },
+      push: {
+        data: {
+          screen: 'order',
+          deliveryId: delivery.id
+        }
       }
     });
   }
@@ -280,7 +290,13 @@ class NotificationService {
       message: preview,
       data: { senderId: sender.id, senderName: sender.full_name },
       relatedId: sender.id,
-      relatedType: 'user'
+      relatedType: 'user',
+      push: {
+        data: {
+          screen: 'messages',
+          senderId: sender.id
+        }
+      }
     });
   }
 
@@ -301,7 +317,13 @@ class NotificationService {
       message,
       data: { reviewId: review.id, rating: review.rating },
       relatedId: review.id,
-      relatedType: 'review'
+      relatedType: 'review',
+      push: {
+        data: {
+          screen: 'reviews',
+          reviewId: review.id
+        }
+      }
     });
   }
 }

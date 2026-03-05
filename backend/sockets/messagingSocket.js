@@ -139,10 +139,19 @@ function registerMessagingHandlers(io) {
               type: 'new_message',
               title: `New message from ${senderName}`,
               message: content.substring(0, 100),
+              relatedId: conversationId,
+              relatedType: 'conversation',
               data: {
                 conversationId,
                 messageId: message.id,
                 senderId: userId
+              },
+              push: {
+                data: {
+                  screen: 'messages',
+                  conversationId,
+                  messageId: message.id
+                }
               }
             });
           }

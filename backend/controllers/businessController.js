@@ -684,7 +684,7 @@ const getBusinessAnalytics = async (req, res, next) => {
 
     // Fetch Orders in Range
     // Note: In a real production app, use DB aggregation. For now, we fetch and aggregate in JS.
-    const orders = await repositories.orders.findAll({
+    const ordersResult = await repositories.orders.findAll({
       where: {
         store_id: businessId,
         // created_at: { gte: startDate.toISOString() } // BaseRepo might not support complex filtered queries directly without customQuery
@@ -693,6 +693,7 @@ const getBusinessAnalytics = async (req, res, next) => {
       limit: 1000
     });
 
+    const orders = ordersResult?.data || [];
     const filteredOrders = orders.filter(o => new Date(o.created_at) >= startDate);
 
     // Aggregate Data

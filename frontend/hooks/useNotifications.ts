@@ -1,8 +1,41 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
+import { socketService } from '@/services/socket';
 
 export const useNotifications = () => {
+  const queryClient = useQueryClient();
+
+  // Listen for real-time notification events via socket
+  useEffect(() => {
+    let mounted = true;
+
+    const handleNewNotification = (data: any) => {
+      if (!mounted) return;
+      // Invalidate both notifications list and unread count so they refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+    };
+
+    // Connect socket and listen for notification:new events
+    socketService.connect()
+      .then((socket) => {
+        socket.on('notification:new', handleNewNotification);
+      })
+      .catch((err) => {
+        console.warn('Failed to connect socket for notifications:', err.message);
+      });
+
+    return () => {
+      mounted = false;
+      const socket = socketService.getSocket();
+      if (socket) {
+        socket.off('notification:new', handleNewNotification);
+      }
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: queryKeys.notifications.list(),
     queryFn: async () => {
@@ -15,6 +48,34 @@ export const useNotifications = () => {
 };
 
 export const useUnreadNotificationCount = () => {
+  const queryClient = useQueryClient();
+
+  // Listen for real-time notification events via socket
+  useEffect(() => {
+    let mounted = true;
+
+    const handleNewNotification = (data: any) => {
+      if (!mounted) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+    };
+
+    socketService.connect()
+      .then((socket) => {
+        socket.on('notification:new', handleNewNotification);
+      })
+      .catch((err) => {
+        console.warn('Failed to connect socket for unread count:', err.message);
+      });
+
+    return () => {
+      mounted = false;
+      const socket = socketService.getSocket();
+      if (socket) {
+        socket.off('notification:new', handleNewNotification);
+      }
+    };
+  }, [queryClient]);
+
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: async () => {
@@ -28,7 +89,7 @@ export const useUnreadNotificationCount = () => {
 
 export const useMarkNotificationRead = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async (notificationId: string) => {
       return await ApiService.markNotificationRead(notificationId);
@@ -43,7 +104,7 @@ export const useMarkNotificationRead = () => {
 
 export const useMarkAllNotificationsRead = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async () => {
       return await ApiService.markAllNotificationsRead();
