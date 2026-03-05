@@ -12,6 +12,8 @@ import { ChatProvider } from './context/ChatContext';
 import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
+import { useUnreadNotificationCount } from '../hooks/useNotifications';
+import Toast from 'react-native-toast-message';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
@@ -34,6 +36,9 @@ function AppContent() {
   // Apply Background Tasks Hook globally (manages driver location tracking)
   // This needs to be inside QueryProvider context
   useBackgroundTasks();
+
+  // Listen for socket events and show root-level Toast popups globally
+  useUnreadNotificationCount();
 
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const screenBg = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
@@ -65,19 +70,19 @@ function AppContent() {
     '/business/products',
     '/business/settings',
     '/business/notifications',
-  ].includes(pathname); 
+  ].includes(pathname);
 
   return (
     <CartProvider>
       <ChatProvider>
         <ThemeProvider value={navTheme}>
-            <View style={[styles.container, { backgroundColor: screenBg }]}>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  animation: 'slide_from_right',
-                }}
-              >
+          <View style={[styles.container, { backgroundColor: screenBg }]}>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            >
               {/* --- MAIN CUSTOMER SCREENS --- */}
               <Stack.Screen name="index" options={{ animation: 'fade' }} />
               <Stack.Screen name="home" options={{ animation: 'none' }} />
@@ -168,6 +173,7 @@ function AppContent() {
             {isBusinessRoute && showBusinessNav && <BusinessBottomNav />}
 
             <StatusBar style="auto" />
+            <Toast topOffset={50} visibilityTime={4000} />
           </View>
         </ThemeProvider>
       </ChatProvider>

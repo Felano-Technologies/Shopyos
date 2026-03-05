@@ -3,9 +3,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
+import Toast from 'react-native-toast-message';
+import { useRouter, usePathname } from 'expo-router';
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // Listen for real-time notification events via socket
   useEffect(() => {
@@ -49,6 +53,8 @@ export const useNotifications = () => {
 
 export const useUnreadNotificationCount = () => {
   const queryClient = useQueryClient();
+  const router = useRouter();
+  const pathname = usePathname();
 
   // Listen for real-time notification events via socket
   useEffect(() => {
@@ -57,6 +63,19 @@ export const useUnreadNotificationCount = () => {
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
+
+      if (pathname !== '/notification' && data?.title && data?.message) {
+        Toast.show({
+          type: 'success', // generic green toast
+          text1: data.title,
+          text2: data.message,
+          position: 'top',
+          onPress: () => {
+            router.push('/notification');
+            Toast.hide();
+          }
+        });
+      }
     };
 
     socketService.connect()

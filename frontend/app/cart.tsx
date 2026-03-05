@@ -120,7 +120,7 @@ export default function CartScreen() {
       if (res.success) {
         closeModal();
         clearCart();
-        await clearBackendCart().catch(() => {});
+        await clearBackendCart().catch(() => { });
         const orderId = res.orders[0].id;
 
         if (paymentMethodType === 'cod') {
@@ -297,7 +297,6 @@ export default function CartScreen() {
           </Animated.View>
         </View>
       </Modal>
-      <Toast />
     </View>
   );
 }

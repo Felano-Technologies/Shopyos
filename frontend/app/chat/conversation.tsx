@@ -582,8 +582,6 @@ export default function ConversationScreen() {
           </View>
         </Pressable>
       </Modal>
-
-      <Toast />
     </View>
   );
 }

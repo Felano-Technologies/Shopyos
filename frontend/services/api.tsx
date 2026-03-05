@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { queryClient } from '@/lib/query/client';
+import { socketService } from './socket';
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
@@ -299,6 +300,8 @@ export const logoutUser = async () => {
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
     ]);
+    // Disconnect stale socket connection to prevent receiving previous user's events
+    socketService.disconnect();
   }
 };
 

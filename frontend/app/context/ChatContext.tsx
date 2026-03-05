@@ -1,7 +1,8 @@
-// context/ChatContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getConversations, sendMessage as apiSendMessage, markConversationRead, deleteConversation as apiDeleteConversation, storage } from '../../services/api';
 import { socketService } from '../../services/socket';
+import { usePathname, useGlobalSearchParams, useRouter } from 'expo-router';
+import Toast from 'react-native-toast-message';
 
 export type Message = {
   id: string;
@@ -39,6 +40,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [sellerConversations, setSellerChats] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const pathname = usePathname();
+  const searchParams = useGlobalSearchParams();
+  const router = useRouter();
 
   const fetchChats = async () => {
     try {
@@ -160,11 +164,36 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                   time: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 };
 
+                // Show Toast Notification if not currently viewing this conversation
+                if (!isMe) {
+                  const isViewingThisChat = pathname === '/chat/conversation' && searchParams?.conversationId === conversationId;
+                  if (!isViewingThisChat) {
+                    Toast.show({
+                      type: 'info',
+                      text1: conv.name,
+                      text2: message.content,
+                      position: 'top',
+                      onPress: () => {
+                        router.push({
+                          pathname: '/chat/conversation',
+                          params: {
+                            conversationId: conv.id,
+                            name: conv.name,
+                            avatar: conv.avatar,
+                            chatType: 'buyer' // Defaulting to buyer for now
+                          }
+                        });
+                        Toast.hide();
+                      }
+                    });
+                  }
+                }
+
                 return {
                   ...conv,
                   lastMessage: message.content,
                   time: newMsg.time,
-                  unread: isMe ? conv.unread : conv.unread + 1,
+                  unread: isMe ? conv.unread : (pathname === '/chat/conversation' && searchParams?.conversationId === conversationId ? conv.unread : conv.unread + 1),
                   messages: [...(conv.messages || []), newMsg]
                 };
               }
