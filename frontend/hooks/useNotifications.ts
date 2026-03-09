@@ -5,6 +5,8 @@ import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
 import Toast from 'react-native-toast-message';
 import { useRouter, usePathname } from 'expo-router';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
@@ -65,6 +67,18 @@ export const useUnreadNotificationCount = () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
 
       if (pathname !== '/notification' && data?.title && data?.message) {
+        // Play haptic feedback and notification sound
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        Audio.Sound.createAsync(require('@/assets/sounds/notification.mp3'), { shouldPlay: true })
+          .then(({ sound }) => {
+            sound.setOnPlaybackStatusUpdate((status) => {
+              if (status.isLoaded && status.didJustFinish) {
+                sound.unloadAsync(); // clean up memory
+              }
+            });
+          })
+          .catch((err) => console.warn('Failed to play notification sound:', err));
+
         Toast.show({
           type: 'success', // generic green toast
           text1: data.title,

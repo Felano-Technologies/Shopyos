@@ -4,6 +4,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -61,30 +62,47 @@ export default function Home() {
     }
   }, [recentProducts]);
 
-  // Fetch location
+  // ── Location: read cache immediately, then subscribe to live position updates
   useEffect(() => {
+    let subscription: Location.LocationSubscription | null = null;
+
     (async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          setLocationText('Permission denied');
-          return;
-        }
-        const { coords: { latitude, longitude } } = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
-        const [reverseInfo] = await Location.reverseGeocodeAsync({ latitude, longitude });
-        if (reverseInfo) {
-          const { city, region, country } = reverseInfo;
-          const cityPart = city ?? region ?? country ?? 'Unknown';
-          const countryPart = country ?? region ?? '';
-          setLocationText(`${cityPart}${countryPart ? `, ${countryPart}` : ''}`);
-        } else {
-          setLocationText('Unknown Location');
-        }
-      } catch (e) {
-        console.warn('Location error:', e);
-        setLocationText('Location error');
+      // 1. Show the cached text right away (written by the geofence background task)
+      const cached = await AsyncStorage.getItem('CACHED_LOCATION_TEXT');
+      if (cached) setLocationText(cached);
+
+      // 2. Request foreground permission
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        if (!cached) setLocationText('Permission denied');
+        return;
       }
+
+      // 3. Subscribe to live position updates (updates whenever the user moves ≥ 100 m)
+      subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          distanceInterval: 100,   // fire after 100 m movement
+          timeInterval: 60_000,    // or every 60 s at most
+        },
+        async ({ coords: { latitude, longitude } }) => {
+          try {
+            const [reverseInfo] = await Location.reverseGeocodeAsync({ latitude, longitude });
+            if (reverseInfo) {
+              const { city, region, country } = reverseInfo;
+              const text = `${city ?? region ?? country ?? 'Unknown'}${country ? `, ${country}` : ''}`;
+              setLocationText(text);
+              // Keep the cache fresh so next mount is instant
+              await AsyncStorage.setItem('CACHED_LOCATION_TEXT', text);
+            }
+          } catch {
+            // Ignore reverse-geocode errors silently
+          }
+        }
+      );
     })();
+
+    return () => { subscription?.remove(); };
   }, []);
 
   const onRefresh = async () => {

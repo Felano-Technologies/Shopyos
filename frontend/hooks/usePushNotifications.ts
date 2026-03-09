@@ -51,7 +51,7 @@ export function usePushNotifications() {
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
             const data = response.notification.request.content.data;
             if (data?.screen === 'messages') {
-                // Example deep linking to Chat
+                // Deep link to Chat
                 if (data.conversationId) {
                     router.push(`/chat/conversation?id=${data.conversationId}`);
                 } else {
@@ -59,6 +59,9 @@ export function usePushNotifications() {
                 }
             } else if (data?.screen === 'order') {
                 router.push(`/order/${data.orderId}`);
+            } else if (data?.screen === 'store' && data.storeId) {
+                // Proximity notification tapped → open the store
+                router.push({ pathname: '/stores/details', params: { id: String(data.storeId) } });
             } else {
                 router.push('/notification');
             }

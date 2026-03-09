@@ -7,194 +7,232 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { storage } from '../../services/api';
-import { TASK_DRIVER_LOCATION } from './taskNames';
-import { flushQueue, clearQueue } from './queue';
+import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE } from './taskNames';
+import { flushQueue } from './queue';
 
 export interface UserState {
   role?: string;
   activeDeliveryId?: string | null;
   shareLiveLocation?: boolean;
+  /** true for ANY logged-in user; false / undefined on logout */
+  isAuthenticated?: boolean;
 }
 
-/**
- * Check if background location tracking is currently running
- */
+// ─── Driver delivery tracking ─────────────────────────────────────────────────
+
 export const isTrackingLocation = async (): Promise<boolean> => {
   try {
     return await TaskManager.isTaskRegisteredAsync(TASK_DRIVER_LOCATION);
-  } catch (error) {
-    console.error('[TaskController] Error checking tracking status:', error);
-    return false;
-  }
+  } catch { return false; }
 };
 
-/**
- * Start driver background location tracking
- * Only starts if all conditions are met:
- * - User is a driver
- * - Has an active delivery
- * - Has enabled location sharing
- * - Has granted location permissions
- */
 export const startDriverLocationTracking = async (
   deliveryId: string
 ): Promise<{ success: boolean; message: string }> => {
   try {
-    console.log('[TaskController] Starting driver location tracking for delivery:', deliveryId);
+    if (await isTrackingLocation()) return { success: true, message: 'Already tracking' };
 
-    // Check if already tracking
-    const isTracking = await isTrackingLocation();
-    if (isTracking) {
-      console.log('[TaskController] Already tracking location');
-      return { success: true, message: 'Already tracking location' };
-    }
+    const { status: fg } = await Location.getForegroundPermissionsAsync();
+    if (fg !== 'granted') return { success: false, message: 'Foreground permission not granted' };
 
-    // Check location permissions
-    const { status: foregroundStatus } = await Location.getForegroundPermissionsAsync();
-    if (foregroundStatus !== 'granted') {
-      return { success: false, message: 'Foreground location permission not granted' };
-    }
+    const { status: bg } = await Location.getBackgroundPermissionsAsync();
+    if (bg !== 'granted') return { success: false, message: 'Background permission not granted' };
 
-    const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
-    if (backgroundStatus !== 'granted') {
-      return { success: false, message: 'Background location permission not granted' };
-    }
-
-    // Store active delivery ID for the background task
     await AsyncStorage.setItem('activeDeliveryId', deliveryId);
 
-    // Start location updates with battery-friendly configuration
     await Location.startLocationUpdatesAsync(TASK_DRIVER_LOCATION, {
-      accuracy: Location.Accuracy.Balanced, // Balance between accuracy and battery
-      distanceInterval: 100, // Update every 100 meters
-      timeInterval: 30000, // Or every 30 seconds, whichever comes first
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 100,
+      timeInterval: 30_000,
       foregroundService: {
         notificationTitle: 'Active Delivery',
         notificationBody: 'Tracking your location for real-time delivery updates',
         notificationColor: '#0C1559',
       },
-      pausesUpdatesAutomatically: false, // Keep tracking even when stationary
-      showsBackgroundLocationIndicator: true, // iOS: show blue bar
+      pausesUpdatesAutomatically: false,
+      showsBackgroundLocationIndicator: true,
     });
 
-    console.log('[TaskController] Location tracking started successfully');
+    console.log('[TaskController] Driver location tracking started');
     return { success: true, message: 'Location tracking started' };
   } catch (error: any) {
-    console.error('[TaskController] Failed to start location tracking:', error);
+    console.error('[TaskController] Failed to start driver tracking:', error);
     return { success: false, message: error.message || 'Failed to start tracking' };
   }
 };
 
-/**
- * Stop driver background location tracking
- */
 export const stopDriverLocationTracking = async (): Promise<void> => {
   try {
-    console.log('[TaskController] Stopping driver location tracking');
-
-    const isTracking = await isTrackingLocation();
-    if (isTracking) {
+    if (await isTrackingLocation()) {
       await Location.stopLocationUpdatesAsync(TASK_DRIVER_LOCATION);
-      console.log('[TaskController] Location tracking stopped');
+      console.log('[TaskController] Driver location tracking stopped');
     }
-
-    // Clear active delivery ID
     await AsyncStorage.removeItem('activeDeliveryId');
-
-    // Try to flush any queued locations one last time
     await flushQueue();
   } catch (error) {
-    console.error('[TaskController] Error stopping location tracking:', error);
+    console.error('[TaskController] Error stopping driver tracking:', error);
   }
 };
 
+// ─── Geofence / proximity tracking (all authenticated users) ─────────────────
+
+export const isGeofenceRunning = async (): Promise<boolean> => {
+  try {
+    return await TaskManager.isTaskRegisteredAsync(TASK_LOCATION_GEOFENCE);
+  } catch { return false; }
+};
+
 /**
- * Request all required location permissions
- * Shows system prompts if not already granted
+ * Start the geofence / proximity task for any authenticated user.
+ * Caches reverse-geocoded location text and fires store proximity notifications.
+ * Battery-friendly: 50m / 60s interval.
+ *
+ * NOTE: Requires a dev/production build with UIBackgroundModes=location.
+ * Returns { success: false, isExpoGo: true } when running inside Expo Go so
+ * callers can fall back to foreground-only tracking.
  */
+export const startGeofenceTracking = async (): Promise<{ success: boolean; message: string; isExpoGo?: boolean }> => {
+  try {
+    if (await isGeofenceRunning()) return { success: true, message: 'Already running' };
+
+    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+    if (fg !== 'granted') return { success: false, message: 'Foreground location permission denied' };
+
+    // Best-effort background permission (task still works foreground-only if denied)
+    const { status: bg } = await Location.getBackgroundPermissionsAsync();
+    if (bg !== 'granted') {
+      await Location.requestBackgroundPermissionsAsync().catch(() => {});
+    }
+
+    await Location.startLocationUpdatesAsync(TASK_LOCATION_GEOFENCE, {
+      accuracy: Location.Accuracy.Balanced,
+      distanceInterval: 50,   // 50 m minimum movement before next update
+      timeInterval: 60_000,   // 60 s maximum interval
+      foregroundService: {
+        notificationTitle: 'Shopyos',
+        notificationBody: 'Finding nearby stores for you…',
+        notificationColor: '#84cc16',
+      },
+      showsBackgroundLocationIndicator: false,
+      pausesUpdatesAutomatically: true, // iOS: pause when stationary (saves battery)
+    });
+
+    console.log('[TaskController] Geofence tracking started');
+    return { success: true, message: 'Geofence tracking started' };
+  } catch (error: any) {
+    const msg: string = error?.message ?? '';
+
+    // Expo Go (and any build without UIBackgroundModes=location) throws this specific error.
+    // Return a typed result so the caller can gracefully fall back to foreground polling.
+    if (
+      msg.includes('Background location has not been configured') ||
+      msg.includes('UIBackgroundModes') ||
+      msg.includes('BACKGROUND_LOCATION')
+    ) {
+      console.warn(
+        '[TaskController] Background location unavailable (Expo Go or missing native config). ' +
+        'Falling back to foreground-only tracking.'
+      );
+      return { success: false, message: msg, isExpoGo: true };
+    }
+
+    console.error('[TaskController] Failed to start geofence tracking:', error);
+    return { success: false, message: msg || 'Failed to start geofence' };
+  }
+};
+
+export const stopGeofenceTracking = async (): Promise<void> => {
+  try {
+    if (await isGeofenceRunning()) {
+      await Location.stopLocationUpdatesAsync(TASK_LOCATION_GEOFENCE);
+      console.log('[TaskController] Geofence tracking stopped');
+    }
+  } catch (error) {
+    console.error('[TaskController] Error stopping geofence tracking:', error);
+  }
+};
+
+// ─── Permissions ──────────────────────────────────────────────────────────────
+
 export const requestLocationPermissions = async (): Promise<{
   foreground: boolean;
   background: boolean;
 }> => {
   try {
-    // Request foreground first
-    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    const foregroundGranted = foregroundStatus === 'granted';
+    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+    if (fg !== 'granted') return { foreground: false, background: false };
 
-    if (!foregroundGranted) {
-      return { foreground: false, background: false };
-    }
-
-    // Then request background (only if foreground is granted)
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-    const backgroundGranted = backgroundStatus === 'granted';
-
-    return { foreground: foregroundGranted, background: backgroundGranted };
-  } catch (error) {
-    console.error('[TaskController] Error requesting permissions:', error);
+    const { status: bg } = await Location.requestBackgroundPermissionsAsync();
+    return { foreground: true, background: bg === 'granted' };
+  } catch {
     return { foreground: false, background: false };
   }
 };
 
-/**
- * Get location sharing preference from storage
- */
+// ─── Preferences ─────────────────────────────────────────────────────────────
+
 export const getLocationSharingPreference = async (): Promise<boolean> => {
   try {
-    const value = await storage.getItem('shareLiveLocation');
-    return value === 'true';
-  } catch (error) {
-    console.error('[TaskController] Error getting location sharing preference:', error);
-    return false;
-  }
+    return (await storage.getItem('shareLiveLocation')) === 'true';
+  } catch { return false; }
 };
 
-/**
- * Set location sharing preference in storage
- */
 export const setLocationSharingPreference = async (enabled: boolean): Promise<void> => {
   try {
     await storage.setItem('shareLiveLocation', enabled ? 'true' : 'false');
-    console.log('[TaskController] Location sharing preference set to:', enabled);
   } catch (error) {
     console.error('[TaskController] Error setting location sharing preference:', error);
   }
 };
 
+// ─── Main orchestrator ────────────────────────────────────────────────────────
+
 /**
- * Main function to ensure background tasks are in the correct state
- * Call this whenever user state changes (login, logout, role change, delivery start/end)
+ * Ensures background tasks are in the correct state for the current user.
+ * Call on login, logout, role change, and delivery start/end.
+ *
+ *  • TASK_LOCATION_GEOFENCE → managed by the hook directly (startGeofenceTracking is called
+ *                             before this function, so we only handle stop-on-logout here)
+ *  • TASK_DRIVER_LOCATION   → starts only for drivers with an active delivery + sharing on
+ *
+ * @param userState  current user state
+ * @param skipGeofence  when true, skip starting geofence (hook already started/failed it)
  */
-export const ensureBackgroundTasksForUser = async (userState: UserState): Promise<void> => {
+export const ensureBackgroundTasksForUser = async (
+  userState: UserState,
+  skipGeofence = false,
+): Promise<void> => {
   try {
-    console.log('[TaskController] Ensuring background tasks for user state:', userState);
+    console.log('[TaskController] Ensuring tasks for state:', userState);
 
-    const { role, activeDeliveryId, shareLiveLocation } = userState;
+    const { role, activeDeliveryId, shareLiveLocation, isAuthenticated } = userState;
 
-    // Check if user is a driver
-    const isDriver = role?.toLowerCase() === 'driver';
-
-    // Check if should be tracking
-    const shouldTrack =
-      isDriver &&
-      !!activeDeliveryId &&
-      shareLiveLocation === true;
-
-    const isCurrentlyTracking = await isTrackingLocation();
-
-    if (shouldTrack && !isCurrentlyTracking) {
-      // Need to start tracking
-      console.log('[TaskController] Should start tracking');
-      const result = await startDriverLocationTracking(activeDeliveryId!);
-      if (!result.success) {
-        console.warn('[TaskController] Failed to start tracking:', result.message);
+    // ── Geofence (all users) ─────────────────────────────────────────────────
+    if (!skipGeofence) {
+      const geofenceRunning = await isGeofenceRunning();
+      if (isAuthenticated && !geofenceRunning) {
+        const res = await startGeofenceTracking();
+        if (!res.success && !res.isExpoGo) {
+          console.warn('[TaskController] Geofence start failed:', res.message);
+        }
+      } else if (!isAuthenticated && (await isGeofenceRunning())) {
+        await stopGeofenceTracking();
       }
-    } else if (!shouldTrack && isCurrentlyTracking) {
-      // Need to stop tracking
-      console.log('[TaskController] Should stop tracking');
+    } else if (!isAuthenticated) {
+      // Even with skipGeofence, still stop it on logout
+      if (await isGeofenceRunning()) await stopGeofenceTracking();
+    }
+
+    // ── Driver delivery tracking ─────────────────────────────────────────────
+    const isDriver = role?.toLowerCase() === 'driver';
+    const shouldTrack = isDriver && !!activeDeliveryId && shareLiveLocation === true;
+    const isTracking = await isTrackingLocation();
+
+    if (shouldTrack && !isTracking) {
+      const res = await startDriverLocationTracking(activeDeliveryId!);
+      if (!res.success) console.warn('[TaskController] Driver tracking start failed:', res.message);
+    } else if (!shouldTrack && isTracking) {
       await stopDriverLocationTracking();
-    } else {
-      console.log('[TaskController] No action needed. Currently tracking:', isCurrentlyTracking, 'Should track:', shouldTrack);
     }
   } catch (error) {
     console.error('[TaskController] Error in ensureBackgroundTasksForUser:', error);

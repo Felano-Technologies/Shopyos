@@ -131,8 +131,12 @@ function registerMessagingHandlers(io) {
             : conversation.participant1_id;
 
           if (recipientId) {
-            const sender = await repositories.users.findById(userId);
-            const senderName = sender?.user_profiles?.[0]?.full_name || 'Someone';
+            // getUserWithProfile joins user_profiles — findById only returns the users table row
+            const sender = await repositories.users.getUserWithProfile(userId);
+            const senderName =
+              sender?.user_profiles?.full_name ||
+              sender?.user_profiles?.[0]?.full_name ||
+              'Someone';
 
             await notificationService.sendNotification({
               userId: recipientId,

@@ -68,9 +68,12 @@ export const categoriesApi = {
 };
 
 export const ordersApi = {
-  getAll: async (status?: string, limit = 20, offset = 0) => {
+  getAll: async (status?: string, limit = 10, offset = 0) => {
     const response = await ApiService.getMyOrders({ status, limit, offset });
-    return response.orders || [];
+    return {
+      orders: response.data || response.orders || [],
+      pagination: response.pagination || null,
+    };
   },
   
   getById: async (id: string) => {
