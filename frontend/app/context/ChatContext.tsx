@@ -180,7 +180,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                             conversationId: conv.id,
                             name: conv.name,
                             avatar: conv.avatar,
-                            chatType: 'buyer' // Defaulting to buyer for now
+                            chatType: conv.otherParticipant?.store ? 'buyer' : 'seller' // Dynamic assignment
                           }
                         });
                         Toast.hide();

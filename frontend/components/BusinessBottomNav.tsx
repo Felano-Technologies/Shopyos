@@ -3,7 +3,8 @@ import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, 
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getBusinessDashboard, getConversations, storage } from '@/services/api';
+import { getBusinessDashboard, storage } from '@/services/api';
+import { useChat } from '../app/context/ChatContext';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -15,10 +16,13 @@ const { width } = Dimensions.get('window');
 const BusinessBottomNav = () => {
   const pathname = usePathname();
   const [orderCount, setOrderCount] = useState(0); // Default to 0
-  const [chatCount, setChatCount] = useState(0);
+  const { sellerConversations } = useChat();
+
+  // Calculate total unread messages from seller chats
+  const chatCount = sellerConversations ? sellerConversations.reduce((acc: number, c: any) => acc + (c.unread || 0), 0) : 0;
 
   useEffect(() => {
-    // Fetch real stats
+    // Fetch real stats (Orders)
     const fetchCounts = async () => {
       try {
         const businessId = await storage.getItem('currentBusinessId');
@@ -27,17 +31,6 @@ const BusinessBottomNav = () => {
           const dashResp = await getBusinessDashboard(businessId);
           if (dashResp.success && dashResp.data?.stats) {
             setOrderCount(dashResp.data.stats.pendingOrders || 0);
-          }
-
-          // Fetch chat count
-          try {
-            const chatResp = await getConversations();
-            if (chatResp.success && chatResp.conversations) {
-              const unreadTotal = chatResp.conversations.reduce((acc: number, c: any) => acc + (c.unreadCount || 0), 0);
-              setChatCount(unreadTotal);
-            }
-          } catch (chatErr) {
-            console.error('Error fetching chats:', chatErr);
           }
         }
       } catch (error) {

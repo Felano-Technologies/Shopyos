@@ -45,6 +45,9 @@ export const useNotifications = () => {
   return useQuery({
     queryKey: queryKeys.notifications.list(),
     queryFn: async () => {
+      const token = await ApiService.storage.getItem('userToken');
+      if (!token) return { notifications: [], totalPages: 0, currentPage: 1 };
+      
       const response = await ApiService.getNotifications();
       return response;
     },
@@ -112,6 +115,9 @@ export const useUnreadNotificationCount = () => {
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: async () => {
+      const token = await ApiService.storage.getItem('userToken');
+      if (!token) return { unreadCount: 0 };
+
       const response = await ApiService.getUnreadNotificationCount();
       return response;
     },

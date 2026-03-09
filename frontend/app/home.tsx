@@ -11,17 +11,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
+import { useChat } from './context/ChatContext';
 
 const { width } = Dimensions.get('window');
 
 export default function Home() {
   const router = useRouter();
+  const colorScheme = useColorScheme();
 
   const [locationText, setLocationText] = useState<'Locating…' | string>('Locating…');
   const [selectedCat, setSelectedCat] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [animationValues, setAnimationValues] = useState<Animated.Value[]>([]);
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // Get chat context to calculate unread messages total
+  const { buyerConversations } = useChat();
+  const unreadMessagesCount = buyerConversations?.reduce((acc: number, chat: any) => acc + (chat.unread || 0), 0) || 0;
 
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
@@ -393,7 +399,11 @@ export default function Home() {
             style={styles.floatingGradient}
           >
             <MaterialCommunityIcons name="chat-processing" size={28} color="#FFF" />
-            <View style={styles.unreadChatDot} />
+            {unreadMessagesCount > 0 && (
+              <View style={styles.unreadChatDot}>
+                <Text style={styles.unreadChatText}>{unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}</Text>
+              </View>
+            )}
           </LinearGradient>
         </TouchableOpacity>
 
@@ -513,13 +523,21 @@ const styles = StyleSheet.create({
   },
   unreadChatDot: {
     position: 'absolute',
-    top: 14,
-    right: 14,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#84cc16',
+    top: -2,
+    right: -2,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#ff0101ff',
     borderWidth: 1.5,
     borderColor: '#0C1559',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  unreadChatText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   }
 });
