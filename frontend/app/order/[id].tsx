@@ -17,6 +17,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
 import { getOrderDetails, cancelOrder } from '@/services/api';
+import { queryClient } from '@/lib/query/client';
+import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 
 const { width } = Dimensions.get('window');
@@ -75,8 +77,13 @@ const OrderDetailsScreen = () => {
                             setIsCancelling(true);
                             const res = await cancelOrder(id as string);
                             if (res.success) {
+                                // Refresh the detail view immediately
+                                await fetchOrder();
+                                // Bust the orders list cache so the cancellation
+                                // status badge is reflected right away on the list screen
+                                await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+                                await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
                                 Alert.alert("Success", "Order cancelled successfully");
-                                fetchOrder();
                             }
                         } catch (e: any) {
                             Alert.alert("Error", e.message || "Failed to cancel order");
