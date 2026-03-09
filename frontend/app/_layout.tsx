@@ -128,7 +128,7 @@ function AppContent() {
               <Stack.Screen name="business/notifications" />
               <Stack.Screen name="business/settings" />
               <Stack.Screen name="business/orderDetails" options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="business/Registration" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="business/businessRegistration" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/earnings" options={{ animation: 'slide_from_bottom' }} />
 
               {/* --- DRIVER SCREENS --- */}
@@ -149,8 +149,7 @@ function AppContent() {
 
 
               <Stack.Screen name="stores/details" />
-              <Stack.Screen name="stores/map" />
-              <Stack.Screen name="reviews/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
+              {/* stores/map and reviews/[id] removed — no matching files exist; add back when files are created */}
 
               {/* --- SETTINGS SUB-SCREENS --- */}
               <Stack.Screen name='settings/Account' />
