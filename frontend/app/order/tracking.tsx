@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
 
   // Status Section
   statusHeader: { marginBottom: 20 },
-  statusTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
+  statusTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
   statusSub: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 15 },
   progressBar: { height: 4, backgroundColor: '#F1F5F9', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#84cc16', borderRadius: 2 },

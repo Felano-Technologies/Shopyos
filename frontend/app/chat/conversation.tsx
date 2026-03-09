@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   getMessages,
   sendMessage as apiSendMessage,
@@ -64,29 +65,21 @@ export default function ConversationScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  // Context menu state
   const [selectedMessage, setSelectedMessage] = useState<MessageItem | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
-
-  // Reply state
   const [replyTo, setReplyTo] = useState<MessageItem | null>(null);
-
-  // More menu state
   const [moreMenuVisible, setMoreMenuVisible] = useState(false);
 
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
-  // Display info
   const displayName = name || 'Chat';
   const displayAvatar = avatar || 'https://ui-avatars.com/api/?name=S&background=0C1559&color=fff';
 
-  // Load userId on mount
   useEffect(() => {
     const loadUserId = async () => {
       let uid = await storage.getItem('userId');
       if (!uid) {
-        // Fallback: fetch from /auth/me and store it
         try {
           const { api: apiInstance } = require('../../services/api');
           const meResponse = await apiInstance.get('/auth/me');
@@ -103,45 +96,28 @@ export default function ConversationScreen() {
     loadUserId();
   }, []);
 
-  // Fetch messages
   useEffect(() => {
     if (conversationId && currentUserId) {
       fetchMessages(true);
-
-      // Mark as read
       markConversationRead(conversationId).catch(() => { });
     }
   }, [conversationId, currentUserId]);
 
-  // Socket.IO real-time messaging
   useEffect(() => {
     if (!conversationId) return;
-
     let isActive = true;
 
     const setupSocket = async () => {
       try {
-        // Connect socket and join conversation room
         await socketService.connect();
         await socketService.joinConversation(conversationId);
-        console.log('✅ Joined conversation room:', conversationId);
-
-        // Listen for new messages
+        
         const handleNewMessage = ({ message, conversationId: msgConvId }: any) => {
           if (msgConvId !== conversationId || !isActive) return;
-
-          console.log('📩 Real-time message received:', message);
-
-          // Dedupe and add message
           setMessages(prev => {
-            // Check if message already exists
-            if (prev.some(m => m.id === message.id)) {
-              return prev;
-            }
+            if (prev.some(m => m.id === message.id)) return prev;
             return [...prev, message];
           });
-
-          // Mark as read if from other person
           if (message.sender_id !== currentUserId) {
             socketService.markConversationRead(conversationId).catch(() => { });
           }
@@ -149,11 +125,9 @@ export default function ConversationScreen() {
 
         socketService.onNewMessage(handleNewMessage);
 
-        // On reconnection, refetch messages
         const socket = socketService.getSocket();
         if (socket) {
           socket.on('connect', () => {
-            console.log('🔄 Socket reconnected, refetching messages...');
             if (isActive) {
               fetchMessages(false);
               socketService.joinConversation(conversationId);
@@ -161,7 +135,7 @@ export default function ConversationScreen() {
           });
         }
       } catch (error) {
-        console.error('Failed to setup socket for conversation:', error);
+        console.error('Socket setup failed:', error);
       }
     };
 
@@ -179,15 +153,10 @@ export default function ConversationScreen() {
       if (showLoader) setLoading(true);
       const response = await getMessages(conversationId);
       if (response && response.messages) {
-        // API returns oldest first, which is what we want for standard chat (top to bottom)
         const sorted = response.messages;
         setMessages(sorted);
-
-        // If there are unread messages from the other person, mark as read
         const hasUnread = sorted.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
-        if (hasUnread) {
-          markConversationRead(conversationId).catch(() => { });
-        }
+        if (hasUnread) markConversationRead(conversationId).catch(() => { });
       }
     } catch (error) {
       console.error('Failed to load messages', error);
@@ -196,7 +165,6 @@ export default function ConversationScreen() {
     }
   };
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     if (messages.length > 0) {
       setTimeout(() => {
@@ -212,7 +180,6 @@ export default function ConversationScreen() {
     setText('');
     setSending(true);
 
-    // Optimistic update
     const tempId = `temp_${Date.now()}`;
     const optimisticMsg: MessageItem = {
       id: tempId,
@@ -224,7 +191,6 @@ export default function ConversationScreen() {
     setMessages(prev => [...prev, optimisticMsg]);
 
     try {
-      // Send via Socket.IO for instant delivery (fallback to REST)
       let sentMessage;
       if (socketService.isConnected()) {
         sentMessage = await socketService.sendMessage(conversationId, msgText);
@@ -233,18 +199,12 @@ export default function ConversationScreen() {
         sentMessage = response.message;
       }
 
-      // Replace optimistic message with real one (dedupe)
       setMessages(prev => {
         const filtered = prev.filter(m => m.id !== tempId);
-        // Check if real message already received via socket
-        if (filtered.some(m => m.id === sentMessage.id)) {
-          return filtered;
-        }
+        if (filtered.some(m => m.id === sentMessage.id)) return filtered;
         return [...filtered, { ...sentMessage, pending: false }];
       });
     } catch (error) {
-      console.error('Failed to send message', error);
-      // Remove optimistic message on failure
       setMessages(prev => prev.filter(m => m.id !== tempId));
       Toast.show({ type: 'error', text1: 'Send Failed', text2: 'Could not send message. Try again.' });
     } finally {
@@ -253,14 +213,12 @@ export default function ConversationScreen() {
     }
   };
 
-  // Long press on message
   const handleLongPress = (message: MessageItem) => {
     Vibration.vibrate(30);
     setSelectedMessage(message);
     setMenuVisible(true);
   };
 
-  // Context menu actions
   const handleReply = () => {
     if (!selectedMessage) return;
     setReplyTo(selectedMessage);
@@ -277,69 +235,47 @@ export default function ConversationScreen() {
 
   const handleDeleteMessage = () => {
     if (!selectedMessage) return;
-    const isMyMessage = selectedMessage.sender_id === currentUserId;
-
-    if (!isMyMessage) {
+    if (selectedMessage.sender_id !== currentUserId) {
       setMenuVisible(false);
       Toast.show({ type: 'error', text1: 'Cannot Delete', text2: 'You can only delete your own messages.' });
       return;
     }
 
     setMenuVisible(false);
-    Alert.alert(
-      'Delete Message',
-      'Are you sure you want to delete this message?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete', style: 'destructive', onPress: async () => {
-            try {
-              await apiDeleteMessage(selectedMessage.id);
-              setMessages(prev => prev.filter(m => m.id !== selectedMessage.id));
-              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Message removed.' });
-            } catch (error) {
-              Toast.show({ type: 'error', text1: 'Error', text2: 'Could not delete message.' });
-            }
+    Alert.alert('Delete Message', 'Are you sure you want to delete this message?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+          try {
+            await apiDeleteMessage(selectedMessage.id);
+            setMessages(prev => prev.filter(m => m.id !== selectedMessage.id));
+          } catch (error) {
+            Toast.show({ type: 'error', text1: 'Error', text2: 'Could not delete message.' });
           }
         }
-      ]
-    );
+      }
+    ]);
   };
 
-  // More menu actions
   const handleClearChat = () => {
     setMoreMenuVisible(false);
-    Alert.alert(
-      'Delete Chat',
-      'This will permanently delete the conversation and all messages.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setMessages([]);
-            const success = await deleteConversation(conversationId, chatType as any);
-            if (success) {
-              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Chat has been deleted.' });
-              router.back();
-            } else {
-              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete chat.' });
-              // refresh messages if failed
-              fetchMessages(false);
-            }
+    Alert.alert('Delete Chat', 'This will permanently delete the conversation.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+          setMessages([]);
+          const success = await deleteConversation(conversationId, chatType as any);
+          if (success) {
+            router.back();
+          } else {
+            fetchMessages(false);
           }
         }
-      ]
-    );
+      }
+    ]);
   };
 
   const formatTime = (dateStr: string) => {
-    try {
-      return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
+    try { return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } 
+    catch { return ''; }
   };
 
   const formatDateSeparator = (dateStr: string) => {
@@ -368,96 +304,93 @@ export default function ConversationScreen() {
       <>
         {showDate && (
           <View style={styles.dateSeparator}>
-            <View style={styles.dateLine} />
-            <Text style={styles.dateText}>{formatDateSeparator(item.created_at)}</Text>
-            <View style={styles.dateLine} />
+            <View style={styles.datePill}>
+              <Text style={styles.dateText}>{formatDateSeparator(item.created_at)}</Text>
+            </View>
           </View>
         )}
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onLongPress={() => handleLongPress(item)}
-          delayLongPress={400}
-          style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}
-        >
-          {/* Show avatar for other person's messages */}
+        <View style={[styles.msgWrapper, isMe ? styles.wrapperMe : styles.wrapperThem]}>
           {!isMe && (
-            <Image
-              source={{ uri: displayAvatar }}
-              style={styles.msgAvatar}
-            />
+            <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
           )}
 
-          <View style={[styles.msgBubble, isMe ? styles.bubbleMe : styles.bubbleThem, item.pending && styles.bubblePending]}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onLongPress={() => handleLongPress(item)}
+            delayLongPress={300}
+            style={[styles.msgBubble, isMe ? styles.bubbleMe : styles.bubbleThem, item.pending && styles.bubblePending]}
+          >
             <Text style={[styles.msgText, isMe ? styles.textMe : styles.textThem]}>
               {item.content}
             </Text>
-
+            
             <View style={styles.metaContainer}>
-              <Text style={[styles.msgTime, isMe ? { color: 'rgba(255,255,255,0.6)' } : { color: '#94A3B8' }]}>
+              <Text style={[styles.msgTime, isMe ? styles.timeMe : styles.timeThem]}>
                 {formatTime(item.created_at)}
               </Text>
               {isMe && (
                 <Ionicons
-                  name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark-done'}
+                  name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
                   size={14}
-                  color={item.pending ? 'rgba(255,255,255,0.4)' : item.is_read ? '#34D399' : 'rgba(255,255,255,0.6)'}
-                  style={{ marginLeft: 4 }}
+                  color={item.pending ? 'rgba(255,255,255,0.5)' : item.is_read ? '#A3E635' : 'rgba(255,255,255,0.7)'}
+                  style={styles.readIcon}
                 />
               )}
             </View>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
       </>
     );
   };
 
   return (
     <View style={styles.container}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
 
-      {/* --- Header --- */}
-      <View style={[styles.header, { paddingTop: insets.top }]}>
+      {/* --- Premium Gradient Header --- */}
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerContent}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#0F172A" />
+            <Ionicons name="chevron-back" size={26} color="#FFF" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.avatarContainer} activeOpacity={0.8}>
-            <Image source={{ uri: displayAvatar }} style={styles.avatar} />
-            <View style={styles.onlineDotHeader} />
-          </TouchableOpacity>
-
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
-            <Text style={styles.headerStatus}>
-              {chatType === 'buyer' ? 'Store' : 'Customer'}
-            </Text>
+          <View style={styles.headerTitleGroup}>
+            <View style={styles.avatarContainer}>
+              <Image source={{ uri: displayAvatar }} style={styles.avatar} />
+              <View style={styles.onlineDotHeader} />
+            </View>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.headerStatus}>
+                {chatType === 'buyer' ? 'Official Store' : 'Customer'} • Online
+              </Text>
+            </View>
           </View>
 
           <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreMenuVisible(true)}>
-            <Feather name="more-vertical" size={22} color="#0F172A" />
+            <Feather name="more-horizontal" size={24} color="#FFF" />
           </TouchableOpacity>
         </View>
-      </View>
+      </LinearGradient>
 
       {/* --- Chat Area --- */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
       >
         <View style={styles.innerContainer}>
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#0C1559" />
-              <Text style={styles.loadingText}>Loading messages...</Text>
             </View>
           ) : messages.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <MaterialCommunityIcons name="chat-outline" size={64} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>Start the conversation!</Text>
-              <Text style={styles.emptySubtitle}>Send a message to begin chatting with {displayName}</Text>
+              <View style={styles.emptyIconCircle}>
+                 <MaterialCommunityIcons name="chat-processing-outline" size={48} color="#94A3B8" />
+              </View>
+              <Text style={styles.emptyTitle}>Start the conversation</Text>
+              <Text style={styles.emptySubtitle}>Say hello to {displayName} and make a deal!</Text>
             </View>
           ) : (
             <FlatList
@@ -467,41 +400,41 @@ export default function ConversationScreen() {
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
               renderItem={renderMessage}
-              onContentSizeChange={() => {
-                flatListRef.current?.scrollToEnd({ animated: false });
-              }}
+              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
             />
           )}
 
-          {/* Reply preview */}
-          {replyTo && (
-            <View style={styles.replyPreview}>
-              <View style={styles.replyBar} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.replyLabel}>Replying to</Text>
-                <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
+          {/* --- Floating Input Bar --- */}
+          <View style={[styles.inputSection, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+            
+            {/* Reply Attachment */}
+            {replyTo && (
+              <View style={styles.replyPreview}>
+                <View style={styles.replyBar} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.replyLabel}>Replying to {replyTo.sender_id === currentUserId ? 'yourself' : displayName}</Text>
+                  <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
+                </View>
+                <TouchableOpacity style={styles.closeReply} onPress={() => setReplyTo(null)}>
+                  <Ionicons name="close-circle" size={22} color="#94A3B8" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => setReplyTo(null)}>
-                <Ionicons name="close" size={20} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-          )}
+            )}
 
-          {/* --- Input Bar --- */}
-          <View style={[styles.inputContainer, { marginBottom: Platform.OS === 'ios' ? insets.bottom : 10 }]}>
-            <View style={styles.inputShadowWrapper}>
+            <View style={styles.inputPill}>
+              <TouchableOpacity style={styles.attachBtn}>
+                <Feather name="paperclip" size={20} color="#64748B" />
+              </TouchableOpacity>
+              
               <TextInput
                 ref={inputRef}
                 style={styles.input}
-                placeholder="Type a message..."
+                placeholder="Message..."
                 placeholderTextColor="#94A3B8"
                 value={text}
                 onChangeText={setText}
                 multiline
                 maxLength={1000}
-                returnKeyType="send"
-                blurOnSubmit={false}
-                onSubmitEditing={handleSend}
               />
 
               <TouchableOpacity
@@ -512,72 +445,55 @@ export default function ConversationScreen() {
                 {sending ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
-                  <Ionicons name="send" size={18} color="#FFF" style={{ marginLeft: 2 }} />
+                  <Ionicons name="send" size={16} color="#FFF" style={{ marginLeft: 3 }} />
                 )}
               </TouchableOpacity>
             </View>
           </View>
+
         </View>
       </KeyboardAvoidingView>
 
-      {/* --- Message Context Menu Modal --- */}
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMenuVisible(false)}
-      >
+      {/* --- Modals --- */}
+      <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
           <View style={styles.contextMenu}>
-            {/* Preview of selected message */}
             {selectedMessage && (
               <View style={styles.contextPreview}>
-                <Text style={styles.contextPreviewText} numberOfLines={2}>{selectedMessage.content}</Text>
+                <Text style={styles.contextPreviewText} numberOfLines={3}>{selectedMessage.content}</Text>
               </View>
             )}
-
             <TouchableOpacity style={styles.contextItem} onPress={handleReply}>
-              <Ionicons name="arrow-undo-outline" size={20} color="#0F172A" />
+              <Feather name="corner-up-left" size={18} color="#0F172A" />
               <Text style={styles.contextItemText}>Reply</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={styles.contextItem} onPress={handleCopy}>
-              <Ionicons name="copy-outline" size={20} color="#0F172A" />
-              <Text style={styles.contextItemText}>Copy</Text>
+              <Feather name="copy" size={18} color="#0F172A" />
+              <Text style={styles.contextItemText}>Copy Text</Text>
             </TouchableOpacity>
-
             {selectedMessage?.sender_id === currentUserId && (
               <TouchableOpacity style={[styles.contextItem, styles.contextItemDanger]} onPress={handleDeleteMessage}>
-                <Ionicons name="trash-outline" size={20} color="#EF4444" />
-                <Text style={[styles.contextItemText, { color: '#EF4444' }]}>Delete</Text>
+                <Feather name="trash-2" size={18} color="#EF4444" />
+                <Text style={[styles.contextItemText, { color: '#EF4444' }]}>Unsend</Text>
               </TouchableOpacity>
             )}
           </View>
         </Pressable>
       </Modal>
 
-      {/* --- More Menu Modal --- */}
-      <Modal
-        visible={moreMenuVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setMoreMenuVisible(false)}
-      >
+      <Modal visible={moreMenuVisible} transparent animationType="fade" onRequestClose={() => setMoreMenuVisible(false)}>
         <Pressable style={styles.modalOverlay} onPress={() => setMoreMenuVisible(false)}>
           <View style={[styles.moreMenu, { top: insets.top + 60 }]}>
             <TouchableOpacity style={styles.moreMenuItem} onPress={() => {
               setMoreMenuVisible(false);
-              markConversationRead(conversationId).then(() => {
-                Toast.show({ type: 'success', text1: 'Done', text2: 'Marked all as read' });
-              }).catch(() => { });
+              markConversationRead(conversationId);
             }}>
               <Ionicons name="checkmark-done-outline" size={20} color="#0F172A" />
               <Text style={styles.moreMenuText}>Mark as Read</Text>
             </TouchableOpacity>
-
             <TouchableOpacity style={[styles.moreMenuItem, styles.contextItemDanger]} onPress={handleClearChat}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              <Text style={[styles.moreMenuText, { color: '#EF4444' }]}>Clear Chat</Text>
+              <Ionicons name="trash-bin-outline" size={20} color="#EF4444" />
+              <Text style={[styles.moreMenuText, { color: '#EF4444' }]}>Delete Chat</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -587,349 +503,118 @@ export default function ConversationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F0F4FC',
-  },
-  innerContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
+  container: { flex: 1, backgroundColor: '#F4F7FB' },
+  innerContainer: { flex: 1, justifyContent: 'flex-end' },
 
-  // --- Header ---
+  // --- Premium Header ---
   header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    paddingBottom: 15,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingBottom: 20,
     shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 10,
     zIndex: 10,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 15,
     marginTop: 10,
   },
-  backBtn: {
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: '#F8FAFC',
-    marginRight: 12,
-  },
-  avatarContainer: {
-    position: 'relative',
-    marginRight: 12,
-  },
-  avatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#E2E8F0',
-    borderWidth: 2,
-    borderColor: '#FFF',
-  },
-  onlineDotHeader: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#22C55E',
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    borderWidth: 1.5,
-    borderColor: '#FFF',
-  },
-  headerTextContainer: {
-    flex: 1,
-  },
-  headerName: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-  },
-  headerStatus: {
-    fontSize: 12,
-    color: '#64748B',
-    fontFamily: 'Montserrat-Medium',
-  },
-  moreBtn: {
-    padding: 8,
-    borderRadius: 10,
-    backgroundColor: '#F8FAFC',
-  },
+  backBtn: { padding: 8 },
+  headerTitleGroup: { flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 5 },
+  avatarContainer: { position: 'relative', marginRight: 12 },
+  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0', borderWidth: 2, borderColor: '#FFF' },
+  onlineDotHeader: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#A3E635', position: 'absolute', bottom: 0, right: 0, borderWidth: 2, borderColor: '#0C1559' },
+  headerTextContainer: { flex: 1 },
+  headerName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  headerStatus: { fontSize: 11, color: '#CBD5E1', fontFamily: 'Montserrat-Medium', marginTop: 2 },
+  moreBtn: { padding: 8 },
 
-  // --- Chat List ---
-  listContent: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 10,
-  },
+  // --- List & States ---
+  listContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  emptyIconCircle: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
+  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
+  emptySubtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', lineHeight: 22 },
 
-  // Date separator
-  dateSeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 16,
-    paddingHorizontal: 10,
-  },
-  dateLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  dateText: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#94A3B8',
-    marginHorizontal: 12,
-    textTransform: 'uppercase',
-  },
+  // --- Bubbles & Timeline ---
+  dateSeparator: { alignItems: 'center', marginVertical: 20 },
+  datePill: { backgroundColor: 'rgba(12, 21, 89, 0.06)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  // Messages
-  msgRow: {
-    width: '100%',
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-  },
-  rowMe: {
-    justifyContent: 'flex-end',
-  },
-  rowThem: {
-    justifyContent: 'flex-start',
-  },
-  msgAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    marginRight: 8,
-    backgroundColor: '#E2E8F0',
-  },
+  msgWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, width: '100%' },
+  wrapperMe: { justifyContent: 'flex-end' },
+  wrapperThem: { justifyContent: 'flex-start' },
+  msgAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 8, marginBottom: 4 },
+  
   msgBubble: {
-    maxWidth: '75%',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 18,
+    maxWidth: '78%',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
     elevation: 1,
   },
   bubbleMe: {
     backgroundColor: '#0C1559',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20,
     borderBottomRightRadius: 4,
   },
   bubbleThem: {
     backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 20,
   },
-  bubblePending: {
-    opacity: 0.7,
-  },
-  msgText: {
-    fontSize: 15,
-    fontFamily: 'Montserrat-Medium',
-    lineHeight: 21,
-  },
-  textMe: {
-    color: '#FFFFFF',
-  },
-  textThem: {
-    color: '#334155',
-  },
-  metaContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 3,
-  },
-  msgTime: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-Regular',
-  },
+  bubblePending: { opacity: 0.6 },
+  
+  msgText: { fontSize: 15, fontFamily: 'Montserrat-Medium', lineHeight: 22 },
+  textMe: { color: '#FFFFFF' },
+  textThem: { color: '#1E293B' },
+  
+  metaContainer: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, gap: 4 },
+  msgTime: { fontSize: 10, fontFamily: 'Montserrat-Medium' },
+  timeMe: { color: 'rgba(255,255,255,0.6)' },
+  timeThem: { color: '#94A3B8' },
+  readIcon: { marginLeft: 2 },
 
-  // Reply preview
-  replyPreview: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: '#FFF',
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  replyBar: {
-    width: 3,
-    height: 32,
-    backgroundColor: '#0C1559',
-    borderRadius: 2,
-    marginRight: 10,
-  },
-  replyLabel: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
-  },
-  replyText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
-    marginTop: 2,
-  },
+  // --- Input Section ---
+  inputSection: { paddingHorizontal: 16, paddingTop: 5, backgroundColor: 'transparent' },
+  
+  replyPreview: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', marginHorizontal: 10, marginBottom: -10, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.05, shadowRadius: 5 },
+  replyBar: { width: 3, height: '100%', backgroundColor: '#0C1559', borderRadius: 2, marginRight: 12 },
+  replyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 2 },
+  replyText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  closeReply: { padding: 5 },
 
-  // --- Input Bar ---
-  inputContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    backgroundColor: 'transparent',
-  },
-  inputShadowWrapper: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 28,
-    padding: 5,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-  },
-  input: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 12,
-    maxHeight: 100,
-    fontSize: 15,
-    fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
-  },
-  sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#0C1559',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendBtnDisabled: {
-    backgroundColor: '#CBD5E1',
-  },
+  inputPill: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: '#FFF', borderRadius: 28, paddingHorizontal: 6, paddingVertical: 6, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 15, elevation: 6, zIndex: 2 },
+  attachBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20 },
+  input: { flex: 1, minHeight: 40, maxHeight: 100, fontSize: 15, fontFamily: 'Montserrat-Medium', color: '#0F172A', paddingTop: 10, paddingBottom: 10, paddingHorizontal: 8 },
+  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
+  sendBtnDisabled: { backgroundColor: '#CBD5E1' },
 
-  // --- Loading / Empty ---
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 40,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-    marginTop: 16,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Medium',
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginTop: 8,
-    lineHeight: 20,
-  },
+  // --- Modals ---
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', alignItems: 'center' },
+  contextMenu: { backgroundColor: '#FFF', borderRadius: 24, width: width * 0.75, paddingVertical: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.15, shadowRadius: 30, elevation: 15 },
+  contextPreview: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#F8FAFC', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginBottom: 5 },
+  contextPreviewText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569', fontStyle: 'italic', lineHeight: 20 },
+  contextItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, gap: 14 },
+  contextItemText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  contextItemDanger: { borderTopWidth: 1, borderTopColor: '#FEE2E2' },
 
-  // --- Context Menu ---
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contextMenu: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    width: width * 0.75,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  contextPreview: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    marginBottom: 4,
-  },
-  contextPreviewText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-    fontStyle: 'italic',
-  },
-  contextItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    gap: 14,
-  },
-  contextItemText: {
-    fontSize: 15,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
-  },
-  contextItemDanger: {
-    borderTopWidth: 1,
-    borderTopColor: '#FEE2E2',
-  },
-
-  // --- More Menu ---
-  moreMenu: {
-    position: 'absolute',
-    right: 20,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    width: 200,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    elevation: 10,
-  },
-  moreMenuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 12,
-  },
-  moreMenuText: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#0F172A',
-  },
+  moreMenu: { position: 'absolute', right: 20, backgroundColor: '#FFF', borderRadius: 20, width: 220, paddingVertical: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 25, elevation: 15 },
+  moreMenuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 12 },
+  moreMenuText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
 });

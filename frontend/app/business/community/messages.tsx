@@ -1,5 +1,4 @@
-// app/business/community/messages.tsx
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   View, 
   Text, 
@@ -7,18 +6,39 @@ import {
   FlatList, 
   Image, 
   TouchableOpacity, 
-  Dimensions 
+  Dimensions,
+  TextInput,
+  ScrollView
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useChat } from '../../context/ChatContext'; 
 
 const { height } = Dimensions.get('window');
 
 export default function MessagesScreen() {
   const router = useRouter();
-  // 1. Fetch only SELLER chats from Global Context
+  // Fetch only SELLER chats from Global Context
   const { sellerConversations, markAsRead } = useChat();
+
+  // --- NEW: Search and Filter States ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('All');
+  const filters = ['All', 'Unread', 'Read'];
+
+  // --- NEW: Filter Logic ---
+  const filteredConversations = sellerConversations.filter((chat: any) => {
+    // Safely handle missing text
+    const nameMatch = (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const msgMatch = (chat.lastMessage || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = nameMatch || msgMatch;
+    
+    let matchesFilter = true;
+    if (activeFilter === 'Unread') matchesFilter = chat.unread > 0;
+    if (activeFilter === 'Read') matchesFilter = chat.unread === 0;
+
+    return matchesSearch && matchesFilter;
+  });
 
   const openChat = (item: any) => {
     if (item.unread > 0) markAsRead(item.id, 'seller');
@@ -56,7 +76,7 @@ export default function MessagesScreen() {
             style={[styles.message, item.unread > 0 && styles.messageBold]} 
             numberOfLines={1}
           >
-            {item.messages[item.messages.length - 1]?.sender === 'me' ? 'You: ' : ''}
+            {item.messages && item.messages[item.messages.length - 1]?.sender === 'me' ? 'You: ' : ''}
             {item.lastMessage}
           </Text>
           
@@ -72,8 +92,43 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
+      
+      {/* --- NEW: Search & Filter Header --- */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <Feather name="search" size={18} color="#94A3B8" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search customers or messages..."
+            placeholderTextColor="#94A3B8"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.filterScroll}>
+          {filters.map(filter => (
+            <TouchableOpacity 
+              key={filter} 
+              style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
+              onPress={() => setActiveFilter(filter)}
+            >
+              <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>
+                {filter}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* --- Chat List --- */}
       <FlatList
-        data={sellerConversations}
+        data={filteredConversations}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
@@ -81,11 +136,19 @@ export default function MessagesScreen() {
         ListEmptyComponent={
             <View style={styles.emptyState}>
                 <View style={styles.emptyIconBg}>
-                    <MaterialCommunityIcons name="message-text-outline" size={40} color="#94A3B8" />
+                    <MaterialCommunityIcons 
+                        name={searchQuery ? "text-box-search-outline" : "message-text-outline"} 
+                        size={40} 
+                        color="#94A3B8" 
+                    />
                 </View>
-                <Text style={styles.emptyTitle}>No Messages Yet</Text>
+                <Text style={styles.emptyTitle}>
+                    {searchQuery ? 'No Results Found' : 'No Messages Yet'}
+                </Text>
                 <Text style={styles.emptySub}>
-                    When customers contact your business, their messages will appear here.
+                    {searchQuery 
+                        ? 'Try adjusting your search or selecting a different filter.' 
+                        : 'When customers contact your business, their messages will appear here.'}
                 </Text>
             </View>
         }
@@ -97,14 +160,66 @@ export default function MessagesScreen() {
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
-    backgroundColor: '#F8FAFC' // Light clean background
-  },
-  listContent: { 
-    padding: 20, 
-    paddingBottom: 100 // Space for bottom nav
+    backgroundColor: '#F8FAFC' 
   },
   
-  // Chat Card
+  // --- Search & Filter Styles ---
+  searchSection: { 
+    backgroundColor: '#FFF', 
+    padding: 15, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#E2E8F0',
+    zIndex: 10
+  },
+  searchBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#F1F5F9', 
+    borderRadius: 14, 
+    paddingHorizontal: 12, 
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
+  },
+  searchInput: { 
+    flex: 1, 
+    marginLeft: 10, 
+    fontFamily: 'Montserrat-Medium', 
+    fontSize: 14, 
+    color: '#0F172A' 
+  },
+  filterScroll: { 
+    flexDirection: 'row', 
+    marginTop: 15, 
+    gap: 10 
+  },
+  filterChip: { 
+    paddingHorizontal: 16, 
+    paddingVertical: 8, 
+    borderRadius: 20, 
+    backgroundColor: '#F8FAFC', 
+    borderWidth: 1, 
+    borderColor: '#E2E8F0' 
+  },
+  filterChipActive: { 
+    backgroundColor: '#0C1559', 
+    borderColor: '#0C1559' 
+  },
+  filterText: { 
+    fontSize: 12, 
+    fontFamily: 'Montserrat-SemiBold', 
+    color: '#64748B' 
+  },
+  filterTextActive: { 
+    color: '#FFF' 
+  },
+
+  listContent: { 
+    padding: 20, 
+    paddingBottom: 100 
+  },
+  
+  // --- Chat Card ---
   chatCard: { 
     flexDirection: 'row', 
     alignItems: 'center', 
@@ -112,18 +227,16 @@ const styles = StyleSheet.create({
     padding: 16, 
     borderRadius: 16, 
     marginBottom: 12, 
-    
-    // Soft Shadow
     shadowColor: "#0C1559", 
     shadowOffset: { width: 0, height: 4 }, 
     shadowOpacity: 0.05, 
     shadowRadius: 10, 
     elevation: 2,
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.6)', // Subtle border
+    borderColor: 'rgba(226, 232, 240, 0.6)', 
   },
   
-  // Avatar
+  // --- Avatar ---
   avatarContainer: {
     position: 'relative',
     marginRight: 16,
@@ -146,7 +259,7 @@ const styles = StyleSheet.create({
     borderColor: '#FFF' 
   },
   
-  // Content
+  // --- Content ---
   content: { flex: 1 },
   header: { 
     flexDirection: 'row', 
@@ -166,7 +279,7 @@ const styles = StyleSheet.create({
     color: '#94A3B8' 
   },
   
-  // Message & Footer
+  // --- Message & Footer ---
   footer: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -181,12 +294,12 @@ const styles = StyleSheet.create({
   },
   messageBold: { 
     color: '#0F172A', 
-    fontFamily: 'Montserrat-Bold' // Highlight unread
+    fontFamily: 'Montserrat-Bold' 
   },
   
-  // Badge
+  // --- Badge ---
   badge: { 
-    backgroundColor: '#0C1559', // Deep Blue Brand Color
+    backgroundColor: '#0C1559', 
     minWidth: 22, 
     height: 22, 
     borderRadius: 11, 
@@ -200,11 +313,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold' 
   },
 
-  // Empty State
+  // --- Empty State ---
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: height * 0.15,
+    marginTop: height * 0.1,
     paddingHorizontal: 40,
   },
   emptyIconBg: {
