@@ -340,7 +340,7 @@ const OrderDetailsScreen = () => {
                     </TouchableOpacity>
                 )}
 
-                {['pending', 'paid', 'processing'].includes(order.status.toLowerCase()) && (
+                {order.status.toLowerCase() === 'pending' && (
                     <TouchableOpacity style={[styles.cancelBtn, isCancelling && { opacity: 0.7 }]} onPress={handleCancelOrder} disabled={isCancelling}>
                         {isCancelling ? <ActivityIndicator color="#EF4444" /> : <Text style={styles.cancelBtnText}>Cancel Order</Text>}
                     </TouchableOpacity>

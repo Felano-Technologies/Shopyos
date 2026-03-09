@@ -323,11 +323,15 @@ const getOrderDetails = async (req, res, next) => {
       });
     }
 
-    // Verify access (buyer, seller, or admin)
-    const store = await repositories.stores.findById(order.store_id);
+    // Fast checks first — use the store data already embedded in the join result
+    // to avoid an extra DB round-trip for every order fetch.
     const isBuyer = order.buyer_id === userId;
-    const isSeller = store.owner_id === userId;
-    const isAdmin = await repositories.users.hasRole(userId, 'admin');
+    const isSeller = order.store?.owner_id === userId;   // store is already joined
+
+    // Only hit the DB for the admin role check when the cheap checks fail
+    const isAdmin = (!isBuyer && !isSeller)
+      ? await repositories.users.hasRole(userId, 'admin')
+      : false;
 
     if (!isBuyer && !isSeller && !isAdmin) {
       return res.status(403).json({
@@ -470,7 +474,9 @@ const cancelOrder = async (req, res, next) => {
     const store = await repositories.stores.findById(order.store_id);
     const isSeller = store && store.owner_id === userId;
     const isBuyer = order.buyer_id === userId;
-    const isAdmin = await repositories.users.hasRole(userId, 'admin');
+    const isAdmin = (!isBuyer && !isSeller)
+      ? await repositories.users.hasRole(userId, 'admin')
+      : false;
 
     if (!isBuyer && !isSeller && !isAdmin) {
       return res.status(403).json({
@@ -479,19 +485,25 @@ const cancelOrder = async (req, res, next) => {
       });
     }
 
-    // Check if order can be cancelled
-    const cancellableStatuses = ['pending', 'paid', 'confirmed'];
+    // Buyers can only cancel while the order is still 'pending'.
+    // Sellers and admins retain a broader window (pending → confirmed).
+    const cancellableStatuses = (isBuyer && !isAdmin)
+      ? ['pending']
+      : ['pending', 'paid', 'confirmed'];
+
     if (!cancellableStatuses.includes(order.status)) {
       return res.status(400).json({
         success: false,
-        error: `Order cannot be cancelled in ${order.status} status`
+        error: isBuyer
+          ? 'Orders can only be cancelled while they are pending'
+          : `Order cannot be cancelled in '${order.status}' status`
       });
     }
 
     // Cancel order
     const cancelledOrder = await repositories.orders.cancelOrder(
       orderId,
-      reason || 'Cancelled by buyer'
+      reason || 'Cancelled by user'
     );
 
     res.status(200).json({
