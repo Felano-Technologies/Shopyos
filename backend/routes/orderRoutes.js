@@ -50,8 +50,10 @@ router.get('/:orderId', getOrderDetails);
 router.put('/:orderId/status', hasAnyRole('seller', 'admin'), updateOrderStatus);
 
 // @route   PUT /api/orders/:orderId/cancel
-// @desc    Cancel order
+// @desc    Cancel order (buyer/seller/admin, only when status is pending)
 // @access  Private
+router.put('/:orderId/cancel', cancelOrder);
+
 // @route   POST /api/orders/:orderId/verify-payment
 // @desc    Verify payment
 // @access  Private
