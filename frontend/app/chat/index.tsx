@@ -1,289 +1,368 @@
 import React, { useState, useCallback } from 'react';
-import { 
-  View, 
-  FlatList, 
-  StyleSheet, 
-  TouchableOpacity, 
-  Image, 
-  Text, 
-  Alert,
-  TextInput,
-  ScrollView
+import {
+  View, FlatList, StyleSheet, TouchableOpacity,
+  Image, Text, Alert, TextInput,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useChat } from '../context/ChatContext';
 import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
+
+// ─── Shopyos design tokens (extracted from home.tsx) ─────────────────────────
+const C = {
+  pageBg:      '#E9F0FF',   // home container background
+  navyDeep:    '#0C1559',   // primary navy — FAB, logo bg
+  navyMid:     '#1e3a8a',   // secondary navy — search bar
+  lime:        '#84cc16',   // active chip, CTA
+  limeSubtle:  'rgba(132,204,22,0.10)',
+  cardBg:      '#FFFFFF',   // product card surface
+  priceGreen:  '#0d3804',   // price text
+  alertRed:    '#ff0101',   // notification dot
+  bodyText:    '#0F172A',   // product title colour
+  mutedText:   '#64748B',   // categories / see-all
+  borderLight: 'rgba(12,21,89,0.08)',
+  borderMid:   'rgba(12,21,89,0.14)',
+  onlineGreen: '#22c55e',
+};
 
 export default function ChatInbox() {
   const router = useRouter();
   const { buyerConversations, markAsRead, refresh, deleteConversation } = useChat();
-
-  // --- NEW: Search and Filter States ---
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', 'Unread', 'Read'];
 
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [])
+  const totalUnread = buyerConversations.reduce(
+    (sum: number, c: any) => sum + (c.unread || 0), 0
   );
 
-  // --- NEW: Filter Logic ---
-  const filteredConversations = buyerConversations.filter((chat: any) => {
-    const nameMatch = (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const msgMatch = (chat.lastMessage || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSearch = nameMatch || msgMatch;
-    
-    let matchesFilter = true;
-    if (activeFilter === 'Unread') matchesFilter = chat.unread > 0;
-    if (activeFilter === 'Read') matchesFilter = chat.unread === 0;
+  useFocusEffect(useCallback(() => { refresh(); }, []));
 
-    return matchesSearch && matchesFilter;
+  const filtered = buyerConversations.filter((chat: any) => {
+    const q = searchQuery.toLowerCase();
+    const matchSearch =
+      (chat.name || '').toLowerCase().includes(q) ||
+      (chat.lastMessage || '').toLowerCase().includes(q);
+    const matchFilter =
+      activeFilter === 'All' ||
+      (activeFilter === 'Unread' && chat.unread > 0) ||
+      (activeFilter === 'Read'   && chat.unread === 0);
+    return matchSearch && matchFilter;
   });
 
   const openChat = (item: any) => {
     if (item.unread > 0) markAsRead(item.id, 'buyer');
-
     router.push({
       pathname: '/chat/conversation',
-      params: {
-        conversationId: item.id,
-        name: item.name,
-        avatar: item.avatar,
-        chatType: 'buyer'
-      }
+      params: { conversationId: item.id, name: item.name, avatar: item.avatar, chatType: 'buyer' },
     });
   };
 
   const handleLongPress = (item: any) => {
-    Alert.alert(
-      'Delete Chat',
-      `Are you sure you want to delete your conversation with ${item.name}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            const success = await deleteConversation(item.id, 'buyer');
-            if (success) {
-              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Chat has been deleted.' });
-            } else {
-              Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to delete chat.' });
-            }
-          }
-        }
-      ]
-    );
+    Alert.alert('Delete Chat', `Delete conversation with ${item.name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          const ok = await deleteConversation(item.id, 'buyer');
+          Toast.show({ type: ok ? 'success' : 'error', text1: ok ? 'Deleted' : 'Error' });
+        },
+      },
+    ]);
   };
 
-  // --- EMPTY STATE COMPONENT ---
-  const renderEmptyState = () => {
-    // If the user has chats, but the search/filter hides them all
-    if (buyerConversations.length > 0 && filteredConversations.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconCircle}>
-             <MaterialCommunityIcons name="text-box-search-outline" size={40} color="#94A3B8" />
-          </View>
-          <Text style={styles.emptyTitle}>No Results Found</Text>
-          <Text style={styles.emptySubtitle}>
-            Try adjusting your search or selecting a different filter.
-          </Text>
-        </View>
-      );
-    }
+  const initials = (name: string) =>
+    (name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
-    // If the user actually has zero chats
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconCircle}>
-          <Ionicons name="chatbubble-ellipses-outline" size={48} color="#94A3B8" />
-        </View>
-        <Text style={styles.emptyTitle}>No Messages Yet</Text>
-        <Text style={styles.emptySubtitle}>
-          Your conversations with sellers will appear here. Start browsing to chat!
-        </Text>
+  // ── Empty state ──────────────────────────────────────────────────────────────
+  const renderEmpty = () => (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyCircle}>
+        {buyerConversations.length > 0
+          ? <MaterialCommunityIcons name="text-box-search-outline" size={34} color={C.navyMid} />
+          : <Ionicons name="chatbubbles-outline" size={34} color={C.navyMid} />}
+      </View>
+      <Text style={styles.emptyTitle}>
+        {buyerConversations.length > 0 ? 'No results' : 'No messages yet'}
+      </Text>
+      <Text style={styles.emptyBody}>
+        {buyerConversations.length > 0
+          ? 'Try a different search or filter.'
+          : 'Your conversations with sellers will appear here.'}
+      </Text>
+      {buyerConversations.length === 0 && (
         <TouchableOpacity style={styles.browseBtn} onPress={() => router.push('/home')}>
           <Text style={styles.browseBtnText}>Browse Products</Text>
         </TouchableOpacity>
-      </View>
+      )}
+    </View>
+  );
+
+  // ── Conversation row ─────────────────────────────────────────────────────────
+  const renderItem = ({ item }: { item: any }) => {
+    const unread = item.unread > 0;
+    const byMe = item.messages?.[item.messages.length - 1]?.sender === 'me';
+    return (
+      <TouchableOpacity
+        style={[styles.row, unread && styles.rowUnread]}
+        onPress={() => openChat(item)}
+        onLongPress={() => handleLongPress(item)}
+        delayLongPress={500}
+        activeOpacity={0.72}
+      >
+        {/* Lime left accent on unread — mirrors active chip bar */}
+        {unread && <View style={styles.accentBar} />}
+
+        {/* Avatar */}
+        <View style={styles.avatarWrap}>
+          {item.avatar
+            ? <Image source={{ uri: item.avatar }} style={styles.avatar} />
+            : <View style={styles.avatarFallback}>
+                <Text style={styles.avatarLetters}>{initials(item.name)}</Text>
+              </View>
+          }
+          {item.online && <View style={styles.onlineDot} />}
+        </View>
+
+        {/* Body */}
+        <View style={styles.rowBody}>
+          <View style={styles.topRow}>
+            <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={[styles.time, unread && styles.timeUnread]}>{item.time}</Text>
+          </View>
+          <View style={styles.bottomRow}>
+            <Text style={[styles.preview, unread && styles.previewUnread]} numberOfLines={1}>
+              {byMe ? 'You: ' : ''}{item.lastMessage}
+            </Text>
+            {unread
+              ? <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{item.unread > 9 ? '9+' : item.unread}</Text>
+                </View>
+              : <Ionicons name="checkmark-done" size={14} color="#CBD5E1" />
+            }
+          </View>
+        </View>
+      </TouchableOpacity>
     );
   };
 
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.chatItem}
-      onPress={() => openChat(item)}
-      onLongPress={() => handleLongPress(item)}
-      delayLongPress={500}
-    >
-      <View style={styles.avatarContainer}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        {item.online && <View style={styles.onlineDot} />}
-      </View>
-      <View style={styles.chatInfo}>
-        <View style={styles.topRow}>
-          <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.time}>{item.time}</Text>
-        </View>
-        <View style={styles.bottomRow}>
-          <Text style={[styles.message, item.unread > 0 && styles.messageBold]} numberOfLines={1}>
-            {item.messages && item.messages[item.messages.length - 1]?.sender === 'me' ? 'You: ' : ''}{item.lastMessage}
-          </Text>
-          {item.unread > 0 && <View style={styles.badge}><Text style={styles.badgeText}>{item.unread}</Text></View>}
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+    <View style={styles.root}>
+      <StatusBar style="light" />
+
+      {/* ── Header — same navy gradient as home FAB ──────────────────────────── */}
+      <LinearGradient colors={[C.navyDeep, C.navyMid]} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
-          <View style={styles.headerContent}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
+          {/* Top bar */}
+          <View style={styles.headerBar}>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Messages</Text>
-            <View style={{ width: 40 }} />
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>Messages</Text>
+              {totalUnread > 0 && (
+                <View style={styles.titleBadge}>
+                  <Text style={styles.titleBadgeText}>{totalUnread}</Text>
+                </View>
+              )}
+            </View>
+            <TouchableOpacity style={styles.iconBtn}>
+              <Feather name="edit-2" size={15} color="rgba(255,255,255,0.7)" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search — same style as home's navy search bar */}
+          <View style={styles.search}>
+            <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search conversations..."
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Feather name="x" size={14} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            )}
           </View>
         </SafeAreaView>
       </LinearGradient>
 
-      {/* --- NEW: Search & Filter Section --- */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94A3B8" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search sellers or messages..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <View style={styles.filterScroll}>
-          {filters.map(filter => (
-            <TouchableOpacity 
-              key={filter} 
-              style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
-              onPress={() => setActiveFilter(filter)}
-            >
-              <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>
-                {filter}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+      {/* ── Filter chips — same pill style as home category chips ────────────── */}
+      <View style={styles.filterRow}>
+        {filters.map((f) => (
+          <TouchableOpacity
+            key={f}
+            style={[styles.chip, activeFilter === f && styles.chipOn]}
+            onPress={() => setActiveFilter(f)}
+          >
+            <Text style={[styles.chipText, activeFilter === f && styles.chipTextOn]}>{f}</Text>
+          </TouchableOpacity>
+        ))}
+        <Text style={styles.countText}>
+          {filtered.length} chat{filtered.length !== 1 ? 's' : ''}
+        </Text>
       </View>
 
+      {/* ── List ─────────────────────────────────────────────────────────────── */}
       <FlatList
-        data={filteredConversations}
-        keyExtractor={item => item.id}
+        data={filtered}
+        keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={[
-          styles.listContent,
-          filteredConversations.length === 0 && { flex: 1, justifyContent: 'center' }
-        ]}
-        ListEmptyComponent={renderEmptyState}
+        contentContainerStyle={[styles.list, filtered.length === 0 && { flex: 1 }]}
+        ListEmptyComponent={renderEmpty}
+        showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.sep} />}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, elevation: 5, zIndex: 10 },
-  headerContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 10 },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)' },
-  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  root: { flex: 1, backgroundColor: C.pageBg },
 
-  // --- Search & Filter Styles ---
-  searchSection: { 
-    backgroundColor: '#FFF', 
-    padding: 15, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#E2E8F0',
-    zIndex: 5
+  // ── Header ────────────────────────────────────────────────────────────────
+  header: {
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    paddingBottom: 16,
+    elevation: 8,
+    shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    zIndex: 10,
   },
-  searchBar: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#F1F5F9', 
-    borderRadius: 14, 
-    paddingHorizontal: 12, 
-    height: 48,
-    borderWidth: 1,
-    borderColor: '#E2E8F0'
+  headerBar: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingTop: 8, paddingBottom: 14,
   },
-  searchInput: { 
-    flex: 1, 
-    marginLeft: 10, 
-    fontFamily: 'Montserrat-Medium', 
-    fontSize: 14, 
-    color: '#0F172A' 
+  iconBtn: {
+    width: 36, height: 36, borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  filterScroll: { 
-    flexDirection: 'row', 
-    marginTop: 15, 
-    gap: 10 
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  title: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#fff' },
+  titleBadge: {
+    backgroundColor: C.alertRed,
+    minWidth: 20, height: 20, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
   },
-  filterChip: { 
-    paddingHorizontal: 16, 
-    paddingVertical: 8, 
-    borderRadius: 20, 
-    backgroundColor: '#F8FAFC', 
-    borderWidth: 1, 
-    borderColor: '#E2E8F0' 
+  titleBadgeText: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#fff' },
+
+  // Search — mirrors home search pill
+  search: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.13)',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 10, paddingHorizontal: 12, height: 42,
+    marginHorizontal: 16,
   },
-  filterChipActive: { 
-    backgroundColor: '#0C1559', 
-    borderColor: '#0C1559' 
-  },
-  filterText: { 
-    fontSize: 12, 
-    fontFamily: 'Montserrat-SemiBold', 
-    color: '#64748B' 
-  },
-  filterTextActive: { 
-    color: '#FFF' 
+  searchInput: {
+    flex: 1, fontSize: 13,
+    fontFamily: 'Montserrat-Medium', color: '#fff',
   },
 
-  listContent: { padding: 20 },
+  // ── Filter chips — same shape as home category chips ──────────────────────
+  filterRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12,
+    gap: 8,
+    backgroundColor: C.pageBg,
+    borderBottomWidth: 0.5, borderBottomColor: C.borderLight,
+  },
+  chip: {
+    paddingHorizontal: 16, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1,
+    borderColor: C.navyMid, backgroundColor: C.cardBg,
+    elevation: 1,
+    shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 2,
+  },
+  chipOn: { backgroundColor: C.lime, borderColor: C.lime },
+  chipText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.mutedText },
+  chipTextOn: { color: '#111827' },
+  countText: {
+    marginLeft: 'auto', fontSize: 11,
+    fontFamily: 'Montserrat-Medium', color: C.mutedText,
+  },
 
-  // Chat Item Styles
-  chatItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 15, borderRadius: 16, marginBottom: 12, shadowColor: "#0C1559", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: 'rgba(226, 232, 240, 0.6)' },
-  avatarContainer: { position: 'relative', marginRight: 15 },
-  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#F1F5F9' },
-  onlineDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', position: 'absolute', bottom: 2, right: 0, borderWidth: 2, borderColor: '#FFF' },
-  chatInfo: { flex: 1 },
-  topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, alignItems: 'center' },
-  name: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', maxWidth: '75%' },
-  time: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  message: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B', marginRight: 10 },
-  messageBold: { color: '#0F172A', fontFamily: 'Montserrat-Bold' },
-  badge: { backgroundColor: '#0C1559', minWidth: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6 },
-  badgeText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
+  // ── List ──────────────────────────────────────────────────────────────────
+  list: { paddingTop: 4, paddingBottom: 20 },
+  sep: { height: 0.5, backgroundColor: C.borderLight, marginLeft: 82 },
 
-  // Empty State Styles
-  emptyContainer: { alignItems: 'center', padding: 40, marginTop: -20 },
-  emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', lineHeight: 22, marginBottom: 25 },
-  browseBtn: { backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 30, borderRadius: 12 },
-  browseBtnText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 13, paddingHorizontal: 16,
+    backgroundColor: 'transparent',
+  },
+  rowUnread: { backgroundColor: C.limeSubtle },
+  accentBar: {
+    position: 'absolute', left: 0, top: 12, bottom: 12,
+    width: 3, borderRadius: 2, backgroundColor: C.lime,
+  },
+
+  avatarWrap: { position: 'relative', marginRight: 12 },
+  avatar: { width: 50, height: 50, borderRadius: 25, backgroundColor: '#dbeafe' },
+  avatarFallback: {
+    width: 50, height: 50, borderRadius: 25,
+    backgroundColor: '#dbeafe',
+    borderWidth: 0.5, borderColor: C.borderMid,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  avatarLetters: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.navyMid },
+  onlineDot: {
+    width: 12, height: 12, borderRadius: 6,
+    backgroundColor: C.onlineGreen,
+    position: 'absolute', bottom: 1, right: 1,
+    borderWidth: 2, borderColor: C.pageBg,
+  },
+
+  rowBody: { flex: 1 },
+  topRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 4,
+  },
+  name: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.mutedText, flex: 1, marginRight: 8 },
+  nameUnread: { fontFamily: 'Montserrat-Bold', color: C.bodyText },
+  time: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#CBD5E1' },
+  timeUnread: { color: C.navyDeep, fontFamily: 'Montserrat-Bold' },
+
+  bottomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  preview: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginRight: 8 },
+  previewUnread: { color: '#334155', fontFamily: 'Montserrat-SemiBold' },
+
+  badge: {
+    backgroundColor: C.navyDeep,
+    minWidth: 20, height: 20, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 5,
+  },
+  badgeText: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#fff' },
+
+  // ── Empty ─────────────────────────────────────────────────────────────────
+  emptyWrap: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: 40, paddingBottom: 60,
+  },
+  emptyCircle: {
+    width: 78, height: 78, borderRadius: 39,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
+  },
+  emptyTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.bodyText, marginBottom: 8 },
+  emptyBody: {
+    fontSize: 13, fontFamily: 'Montserrat-Regular',
+    color: C.mutedText, textAlign: 'center', lineHeight: 20, marginBottom: 24,
+  },
+  browseBtn: { backgroundColor: C.navyMid, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 20 },
+  browseBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Montserrat-Bold' },
 });

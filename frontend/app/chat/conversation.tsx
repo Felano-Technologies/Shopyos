@@ -1,21 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TextInput,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Dimensions,
-  Modal,
-  Pressable,
-  Alert,
-  Clipboard,
-  Vibration,
-  ActivityIndicator
+  View, Text, StyleSheet, FlatList, TextInput,
+  TouchableOpacity, KeyboardAvoidingView, Platform,
+  Image, Dimensions, Modal, Pressable, Alert,
+  Clipboard, Vibration, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -23,17 +11,34 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  getMessages,
-  sendMessage as apiSendMessage,
+  getMessages, sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
-  markConversationRead,
-  storage
+  markConversationRead, storage,
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { useChat } from '../context/ChatContext';
 import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
+
+// ─── Shopyos design tokens ────────────────────────────────────────────────────
+const C = {
+  pageBg:       '#E9F0FF',   // home container — chat background
+  navyDeep:     '#0C1559',   // primary navy
+  navyMid:      '#1e3a8a',   // secondary navy
+  lime:         '#84cc16',   // active CTA — send button
+  limeTick:     '#84cc16',   // read receipt tick
+  cardBg:       '#FFFFFF',   // product card — incoming bubble
+  priceGreen:   '#0d3804',
+  alertRed:     '#ff0101',
+  bodyText:     '#0F172A',
+  mutedText:    '#64748B',
+  borderLight:  'rgba(12,21,89,0.08)',
+  borderCard:   'rgba(12,21,89,0.12)',
+  onlineGreen:  '#22c55e',
+  datePillBg:   'rgba(12,21,89,0.07)',
+  datePillBorder:'rgba(12,21,89,0.1)',
+};
 
 type MessageItem = {
   id: string;
@@ -43,13 +48,7 @@ type MessageItem = {
   message_type?: string;
   is_read?: boolean;
   pending?: boolean;
-  sender?: {
-    id: string;
-    user_profiles?: {
-      full_name?: string;
-      avatar_url?: string;
-    };
-  };
+  failed?: boolean;
 };
 
 export default function ConversationScreen() {
@@ -64,436 +63,424 @@ export default function ConversationScreen() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-
-  const [selectedMessage, setSelectedMessage] = useState<MessageItem | null>(null);
+  const [selectedMsg, setSelectedMsg] = useState<MessageItem | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
   const [replyTo, setReplyTo] = useState<MessageItem | null>(null);
-  const [moreMenuVisible, setMoreMenuVisible] = useState(false);
+  const [moreVisible, setMoreVisible] = useState(false);
 
-  const flatListRef = useRef<FlatList>(null);
+  const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
   const displayName = name || 'Chat';
-  const displayAvatar = avatar || 'https://ui-avatars.com/api/?name=S&background=0C1559&color=fff';
+  const displayAvatar = avatar || null;
+  const initials = (n: string) =>
+    (n || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
+  // ─── Load user ID ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const loadUserId = async () => {
+    (async () => {
       let uid = await storage.getItem('userId');
       if (!uid) {
         try {
-          const { api: apiInstance } = require('../../services/api');
-          const meResponse = await apiInstance.get('/auth/me');
-          if (meResponse.data?.id) {
-            uid = meResponse.data.id;
-            await storage.setItem('userId', uid!);
-          }
-        } catch (e) {
-          console.warn('Failed to fetch userId:', e);
-        }
+          const { api } = require('../../services/api');
+          const res = await api.get('/auth/me');
+          if (res.data?.id) { uid = res.data.id; await storage.setItem('userId', uid!); }
+        } catch {}
       }
       setCurrentUserId(uid);
-    };
-    loadUserId();
+    })();
   }, []);
+
+  // ─── Fetch ─────────────────────────────────────────────────────────────────
+  const fetchMessages = useCallback(async (showLoader: boolean) => {
+    try {
+      if (showLoader) setLoading(true);
+      const res = await getMessages(conversationId);
+      if (res?.messages) {
+        setMessages(res.messages);
+        const hasUnread = res.messages.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
+        if (hasUnread) markConversationRead(conversationId).catch(() => {});
+      }
+    } catch {}
+    finally { if (showLoader) setLoading(false); }
+  }, [conversationId, currentUserId]);
 
   useEffect(() => {
     if (conversationId && currentUserId) {
       fetchMessages(true);
-      markConversationRead(conversationId).catch(() => { });
+      markConversationRead(conversationId).catch(() => {});
     }
   }, [conversationId, currentUserId]);
 
+  // ─── Socket ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!conversationId) return;
-    let isActive = true;
-
-    const setupSocket = async () => {
+    let alive = true;
+    (async () => {
       try {
         await socketService.connect();
         await socketService.joinConversation(conversationId);
-        
-        const handleNewMessage = ({ message, conversationId: msgConvId }: any) => {
-          if (msgConvId !== conversationId || !isActive) return;
-          setMessages(prev => {
-            if (prev.some(m => m.id === message.id)) return prev;
+        socketService.onNewMessage(({ message, conversationId: cid }: any) => {
+          if (cid !== conversationId || !alive || message.sender_id === currentUserId) return;
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === message.id)) return prev;
             return [...prev, message];
           });
-          if (message.sender_id !== currentUserId) {
-            socketService.markConversationRead(conversationId).catch(() => { });
-          }
-        };
-
-        socketService.onNewMessage(handleNewMessage);
-
-        const socket = socketService.getSocket();
-        if (socket) {
-          socket.on('connect', () => {
-            if (isActive) {
-              fetchMessages(false);
-              socketService.joinConversation(conversationId);
-            }
+          socketService.markConversationRead(conversationId).catch(() => {});
+        });
+        const sock = socketService.getSocket();
+        if (sock) {
+          sock.on('connect', () => {
+            if (alive) { fetchMessages(false); socketService.joinConversation(conversationId); }
           });
         }
-      } catch (error) {
-        console.error('Socket setup failed:', error);
-      }
-    };
-
-    setupSocket();
-
+      } catch {}
+    })();
     return () => {
-      isActive = false;
-      socketService.leaveConversation(conversationId).catch(() => { });
+      alive = false;
+      socketService.leaveConversation(conversationId).catch(() => {});
       socketService.offNewMessage();
     };
   }, [conversationId, currentUserId]);
 
-  const fetchMessages = async (showLoader: boolean) => {
-    try {
-      if (showLoader) setLoading(true);
-      const response = await getMessages(conversationId);
-      if (response && response.messages) {
-        const sorted = response.messages;
-        setMessages(sorted);
-        const hasUnread = sorted.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
-        if (hasUnread) markConversationRead(conversationId).catch(() => { });
-      }
-    } catch (error) {
-      console.error('Failed to load messages', error);
-    } finally {
-      if (showLoader) setLoading(false);
-    }
-  };
-
+  // ─── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 150);
-    }
+    if (messages.length > 0)
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages.length]);
 
+  // ─── Send ──────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!text.trim() || !conversationId || sending) return;
-
     const msgText = text.trim();
-    setText('');
-    setSending(true);
-
+    setText(''); setSending(true);
     const tempId = `temp_${Date.now()}`;
-    const optimisticMsg: MessageItem = {
-      id: tempId,
-      content: msgText,
+    setMessages((prev) => [...prev, {
+      id: tempId, content: msgText,
       created_at: new Date().toISOString(),
-      sender_id: currentUserId || '',
-      pending: true,
-    };
-    setMessages(prev => [...prev, optimisticMsg]);
-
+      sender_id: currentUserId || '', pending: true,
+    }]);
     try {
-      let sentMessage;
+      let sent;
       if (socketService.isConnected()) {
-        sentMessage = await socketService.sendMessage(conversationId, msgText);
+        sent = await socketService.sendMessage(conversationId, msgText);
       } else {
-        const response = await apiSendMessage(conversationId, msgText);
-        sentMessage = response.message;
+        const res = await apiSendMessage(conversationId, msgText);
+        sent = res.message;
       }
-
-      setMessages(prev => {
-        const filtered = prev.filter(m => m.id !== tempId);
-        if (filtered.some(m => m.id === sentMessage.id)) return filtered;
-        return [...filtered, { ...sentMessage, pending: false }];
+      setMessages((prev) => {
+        const f = prev.filter((m) => m.id !== tempId);
+        if (f.some((m) => m.id === sent.id)) return f;
+        return [...f, { ...sent, pending: false }];
       });
-    } catch (error) {
-      setMessages(prev => prev.filter(m => m.id !== tempId));
-      Toast.show({ type: 'error', text1: 'Send Failed', text2: 'Could not send message. Try again.' });
-    } finally {
-      setSending(false);
-      setReplyTo(null);
-    }
+    } catch {
+      setMessages((prev) =>
+        prev.map((m) => m.id === tempId ? { ...m, pending: false, failed: true } : m)
+      );
+      Toast.show({ type: 'error', text1: 'Failed to send', text2: 'Tap to retry.' });
+    } finally { setSending(false); setReplyTo(null); }
   };
 
-  const handleLongPress = (message: MessageItem) => {
-    Vibration.vibrate(30);
-    setSelectedMessage(message);
-    setMenuVisible(true);
+  const handleRetry = (msg: MessageItem) => {
+    setMessages((p) => p.filter((m) => m.id !== msg.id));
+    setText(msg.content); inputRef.current?.focus();
   };
 
-  const handleReply = () => {
-    if (!selectedMessage) return;
-    setReplyTo(selectedMessage);
-    setMenuVisible(false);
-    inputRef.current?.focus();
+  // ─── Context actions ────────────────────────────────────────────────────────
+  const doLongPress = (msg: MessageItem) => { Vibration.vibrate(28); setSelectedMsg(msg); setMenuVisible(true); };
+  const doReply = () => { if (!selectedMsg) return; setReplyTo(selectedMsg); setMenuVisible(false); setTimeout(() => inputRef.current?.focus(), 80); };
+  const doCopy = () => {
+    if (!selectedMsg) return;
+    Clipboard.setString(selectedMsg.content); setMenuVisible(false);
+    Toast.show({ type: 'success', text1: 'Copied to clipboard' });
   };
-
-  const handleCopy = () => {
-    if (!selectedMessage) return;
-    Clipboard.setString(selectedMessage.content);
-    setMenuVisible(false);
-    Toast.show({ type: 'success', text1: 'Copied', text2: 'Message copied to clipboard' });
-  };
-
-  const handleDeleteMessage = () => {
-    if (!selectedMessage) return;
-    if (selectedMessage.sender_id !== currentUserId) {
+  const doDelete = () => {
+    if (!selectedMsg) return;
+    if (selectedMsg.sender_id !== currentUserId) {
       setMenuVisible(false);
-      Toast.show({ type: 'error', text1: 'Cannot Delete', text2: 'You can only delete your own messages.' });
-      return;
+      Toast.show({ type: 'error', text1: 'You can only delete your own messages.' }); return;
     }
-
     setMenuVisible(false);
-    Alert.alert('Delete Message', 'Are you sure you want to delete this message?', [
+    Alert.alert('Delete Message', 'Remove this message?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-          try {
-            await apiDeleteMessage(selectedMessage.id);
-            setMessages(prev => prev.filter(m => m.id !== selectedMessage.id));
-          } catch (error) {
-            Toast.show({ type: 'error', text1: 'Error', text2: 'Could not delete message.' });
-          }
-        }
-      }
+          try { await apiDeleteMessage(selectedMsg.id); setMessages((p) => p.filter((m) => m.id !== selectedMsg.id)); }
+          catch { Toast.show({ type: 'error', text1: 'Could not delete.' }); }
+        },
+      },
     ]);
   };
-
-  const handleClearChat = () => {
-    setMoreMenuVisible(false);
-    Alert.alert('Delete Chat', 'This will permanently delete the conversation.', [
+  const doClearChat = () => {
+    setMoreVisible(false);
+    Alert.alert('Delete Chat', 'Permanently delete this conversation?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
           setMessages([]);
-          const success = await deleteConversation(conversationId, chatType as any);
-          if (success) {
-            router.back();
-          } else {
-            fetchMessages(false);
-          }
-        }
-      }
+          const ok = await deleteConversation(conversationId, chatType as any);
+          if (ok) router.back(); else fetchMessages(false);
+        },
+      },
     ]);
   };
 
-  const formatTime = (dateStr: string) => {
-    try { return new Date(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); } 
+  // ─── Helpers ───────────────────────────────────────────────────────────────
+  const fmtTime = (d: string) => {
+    try { return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
     catch { return ''; }
   };
-
-  const formatDateSeparator = (dateStr: string) => {
-    const date = new Date(dateStr);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
+  const fmtDate = (d: string) => {
+    const date = new Date(d);
+    const today = new Date(); const yday = new Date(today); yday.setDate(yday.getDate() - 1);
     if (date.toDateString() === today.toDateString()) return 'Today';
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    if (date.toDateString() === yday.toDateString()) return 'Yesterday';
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
-
-  const shouldShowDateSeparator = (index: number) => {
-    if (index === 0) return true;
-    const curr = new Date(messages[index].created_at).toDateString();
-    const prev = new Date(messages[index - 1].created_at).toDateString();
-    return curr !== prev;
+  const showDate = (i: number) => {
+    if (i === 0) return true;
+    return new Date(messages[i].created_at).toDateString() !==
+           new Date(messages[i - 1].created_at).toDateString();
   };
 
-  const renderMessage = ({ item, index }: { item: MessageItem; index: number }) => {
+  // ─── Message bubble ────────────────────────────────────────────────────────
+  const renderMsg = ({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
-    const showDate = shouldShowDateSeparator(index);
-
     return (
       <>
-        {showDate && (
-          <View style={styles.dateSeparator}>
+        {showDate(index) && (
+          <View style={styles.dateSep}>
             <View style={styles.datePill}>
-              <Text style={styles.dateText}>{formatDateSeparator(item.created_at)}</Text>
+              <Text style={styles.dateText}>{fmtDate(item.created_at)}</Text>
             </View>
           </View>
         )}
-
-        <View style={[styles.msgWrapper, isMe ? styles.wrapperMe : styles.wrapperThem]}>
+        <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
+          {/* Incoming avatar */}
           {!isMe && (
-            <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+            displayAvatar
+              ? <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+              : <View style={styles.msgAvatarFallback}>
+                  <Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text>
+                </View>
           )}
 
           <TouchableOpacity
-            activeOpacity={0.8}
-            onLongPress={() => handleLongPress(item)}
-            delayLongPress={300}
-            style={[styles.msgBubble, isMe ? styles.bubbleMe : styles.bubbleThem, item.pending && styles.bubblePending]}
+            activeOpacity={0.82}
+            onLongPress={() => !item.failed && doLongPress(item)}
+            onPress={() => item.failed && handleRetry(item)}
+            delayLongPress={280}
+            style={[
+              styles.bubble,
+              isMe ? styles.bubbleMe : styles.bubbleThem,
+              item.pending && styles.bubblePending,
+              item.failed && styles.bubbleFailed,
+            ]}
           >
-            <Text style={[styles.msgText, isMe ? styles.textMe : styles.textThem]}>
-              {item.content}
-            </Text>
-            
-            <View style={styles.metaContainer}>
-              <Text style={[styles.msgTime, isMe ? styles.timeMe : styles.timeThem]}>
-                {formatTime(item.created_at)}
-              </Text>
-              {isMe && (
-                <Ionicons
-                  name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
-                  size={14}
-                  color={item.pending ? 'rgba(255,255,255,0.5)' : item.is_read ? '#A3E635' : 'rgba(255,255,255,0.7)'}
-                  style={styles.readIcon}
-                />
-              )}
-            </View>
+            {/* Outgoing: navy gradient wrapper */}
+            {isMe && !item.failed ? (
+              <LinearGradient
+                colors={[C.navyDeep, C.navyMid]}
+                start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                style={styles.bubbleMeGrad}
+              >
+                <Text style={styles.bubbleTxtMe}>{item.content}</Text>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaTimeMe}>{fmtTime(item.created_at)}</Text>
+                  {!item.failed && (
+                    <Ionicons
+                      name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
+                      size={13}
+                      color={item.pending ? 'rgba(255,255,255,0.3)' : item.is_read ? C.limeTick : 'rgba(255,255,255,0.55)'}
+                    />
+                  )}
+                </View>
+              </LinearGradient>
+            ) : item.failed ? (
+              <View style={styles.bubbleFailedInner}>
+                <View style={styles.failRow}>
+                  <Ionicons name="alert-circle-outline" size={12} color={C.alertRed} />
+                  <Text style={styles.failText}>Tap to retry</Text>
+                </View>
+                <Text style={styles.bubbleTxtFailed}>{item.content}</Text>
+              </View>
+            ) : (
+              /* Incoming: plain white card */
+              <>
+                <Text style={styles.bubbleTxtThem}>{item.content}</Text>
+                <View style={styles.metaRow}>
+                  <Text style={styles.metaTimeThem}>{fmtTime(item.created_at)}</Text>
+                </View>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </>
     );
   };
 
+  // ─── Root ──────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.container}>
+    <View style={styles.root}>
       <StatusBar style="light" />
 
-      {/* --- Premium Gradient Header --- */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top }]}>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={26} color="#FFF" />
+      {/* ── Header — navy gradient, same as home FAB ─────────────────────────── */}
+      <LinearGradient
+        colors={[C.navyDeep, C.navyMid]}
+        style={[styles.header, { paddingTop: insets.top }]}
+      >
+        <View style={styles.headerInner}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
 
-          <View style={styles.headerTitleGroup}>
-            <View style={styles.avatarContainer}>
-              <Image source={{ uri: displayAvatar }} style={styles.avatar} />
-              <View style={styles.onlineDotHeader} />
+          <TouchableOpacity style={styles.headerCenter} activeOpacity={0.8}>
+            <View style={styles.hdrAvatarWrap}>
+              {displayAvatar
+                ? <Image source={{ uri: displayAvatar }} style={styles.hdrAvatar} />
+                : <View style={styles.hdrAvatarFallback}>
+                    <Text style={styles.hdrAvatarTxt}>{initials(displayName)}</Text>
+                  </View>
+              }
+              <View style={styles.hdrOnline} />
             </View>
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerName} numberOfLines={1}>{displayName}</Text>
-              <Text style={styles.headerStatus}>
-                {chatType === 'buyer' ? 'Official Store' : 'Customer'} • Online
+            <View>
+              <Text style={styles.hdrName} numberOfLines={1}>{displayName}</Text>
+              <Text style={styles.hdrStatus}>
+                {chatType === 'buyer' ? 'Official Store' : 'Customer'} · Online
               </Text>
             </View>
-          </View>
+          </TouchableOpacity>
 
-          <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreMenuVisible(true)}>
-            <Feather name="more-horizontal" size={24} color="#FFF" />
+          <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreVisible(true)}>
+            <Feather name="more-horizontal" size={20} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      {/* --- Chat Area --- */}
+      {/*
+        FIX: KeyboardAvoidingView wraps ONLY the body — not the header.
+        Eliminates the duplicate textbox bug on both iOS and Android.
+      */}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.body}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={0}
       >
-        <View style={styles.innerContainer}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#0C1559" />
+        {loading ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={C.navyDeep} />
+          </View>
+        ) : messages.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <View style={styles.emptyCircle}>
+              <MaterialCommunityIcons name="chat-processing-outline" size={40} color={C.navyMid} />
             </View>
-          ) : messages.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <View style={styles.emptyIconCircle}>
-                 <MaterialCommunityIcons name="chat-processing-outline" size={48} color="#94A3B8" />
+            <Text style={styles.emptyTitle}>Start the conversation</Text>
+            <Text style={styles.emptyBody}>Say hello to {displayName}!</Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMsg}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            keyboardShouldPersistTaps="handled"
+          />
+        )}
+
+        {/* ── Input bar ──────────────────────────────────────────────────────── */}
+        <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          {/* Reply preview */}
+          {replyTo && (
+            <View style={styles.replyPreview}>
+              <View style={styles.replyAccent} />
+              <View style={styles.replyBody}>
+                <Text style={styles.replyLabel}>
+                  {replyTo.sender_id === currentUserId ? 'You' : displayName}
+                </Text>
+                <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
               </View>
-              <Text style={styles.emptyTitle}>Start the conversation</Text>
-              <Text style={styles.emptySubtitle}>Say hello to {displayName} and make a deal!</Text>
+              <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyClose}>
+                <Ionicons name="close" size={16} color={C.mutedText} />
+              </TouchableOpacity>
             </View>
-          ) : (
-            <FlatList
-              ref={flatListRef}
-              data={messages}
-              keyExtractor={item => item.id}
-              contentContainerStyle={styles.listContent}
-              showsVerticalScrollIndicator={false}
-              renderItem={renderMessage}
-              onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            />
           )}
 
-          {/* --- Floating Input Bar --- */}
-          <View style={[styles.inputSection, { paddingBottom: Math.max(insets.bottom, 10) }]}>
-            
-            {/* Reply Attachment */}
-            {replyTo && (
-              <View style={styles.replyPreview}>
-                <View style={styles.replyBar} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.replyLabel}>Replying to {replyTo.sender_id === currentUserId ? 'yourself' : displayName}</Text>
-                  <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
-                </View>
-                <TouchableOpacity style={styles.closeReply} onPress={() => setReplyTo(null)}>
-                  <Ionicons name="close-circle" size={22} color="#94A3B8" />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.inputPill}>
-              <TouchableOpacity style={styles.attachBtn}>
-                <Feather name="paperclip" size={20} color="#64748B" />
-              </TouchableOpacity>
-              
-              <TextInput
-                ref={inputRef}
-                style={styles.input}
-                placeholder="Message..."
-                placeholderTextColor="#94A3B8"
-                value={text}
-                onChangeText={setText}
-                multiline
-                maxLength={1000}
-              />
-
-              <TouchableOpacity
-                style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]}
-                onPress={handleSend}
-                disabled={!text.trim() || sending}
-              >
-                {sending ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Ionicons name="send" size={16} color="#FFF" style={{ marginLeft: 3 }} />
-                )}
-              </TouchableOpacity>
-            </View>
+          {/* Input pill — white card, same surface as product cards */}
+          <View style={styles.pill}>
+            <TouchableOpacity style={styles.attachBtn}>
+              <Feather name="paperclip" size={18} color={C.mutedText} />
+            </TouchableOpacity>
+            <TextInput
+              ref={inputRef}
+              style={styles.textInput}
+              placeholder={`Message ${displayName}...`}
+              placeholderTextColor="#94A3B8"
+              value={text}
+              onChangeText={setText}
+              multiline
+              maxLength={1000}
+              textAlignVertical="center"
+              scrollEnabled={text.split('\n').length > 1}
+            />
+            {/* Send button — lime, same as active chip CTA */}
+            <TouchableOpacity
+              style={[styles.sendBtn, !text.trim() && styles.sendBtnOff]}
+              onPress={handleSend}
+              disabled={!text.trim() || sending}
+              activeOpacity={0.8}
+            >
+              {sending
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Ionicons name="send" size={15} color="#fff" style={{ marginLeft: 2 }} />
+              }
+            </TouchableOpacity>
           </View>
-
         </View>
       </KeyboardAvoidingView>
 
-      {/* --- Modals --- */}
+      {/* ── Context menu ────────────────────────────────────────────────────── */}
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
-          <View style={styles.contextMenu}>
-            {selectedMessage && (
-              <View style={styles.contextPreview}>
-                <Text style={styles.contextPreviewText} numberOfLines={3}>{selectedMessage.content}</Text>
+        <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
+          <Pressable style={styles.contextMenu}>
+            {selectedMsg && (
+              <View style={styles.ctxPreview}>
+                <Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text>
               </View>
             )}
-            <TouchableOpacity style={styles.contextItem} onPress={handleReply}>
-              <Feather name="corner-up-left" size={18} color="#0F172A" />
-              <Text style={styles.contextItemText}>Reply</Text>
+            <TouchableOpacity style={styles.ctxItem} onPress={doReply}>
+              <Feather name="corner-up-left" size={16} color={C.navyDeep} />
+              <Text style={styles.ctxItemTxt}>Reply</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.contextItem} onPress={handleCopy}>
-              <Feather name="copy" size={18} color="#0F172A" />
-              <Text style={styles.contextItemText}>Copy Text</Text>
+            <TouchableOpacity style={styles.ctxItem} onPress={doCopy}>
+              <Feather name="copy" size={16} color={C.navyDeep} />
+              <Text style={styles.ctxItemTxt}>Copy</Text>
             </TouchableOpacity>
-            {selectedMessage?.sender_id === currentUserId && (
-              <TouchableOpacity style={[styles.contextItem, styles.contextItemDanger]} onPress={handleDeleteMessage}>
-                <Feather name="trash-2" size={18} color="#EF4444" />
-                <Text style={[styles.contextItemText, { color: '#EF4444' }]}>Unsend</Text>
+            {selectedMsg?.sender_id === currentUserId && (
+              <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
+                <Feather name="trash-2" size={16} color="#EF4444" />
+                <Text style={[styles.ctxItemTxt, { color: '#EF4444' }]}>Unsend</Text>
               </TouchableOpacity>
             )}
-          </View>
+          </Pressable>
         </Pressable>
       </Modal>
 
-      <Modal visible={moreMenuVisible} transparent animationType="fade" onRequestClose={() => setMoreMenuVisible(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setMoreMenuVisible(false)}>
-          <View style={[styles.moreMenu, { top: insets.top + 60 }]}>
-            <TouchableOpacity style={styles.moreMenuItem} onPress={() => {
-              setMoreMenuVisible(false);
-              markConversationRead(conversationId);
+      {/* ── More menu ───────────────────────────────────────────────────────── */}
+      <Modal visible={moreVisible} transparent animationType="fade" onRequestClose={() => setMoreVisible(false)}>
+        <Pressable style={styles.overlay} onPress={() => setMoreVisible(false)}>
+          <View style={[styles.moreMenu, { top: insets.top + 58 }]}>
+            <TouchableOpacity style={styles.moreItem} onPress={() => {
+              setMoreVisible(false); markConversationRead(conversationId);
             }}>
-              <Ionicons name="checkmark-done-outline" size={20} color="#0F172A" />
-              <Text style={styles.moreMenuText}>Mark as Read</Text>
+              <Ionicons name="checkmark-done-outline" size={17} color={C.navyDeep} />
+              <Text style={styles.moreItemTxt}>Mark as read</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.moreMenuItem, styles.contextItemDanger]} onPress={handleClearChat}>
-              <Ionicons name="trash-bin-outline" size={20} color="#EF4444" />
-              <Text style={[styles.moreMenuText, { color: '#EF4444' }]}>Delete Chat</Text>
+            <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doClearChat}>
+              <Ionicons name="trash-bin-outline" size={17} color="#EF4444" />
+              <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Delete chat</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -503,118 +490,220 @@ export default function ConversationScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F4F7FB' },
-  innerContainer: { flex: 1, justifyContent: 'flex-end' },
+  root: { flex: 1, backgroundColor: C.pageBg },
+  body: { flex: 1 },
 
-  // --- Premium Header ---
+  // ── Header ────────────────────────────────────────────────────────────────
   header: {
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    paddingBottom: 20,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
+    paddingBottom: 16,
     elevation: 10,
+    shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2, shadowRadius: 16,
     zIndex: 10,
   },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 15,
-    marginTop: 10,
+  headerInner: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8 },
+  backBtn: {
+    width: 36, height: 36, borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center', marginRight: 6,
   },
-  backBtn: { padding: 8 },
-  headerTitleGroup: { flexDirection: 'row', alignItems: 'center', flex: 1, marginLeft: 5 },
-  avatarContainer: { position: 'relative', marginRight: 12 },
-  avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E2E8F0', borderWidth: 2, borderColor: '#FFF' },
-  onlineDotHeader: { width: 12, height: 12, borderRadius: 6, backgroundColor: '#A3E635', position: 'absolute', bottom: 0, right: 0, borderWidth: 2, borderColor: '#0C1559' },
-  headerTextContainer: { flex: 1 },
-  headerName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  headerStatus: { fontSize: 11, color: '#CBD5E1', fontFamily: 'Montserrat-Medium', marginTop: 2 },
-  moreBtn: { padding: 8 },
+  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hdrAvatarWrap: { position: 'relative' },
+  hdrAvatar: {
+    width: 40, height: 40, borderRadius: 20,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  hdrAvatarFallback: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: C.lime,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  hdrAvatarTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#111827' },
+  hdrOnline: {
+    width: 11, height: 11, borderRadius: 6,
+    backgroundColor: C.lime,
+    position: 'absolute', bottom: 0, right: 0,
+    borderWidth: 2, borderColor: C.navyDeep,
+  },
+  hdrName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', maxWidth: width * 0.48 },
+  hdrStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
+  moreBtn: {
+    width: 36, height: 36, borderRadius: 11,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+  },
 
-  // --- List & States ---
-  listContent: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 10 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
-  emptyIconCircle: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2 },
-  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
-  emptySubtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', lineHeight: 22 },
+  // ── States ────────────────────────────────────────────────────────────────
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
+  emptyCircle: {
+    width: 86, height: 86, borderRadius: 43,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
+    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 8,
+  },
+  emptyTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.bodyText, marginBottom: 8 },
+  emptyBody: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, textAlign: 'center', lineHeight: 20 },
 
-  // --- Bubbles & Timeline ---
-  dateSeparator: { alignItems: 'center', marginVertical: 20 },
-  datePill: { backgroundColor: 'rgba(12, 21, 89, 0.06)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
-  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
+  // ── List ──────────────────────────────────────────────────────────────────
+  listContent: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10 },
 
-  msgWrapper: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12, width: '100%' },
-  wrapperMe: { justifyContent: 'flex-end' },
-  wrapperThem: { justifyContent: 'flex-start' },
-  msgAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 8, marginBottom: 4 },
-  
-  msgBubble: {
-    maxWidth: '78%',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 5,
-    elevation: 1,
+  // ── Date separator ─────────────────────────────────────────────────────────
+  dateSep: { alignItems: 'center', marginVertical: 14 },
+  datePill: {
+    backgroundColor: C.datePillBg,
+    borderWidth: 0.5, borderColor: C.datePillBorder,
+    paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20,
+  },
+  dateText: {
+    fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.mutedText,
+    textTransform: 'uppercase', letterSpacing: 0.6,
+  },
+
+  // ── Bubbles ────────────────────────────────────────────────────────────────
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, maxWidth: '100%' },
+  rowMe:   { justifyContent: 'flex-end' },
+  rowThem: { justifyContent: 'flex-start' },
+  msgAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 6, marginBottom: 2 },
+  msgAvatarFallback: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: C.lime,
+    marginRight: 6, marginBottom: 2,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  msgAvatarTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#111827' },
+
+  bubble: {
+    maxWidth: '76%',
+    borderRadius: 20,
+    overflow: 'hidden',  // clips LinearGradient to rounded corners
   },
   bubbleMe: {
-    backgroundColor: '#0C1559',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 4,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderBottomLeftRadius: 20, borderBottomRightRadius: 4,
+    // shadow matching product card elevation
+    elevation: 4,
+    shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.18, shadowRadius: 8,
+  },
+  bubbleMeGrad: {
+    paddingVertical: 10, paddingHorizontal: 14,
   },
   bubbleThem: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderBottomLeftRadius: 4,
-    borderBottomRightRadius: 20,
+    backgroundColor: C.cardBg,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    borderBottomLeftRadius: 4, borderBottomRightRadius: 20,
+    paddingVertical: 10, paddingHorizontal: 14,
+    elevation: 3,
+    shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08, shadowRadius: 6,
+    borderWidth: 0.5, borderColor: C.borderCard,
   },
-  bubblePending: { opacity: 0.6 },
-  
-  msgText: { fontSize: 15, fontFamily: 'Montserrat-Medium', lineHeight: 22 },
-  textMe: { color: '#FFFFFF' },
-  textThem: { color: '#1E293B' },
-  
-  metaContainer: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 4, gap: 4 },
-  msgTime: { fontSize: 10, fontFamily: 'Montserrat-Medium' },
-  timeMe: { color: 'rgba(255,255,255,0.6)' },
-  timeThem: { color: '#94A3B8' },
-  readIcon: { marginLeft: 2 },
+  bubblePending: { opacity: 0.55 },
+  bubbleFailed: {
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1, borderColor: '#FECACA',
+    paddingVertical: 10, paddingHorizontal: 14,
+  },
+  bubbleFailedInner: {},
+  failRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
+  failText: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.alertRed },
 
-  // --- Input Section ---
-  inputSection: { paddingHorizontal: 16, paddingTop: 5, backgroundColor: 'transparent' },
-  
-  replyPreview: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderTopLeftRadius: 16, borderTopRightRadius: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', marginHorizontal: 10, marginBottom: -10, zIndex: 1, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: -3 }, shadowOpacity: 0.05, shadowRadius: 5 },
-  replyBar: { width: 3, height: '100%', backgroundColor: '#0C1559', borderRadius: 2, marginRight: 12 },
-  replyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 2 },
-  replyText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  closeReply: { padding: 5 },
+  bubbleTxtMe:   { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
+  bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, lineHeight: 21 },
+  bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 21 },
 
-  inputPill: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: '#FFF', borderRadius: 28, paddingHorizontal: 6, paddingVertical: 6, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.08, shadowRadius: 15, elevation: 6, zIndex: 2 },
-  attachBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', borderRadius: 20 },
-  input: { flex: 1, minHeight: 40, maxHeight: 100, fontSize: 15, fontFamily: 'Montserrat-Medium', color: '#0F172A', paddingTop: 10, paddingBottom: 10, paddingHorizontal: 8 },
-  sendBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginLeft: 6 },
-  sendBtnDisabled: { backgroundColor: '#CBD5E1' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 4 },
+  metaTimeMe:   { fontSize: 9, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.4)' },
+  metaTimeThem: { fontSize: 9, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
 
-  // --- Modals ---
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.4)', justifyContent: 'center', alignItems: 'center' },
-  contextMenu: { backgroundColor: '#FFF', borderRadius: 24, width: width * 0.75, paddingVertical: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 20 }, shadowOpacity: 0.15, shadowRadius: 30, elevation: 15 },
-  contextPreview: { paddingHorizontal: 20, paddingVertical: 16, backgroundColor: '#F8FAFC', borderTopLeftRadius: 24, borderTopRightRadius: 24, marginBottom: 5 },
-  contextPreviewText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569', fontStyle: 'italic', lineHeight: 20 },
-  contextItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, gap: 14 },
-  contextItemText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  contextItemDanger: { borderTopWidth: 1, borderTopColor: '#FEE2E2' },
+  // ── Input bar ──────────────────────────────────────────────────────────────
+  inputBar: {
+    paddingHorizontal: 12, paddingTop: 8,
+    backgroundColor: 'rgba(233,240,255,0.97)',
+    borderTopWidth: 0.5, borderTopColor: C.borderLight,
+  },
+  replyPreview: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: C.cardBg,
+    borderWidth: 0.5, borderColor: C.borderCard,
+    borderRadius: 12, padding: 10, marginBottom: 8,
+    elevation: 1, shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
+  },
+  replyAccent: {
+    width: 3, alignSelf: 'stretch',
+    backgroundColor: C.navyDeep, borderRadius: 2, marginRight: 10,
+  },
+  replyBody: { flex: 1 },
+  replyLabel: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 2 },
+  replyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.mutedText },
+  replyClose: { padding: 4 },
 
-  moreMenu: { position: 'absolute', right: 20, backgroundColor: '#FFF', borderRadius: 20, width: 220, paddingVertical: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.15, shadowRadius: 25, elevation: 15 },
-  moreMenuItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16, gap: 12 },
-  moreMenuText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  // Input pill — white card, elevation matches product cards
+  pill: {
+    flexDirection: 'row', alignItems: 'flex-end',
+    backgroundColor: C.cardBg,
+    borderRadius: 28,
+    paddingHorizontal: 6, paddingVertical: 6,
+    borderWidth: 0.5, borderColor: C.borderCard,
+    elevation: 4,
+    shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1, shadowRadius: 8,
+  },
+  attachBtn: { width: 38, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 19 },
+  textInput: {
+    flex: 1,
+    minHeight: 38, maxHeight: 110,
+    fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText,
+    paddingTop: Platform.OS === 'android' ? 8 : 10,
+    paddingBottom: Platform.OS === 'android' ? 8 : 10,
+    paddingHorizontal: 6,
+    textAlignVertical: 'center',
+  },
+  // Send button — lime, same as active category chip on home
+  sendBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: C.lime,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 2, shadowColor: C.lime,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4,
+  },
+  sendBtnOff: { backgroundColor: '#E2E8F0', shadowOpacity: 0 },
+
+  // ── Modals ────────────────────────────────────────────────────────────────
+  overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.35)', justifyContent: 'center', alignItems: 'center' },
+  contextMenu: {
+    backgroundColor: C.cardBg,
+    borderRadius: 22, width: width * 0.72,
+    paddingVertical: 6, overflow: 'hidden',
+    elevation: 16, shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.14, shadowRadius: 24,
+  },
+  ctxPreview: {
+    paddingHorizontal: 18, paddingVertical: 14,
+    backgroundColor: '#F8FAFC',
+    borderBottomWidth: 0.5, borderBottomColor: C.borderLight,
+  },
+  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, fontStyle: 'italic', lineHeight: 19 },
+  ctxItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, gap: 12 },
+  ctxItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
+  ctxDanger: { borderTopWidth: 0.5, borderTopColor: '#FEE2E2' },
+
+  moreMenu: {
+    position: 'absolute', right: 14,
+    backgroundColor: C.cardBg,
+    borderRadius: 18, width: 210, paddingVertical: 4,
+    elevation: 14, shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.12, shadowRadius: 20,
+  },
+  moreItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 10 },
+  moreItemTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
 });
