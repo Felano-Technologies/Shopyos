@@ -83,7 +83,24 @@
       "expo-font",
       "expo-secure-store",
       "expo-web-browser",
-      "react-native-webrtc"
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Allow Shopyos to access your camera",
+          "microphonePermission": "Allow Shopyos to access your microphone"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
