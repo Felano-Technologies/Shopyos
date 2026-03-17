@@ -13,8 +13,10 @@
       "infoPlist": {
         "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to track deliveries in real-time for better customer experience.",
         "NSLocationWhenInUseUsageDescription": "We need your location to provide accurate delivery services.",
+        "NSMicrophoneUsageDescription": "Allow Shopyos to access your microphone for voice calls.",
         "UIBackgroundModes": [
-          "location"
+          "location",
+          "audio"
         ]
       }
     },
@@ -80,7 +82,8 @@
       ],
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "react-native-webrtc"
     ],
     "experiments": {
       "typedRoutes": true

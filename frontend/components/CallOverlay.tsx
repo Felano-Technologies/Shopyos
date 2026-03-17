@@ -20,9 +20,13 @@ interface CallOverlayProps {
   status: 'incoming' | 'outgoing' | 'connected' | 'ended';
   name: string;
   avatar: string;
+  isMuted: boolean;
+  isSpeakerOn: boolean;
   onAccept: () => void;
   onReject: () => void;
   onEnd: () => void;
+  onToggleMute: () => void;
+  onToggleSpeaker: () => void;
 }
 
 export const CallOverlay: React.FC<CallOverlayProps> = ({
@@ -30,9 +34,13 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   status,
   name,
   avatar,
+  isMuted,
+  isSpeakerOn,
   onAccept,
   onReject,
   onEnd,
+  onToggleMute,
+  onToggleSpeaker,
 }) => {
   const [timer, setTimer] = useState(0);
 
@@ -111,9 +119,15 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
               ) : (
                 <View style={styles.actionButtons}>
                   {status === 'connected' && (
-                    <TouchableOpacity style={styles.squareButton}>
-                      <Ionicons name="mic-off" size={24} color="white" />
-                      <Text style={styles.buttonLabel}>Mute</Text>
+                    <TouchableOpacity style={styles.squareButton} onPress={onToggleMute}>
+                      <Ionicons 
+                        name={isMuted ? "mic-off" : "mic"} 
+                        size={24} 
+                        color={isMuted ? "#ef4444" : "white"} 
+                      />
+                      <Text style={[styles.buttonLabel, isMuted && { color: '#ef4444' }]}>
+                        {isMuted ? "Unmute" : "Mute"}
+                      </Text>
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
@@ -123,9 +137,15 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                     <MaterialCommunityIcons name="phone-hangup" size={32} color="white" />
                   </TouchableOpacity>
                   {status === 'connected' && (
-                    <TouchableOpacity style={styles.squareButton}>
-                      <Ionicons name="volume-high" size={24} color="white" />
-                      <Text style={styles.buttonLabel}>Speaker</Text>
+                    <TouchableOpacity style={styles.squareButton} onPress={onToggleSpeaker}>
+                      <Ionicons 
+                        name={isSpeakerOn ? "volume-high" : "volume-medium"} 
+                        size={24} 
+                        color={isSpeakerOn ? "#22c55e" : "white"} 
+                      />
+                      <Text style={[styles.buttonLabel, isSpeakerOn && { color: '#22c55e' }]}>
+                        Speaker
+                      </Text>
                     </TouchableOpacity>
                   )}
                 </View>

@@ -208,7 +208,6 @@ function registerMessagingHandlers(io) {
         const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
         if (!isParticipant) return;
         
-        // Notify others in room
         socket.to(`conversation:${conversationId}`).emit('call:incoming', {
           conversationId,
           callerId: userId,
@@ -216,41 +215,32 @@ function registerMessagingHandlers(io) {
           callerAvatar
         });
       } catch (error) {
-        logger.error(`Call initiate error: ${error.message}`);
+        logger.error(`Error initiating call: ${error.message}`);
       }
     });
 
-    socket.on('call:accept', async ({ conversationId }) => {
-      try {
-        socket.to(`conversation:${conversationId}`).emit('call:accepted', {
-          conversationId,
-          responderId: userId
-        });
-      } catch (error) {
-        logger.error(`Call accept error: ${error.message}`);
-      }
+    socket.on('call:accept', ({ conversationId }) => {
+      socket.to(`conversation:${conversationId}`).emit('call:accepted', { conversationId });
     });
 
-    socket.on('call:reject', async ({ conversationId }) => {
-      try {
-        socket.to(`conversation:${conversationId}`).emit('call:rejected', {
-          conversationId,
-          responderId: userId
-        });
-      } catch (error) {
-        logger.error(`Call reject error: ${error.message}`);
-      }
+    socket.on('call:reject', ({ conversationId }) => {
+      socket.to(`conversation:${conversationId}`).emit('call:rejected', { conversationId });
     });
 
-    socket.on('call:end', async ({ conversationId }) => {
-      try {
-        socket.to(`conversation:${conversationId}`).emit('call:ended', {
-          conversationId,
-          senderId: userId
-        });
-      } catch (error) {
-        logger.error(`Call end error: ${error.message}`);
-      }
+    socket.on('call:end', ({ conversationId }) => {
+      socket.to(`conversation:${conversationId}`).emit('call:ended', { conversationId });
+    });
+
+    socket.on('call:offer', ({ conversationId, offer }) => {
+      socket.to(`conversation:${conversationId}`).emit('call:offer', { offer });
+    });
+
+    socket.on('call:answer', ({ conversationId, answer }) => {
+      socket.to(`conversation:${conversationId}`).emit('call:answer', { answer });
+    });
+
+    socket.on('call:ice-candidate', ({ conversationId, candidate }) => {
+      socket.to(`conversation:${conversationId}`).emit('call:ice-candidate', { candidate });
     });
   });
 

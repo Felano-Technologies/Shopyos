@@ -294,7 +294,22 @@ class SocketService {
     socket.emit('call:end', { conversationId });
   }
 
-  async onCallEvent(event: 'call:incoming' | 'call:accepted' | 'call:rejected' | 'call:ended', callback: SocketEventCallback): Promise<void> {
+  async sendOffer(conversationId: string, offer: any): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:offer', { conversationId, offer });
+  }
+
+  async sendAnswer(conversationId: string, answer: any): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:answer', { conversationId, answer });
+  }
+
+  async sendIceCandidate(conversationId: string, candidate: any): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:ice-candidate', { conversationId, candidate });
+  }
+
+  async onCallEvent(event: 'call:incoming' | 'call:accepted' | 'call:rejected' | 'call:ended' | 'call:offer' | 'call:answer' | 'call:ice-candidate', callback: SocketEventCallback): Promise<void> {
     const socket = await this.connect();
     this.addEventHandler(event, callback);
     socket.on(event, callback);

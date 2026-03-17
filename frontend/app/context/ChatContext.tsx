@@ -10,6 +10,13 @@ import { socketService } from '../../services/socket';
 import { usePathname, useGlobalSearchParams, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { CallOverlay } from '../../components/CallOverlay';
+import {
+  RTCPeerConnection,
+  RTCIceCandidate,
+  RTCSessionDescription,
+  mediaDevices,
+} from 'react-native-webrtc';
+import { Audio } from 'expo-av';
 
 export type CallState = 'idle' | 'incoming' | 'outgoing' | 'connected' | 'ended';
 
@@ -52,6 +59,10 @@ type ChatContextType = {
   acceptCall: () => void;
   rejectCall: () => void;
   endCall: () => void;
+  isMuted: boolean;
+  isSpeakerOn: boolean;
+  toggleMute: () => void;
+  toggleSpeaker: () => void;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -62,6 +73,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [callState, setCallStatus] = useState<CallState>('idle');
   const [callData, setCallData] = useState<CallData | null>(null);
+  const [localStream, setLocalStream] = useState<any>(null);
+  const [remoteStream, setRemoteStream] = useState<any>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(false);
+  const peerConnection = React.useRef<RTCPeerConnection | null>(null);
+
   const pathname = usePathname();
   const searchParams = useGlobalSearchParams();
   const router = useRouter();
@@ -264,8 +281,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           setCallStatus('incoming');
         });
 
-        socketService.onCallEvent('call:accepted', () => {
+        socketService.onCallEvent('call:accepted', async (data: any) => {
           setCallStatus('connected');
+          const pc = await setupPeerConnection(data.conversationId);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          socketService.sendOffer(data.conversationId, offer);
         });
 
         socketService.onCallEvent('call:rejected', () => {
@@ -276,6 +297,40 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         socketService.onCallEvent('call:ended', () => {
           setCallStatus('ended');
           setTimeout(() => setCallStatus('idle'), 2000);
+        });
+
+        // WebRTC Signaling Handlers
+        socketService.onCallEvent('call:offer', async ({ offer, conversationId }: any) => {
+          if (!peerConnection.current) {
+            // If PC not created yet (e.g. accepted but PC setup lagging), wait or setup now
+            await setupPeerConnection(conversationId);
+          }
+          try {
+            await peerConnection.current!.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.current!.createAnswer();
+            await peerConnection.current!.setLocalDescription(answer);
+            socketService.sendAnswer(conversationId, answer);
+          } catch (e) {
+            console.error('WebRTC offer error:', e);
+          }
+        });
+
+        socketService.onCallEvent('call:answer', async ({ answer }) => {
+          if (!peerConnection.current) return;
+          try {
+            await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
+          } catch (e) {
+            console.error('WebRTC answer error:', e);
+          }
+        });
+
+        socketService.onCallEvent('call:ice-candidate', async ({ candidate }) => {
+          if (!peerConnection.current) return;
+          try {
+            await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
+          } catch (e) {
+            console.error('WebRTC ICE error:', e);
+          }
         });
 
         // Reconnect handler
@@ -302,10 +357,92 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [currentUserId, pathname, searchParams]);
 
-  // Initial fetch
+  const setupPeerConnection = async (conversationId: string) => {
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    }) as any;
+
+    pc.onicecandidate = (event: any) => {
+      if (event.candidate) {
+        socketService.sendIceCandidate(conversationId, event.candidate);
+      }
+    };
+
+    pc.onaddstream = (event: any) => {
+      setRemoteStream(event.stream);
+    };
+
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Microphone access is required for calls.' });
+        return;
+      }
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+      });
+
+      const stream = await (mediaDevices as any).getUserMedia({
+        audio: true,
+        video: false
+      });
+      setLocalStream(stream);
+      pc.addStream(stream);
+    } catch (e) {
+      console.error('Failed to get local stream or set audio mode:', e);
+    }
+
+    peerConnection.current = pc;
+    return pc;
+  };
+
   useEffect(() => {
     fetchChats();
   }, []);
+
+  const cleanupCall = () => {
+    if (localStream) {
+      localStream.getTracks().forEach((track: any) => track.stop());
+      setLocalStream(null);
+    }
+    if (peerConnection.current) {
+      peerConnection.current.close();
+      peerConnection.current = null;
+    }
+    setRemoteStream(null);
+    setCallData(null);
+    setIsMuted(false);
+    setIsSpeakerOn(false);
+  };
+
+  const toggleMute = () => {
+    if (localStream) {
+      localStream.getAudioTracks().forEach((track: any) => {
+        track.enabled = !track.enabled;
+      });
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const toggleSpeaker = async () => {
+    const nextValue = !isSpeakerOn;
+    try {
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: !nextValue,
+      });
+      setIsSpeakerOn(nextValue);
+    } catch (e) {
+      console.error('Failed to toggle speaker:', e);
+    }
+  };
 
   const sendMessage = async (id: string, text: string, type: 'buyer' | 'seller') => {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -381,6 +518,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         acceptCall: async () => {
           if (callData) {
             setCallStatus('connected');
+            await setupPeerConnection(callData.conversationId);
             await socketService.acceptCall(callData.conversationId);
           }
         },
@@ -388,15 +526,21 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           if (callData) {
             setCallStatus('idle');
             await socketService.rejectCall(callData.conversationId);
+            cleanupCall();
           }
         },
         endCall: async () => {
           if (callData) {
             setCallStatus('ended');
             await socketService.endCall(callData.conversationId);
+            cleanupCall();
             setTimeout(() => setCallStatus('idle'), 2000);
           }
-        }
+        },
+        isMuted,
+        isSpeakerOn,
+        toggleMute,
+        toggleSpeaker,
       }}
     >
       {children}
@@ -424,6 +568,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             setTimeout(() => setCallStatus('idle'), 1500);
           }
         }}
+        isMuted={isMuted}
+        isSpeakerOn={isSpeakerOn}
+        onToggleMute={toggleMute}
+        onToggleSpeaker={toggleSpeaker}
       />
     </ChatContext.Provider>
   );
