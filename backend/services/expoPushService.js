@@ -18,6 +18,8 @@ class ExpoPushService {
         try {
             // 1. Fetch user's push tokens from the DB
             const tokens = await repositories.notifications.getUserPushTokens(userId);
+            console.log(`📡 [ExpoPushService] Found ${tokens?.length || 0} tokens for user ${userId}`);
+            
             if (!tokens || tokens.length === 0) {
                 return false;
             }
@@ -40,13 +42,17 @@ class ExpoPushService {
                 });
             }
 
-            if (messages.length === 0) return false;
+            if (messages.length === 0) {
+                console.log('📡 [ExpoPushService] No valid push tokens found in list.');
+                return false;
+            }
 
             // 2. Chunk messages
             const chunks = this.expo.chunkPushNotifications(messages);
             const tickets = [];
 
             // 3. Send chunks to Expo
+            console.log(`📡 [ExpoPushService] Sending ${messages.length} notifications in ${chunks.length} chunks...`);
             for (let chunk of chunks) {
                 try {
                     const ticketChunk = await this.expo.sendPushNotificationsAsync(chunk);
@@ -56,9 +62,13 @@ class ExpoPushService {
                 }
             }
 
+            console.log(`📡 [ExpoPushService] Delivery finished. Tickets received: ${tickets.length}`);
             // 4. (Optional) Check receipts later. For simple robust handling, we check tickets here to clean up unregistered tokens.
             for (let i = 0; i < tickets.length; i++) {
                 const ticket = tickets[i];
+                if (ticket.status === 'ok') {
+                    console.log(`✅ [ExpoPushService] Successfully sent to token: ${messages[i].to}`);
+                }
                 if (ticket.status === 'error') {
                     logger.error(`Error sending to device: ${ticket.message}`);
                     if (ticket.details && ticket.details.error === 'DeviceNotRegistered') {

@@ -45,10 +45,12 @@ export function usePushNotifications() {
         });
 
         notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+            console.log('🔔 Notification Received (Foreground):', JSON.stringify(notification, null, 2));
             setNotification(notification);
         });
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+            console.log('タップ Notification Tapped:', JSON.stringify(response, null, 2));
             const data = response.notification.request.content.data;
             if (data?.screen === 'messages') {
                 // Deep link to Chat
