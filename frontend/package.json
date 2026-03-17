@@ -33,7 +33,7 @@
     "expo": "~54.0.33",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.7",
-    "expo-build-properties": "^55.0.9",
+    "expo-build-properties": "~1.0.10",
     "expo-camera": "~17.0.10",
     "expo-constants": "~18.0.9",
     "expo-dev-client": "~6.0.20",
@@ -98,7 +98,8 @@
         "exclude": [
           "metro",
           "expo-barcode-scanner",
-          "react-native-camera"
+          "react-native-camera",
+          "react-native-webrtc"
         ]
       }
     }
