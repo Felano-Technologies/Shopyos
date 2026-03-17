@@ -10,13 +10,10 @@ import { socketService } from '../../services/socket';
 import { usePathname, useGlobalSearchParams, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { CallOverlay } from '../../components/CallOverlay';
-import {
-  RTCPeerConnection,
-  RTCIceCandidate,
-  RTCSessionDescription,
-  mediaDevices,
-} from 'react-native-webrtc';
 import { Audio } from 'expo-av';
+import Constants from 'expo-constants';
+
+const isExpoGo = Constants.appOwnership === 'expo';
 
 export type CallState = 'idle' | 'incoming' | 'outgoing' | 'connected' | 'ended';
 
@@ -77,7 +74,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [remoteStream, setRemoteStream] = useState<any>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
-  const peerConnection = React.useRef<RTCPeerConnection | null>(null);
+  const peerConnection = React.useRef<any>(null);
 
   const pathname = usePathname();
   const searchParams = useGlobalSearchParams();
@@ -131,20 +128,20 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           const isMe = activeUserId && lastMsgSenderId === activeUserId;
           const time = c.updatedAt
             ? new Date(c.updatedAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
+              hour: '2-digit',
+              minute: '2-digit',
+            })
             : '';
 
           const messages = c.lastMessage
             ? [
-                {
-                  id: c.lastMessage.id,
-                  text: c.lastMessage.content,
-                  sender: isMe ? ('me' as const) : ('them' as const),
-                  time,
-                },
-              ]
+              {
+                id: c.lastMessage.id,
+                text: c.lastMessage.content,
+                sender: isMe ? ('me' as const) : ('them' as const),
+                time,
+              },
+            ]
             : [];
 
           return {
@@ -192,7 +189,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           // Update the conversation list: bump lastMessage, time, unread count
           const updateList = (prev: Conversation[]) => {
             const exists = prev.some(c => c.id === conversationId);
-            
+
             // If the conversation is new and not in the list, fetch all to get participant details
             if (!exists) {
               fetchChats();
@@ -252,8 +249,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                 unread: isMe
                   ? conv.unread
                   : isViewingThisChat
-                  ? conv.unread
-                  : conv.unread + 1,
+                    ? conv.unread
+                    : conv.unread + 1,
               };
             });
 
@@ -301,6 +298,9 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
         // WebRTC Signaling Handlers
         socketService.onCallEvent('call:offer', async ({ offer, conversationId }: any) => {
+          if (isExpoGo) return;
+          const { RTCSessionDescription } = require('react-native-webrtc');
+          
           if (!peerConnection.current) {
             // If PC not created yet (e.g. accepted but PC setup lagging), wait or setup now
             await setupPeerConnection(conversationId);
@@ -316,6 +316,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         socketService.onCallEvent('call:answer', async ({ answer }) => {
+          if (isExpoGo) return;
+          const { RTCSessionDescription } = require('react-native-webrtc');
           if (!peerConnection.current) return;
           try {
             await peerConnection.current.setRemoteDescription(new RTCSessionDescription(answer));
@@ -325,6 +327,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         });
 
         socketService.onCallEvent('call:ice-candidate', async ({ candidate }) => {
+          if (isExpoGo) return;
+          const { RTCIceCandidate } = require('react-native-webrtc');
           if (!peerConnection.current) return;
           try {
             await peerConnection.current.addIceCandidate(new RTCIceCandidate(candidate));
@@ -358,6 +362,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   }, [currentUserId, pathname, searchParams]);
 
   const setupPeerConnection = async (conversationId: string) => {
+    if (isExpoGo) {
+      Toast.show({ 
+        type: 'info', 
+        text1: 'Not Supported', 
+        text2: 'Calling is only available in the standalone app build.' 
+      });
+      return;
+    }
+    const { RTCPeerConnection, mediaDevices } = require('react-native-webrtc');
+
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
     }) as any;

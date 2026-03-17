@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "910691132675",
+    "project_id": "shoyos-notifications",
+    "storage_bucket": "shoyos-notifications.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:910691132675:android:ed8c027ca105c3747d7536",
+        "android_client_info": {
+          "package_name": "com.eugeneanokye99.shopyos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3QGJyqT-hddmfIpEalJBuK9BxsKr5WEw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
