@@ -3,9 +3,8 @@ import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { registerPushTokenInBackend } from '../services/api';
+import { registerPushTokenInBackend, storage } from '../services/api';
 
 // Make sure Notifications are set to display when foregrounded
 Notifications.setNotificationHandler({
@@ -29,12 +28,12 @@ export function usePushNotifications() {
         registerForPushNotificationsAsync().then(async (token) => {
             if (token) {
                 setExpoPushToken(token);
-                // Optionally store locally so we can sync it with backend upon login
-                await AsyncStorage.setItem('expoPushToken', token).catch(() => { });
+                // Store consistently using our SecureStore wrapper
+                await storage.setItem('expoPushToken', token).catch(() => { });
 
                 // Try to sync with backend right away if we are already logged in
                 try {
-                    const userToken = await AsyncStorage.getItem('userToken');
+                    const userToken = await storage.getItem('userToken');
                     if (userToken) {
                         await registerPushTokenInBackend(token);
                     }
