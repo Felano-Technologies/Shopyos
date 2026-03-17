@@ -199,6 +199,59 @@ function registerMessagingHandlers(io) {
         callback?.({ success: false, error: error.message });
       }
     });
+
+    /**
+     * VOIP Call Signaling
+     */
+    socket.on('call:initiate', async ({ conversationId, callerName, callerAvatar }) => {
+      try {
+        const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
+        if (!isParticipant) return;
+        
+        // Notify others in room
+        socket.to(`conversation:${conversationId}`).emit('call:incoming', {
+          conversationId,
+          callerId: userId,
+          callerName,
+          callerAvatar
+        });
+      } catch (error) {
+        logger.error(`Call initiate error: ${error.message}`);
+      }
+    });
+
+    socket.on('call:accept', async ({ conversationId }) => {
+      try {
+        socket.to(`conversation:${conversationId}`).emit('call:accepted', {
+          conversationId,
+          responderId: userId
+        });
+      } catch (error) {
+        logger.error(`Call accept error: ${error.message}`);
+      }
+    });
+
+    socket.on('call:reject', async ({ conversationId }) => {
+      try {
+        socket.to(`conversation:${conversationId}`).emit('call:rejected', {
+          conversationId,
+          responderId: userId
+        });
+      } catch (error) {
+        logger.error(`Call reject error: ${error.message}`);
+      }
+    });
+
+    socket.on('call:end', async ({ conversationId }) => {
+      try {
+        socket.to(`conversation:${conversationId}`).emit('call:ended', {
+          conversationId,
+          senderId: userId
+        });
+      } catch (error) {
+        logger.error(`Call end error: ${error.message}`);
+      }
+    });
   });
 
   logger.info('Messaging socket handlers registered');

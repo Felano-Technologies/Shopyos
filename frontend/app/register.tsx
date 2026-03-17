@@ -215,7 +215,6 @@ const RegisterScreen = () => {
             </View>
           </ScrollView>
         </Pressable>
-        <Toast />
       </KeyboardAvoidingView>
     </LinearGradient>
   );

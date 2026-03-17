@@ -11,7 +11,7 @@ const getBaseURL = () => {
   if (isDev === "development") {
     // Development mode - use local server
     if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:5000'; // Android Emulator
+      return 'https://dios-mnxg.onrender.com'; // Android Emulator
     } else {
       return 'https://dios-mnxg.onrender.com'
     }
@@ -867,7 +867,7 @@ export const uploadProductImages = async (productId: string, imageUris: string[]
 export const getBusinessDashboard = async (businessId: string) => {
   try {
     const response = await api.get(`/business/dashboard/${businessId}`);
-    return response.data;
+    return response.data?.data || response.data;
   } catch (error: any) {
     if (error.response) {
       console.error('Server Error:', error.response.data);

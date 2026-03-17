@@ -56,7 +56,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar } = params;
-  const { deleteConversation } = useChat();
+  const { deleteConversation, startCall } = useChat();
 
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -242,7 +242,7 @@ export default function ConversationScreen() {
   };
 
   // ─── Message bubble ────────────────────────────────────────────────────────
-  const renderMsg = ({ item, index }: { item: MessageItem; index: number }) => {
+  const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
     return (
       <>
@@ -315,7 +315,7 @@ export default function ConversationScreen() {
         </View>
       </>
     );
-  };
+  }, [currentUserId, displayAvatar, displayName, messages]);
 
   // ─── Root ──────────────────────────────────────────────────────────────────
   return (
@@ -348,6 +348,13 @@ export default function ConversationScreen() {
                 {chatType === 'buyer' ? 'Official Store' : 'Customer'} · Online
               </Text>
             </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[styles.moreBtn, { marginRight: 8 }]} 
+            onPress={() => startCall(conversationId, displayName, displayAvatar)}
+          >
+            <Ionicons name="call" size={18} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreVisible(true)}>
@@ -387,6 +394,10 @@ export default function ConversationScreen() {
             showsVerticalScrollIndicator={false}
             onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={15}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            removeClippedSubviews={Platform.OS === 'android'}
           />
         )}
 

@@ -9,6 +9,15 @@ import {
 import { socketService } from '../../services/socket';
 import { usePathname, useGlobalSearchParams, useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
+import { CallOverlay } from '../../components/CallOverlay';
+
+export type CallState = 'idle' | 'incoming' | 'outgoing' | 'connected' | 'ended';
+
+interface CallData {
+  conversationId: string;
+  name: string;
+  avatar: string;
+}
 
 export type Message = {
   id: string;
@@ -37,6 +46,12 @@ type ChatContextType = {
   deleteConversation: (id: string, type: 'buyer' | 'seller') => Promise<boolean>;
   refresh: () => void;
   currentUserId: string | null;
+  callState: CallState;
+  callData: CallData | null;
+  startCall: (id: string, name: string, avatar: string) => void;
+  acceptCall: () => void;
+  rejectCall: () => void;
+  endCall: () => void;
 };
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -45,6 +60,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [buyerConversations, setBuyerChats] = useState<Conversation[]>([]);
   const [sellerConversations, setSellerChats] = useState<Conversation[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [callState, setCallStatus] = useState<CallState>('idle');
+  const [callData, setCallData] = useState<CallData | null>(null);
   const pathname = usePathname();
   const searchParams = useGlobalSearchParams();
   const router = useRouter();
@@ -156,8 +173,17 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           const isMe = currentUserId && message.sender_id === currentUserId;
 
           // Update the conversation list: bump lastMessage, time, unread count
-          const updateList = (prev: Conversation[]) =>
-            prev.map((conv) => {
+          const updateList = (prev: Conversation[]) => {
+            const exists = prev.some(c => c.id === conversationId);
+            
+            // If the conversation is new and not in the list, fetch all to get participant details
+            if (!exists) {
+              fetchChats();
+              return prev;
+            }
+
+            // Otherwise, update existing chat and move it to the top
+            const updatedChats = prev.map((conv) => {
               if (conv.id !== conversationId) return conv;
 
               const isViewingThisChat =
@@ -193,6 +219,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                   hour: '2-digit',
                   minute: '2-digit',
                 }),
+                messages: [
+                  ...conv.messages,
+                  {
+                    id: message.id || Date.now().toString(),
+                    text: message.content,
+                    sender: isMe ? ('me' as const) : ('them' as const),
+                    time: new Date(message.created_at).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  }
+                ],
                 // Only increment unread if not currently viewing this conversation
                 unread: isMe
                   ? conv.unread
@@ -202,11 +240,43 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               };
             });
 
+            // Re-sort: bring the updated conversation to the top
+            return updatedChats.sort((a, b) => {
+              if (a.id === conversationId) return -1;
+              if (b.id === conversationId) return 1;
+              return 0;
+            });
+          };
+
           setBuyerChats(updateList);
           setSellerChats(updateList);
         };
 
         socketService.onNewMessage(handleInboxUpdate);
+
+        // VOIP Listeners
+        socketService.onCallEvent('call:incoming', (data: any) => {
+          setCallData({
+            conversationId: data.conversationId,
+            name: data.callerName,
+            avatar: data.callerAvatar
+          });
+          setCallStatus('incoming');
+        });
+
+        socketService.onCallEvent('call:accepted', () => {
+          setCallStatus('connected');
+        });
+
+        socketService.onCallEvent('call:rejected', () => {
+          setCallStatus('ended');
+          setTimeout(() => setCallStatus('idle'), 2000);
+        });
+
+        socketService.onCallEvent('call:ended', () => {
+          setCallStatus('ended');
+          setTimeout(() => setCallStatus('idle'), 2000);
+        });
 
         // Reconnect handler
         const socket = socketService.getSocket();
@@ -225,6 +295,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
     return () => {
       socketService.offNewMessage();
+      socketService.offCallEvent('call:incoming');
+      socketService.offCallEvent('call:accepted');
+      socketService.offCallEvent('call:rejected');
+      socketService.offCallEvent('call:ended');
     };
   }, [currentUserId, pathname, searchParams]);
 
@@ -297,9 +371,60 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         deleteConversation,
         refresh: fetchChats,
         currentUserId,
+        callState,
+        callData,
+        startCall: async (id, name, avatar) => {
+          setCallData({ conversationId: id, name, avatar });
+          setCallStatus('outgoing');
+          await socketService.initiateCall(id, name, avatar);
+        },
+        acceptCall: async () => {
+          if (callData) {
+            setCallStatus('connected');
+            await socketService.acceptCall(callData.conversationId);
+          }
+        },
+        rejectCall: async () => {
+          if (callData) {
+            setCallStatus('idle');
+            await socketService.rejectCall(callData.conversationId);
+          }
+        },
+        endCall: async () => {
+          if (callData) {
+            setCallStatus('ended');
+            await socketService.endCall(callData.conversationId);
+            setTimeout(() => setCallStatus('idle'), 2000);
+          }
+        }
       }}
     >
       {children}
+      <CallOverlay
+        isVisible={callState !== 'idle'}
+        status={callState === 'outgoing' ? 'outgoing' : callState === 'incoming' ? 'incoming' : callState === 'connected' ? 'connected' : 'ended'}
+        name={callData?.name || 'Unknown'}
+        avatar={callData?.avatar || ''}
+        onAccept={() => {
+          if (callData) {
+            setCallStatus('connected');
+            socketService.acceptCall(callData.conversationId);
+          }
+        }}
+        onReject={() => {
+          if (callData) {
+            setCallStatus('idle');
+            socketService.rejectCall(callData.conversationId);
+          }
+        }}
+        onEnd={() => {
+          if (callData) {
+            setCallStatus('ended');
+            socketService.endCall(callData.conversationId);
+            setTimeout(() => setCallStatus('idle'), 1500);
+          }
+        }}
+      />
     </ChatContext.Provider>
   );
 };

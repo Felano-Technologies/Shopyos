@@ -40,6 +40,7 @@ import {
   createStoreReview
 } from '@/services/api';
 import Toast from 'react-native-toast-message';
+import { useChat } from '../context/ChatContext';
 
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
@@ -50,6 +51,7 @@ const { width } = Dimensions.get('window');
 export default function StoreDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { startCall } = useChat();
 
   const [activeTab, setActiveTab] = useState('Catalogue');
   const [loading, setLoading] = useState(true);
@@ -400,7 +402,14 @@ export default function StoreDetailsScreen() {
           {store.cover ? <Image source={store.cover} style={styles.coverImage} /> : <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.coverImage} />}
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
             <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
-            <TouchableOpacity style={styles.iconBtn} onPress={handleShare}><Ionicons name="share-social-outline" size={22} color="#FFF" /></TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+               <TouchableOpacity style={styles.iconBtn} onPress={() => startCall(store.id as string, store.name, store.logo?.uri || '')}>
+                 <Ionicons name="call-outline" size={22} color="#FFF" />
+               </TouchableOpacity>
+               <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
+                 <Ionicons name="share-social-outline" size={22} color="#FFF" />
+               </TouchableOpacity>
+            </View>
           </SafeAreaView>
         </View>
 
@@ -419,9 +428,15 @@ export default function StoreDetailsScreen() {
           <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
             {chatLoading ? <ActivityIndicator size="small" color="#FFF" /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" /><Text style={styles.primaryActionText}>Chat</Text></>}
           </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.callActionButton} 
+            onPress={() => startCall(store.id as string, store.name, store.logo?.uri || '')}
+          >
+            <Ionicons name="call" size={22} color="#0C1559" />
+          </TouchableOpacity>
           <TouchableOpacity style={[styles.secondaryActionBtn, isFollowing && styles.followingBtn]} onPress={handleFollow}>
             <Ionicons name={isFollowing ? "checkmark-circle" : "notifications-outline"} size={20} color={isFollowing ? "#FFF" : "#0C1559"} />
-            <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Following' : 'Follow'}</Text>
+            <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Follow' : 'Follow'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -529,8 +544,6 @@ export default function StoreDetailsScreen() {
       </Modal>
 
       <ReviewCommentsSheet visible={isCommentsVisible} onClose={() => setIsCommentsVisible(false)} reviewId={selectedReviewId} comments={activeComments} onSendComment={handleSendComment} isSubmitting={commentSubmitting} />
-
-      <Toast />
     </View>
   );
 }
@@ -552,6 +565,7 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 20 },
   primaryActionBtn: { flex: 1, height: 44, backgroundColor: '#0C1559', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   primaryActionText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
+  callActionButton: { width: 44, height: 44, backgroundColor: '#FFF', borderRadius: 22, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
   secondaryActionBtn: { flex: 1, height: 44, backgroundColor: '#FFF', borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   secondaryActionText: { color: '#0C1559', fontFamily: 'Montserrat-SemiBold', fontSize: 14 },
   tabContainer: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#E2E8F0', paddingHorizontal: 20, marginBottom: 20 },

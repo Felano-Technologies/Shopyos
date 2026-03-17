@@ -272,6 +272,46 @@ class SocketService {
     }
   }
 
+  // === VOIP CALL SIGNALING ===
+
+  async initiateCall(conversationId: string, callerName: string, callerAvatar: string): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:initiate', { conversationId, callerName, callerAvatar });
+  }
+
+  async acceptCall(conversationId: string): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:accept', { conversationId });
+  }
+
+  async rejectCall(conversationId: string): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:reject', { conversationId });
+  }
+
+  async endCall(conversationId: string): Promise<void> {
+    const socket = await this.connect();
+    socket.emit('call:end', { conversationId });
+  }
+
+  async onCallEvent(event: 'call:incoming' | 'call:accepted' | 'call:rejected' | 'call:ended', callback: SocketEventCallback): Promise<void> {
+    const socket = await this.connect();
+    this.addEventHandler(event, callback);
+    socket.on(event, callback);
+  }
+
+  offCallEvent(event: 'call:incoming' | 'call:accepted' | 'call:rejected' | 'call:ended', callback?: SocketEventCallback): void {
+    if (this.socket) {
+      if (callback) {
+        this.socket.off(event, callback);
+        this.removeEventHandler(event, callback);
+      } else {
+        this.socket.off(event);
+        this.eventHandlers.delete(event);
+      }
+    }
+  }
+
   /**
    * Store event handler for reconnection
    */

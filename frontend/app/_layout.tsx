@@ -13,13 +13,42 @@ import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
-import Toast from 'react-native-toast-message';
+import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 
 SplashScreen.preventAutoHideAsync();
+
+const toastConfig = {
+  success: (props: any) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#84cc16', backgroundColor: '#FFF', borderRadius: 12 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' }}
+      text2Style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' }}
+    />
+  ),
+  error: (props: any) => (
+    <ErrorToast
+      {...props}
+      style={{ borderLeftColor: '#EF4444', backgroundColor: '#FFF', borderRadius: 12 }}
+      text1Style={{ fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' }}
+      text2Style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' }}
+    />
+  ),
+  info: (props: any) => (
+    <BaseToast
+      {...props}
+      style={{ borderLeftColor: '#0C1559', backgroundColor: '#FFF', borderRadius: 12 }}
+      contentContainerStyle={{ paddingHorizontal: 15 }}
+      text1Style={{ fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' }}
+      text2Style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' }}
+    />
+  )
+};
 
 // Inner component that uses hooks requiring QueryClient
 function AppContent() {
@@ -172,7 +201,7 @@ function AppContent() {
             {isBusinessRoute && showBusinessNav && <BusinessBottomNav />}
 
             <StatusBar style="auto" />
-            <Toast topOffset={50} visibilityTime={4000} />
+            <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
           </View>
         </ThemeProvider>
       </ChatProvider>

@@ -191,7 +191,6 @@ const LoginScreen = () => {
           </View>
         </Pressable>
       </KeyboardAvoidingView>
-      <Toast />
     </View>
   );
 };
