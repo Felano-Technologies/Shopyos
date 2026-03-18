@@ -9,7 +9,8 @@ import {
     useColorScheme, 
     RefreshControl, 
     Dimensions, 
-    Modal 
+    Modal, 
+    ActivityIndicator
 } from 'react-native';
 import { router } from 'expo-router';
 import { storage } from '@/services/api';
@@ -22,6 +23,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { useSellerGuard } from '../../hooks/useSellerGuard';
+
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +41,8 @@ const BusinessDashboard = () => {
   const theme = useColorScheme();
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
+  const { isChecking, isVerified } = useSellerGuard();
+
 
   // --- TanStack Query Hooks ---
   const { data: businessesData, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses } = useMyBusinesses();
@@ -86,6 +91,16 @@ const BusinessDashboard = () => {
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
+
+    // Show a blank loading screen while the guard checks storage.
+  // This prevents a flash of protected content for unverified sellers.
+  if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.mainContainer}>
@@ -340,7 +355,8 @@ const styles = StyleSheet.create({
   alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
   alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 },
   alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0C1559', paddingVertical: 15, paddingHorizontal: 30, borderRadius: 16, width: '100%', gap: 8 },
-  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' }
+  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }
 });
 
 export default BusinessDashboard;

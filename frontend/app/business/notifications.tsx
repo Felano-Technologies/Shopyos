@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { format, isToday, isYesterday } from 'date-fns';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +30,16 @@ export default function NotificationsScreen() {
   const { data, isLoading, refetch } = useNotifications();
   const markAllReadMutation = useMarkAllNotificationsRead();
   const markReadMutation = useMarkNotificationRead();
+  const { isChecking, isVerified } = useSellerGuard();
+
+  
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
 
   useEffect(() => {
     if (data?.notifications) {
@@ -409,4 +420,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
   },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });

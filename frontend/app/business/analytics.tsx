@@ -20,6 +20,8 @@ import { storage } from '@/services/api';
 import { router } from 'expo-router';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
 import { useBusinessAnalytics } from '@/hooks/useBusiness';
+import { useSellerGuard } from '../../hooks/useSellerGuard';
+
 
 const { width } = Dimensions.get('window');
 
@@ -27,6 +29,16 @@ const Analytics = () => {
   const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('week');
   const scrollY = useRef(new Animated.Value(0)).current;
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const { isChecking, isVerified } = useSellerGuard();
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
+
 
   // Verification guard — redirect unverified businesses
   useEffect(() => {
@@ -621,6 +633,8 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 5,
   },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });
 
 export default Analytics;

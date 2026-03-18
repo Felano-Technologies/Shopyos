@@ -18,6 +18,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getMyBusinesses, storage, logoutUser } from '@/services/api'; // Import your API function
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,17 @@ interface BusinessData {
 export default function BusinessSettingsScreen() {
   const router = useRouter();
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
+  const { isChecking, isVerified } = useSellerGuard();
+
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
+
 
   // Verification guard — redirect unverified businesses
   useEffect(() => {
@@ -503,4 +515,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Regular',
     marginBottom: 20,
   },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });

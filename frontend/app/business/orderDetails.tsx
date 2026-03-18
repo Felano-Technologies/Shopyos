@@ -20,6 +20,7 @@ import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
 import { getOrderDetails, updateOrderStatus, createDelivery } from '@/services/api';
 import Toast from 'react-native-toast-message';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const { width } = Dimensions.get('window');
 
@@ -30,6 +31,15 @@ export default function OrderDetailsScreen() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [currentStatus, setCurrentStatus] = useState<string>('');
+  const { isChecking, isVerified } = useSellerGuard();
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
 
   const fetchOrder = async () => {
     try {
@@ -317,5 +327,7 @@ const styles = StyleSheet.create({
   methodText: { fontSize: 12, color: '#475569', fontFamily: 'Montserrat-Bold' },
   actionGrid: { flexDirection: 'row', gap: 10 },
   actionBtn: { flex: 1, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  actionBtnText: { fontSize: 13, fontFamily: 'Montserrat-Bold' }
+  actionBtnText: { fontSize: 13, fontFamily: 'Montserrat-Bold' },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });

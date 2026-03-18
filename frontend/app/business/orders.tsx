@@ -10,6 +10,7 @@ import {
   Animated,
   Image,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { getStoreOrders, storage } from '@/services/api';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const { width } = Dimensions.get('window');
 
@@ -38,6 +40,16 @@ const OrdersScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true); // <--- Added Loading State
   const [orders, setOrders] = useState<Order[]>([]);
+  const { isChecking, isVerified } = useSellerGuard();
+
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
 
   const fetchOrders = async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -533,6 +545,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     marginTop: 10,
   },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });
 
 export default OrdersScreen;

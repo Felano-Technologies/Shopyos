@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { queryClient } from '@/lib/query/client';
 import { socketService } from './socket';
+import Toast from 'react-native-toast-message';
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
@@ -11,9 +12,9 @@ const getBaseURL = () => {
   if (isDev === "development") {
     // Development mode - use local server
     if (Platform.OS === 'android') {
-      return 'https://dios-mnxg.onrender.com'; // Android Emulator
+      return 'http://10.0.2.2:5000'; // Android Emulator http://10.0.2.2:5000
     } else {
-      return 'https://dios-mnxg.onrender.com'
+      return 'http://localhost:5000'; // iOS Simulator and Web (adjust if your local server is different)
     }
   } else {
     // Production mode - use production server
@@ -24,115 +25,95 @@ const getBaseURL = () => {
 export const baseURL = getBaseURL();
 export const API_URL = `${baseURL}/api/v1/`;
 
-// Platform-specific storage helpers
 export const storage = {
   async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') {
-      return localStorage.getItem(key);
-    }
+    if (Platform.OS === 'web') return localStorage.getItem(key);
     return await SecureStore.getItemAsync(key);
   },
-
   async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      localStorage.setItem(key, value);
-    } else {
-      await SecureStore.setItemAsync(key, value);
-    }
+    if (Platform.OS === 'web') localStorage.setItem(key, value);
+    else await SecureStore.setItemAsync(key, value);
   },
-
   async removeItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') {
-      localStorage.removeItem(key);
-    } else {
-      await SecureStore.deleteItemAsync(key);
-    }
-  }
+    if (Platform.OS === 'web') localStorage.removeItem(key);
+    else await SecureStore.deleteItemAsync(key);
+  },
 };
-
-/**
- * Extracts a user-friendly error message from any API error.
- * Handles Axios errors, network failures, validation errors, and HTTP status codes.
- */
+ 
+// ─── Error message extractor ──────────────────────────────────────────────────
 export const extractErrorMessage = (error: any): string => {
-  // Axios error with server response
   if (error?.response) {
     const { status, data } = error.response;
-
-    // The backend sends error messages in these fields
     const serverMsg = data?.error || data?.message;
-
-    // Validation errors (express-validator) come as comma-separated
     if (serverMsg && typeof serverMsg === 'string' && serverMsg !== 'Internal Server Error') {
       return serverMsg;
     }
-
-    // Fallback by HTTP status code
     switch (status) {
       case 400: return serverMsg || 'Invalid request. Please check your input and try again.';
       case 401: return 'Your session has expired. Please log in again.';
       case 403: return serverMsg || "You don't have permission to perform this action.";
       case 404: return serverMsg || 'The requested resource was not found.';
       case 408: return 'Request timed out. Please check your connection and try again.';
-      case 409: return serverMsg || 'This action conflicts with existing data (e.g. duplicate entry).';
+      case 409: return serverMsg || 'This action conflicts with existing data.';
       case 413: return 'The file you uploaded is too large. Please try a smaller file.';
       case 422: return serverMsg || 'Please check your input — some fields are invalid.';
       case 429: return 'Too many requests. Please wait a moment and try again.';
-      case 500: return 'Server error. Our team has been notified. Please try again later.';
+      case 500: return 'Server error. Please try again later.';
       case 502: return 'Server is temporarily unreachable. Please try again in a moment.';
       case 503: return 'Service is temporarily unavailable. Please try again later.';
       default: return serverMsg || `Something went wrong (error ${status}). Please try again.`;
     }
   }
-
-  // Network / connection errors (no response received)
   if (error?.request) {
-    if (error.code === 'ECONNABORTED') {
-      return 'Request timed out. Please check your internet connection.';
-    }
+    if (error.code === 'ECONNABORTED') return 'Request timed out. Please check your internet connection.';
     return 'No internet connection. Please check your network and try again.';
   }
-
-  // JS errors with a message
   if (error?.message) {
-    if (error.message.includes('Network Error')) {
-      return 'No internet connection. Please check your network and try again.';
-    }
+    if (error.message.includes('Network Error')) return 'No internet connection. Please check your network and try again.';
     return error.message;
   }
-
   return 'An unexpected error occurred. Please try again.';
 };
-
+ 
+// ─── FIX 2: 429 exponential backoff helper ────────────────────────────────────
+// Waits for the delay indicated by Retry-After header (seconds) if present,
+// otherwise uses exponential backoff: attempt 0→1s, 1→2s, 2→4s.
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+ 
+const get429DelayMs = (error: any, attempt: number): number => {
+  const retryAfter = error?.response?.headers?.['retry-after'];
+  if (retryAfter) {
+    const seconds = parseInt(retryAfter, 10);
+    if (!isNaN(seconds)) return seconds * 1000;
+  }
+  // Exponential backoff: 1s, 2s, 4s
+  return Math.pow(2, attempt) * 1000;
+};
+ 
+// ─── Axios instance ───────────────────────────────────────────────────────────
 export const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  headers: { 'Content-Type': 'application/json' },
 });
-
-// Add request interceptor to automatically attach token
+ 
+// ─── Request interceptor: attach token ───────────────────────────────────────
 api.interceptors.request.use(
   async (config) => {
     try {
       const token = await storage.getItem('userToken');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+      if (token) config.headers.Authorization = `Bearer ${token}`;
     } catch (error) {
       console.error('Error getting token from storage:', error);
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
-
-// Track whether a refresh is already in progress to avoid parallel refresh calls
+ 
+// ─── Token refresh queue ──────────────────────────────────────────────────────
 let isRefreshing = false;
 let failedQueue: { resolve: (value: any) => void; reject: (reason?: any) => void }[] = [];
-
+ 
 const processQueue = (error: any, token: string | null = null) => {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
@@ -140,24 +121,53 @@ const processQueue = (error: any, token: string | null = null) => {
   });
   failedQueue = [];
 };
-
-// Add response interceptor to handle token expiration and attach user-friendly messages
+ 
+// ─── Response interceptor ─────────────────────────────────────────────────────
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    // Attach a user-friendly message to every error for easy toast display
     error.userMessage = extractErrorMessage(error);
-
+ 
     const originalRequest = error.config;
+ 
+    // ── FIX 2: Handle 429 rate limiting with exponential backoff ──────────────
+    if (error.response?.status === 429) {
+      // Track retry count on the request config object
+      originalRequest._429RetryCount = (originalRequest._429RetryCount ?? 0);
+ 
+      const MAX_429_RETRIES = 3;
+ 
+      if (originalRequest._429RetryCount < MAX_429_RETRIES) {
+        const attempt = originalRequest._429RetryCount;
+        originalRequest._429RetryCount += 1;
+ 
+        const delayMs = get429DelayMs(error, attempt);
+        console.warn(`[429] Rate limited. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_429_RETRIES})`);
+ 
+        await wait(delayMs);
+        return api(originalRequest);
+      }
+ 
+      // Exhausted retries — show Toast and reject
+      Toast.show({
+        type: 'error',
+        text1: 'Too many requests',
+        text2: 'Please slow down and try again in a moment.',
+        position: 'top',
+        visibilityTime: 4000,
+      });
+ 
+      return Promise.reject(error);
+    }
+ 
+    // ── Handle 401 token expiry with silent refresh ───────────────────────────
     const isTokenExpired =
       error.response?.status === 401 &&
       (error.response?.data?.code === 'TOKEN_EXPIRED' ||
         error.response?.data?.error === 'Access token expired');
-
-    // Attempt silent token refresh when access token has expired
+ 
     if (isTokenExpired && !originalRequest._retry) {
       if (isRefreshing) {
-        // Queue this request until the refresh completes
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
@@ -167,40 +177,50 @@ api.interceptors.response.use(
           })
           .catch((err) => Promise.reject(err));
       }
-
+ 
       originalRequest._retry = true;
       isRefreshing = true;
-
+ 
       try {
         const storedRefreshToken = await storage.getItem('refreshToken');
         if (!storedRefreshToken) throw new Error('No refresh token stored');
-
-        const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
+ 
+        const refreshRes = await api.post('/auth/refresh', {
+          refreshToken: storedRefreshToken,
+        });
         const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
-
+ 
         await storage.setItem('userToken', newAccessToken);
         if (newRefreshToken) await storage.setItem('refreshToken', newRefreshToken);
-
+ 
         api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+ 
+        // FIX 4: Also update the socket auth token so it doesn't stay stale
+        // after a silent refresh. Socket will re-authenticate on next emit.
+        try {
+          const sock = socketService.getSocket();
+          if (sock) {
+            sock.auth = { token: newAccessToken };
+          }
+        } catch (_) {}
+ 
         processQueue(null, newAccessToken);
-
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
-        // Refresh failed — clear everything and force re-login
         try {
           await storage.removeItem('userToken');
           await storage.removeItem('refreshToken');
           await storage.removeItem('userId');
-        } catch (_) { }
+        } catch (_) {}
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
-
-    // For non-expiry 401s (bad token, revoked, etc), clear storage
+ 
+    // ── Non-expiry 401: clear storage ─────────────────────────────────────────
     if (error.response?.status === 401 && !originalRequest._retry) {
       try {
         await storage.removeItem('userToken');
@@ -210,42 +230,40 @@ api.interceptors.response.use(
         console.error('Error clearing tokens:', storageError);
       }
     }
-
+ 
     return Promise.reject(error);
   }
 );
-
-// Register User
-export const registerUser = async (name: string, email: string, password: string, fullPhoneNumber: string) => {
+ 
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+ 
+export const registerUser = async (
+  name: string,
+  email: string,
+  password: string,
+  fullPhoneNumber: string
+) => {
   try {
-    const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password });
-
-    // Store token if registration is successful
+    const response = await api.post('/auth/register', {
+      name, email, fullPhoneNumber, password,
+    });
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) {
         await storage.setItem('refreshToken', response.data.refreshToken);
       }
     }
-
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Registration failed');
-    } else {
-      console.error('Error signing up:', error.message);
-      throw new Error(error.message || 'Network error during registration');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Registration failed');
+    throw new Error(error.message || 'Network error during registration');
   }
 };
-
-// Register Push Token
+ 
 export const registerPushTokenInBackend = async (token: string) => {
   try {
     const response = await api.post('/notifications/push-token', {
-      token,
-      deviceName: 'Mobile App'
+      token, deviceName: 'Mobile App',
     });
     return response.data;
   } catch (err: any) {
@@ -253,43 +271,34 @@ export const registerPushTokenInBackend = async (token: string) => {
     throw err;
   }
 };
-
-// Password Reset APIs
+ 
 export const requestPasswordReset = async (email: string) => {
   try {
     const response = await api.post('/auth/reset-password', { email });
     return response.data;
   } catch (error: any) {
-    console.error('Error requesting password reset:', error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const confirmResetPassword = async (token: string, newPassword: string) => {
   try {
     const response = await api.post('/auth/reset-password/confirm', { token, newPassword });
     return response.data;
   } catch (error: any) {
-    console.error('Error confirming password reset:', error);
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error);
-    }
+    if (error.response?.data?.error) throw new Error(error.response.data.error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// Logout user
+ 
 export const logoutUser = async () => {
   try {
     await api.post('/auth/logout');
   } catch (error) {
     console.error('Error calling logout API:', error);
   } finally {
-    // Clear in-memory TanStack Query cache
     queryClient.clear();
-    // Clear persisted query cache from AsyncStorage
     await AsyncStorage.removeItem('SHOPYOS_QUERY_CACHE');
-    // Clear all auth/session storage keys
     await Promise.all([
       storage.removeItem('userToken'),
       storage.removeItem('refreshToken'),
@@ -300,25 +309,26 @@ export const logoutUser = async () => {
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
     ]);
-    // Disconnect stale socket connection to prevent receiving previous user's events
     socketService.disconnect();
   }
 };
-
-
-// Function to handle user login
-export const loginUser = async (email: string, password: string, latitude: number, longitude: number) => {
+ 
+export const loginUser = async (
+  email: string,
+  password: string,
+  latitude: number,
+  longitude: number
+) => {
   try {
-    const response = await api.post('/auth/login', { email, password, latitude, longitude });
-
-    // Store token automatically after successful login
+    const response = await api.post('/auth/login', {
+      email, password, latitude, longitude,
+    });
+ 
     if (response.data.token) {
       await storage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) {
         await storage.setItem('refreshToken', response.data.refreshToken);
       }
-
-      // Fetch and store the userId for chat and other features
       try {
         const meResponse = await api.get('/auth/me');
         if (meResponse.data?.id) {
@@ -327,55 +337,37 @@ export const loginUser = async (email: string, password: string, latitude: numbe
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
       }
-
-      // Sync push token if one exists
       try {
         const pushToken = await storage.getItem('expoPushToken');
-        if (pushToken) {
-          await registerPushTokenInBackend(pushToken);
-        }
+        if (pushToken) await registerPushTokenInBackend(pushToken);
       } catch (err) {
         console.warn('Failed syncing expo push token on login:', err);
       }
     }
-
-    // Check if user needs to select a role
-    const needsRole = response.data.requiresRoleSelection ||
+ 
+    const needsRole =
+      response.data.requiresRoleSelection ||
       response.data.role === 'none' ||
       !response.data.role ||
       (response.data.roles && response.data.roles.length === 0);
-
-    return {
-      ...response.data,
-      needsRole
-    };
+ 
+    return { ...response.data, needsRole };
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Login failed');
-    } else {
-      console.error('Error logging in:', error.message);
-      throw new Error(error.message || 'Network error during login');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Login failed');
+    throw new Error(error.message || 'Network error during login');
   }
 };
-
-// Get user data - no need to pass token, it's automatically attached
+ 
 export const getUserData = async () => {
   try {
     const response = await api.get('/auth/me');
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to fetch user data');
-    } else {
-      console.error('Error fetching user data:', error.message);
-      throw new Error(error.message || 'Network error fetching user data');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch user data');
+    throw new Error(error.message || 'Network error fetching user data');
   }
 };
-
+ 
 export const updateProfile = async (profileData: {
   name?: string;
   phone?: string;
@@ -389,32 +381,21 @@ export const updateProfile = async (profileData: {
     const response = await api.put('/auth/profile', profileData);
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to update profile');
-    } else {
-      console.error('Error updating profile:', error.message);
-      throw new Error(error.message || 'Network error updating profile');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to update profile');
+    throw new Error(error.message || 'Network error updating profile');
   }
 };
-
+ 
 export const updateUserRole = async (role: string) => {
   try {
-    // Use the new add-role endpoint for first-time role assignment
     const response = await api.post('/auth/add-role', { role });
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to update role');
-    } else {
-      console.error('Error updating user role:', error.message);
-      throw new Error(error.message || 'Network error during role update');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to update role');
+    throw new Error(error.message || 'Network error during role update');
   }
-}
-
+};
+ 
 export const businessRegister = async (businessData: {
   businessName: string;
   description: string;
@@ -431,88 +412,50 @@ export const businessRegister = async (businessData: {
 }) => {
   try {
     const response = await api.post('/business/create', businessData);
-
-    // If successful, store business token and ID using storage helper
-    if (response.data.token) {
-      await storage.setItem('businessToken', response.data.token);
-    }
+    if (response.data.token) await storage.setItem('businessToken', response.data.token);
     if (response.data.business?._id) {
       await storage.setItem('currentBusinessId', response.data.business._id);
     }
-
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to create business');
-    } else {
-      console.error('Error creating business:', error.message);
-      throw new Error(error.message || 'Network error during business creation');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to create business');
+    throw new Error(error.message || 'Network error during business creation');
   }
 };
-
-// Get user's businesses
-export const getMyBusinesses = async (params: { limit?: number, offset?: number } = {}) => {
+ 
+export const getMyBusinesses = async (params: { limit?: number; offset?: number } = {}) => {
   try {
     const response = await api.get('/business/my-businesses', { params });
     const res = response.data;
-    // Backend returns { success, data, pagination } — map data → businesses for backward compat
-    return {
-      ...res,
-      businesses: res.data || res.businesses || [],
-    };
+    return { ...res, businesses: res.data || res.businesses || [] };
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to fetch businesses');
-    } else {
-      console.error('Error fetching businesses:', error.message);
-      throw new Error(error.message || 'Network error fetching businesses');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch businesses');
+    throw new Error(error.message || 'Network error fetching businesses');
   }
 };
-
-// Switch between businesses
+ 
 export const switchBusiness = async (businessId: string) => {
   try {
     const response = await api.post('/business/switch', { businessId });
-
-    // Store the new business token and ID using storage helper
-    if (response.data.token) {
-      await storage.setItem('businessToken', response.data.token);
-    }
+    if (response.data.token) await storage.setItem('businessToken', response.data.token);
     await storage.setItem('currentBusinessId', businessId);
-
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to switch business');
-    } else {
-      console.error('Error switching business:', error.message);
-      throw new Error(error.message || 'Network error switching business');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to switch business');
+    throw new Error(error.message || 'Network error switching business');
   }
 };
-
-// Update business profile
+ 
 export const updateBusiness = async (businessId: string, updateData: any) => {
   try {
     const response = await api.put(`/business/update/${businessId}`, updateData);
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to update business');
-    } else {
-      console.error('Error updating business:', error.message);
-      throw new Error(error.message || 'Network error updating business');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to update business');
+    throw new Error(error.message || 'Network error updating business');
   }
 };
-
-// Submit business verification details
+ 
 export const verifyBusinessDetails = async (businessId: string, details: any) => {
   try {
     const response = await api.put(`/business/update/${businessId}`, {
@@ -521,38 +464,31 @@ export const verifyBusinessDetails = async (businessId: string, details: any) =>
     });
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to submit verification');
-    } else {
-      console.error('Error submitting verification:', error.message);
-      throw new Error(error.message || 'Network error submitting verification');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to submit verification');
+    throw new Error(error.message || 'Network error submitting verification');
   }
 };
-
-// --- Cart API ---
-
+ 
+// ─── Cart ─────────────────────────────────────────────────────────────────────
+ 
 export const addToCart = async (productId: string, quantity: number) => {
   try {
     const response = await api.post('/cart/add', { productId, quantity });
     return response.data;
   } catch (error: any) {
-    console.error("Error adding to cart:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const clearBackendCart = async () => {
   try {
     const response = await api.delete('/cart/clear');
     return response.data;
   } catch (error: any) {
-    console.error("Error clearing backend cart:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const createOrder = async (orderData: {
   deliveryAddress: string;
   deliveryCity: string;
@@ -566,593 +502,558 @@ export const createOrder = async (orderData: {
     const response = await api.post('/orders/create', orderData);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating order:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getMyOrders = async (params: { status?: string, limit?: number, offset?: number } = {}) => {
+ 
+export const getMyOrders = async (
+  params: { status?: string; limit?: number; offset?: number } = {}
+) => {
   try {
     const response = await api.get('/orders/my-orders', { params });
     const res = response.data;
-    // Backend returns { success, data, pagination } — map data → orders for backward compat
-    return {
-      ...res,
-      orders: res.data || res.orders || [],
-    };
+    return { ...res, orders: res.data || res.orders || [] };
   } catch (error: any) {
-    console.error("Error fetching my orders:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getAllStores = async (params: { search?: string, category?: string, sortBy?: string, limit?: number, offset?: number, verified?: string } = {}) => {
+ 
+export const getAllStores = async (
+  params: {
+    search?: string;
+    category?: string;
+    sortBy?: string;
+    limit?: number;
+    offset?: number;
+    verified?: string;
+  } = {}
+) => {
   try {
     const response = await api.get('/business/all', { params });
     const res = response.data;
-    // Backend returns { success, data, pagination } — map data → businesses for backward compat
-    return {
-      ...res,
-      businesses: res.data || res.businesses || [],
-    };
+    return { ...res, businesses: res.data || res.businesses || [] };
   } catch (error: any) {
-    console.error("Error fetching all stores:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getBusinessById = async (id: string) => {
   try {
     const response = await api.get(`/business/${id}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching business details:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Favorites/Wishlist API ---
-
+ 
+// ─── Favorites ────────────────────────────────────────────────────────────────
+ 
 export const addToFavorites = async (productId: string) => {
   try {
     const response = await api.post('/favorites', { productId });
     return response.data;
   } catch (error: any) {
-    console.error("Error adding to favorites:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const removeFromFavorites = async (productId: string) => {
   try {
     const response = await api.delete(`/favorites/${productId}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error removing from favorites:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getFavorites = async () => {
   try {
     const response = await api.get('/favorites');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching favorites:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const checkIsFavorite = async (productId: string) => {
   try {
     const response = await api.get(`/favorites/check/${productId}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error checking favorite status:", error);
     return { isFavorite: false };
   }
 };
-
-// Get store orders
-export const getStoreOrders = async (storeId: string, params: { status?: string, limit?: number, offset?: number } = {}) => {
+ 
+// ─── Store orders ─────────────────────────────────────────────────────────────
+ 
+export const getStoreOrders = async (
+  storeId: string,
+  params: { status?: string; limit?: number; offset?: number } = {}
+) => {
   try {
     const response = await api.get(`/orders/store/${storeId}`, { params });
     const res = response.data;
-    // Backend returns { success, data, pagination } — map data → orders for backward compat
-    return {
-      ...res,
-      orders: res.data || res.orders || [],
-    };
+    return { ...res, orders: res.data || res.orders || [] };
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to fetch store orders');
-    } else {
-      console.error('Error fetching store orders:', error.message);
-      throw new Error(error.message || 'Network error fetching store orders');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch store orders');
+    throw new Error(error.message || 'Network error fetching store orders');
   }
 };
-
+ 
 export const getOrderDetails = async (orderId: string) => {
   try {
     const response = await api.get(`/orders/${orderId}`);
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to fetch order details');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch order details');
     throw new Error(error.message || 'Network error');
   }
-}
-
+};
+ 
 export const updateOrderStatus = async (orderId: string, status: string) => {
   try {
     const response = await api.put(`/orders/${orderId}/status`, { status });
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to update order status');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to update order status');
     throw new Error(error.message || 'Network error');
   }
 };
-
+ 
 export const cancelOrder = async (orderId: string, reason?: string) => {
   try {
     const response = await api.put(`/orders/${orderId}/cancel`, { reason });
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to cancel order');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to cancel order');
     throw new Error(error.message || 'Network error');
   }
 };
-
-// Get store products
+ 
 export const getStoreProducts = async (storeId: string, params: any = {}) => {
   try {
     const response = await api.get(`/products/store/${storeId}`, { params });
     const res = response.data;
-    // Backend returns { success, data, pagination } — map data → products for backward compat
-    return {
-      ...res,
-      products: res.data || res.products || [],
-    };
+    return { ...res, products: res.data || res.products || [] };
   } catch (error: any) {
-    console.error("Error fetching store products", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// Search products (for customer home page)
-export const searchProducts = async (params: { query?: string, category?: string, limit?: number, offset?: number, sortBy?: string, minPrice?: number, maxPrice?: number }) => {
+ 
+export const searchProducts = async (params: {
+  query?: string;
+  category?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+  minPrice?: number;
+  maxPrice?: number;
+}) => {
   try {
     const response = await api.get('/products/search', { params });
     const res = response.data;
-    // Backend returns { success, data, pagination } — map data → products for backward compat
-    return {
-      ...res,
-      products: res.data || res.products || [],
-    };
+    return { ...res, products: res.data || res.products || [] };
   } catch (error: any) {
-    console.error("Error searching products:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getAllCategories = async () => {
   try {
-    // This could be a dedicated endpoint or we derive from products
-    // For now, let's assume /products/categories exists or we use a set list
     const response = await api.get('/categories');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching categories:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Categories Management API ---
-
+ 
+// ─── Categories management ────────────────────────────────────────────────────
+ 
 export const createCategory = async (name: string, description?: string) => {
   try {
     const response = await api.post('/categories', { name, description });
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to create category');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to create category');
     throw error;
   }
 };
-
+ 
 export const updateCategory = async (id: string, name: string) => {
   try {
     const response = await api.put(`/categories/${id}`, { name });
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to update category');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to update category');
     throw error;
   }
 };
-
+ 
 export const deleteCategory = async (id: string, force: boolean = false) => {
   try {
     const response = await api.delete(`/categories/${id}?force=${force}`);
     return response.data;
   } catch (error: any) {
     if (error.response) {
-      // Return full error response data for handling confirmation flow
-      if (error.response.data.requiresConfirmation) {
-        throw error.response.data; // throwing object to catch in UI
-      }
+      if (error.response.data.requiresConfirmation) throw error.response.data;
       throw new Error(error.response.data.error || 'Failed to delete category');
     }
     throw error;
   }
 };
-
+ 
 export const getProductById = async (id: string) => {
   try {
     const response = await api.get(`/products/${id}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching product details:", error);
     throw error;
   }
 };
-
+ 
 export const createProduct = async (productData: any) => {
   try {
     const response = await api.post('/products', productData);
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to create product');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to create product');
     throw error;
   }
 };
-
-export const deleteProduct = async (productId: string) => {
+ 
+// ─── FIX 5: deleteProduct now invalidates React Query cache ──────────────────
+// Previously this just called the API. The product detail and store product
+// list queries would serve stale (deleted) data until gcTime expired.
+// Now we invalidate both query keys immediately after a successful delete,
+// and also remove the specific detail entry so no screen can still render it.
+export const deleteProduct = async (productId: string, storeId?: string) => {
   try {
     const response = await api.delete(`/products/${productId}`);
+ 
+    // Invalidate the deleted product's detail cache
+    queryClient.removeQueries({ queryKey: ['products', 'detail', productId] });
+ 
+    // Invalidate the store's product list so the item disappears from listings
+    if (storeId) {
+      queryClient.invalidateQueries({ queryKey: ['business', 'products', storeId] });
+    }
+ 
+    // Invalidate all product list/search caches — the item may appear there too
+    queryClient.invalidateQueries({ queryKey: ['products', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['products', 'search'] });
+ 
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to delete product');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to delete product');
     throw error;
   }
 };
-
+ 
 export const updateProduct = async (productId: string, productData: any) => {
   try {
     const response = await api.put(`/products/${productId}`, productData);
+ 
+    // FIX 5: Invalidate caches after update too — same reasoning as delete
+    queryClient.invalidateQueries({ queryKey: ['products', 'detail', productId] });
+    queryClient.invalidateQueries({ queryKey: ['products', 'list'] });
+    queryClient.invalidateQueries({ queryKey: ['products', 'search'] });
+ 
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to update product');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to update product');
     throw error;
   }
 };
-
+ 
 export const uploadProductImages = async (productId: string, imageUris: string[]) => {
   try {
     const formData = new FormData();
-    imageUris.forEach((uri, index) => {
+    imageUris.forEach((uri) => {
       const filename = uri.split('/').pop();
       const match = /\.(\w+)$/.exec(filename || '');
-      const type = match ? `image/${match[1]}` : `image`;
+      const type = match ? `image/${match[1]}` : 'image';
       // @ts-ignore
       formData.append('images', { uri, name: filename, type });
     });
-
     const response = await api.post(`/products/${productId}/images`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    // Invalidate product detail so updated images are reflected immediately
+    queryClient.invalidateQueries({ queryKey: ['products', 'detail', productId] });
     return response.data;
   } catch (error: any) {
-    console.error("Error uploading images", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// Get business dashboard data
+ 
 export const getBusinessDashboard = async (businessId: string) => {
   try {
     const response = await api.get(`/business/dashboard/${businessId}`);
-    return response.data?.data || response.data;
-  } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Failed to fetch dashboard data');
-    } else {
-      console.error('Error fetching dashboard:', error.message);
-      throw new Error(error.message || 'Network error fetching dashboard');
-    }
-  }
-};
-
-export const getBusinessAnalytics = async (businessId: string, timeframe: 'week' | 'month' | 'year') => {
-  try {
-    const response = await api.get(`/business/analytics/${businessId}?timeframe=${timeframe}`);
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.error || 'Failed to fetch analytics');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch dashboard data');
+    throw new Error(error.message || 'Network error fetching dashboard');
+  }
+};
+ 
+export const getBusinessAnalytics = async (
+  businessId: string,
+  timeframe: 'week' | 'month' | 'year'
+) => {
+  try {
+    const response = await api.get(
+      `/business/analytics/${businessId}?timeframe=${timeframe}`
+    );
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch analytics');
     throw new Error(error.message || 'Network error');
   }
-}
-
-// Also update the loginBusiness function
-export const loginBusiness = async (email: string, password: string, latitude: number, longitude: number) => {
+};
+ 
+export const loginBusiness = async (
+  email: string,
+  password: string,
+  latitude: number,
+  longitude: number
+) => {
   try {
-    const response = await api.post('/business/login', { email, password, latitude, longitude });
-
-    // Store tokens and business data using storage helper
-    if (response.data.token) {
-      await storage.setItem('businessToken', response.data.token);
-    }
+    const response = await api.post('/business/login', {
+      email, password, latitude, longitude,
+    });
+    if (response.data.token) await storage.setItem('businessToken', response.data.token);
     if (response.data.business) {
       await storage.setItem('currentBusinessId', response.data.business._id);
       await storage.setItem('userRole', 'seller');
     }
-
     return response.data;
   } catch (error: any) {
-    if (error.response) {
-      console.error('Server Error:', error.response.data);
-      throw new Error(error.response.data.error || 'Business login failed');
-    } else {
-      console.error('Error logging in business:', error.message);
-      throw new Error(error.message || 'Network error during business login');
-    }
+    if (error.response) throw new Error(error.response.data.error || 'Business login failed');
+    throw new Error(error.message || 'Network error during business login');
   }
-
 };
-
-// --- Messaging API ---
-
+ 
+// ─── Messaging ────────────────────────────────────────────────────────────────
+ 
 export const getConversations = async () => {
   try {
     const response = await api.get('/messaging/conversations');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching conversations:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getMessages = async (conversationId: string) => {
   try {
-    const response = await api.get(`/messaging/conversations/${conversationId}/messages`);
+    const response = await api.get(
+      `/messaging/conversations/${conversationId}/messages`
+    );
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching messages:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const sendMessage = async (conversationId: string, content: string) => {
   try {
-    const response = await api.post(`/messaging/conversations/${conversationId}/messages`, { content });
+    const response = await api.post(
+      `/messaging/conversations/${conversationId}/messages`,
+      { content }
+    );
     return response.data;
   } catch (error: any) {
-    console.error("Error sending message:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const markConversationRead = async (conversationId: string) => {
   try {
-    const response = await api.put(`/messaging/conversations/${conversationId}/read`);
+    const response = await api.put(
+      `/messaging/conversations/${conversationId}/read`
+    );
     return response.data;
   } catch (error: any) {
-    console.error("Error marking conversation read:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const startConversation = async (participantId: string) => {
   try {
     const response = await api.post('/messaging/conversations', { participantId });
     return response.data;
   } catch (error: any) {
-    console.error("Error starting conversation:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const deleteMessage = async (messageId: string) => {
   try {
     const response = await api.delete(`/messaging/messages/${messageId}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error deleting message:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const deleteConversation = async (conversationId: string) => {
   try {
     const response = await api.delete(`/messaging/conversations/${conversationId}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error deleting conversation:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Reviews API ---
-
-export const getStoreReviews = async (storeId: string, params: { limit?: number, offset?: number, rating?: number } = {}) => {
+ 
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+ 
+export const getStoreReviews = async (
+  storeId: string,
+  params: { limit?: number; offset?: number; rating?: number } = {}
+) => {
   try {
     const response = await api.get(`/reviews/store/${storeId}`, { params });
     const res = response.data;
-    // Backend returns { success, data, stats, pagination } — map data → reviews for backward compat
-    return {
-      ...res,
-      reviews: res.data || res.reviews || [],
-    };
+    return { ...res, reviews: res.data || res.reviews || [] };
   } catch (error: any) {
-    console.error("Error fetching store reviews:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Advertising API ---
+ 
+// ─── Advertising ──────────────────────────────────────────────────────────────
+ 
 export const getPromotedProducts = async (category?: string) => {
   try {
     const response = await api.get('/advertising/promoted', { params: { category } });
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching promoted products:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const createCampaign = async (campaignData: any) => {
   try {
     const response = await api.post('/advertising/campaigns', campaignData);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating campaign:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getMyCampaigns = async () => {
   try {
     const response = await api.get('/advertising/my-campaigns');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching my campaigns:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const updateCampaignStatus = async (id: string, status: string) => {
   try {
     const response = await api.put(`/advertising/campaigns/${id}/status`, { status });
     return response.data;
   } catch (error: any) {
-    console.error("Error updating campaign status:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const recordAdClick = async (id: string) => {
   try {
     const response = await api.post(`/advertising/campaigns/${id}/click`);
     return response.data;
   } catch (error: any) {
-    console.error("Error recording click:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Payouts API ---
+ 
+// ─── Payouts ──────────────────────────────────────────────────────────────────
+ 
 export const getPayoutHistory = async (storeId: string) => {
   try {
     const response = await api.get(`/payouts/history/${storeId}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching payout history:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const requestPayout = async (payoutData: any) => {
   try {
     const response = await api.post('/payouts/request', payoutData);
     return response.data;
   } catch (error: any) {
-    console.error("Error requesting payout:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Notifications API ---
-
+ 
+// ─── Notifications ────────────────────────────────────────────────────────────
+ 
 export const getNotifications = async () => {
   try {
     const response = await api.get('/notifications');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching notifications:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
-}
-
+};
+ 
 export const markNotificationRead = async (notificationId: string) => {
   try {
     const response = await api.put(`/notifications/${notificationId}/read`);
     return response.data;
   } catch (error: any) {
-    console.error("Error marking notification read:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
-}
-
+};
+ 
 export const markAllNotificationsRead = async () => {
   try {
     const response = await api.put('/notifications/read-all');
     return response.data;
   } catch (error: any) {
-    console.error("Error marking all notifications read:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
-}
-
+};
+ 
 export const getUnreadNotificationCount = async () => {
   try {
     const response = await api.get('/notifications/unread-count');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching unread count:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
-}
-
+};
+ 
 export const getNotificationPreferences = async () => {
   try {
     const response = await api.get('/notifications/preferences');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching preferences:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const updateNotificationPreferences = async (preferences: any) => {
   try {
     const response = await api.put('/notifications/preferences', preferences);
     return response.data;
   } catch (error: any) {
-    console.error("Error updating preferences:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Payment Methods API ---
-
+ 
+// ─── Payment methods ──────────────────────────────────────────────────────────
+ 
 export const getPaymentMethods = async () => {
   try {
     const response = await api.get('/payment-methods');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching payment methods:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const addPaymentMethod = async (methodData: {
   type: 'card' | 'momo';
   provider: string;
@@ -1164,33 +1065,30 @@ export const addPaymentMethod = async (methodData: {
     const response = await api.post('/payment-methods', methodData);
     return response.data;
   } catch (error: any) {
-    console.error("Error adding payment method:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const deletePaymentMethod = async (id: string) => {
   try {
     const response = await api.delete(`/payment-methods/${id}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error deleting payment method:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const setDefaultPaymentMethod = async (id: string) => {
   try {
     const response = await api.put(`/payment-methods/${id}/default`);
     return response.data;
   } catch (error: any) {
-    console.error("Error setting default payment method:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Delivery API ---
-
+ 
+// ─── Delivery ─────────────────────────────────────────────────────────────────
+ 
 export const createDelivery = async (deliveryData: {
   orderId: string;
   pickupAddress: string;
@@ -1206,263 +1104,293 @@ export const createDelivery = async (deliveryData: {
     const response = await api.post('/deliveries/create', deliveryData);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating delivery:", error);
-    if (error.response?.data) {
-      return error.response.data;
-    }
+    if (error.response?.data) return error.response.data;
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getAvailableDeliveries = async () => {
   try {
     const response = await api.get('/deliveries/available');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching available deliveries:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const assignDriver = async (deliveryId: string) => {
   try {
     const response = await api.put(`/deliveries/${deliveryId}/assign`);
     return response.data;
   } catch (error: any) {
-    console.error("Error assigning driver:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getMyDeliveries = async (status?: string) => {
   try {
     const response = await api.get('/deliveries/my-deliveries', { params: { status } });
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching my deliveries:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getDeliveryDetails = async (deliveryId: string) => {
   try {
     const response = await api.get(`/deliveries/${deliveryId}`);
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching delivery details:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const updateDeliveryStatus = async (deliveryId: string, status: string) => {
   try {
     const response = await api.put(`/deliveries/${deliveryId}/status`, { status });
     return response.data;
   } catch (error: any) {
-    console.error("Error updating delivery status:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getActiveDeliveries = async () => {
   try {
     const response = await api.get('/deliveries/active');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching active deliveries:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getDriverStats = async (timeframe: 'today' | 'week' | 'month' = 'today') => {
+ 
+export const getDriverStats = async (
+  timeframe: 'today' | 'week' | 'month' = 'today'
+) => {
   try {
-    const response = await api.get('/deliveries/driver/stats', { params: { timeframe } });
+    const response = await api.get('/deliveries/driver/stats', {
+      params: { timeframe },
+    });
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching driver stats:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Review API ---
-export const createProductReview = async (reviewData: { productId: string; orderId: string; rating: number; reviewText?: string }) => {
+ 
+// ─── Reviews ──────────────────────────────────────────────────────────────────
+ 
+export const createProductReview = async (reviewData: {
+  productId: string;
+  orderId: string;
+  rating: number;
+  reviewText?: string;
+}) => {
   try {
     const response = await api.post('/reviews/product', reviewData);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating product review:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const createStoreReview = async (reviewData: { storeId: string; orderId: string; rating: number; reviewText?: string }) => {
+ 
+export const createStoreReview = async (reviewData: {
+  storeId: string;
+  orderId: string;
+  rating: number;
+  reviewText?: string;
+}) => {
   try {
     const response = await api.post('/reviews/store', reviewData);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating store review:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const createDriverReview = async (reviewData: { driverId: string; deliveryId: string; rating: number; reviewText?: string }) => {
+ 
+export const createDriverReview = async (reviewData: {
+  driverId: string;
+  deliveryId: string;
+  rating: number;
+  reviewText?: string;
+}) => {
   try {
     const response = await api.post('/reviews/driver', reviewData);
     return response.data;
   } catch (error: any) {
-    console.error("Error creating driver review:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getProductReviews = async (productId: string, params: { limit?: number, offset?: number, rating?: number } = {}) => {
+ 
+export const getProductReviews = async (
+  productId: string,
+  params: { limit?: number; offset?: number; rating?: number } = {}
+) => {
   try {
     const response = await api.get(`/reviews/product/${productId}`, { params });
     const res = response.data;
-    // Backend returns { success, data, stats, pagination } — map data → reviews for backward compat
-    return {
-      ...res,
-      reviews: res.data || res.reviews || [],
-    };
+    return { ...res, reviews: res.data || res.reviews || [] };
   } catch (error: any) {
-    console.error("Error fetching product reviews:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const likeReview = async (reviewId: string) => {
   try {
     const response = await api.post(`/reviews/${reviewId}/like`);
     return response.data;
   } catch (error: any) {
-    console.error("Error liking review:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getReviewComments = async (reviewId: string) => {
   try {
     const response = await api.get(`/reviews/${reviewId}/comments`);
-    return { success: true, comments: response.data?.data || response.data?.comments || [] };
+    return {
+      success: true,
+      comments: response.data?.data || response.data?.comments || [],
+    };
   } catch (error: any) {
-    console.error("Error fetching review comments:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const createReviewComment = async (reviewId: string, text: string) => {
   try {
     const response = await api.post(`/reviews/${reviewId}/comments`, { text });
     return response.data;
   } catch (error: any) {
-    console.error("Error creating review comment:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Admin API ---
+ 
+// ─── Admin ────────────────────────────────────────────────────────────────────
+ 
 export const getAdminDashboard = async () => {
   try {
     const response = await api.get('/admin/dashboard');
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching admin dashboard:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getAdminUsers = async (params = {}) => {
   try {
     const response = await api.get('/admin/users', { params });
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching admin users:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getAdminStores = async (params = {}) => {
   try {
     const response = await api.get('/admin/stores', { params });
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching admin stores:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const adminVerifyStore = async (storeId: string, status: 'verified' | 'rejected' | 'pending', reason?: string) => {
+ 
+export const adminVerifyStore = async (
+  storeId: string,
+  status: 'verified' | 'rejected' | 'pending',
+  reason?: string
+) => {
   try {
-    const response = await api.put(`/admin/stores/${storeId}/verify`, { status, reason });
+    const response = await api.put(`/admin/stores/${storeId}/verify`, {
+      status, reason,
+    });
     return response.data;
   } catch (error: any) {
-    console.error("Error verifying store:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getAdminAuditLogs = async (params: { limit?: number; offset?: number; action?: string; entityType?: string } = {}) => {
+ 
+export const getAdminAuditLogs = async (
+  params: {
+    limit?: number;
+    offset?: number;
+    action?: string;
+    entityType?: string;
+  } = {}
+) => {
   try {
     const response = await api.get('/admin/audit-logs', { params });
     return response.data;
   } catch (error: any) {
-    console.error('Error fetching admin audit logs:', error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getAdminOrders = async (params: { status?: string; search?: string; limit?: number; offset?: number } = {}) => {
+ 
+export const getAdminOrders = async (
+  params: {
+    status?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+) => {
   try {
     const response = await api.get('/admin/orders', { params });
     return response.data;
   } catch (error: any) {
-    console.error('Error fetching admin orders:', error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const getAdminRevenue = async (params: { limit?: number; offset?: number } = {}) => {
+ 
+export const getAdminRevenue = async (
+  params: { limit?: number; offset?: number } = {}
+) => {
   try {
     const response = await api.get('/admin/revenue', { params });
     return response.data;
   } catch (error: any) {
-    console.error('Error fetching admin revenue:', error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const adminUpdateUserStatus = async (userId: string, status: 'active' | 'suspended' | 'banned', reason?: string) => {
+ 
+export const adminUpdateUserStatus = async (
+  userId: string,
+  status: 'active' | 'suspended' | 'banned',
+  reason?: string
+) => {
   try {
-    const response = await api.put(`/admin/users/${userId}/status`, { status, reason });
+    const response = await api.put(`/admin/users/${userId}/status`, {
+      status, reason,
+    });
     return response.data;
   } catch (error: any) {
-    console.error('Error updating user status:', error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const getAdminPayouts = async (status?: string) => {
   try {
     const response = await api.get('/admin/payouts', { params: { status } });
     return response.data;
   } catch (error: any) {
-    console.error("Error fetching admin payouts:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-export const updateAdminPayoutStatus = async (payoutId: string, status: 'completed' | 'rejected', notes?: string) => {
+ 
+export const updateAdminPayoutStatus = async (
+  payoutId: string,
+  status: 'completed' | 'rejected',
+  notes?: string
+) => {
   try {
-    const response = await api.put(`/admin/payouts/${payoutId}`, { status, notes });
+    const response = await api.put(`/admin/payouts/${payoutId}`, {
+      status, notes,
+    });
     return response.data;
   } catch (error: any) {
-    console.error("Error updating admin payout status:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Payments API ---
-
+ 
+// ─── Payments ─────────────────────────────────────────────────────────────────
+ 
 interface InitializePaymentParams {
   orderId: string;
   email?: string;
@@ -1470,82 +1398,58 @@ interface InitializePaymentParams {
   momoPhone?: string;
   momoProvider?: 'mtn' | 'vod' | 'tgo';
 }
-
+ 
 export const initializePayment = async (params: InitializePaymentParams) => {
   try {
-    console.log('🚀 API: Initializing payment with params:', params);
     const response = await api.post('/payments/initialize', params);
-    console.log('✅ API: Payment initialized successfully:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error("❌ API: Error initializing payment:", error);
-    console.error("Error details:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
     if (error.response?.data) return error.response.data;
     return { success: false, error: error.message || 'Failed to initialize payment' };
   }
 };
-
+ 
 export const verifyPayment = async (reference: string) => {
   try {
-    console.log('🔍 API: Verifying payment for reference:', reference);
     const response = await api.get(`/payments/verify/${reference}`);
-    console.log('✅ API: Verification response:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error("❌ API: Error verifying payment:", error);
-    console.error("Error details:", {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status
-    });
     if (error.response?.data) return error.response.data;
     return { success: false, error: error.message || 'Failed to verify payment' };
   }
 };
-
-// --- Store Follow API ---
+ 
+// ─── Store follow ─────────────────────────────────────────────────────────────
+ 
 export const followStore = async (storeId: string) => {
   try {
     const response = await api.post(`/business/${storeId}/follow`);
     return response.data;
   } catch (error: any) {
-    console.error("Error following store:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
+ 
 export const unfollowStore = async (storeId: string) => {
   try {
     const response = await api.delete(`/business/${storeId}/follow`);
     return response.data;
   } catch (error: any) {
-    console.error("Error unfollowing store:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-// --- Location API ---
-
-/**
- * Update user location (one-time, used on login and app foreground)
- */
+ 
+// ─── Location ─────────────────────────────────────────────────────────────────
+ 
 export const updateUserLocation = async (latitude: number, longitude: number) => {
   try {
     const response = await api.put('/auth/location', { latitude, longitude });
     return response.data;
   } catch (error: any) {
-    console.error("Error updating user location:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
-/**
- * Update driver location during active delivery (background task)
- */
+ 
 export const updateDriverLocation = async (
   deliveryId: string,
   latitude: number,
@@ -1558,7 +1462,7 @@ export const updateDriverLocation = async (
     });
     return response.data;
   } catch (error: any) {
-    console.error("Error updating driver location:", error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+ 

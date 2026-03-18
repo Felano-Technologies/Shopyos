@@ -26,6 +26,7 @@ import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct, getAllCategories, storage } from '@/services/api';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const { width } = Dimensions.get('window');
 
@@ -33,6 +34,15 @@ const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
 
   const [products, setProducts] = useState<any[]>([]);
+  const { isChecking, isVerified } = useSellerGuard();
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
 
   // --- Form State ---
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -980,6 +990,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     color: '#64748B',
   },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });
 
 

@@ -13,6 +13,7 @@ import {
   Image,
   Dimensions,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +23,8 @@ import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { storage } from '@/services/api';
 import { useStoreProducts } from '@/hooks/useBusiness';
+import { useSellerGuard } from '../../hooks/useSellerGuard';
+
 
 const { width } = Dimensions.get('window');
 
@@ -49,6 +52,8 @@ const Inventory = () => {
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'price'>('name');
   const scrollY = useRef(new Animated.Value(0)).current;
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const { isChecking, isVerified } = useSellerGuard();
+
 
   // Verification guard — redirect unverified businesses
   useEffect(() => {
@@ -103,6 +108,14 @@ const Inventory = () => {
   const totalStock = inventory.reduce((sum: number, item: InventoryItem) => sum + item.stock, 0);
   const lowStockItems = inventory.filter((item: InventoryItem) => item.lowStock).length;
   const totalValue = inventory.reduce((sum: number, item: InventoryItem) => sum + (item.price * item.stock), 0);
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
 
   const onRefresh = async () => {
     await refetch();
@@ -620,6 +633,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }
 });
 
 export default Inventory;

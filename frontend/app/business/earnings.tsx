@@ -7,11 +7,13 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { storage } from '@/services/api';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -24,6 +26,16 @@ const EarningsScreen = () => {
   const secondaryText = isDarkMode ? '#AAA' : '#555';
 
   const [range, setRange] = useState<'Week' | 'Month' | 'Quarter'>('Week');
+  const { isChecking, isVerified } = useSellerGuard();
+
+    if (isChecking || !isVerified) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0C1559" />
+      </View>
+    );
+  }
+
 
   // Verification guard — redirect unverified businesses
   useEffect(() => {
@@ -73,7 +85,6 @@ const EarningsScreen = () => {
         }}
         width={screenWidth - 32}
         height={220}
-        yAxisPrefix="₵"
         chartConfig={{
           backgroundGradientFrom: backgroundColor,
           backgroundGradientTo: backgroundColor,
@@ -159,6 +170,8 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+
 });
 
 export default EarningsScreen;
