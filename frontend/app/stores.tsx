@@ -1,713 +1,669 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  Image,
-  StyleSheet,
-  Dimensions,
-  Keyboard,
-  Pressable,
-  Modal,
-  Switch,
-  ImageBackground // Added
+  View, Text, TextInput, TouchableOpacity, FlatList,
+  Image, StyleSheet, Dimensions, Keyboard, Pressable,
+  Modal, Switch, Animated, ActivityIndicator,
 } from 'react-native';
-import { Ionicons, Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '@/components/BottomNav';
 import { getAllStores } from '@/services/api';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
-import { LinearGradient } from 'expo-linear-gradient';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Fashion', 'Home'];
+const C = {
+  pageBg:   '#E9F0FF',
+  navy:     '#0C1559',
+  navyMid:  '#1e3a8a',
+  lime:     '#84cc16',
+  limeText: '#1a2e00',
+  card:     '#FFFFFF',
+  body:     '#0F172A',
+  muted:    '#64748B',
+  subtle:   '#94A3B8',
+  border:   'rgba(12,21,89,0.07)',
+  borderMd: 'rgba(12,21,89,0.14)',
+};
+
+const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Fashion', 'Home', 'Footwear', 'Art'];
+
+const SORT_OPTIONS: { label: string; value: 'rating' | 'newest' | 'name' }[] = [
+  { label: 'Top rated', value: 'rating' },
+  { label: 'Newest',    value: 'newest' },
+  { label: 'A → Z',     value: 'name'   },
+];
+
+const initials = (name: string) =>
+  (name || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
 export default function StoresScreen() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
+
+  const [searchQuery,    setSearchQuery]    = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-
-  const [stores, setStores] = useState<any[]>([]);
-  const [popularStores, setPopularStores] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // --- Filter Modal State ---
-  const [showFilter, setShowFilter] = useState(false);
-  const [filterSort, setFilterSort] = useState<'rating' | 'newest' | 'name'>('rating');
+  const [stores,         setStores]         = useState<any[]>([]);
+  const [popularStores,  setPopularStores]  = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [showFilter,     setShowFilter]     = useState(false);
+  const [filterSort,     setFilterSort]     = useState<'rating' | 'newest' | 'name'>('rating');
   const [filterVerified, setFilterVerified] = useState(false);
 
-  // --- Data Fetching ---
-  useEffect(() => {
-    fetchStores();
-  }, [activeCategory, searchQuery, filterSort, filterVerified]);
+  const fadeAnim   = useRef(new Animated.Value(1)).current;
+  const isSearching = searchQuery.length > 0;
 
-  const fetchStores = async () => {
+  const fetchStores = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getAllStores({
-        search: searchQuery || undefined,
+        search:   searchQuery || undefined,
         category: activeCategory !== 'All' ? activeCategory : undefined,
-        sortBy: filterSort,
-        verified: filterVerified ? 'true' : undefined
+        sortBy:   filterSort,
+        verified: filterVerified ? 'true' : undefined,
       });
 
       if (res.success) {
-        const mapped = res.businesses.map((b: any) => ({
-          id: b.id,
-          name: b.name,
-          category: b.category,
-          rating: b.rating || 0,
-          logo: b.logo ? { uri: b.logo } : require('../assets/images/icon.png'),
-          catalogues: b.catalogues || 0,
-          verified: b.verified || false
+        const mapped = (res.businesses || []).map((b: any) => ({
+          id:          b.id,
+          name:        b.name        || 'Unknown Store',
+          category:    b.category    || 'General',
+          rating:      b.rating      || 0,
+          reviewCount: b.reviewCount || 0,
+          logo:        b.logo        || null,
+          catalogues:  b.catalogues  || 0,
+          verified:    b.verified    || false,
         }));
 
+        Animated.sequence([
+          Animated.timing(fadeAnim, { toValue: 0.3, duration: 80,  useNativeDriver: true }),
+          Animated.timing(fadeAnim, { toValue: 1,   duration: 240, useNativeDriver: true }),
+        ]).start();
+
         setStores(mapped);
-        setPopularStores(mapped.slice(0, 5));
+        setPopularStores(mapped.slice(0, 6));
       }
     } catch (e) {
-      console.error("Error fetching stores", e);
+      console.error('Error fetching stores', e);
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchQuery, activeCategory, filterSort, filterVerified]);
 
-  const isSearching = searchQuery.length > 0;
+  useEffect(() => { fetchStores(); }, [fetchStores]);
 
   const handleVisitStore = (item: any) => {
     router.push({
       pathname: '/stores/details',
-      params: {
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        logo: item.logo
-      }
+      params: { id: item.id, name: item.name, category: item.category, logo: item.logo },
     });
   };
 
-  // --- Render Items ---
+  // ── Popular card — single logo image, verified badge overlaid on it ────────
   const renderPopularCard = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.popularCard}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
       onPress={() => handleVisitStore(item)}
     >
-      <View style={styles.popularImageContainer}>
-        <Image source={item.logo} style={styles.popularLogo} />
-        <View style={styles.ratingBadge}>
-          <Ionicons name="star" size={10} color="#FFF" />
-          <Text style={styles.ratingText}>{item.rating}</Text>
+      {/* Single image block — logo fills the top, gradient fades it into the card */}
+      <View style={styles.popularImgWrap}>
+        {item.logo ? (
+          <Image
+            source={{ uri: item.logo }}
+            style={styles.popularLogo}
+            resizeMode="cover"
+          />
+        ) : (
+          // Fallback: coloured block with initials
+          <View style={styles.popularLogoFallback}>
+            <Text style={styles.popularLogoInitials}>{initials(item.name)}</Text>
+          </View>
+        )}
+
+        {/* Bottom gradient so name text below never fights the image */}
+        <LinearGradient
+          colors={['transparent', 'rgba(12,21,89,0.45)']}
+          style={styles.popularImgGradient}
+        />
+
+        {/* Verified badge — top right, on top of the image */}
+        {item.verified && (
+          <View style={styles.verifiedBadge}>
+            <Ionicons name="checkmark" size={9} color={C.limeText} />
+            <Text style={styles.verifiedBadgeTxt}>Verified</Text>
+          </View>
+        )}
+      </View>
+
+      {/* Info below the image */}
+      <View style={styles.popularInfo}>
+        <Text style={styles.popularName} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.popularCat}  numberOfLines={1}>{item.category}</Text>
+        <View style={styles.popularFooter}>
+          <View style={styles.ratingPill}>
+            <Ionicons name="star" size={9} color="#F59E0B" />
+            <Text style={styles.ratingPillTxt}>{item.rating.toFixed(1)}</Text>
+          </View>
+          <Text style={styles.popularItems}>{item.catalogues} items</Text>
         </View>
       </View>
-      <Text style={styles.popularName} numberOfLines={1}>{item.name}</Text>
-      <Text style={styles.popularCategory}>{item.category}</Text>
     </TouchableOpacity>
   );
 
+  // ── Store row ──────────────────────────────────────────────────────────────
   const renderStoreRow = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.storeRow}
-      activeOpacity={0.7}
+      activeOpacity={0.82}
       onPress={() => handleVisitStore(item)}
     >
-      <Image source={item.logo} style={styles.storeRowLogo} />
+      {item.logo
+        ? <Image source={{ uri: item.logo }} style={styles.storeRowLogo} />
+        : <View style={[styles.storeRowLogo, styles.storeRowLogoFallback]}>
+            <Text style={styles.storeRowLogoTxt}>{initials(item.name)}</Text>
+          </View>
+      }
 
       <View style={styles.storeRowInfo}>
-        <Text style={styles.storeRowName}>{item.name}</Text>
+        <View style={styles.storeNameRow}>
+          <Text style={styles.storeRowName} numberOfLines={1}>{item.name}</Text>
+          {item.verified && (
+            <View style={styles.inlineVerified}>
+              <Ionicons name="checkmark" size={8} color={C.limeText} />
+            </View>
+          )}
+        </View>
         <View style={styles.storeRowMeta}>
-          <Text style={styles.storeRowCategory}>{item.category}</Text>
-          <View style={styles.dotSeparator} />
-          <Text style={styles.storeRowCatalogues}>{item.catalogues} items</Text>
+          <Text style={styles.storeRowCat}>{item.category}</Text>
+          <View style={styles.dot} />
+          <Text style={styles.storeRowItems}>{item.catalogues} items</Text>
+        </View>
+        <View style={styles.storeRatingRow}>
+          <Ionicons name="star" size={10} color="#F59E0B" />
+          <Text style={styles.storeRatingTxt}>
+            {item.rating.toFixed(1)} · {item.reviewCount} reviews
+          </Text>
         </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.visitButton}
-        onPress={() => handleVisitStore(item)}
-      >
-        <Text style={styles.visitText}>Visit</Text>
-        <Feather name="chevron-right" size={14} color="#0C1559" />
+      <TouchableOpacity style={styles.visitBtn} onPress={() => handleVisitStore(item)}>
+        <Text style={styles.visitTxt}>Visit</Text>
+        <Ionicons name="chevron-forward" size={12} color={C.navy} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyCircle}>
+        <MaterialCommunityIcons name="storefront-outline" size={40} color={C.navy} />
+      </View>
+      <Text style={styles.emptyTitle}>No stores found</Text>
+      <Text style={styles.emptyBody}>
+        {searchQuery
+          ? `No results for "${searchQuery}". Try a different search.`
+          : 'No stores in this category yet.'}
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
-      <View style={{ flex: 1 }}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <View style={{ flex: 1, backgroundColor: C.pageBg }}>
+        <StatusBar style="light" />
         <StoresSkeleton />
         <BottomNav />
       </View>
     );
   }
 
+  const headingEye = isSearching ? 'Results for' : 'Explore';
+
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <View style={styles.root}>
+        <StatusBar style="light" />
 
-        {/* --- BACKGROUND WATERMARK LAYER (Matched Home.tsx) --- */}
+        <LinearGradient colors={[C.navy, C.navyMid]} style={styles.hdrGradient}>
+          <View style={styles.hdrGlow} pointerEvents="none" />
 
-        <View style={styles.bottomLogos}>
-          <Image
-            source={require('../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
-          />
-        </View>
-
-        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>Stores</Text>
-            <TouchableOpacity style={styles.iconBtn}>
-              <Ionicons name="notifications-outline" size={24} color="#0C1559" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <View style={styles.searchWrapper}>
-              <Feather name="search" size={20} color="#94A3B8" />
-              <TextInput
-                placeholder="Search stores..."
-                placeholderTextColor="#94A3B8"
-                style={styles.searchInput}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
+          <SafeAreaView edges={['top', 'left', 'right']}>
+            <View style={styles.hdrInner}>
+              <View style={styles.hdrTop}>
+                <View>
+                  <Text style={styles.hdrEye}>{headingEye}</Text>
+                  <Text style={styles.hdrTitle} numberOfLines={1}>
+                    {isSearching
+                      ? <>{'"'}<Text style={{ color: C.lime }}>{searchQuery}</Text>{'"'}</>
+                      : <>{'Discover '}<Text style={{ color: C.lime }}>{'Stores'}</Text></>
+                    }
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.hdrBtn}>
+                  <Ionicons name="notifications-outline" size={17} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
-              )}
-            </View>
-            <TouchableOpacity
-              style={styles.filterBtn}
-              onPress={() => setShowFilter(true)}
-            >
-              <Feather name="sliders" size={20} color="#FFF" />
-            </TouchableOpacity>
-          </View>
+              </View>
 
+              <View style={styles.searchRow}>
+                <View style={[styles.searchPill, searchQuery.length > 0 && styles.searchPillActive]}>
+                  <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search stores..."
+                    placeholderTextColor="rgba(255,255,255,0.32)"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    returnKeyType="search"
+                    autoCorrect={false}
+                    autoCapitalize="none"
+                  />
+                  {searchQuery.length > 0 && (
+                    <TouchableOpacity
+                      style={styles.clearBtn}
+                      onPress={() => setSearchQuery('')}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close" size={10} color="#fff" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+                <TouchableOpacity
+                  style={styles.filterFab}
+                  onPress={() => setShowFilter(true)}
+                  activeOpacity={0.85}
+                >
+                  <Feather name="sliders" size={16} color={C.limeText} />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </SafeAreaView>
+
+          <View style={styles.hdrArc} />
+        </LinearGradient>
+
+        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
           <FlatList
             data={stores}
             keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.scrollContent}
+            contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-
+            keyboardShouldPersistTaps="handled"
+            renderItem={renderStoreRow}
+            ListEmptyComponent={renderEmpty}
             ListHeaderComponent={
-              !isSearching ? (
-                <>
-                  {/* Category Toggles */}
-                  <View style={styles.categoryContainer}>
+              <>
+                <FlatList
+                  horizontal
+                  data={CATEGORIES}
+                  keyExtractor={(item) => item}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.chipStrip}
+                  renderItem={({ item }) => {
+                    const on = activeCategory === item;
+                    return (
+                      <TouchableOpacity
+                        style={[styles.chip, on && styles.chipOn]}
+                        onPress={() => setActiveCategory(item)}
+                      >
+                        <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>{item}</Text>
+                      </TouchableOpacity>
+                    );
+                  }}
+                />
+
+                {!isSearching && popularStores.length > 0 && (
+                  <>
+                    <View style={styles.secHeader}>
+                      <Text style={styles.secTitle}>Popular Stores</Text>
+                      <Text style={styles.secMeta}>{popularStores.length} stores</Text>
+                    </View>
                     <FlatList
                       horizontal
-                      data={CATEGORIES}
-                      keyExtractor={(item) => item}
+                      data={popularStores}
+                      keyExtractor={(item) => item.id}
                       showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={{ paddingHorizontal: 20 }}
-                      renderItem={({ item }) => {
-                        const isActive = activeCategory === item;
-                        return (
-                          <TouchableOpacity
-                            style={[styles.catChip, isActive && styles.catChipActive]}
-                            onPress={() => setActiveCategory(item)}
-                          >
-                            <Text style={[styles.catText, isActive && styles.catTextActive]}>{item}</Text>
-                          </TouchableOpacity>
-                        )
-                      }}
+                      contentContainerStyle={styles.popularStrip}
+                      renderItem={renderPopularCard}
                     />
-                  </View>
+                  </>
+                )}
 
-                  {/* Popular Stores */}
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Popular Stores</Text>
-                    <TouchableOpacity>
-                      <Text style={styles.seeAll}>See All</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <FlatList
-                    data={popularStores}
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.popularList}
-                    keyExtractor={(item) => item.id}
-                    renderItem={renderPopularCard}
-                  />
-
-                  {/* All Stores Title */}
-                  <View style={[styles.sectionHeader, { marginTop: 24, marginBottom: 10 }]}>
-                    <Text style={styles.sectionTitle}>All Stores</Text>
-                  </View>
-                </>
-              ) : (
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    {stores.length} Result{stores.length !== 1 ? 's' : ''}
+                <View style={styles.secHeader}>
+                  <Text style={styles.secTitle}>
+                    {isSearching
+                      ? `${stores.length} result${stores.length !== 1 ? 's' : ''}`
+                      : 'All Stores'}
                   </Text>
+                  {!isSearching && (
+                    <Text style={styles.secMeta}>{stores.length} stores</Text>
+                  )}
                 </View>
-              )
-            }
-
-            renderItem={renderStoreRow}
-
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <MaterialIcons name="storefront" size={64} color="#CBD5E1" />
-                <Text style={styles.emptyText}>No stores found matching "{searchQuery}"</Text>
-              </View>
+              </>
             }
           />
+        </Animated.View>
 
-        </SafeAreaView>
-
-        {/* --- ADD THIS: FLOATING MAP BUTTON --- */}
-        <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
-          style={styles.floatingMapBtn}
+        <TouchableOpacity
+          style={styles.mapFab}
+          activeOpacity={0.88}
+          onPress={() => router.push('/stores/storesMap' as any)}
         >
-          <TouchableOpacity 
-            style={styles.mapGradient}
-            activeOpacity={0.9}
-            onPress={() => router.push('/stores/storesMap')}
-          >
-            <MaterialCommunityIcons name="map-marker-radius" size={26} color="#FFF" />
-            <Text style={styles.mapBtnText}>Map</Text>
-          </TouchableOpacity>
-        </LinearGradient>
+          <LinearGradient colors={[C.navy, C.navyMid]} style={styles.mapFabInner}>
+            <MaterialCommunityIcons name="map-marker-radius" size={18} color="#fff" />
+            <Text style={styles.mapFabTxt}>Find Stores</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
         <BottomNav />
 
-        {/* --- FILTER MODAL --- */}
         <Modal
           visible={showFilter}
-          transparent={true}
+          transparent
           animationType="slide"
           onRequestClose={() => setShowFilter(false)}
         >
           <View style={styles.modalOverlay}>
-            <TouchableOpacity style={styles.modalBackdrop} onPress={() => setShowFilter(false)} />
-
-            <View style={styles.modalContent}>
+            <Pressable style={styles.modalBackdrop} onPress={() => setShowFilter(false)} />
+            <View style={styles.modalSheet}>
+              <View style={styles.sheetHandle} />
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Filter Stores</Text>
-                <TouchableOpacity onPress={() => setShowFilter(false)}>
-                  <Ionicons name="close" size={24} color="#0F172A" />
+                <TouchableOpacity style={styles.modalClose} onPress={() => setShowFilter(false)}>
+                  <Ionicons name="close" size={16} color={C.navy} />
                 </TouchableOpacity>
               </View>
-
-              <Text style={styles.filterLabel}>Sort By</Text>
-              <View style={styles.sortOptions}>
-                {['rating', 'newest', 'name'].map((opt) => (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.sortChip, filterSort === opt && styles.sortChipActive]}
-                    onPress={() => setFilterSort(opt as any)}
-                  >
-                    <Text style={[styles.sortText, filterSort === opt && styles.sortTextActive]}>
-                      {opt.charAt(0).toUpperCase() + opt.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={styles.modalSectionLbl}>Sort by</Text>
+              <View style={styles.sortRow}>
+                {SORT_OPTIONS.map((opt) => {
+                  const on = filterSort === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      style={[styles.sortChip, on && styles.sortChipOn]}
+                      onPress={() => setFilterSort(opt.value)}
+                    >
+                      <Text style={[styles.sortChipTxt, on && styles.sortChipTxtOn]}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
-
               <View style={styles.switchRow}>
-                <Text style={styles.filterLabel}>Verified Stores Only</Text>
+                <View>
+                  <Text style={styles.switchLbl}>Verified stores only</Text>
+                  <Text style={styles.switchSub}>Show only PRO-verified sellers</Text>
+                </View>
                 <Switch
                   value={filterVerified}
                   onValueChange={setFilterVerified}
-                  trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
-                  thumbColor={'#FFF'}
+                  trackColor={{ false: '#E2E8F0', true: C.lime }}
+                  thumbColor="#FFF"
+                  ios_backgroundColor="#E2E8F0"
                 />
               </View>
-
               <TouchableOpacity
                 style={styles.applyBtn}
-                onPress={() => {
-                  setShowFilter(false);
-                  fetchStores(); // Apply changes
-                }}
+                activeOpacity={0.88}
+                onPress={() => { setShowFilter(false); fetchStores(); }}
               >
-                <Text style={styles.applyText}>Apply Filters</Text>
+                <Text style={styles.applyTxt}>Apply filters</Text>
               </TouchableOpacity>
             </View>
           </View>
         </Modal>
-
       </View>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#e9f0ff', // Updated to match Home.tsx
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 100,
-  },
+  root: { flex: 1, backgroundColor: C.pageBg },
 
-  // --- Background Watermark Styles ---
-
-  bottomLogos: {
-    position: 'absolute',
-    bottom: -10,
-    left: -40,
+  hdrGradient: {
+    position: 'relative', paddingBottom: 28, zIndex: 20,
+    elevation: 12, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.22, shadowRadius: 20,
   },
-  fadedLogo: {
-    width: 130,
-    height: 130,
-    resizeMode: 'contain',
-    opacity: 0.12,
+  hdrGlow: {
+    position: 'absolute', top: -40, right: -40,
+    width: 180, height: 180, borderRadius: 90,
+    backgroundColor: 'rgba(132,204,22,0.13)',
   },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+  hdrInner: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 6 },
+  hdrTop: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    justifyContent: 'space-between', marginBottom: 16,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+  hdrEye: {
+    fontSize: 11, fontFamily: 'Montserrat-SemiBold',
+    color: 'rgba(255,255,255,0.45)', letterSpacing: 0.8,
+    textTransform: 'uppercase', marginBottom: 3,
   },
-  iconBtn: {
-    padding: 8,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+  hdrTitle: {
+    fontSize: 24, fontFamily: 'Montserrat-Bold',
+    color: '#fff', letterSpacing: -0.5, maxWidth: width * 0.65,
   },
-
-  // Search
-  searchContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 15,
-    marginTop: 10,
-    gap: 12,
+  hdrBtn: {
+    width: 38, height: 38, borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.11)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.16)', justifyContent: 'center',
+    alignItems: 'center', marginTop: 4,
   },
-  searchWrapper: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+  searchRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  searchPill: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 9,
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.16)', borderRadius: 14,
+    paddingHorizontal: 13, height: 48,
+  },
+  searchPillActive: {
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 15,
-    fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
+    flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#fff', height: '100%',
   },
-  filterBtn: {
-    width: 50,
-    height: 50,
-    backgroundColor: '#0C1559',
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+  clearBtn: {
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center', alignItems: 'center',
   },
-
-  // Categories
-  categoryContainer: {
-    marginBottom: 20,
+  filterFab: {
+    width: 48, height: 48, borderRadius: 14, backgroundColor: C.lime,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 3, shadowColor: C.lime,
+    shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 6,
   },
-  catChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 18,
-    borderRadius: 20,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginRight: 10,
-  },
-  catChipActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
-  },
-  catText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
-  },
-  catTextActive: {
-    color: '#FFF',
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 28,
+    backgroundColor: C.pageBg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
   },
 
-  // Popular
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 12,
+  listContent: { paddingBottom: 120 },
+
+  chipStrip: {
+    paddingHorizontal: 16, paddingVertical: 14, gap: 8, flexDirection: 'row',
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+  chip: {
+    // Fixed height — same fix as orders chips, prevents inflation
+    height: 36, paddingHorizontal: 16, borderRadius: 18,
+    borderWidth: 1, borderColor: C.navyMid, backgroundColor: C.card,
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 1, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,
   },
-  seeAll: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#84cc16',
+  chipOn:    { backgroundColor: C.lime, borderColor: C.lime },
+  chipTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  chipTxtOn: { color: C.limeText },
+
+  secHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', paddingHorizontal: 16, marginBottom: 12,
   },
-  popularList: {
-    paddingLeft: 20,
-    paddingRight: 8,
-  },
+  secTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body },
+  secMeta:  { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.subtle },
+
+  // ── Popular card — single logo image ───────────────────────────────────────
+  popularStrip: { paddingLeft: 16, paddingRight: 8, paddingBottom: 20 },
   popularCard: {
-    width: 140,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 10,
-    marginRight: 16,
-    shadowColor: "#0C1559",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    width: 148, backgroundColor: C.card, borderRadius: 22,
+    overflow: 'hidden', marginRight: 12,
+    elevation: 5, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.09, shadowRadius: 14,
   },
-  popularImageContainer: {
-    position: 'relative',
+
+  // The image wrapper — logo fills this area entirely
+  popularImgWrap: {
     width: '100%',
-    height: 100,
-    marginBottom: 8,
+    height: 110,   // slightly taller than before since there's no avatar offset
+    position: 'relative',
   },
   popularLogo: {
     width: '100%',
     height: '100%',
-    borderRadius: 12,
+    // cover keeps the logo centred and fills the space without letterboxing
     resizeMode: 'cover',
-    backgroundColor: '#F1F5F9',
   },
-  ratingBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
+  // Fallback when no logo URL — coloured block with initials centred
+  popularLogoFallback: {
+    width: '100%', height: '100%',
+    backgroundColor: C.navy,
+    justifyContent: 'center', alignItems: 'center',
   },
-  ratingText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontFamily: 'Montserrat-Bold',
+  popularLogoInitials: {
+    fontSize: 28, fontFamily: 'Montserrat-Bold', color: C.lime,
   },
-  popularName: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-    marginBottom: 2,
-  },
-  popularCategory: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
+  // Gradient fades the bottom of the image so the card info below feels connected
+  popularImgGradient: {
+    position: 'absolute', left: 0, right: 0, bottom: 0,
+    height: 40,          // only covers the bottom portion
+    borderRadius: 0,     // no radius — abuts the info section directly
   },
 
-  // All Stores
+  // Verified badge — absolute, top-right, sitting on top of the image
+  verifiedBadge: {
+    position: 'absolute', top: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: C.lime,
+    borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3,
+    // Subtle shadow so it lifts off the image
+    elevation: 2, shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3,
+  },
+  verifiedBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.limeText },
+
+  popularInfo: { padding: 11 },   // no extra paddingTop — avatar overlap is gone
+  popularName: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 2 },
+  popularCat:  { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: 8 },
+  popularFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ratingPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 3, borderRadius: 8,
+  },
+  ratingPillTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#92400E' },
+  popularItems:  { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.lime },
+
+  // Store row
   storeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: C.card, borderRadius: 20, padding: 13,
+    marginHorizontal: 14, marginBottom: 10,
+    elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
   },
   storeRowLogo: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    resizeMode: 'cover',
-    backgroundColor: '#F1F5F9',
+    width: 56, height: 56, borderRadius: 16, resizeMode: 'cover', backgroundColor: '#dbeafe',
   },
-  storeRowInfo: {
-    flex: 1,
-    marginLeft: 12,
+  storeRowLogoFallback: { backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
+  storeRowLogoTxt: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#fff' },
+  storeRowInfo: { flex: 1 },
+  storeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
+  storeRowName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body, flex: 1 },
+  inlineVerified: {
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center',
   },
-  storeRowName: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-    marginBottom: 4,
+  storeRowMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  storeRowCat:  { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.subtle },
+  dot: { width: 3, height: 3, borderRadius: 2, backgroundColor: '#CBD5E1' },
+  storeRowItems: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.lime },
+  storeRatingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  storeRatingTxt: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: C.navy },
+  visitBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12,
   },
-  storeRowMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  visitTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
+
+  mapFab: {
+    position: 'absolute', bottom: 86, alignSelf: 'center',
+    borderRadius: 30, elevation: 10, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.28, shadowRadius: 14, zIndex: 50,
   },
-  storeRowCategory: {
-    fontSize: 12,
-    color: '#64748B',
-    fontFamily: 'Montserrat-Medium',
+  mapFabInner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingVertical: 12, paddingHorizontal: 22, borderRadius: 30,
   },
-  dotSeparator: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#CBD5E1',
-    marginHorizontal: 6,
+  mapFabTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff' },
+
+  emptyWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
+  emptyCircle: {
+    width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF2FF',
+    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
+    elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.06, shadowRadius: 8,
   },
-  storeRowCatalogues: {
-    fontSize: 12,
-    color: '#84cc16', // Lime Green
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  visitButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F4FC',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    gap: 4,
-  },
-  visitText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+  emptyTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 8 },
+  emptyBody: {
+    fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', lineHeight: 20,
   },
 
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 50,
+  modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12,21,89,0.4)' },
+  modalBackdrop: { flex: 1 },
+  modalSheet: {
+    backgroundColor: C.card, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    padding: 20, paddingBottom: 40,
   },
-  emptyText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#94A3B8',
-    fontFamily: 'Montserrat-Medium',
-  },
-
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalBackdrop: {
-    flex: 1,
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    paddingBottom: 40,
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0',
+    alignSelf: 'center', marginBottom: 16,
   },
   modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: 20,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+  modalTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.body },
+  modalClose: {
+    width: 32, height: 32, borderRadius: 10,
+    backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
   },
-  filterLabel: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
-    marginBottom: 10,
-    marginTop: 10,
+  modalSectionLbl: {
+    fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.subtle,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12,
   },
-  sortOptions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-  },
+  sortRow: { flexDirection: 'row', gap: 8, marginBottom: 24 },
   sortChip: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: 'transparent',
+    flex: 1, paddingVertical: 10, borderRadius: 12,
+    backgroundColor: '#F8FAFC', borderWidth: 0.5, borderColor: C.border, alignItems: 'center',
   },
-  sortChipActive: {
-    backgroundColor: '#ECFCCB', // Light lime
-    borderColor: '#A3E635',
-  },
-  sortText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontFamily: 'Montserrat-Medium',
-  },
-  sortTextActive: {
-    color: '#16A34A',
-    fontFamily: 'Montserrat-Bold',
-  },
+  sortChipOn:    { backgroundColor: '#EEF2FF', borderColor: C.navyMid },
+  sortChipTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  sortChipTxtOn: { color: C.navy, fontFamily: 'Montserrat-Bold' },
   switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 30,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginBottom: 28, backgroundColor: '#F8FAFC', padding: 14,
+    borderRadius: 14, borderWidth: 0.5, borderColor: C.border,
   },
+  switchLbl: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 2 },
+  switchSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.muted },
   applyBtn: {
-    backgroundColor: '#0C1559',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
+    backgroundColor: C.navy, paddingVertical: 16, borderRadius: 16, alignItems: 'center',
+    elevation: 4, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10,
   },
-  applyText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-  },
-  floatingMapBtn: {
-    position: 'absolute',
-    bottom: 110, // Above the bottom nav
-    right: 20,
-    borderRadius: 30,
-    elevation: 8,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-  },
-  mapGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 30,
-    gap: 8,
-  },
-  mapBtnText: {
-    color: '#FFF',
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 14,
-  },
+  applyTxt: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff' },
 });

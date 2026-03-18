@@ -14,7 +14,7 @@ const getBaseURL = () => {
     if (Platform.OS === 'android') {
       return 'http://10.0.2.2:5000'; // Android Emulator http://10.0.2.2:5000
     } else {
-      return 'http://localhost:5000'; // iOS Simulator and Web (adjust if your local server is different)
+      return 'https://dios-mnxg.onrender.com'; // iOS Simulator and Web http://localhost:5000
     }
   } else {
     // Production mode - use production server

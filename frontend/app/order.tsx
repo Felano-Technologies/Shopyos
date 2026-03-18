@@ -1,17 +1,10 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  RefreshControl,
-  ActivityIndicator,
-  TextInput,
-  ScrollView
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  Dimensions, RefreshControl, ActivityIndicator,
+  TextInput, ScrollView, Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { StatusBar } from 'expo-status-bar';
@@ -20,8 +13,54 @@ import { useRouter } from 'expo-router';
 import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
 import { useOrders } from '@/hooks/useOrders';
 
-const { width } = Dimensions.get('window');
+// ─── Responsive helpers ───────────────────────────────────────────────────────
+const { width: SW } = Dimensions.get('window');
+const BASE_W = 390;
+const SCALE  = Math.min(Math.max(SW / BASE_W, 0.82), 1.2);
+const rs = (n: number) => Math.round(n * SCALE);
+const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+
+const BOTTOM_NAV_H       = rs(60);
+const BOTTOM_BUFFER      = rs(24);
+
 const PAGE_SIZE = 10;
+
+// ─── Tokens ───────────────────────────────────────────────────────────────────
+const C = {
+  bg:      '#F8FAFC',
+  navy:    '#0C1559',
+  navyMid: '#1e3a8a',
+  lime:    '#84cc16',
+  card:    '#FFFFFF',
+  body:    '#0F172A',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+  border:  'rgba(12,21,89,0.07)',
+};
+
+// ─── Status config ─────────────────────────────────────────────────────────────
+type StatusConfig = {
+  color: string; bg: string; bar: string;
+  timelineStep: number; label: string;
+};
+
+const STATUS_CONFIG: Record<string, StatusConfig> = {
+  pending:            { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', timelineStep: 0,  label: 'Pending'    },
+  paid:               { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', timelineStep: 1,  label: 'Paid'       },
+  confirmed:          { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', timelineStep: 1,  label: 'Confirmed'  },
+  processing:         { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', timelineStep: 1,  label: 'Processing' },
+  'ready for pickup': { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2,  label: 'Ready'      },
+  'in transit':       { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', timelineStep: 2,  label: 'In Transit' },
+  delivered:          { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', timelineStep: 3,  label: 'Delivered'  },
+  cancelled:          { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', timelineStep: -1, label: 'Cancelled'  },
+};
+
+const getStatusConfig = (status: string): StatusConfig =>
+  STATUS_CONFIG[status.toLowerCase().replace(/_/g, ' ')] ?? {
+    color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF', timelineStep: 0, label: status,
+  };
+
+const TIMELINE_STEPS = ['Placed', 'Paid', 'Transit', 'Done'];
 
 interface Order {
   id: string;
@@ -35,231 +74,279 @@ interface Order {
 
 const OrdersScreen = () => {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  // --- Pagination & Filter State ---
-  const [page, setPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState('');
+  const listBottomPadding = BOTTOM_NAV_H + BOTTOM_BUFFER + insets.bottom;
+
+  const [page,         setPage]         = useState(1);
+  const [searchQuery,  setSearchQuery]  = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const filters = ['All', 'Pending', 'Paid', 'Confirmed', 'In Transit', 'Delivered', 'Cancelled'];
 
-  // Pass the active status filter to the hook → backend does the filtering
+  const FILTERS = ['All', 'Pending', 'Paid', 'Confirmed', 'In Transit', 'Delivered', 'Cancelled'];
+
   const statusParam = activeFilter === 'All'
     ? undefined
     : activeFilter.toLowerCase().replace(/ /g, '_');
 
-  const { data, isLoading, refetch, isRefetching, isFetching } = useOrders(statusParam, page, PAGE_SIZE);
+  const { data, isLoading, refetch, isRefetching, isFetching } =
+    useOrders(statusParam, page, PAGE_SIZE);
 
-  const rawOrders: any[] = Array.isArray(data) ? data : data?.orders || [];
-  const pagination = (data as any)?.pagination || null;
-
+  const rawOrders: any[]  = Array.isArray(data) ? data : (data as any)?.orders ?? [];
+  const pagination         = (data as any)?.pagination ?? null;
   const totalPages: number = pagination?.totalPages ?? 1;
   const totalItems: number = pagination?.totalItems ?? rawOrders.length;
 
   const orders: Order[] = rawOrders.map((o: any) => ({
-    id: o.id,
+    id:          o.id,
     orderNumber: o.order_number,
     totalAmount: o.payments?.[0]?.amount ? parseFloat(o.payments[0].amount) : 0,
-    date: o.created_at,
-    status: o.status ? o.status.charAt(0).toUpperCase() + o.status.slice(1) : 'Unknown',
-    itemsCount: o.order_items?.length || 0,
-    storeName: o.store?.store_name || 'Shopyos Store'
+    date:        o.created_at,
+    status:      o.status ?? 'unknown',
+    itemsCount:  o.order_items?.length ?? 0,
+    storeName:   o.store?.store_name ?? 'Shopyos Store',
   }));
 
-  // Client-side search filter (applied on top of the current page)
-  const filteredOrders = orders.filter((order: Order) => {
+  const filteredOrders = orders.filter((o) => {
     if (!searchQuery) return true;
     return (
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.storeName.toLowerCase().includes(searchQuery.toLowerCase())
+      o.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      o.storeName.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
-  const handleRefresh = async () => { await refetch(); };
+  const handleFilterChange = (f: string) => { setActiveFilter(f); setPage(1); };
 
-  // Switching filter tabs resets to page 1
-  const handleFilterChange = (filter: string) => {
-    setActiveFilter(filter);
-    setPage(1);
-  };
+  // ── Timeline ────────────────────────────────────────────────────────────────
+  const renderTimeline = (step: number) => (
+    <View style={S.timeline}>
+      {TIMELINE_STEPS.map((label, i) => {
+        const done   = i < step;
+        const active = i === step;
+        return (
+          <React.Fragment key={label}>
+            <View style={S.tlStep}>
+              <View style={[S.tlDot, done && S.tlDotDone, active && S.tlDotActive]} />
+              <Text style={[S.tlLbl, done && S.tlLblDone, active && S.tlLblActive]}>
+                {label}
+              </Text>
+            </View>
+            {i < TIMELINE_STEPS.length - 1 && (
+              <View style={[S.tlLine, done && S.tlLineDone]} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </View>
+  );
 
-  const getStatusBadge = (status: string) => {
-    switch (status.toLowerCase().replace(/_/g, ' ')) {
-      case 'pending':        return { color: '#B45309', bg: '#FEF3C7', icon: 'time-outline' };
-      case 'paid':           return { color: '#15803D', bg: '#DCFCE7', icon: 'card-outline' };
-      case 'confirmed':      return { color: '#1D4ED8', bg: '#DBEAFE', icon: 'checkmark-done-outline' };
-      case 'processing':     return { color: '#1D4ED8', bg: '#DBEAFE', icon: 'sync-outline' };
-      case 'ready for pickup': return { color: '#7C3AED', bg: '#F3E8FF', icon: 'storefront-outline' };
-      case 'in transit':     return { color: '#7C3AED', bg: '#F3E8FF', icon: 'bicycle-outline' };
-      case 'delivered':      return { color: '#15803D', bg: '#DCFCE7', icon: 'checkmark-circle-outline' };
-      case 'cancelled':      return { color: '#B91C1C', bg: '#FEE2E2', icon: 'close-circle-outline' };
-      default:               return { color: '#6B7280', bg: '#F3F4F6', icon: 'help-circle-outline' };
-    }
-  };
-
+  // ── Order card ──────────────────────────────────────────────────────────────
   const renderOrder = ({ item }: { item: Order }) => {
-    const { color, bg, icon } = getStatusBadge(item.status);
+    const cfg       = getStatusConfig(item.status);
+    const showTrack = cfg.timelineStep >= 0 && cfg.timelineStep <= 2;
+
+    let dateStr = '';
+    try { dateStr = format(new Date(item.date), 'MMM dd, yyyy'); } catch {}
+
     return (
       <TouchableOpacity
-        style={styles.orderCard}
-        activeOpacity={0.8}
+        style={S.card}
+        activeOpacity={0.82}
         onPress={() => router.push(`/order/${item.id}` as any)}
       >
-        <View style={styles.cardHeader}>
-          <View style={styles.storeNameRow}>
-            <MaterialCommunityIcons name="store-outline" size={16} color="#0C1559" />
-            <Text style={styles.storeName}>{item.storeName}</Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-            <Ionicons name={icon as any} size={12} color={color} style={{ marginRight: 4 }} />
-            <Text style={[styles.statusText, { color }]}>{item.status.replace(/_/g, ' ')}</Text>
-          </View>
-        </View>
+        <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
+        <View style={S.cardBody}>
 
-        <View style={styles.cardBody}>
-          <View style={styles.orderInfo}>
-            <Text style={styles.orderNumberText}>Order #{item.orderNumber}</Text>
-            <Text style={styles.dateText}>{format(new Date(item.date), 'MMM dd, yyyy')}</Text>
+          {/* Store + status */}
+          <View style={S.cardTop}>
+            <View style={S.storeRow}>
+              <View style={S.storeIcon}>
+                <MaterialCommunityIcons name="store-outline" size={rs(14)} color={C.navy} />
+              </View>
+              <Text style={S.storeName} numberOfLines={1}>{item.storeName}</Text>
+            </View>
+            {/* STATUS PILL — fixed height, no vertical padding that can blow up */}
+            <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
+              <View style={[S.statusDot, { backgroundColor: cfg.color }]} />
+              <Text style={[S.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
+            </View>
           </View>
-          <View style={styles.amountInfo}>
-            <Text style={styles.totalLabel}>Amount</Text>
-            <Text style={styles.amountText}>₵{item.totalAmount.toFixed(2)}</Text>
-          </View>
-        </View>
 
-        <View style={styles.cardFooter}>
-          <Text style={styles.itemsCount}>{item.itemsCount} {item.itemsCount === 1 ? 'item' : 'items'}</Text>
-          <View style={styles.viewDetailsRow}>
-            <Text style={styles.viewDetailsText}>View Details</Text>
-            <Feather name="chevron-right" size={16} color="#0C1559" />
+          {showTrack && renderTimeline(cfg.timelineStep)}
+
+          {/* Order info + amount */}
+          <View style={S.cardMid}>
+            <View>
+              <Text style={S.orderNum}>#{item.orderNumber}</Text>
+              <Text style={S.orderDate}>{dateStr}</Text>
+            </View>
+            <View style={S.amountWrap}>
+              <Text style={S.amountLbl}>Total</Text>
+              <Text style={S.amountVal}>₵{item.totalAmount.toFixed(2)}</Text>
+            </View>
           </View>
+
+          <View style={S.cardFoot}>
+            <Text style={S.itemsLbl}>
+              {item.itemsCount} {item.itemsCount === 1 ? 'item' : 'items'}
+            </Text>
+            <View style={S.viewBtn}>
+              <Text style={S.viewBtnTxt}>View Details</Text>
+              <Ionicons name="chevron-forward" size={rs(12)} color={C.navy} />
+            </View>
+          </View>
+
         </View>
       </TouchableOpacity>
     );
   };
 
-  // ── Pagination footer ──────────────────────────────────────────────────────
+  // ── Pagination ──────────────────────────────────────────────────────────────
   const renderFooter = () => {
     if (totalPages <= 1) return null;
 
-    // Build windowed page numbers with ellipsis
     const allPages = Array.from({ length: totalPages }, (_, i) => i + 1);
-    const visible = allPages.filter(
-      n => n === 1 || n === totalPages || Math.abs(n - page) <= 1
+    const visible  = allPages.filter(
+      (n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1
     );
-    const withEllipsis = visible.reduce<(number | string)[]>((acc, n, idx, arr) => {
-      if (idx > 0 && (n as number) - (arr[idx - 1] as number) > 1) acc.push('…');
+    const withEllipsis = visible.reduce<(number | string)[]>((acc, n, i, arr) => {
+      if (i > 0 && (n as number) - (arr[i - 1] as number) > 1) acc.push('…');
       acc.push(n);
       return acc;
     }, []);
 
     return (
-      <View style={styles.paginationContainer}>
-        <Text style={styles.paginationInfo}>
-          {totalItems} order{totalItems !== 1 ? 's' : ''} • Page {page} of {totalPages}
+      <View style={S.pagination}>
+        <Text style={S.pageInfo}>
+          {totalItems} order{totalItems !== 1 ? 's' : ''} · Page {page} of {totalPages}
         </Text>
-
-        <View style={styles.paginationControls}>
-          {/* Prev */}
+        <View style={S.pageControls}>
           <TouchableOpacity
-            style={[styles.pageBtn, page <= 1 && styles.pageBtnDisabled]}
-            onPress={() => setPage(p => Math.max(1, p - 1))}
+            style={[S.pageBtn, page <= 1 && S.pageBtnOff]}
+            onPress={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1 || isFetching}
           >
-            <Ionicons name="chevron-back" size={18} color={page <= 1 ? '#CBD5E1' : '#0C1559'} />
-            <Text style={[styles.pageBtnText, page <= 1 && styles.pageBtnTextDisabled]}>Prev</Text>
+            <Ionicons name="chevron-back" size={rs(16)} color={page <= 1 ? '#CBD5E1' : C.navy} />
           </TouchableOpacity>
 
-          {/* Page pills */}
-          <View style={styles.pageNumbers}>
-            {withEllipsis.map((n, idx) =>
-              n === '…' ? (
-                <Text key={`el-${idx}`} style={styles.ellipsis}>…</Text>
-              ) : (
-                <TouchableOpacity
-                  key={n}
-                  style={[styles.pageNum, page === n && styles.pageNumActive]}
-                  onPress={() => setPage(n as number)}
-                  disabled={isFetching}
-                >
-                  <Text style={[styles.pageNumText, page === n && styles.pageNumTextActive]}>{n}</Text>
-                </TouchableOpacity>
-              )
-            )}
-          </View>
+          {withEllipsis.map((n, i) =>
+            n === '…' ? (
+              <Text key={`el-${i}`} style={S.pageEllipsis}>…</Text>
+            ) : (
+              <TouchableOpacity
+                key={n}
+                style={[S.pageNum, page === n && S.pageNumOn]}
+                onPress={() => setPage(n as number)}
+                disabled={isFetching}
+              >
+                <Text style={[S.pageNumTxt, page === n && S.pageNumTxtOn]}>{n}</Text>
+              </TouchableOpacity>
+            )
+          )}
 
-          {/* Next */}
           <TouchableOpacity
-            style={[styles.pageBtn, page >= totalPages && styles.pageBtnDisabled]}
-            onPress={() => setPage(p => Math.min(totalPages, p + 1))}
+            style={[S.pageBtn, page >= totalPages && S.pageBtnOff]}
+            onPress={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page >= totalPages || isFetching}
           >
-            <Text style={[styles.pageBtnText, page >= totalPages && styles.pageBtnTextDisabled]}>Next</Text>
-            <Ionicons name="chevron-forward" size={18} color={page >= totalPages ? '#CBD5E1' : '#0C1559'} />
+            <Ionicons
+              name="chevron-forward"
+              size={rs(16)}
+              color={page >= totalPages ? '#CBD5E1' : C.navy}
+            />
           </TouchableOpacity>
         </View>
 
-        {/* Inline loading indicator while changing pages */}
         {isFetching && !isLoading && (
-          <View style={styles.fetchingRow}>
-            <ActivityIndicator size="small" color="#0C1559" />
-            <Text style={styles.fetchingText}>Loading page {page}…</Text>
+          <View style={S.fetchingRow}>
+            <ActivityIndicator size="small" color={C.navy} />
+            <Text style={S.fetchingTxt}>Loading…</Text>
           </View>
         )}
       </View>
     );
   };
 
+  // ── Root ────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.mainContainer}>
-      <StatusBar style="light" backgroundColor="#0C1559" />
+    <View style={S.root}>
+      <StatusBar style="light" />
 
-      {/* Header */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+      <LinearGradient colors={[C.navy, C.navyMid]} style={S.hdrGradient}>
+        <View style={S.hdrGlow} pointerEvents="none" />
+
         <SafeAreaView edges={['top', 'left', 'right']}>
-          <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-              <Ionicons name="arrow-back" size={24} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>My Orders</Text>
-            <View style={{ width: 40 }} />
+          <View style={S.hdrInner}>
+            <View style={S.hdrTop}>
+              <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+                <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
+              </TouchableOpacity>
+
+              <View style={S.hdrCenter}>
+                <Text style={S.hdrEye}>Track your</Text>
+                <Text style={S.hdrTitle}>
+                  My <Text style={{ color: C.lime }}>Orders</Text>
+                </Text>
+              </View>
+
+              <View style={S.hdrStatPill}>
+                <Text style={S.hdrStatN}>{totalItems}</Text>
+                <Text style={S.hdrStatLbl}>orders</Text>
+              </View>
+            </View>
+
+            <View style={[S.searchPill, searchQuery.length > 0 && S.searchPillActive]}>
+              <Feather name="search" size={rs(14)} color="rgba(255,255,255,0.5)" />
+              <TextInput
+                style={S.searchInput}
+                placeholder="Search by order ID or store…"
+                placeholderTextColor="rgba(255,255,255,0.32)"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                autoCorrect={false}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  style={S.searchClear}
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="close" size={rs(10)} color="#fff" />
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
         </SafeAreaView>
+
+        <View style={S.hdrArc} />
       </LinearGradient>
 
-      {/* Search + Filter */}
-      <View style={styles.searchSection}>
-        <View style={styles.searchBar}>
-          <Feather name="search" size={18} color="#94A3B8" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search by order ID or store..."
-            placeholderTextColor="#94A3B8"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterScroll}>
-          {filters.map(filter => (
+      {/* ── Filter chips ────────────────────────────────────────────────────
+          FIX: chips now have a fixed height (not driven by paddingVertical)
+          so they cannot inflate on any screen size.
+      ── */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={S.chipStrip}
+      >
+        {FILTERS.map((f) => {
+          const on = activeFilter === f;
+          return (
             <TouchableOpacity
-              key={filter}
-              style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
-              onPress={() => handleFilterChange(filter)}
+              key={f}
+              style={[S.chip, on && S.chipOn]}
+              onPress={() => handleFilterChange(f)}
+              activeOpacity={0.75}
             >
-              <Text style={[styles.filterText, activeFilter === filter && styles.filterTextActive]}>
-                {filter}
+              <Text style={[S.chipTxt, on && S.chipTxtOn]} numberOfLines={1}>
+                {f}
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+          );
+        })}
+      </ScrollView>
 
-      {/* Content */}
       {isLoading ? (
         <OrdersSkeleton />
       ) : (
@@ -267,23 +354,37 @@ const OrdersScreen = () => {
           data={filteredOrders}
           keyExtractor={(item) => item.id}
           renderItem={renderOrder}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[S.listContent, { paddingBottom: listBottomPadding }]}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefresh} tintColor="#0C1559" />}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={refetch}
+              tintColor={C.navy}
+              colors={[C.navy]}
+            />
+          }
           ListFooterComponent={renderFooter}
           ListEmptyComponent={
             rawOrders.length > 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={60} color="#CBD5E1" />
-                <Text style={[styles.emptyText, { color: '#0F172A', fontFamily: 'Montserrat-Bold' }]}>No matches found</Text>
-                <Text style={styles.emptyText}>Try a different order ID, store name, or filter.</Text>
+              <View style={S.emptyWrap}>
+                <View style={S.emptyCircle}>
+                  <Ionicons name="search-outline" size={rs(40)} color={C.navy} />
+                </View>
+                <Text style={S.emptyTitle}>No matches</Text>
+                <Text style={S.emptyBody}>Try a different order ID, store name, or filter.</Text>
               </View>
             ) : (
-              <View style={styles.emptyState}>
-                <MaterialCommunityIcons name="package-variant-closed" size={80} color="#CBD5E1" />
-                <Text style={styles.emptyText}>You haven't placed any orders yet.</Text>
-                <TouchableOpacity style={styles.shopBtn} onPress={() => router.push('/home')}>
-                  <Text style={styles.shopBtnText}>Start Shopping</Text>
+              <View style={S.emptyWrap}>
+                <View style={S.emptyCircle}>
+                  <MaterialCommunityIcons name="package-variant-closed" size={rs(44)} color={C.navy} />
+                </View>
+                <Text style={S.emptyTitle}>No orders yet</Text>
+                <Text style={S.emptyBody}>
+                  Your order history will appear here once you start shopping.
+                </Text>
+                <TouchableOpacity style={S.shopBtn} onPress={() => router.push('/home')}>
+                  <Text style={S.shopBtnTxt}>Start Shopping</Text>
                 </TouchableOpacity>
               </View>
             )
@@ -294,67 +395,217 @@ const OrdersScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, zIndex: 10 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
-  backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
-  headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+// ─── Styles ────────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
+  root: { flex: 1, backgroundColor: C.bg },
 
-  // Search & Filter
-  searchSection: { backgroundColor: '#F8FAFC', paddingHorizontal: 20, paddingTop: 15, paddingBottom: 5 },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#0C1559', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 },
-  searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 14, color: '#0F172A' },
-  filterScroll: { flexDirection: 'row', marginTop: 15, gap: 8, paddingRight: 20, paddingBottom: 6 },
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  filterChipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  filterText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
-  filterTextActive: { color: '#FFF' },
+  // Header
+  hdrGradient: {
+    position: 'relative', paddingBottom: rs(26), zIndex: 20,
+    elevation: 12, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(10) },
+    shadowOpacity: 0.22, shadowRadius: rs(20),
+  },
+  hdrGlow: {
+    position: 'absolute', bottom: -rs(30), right: -rs(30),
+    width: rs(150), height: rs(150), borderRadius: rs(75),
+    backgroundColor: 'rgba(132,204,22,0.11)',
+  },
+  hdrInner: { paddingHorizontal: rs(20), paddingTop: rs(8), paddingBottom: rs(6) },
+  hdrTop: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: rs(16),
+  },
+  backBtn: {
+    width: rs(38), height: rs(38), borderRadius: rs(12),
+    backgroundColor: 'rgba(255,255,255,0.11)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.16)', justifyContent: 'center', alignItems: 'center',
+  },
+  hdrCenter: { alignItems: 'center' },
+  hdrEye: {
+    fontSize: rf(10), fontFamily: 'Montserrat-SemiBold',
+    color: 'rgba(255,255,255,0.45)', letterSpacing: 0.9,
+    textTransform: 'uppercase', marginBottom: rs(2),
+  },
+  hdrTitle: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: '#fff', letterSpacing: -0.3 },
+  hdrStatPill: {
+    alignItems: 'center', minWidth: rs(52),
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.16)', borderRadius: rs(20),
+    paddingHorizontal: rs(12), paddingVertical: rs(6),
+  },
+  hdrStatN:   { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  hdrStatLbl: { fontSize: rf(9), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.5)' },
+  searchPill: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(9),
+    backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.16)', borderRadius: rs(14),
+    paddingHorizontal: rs(13), height: rs(48),
+  },
+  searchPillActive: { backgroundColor: 'rgba(255,255,255,0.16)', borderColor: 'rgba(255,255,255,0.3)' },
+  searchInput: { flex: 1, fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: '#fff', height: '100%' },
+  searchClear: {
+    width: rs(20), height: rs(20), borderRadius: rs(10),
+    backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center',
+  },
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+  },
+
+  // ── Filter chip strip ───────────────────────────────────────────────────────
+  // FIX ROOT CAUSE: chips must NOT use paddingVertical from rs() because
+  // on some Android densities rs() can return a large number that inflates the
+  // chip height to fill the screen. Instead we:
+  //   1. Use a fixed height: 36px (device-pixel-independent, feels right on all sizes)
+  //   2. Center content with justifyContent/alignItems
+  //   3. Use only horizontal padding for internal spacing
+  chipStrip: {
+    paddingHorizontal: rs(14),
+    paddingVertical: rs(10),   // outer strip padding — fine to scale
+    gap: rs(8),
+    flexDirection: 'row',
+    alignItems: 'center',      // vertically centre chips within the strip
+  },
+  chip: {
+    height: 36,                // ← fixed, not scaled — prevents inflation on any device
+    paddingHorizontal: rs(16), // only horizontal padding drives width
+    borderRadius: 18,          // half of height = perfect pill
+    borderWidth: 0.5,
+    borderColor: 'rgba(12,21,89,0.14)',
+    backgroundColor: C.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    // Subtle elevation so chips don't look flat on the light bg
+    elevation: 1,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+  },
+  chipOn:    { backgroundColor: C.navy, borderColor: C.navy },
+  chipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted, lineHeight: rf(16) },
+  chipTxtOn: { color: '#fff' },
 
   // List
-  listContent: { padding: 20, paddingBottom: 20 },
+  listContent: { paddingHorizontal: 0 },
 
   // Card
-  orderCard: { backgroundColor: '#FFF', borderRadius: 20, marginBottom: 14, padding: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  storeNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  storeName: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#334155' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 12 },
-  statusText: { fontSize: 10, fontFamily: 'Montserrat-Bold', textTransform: 'capitalize' },
-  cardBody: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#F8FAFC' },
-  orderInfo: { gap: 6 },
-  orderNumberText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  dateText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  amountInfo: { alignItems: 'flex-end', gap: 4 },
-  totalLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  amountText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
-  itemsCount: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  viewDetailsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  viewDetailsText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  card: {
+    backgroundColor: C.card, borderRadius: rs(22),
+    marginHorizontal: rs(14), marginBottom: rs(12), overflow: 'hidden',
+    elevation: 4, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.07, shadowRadius: rs(12),
+  },
+  cardBar:  { height: rs(3) },
+  cardBody: { padding: rs(14) },
+  cardTop: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: rs(10),
+  },
+  storeRow: { flexDirection: 'row', alignItems: 'center', gap: rs(7), flex: 1, marginRight: rs(8) },
+  storeIcon: {
+    width: rs(28), height: rs(28), borderRadius: rs(9),
+    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+  },
+  storeName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#334155', flex: 1 },
+
+  // ── Status pill ─────────────────────────────────────────────────────────────
+  // FIX: same fixed-height approach as chips — height drives size, not padding.
+  statusPill: {
+    height: 26,                // fixed — never inflates
+    paddingHorizontal: rs(10),
+    borderRadius: 13,          // half of height
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rs(5),
+    flexShrink: 0,             // never wraps or shrinks away text
+  },
+  statusDot: { width: rs(6), height: rs(6), borderRadius: rs(3), flexShrink: 0 },
+  statusTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', lineHeight: rf(14) },
+
+  // Timeline
+  timeline: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    marginBottom: rs(12), paddingHorizontal: rs(2),
+  },
+  tlStep:   { alignItems: 'center', minWidth: rs(36) },
+  tlDot:    { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: '#E2E8F0' },
+  tlDotDone:   { backgroundColor: C.lime },
+  tlDotActive: {
+    backgroundColor: C.navy,
+    shadowColor: C.navy, shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35, shadowRadius: rs(4), elevation: 3,
+  },
+  tlLbl:       { fontSize: rf(8), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(3), textAlign: 'center' },
+  tlLblDone:   { color: C.lime },
+  tlLblActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
+  tlLine:      { flex: 1, height: rs(2), backgroundColor: '#E2E8F0', marginTop: rs(4), marginBottom: rs(14) },
+  tlLineDone:  { backgroundColor: C.lime },
+
+  // Card mid / foot
+  cardMid: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: rs(11), borderTopWidth: 0.5, borderBottomWidth: 0.5,
+    borderColor: '#F1F5F9', marginBottom: rs(11),
+  },
+  orderNum:   { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: rs(3) },
+  orderDate:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  amountWrap: { alignItems: 'flex-end' },
+  amountLbl:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
+  amountVal:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body },
+  cardFoot:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  itemsLbl:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  viewBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(3),
+    backgroundColor: '#EEF2FF', paddingHorizontal: rs(11), paddingVertical: rs(7),
+    borderRadius: rs(10),
+  },
+  viewBtnTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.navy },
 
   // Pagination
-  paginationContainer: { marginTop: 4, marginBottom: 100, alignItems: 'center', gap: 12 },
-  paginationInfo: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  paginationControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pageBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 12, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  pageBtnDisabled: { borderColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
-  pageBtnText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  pageBtnTextDisabled: { color: '#CBD5E1' },
-  pageNumbers: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  pageNum: { width: 34, height: 34, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  pageNumActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  pageNumText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B' },
-  pageNumTextActive: { color: '#FFF' },
-  ellipsis: { fontSize: 14, color: '#94A3B8', paddingHorizontal: 2 },
-  fetchingRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  fetchingText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
+  pagination: { alignItems: 'center', gap: rs(10), paddingVertical: rs(16) },
+  pageInfo:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  pageControls: { flexDirection: 'row', alignItems: 'center', gap: rs(6) },
+  pageBtn: {
+    width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.card,
+    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
+    justifyContent: 'center', alignItems: 'center',
+    elevation: 1, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
+  },
+  pageBtnOff: { borderColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
+  pageNum: {
+    width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.card,
+    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  pageNumOn:    { backgroundColor: C.navy, borderColor: C.navy },
+  pageNumTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.muted },
+  pageNumTxtOn: { color: '#fff' },
+  pageEllipsis: { fontSize: rf(13), color: C.subtle, paddingHorizontal: rs(2) },
+  fetchingRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(6) },
+  fetchingTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
 
-  // Empty State
-  emptyState: { alignItems: 'center', marginTop: 60, paddingHorizontal: 30 },
-  emptyText: { marginTop: 16, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 24, textAlign: 'center', lineHeight: 22 },
-  shopBtn: { paddingVertical: 14, paddingHorizontal: 28, backgroundColor: '#0C1559', borderRadius: 20 },
-  shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 14 },
+  // Empty state
+  emptyWrap: { alignItems: 'center', paddingTop: rs(60), paddingHorizontal: rs(40) },
+  emptyCircle: {
+    width: rs(90), height: rs(90), borderRadius: rs(45), backgroundColor: '#EEF2FF',
+    justifyContent: 'center', alignItems: 'center', marginBottom: rs(16),
+    elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
+  },
+  emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(8) },
+  emptyBody: {
+    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted,
+    textAlign: 'center', lineHeight: rf(20), marginBottom: rs(24),
+  },
+  shopBtn: {
+    backgroundColor: C.navy, paddingVertical: rs(13), paddingHorizontal: rs(28),
+    borderRadius: rs(14), elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.2, shadowRadius: rs(8),
+  },
+  shopBtnTxt: { color: '#fff', fontSize: rf(13), fontFamily: 'Montserrat-Bold' },
 });
 
 export default OrdersScreen;

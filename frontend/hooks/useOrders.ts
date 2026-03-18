@@ -21,7 +21,7 @@ import {
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
-export const useOrders = (status?: string) => {
+export const useOrders = (status?: string, page?: number, PAGE_SIZE?: number) => {
   return useQuery({
     queryKey: queryKeys.orders.list(status),
     queryFn: () => ordersApi.getAll(status),
