@@ -12,7 +12,7 @@ const getBaseURL = () => {
   if (isDev === "development") {
     // Development mode - use local server
     if (Platform.OS === 'android') {
-      return 'http://10.0.2.2:5000'; // Android Emulator http://10.0.2.2:5000
+      return 'https://dios-mnxg.onrender.com'; // Android Emulator http://10.0.2.2:5000
     } else {
       return 'https://dios-mnxg.onrender.com'; // iOS Simulator and Web http://localhost:5000
     }
@@ -789,7 +789,7 @@ export const uploadProductImages = async (productId: string, imageUris: string[]
 export const getBusinessDashboard = async (businessId: string) => {
   try {
     const response = await api.get(`/business/dashboard/${businessId}`);
-    return response.data;
+    return response.data.data || response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to fetch dashboard data');
     throw new Error(error.message || 'Network error fetching dashboard');
@@ -804,7 +804,7 @@ export const getBusinessAnalytics = async (
     const response = await api.get(
       `/business/analytics/${businessId}?timeframe=${timeframe}`
     );
-    return response.data;
+    return response.data.data || response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to fetch analytics');
     throw new Error(error.message || 'Network error');
