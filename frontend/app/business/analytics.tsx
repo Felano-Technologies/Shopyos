@@ -1,20 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Animated,
-  Dimensions,
-  Image,
-  ActivityIndicator,
-  ScrollView
+  View, Text, StyleSheet, TouchableOpacity, Animated,
+  Dimensions, Image, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { storage } from '@/services/api';
 import { router } from 'expo-router';
@@ -22,180 +15,181 @@ import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyt
 import { useBusinessAnalytics } from '@/hooks/useBusiness';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 
+const { width: SW } = Dimensions.get('window');
+const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
+const rs = (n: number) => Math.round(n * SCALE);
+const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const { width } = Dimensions.get('window');
+const C = {
+  bg:      '#F1F5F9',
+  navy:    '#0C1559',
+  navyMid: '#1e3a8a',
+  lime:    '#84cc16',
+  limeText:'#1a2e00',
+  card:    '#FFFFFF',
+  body:    '#0F172A',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+};
+
+// ─── Safe default — every field pre-filled so no access can ever be undefined ─
+const EMPTY_ANALYTICS = {
+  chart: {
+    labels:   [] as string[],
+    datasets: [{ data: [0] }] as { data: number[] }[],
+  },
+  stats:                { revenue: 0, orders: 0, growth: 0 },
+  topProducts:          [] as any[],
+  categoryDistribution: [] as any[],
+};
 
 const Analytics = () => {
-  const [timeframe, setTimeframe] = useState<'week' | 'month' | 'year'>('week');
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
+
+  // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
+  const [timeframe,  setTimeframe]  = useState<'week' | 'month' | 'year'>('week');
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
-    if (isChecking || !isVerified) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0C1559" />
-      </View>
-    );
-  }
-
-
-  // Verification guard — redirect unverified businesses
   useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then(status => {
+    storage.getItem('currentBusinessVerificationStatus').then((status) => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
   }, []);
 
-  // --- Get current business ID ---
   useEffect(() => {
     storage.getItem('currentBusinessId').then(setBusinessId);
   }, []);
 
-  // --- TanStack Query Hook ---
-  const { data, isLoading, refetch, isRefetching } = useBusinessAnalytics(businessId || '', timeframe);
-  
-  const analyticsData = data || {
-    chart: { labels: [], datasets: [{ data: [0] }] },
-    stats: { revenue: 0, orders: 0, growth: 0 },
-    topProducts: [],
-    categoryDistribution: []
+  const { data, isLoading, refetch, isRefetching } =
+    useBusinessAnalytics(businessId || '', timeframe);
+  // ── END OF HOOKS ──────────────────────────────────────────────────────────
+
+  if (isChecking || !isVerified) {
+    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
+  }
+
+  // ── Safe data merge ────────────────────────────────────────────────────────
+  // We spread EMPTY_ANALYTICS first so any missing key from `data` falls back
+  // to a safe default rather than undefined.
+  const analytics = {
+    chart: {
+      labels:   data?.chart?.labels   ?? EMPTY_ANALYTICS.chart.labels,
+      datasets: data?.chart?.datasets ?? EMPTY_ANALYTICS.chart.datasets,
+    },
+    stats: {
+      revenue: data?.stats?.revenue ?? 0,
+      orders:  data?.stats?.orders  ?? 0,
+      growth:  data?.stats?.growth  ?? 0,
+    },
+    topProducts:          Array.isArray(data?.topProducts)          ? data.topProducts          : [],
+    categoryDistribution: Array.isArray(data?.categoryDistribution) ? data.categoryDistribution : [],
   };
 
-  const loading = isLoading;
-  const refreshing = isRefetching;
+  // Guard: chart can only be used when labels AND at least one non-zero value exist
+  const hasChart =
+    analytics.chart.labels.length > 0 &&
+    Array.isArray(analytics.chart.datasets[0]?.data) &&
+    analytics.chart.datasets[0].data.some((x: number) => x > 0);
 
-  const onRefresh = async () => {
-    await refetch();
-  };
+  const hasPie = analytics.categoryDistribution.length > 0;
 
-  // --- Chart Configuration ---
   const chartConfig = {
-    backgroundGradientFrom: '#ffffff',
-    backgroundGradientTo: '#ffffff',
+    backgroundGradientFrom: '#fff',
+    backgroundGradientTo:   '#fff',
     decimalPlaces: 0,
-    color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`, // Brand Blue
-    labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`, // Slate 500
-    style: { borderRadius: 16 },
-    propsForDots: {
-      r: '4',
-      strokeWidth: '2',
-      stroke: '#84cc16', // Lime
-    },
-    propsForBackgroundLines: {
-      strokeDasharray: "5",
-      stroke: "rgba(0,0,0,0.05)"
-    },
-    propsForLabels: {
-      fontFamily: 'Montserrat-Medium',
-      fontSize: 10
-    }
+    color: (o = 1) => `rgba(12,21,89,${o})`,
+    labelColor: (o = 1) => `rgba(100,116,139,${o})`,
+    style: { borderRadius: rs(16) },
+    propsForDots: { r: '4', strokeWidth: '2', stroke: C.lime },
+    propsForBackgroundLines: { strokeDasharray: '5', stroke: 'rgba(0,0,0,0.05)' },
+    propsForLabels: { fontFamily: 'Montserrat-Medium', fontSize: 10 },
   };
 
-  // --- Helper to verify data existence ---
-  const hasChartData = analyticsData.chart.labels.length > 0 && analyticsData.chart.datasets[0].data.some((x: number) => x > 0);
-  const hasPieData = analyticsData.categoryDistribution.length > 0;
-
-  if (loading && !refreshing) {
+  // Show skeleton while loading (but not when just refetching — we keep showing stale data)
+  if (isLoading && !isRefetching) {
     return (
-      <View style={[styles.mainContainer, styles.centered]}>
+      <View style={S.root}>
         <BusinessAnalyticsSkeleton />
       </View>
     );
   }
 
   return (
-    <View style={styles.mainContainer}>
+    <View style={S.root}>
       <StatusBar style="light" />
 
-      {/* --- Background Layer --- */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <View style={styles.bottomLogos}>
-          <Image
-            source={require('../../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
-          />
-        </View>
+      <View style={S.watermark}>
+        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-              {/* CHANGE 3: Removed refreshControl prop from ScrollView to prevent shifting down */}
-              <Animated.ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 100 }}
-                onScroll={Animated.event(
-                  [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-                  { useNativeDriver: true }
-                )}
-              >
-          {/* --- HEADER SECTION --- */}
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[S.scroll, { paddingBottom: rs(100) + insets.bottom }]}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+        >
+          {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.headerContainer}
+            colors={[C.navy, C.navyMid]}
+            style={[S.header, { paddingTop: insets.top + rs(16) }]}
           >
-            <View style={styles.headerTop}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../assets/images/iconwhite.png')}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-              {/* CHANGE 4: The refresh button now triggers our custom centered animation */}
-              <TouchableOpacity style={styles.headerIconButton} onPress={onRefresh}>
-                <Feather name="refresh-cw" size={20} color="#FFF" />
+            <View style={S.hdrGlow} pointerEvents="none" />
+            <View style={S.hdrRow}>
+              <Image
+                source={require('../../assets/images/iconwhite.png')}
+                style={S.logo} resizeMode="contain"
+              />
+              <TouchableOpacity style={S.hdrBtn} onPress={() => refetch()}>
+                <Feather name="refresh-cw" size={rs(17)} color="#fff" />
               </TouchableOpacity>
             </View>
-
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Analytics</Text>
-              <Text style={styles.headerSubtitle}>Overview & Performance</Text>
-            </View>
+            <Text style={S.hdrTitle}>Analytics</Text>
+            <Text style={S.hdrSub}>Overview & Performance</Text>
+            <View style={S.hdrArc} />
           </LinearGradient>
 
-          {/* --- Main Content Body --- */}
-          <View style={styles.bodyContainer}>
+          {/* ── Body ───────────────────────────────────────────────────── */}
+          <View style={S.body}>
 
-            {/* Timeframe Toggles */}
-            <View style={styles.toggleContainer}>
-              {(['week', 'month', 'year'] as const).map((period) => {
-                const isActive = timeframe === period;
+            {/* Timeframe toggle */}
+            <View style={S.toggleRow}>
+              {(['week', 'month', 'year'] as const).map((p) => {
+                const on = timeframe === p;
                 return (
                   <TouchableOpacity
-                    key={period}
-                    onPress={() => setTimeframe(period)}
-                    style={[
-                      styles.toggleBtn,
-                      isActive ? styles.toggleBtnActive : styles.toggleBtnInactive
-                    ]}
+                    key={p}
+                    style={[S.toggleBtn, on && S.toggleBtnOn]}
+                    onPress={() => setTimeframe(p)}
                   >
-                    <Text style={[
-                      styles.toggleText,
-                      isActive ? styles.toggleTextActive : styles.toggleTextInactive
-                    ]}>
-                      {period === 'week' ? 'Weekly' : period === 'month' ? 'Monthly' : 'Yearly'}
+                    <Text style={[S.toggleTxt, on && S.toggleTxtOn]}>
+                      {p === 'week' ? 'Weekly' : p === 'month' ? 'Monthly' : 'Yearly'}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            {/* Main Chart Section */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Revenue Trend</Text>
-            </View>
-
-            <View style={styles.card}>
-              {hasChartData ? (
+            {/* Revenue chart */}
+            <Text style={S.secTitle}>Revenue Trend</Text>
+            <View style={S.card}>
+              {hasChart ? (
                 <LineChart
-                  data={analyticsData.chart}
-                  width={width - 48}
+                  data={{
+                    labels:   analytics.chart.labels,
+                    datasets: analytics.chart.datasets,
+                  }}
+                  width={SW - rs(48)}
                   height={220}
                   chartConfig={chartConfig}
                   bezier
-                  style={styles.chartStyle}
-                  withInnerLines={true}
+                  style={{ borderRadius: rs(16) }}
+                  withInnerLines
                   withOuterLines={false}
                   withVerticalLines={false}
                   yAxisLabel="₵"
@@ -203,49 +197,51 @@ const Analytics = () => {
                   yAxisInterval={1}
                 />
               ) : (
-                <View style={styles.emptyChart}>
-                  <MaterialCommunityIcons name="chart-line-variant" size={40} color="#CBD5E1" />
-                  <Text style={styles.emptyText}>No revenue data for this period</Text>
+                <View style={S.emptyChart}>
+                  <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color="#CBD5E1" />
+                  <Text style={S.emptyTxt}>No revenue data for this period</Text>
                 </View>
               )}
             </View>
 
-            {/* Quick Stats Grid */}
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <View style={[styles.iconBox, { backgroundColor: '#DCFCE7' }]}>
-                  <Ionicons name="cash" size={20} color="#15803D" />
+            {/* Stats grid */}
+            <View style={S.statsGrid}>
+              <View style={S.statCard}>
+                <View style={[S.iconBox, { backgroundColor: '#DCFCE7' }]}>
+                  <Ionicons name="cash" size={rs(20)} color="#15803D" />
                 </View>
-                <Text style={styles.statLabel}>Total Revenue</Text>
-                <Text style={styles.statValue}>₵{analyticsData.stats.revenue.toLocaleString()}</Text>
-                <View style={styles.growthRow}>
-                  <Feather name={analyticsData.stats.growth >= 0 ? "trending-up" : "trending-down"} size={14} color={analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444"} />
-                  <Text style={[styles.statGrowth, { color: analyticsData.stats.growth >= 0 ? "#15803D" : "#EF4444" }]}>
-                    {Math.abs(analyticsData.stats.growth)}%
+                <Text style={S.statLbl}>Total Revenue</Text>
+                <Text style={S.statVal}>₵{analytics.stats.revenue.toLocaleString()}</Text>
+                <View style={S.growthRow}>
+                  <Feather
+                    name={analytics.stats.growth >= 0 ? 'trending-up' : 'trending-down'}
+                    size={rs(13)}
+                    color={analytics.stats.growth >= 0 ? '#15803D' : '#EF4444'}
+                  />
+                  <Text style={[S.growthTxt, { color: analytics.stats.growth >= 0 ? '#15803D' : '#EF4444' }]}>
+                    {Math.abs(analytics.stats.growth)}%
                   </Text>
                 </View>
               </View>
 
-              <View style={styles.statCard}>
-                <View style={[styles.iconBox, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="cart" size={20} color="#1E40AF" />
+              <View style={S.statCard}>
+                <View style={[S.iconBox, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="cart" size={rs(20)} color="#1E40AF" />
                 </View>
-                <Text style={styles.statLabel}>Total Orders</Text>
-                <Text style={styles.statValue}>{analyticsData.stats.orders}</Text>
-                <Text style={styles.statSubText}>Completed orders</Text>
+                <Text style={S.statLbl}>Total Orders</Text>
+                <Text style={S.statVal}>{analytics.stats.orders}</Text>
+                <Text style={S.statSubTxt}>Completed orders</Text>
               </View>
             </View>
 
-            {/* Sales Distribution */}
-            {hasPieData && (
+            {/* Category breakdown */}
+            {hasPie && (
               <>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionTitle}>Category Breakdown</Text>
-                </View>
-                <View style={styles.card}>
+                <Text style={S.secTitle}>Category Breakdown</Text>
+                <View style={S.card}>
                   <PieChart
-                    data={analyticsData.categoryDistribution}
-                    width={width - 48}
+                    data={analytics.categoryDistribution}
+                    width={SW - rs(48)}
                     height={200}
                     chartConfig={chartConfig}
                     accessor="sales"
@@ -257,45 +253,46 @@ const Analytics = () => {
               </>
             )}
 
-            {/* Top Products */}
-            <View style={styles.sectionHeaderRow}>
-              <Text style={styles.sectionTitle}>Top Products</Text>
-            </View>
-
-            {analyticsData.topProducts.length > 0 ? (
-              analyticsData.topProducts.map((product: any, index: number) => (
-                <View key={index} style={styles.productCard}>
-                  <View style={[styles.rankBadge, { backgroundColor: index === 0 ? '#EAB308' : index === 1 ? '#94A3B8' : index === 2 ? '#B45309' : '#0C1559' }]}>
-                    <Text style={styles.rankText}>{index + 1}</Text>
+            {/* Top products */}
+            <Text style={S.secTitle}>Top Products</Text>
+            {analytics.topProducts.length > 0 ? (
+              analytics.topProducts.map((p: any, i: number) => (
+                <View key={i} style={S.productCard}>
+                  <View style={[S.rankBadge, {
+                    backgroundColor:
+                      i === 0 ? '#EAB308' :
+                      i === 1 ? '#94A3B8' :
+                      i === 2 ? '#B45309' : C.navy,
+                  }]}>
+                    <Text style={S.rankTxt}>{i + 1}</Text>
                   </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.productName} numberOfLines={1}>{product.name}</Text>
-                    <Text style={styles.productSales}>{product.sales} items sold</Text>
+                  <View style={{ flex: 1, marginLeft: rs(12) }}>
+                    <Text style={S.productName} numberOfLines={1}>{p.name}</Text>
+                    <Text style={S.productSales}>{p.sales} items sold</Text>
                   </View>
-                  <Text style={styles.productRevenue}>₵{product.revenue.toLocaleString()}</Text>
+                  <Text style={S.productRev}>₵{p.revenue.toLocaleString()}</Text>
                 </View>
               ))
             ) : (
-              <View style={styles.emptyList}>
-                <Text style={styles.emptyText}>No top products yet.</Text>
+              <View style={S.emptyList}>
+                <MaterialCommunityIcons name="chart-bar" size={rs(32)} color="#CBD5E1" />
+                <Text style={S.emptyTxt}>No top products yet</Text>
               </View>
             )}
 
-            {/* Performance Score */}
-            <LinearGradient
-              colors={['#0C1559', '#1e3a8a']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-              style={styles.scoreBanner}
-            >
-              <View>
-                <Text style={styles.scoreTitle}>Performance Score</Text>
-                <Text style={styles.scoreDesc}>
-                  {analyticsData.stats.growth > 0 ? "You're growing fast! Keep it up." : "Steady progress. Try adding new items."}
+            {/* Performance banner */}
+            <LinearGradient colors={[C.navy, C.navyMid]} style={S.scoreBanner}>
+              <View style={{ flex: 1, marginRight: rs(12) }}>
+                <Text style={S.scoreTitle}>Performance Score</Text>
+                <Text style={S.scoreDesc}>
+                  {analytics.stats.growth > 0
+                    ? "You're growing fast! Keep it up."
+                    : 'Steady progress. Try adding new items.'}
                 </Text>
               </View>
-              <View style={styles.scoreCircle}>
-                <Text style={styles.scoreNum}>
-                  {analyticsData.stats.orders > 0 ? '9.2' : '-'}
+              <View style={S.scoreCircle}>
+                <Text style={S.scoreNum}>
+                  {analytics.stats.orders > 0 ? '9.2' : '—'}
                 </Text>
               </View>
             </LinearGradient>
@@ -306,335 +303,139 @@ const Analytics = () => {
         <BusinessBottomNav />
       </SafeAreaView>
 
-      {refreshing && (
-        <View style={styles.refreshOverlay}>
-          <View style={styles.refreshCircle}>
-            <ActivityIndicator size="small" color="#0C1559" />
+      {isRefetching && (
+        <View style={S.refreshOverlay}>
+          <View style={S.refreshCircle}>
+            <ActivityIndicator size="small" color={C.navy} />
           </View>
         </View>
       )}
-
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
-  centered: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 20,
-    left: -20,
-  },
-  fadedLogo: {
-    width: 130,
-    height: 130,
-    resizeMode: 'contain',
-    opacity: 0.08,
-  },
+// ─── Styles ────────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
+  root:    { flex: 1, backgroundColor: C.bg },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+
+  watermark:    { position: 'absolute', bottom: 20, left: -20 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
+  scroll: { flexGrow: 1 },
 
   // Header
-  headerContainer: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    marginBottom: 10,
-    shadowColor: "#0C1559",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
+  header: {
+    paddingHorizontal: rs(20), paddingBottom: rs(28),
+    position: 'relative', elevation: 10, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+  hdrGlow: {
+    position: 'absolute', top: -rs(30), right: -rs(30),
+    width: rs(150), height: rs(150), borderRadius: rs(75),
+    backgroundColor: 'rgba(132,204,22,0.12)',
   },
-  logoContainer: {
-    height: 40,
-    justifyContent: 'center',
+  hdrRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(14) },
+  logo:     { width: 110, height: 34 },
+  hdrBtn: {
+    width: rs(38), height: rs(38), borderRadius: rs(12),
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  logo: {
-    width: 110,
-    height: 35,
-  },
-  headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  headerTextContainer: {
-    marginTop: 5,
-  },
-  headerTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 28,
-    color: '#FFF',
-  },
-  headerSubtitle: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    marginTop: 4,
+  hdrTitle: { fontSize: rf(26), fontFamily: 'Montserrat-Bold',   color: '#fff' },
+  hdrSub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)', marginTop: rs(3) },
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
 
-  // Body
-  bodyContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-  },
-  sectionHeaderRow: {
-    marginTop: 15,
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 18,
-    color: '#0C1559',
-  },
+  body: { paddingHorizontal: rs(16), paddingTop: rs(8) },
 
-  // Toggles
-  toggleContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    marginTop: 5,
-    gap: 10,
-  },
+  // Toggle
+  toggleRow: { flexDirection: 'row', gap: rs(10), marginTop: rs(4), marginBottom: rs(16) },
   toggleBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingVertical: rs(8), paddingHorizontal: rs(20), borderRadius: rs(20),
+    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)', backgroundColor: C.card,
+    elevation: 1, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
-  toggleBtnActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
-    elevation: 2,
-  },
-  toggleBtnInactive: {
-    backgroundColor: '#FFF',
-    borderColor: '#E2E8F0',
-  },
-  toggleText: {
-    fontSize: 13,
-  },
-  toggleTextActive: {
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#FFF',
-  },
-  toggleTextInactive: {
-    fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
+  toggleBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
+  toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  toggleTxtOn: { color: '#fff' },
+
+  secTitle: {
+    fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.navy,
+    marginTop: rs(16), marginBottom: rs(10),
   },
 
-  // Cards
   card: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  chartStyle: {
-    borderRadius: 16,
-    paddingRight: 0,
-  },
-  emptyChart: {
-    height: 180,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyList: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyText: {
-    color: '#94A3B8',
-    fontFamily: 'Montserrat-Medium',
-    marginTop: 8,
-    fontSize: 14,
+    backgroundColor: C.card, borderRadius: rs(18), padding: rs(14), marginBottom: rs(4),
+    elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+    alignItems: 'center', justifyContent: 'center',
   },
 
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
+  emptyChart: { height: 180, justifyContent: 'center', alignItems: 'center' },
+  emptyList:  { alignItems: 'center', paddingVertical: rs(24) },
+  emptyTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(8) },
+
+  // Stats
+  statsGrid: { flexDirection: 'row', gap: rs(12), marginBottom: rs(4) },
   statCard: {
-    backgroundColor: '#FFF',
-    width: '48%',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
+    flex: 1, backgroundColor: C.card, borderRadius: rs(16), padding: rs(14),
+    elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
+    width: rs(38), height: rs(38), borderRadius: rs(12),
+    justifyContent: 'center', alignItems: 'center', marginBottom: rs(10),
   },
-  statLabel: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 13,
-    color: '#64748B',
-  },
-  statValue: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 20,
-    color: '#0F172A',
-    marginTop: 4,
-  },
-  growthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  statGrowth: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  statSubText: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 11,
-    color: '#94A3B8',
-    marginTop: 4,
-  },
+  statLbl:    { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
+  statVal:    { fontSize: rf(20), fontFamily: 'Montserrat-Bold',   color: C.body, marginTop: rs(3) },
+  statSubTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Regular', color: C.subtle, marginTop: rs(3) },
+  growthRow:  { flexDirection: 'row', alignItems: 'center', marginTop: rs(4), gap: rs(3) },
+  growthTxt:  { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold' },
 
-  // Products
+  // Top products
   productCard: {
-    backgroundColor: '#FFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: C.card,
+    padding: rs(14), borderRadius: rs(16), marginBottom: rs(10),
+    elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.04, shadowRadius: rs(4),
   },
-  rankBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rankText: {
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
-    fontSize: 14,
-  },
-  productName: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 15,
-    color: '#1e293b',
-  },
-  productSales: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 12,
-    color: '#64748B',
-  },
-  productRevenue: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 15,
-    color: '#0C1559',
-  },
+  rankBadge:    { width: rs(32), height: rs(32), borderRadius: rs(16), justifyContent: 'center', alignItems: 'center' },
+  rankTxt:      { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  productName:  { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: C.body },
+  productSales: { fontSize: rf(12), fontFamily: 'Montserrat-Regular',  color: C.muted },
+  productRev:   { fontSize: rf(14), fontFamily: 'Montserrat-Bold',     color: C.navy },
 
-  // Score Banner
+  // Score banner
   scoreBanner: {
-    marginTop: 10,
-    marginBottom: 20,
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    elevation: 4,
+    flexDirection: 'row', alignItems: 'center', borderRadius: rs(18),
+    padding: rs(20), marginTop: rs(10), marginBottom: rs(20), elevation: 4,
   },
-  scoreTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 18,
-    color: '#FFF',
-  },
-  scoreDesc: {
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 13,
-    color: '#cbd5e1',
-    marginTop: 4,
-  },
+  scoreTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold',   color: '#fff' },
+  scoreDesc:  { fontSize: rf(12), fontFamily: 'Montserrat-Regular', color: '#cbd5e1', marginTop: rs(4) },
   scoreCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#84cc16',
+    width: rs(52), height: rs(52), borderRadius: rs(26),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: C.lime,
   },
-  scoreNum: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
-    color: '#FFF',
-  },
+  scoreNum: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#fff' },
+
+  // Refresh overlay
   refreshOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(241, 245, 249, 0.4)', // Faint tint over the screen
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999, // Ensure it sits on top of everything
+    backgroundColor: 'rgba(241,245,249,0.4)',
+    justifyContent: 'center', alignItems: 'center', zIndex: 999,
   },
   refreshCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#FFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Elevated shadow to look like it's floating
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
+    width: rs(50), height: rs(50), borderRadius: rs(25),
+    backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center',
+    elevation: 5, shadowColor: '#000',
+    shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.1, shadowRadius: rs(10),
   },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
-
 });
 
 export default Analytics;

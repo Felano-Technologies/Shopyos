@@ -1,268 +1,334 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  Dimensions,
-  Linking,
-  Alert,
-  ActivityIndicator,
+  View, Text, StyleSheet, TouchableOpacity, ScrollView,
+  Image, Dimensions, Linking, Alert, ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, updateOrderStatus, createDelivery } from '@/services/api';
+import { getOrderDetails, updateOrderStatus } from '@/services/api';
 import Toast from 'react-native-toast-message';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 
-const { width } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
+const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
+const rs = (n: number) => Math.round(n * SCALE);
+const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+
+const C = {
+  bg:      '#F8FAFC',
+  navy:    '#0C1559',
+  navyMid: '#1e3a8a',
+  lime:    '#84cc16',
+  limeText:'#1a2e00',
+  card:    '#FFFFFF',
+  body:    '#0F172A',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+};
+
+const STATUS_THEME: Record<string, { color: string; bg: string; bar: string; label: string }> = {
+  pending:          { color: '#D97706', bg: '#FEF3C7', bar: '#F59E0B', label: 'Awaiting Payment' },
+  paid:             { color: '#059669', bg: '#DCFCE7', bar: '#22c55e', label: 'Payment Received'  },
+  confirmed:        { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', label: 'Confirmed'          },
+  ready_for_pickup: { color: '#7C3AED', bg: '#F5F3FF', bar: '#7C3AED', label: 'Ready for Pickup'  },
+  in_transit:       { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', label: 'In Transit'        },
+  delivered:        { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', label: 'Delivered'          },
+  cancelled:        { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', label: 'Cancelled'         },
+};
+
+const getTheme = (s: string) =>
+  STATUS_THEME[s.toLowerCase()] ?? { color: C.muted, bg: '#F1F5F9', bar: '#94A3B8', label: s };
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
+  const { id }  = useLocalSearchParams();
 
-  const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [currentStatus, setCurrentStatus] = useState<string>('');
+  // ── ALL HOOKS FIRST ────────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
+  const [order,         setOrder]         = useState<any>(null);
+  const [loading,       setLoading]       = useState(true);
+  const [updating,      setUpdating]      = useState(false);
+  const [currentStatus, setCurrentStatus] = useState('');
 
-    if (isChecking || !isVerified) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0C1559" />
-      </View>
-    );
-  }
-
-  const fetchOrder = async () => {
+  const fetchOrder = useCallback(async () => {
     try {
       const data = await getOrderDetails(id as string);
       if (data && data.success !== false) {
         const o = data.order || data;
-
-        // --- MAP ITEMS ---
-        const mappedItems = o.order_items.map((i: any) => ({
-          id: i.id,
-          name: i.product_title || 'Product',
-          price: parseFloat(i.price || 0), 
+        const mappedItems = (o.order_items || []).map((i: any) => ({
+          id:       i.id,
+          name:     i.product_title || 'Product',
+          price:    parseFloat(i.price || 0),
           quantity: i.quantity,
-          image: i.product?.product_images?.[0]?.image_url 
-            ? { uri: i.product.product_images[0].image_url } 
+          image:    i.product?.product_images?.[0]?.image_url
+            ? { uri: i.product.product_images[0].image_url }
             : require('../../assets/images/icon.png'),
         }));
-
-        // --- MAP CUSTOMER & LOCATION DETAILS ---
-        const mappedOrder = {
-          id: o.id,
+        const mapped = {
+          id:          o.id,
           orderNumber: o.order_number,
-          status: o.status, // Raw status for logic
-          displayStatus: o.status.replace(/_/g, ' ').toUpperCase(),
-          date: o.created_at,
+          status:      o.status,
+          date:        o.created_at,
           customer: {
-            name: o.buyer?.user_profiles?.full_name || 'Guest Buyer',
-            phone: o.buyer?.user_profiles?.phone || 'N/A',
-            email: o.buyer?.email || 'N/A',
-            // Fetching the specific location set by the buyer during checkout
+            name:    o.buyer?.user_profiles?.full_name || 'Guest Buyer',
+            phone:   o.buyer?.user_profiles?.phone || 'N/A',
+            email:   o.buyer?.email || 'N/A',
             address: o.deliveries?.[0]?.delivery_address || o.delivery_address || 'No address provided',
-            gps: o.deliveries?.[0]?.gps_coords || null
           },
           items: mappedItems,
           payment: {
-            subtotal: parseFloat(o.subtotal_amount || 0),
-            deliveryFee: parseFloat(o.delivery_fee || 0),
-            total: parseFloat(o.total_amount || 0),
-            method: o.payments?.[0]?.payment_method || 'MoMo / Card',
-            isPaid: o.status !== 'pending' && o.status !== 'cancelled', // Logic for "Paid" indicator
-            paymentStatus: o.payments?.[0]?.status || 'pending'
-          }
+            subtotal:      parseFloat(o.subtotal_amount || 0),
+            deliveryFee:   parseFloat(o.delivery_fee || 0),
+            total:         parseFloat(o.total_amount || 0),
+            method:        o.payments?.[0]?.payment_method || 'MoMo / Card',
+            paymentStatus: o.payments?.[0]?.status || 'pending',
+          },
         };
-        
-        setOrder(mappedOrder);
+        setOrder(mapped);
         setCurrentStatus(o.status);
       }
-    } catch (e: any) {
-      Alert.alert("Error", "Could not refresh order details");
+    } catch {
+      Alert.alert('Error', 'Could not load order details');
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    if (id) fetchOrder();
   }, [id]);
 
-  const getStatusTheme = (status: string) => {
-    const s = status.toLowerCase();
-    if (s === 'paid') return { color: '#059669', bg: '#DCFCE7', label: 'Payment Received' };
-    if (s === 'pending') return { color: '#D97706', bg: '#FEF3C7', label: 'Awaiting Payment' };
-    if (s === 'confirmed') return { color: '#1D4ED8', bg: '#DBEAFE', label: 'Confirmed' };
-    if (s === 'ready_for_pickup') return { color: '#7C3AED', bg: '#F5F3FF', label: 'Ready' };
-    return { color: '#64748B', bg: '#F1F5F9', label: status };
-  };
+  useEffect(() => { if (id) fetchOrder(); }, [fetchOrder]);
+  // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
-  const statusTheme = getStatusTheme(currentStatus);
+  // Safe early returns now
+  if (isChecking || !isVerified) {
+    return (
+      <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
+    );
+  }
+
+  if (loading || !order) {
+    return (
+      <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
+    );
+  }
+
+  const theme = getTheme(currentStatus);
+  const isPaid = currentStatus === 'paid' || order.payment.paymentStatus === 'success';
 
   const updateStatus = async (newStatus: string) => {
     try {
-      setLoading(true);
-      await updateOrderStatus(id as string, newStatus.toLowerCase());
+      setUpdating(true);
+      await updateOrderStatus(id as string, newStatus);
       await fetchOrder();
-      Toast.show({ type: 'success', text1: 'Success', text2: `Status updated to ${newStatus}` });
+      Toast.show({ type: 'success', text1: 'Status updated', text2: `Order is now ${newStatus.replace(/_/g, ' ')}` });
     } catch (e: any) {
-      Alert.alert("Update Failed", e.message);
+      Alert.alert('Update failed', e.message);
     } finally {
-      setLoading(false);
+      setUpdating(false);
     }
   };
 
-  if (loading && !order) return (
-    <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
-  );
+  const confirmAction = (label: string, newStatus: string) => {
+    Alert.alert(`Mark as ${label}?`, 'This will update the order status for the customer.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Confirm', onPress: () => updateStatus(newStatus) },
+    ]);
+  };
+
+  const dateStr = (() => {
+    try { return format(new Date(order.date), 'MMM dd, yyyy'); } catch { return ''; }
+  })();
+  const timeStr = (() => {
+    try { return format(new Date(order.date), 'hh:mm a'); } catch { return ''; }
+  })();
 
   return (
-    <View style={styles.mainContainer}>
+    <View style={S.root}>
       <StatusBar style="light" />
 
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[S.scroll, { paddingBottom: rs(40) + insets.bottom }]}
+        >
+          {/* ── Header ─────────────────────────────────────────────────── */}
+          <LinearGradient
+            colors={[C.navy, C.navyMid]}
+            style={[S.header, { paddingTop: insets.top + rs(12) }]}
+          >
+            <View style={S.hdrGlow} pointerEvents="none" />
 
-          {/* --- TOP HEADER --- */}
-          <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.headerContainer}>
-            <View style={styles.headerRow}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                <Ionicons name="arrow-back" size={24} color="#FFF" />
+            <View style={S.hdrRow}>
+              <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+                <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Order Details</Text>
-              <TouchableOpacity onPress={fetchOrder}><Ionicons name="refresh" size={22} color="#FFF" /></TouchableOpacity>
+              <Text style={S.hdrTitle}>Order Details</Text>
+              <TouchableOpacity style={S.backBtn} onPress={fetchOrder}>
+                <Ionicons name="refresh" size={rs(18)} color="rgba(255,255,255,0.85)" />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.headerSummary}>
+            <View style={S.hdrSummary}>
               <View>
-                <Text style={styles.orderIdLabel}>Order Number</Text>
-                <Text style={styles.orderIdText}>#{order.orderNumber}</Text>
+                <Text style={S.hdrLbl}>Order Number</Text>
+                <Text style={S.hdrOrderNum}>#{order.orderNumber}</Text>
               </View>
-              <View style={styles.dateContainer}>
-                <Text style={styles.dateText}>{format(new Date(order.date), "MMM dd, yyyy")}</Text>
-                <Text style={styles.timeText}>{format(new Date(order.date), "hh:mm a")}</Text>
+              <View style={S.hdrDateWrap}>
+                <Text style={S.hdrDate}>{dateStr}</Text>
+                <Text style={S.hdrTime}>{timeStr}</Text>
               </View>
             </View>
+
+            <View style={S.hdrArc} />
           </LinearGradient>
 
-          {/* --- AUTOMATIC PAYMENT INDICATOR --- */}
-          <View style={styles.statusCard}>
-            <View style={styles.statusContent}>
-               <View style={{flexDirection: 'row', alignItems: 'center', gap: 6}}>
-                  <View style={[styles.statusDot, { backgroundColor: statusTheme.color }]} />
-                  <Text style={styles.statusLabel}>Current Status</Text>
-               </View>
-               <Text style={[styles.statusValue, { color: statusTheme.color }]}>{statusTheme.label}</Text>
-            </View>
-            
-            {/* If status is 'paid', show the verified badge automatically */}
-            {(currentStatus === 'paid' || order.payment.paymentStatus === 'success') && (
-                <View style={styles.paidBadge}>
-                    <MaterialCommunityIcons name="shield-check" size={16} color="#059669" />
-                    <Text style={styles.paidBadgeText}>PAID</Text>
+          {/* ── Status card — floats over header ───────────────────────── */}
+          <View style={S.statusCard}>
+            <View style={[S.statusBar, { backgroundColor: theme.bar }]} />
+            <View style={S.statusCardInner}>
+              <View>
+                <Text style={S.statusLbl}>Current Status</Text>
+                <Text style={[S.statusVal, { color: theme.color }]}>{theme.label}</Text>
+              </View>
+              {isPaid && (
+                <View style={S.paidBadge}>
+                  <MaterialCommunityIcons name="shield-check" size={rs(15)} color="#059669" />
+                  <Text style={S.paidBadgeTxt}>PAID</Text>
                 </View>
-            )}
+              )}
+            </View>
           </View>
 
-          {/* --- CUSTOMER & LOCATION DETAILS --- */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Delivery Information</Text>
-            <View style={styles.card}>
-              <View style={styles.customerRow}>
-                <View style={styles.avatarPlaceholder}><Text style={styles.avatarText}>{order.customer.name.charAt(0)}</Text></View>
-                <View style={styles.customerInfo}>
-                  <Text style={styles.customerName}>{order.customer.name}</Text>
-                  <Text style={styles.customerPhone}>{order.customer.phone}</Text>
-                </View>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => Linking.openURL(`tel:${order.customer.phone}`)}>
-                  <Ionicons name="call" size={20} color="#0C1559" />
+          {/* ── Workflow actions ───────────────────────────────────────── */}
+          {!['delivered', 'cancelled'].includes(currentStatus) && (
+            <View style={S.section}>
+              <Text style={S.sectionLbl}>Workflow Actions</Text>
+              <View style={S.actionRow}>
+                {currentStatus === 'paid' && (
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: '#DBEAFE' }]}
+                    onPress={() => confirmAction('Confirmed', 'confirmed')}
+                    disabled={updating}
+                  >
+                    <Ionicons name="checkmark-done-outline" size={rs(16)} color="#1D4ED8" />
+                    <Text style={[S.actionBtnTxt, { color: '#1D4ED8' }]}>Confirm</Text>
+                  </TouchableOpacity>
+                )}
+                {currentStatus === 'confirmed' && (
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: '#F0FDF4' }]}
+                    onPress={() => confirmAction('Ready', 'ready_for_pickup')}
+                    disabled={updating}
+                  >
+                    <Ionicons name="cube-outline" size={rs(16)} color="#15803D" />
+                    <Text style={[S.actionBtnTxt, { color: '#15803D' }]}>Mark Ready</Text>
+                  </TouchableOpacity>
+                )}
+                {currentStatus === 'ready_for_pickup' && (
+                  <TouchableOpacity
+                    style={[S.actionBtn, { backgroundColor: '#EEF2FF' }]}
+                    onPress={() => confirmAction('Delivered', 'delivered')}
+                    disabled={updating}
+                  >
+                    <Ionicons name="checkmark-circle-outline" size={rs(16)} color="#4F46E5" />
+                    <Text style={[S.actionBtnTxt, { color: '#4F46E5' }]}>Mark Delivered</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity
+                  style={[S.actionBtn, { backgroundColor: '#FEF2F2' }]}
+                  onPress={() => confirmAction('Cancelled', 'cancelled')}
+                  disabled={updating}
+                >
+                  <Ionicons name="close-circle-outline" size={rs(16)} color="#B91C1C" />
+                  <Text style={[S.actionBtnTxt, { color: '#B91C1C' }]}>Cancel</Text>
                 </TouchableOpacity>
               </View>
-              
-              <View style={styles.divider} />
-              
-              <View style={styles.addressSection}>
-                 <View style={styles.addressHeader}>
-                    <Ionicons name="location" size={18} color="#EF4444" />
-                    <Text style={styles.addressTitle}>Buyer's Set Location</Text>
-                 </View>
-                 <Text style={styles.addressText}>{order.customer.address}</Text>
-                 
-                 <TouchableOpacity 
-                    style={styles.mapBtn} 
-                    onPress={() => Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer.address)}`)}
-                 >
-                    <Feather name="map" size={14} color="#0C1559" />
-                    <Text style={styles.mapBtnText}>Open in Maps</Text>
-                 </TouchableOpacity>
+              {updating && <ActivityIndicator size="small" color={C.navy} style={{ marginTop: rs(8) }} />}
+            </View>
+          )}
+
+          {/* ── Customer & delivery ────────────────────────────────────── */}
+          <View style={S.section}>
+            <Text style={S.sectionLbl}>Delivery Information</Text>
+            <View style={S.card}>
+              <View style={S.customerRow}>
+                <View style={S.avatar}>
+                  <Text style={S.avatarTxt}>{order.customer.name.charAt(0)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={S.customerName}>{order.customer.name}</Text>
+                  <Text style={S.customerPhone}>{order.customer.phone}</Text>
+                </View>
+                <TouchableOpacity
+                  style={S.iconBtn}
+                  onPress={() => Linking.openURL(`tel:${order.customer.phone}`)}
+                >
+                  <Ionicons name="call" size={rs(18)} color={C.navy} />
+                </TouchableOpacity>
               </View>
+
+              <View style={S.divider} />
+
+              <View style={S.addressRow}>
+                <Ionicons name="location" size={rs(16)} color="#EF4444" />
+                <Text style={S.addressTitle}>Delivery Address</Text>
+              </View>
+              <Text style={S.addressTxt}>{order.customer.address}</Text>
+              <TouchableOpacity
+                style={S.mapBtn}
+                onPress={() => Linking.openURL(
+                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer.address)}`
+                )}
+              >
+                <Feather name="map-pin" size={rs(12)} color={C.navy} />
+                <Text style={S.mapBtnTxt}>Open in Maps</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {/* --- QUICK ACTIONS --- */}
-          <View style={styles.sectionContainer}>
-              <Text style={styles.sectionHeader}>Workflow Actions</Text>
-              <View style={styles.actionGrid}>
-                  {currentStatus === 'paid' && (
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#DBEAFE' }]} onPress={() => updateStatus('confirmed')}>
-                          <Text style={[styles.actionBtnText, { color: '#1D4ED8' }]}>Confirm Order</Text>
-                      </TouchableOpacity>
-                  )}
-                  {currentStatus === 'confirmed' && (
-                      <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#F0FDF4' }]} onPress={() => updateStatus('ready_for_pickup')}>
-                          <Text style={[styles.actionBtnText, { color: '#15803D' }]}>Mark Ready</Text>
-                      </TouchableOpacity>
-                  )}
-                  <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#F1F5F9' }]} onPress={() => updateStatus('cancelled')}>
-                      <Text style={[styles.actionBtnText, { color: '#64748B' }]}>Cancel</Text>
-                  </TouchableOpacity>
-              </View>
-          </View>
-
-          {/* --- ITEMS --- */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Order Items</Text>
-            <View style={styles.card}>
-              {order.items.map((item: any, index: number) => (
+          {/* ── Order items ────────────────────────────────────────────── */}
+          <View style={S.section}>
+            <Text style={S.sectionLbl}>Order Items ({order.items.length})</Text>
+            <View style={S.card}>
+              {order.items.map((item: any, i: number) => (
                 <View key={item.id}>
-                  <View style={styles.itemRow}>
-                    <Image source={item.image} style={styles.itemImage} />
-                    <View style={styles.itemDetails}>
-                      <Text style={styles.itemName}>{item.name}</Text>
-                      <Text style={styles.itemPrice}>₵{item.price.toFixed(2)} x {item.quantity}</Text>
+                  <View style={S.itemRow}>
+                    <Image source={item.image} style={S.itemImg} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={S.itemName} numberOfLines={1}>{item.name}</Text>
+                      <Text style={S.itemMeta}>₵{item.price.toFixed(2)} × {item.quantity}</Text>
                     </View>
-                    <Text style={styles.itemTotal}>₵{(item.price * item.quantity).toFixed(2)}</Text>
+                    <Text style={S.itemTotal}>₵{(item.price * item.quantity).toFixed(2)}</Text>
                   </View>
-                  {index < order.items.length - 1 && <View style={styles.divider} />}
+                  {i < order.items.length - 1 && <View style={S.divider} />}
                 </View>
               ))}
             </View>
           </View>
 
-          {/* --- BILLING --- */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionHeader}>Billing Summary</Text>
-            <View style={styles.card}>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Subtotal</Text><Text style={styles.summaryValue}>₵{order.payment.subtotal.toFixed(2)}</Text></View>
-              <View style={styles.summaryRow}><Text style={styles.summaryLabel}>Delivery</Text><Text style={styles.summaryValue}>₵{order.payment.deliveryFee.toFixed(2)}</Text></View>
-              <View style={styles.divider} />
-              <View style={styles.summaryRow}>
-                <Text style={styles.totalLabel}>Total</Text>
-                <Text style={styles.totalValue}>₵{order.payment.total.toFixed(2)}</Text>
+          {/* ── Billing summary ────────────────────────────────────────── */}
+          <View style={S.section}>
+            <Text style={S.sectionLbl}>Billing Summary</Text>
+            <View style={S.card}>
+              <View style={S.summaryRow}>
+                <Text style={S.summaryLbl}>Subtotal</Text>
+                <Text style={S.summaryVal}>₵{order.payment.subtotal.toFixed(2)}</Text>
               </View>
-              <View style={styles.methodCard}>
-                 <MaterialCommunityIcons name="cellphone-check" size={20} color="#0C1559" />
-                 <Text style={styles.methodText}>Paid via {order.payment.method}</Text>
+              <View style={S.summaryRow}>
+                <Text style={S.summaryLbl}>Delivery fee</Text>
+                <Text style={S.summaryVal}>₵{order.payment.deliveryFee.toFixed(2)}</Text>
+              </View>
+              <View style={S.divider} />
+              <View style={S.summaryRow}>
+                <Text style={S.totalLbl}>Total</Text>
+                <Text style={S.totalVal}>₵{order.payment.total.toFixed(2)}</Text>
+              </View>
+              <View style={S.methodRow}>
+                <MaterialCommunityIcons name="cellphone-check" size={rs(18)} color={C.navy} />
+                <Text style={S.methodTxt}>Paid via {order.payment.method}</Text>
               </View>
             </View>
           </View>
@@ -274,60 +340,118 @@ export default function OrderDetailsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  safeArea: { flex: 1 },
-  headerContainer: { paddingTop: 50, paddingBottom: 40, paddingHorizontal: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-  headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-  headerSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  orderIdLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, fontFamily: 'Montserrat-Medium' },
-  orderIdText: { color: '#FFF', fontSize: 24, fontFamily: 'Montserrat-Bold' },
-  dateContainer: { alignItems: 'flex-end' },
-  dateText: { color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-Medium' },
-  timeText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
-  statusCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -30, borderRadius: 20, padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', elevation: 10, shadowColor: "#0C1559", shadowOpacity: 0.1, shadowRadius: 10 },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusContent: { flex: 1 },
-  statusLabel: { fontSize: 10, color: '#94A3B8', fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
-  statusValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', marginTop: 2 },
-  paidBadge: { backgroundColor: '#DCFCE7', flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#86EFAC' },
-  paidBadgeText: { color: '#059669', fontSize: 12, fontFamily: 'Montserrat-Bold' },
-  sectionContainer: { marginTop: 25, paddingHorizontal: 20 },
-  sectionHeader: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#94A3B8', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 },
-  card: { backgroundColor: '#FFF', borderRadius: 24, padding: 20, elevation: 2, shadowColor: "#000", shadowOpacity: 0.02 },
-  customerRow: { flexDirection: 'row', alignItems: 'center' },
-  avatarPlaceholder: { width: 45, height: 45, borderRadius: 15, backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  avatarText: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  customerInfo: { flex: 1 },
-  customerName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  customerPhone: { fontSize: 13, color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
-  addressSection: { marginTop: 5 },
-  addressHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  addressTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  addressText: { fontSize: 14, color: '#475569', fontFamily: 'Montserrat-Medium', lineHeight: 22 },
-  mapBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: '#F1F5F9', alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
-  mapBtnText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 15 },
-  itemRow: { flexDirection: 'row', alignItems: 'center' },
-  itemImage: { width: 50, height: 50, borderRadius: 12, marginRight: 12, backgroundColor: '#F8FAFC' },
-  itemDetails: { flex: 1 },
-  itemName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  itemPrice: { fontSize: 12, color: '#64748B', marginTop: 2 },
-  itemTotal: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  summaryLabel: { fontSize: 14, color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  summaryValue: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Bold' },
-  totalLabel: { fontSize: 16, color: '#0F172A', fontFamily: 'Montserrat-Bold' },
-  totalValue: { fontSize: 20, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-  methodCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', padding: 12, borderRadius: 15, marginTop: 15, justifyContent: 'center', gap: 10 },
-  methodText: { fontSize: 12, color: '#475569', fontFamily: 'Montserrat-Bold' },
-  actionGrid: { flexDirection: 'row', gap: 10 },
-  actionBtn: { flex: 1, height: 48, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  actionBtnText: { fontSize: 13, fontFamily: 'Montserrat-Bold' },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+const S = StyleSheet.create({
+  root:   { flex: 1, backgroundColor: C.bg },
+  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  scroll: { flexGrow: 1 },
 
+  header: {
+    paddingHorizontal: rs(20), paddingBottom: rs(28),
+    position: 'relative', elevation: 10, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
+  },
+  hdrGlow: {
+    position: 'absolute', top: -rs(30), right: -rs(30),
+    width: rs(150), height: rs(150), borderRadius: rs(75),
+    backgroundColor: 'rgba(132,204,22,0.11)',
+  },
+  hdrRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: rs(20) },
+  backBtn: {
+    width: rs(38), height: rs(38), borderRadius: rs(12),
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center',
+  },
+  hdrTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  hdrSummary: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  hdrLbl:      { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.55)', marginBottom: rs(4) },
+  hdrOrderNum: { fontSize: rf(24), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  hdrDateWrap: { alignItems: 'flex-end' },
+  hdrDate:     { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: '#fff' },
+  hdrTime:     { fontSize: rf(11), fontFamily: 'Montserrat-Medium',   color: 'rgba(255,255,255,0.55)' },
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
+  },
+
+  // Status card
+  statusCard: {
+    backgroundColor: C.card, marginHorizontal: rs(16), marginTop: rs(8),
+    borderRadius: rs(20), overflow: 'hidden', elevation: 6,
+    shadowColor: C.navy, shadowOffset: { width: 0, height: rs(4) },
+    shadowOpacity: 0.1, shadowRadius: rs(12),
+  },
+  statusBar:       { height: rs(3) },
+  statusCardInner: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: rs(16) },
+  statusLbl:       { fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: C.subtle, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: rs(4) },
+  statusVal:       { fontSize: rf(18), fontFamily: 'Montserrat-Bold' },
+  paidBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(4),
+    backgroundColor: '#DCFCE7', paddingHorizontal: rs(10), paddingVertical: rs(5),
+    borderRadius: rs(12), borderWidth: 1, borderColor: '#86EFAC',
+  },
+  paidBadgeTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: '#059669' },
+
+  // Sections
+  section:    { marginTop: rs(20), paddingHorizontal: rs(16) },
+  sectionLbl: {
+    fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.subtle,
+    textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: rs(10),
+  },
+  card: {
+    backgroundColor: C.card, borderRadius: rs(20), padding: rs(16),
+    elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+  },
+  divider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(14) },
+
+  // Actions
+  actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(10) },
+  actionBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(6),
+    paddingVertical: rs(10), paddingHorizontal: rs(14), borderRadius: rs(14),
+  },
+  actionBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold' },
+
+  // Customer
+  customerRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12), marginBottom: rs(4) },
+  avatar: {
+    width: rs(44), height: rs(44), borderRadius: rs(14),
+    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+  },
+  avatarTxt:     { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: C.navy },
+  customerName:  { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body },
+  customerPhone: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
+  iconBtn: {
+    width: rs(38), height: rs(38), borderRadius: rs(12),
+    backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 0.5, borderColor: '#E2E8F0',
+  },
+  addressRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(6) },
+  addressTitle:{ fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body },
+  addressTxt:  { fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: rf(22) },
+  mapBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(5), marginTop: rs(12),
+    alignSelf: 'flex-start', backgroundColor: '#EEF2FF',
+    paddingHorizontal: rs(12), paddingVertical: rs(6), borderRadius: rs(10),
+  },
+  mapBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.navy },
+
+  // Items
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
+  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
+  itemName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(3) },
+  itemMeta: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
+  itemTotal: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
+
+  // Billing
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(10) },
+  summaryLbl: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
+  summaryVal: { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.body },
+  totalLbl:   { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
+  totalVal:   { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: C.navy },
+  methodRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(8),
+    backgroundColor: '#F8FAFC', padding: rs(12), borderRadius: rs(14), marginTop: rs(14),
+  },
+  methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: '#475569' },
 });

@@ -1,410 +1,334 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Image,
-  Alert,
-  ScrollView,
-  Dimensions,
-  Keyboard,
-  ActivityIndicator,
-  Switch,
-  Modal,
-  Pressable,
-  KeyboardAvoidingView,
-  Platform
+  View, Text, StyleSheet, TouchableOpacity, FlatList,
+  TextInput, Animated, Image, Dimensions, ScrollView,
+  ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { getStoreProducts, createProduct, deleteProduct, uploadProductImages, updateProduct, getAllCategories, storage } from '@/services/api';
+import {
+  getStoreProducts, createProduct, deleteProduct,
+  uploadProductImages, updateProduct, getAllCategories, storage,
+} from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 
-const { width } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
+const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
+const rs = (n: number) => Math.round(n * SCALE);
+const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+
+const C = {
+  bg:      '#F1F5F9',
+  navy:    '#0C1559',
+  navyMid: '#1e3a8a',
+  lime:    '#84cc16',
+  limeText:'#1a2e00',
+  card:    '#FFFFFF',
+  body:    '#0F172A',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+};
 
 const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
+  const insets    = useSafeAreaInsets();
 
-  const [products, setProducts] = useState<any[]>([]);
+  // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
 
-    if (isChecking || !isVerified) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0C1559" />
-      </View>
-    );
-  }
+  const [products,            setProducts]            = useState<any[]>([]);
+  const [editingId,           setEditingId]           = useState<string | null>(null);
+  const [name,                setName]                = useState('');
+  const [price,               setPrice]               = useState('');
+  const [stock,               setStock]               = useState('');
+  const [description,         setDescription]         = useState('');
+  const [image,               setImage]               = useState<string | null>(null);
+  const [isActive,            setIsActive]            = useState(true);
+  const [category,            setCategory]            = useState('');
+  const [categories,          setCategories]          = useState<{ id?: string; name: string; count?: number }[]>([]);
+  const [categoryModal,       setCategoryModal]        = useState(false);
+  const [verificationStatus,  setVerificationStatus]  = useState<string | null>(null);
+  const [isSubmitting,        setIsSubmitting]        = useState(false);
+  const [searchQuery,         setSearch]              = useState('');
 
-  // --- Form State ---
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
-  const [description, setDescription] = useState('');
-  const [image, setImage] = useState<string | null>(null);
-  const [isActive, setIsActive] = useState(true);
-  const [category, setCategory] = useState('');
-  const [categories, setCategories] = useState<{ id?: string, name: string, count?: number }[]>([]);
-  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const isBlocked = verificationStatus === 'pending' || verificationStatus === 'rejected';
 
-  // --- Loading States ---
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // --- Actions ---
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       const businessId = await storage.getItem('currentBusinessId');
-      if (businessId) {
-        const data = await getStoreProducts(businessId, { includeInactive: true });
-        if (data.success) {
-          setProducts(data.products.map((p: any) => ({
-            id: p._id,
-            name: p.name,
-            price: p.price.toString(),
-            stock: p.stockQuantity?.toString() || '0',
-            image: p.images && p.images.length > 0 ? p.images[0] : null,
-            isActive: p.isActive ?? p.is_active ?? true,
-            description: p.description || '',
-            category: p.category || ''
-          })));
-        }
+      if (!businessId) return;
+      const data = await getStoreProducts(businessId, { includeInactive: true });
+      if (data.success) {
+        setProducts(data.products.map((p: any) => ({
+          id:          p._id,
+          name:        p.name,
+          price:       p.price.toString(),
+          stock:       p.stockQuantity?.toString() || '0',
+          image:       p.images?.[0] || null,
+          isActive:    p.isActive ?? p.is_active ?? true,
+          description: p.description || '',
+          category:    p.category || '',
+        })));
       }
-    } catch (e) {
-      console.error("Failed to fetch products", e);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const res = await getAllCategories();
-      // Backend returns 'categories'
-      if (res.success && res.categories) {
-        setCategories(res.categories);
-      }
-    } catch (e) {
-      console.log('Error loading categories', e);
-    }
-  };
-
-
-
-  React.useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-    storage.getItem('currentBusinessVerificationStatus').then((status) => {
-      setVerificationStatus(status || 'pending');
-    });
+    } catch (e) { console.error('Failed to fetch products', e); }
   }, []);
 
-  const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await getAllCategories();
+      if (res.success && res.categories) setCategories(res.categories);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+    fetchCategories();
+    storage.getItem('currentBusinessVerificationStatus').then((s) => {
+      setVerificationStatus(s || 'pending');
     });
+  }, [fetchProducts, fetchCategories]);
+  // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
-    }
-  };
+  // Safe early return
+  if (isChecking || !isVerified) {
+    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
+  }
 
+  // ── Derived stats ─────────────────────────────────────────────────────────
+  const totalProducts    = products.length;
+  const portfolioValue   = products.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.stock) || 0), 0);
+  const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const resetForm = () => {
-    setName('');
-    setPrice('');
-    setStock('');
-    setDescription('');
-    setImage(null);
-    setEditingId(null);
-    setEditingId(null);
-    setIsActive(true);
-    setCategory('');
+    setName(''); setPrice(''); setStock(''); setDescription('');
+    setImage(null); setEditingId(null); setIsActive(true); setCategory('');
     Keyboard.dismiss();
   };
 
-  const handleSaveProduct = async () => {
+  const pickImage = async () => {
+    const res = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, quality: 0.8,
+    });
+    if (!res.canceled) setImage(res.assets[0].uri);
+  };
+
+  const handleEditPress = (item: any) => {
+    setName(item.name); setPrice(item.price); setStock(item.stock);
+    setDescription(item.description); setImage(item.image);
+    setEditingId(item.id); setIsActive(item.isActive); setCategory(item.category);
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  };
+
+  const handleSave = async () => {
     if (!name || !price || !stock || !category) {
-      Alert.alert('Missing Fields', 'Please fill in Name, Price, Quantity, and Category.');
-      return;
+      Alert.alert('Missing Fields', 'Please fill in Name, Price, Quantity, and Category.'); return;
     }
-
     setIsSubmitting(true);
-
     try {
       const businessId = await storage.getItem('currentBusinessId');
-      if (!businessId) {
-        Alert.alert("Error", "No active business found");
-        return;
-      }
+      if (!businessId) { Alert.alert('Error', 'No active business found'); return; }
 
       const productData = {
-        storeId: businessId,
-        name: name,
-        price: parseFloat(price),
-        category: category,
-        stockQuantity: parseInt(stock),
-        description: description,
-        isActive: isActive
+        storeId: businessId, name, price: parseFloat(price),
+        category, stockQuantity: parseInt(stock), description, isActive,
       };
 
       if (editingId) {
-        const updateRes = await updateProduct(editingId, productData);
-        if (updateRes.success) {
-          if (image && !image.startsWith('http')) {
-            await uploadProductImages(editingId, [image]);
-          }
-          Alert.alert("Success", "Product updated successfully");
-        }
+        const res = await updateProduct(editingId, productData);
+        if (res.success && image && !image.startsWith('http'))
+          await uploadProductImages(editingId, [image]);
+        Alert.alert('Success', 'Product updated');
       } else {
-        if (!image) {
-          Alert.alert('Missing Image', 'Please add an image for the new product.');
-          setIsSubmitting(false);
-          return;
-        }
-        const createRes = await createProduct(productData);
-        if (createRes.success && createRes.product) {
-          const productId = createRes.product._id;
-          await uploadProductImages(productId, [image]);
-          Alert.alert("Success", "Product added successfully");
-        }
+        if (!image) { Alert.alert('Missing Image', 'Please add an image.'); return; }
+        const res = await createProduct(productData);
+        if (res.success && res.product) await uploadProductImages(res.product._id, [image]);
+        Alert.alert('Success', 'Product added');
       }
-
       await fetchProducts();
       resetForm();
-
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Operation failed");
+      Alert.alert('Error', e.message || 'Operation failed');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleEditPress = (item: any) => {
-    setName(item.name);
-    setPrice(item.price);
-    setStock(item.stock);
-    setDescription(item.description || '');
-    setImage(item.image);
-    setEditingId(item.id);
-    setIsActive(item.isActive);
-    setCategory(item.category || '');
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
-  };
-
   const removeProduct = (id: string) => {
-    Alert.alert("Delete Product", "Are you sure you want to remove this item?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert('Delete Product', 'Are you sure?', [
+      { text: 'Cancel', style: 'cancel' },
       {
-        text: "Delete", style: "destructive", onPress: async () => {
-          try {
-            await deleteProduct(id);
-            fetchProducts();
-          } catch (e: any) {
-            Alert.alert("Error", "Failed to delete product");
-          }
-        }
-      }
+        text: 'Delete', style: 'destructive', onPress: async () => {
+          try { await deleteProduct(id); fetchProducts(); }
+          catch { Alert.alert('Error', 'Failed to delete product'); }
+        },
+      },
     ]);
   };
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const totalProducts = products.length;
-  const portfolioValue = products.reduce((sum, item) => {
-    const p = parseFloat(item.price) || 0;
-    const q = parseInt(item.stock) || 0;
-    return sum + (p * q);
-  }, 0);
-
   return (
-    <View style={styles.mainContainer}>
+    <View style={S.root}>
       <StatusBar style="light" />
 
-      <View style={StyleSheet.absoluteFillObject}>
-        <View style={styles.bottomLogos}>
-          <Image
-            source={require('../../assets/images/splash-icon.png')}
-            style={styles.fadedLogo}
-          />
-        </View>
+      <View style={S.watermark}>
+        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
           ref={scrollRef}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={[S.scroll, { paddingBottom: rs(100) + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
         >
-
-          {/* --- Header --- */}
+          {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient
-            colors={['#0C1559', '#1e3a8a']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-            style={styles.headerContainer}
+            colors={[C.navy, C.navyMid]}
+            style={[S.header, { paddingTop: insets.top + rs(16) }]}
           >
-            <View style={styles.headerTop}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../assets/images/iconwhite.png')}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-              <TouchableOpacity
-                style={styles.headerIconButton}
-                onPress={() => router.push('/business/settings')}
-              >
-                <Ionicons name="settings-outline" size={22} color="#FFF" />
+            <View style={S.hdrGlow} pointerEvents="none" />
+
+            <View style={S.hdrRow}>
+              <Image source={require('../../assets/images/iconwhite.png')} style={S.logo} resizeMode="contain" />
+              <TouchableOpacity style={S.hdrBtn} onPress={() => router.push('/business/settings' as any)}>
+                <Ionicons name="settings-outline" size={rs(20)} color="#fff" />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <View style={[styles.iconBox, { backgroundColor: 'rgba(132, 204, 22, 0.2)' }]}>
-                  <Feather name="package" size={18} color="#84cc16" />
+            {/* Stats strip inside header */}
+            <View style={S.statsStrip}>
+              <View style={S.statItem}>
+                <View style={[S.statIcon, { backgroundColor: 'rgba(132,204,22,0.2)' }]}>
+                  <Feather name="package" size={rs(16)} color={C.lime} />
                 </View>
                 <View>
-                  <Text style={styles.statLabel}>Total Items</Text>
-                  <Text style={styles.statValue}>{totalProducts}</Text>
+                  <Text style={S.statLbl}>Total Items</Text>
+                  <Text style={S.statVal}>{totalProducts}</Text>
                 </View>
               </View>
-              <View style={styles.verticalDivider} />
-              <View style={styles.statCard}>
-                <View style={[styles.iconBox, { backgroundColor: 'rgba(59, 130, 246, 0.2)' }]}>
-                  <MaterialCommunityIcons name="finance" size={18} color="#3b82f6" />
+              <View style={S.statDivider} />
+              <View style={S.statItem}>
+                <View style={[S.statIcon, { backgroundColor: 'rgba(59,130,246,0.2)' }]}>
+                  <MaterialCommunityIcons name="finance" size={rs(16)} color="#3b82f6" />
                 </View>
                 <View>
-                  <Text style={styles.statLabel}>Total Value</Text>
-                  <Text style={styles.statValue}>₵{portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                  <Text style={S.statLbl}>Total Value</Text>
+                  <Text style={S.statVal}>
+                    ₵{portfolioValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
                 </View>
               </View>
             </View>
+
+            <View style={S.hdrArc} />
           </LinearGradient>
 
-          {/* --- Verification Status Banner --- */}
+          {/* ── Verification banner ───────────────────────────────────── */}
           {isBlocked && (
-            <View style={[styles.verificationBanner, verificationStatus === 'rejected' && styles.verificationBannerRejected]}>
+            <View style={[S.verifyBanner, verificationStatus === 'rejected' && S.verifyBannerRed]}>
               <Ionicons
                 name={verificationStatus === 'rejected' ? 'close-circle-outline' : 'time-outline'}
-                size={20}
+                size={rs(18)}
                 color={verificationStatus === 'rejected' ? '#991B1B' : '#92400E'}
               />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.verificationBannerTitle, verificationStatus === 'rejected' && { color: '#991B1B' }]}>
+                <Text style={[S.verifyTitle, verificationStatus === 'rejected' && { color: '#991B1B' }]}>
                   {verificationStatus === 'rejected' ? 'Verification Rejected' : 'Awaiting Verification'}
                 </Text>
-                <Text style={styles.verificationBannerText}>
+                <Text style={S.verifySub}>
                   {verificationStatus === 'rejected'
-                    ? 'Your business was not approved. Please contact support.'
-                    : 'Your business is under review. Product management is locked until approved.'}
+                    ? 'Your business was not approved. Contact support.'
+                    : 'Product management is locked until your business is approved.'}
                 </Text>
               </View>
             </View>
           )}
 
-          {/* --- Form Section --- */}
-          <View pointerEvents={isBlocked ? 'none' : 'auto'} style={[styles.formSection, isBlocked && { opacity: 0.4 }]}>
-            <View style={styles.formCard}>
-              <View style={styles.formHeader}>
-                <Text style={styles.formTitle}>
-                  {editingId ? "Edit Product" : "Add New Item"}
-                </Text>
+          {/* ── Add / Edit form ───────────────────────────────────────── */}
+          <View
+            style={[S.formWrap, isBlocked && { opacity: 0.4 }]}
+            pointerEvents={isBlocked ? 'none' : 'auto'}
+          >
+            <View style={S.formCard}>
+              <View style={S.formHeader}>
+                <Text style={S.formTitle}>{editingId ? 'Edit Product' : 'Add New Item'}</Text>
                 {editingId ? (
                   <TouchableOpacity onPress={resetForm} disabled={isSubmitting}>
-                    <Text style={styles.cancelText}>Cancel</Text>
+                    <Text style={S.cancelTxt}>Cancel</Text>
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles.badgeNew}><Text style={styles.badgeText}>New</Text></View>
+                  <View style={S.newBadge}><Text style={S.newBadgeTxt}>New</Text></View>
                 )}
               </View>
 
-              <View style={styles.inputRow}>
-                <TouchableOpacity style={styles.imageUploadBox} onPress={pickImage} disabled={isSubmitting}>
+              <View style={S.inputRow}>
+                {/* Image picker */}
+                <TouchableOpacity style={S.imgBox} onPress={pickImage} disabled={isSubmitting}>
                   {image ? (
-                    <Image source={{ uri: image }} style={styles.uploadedImage} />
+                    <Image source={{ uri: image }} style={StyleSheet.absoluteFill} />
                   ) : (
-                    <View style={styles.uploadPlaceholder}>
-                      <Feather name="camera" size={24} color="#94A3B8" />
-                      <Text style={styles.uploadText}>Photo</Text>
+                    <View style={S.imgPlaceholder}>
+                      <Feather name="camera" size={rs(22)} color={C.subtle} />
+                      <Text style={S.imgPlaceholderTxt}>Photo</Text>
                     </View>
                   )}
                 </TouchableOpacity>
 
-                <View style={styles.textInputContainer}>
-                  <View style={styles.inputWrapper}>
-                    <Feather name="tag" size={16} color="#64748B" style={styles.inputIcon} />
+                <View style={{ flex: 1 }}>
+                  {/* Name */}
+                  <View style={S.inputField}>
+                    <Feather name="tag" size={rs(14)} color={C.muted} style={S.inputIcon} />
                     <TextInput
-                      value={name}
-                      onChangeText={setName}
-                      placeholder="Product Name"
-                      placeholderTextColor="#94A3B8"
-                      style={styles.textInput}
-                      editable={!isSubmitting}
+                      value={name} onChangeText={setName}
+                      placeholder="Product Name" placeholderTextColor={C.subtle}
+                      style={S.inputTxt} editable={!isSubmitting}
                     />
                   </View>
-
+                  {/* Category */}
                   <TouchableOpacity
-                    style={[styles.inputWrapper, { marginTop: 10 }]}
-                    onPress={() => setCategoryModalVisible(true)}
+                    style={[S.inputField, { marginTop: rs(8) }]}
+                    onPress={() => setCategoryModal(true)}
                     disabled={isSubmitting}
                   >
-                    <Feather name="grid" size={16} color="#64748B" style={styles.inputIcon} />
-                    <Text style={[styles.textInput, { paddingVertical: 14, color: category ? '#0F172A' : '#94A3B8' }]}>
-                      {category || "Select Category"}
+                    <Feather name="grid" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                    <Text style={[S.inputTxt, { paddingVertical: rs(12), flex: 1, color: category ? C.body : C.subtle }]}>
+                      {category || 'Select Category'}
                     </Text>
-                    <Feather name="chevron-down" size={16} color="#64748B" />
+                    <Feather name="chevron-down" size={rs(14)} color={C.muted} />
                   </TouchableOpacity>
-
-                  <View style={[styles.inputWrapper, { height: 80, alignItems: 'flex-start', paddingTop: 10 }]}>
-                    <Feather name="file-text" size={16} color="#64748B" style={[styles.inputIcon, { marginTop: 4 }]} />
+                  {/* Description */}
+                  <View style={[S.inputField, { height: rs(76), alignItems: 'flex-start', paddingTop: rs(10), marginTop: rs(8) }]}>
+                    <Feather name="file-text" size={rs(14)} color={C.muted} style={[S.inputIcon, { marginTop: rs(2) }]} />
                     <TextInput
-                      value={description}
-                      onChangeText={setDescription}
-                      placeholder="Description"
-                      placeholderTextColor="#94A3B8"
-                      style={[styles.textInput, { height: '100%', textAlignVertical: 'top' }]}
-                      multiline
-                      numberOfLines={3}
-                      editable={!isSubmitting}
+                      value={description} onChangeText={setDescription}
+                      placeholder="Description" placeholderTextColor={C.subtle}
+                      style={[S.inputTxt, { height: '100%', textAlignVertical: 'top' }]}
+                      multiline numberOfLines={3} editable={!isSubmitting}
                     />
                   </View>
-
-                  <View style={styles.dualInputRow}>
-                    <View style={[styles.inputWrapper, { flex: 1, marginRight: 8 }]}>
-                      <Text style={styles.currencySymbol}>₵</Text>
+                  {/* Price + Stock */}
+                  <View style={[S.inputRow, { marginTop: rs(8), gap: rs(8) }]}>
+                    <View style={[S.inputField, { flex: 1 }]}>
+                      <Text style={S.currencySymbol}>₵</Text>
                       <TextInput
-                        value={price}
-                        onChangeText={setPrice}
-                        placeholder="Price"
-                        keyboardType="numeric"
-                        placeholderTextColor="#94A3B8"
-                        style={styles.textInput}
+                        value={price} onChangeText={setPrice}
+                        placeholder="Price" keyboardType="numeric"
+                        placeholderTextColor={C.subtle} style={S.inputTxt}
                         editable={!isSubmitting}
                       />
                     </View>
-                    <View style={[styles.inputWrapper, { flex: 1 }]}>
-                      <Feather name="layers" size={16} color="#64748B" style={styles.inputIcon} />
+                    <View style={[S.inputField, { flex: 1 }]}>
+                      <Feather name="layers" size={rs(14)} color={C.muted} style={S.inputIcon} />
                       <TextInput
-                        value={stock}
-                        onChangeText={setStock}
-                        placeholder="Qty"
-                        keyboardType="numeric"
-                        placeholderTextColor="#94A3B8"
-                        style={styles.textInput}
+                        value={stock} onChangeText={setStock}
+                        placeholder="Qty" keyboardType="numeric"
+                        placeholderTextColor={C.subtle} style={S.inputTxt}
                         editable={!isSubmitting}
                       />
                     </View>
@@ -412,36 +336,35 @@ const ProductsScreen = () => {
                 </View>
               </View>
 
-              <View style={styles.activeToggleRow}>
-                <Text style={styles.activeToggleLabel}>Active Status (Users can see this)</Text>
+              {/* Active toggle */}
+              <View style={S.toggleRow}>
+                <Text style={S.toggleLbl}>Active — visible to customers</Text>
                 <Switch
-                  value={isActive}
-                  onValueChange={setIsActive}
+                  value={isActive} onValueChange={setIsActive}
                   trackColor={{ false: '#CBD5E1', true: '#DCFCE7' }}
-                  thumbColor={isActive ? '#15803D' : '#94A3B8'}
+                  thumbColor={isActive ? '#15803D' : C.subtle}
                   disabled={isSubmitting}
                 />
               </View>
 
+              {/* Submit */}
               <TouchableOpacity
-                onPress={handleSaveProduct}
+                onPress={handleSave}
                 disabled={isSubmitting || isBlocked}
-                activeOpacity={0.8}
-                style={{ marginTop: 15 }}
+                activeOpacity={0.85}
+                style={{ marginTop: rs(14) }}
               >
                 <LinearGradient
-                  colors={editingId ? ['#CA8A04', '#EAB308'] : ['#0C1559', '#1e3a8a']}
+                  colors={editingId ? ['#CA8A04', '#EAB308'] : [C.navy, C.navyMid]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={styles.addButton}
+                  style={S.submitBtn}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#FFF" />
+                    <ActivityIndicator size="small" color="#fff" />
                   ) : (
                     <>
-                      <Feather name={editingId ? "save" : "plus"} size={18} color="#FFF" />
-                      <Text style={styles.addButtonText}>
-                        {editingId ? "Update Product" : "Add to Inventory"}
-                      </Text>
+                      <Feather name={editingId ? 'save' : 'plus'} size={rs(17)} color="#fff" />
+                      <Text style={S.submitBtnTxt}>{editingId ? 'Update Product' : 'Add to Inventory'}</Text>
                     </>
                   )}
                 </LinearGradient>
@@ -449,550 +372,256 @@ const ProductsScreen = () => {
             </View>
           </View>
 
-          {/* --- List Section --- */}
-          <View style={styles.listSection}>
-            <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color="#94A3B8" />
+          {/* ── Product list ──────────────────────────────────────────── */}
+          <View style={S.listWrap}>
+            {/* Search bar */}
+            <View style={S.searchBar}>
+              <Ionicons name="search" size={rs(18)} color={C.subtle} />
               <TextInput
-                placeholder="Search inventory..."
-                placeholderTextColor="#94A3B8"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={styles.searchInput}
+                placeholder="Search inventory…"
+                placeholderTextColor={C.subtle}
+                value={searchQuery} onChangeText={setSearch}
+                style={S.searchInput}
               />
             </View>
 
-            <Text style={styles.sectionHeader}>Inventory List ({filteredProducts.length})</Text>
+            <Text style={S.listHeader}>Inventory ({filteredProducts.length})</Text>
 
             {filteredProducts.length > 0 ? (
               <FlatList
                 data={filteredProducts}
-                keyExtractor={item => item.id}
+                keyExtractor={(p) => p.id}
                 scrollEnabled={false}
+                ItemSeparatorComponent={() => <View style={{ height: rs(10) }} />}
                 renderItem={({ item }) => (
-                  <View style={styles.productCard}>
-                    <Image source={{ uri: item.image }} style={styles.cardImage} />
+                  <View style={S.productRow}>
+                    {item.image ? (
+                      <Image source={{ uri: item.image }} style={S.productImg} />
+                    ) : (
+                      <View style={[S.productImg, S.productImgFallback]}>
+                        <Feather name="package" size={rs(18)} color={C.muted} />
+                      </View>
+                    )}
 
-                    <View style={styles.cardInfo}>
-                      <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-                      <View style={styles.priceRow_list}>
-                        <Text style={styles.cardPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
-                        <View style={[styles.statusIndicator, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
-                        <Text style={[styles.statusText_list, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
+                    <View style={S.productInfo}>
+                      <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
+                      <View style={S.productMeta}>
+                        <Text style={S.productPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                        <View style={[S.activeDot, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
+                        <Text style={[S.activeTxt, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
                           {item.isActive ? 'Active' : 'Inactive'}
                         </Text>
                       </View>
-                      <Text style={styles.cardStock}>Stock: {item.stock}</Text>
+                      <Text style={S.productStock}>Stock: {item.stock}</Text>
                     </View>
 
-                    <View style={styles.cardActions}>
-                      <TouchableOpacity
-                        style={styles.actionBtn}
-                        onPress={() => handleEditPress(item)}
-                        disabled={isSubmitting}
-                      >
-                        <Feather name="edit-2" size={16} color="#64748B" />
+                    <View style={S.productActions}>
+                      <TouchableOpacity style={S.actionBtn} onPress={() => handleEditPress(item)} disabled={isSubmitting}>
+                        <Feather name="edit-2" size={rs(15)} color={C.muted} />
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.actionBtn, styles.deleteBtn]}
-                        onPress={() => removeProduct(item.id)}
-                        disabled={isSubmitting}
-                      >
-                        <Feather name="trash-2" size={16} color="#EF4444" />
+                      <TouchableOpacity style={[S.actionBtn, S.deleteBtn]} onPress={() => removeProduct(item.id)} disabled={isSubmitting}>
+                        <Feather name="trash-2" size={rs(15)} color="#EF4444" />
                       </TouchableOpacity>
                     </View>
                   </View>
                 )}
               />
             ) : (
-              <View style={styles.emptyState}>
-                <Image
-                  source={require('../../assets/images/icon.png')}
-                  style={{ width: 60, height: 60, opacity: 0.2, marginBottom: 10, tintColor: '#64748B' }}
-                  resizeMode="contain"
-                />
-                <Text style={styles.emptyTitle}>No products found</Text>
-                <Text style={styles.emptySubtitle}>
-                  {searchQuery ? "Try a different search term" : "Add your first product above"}
+              <View style={S.emptyWrap}>
+                <View style={S.emptyCircle}>
+                  <Feather name="package" size={rs(32)} color={C.navy} />
+                </View>
+                <Text style={S.emptyTitle}>No products found</Text>
+                <Text style={S.emptySub}>
+                  {searchQuery ? 'Try a different search term' : 'Add your first product above'}
                 </Text>
               </View>
             )}
           </View>
-
         </ScrollView>
+
         <BusinessBottomNav />
       </SafeAreaView>
 
-     {/* --- FIXED CATEGORY MODAL --- */}
+      {/* ── Category modal ────────────────────────────────────────────── */}
       <Modal
-        animationType="slide"
-        transparent={true}
-        visible={categoryModalVisible}
-        onRequestClose={() => setCategoryModalVisible(false)}
+        animationType="slide" transparent
+        visible={categoryModal}
+        onRequestClose={() => setCategoryModal(false)}
       >
-        {/* Outer Pressable: This covers the darkened background */}
-        <Pressable 
-          onPress={() => setCategoryModalVisible(false)} 
-          style={styles.modalOverlay}
-        >
-          {/* Inner Pressable: This is the actual white box. 
-              We use e.stopPropagation() so that touches here DON'T close the modal */}
-          <Pressable 
-            onPress={(e) => e.stopPropagation()} 
-            style={styles.modalContent}
-          >
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#0C1559" />
+        <Pressable style={S.modalOverlay} onPress={() => setCategoryModal(false)}>
+          <Pressable style={S.modalSheet} onPress={(e) => e.stopPropagation()}>
+            <View style={S.modalHandle} />
+            <View style={S.modalHdrRow}>
+              <Text style={S.modalTitle}>Select Category</Text>
+              <TouchableOpacity style={S.modalClose} onPress={() => setCategoryModal(false)}>
+                <Ionicons name="close" size={rs(16)} color={C.navy} />
               </TouchableOpacity>
             </View>
-
-            {/* ScrollView now works because the parent Pressable isn't stealing the touch */}
-            <ScrollView 
-              showsVerticalScrollIndicator={true} 
-              style={{ maxHeight: 400 }} // Increased height for better scrolling
-              keyboardShouldPersistTaps="handled"
-            >
-              {categories.map((cat, index) => (
-                <View key={index} style={styles.categoryItem}>
-                  <TouchableOpacity
-                    style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                    onPress={() => {
-                      setCategory(cat.name);
-                      setCategoryModalVisible(false);
-                    }}
-                  >
-                    <Text style={[
-                      styles.categoryText,
-                      category === cat.name && { color: '#0C1559', fontFamily: 'Montserrat-Bold' }
-                    ]}>
-                      {cat.name} {cat.count ? `(${cat.count})` : ''}
-                    </Text>
-                    {category === cat.name && (
-                      <Ionicons name="checkmark" size={20} color="#0C1559" style={{ marginLeft: 10 }} />
-                    )}
-                  </TouchableOpacity>
-
-
-                </View>
+            <ScrollView showsVerticalScrollIndicator style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {categories.map((cat, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={S.catItem}
+                  onPress={() => { setCategory(cat.name); setCategoryModal(false); }}
+                >
+                  <Text style={[S.catTxt, category === cat.name && S.catTxtOn]}>
+                    {cat.name}{cat.count ? ` (${cat.count})` : ''}
+                  </Text>
+                  {category === cat.name && <Ionicons name="checkmark" size={rs(18)} color={C.navy} />}
+                </TouchableOpacity>
               ))}
             </ScrollView>
           </Pressable>
         </Pressable>
       </Modal>
-    </View >
+    </View>
   );
 };
 
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
+const S = StyleSheet.create({
+  root:   { flex: 1, backgroundColor: C.bg },
+  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  watermark:    { position: 'absolute', bottom: 20, left: -20 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
+  scroll: { flexGrow: 1 },
+
+  header: {
+    paddingHorizontal: rs(20), paddingBottom: rs(28), position: 'relative',
+    elevation: 10, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
   },
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
+  hdrGlow: {
+    position: 'absolute', top: -rs(30), right: -rs(30),
+    width: rs(150), height: rs(150), borderRadius: rs(75),
+    backgroundColor: 'rgba(132,204,22,0.12)',
   },
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 20,
-    left: -20,
+  hdrRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(18) },
+  logo:     { width: 110, height: 34 },
+  hdrBtn: {
+    width: rs(40), height: rs(40), borderRadius: rs(13),
+    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center',
   },
-  fadedLogo: {
-    width: 130,
-    height: 130,
-    resizeMode: 'contain',
-    opacity: 0.08,
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
+    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
-  headerContainer: {
-    paddingTop: 60,
-    paddingBottom: 25,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    marginBottom: 10,
-    shadowColor: "#0C1559",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoContainer: {
-    height: 40,
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 110,
-    height: 35,
-  },
-  headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-  },
-  statCard: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  verticalDivider: {
-    width: 1,
-    height: '70%',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
+
+  statsStrip: {
+    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: rs(16), padding: rs(14), borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
   },
-  statLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 11,
-    fontFamily: 'Montserrat-Medium',
+  statItem:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(10) },
+  statDivider: { width: 0.5, height: '70%', backgroundColor: 'rgba(255,255,255,0.2)' },
+  statIcon:    { width: rs(36), height: rs(36), borderRadius: rs(10), justifyContent: 'center', alignItems: 'center' },
+  statLbl:     { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)' },
+  statVal:     { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: '#fff' },
+
+  // Verification banner
+  verifyBanner: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: rs(10),
+    backgroundColor: '#FEF3C7', borderLeftWidth: 4, borderLeftColor: '#F59E0B',
+    marginHorizontal: rs(16), marginTop: rs(8), marginBottom: rs(4),
+    borderRadius: rs(12), padding: rs(14),
   },
-  statValue: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-  },
-  formSection: {
-    paddingHorizontal: 20,
-    marginTop: -10,
-    marginBottom: 20,
-  },
-  verificationBanner: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    backgroundColor: '#FEF3C7',
-    borderLeftWidth: 4,
-    borderLeftColor: '#F59E0B',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    marginTop: 8,
-    borderRadius: 12,
-    padding: 14,
-  },
-  verificationBannerRejected: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
-  verificationBannerTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: 2 },
-  verificationBannerText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: 18 },
+  verifyBannerRed: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
+  verifyTitle:     { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: rs(2) },
+  verifySub:       { fontSize: rf(12), fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: rf(18) },
+
+  // Form
+  formWrap: { paddingHorizontal: rs(16), marginTop: rs(8), marginBottom: rs(16) },
   formCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
+    backgroundColor: C.card, borderRadius: rs(20), padding: rs(16),
+    elevation: 4, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.07, shadowRadius: rs(12),
   },
-  formHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+  formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(14) },
+  formTitle:  { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
+  cancelTxt:  { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: '#EF4444' },
+  newBadge:   { backgroundColor: '#DCFCE7', paddingHorizontal: rs(8), paddingVertical: rs(2), borderRadius: rs(8) },
+  newBadgeTxt:{ fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: '#15803D' },
+
+  inputRow:   { flexDirection: 'row', gap: rs(12), marginBottom: rs(4) },
+  imgBox: {
+    width: rs(88), height: rs(88), borderRadius: rs(16),
+    borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed',
+    backgroundColor: '#F8FAFC', overflow: 'hidden',
+    justifyContent: 'center', alignItems: 'center',
   },
-  formTitle: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
+  imgPlaceholder:    { alignItems: 'center' },
+  imgPlaceholderTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(4) },
+
+  inputField: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: '#F1F5F9', borderRadius: rs(12),
+    paddingHorizontal: rs(12), height: rs(42), marginBottom: rs(4),
   },
-  badgeNew: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 8,
+  inputIcon:     { marginRight: rs(8) },
+  currencySymbol:{ fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted, marginRight: rs(8) },
+  inputTxt:      { flex: 1, fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body },
+
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: '#F8FAFC', padding: rs(12), borderRadius: rs(12), marginTop: rs(6),
   },
-  badgeText: {
-    fontSize: 10,
-    color: '#15803D',
-    fontFamily: 'Montserrat-Bold',
+  toggleLbl: { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+
+  submitBtn: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    gap: rs(8), paddingVertical: rs(14), borderRadius: rs(14),
   },
-  cancelText: {
-    fontSize: 12,
-    color: '#EF4444',
-    fontFamily: 'Montserrat-Bold',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-  },
-  imageUploadBox: {
-    width: 90,
-    height: 90,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-    backgroundColor: '#F8FAFC',
-    overflow: 'hidden',
-  },
-  uploadPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  uploadText: {
-    fontSize: 10,
-    color: '#94A3B8',
-    marginTop: 4,
-    fontFamily: 'Montserrat-Medium',
-  },
-  uploadedImage: {
-    width: '100%',
-    height: '100%',
-  },
-  textInputContainer: {
-    flex: 1,
-    justifyContent: 'space-between',
-  },
-  dualInputRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    height: 42,
-    marginBottom: 6,
-  },
-  inputIcon: {
-    marginRight: 8,
-  },
-  currencySymbol: {
-    fontSize: 14,
-    color: '#64748B',
-    marginRight: 8,
-    fontFamily: 'Montserrat-Bold',
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    color: '#0F172A',
-    fontFamily: 'Montserrat-Medium',
-  },
-  activeToggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#F8FAFC',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 10,
-  },
-  activeToggleLabel: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
-  },
-  addButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 14,
-    gap: 8,
-  },
-  addButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-  },
-  listSection: {
-    paddingHorizontal: 20,
-  },
+  submitBtnTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: '#fff' },
+
+  // Product list
+  listWrap:   { paddingHorizontal: rs(16) },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    height: 50,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 5,
-    elevation: 2,
+    flexDirection: 'row', alignItems: 'center', gap: rs(10),
+    backgroundColor: C.card, borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(48),
+    marginBottom: rs(14), elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(4),
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 14,
-    color: '#0F172A',
-    fontFamily: 'Montserrat-Medium',
-  },
-  sectionHeader: {
-    fontSize: 14,
-    color: '#64748B',
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 12,
-    marginLeft: 4,
-  },
-  productCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
-  },
-  cardImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    backgroundColor: '#F1F5F9',
-  },
-  cardInfo: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
-  },
-  cardTitle: {
-    fontSize: 15,
-    color: '#0F172A',
-    fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 4,
-  },
-  priceRow_list: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  cardPrice: {
-    fontSize: 14,
-    color: '#0C1559',
-    fontFamily: 'Montserrat-Bold',
-  },
-  statusIndicator: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-  },
-  statusText_list: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-Bold',
-    textTransform: 'uppercase',
-  },
-  cardStock: {
-    fontSize: 11,
-    color: '#64748B',
-    fontFamily: 'Montserrat-Medium',
-    marginTop: 2,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  deleteBtn: {
-    backgroundColor: '#FEF2F2',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-  },
-  emptyTitle: {
-    fontSize: 16,
-    color: '#0F172A',
-    fontFamily: 'Montserrat-SemiBold',
-    marginTop: 10,
-  },
-  emptySubtitle: {
-    fontSize: 13,
-    color: '#64748B',
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-    paddingBottom: 15,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-  },
-  categoryItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  categoryText: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  searchInput: { flex: 1, fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body },
+  listHeader:  { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: rs(10) },
 
+  productRow: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(12),
+    backgroundColor: C.card, borderRadius: rs(16), padding: rs(12),
+    elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.04, shadowRadius: rs(6),
+  },
+  productImg:        { width: rs(58), height: rs(58), borderRadius: rs(12), backgroundColor: '#F1F5F9' },
+  productImgFallback:{ justifyContent: 'center', alignItems: 'center' },
+  productInfo:       { flex: 1 },
+  productName:       { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(4) },
+  productMeta:       { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(3) },
+  productPrice:      { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
+  activeDot:         { width: rs(6), height: rs(6), borderRadius: rs(3) },
+  activeTxt:         { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
+  productStock:      { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  productActions:    { flexDirection: 'row', gap: rs(8) },
+  actionBtn:         { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  deleteBtn:         { backgroundColor: '#FEF2F2' },
+
+  emptyWrap:  { alignItems: 'center', paddingVertical: rs(40) },
+  emptyCircle:{ width: rs(72), height: rs(72), borderRadius: rs(36), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14) },
+  emptyTitle: { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body, marginBottom: rs(4) },
+  emptySub:   { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle },
+
+  // Category modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  modalSheet: {
+    backgroundColor: C.card, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+    padding: rs(20), maxHeight: '80%',
+  },
+  modalHandle: { width: rs(36), height: rs(4), borderRadius: rs(2), backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: rs(14) },
+  modalHdrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16), paddingBottom: rs(14), borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9' },
+  modalTitle:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body },
+  modalClose:  { width: rs(30), height: rs(30), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  catItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: rs(14), borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9' },
+  catTxt:  { fontSize: rf(15), fontFamily: 'Montserrat-Medium', color: C.muted },
+  catTxtOn:{ fontFamily: 'Montserrat-Bold', color: C.navy },
 });
-
 
 export default ProductsScreen;
