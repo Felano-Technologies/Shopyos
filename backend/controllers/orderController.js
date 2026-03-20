@@ -440,6 +440,12 @@ const updateOrderStatus = async (req, res, next) => {
       });
     }
 
+    const { cacheDelPattern } = require('../config/redis');
+    if (cacheDelPattern) {
+      await cacheDelPattern(`shopyos:stores:dashboard:${order.store_id}*`);
+      await cacheDelPattern(`shopyos:stores:analytics:${order.store_id}*`);
+    }
+
     res.status(200).json({
       success: true,
       message: 'Order status updated',

@@ -12,6 +12,8 @@ import { format } from 'date-fns';
 import { getOrderDetails, updateOrderStatus } from '@/services/api';
 import Toast from 'react-native-toast-message';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query/keys';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -49,6 +51,7 @@ export default function OrderDetailsScreen() {
   const { id }  = useLocalSearchParams();
 
   // ── ALL HOOKS FIRST ────────────────────────────────────────────────────────
+  const queryClient = useQueryClient();
   const { isChecking, isVerified } = useSellerGuard();
   const [order,         setOrder]         = useState<any>(null);
   const [loading,       setLoading]       = useState(true);
@@ -123,6 +126,9 @@ export default function OrderDetailsScreen() {
       setUpdating(true);
       await updateOrderStatus(id as string, newStatus);
       await fetchOrder();
+      
+      queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
+      
       Toast.show({ type: 'success', text1: 'Status updated', text2: `Order is now ${newStatus.replace(/_/g, ' ')}` });
     } catch (e: any) {
       Alert.alert('Update failed', e.message);

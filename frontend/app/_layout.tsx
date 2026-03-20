@@ -55,9 +55,6 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
 
-  // --- DEBUG LOG ---
-  // Check your terminal/metro bundler to see what this prints when you are on the verification page
-  console.log("Current Path:", pathname);
 
   // Apply Push Hook globally
   usePushNotifications();
