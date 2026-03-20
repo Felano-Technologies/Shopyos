@@ -1025,6 +1025,7 @@ const styles = StyleSheet.create({
     color: C2.subtle,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
+    marginBottom: 20,
   },
   discClear: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.navyMid },
   discDivider: { height: 0.5, backgroundColor: C2.border, marginHorizontal: 20 },

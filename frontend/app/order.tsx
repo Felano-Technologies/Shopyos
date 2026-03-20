@@ -20,17 +20,17 @@ const SCALE  = Math.min(Math.max(SW / BASE_W, 0.82), 1.2);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
-const BOTTOM_NAV_H       = rs(60);
-const BOTTOM_BUFFER      = rs(24);
+const BOTTOM_NAV_H  = rs(60);
+const BOTTOM_BUFFER = rs(24);
 
 const PAGE_SIZE = 10;
 
-// ─── Tokens ───────────────────────────────────────────────────────────────────
 const C = {
   bg:      '#F8FAFC',
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
   lime:    '#84cc16',
+  limeText:'#1a2e00',
   card:    '#FFFFFF',
   body:    '#0F172A',
   muted:   '#64748B',
@@ -38,7 +38,6 @@ const C = {
   border:  'rgba(12,21,89,0.07)',
 };
 
-// ─── Status config ─────────────────────────────────────────────────────────────
 type StatusConfig = {
   color: string; bg: string; bar: string;
   timelineStep: number; label: string;
@@ -155,8 +154,6 @@ const OrdersScreen = () => {
       >
         <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
         <View style={S.cardBody}>
-
-          {/* Store + status */}
           <View style={S.cardTop}>
             <View style={S.storeRow}>
               <View style={S.storeIcon}>
@@ -164,7 +161,6 @@ const OrdersScreen = () => {
               </View>
               <Text style={S.storeName} numberOfLines={1}>{item.storeName}</Text>
             </View>
-            {/* STATUS PILL — fixed height, no vertical padding that can blow up */}
             <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
               <View style={[S.statusDot, { backgroundColor: cfg.color }]} />
               <Text style={[S.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
@@ -173,7 +169,6 @@ const OrdersScreen = () => {
 
           {showTrack && renderTimeline(cfg.timelineStep)}
 
-          {/* Order info + amount */}
           <View style={S.cardMid}>
             <View>
               <Text style={S.orderNum}>#{item.orderNumber}</Text>
@@ -194,7 +189,6 @@ const OrdersScreen = () => {
               <Ionicons name="chevron-forward" size={rs(12)} color={C.navy} />
             </View>
           </View>
-
         </View>
       </TouchableOpacity>
     );
@@ -321,13 +315,17 @@ const OrdersScreen = () => {
         <View style={S.hdrArc} />
       </LinearGradient>
 
-      {/* ── Filter chips ────────────────────────────────────────────────────
-          FIX: chips now have a fixed height (not driven by paddingVertical)
-          so they cannot inflate on any screen size.
-      ── */}
+      {/* ── Filter chip strip ───────────────────────────────────────────────
+          FIX 1: alignItems:'flex-start' on the ScrollView wrapper so chips
+          never float to the centre of the row regardless of how many are
+          rendered. Combined with flexGrow:0 on contentContainerStyle so the
+          container doesn't stretch to fill the ScrollView width.
+      ─────────────────────────────────────────────────────────────────────── */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        // aligning the scroll view itself to the start prevents centring
+        style={S.chipScrollView}
         contentContainerStyle={S.chipStrip}
       >
         {FILTERS.map((f) => {
@@ -346,6 +344,9 @@ const OrdersScreen = () => {
           );
         })}
       </ScrollView>
+
+      {/* FIX 2: explicit spacer between chip strip and first card */}
+      <View style={S.chipToCardSpacer} />
 
       {isLoading ? (
         <OrdersSkeleton />
@@ -399,12 +400,10 @@ const OrdersScreen = () => {
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
 
-  // Header
   hdrGradient: {
     position: 'relative', paddingBottom: rs(26), zIndex: 20,
     elevation: 12, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(10) },
-    shadowOpacity: 0.22, shadowRadius: rs(20),
+    shadowOffset: { width: 0, height: rs(10) }, shadowOpacity: 0.22, shadowRadius: rs(20),
   },
   hdrGlow: {
     position: 'absolute', bottom: -rs(30), right: -rs(30),
@@ -435,7 +434,7 @@ const S = StyleSheet.create({
     paddingHorizontal: rs(12), paddingVertical: rs(6),
   },
   hdrStatN:   { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#fff' },
-  hdrStatLbl: { fontSize: rf(9), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.5)' },
+  hdrStatLbl: { fontSize: rf(9),  fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.5)' },
   searchPill: {
     flexDirection: 'row', alignItems: 'center', gap: rs(9),
     backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5,
@@ -453,39 +452,46 @@ const S = StyleSheet.create({
     backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
   },
 
-  // ── Filter chip strip ───────────────────────────────────────────────────────
-  // FIX ROOT CAUSE: chips must NOT use paddingVertical from rs() because
-  // on some Android densities rs() can return a large number that inflates the
-  // chip height to fill the screen. Instead we:
-  //   1. Use a fixed height: 36px (device-pixel-independent, feels right on all sizes)
-  //   2. Center content with justifyContent/alignItems
-  //   3. Use only horizontal padding for internal spacing
+  // ── Chip strip — THE FIX ──────────────────────────────────────────────────
+  chipScrollView: {
+    // Never allow the ScrollView to stretch its content area
+    flexGrow: 0,
+    flexShrink: 0,
+  },
   chipStrip: {
-    paddingHorizontal: rs(14),
-    paddingVertical: rs(10),   // outer strip padding — fine to scale
+    paddingHorizontal: rs(16),
+    paddingTop: rs(14),
+    paddingBottom: rs(10),
     gap: rs(8),
     flexDirection: 'row',
-    alignItems: 'center',      // vertically centre chips within the strip
+    // flexGrow:0 stops the container expanding to fill the scroll view,
+    // which is what caused chips to drift to the centre when few were visible.
+    flexGrow: 0,
+    alignItems: 'center',
   },
   chip: {
-    height: 36,                // ← fixed, not scaled — prevents inflation on any device
-    paddingHorizontal: rs(16), // only horizontal padding drives width
-    borderRadius: 18,          // half of height = perfect pill
+    height: 36,
+    paddingHorizontal: rs(16),
+    borderRadius: 18,
     borderWidth: 0.5,
     borderColor: 'rgba(12,21,89,0.14)',
     backgroundColor: C.card,
     justifyContent: 'center',
     alignItems: 'center',
-    // Subtle elevation so chips don't look flat on the light bg
     elevation: 1,
     shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.04,
-    shadowRadius: 2,
+    shadowRadius: rs(2),
   },
   chipOn:    { backgroundColor: C.navy, borderColor: C.navy },
-  chipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted, lineHeight: rf(16) },
+  chipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   chipTxtOn: { color: '#fff' },
+
+  // ── Spacer between chips and first card ───────────────────────────────────
+  chipToCardSpacer: {
+    height: rs(12),   // comfortable breathing room
+  },
 
   // List
   listContent: { paddingHorizontal: 0 },
@@ -499,6 +505,7 @@ const S = StyleSheet.create({
   },
   cardBar:  { height: rs(3) },
   cardBody: { padding: rs(14) },
+
   cardTop: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', marginBottom: rs(10),
@@ -509,17 +516,9 @@ const S = StyleSheet.create({
     backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
   },
   storeName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#334155', flex: 1 },
-
-  // ── Status pill ─────────────────────────────────────────────────────────────
-  // FIX: same fixed-height approach as chips — height drives size, not padding.
   statusPill: {
-    height: 26,                // fixed — never inflates
-    paddingHorizontal: rs(10),
-    borderRadius: 13,          // half of height
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: rs(5),
-    flexShrink: 0,             // never wraps or shrinks away text
+    height: 26, paddingHorizontal: rs(10), borderRadius: 13,
+    flexDirection: 'row', alignItems: 'center', gap: rs(5), flexShrink: 0,
   },
   statusDot: { width: rs(6), height: rs(6), borderRadius: rs(3), flexShrink: 0 },
   statusTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', lineHeight: rf(14) },
@@ -529,43 +528,42 @@ const S = StyleSheet.create({
     flexDirection: 'row', alignItems: 'flex-start',
     marginBottom: rs(12), paddingHorizontal: rs(2),
   },
-  tlStep:   { alignItems: 'center', minWidth: rs(36) },
-  tlDot:    { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: '#E2E8F0' },
-  tlDotDone:   { backgroundColor: C.lime },
-  tlDotActive: {
+  tlStep:       { alignItems: 'center', minWidth: rs(36) },
+  tlDot:        { width: rs(10), height: rs(10), borderRadius: rs(5), backgroundColor: '#E2E8F0' },
+  tlDotDone:    { backgroundColor: C.lime },
+  tlDotActive:  {
     backgroundColor: C.navy,
     shadowColor: C.navy, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.35, shadowRadius: rs(4), elevation: 3,
   },
-  tlLbl:       { fontSize: rf(8), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(3), textAlign: 'center' },
-  tlLblDone:   { color: C.lime },
-  tlLblActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
-  tlLine:      { flex: 1, height: rs(2), backgroundColor: '#E2E8F0', marginTop: rs(4), marginBottom: rs(14) },
-  tlLineDone:  { backgroundColor: C.lime },
+  tlLbl:        { fontSize: rf(8), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(3), textAlign: 'center' },
+  tlLblDone:    { color: C.lime },
+  tlLblActive:  { color: C.navy, fontFamily: 'Montserrat-Bold' },
+  tlLine:       { flex: 1, height: rs(2), backgroundColor: '#E2E8F0', marginTop: rs(4), marginBottom: rs(14) },
+  tlLineDone:   { backgroundColor: C.lime },
 
-  // Card mid / foot
   cardMid: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: rs(11), borderTopWidth: 0.5, borderBottomWidth: 0.5,
     borderColor: '#F1F5F9', marginBottom: rs(11),
   },
-  orderNum:   { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: rs(3) },
+  orderNum:   { fontSize: rf(13), fontFamily: 'Montserrat-Bold',   color: C.navy,   marginBottom: rs(3) },
   orderDate:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
   amountWrap: { alignItems: 'flex-end' },
   amountLbl:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
-  amountVal:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body },
+  amountVal:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold',   color: C.body },
+
   cardFoot:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   itemsLbl:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
   viewBtn: {
     flexDirection: 'row', alignItems: 'center', gap: rs(3),
-    backgroundColor: '#EEF2FF', paddingHorizontal: rs(11), paddingVertical: rs(7),
-    borderRadius: rs(10),
+    backgroundColor: '#EEF2FF', paddingHorizontal: rs(11), paddingVertical: rs(7), borderRadius: rs(10),
   },
   viewBtnTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.navy },
 
   // Pagination
-  pagination: { alignItems: 'center', gap: rs(10), paddingVertical: rs(16) },
-  pageInfo:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  pagination:   { alignItems: 'center', gap: rs(10), paddingVertical: rs(16) },
+  pageInfo:     { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
   pageControls: { flexDirection: 'row', alignItems: 'center', gap: rs(6) },
   pageBtn: {
     width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.card,
@@ -574,7 +572,7 @@ const S = StyleSheet.create({
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
-  pageBtnOff: { borderColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
+  pageBtnOff:   { borderColor: '#F1F5F9', backgroundColor: '#FAFAFA' },
   pageNum: {
     width: rs(34), height: rs(34), borderRadius: rs(10), backgroundColor: C.card,
     borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
@@ -587,7 +585,7 @@ const S = StyleSheet.create({
   fetchingRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(6) },
   fetchingTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
 
-  // Empty state
+  // Empty
   emptyWrap: { alignItems: 'center', paddingTop: rs(60), paddingHorizontal: rs(40) },
   emptyCircle: {
     width: rs(90), height: rs(90), borderRadius: rs(45), backgroundColor: '#EEF2FF',
@@ -595,7 +593,7 @@ const S = StyleSheet.create({
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
-  emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(8) },
+  emptyTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold',   color: C.body,  marginBottom: rs(8) },
   emptyBody: {
     fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted,
     textAlign: 'center', lineHeight: rf(20), marginBottom: rs(24),

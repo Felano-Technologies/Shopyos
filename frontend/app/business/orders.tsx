@@ -1,18 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
-  RefreshControl,
-  Animated,
-  Image,
-  ScrollView,
+  View, Text, FlatList, StyleSheet, TouchableOpacity,
+  Dimensions, RefreshControl, Image, ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { StatusBar } from 'expo-status-bar';
@@ -23,7 +15,24 @@ import { getStoreOrders, storage } from '@/services/api';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 
-const { width } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
+const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
+const rs = (n: number) => Math.round(n * SCALE);
+const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+
+const C = {
+  bg:      '#F1F5F9',
+  navy:    '#0C1559',
+  navyMid: '#1e3a8a',
+  lime:    '#84cc16',
+  limeText:'#1a2e00',
+  card:    '#FFFFFF',
+  body:    '#0F172A',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+};
+
+type FilterType = 'All' | 'Pending' | 'Processing' | 'Delivered' | 'Cancelled';
 
 interface Order {
   id: string;
@@ -35,518 +44,424 @@ interface Order {
   orderNumber: string;
 }
 
+const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon: any }> = {
+  Pending:    { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', icon: 'time-outline'            },
+  Processing: { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', icon: 'sync-outline'            },
+  Delivered:  { color: '#15803D', bg: '#DCFCE7', bar: '#84cc16', icon: 'checkmark-circle-outline'},
+  Cancelled:  { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', icon: 'close-circle-outline'    },
+};
+const getStatus = (s: string) =>
+  STATUS_CFG[s] ?? { color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF', icon: 'help-circle-outline' };
+
+const FILTERS: FilterType[] = ['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'];
+
 const OrdersScreen = () => {
-  const [filter, setFilter] = useState<'All' | 'Pending' | 'Processing' | 'Delivered' | 'Cancelled'>('All');
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true); // <--- Added Loading State
-  const [orders, setOrders] = useState<Order[]>([]);
+  // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
+  const insets = useSafeAreaInsets();
   const { isChecking, isVerified } = useSellerGuard();
 
+  const [filter,     setFilter]     = useState<FilterType>('All');
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading,    setLoading]    = useState(true);
+  const [orders,     setOrders]     = useState<Order[]>([]);
 
-    if (isChecking || !isVerified) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0C1559" />
-      </View>
-    );
-  }
-
-  const fetchOrders = async (showLoading = false) => {
+  const fetchOrders = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
       const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getStoreOrders(businessId);
         if (data.success) {
-          const mappedOrders = data.orders.map((o: any) => ({
-            id: o.id,
-            orderNumber: o.order_number,
+          const mapped: Order[] = data.orders.map((o: any) => ({
+            id:           o.id,
+            orderNumber:  o.order_number,
             customerName: o.buyer?.user_profiles?.full_name || 'Guest',
-            itemsCount: o.order_items?.length || 0,
-            totalAmount: parseFloat(o.total_amount || 0),
-            date: o.created_at,
-            status: (o.status.charAt(0).toUpperCase() + o.status.slice(1)) as any
+            itemsCount:   o.order_items?.length || 0,
+            totalAmount:  parseFloat(o.total_amount || 0),
+            date:         o.created_at,
+            status:       (o.status.charAt(0).toUpperCase() + o.status.slice(1)) as any,
           }));
-          setOrders(mappedOrders);
+          setOrders(mapped);
         }
       }
-    } catch (error) {
-      console.error('Failed to fetch orders:', error);
+    } catch (err) {
+      console.error('Failed to fetch orders:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  // Verification guard — redirect unverified businesses
   useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then(status => {
+    storage.getItem('currentBusinessVerificationStatus').then((status) => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
   }, []);
 
   useEffect(() => {
-    fetchOrders(true); // Initial fetch with loading state
-  }, []);
+    fetchOrders(true);
+  }, [fetchOrders]);
+  // ── END OF HOOKS ──────────────────────────────────────────────────────────
+
+  // Now safe to have conditional returns
+  if (isChecking || !isVerified) {
+    return (
+      <View style={S.centred}>
+        <ActivityIndicator size="large" color={C.navy} />
+      </View>
+    );
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchOrders(false); // Refresh without re-triggering skeleton
+    await fetchOrders(false);
     setRefreshing(false);
   };
 
-  const filteredOrders = filter === 'All' ? orders : orders.filter(order => order.status === filter);
+  const filtered = filter === 'All' ? orders : orders.filter((o) => o.status === filter);
 
   // Stats
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(o => o.status === 'Pending').length;
-  const deliveredOrders = orders.filter(o => o.status === 'Delivered').length;
-  const totalRevenue = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+  const totalRevenue    = orders.reduce((s, o) => s + o.totalAmount, 0);
+  const totalOrders     = orders.length;
+  const pendingCount    = orders.filter((o) => o.status === 'Pending').length;
+  const deliveredCount  = orders.filter((o) => o.status === 'Delivered').length;
+  const cancelledCount  = orders.filter((o) => o.status === 'Cancelled').length;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Pending": return { color: "#B45309", bg: "#FEF3C7", icon: "time-outline" };
-      case "Delivered": return { color: "#15803D", bg: "#DCFCE7", icon: "checkmark-circle-outline" };
-      case "Processing": return { color: "#1D4ED8", bg: "#DBEAFE", icon: "sync-outline" };
-      case "Cancelled": return { color: "#B91C1C", bg: "#FEE2E2", icon: "close-circle-outline" };
-      default: return { color: "#6B7280", bg: "#F3F4F6", icon: "help-circle-outline" };
-    }
-  };
-
+  // ── Order card ──────────────────────────────────────────────────────────────
   const renderOrder = ({ item }: { item: Order }) => {
-    const { color, bg, icon } = getStatusBadge(item.status);
+    const cfg = getStatus(item.status);
+    let dateStr = '';
+    try { dateStr = format(new Date(item.date), 'MMM dd, yyyy · hh:mm a'); } catch {}
+
     return (
-      <View style={styles.orderCard}>
-        <View style={styles.cardHeader}>
-          <View style={styles.orderIdContainer}>
-            <View style={styles.iconCircle}>
-              <Feather name="package" size={16} color="#0C1559" />
+      <TouchableOpacity
+        style={S.card}
+        activeOpacity={0.85}
+        onPress={() => router.push({ pathname: '/business/orderDetails', params: { id: item.id } })}
+      >
+        {/* Status accent bar */}
+        <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
+
+        <View style={S.cardInner}>
+          {/* Top row */}
+          <View style={S.cardTop}>
+            <View style={S.orderIdRow}>
+              <View style={S.orderIcon}>
+                <Feather name="package" size={rs(13)} color={C.navy} />
+              </View>
+              <Text style={S.orderNum} numberOfLines={1}>{item.orderNumber}</Text>
             </View>
-            <Text style={styles.orderNumber}>{item.orderNumber}</Text>
+            <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
+              <View style={[S.statusDot, { backgroundColor: cfg.color }]} />
+              <Text style={[S.statusTxt, { color: cfg.color }]}>{item.status}</Text>
+            </View>
           </View>
-          <View style={[styles.statusBadge, { backgroundColor: bg }]}>
-            <Ionicons name={icon as any} size={12} color={color} style={{ marginRight: 4 }} />
-            <Text style={[styles.statusText, { color: color }]}>{item.status}</Text>
+
+          {/* Info rows */}
+          <View style={S.infoGrid}>
+            <View style={S.infoItem}>
+              <Text style={S.infoLbl}>Customer</Text>
+              <Text style={S.infoVal} numberOfLines={1}>{item.customerName}</Text>
+            </View>
+            <View style={S.infoItem}>
+              <Text style={S.infoLbl}>Items</Text>
+              <Text style={S.infoVal}>{item.itemsCount}</Text>
+            </View>
+            <View style={S.infoItem}>
+              <Text style={S.infoLbl}>Date</Text>
+              <Text style={S.infoVal}>{dateStr}</Text>
+            </View>
+          </View>
+
+          {/* Footer */}
+          <View style={S.cardFoot}>
+            <View>
+              <Text style={S.footLbl}>Total</Text>
+              <Text style={S.footAmt}>GH₵ {item.totalAmount.toFixed(2)}</Text>
+            </View>
+            <View style={S.detailsBtn}>
+              <Text style={S.detailsBtnTxt}>View Details</Text>
+              <Ionicons name="chevron-forward" size={rs(13)} color={C.limeText} />
+            </View>
           </View>
         </View>
-        <View style={styles.dashedDivider}>
-          {Array.from({ length: 20 }).map((_, i) => <View key={i} style={styles.dash} />)}
-        </View>
-        <View style={styles.cardBody}>
-          <View style={styles.infoRow}><Text style={styles.label}>Customer</Text><Text style={styles.value}>{item.customerName}</Text></View>
-          <View style={styles.infoRow}><Text style={styles.label}>Date</Text><Text style={styles.value}>{format(new Date(item.date), "MMM dd, hh:mm a")}</Text></View>
-          <View style={styles.infoRow}><Text style={styles.label}>Items</Text><Text style={styles.value}>{item.itemsCount} Items</Text></View>
-        </View>
-        <View style={styles.cardFooter}>
-          <View><Text style={styles.totalLabel}>Total Amount</Text><Text style={styles.amount}>GH₵ {item.totalAmount.toFixed(2)}</Text></View>
-          <TouchableOpacity style={styles.detailsBtn} onPress={() => router.push({ pathname: '/business/orderDetails', params: { id: item.id } })}>
-            <Text style={styles.detailsBtnText}>Details</Text>
-            <Feather name="chevron-right" size={16} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
+  // ── Root ────────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.mainContainer}>
+    <View style={S.root}>
       <StatusBar style="light" />
 
-      {/* --- Background Watermark --- */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <View style={styles.bottomLogos}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
-        </View>
+      {/* Watermark */}
+      <View style={S.watermark}>
+        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         {loading ? (
-          /* --- SKELETON STATE --- */
-          <View style={{ flex: 1 }}>
-             <BusinessOrdersSkeleton />
-          </View>
+          <BusinessOrdersSkeleton />
         ) : (
-          /* --- ACTUAL CONTENT --- */
           <ScrollView
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: 100 }}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={'#FFF'} />}
+            contentContainerStyle={[S.scrollContent, { paddingBottom: rs(100) + insets.bottom }]}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#fff" />
+            }
           >
-            <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerContainer}>
-              <View style={styles.headerTop}>
-                <View style={styles.logoContainer}>
-                  <Image source={require('../../assets/images/iconwhite.png')} style={styles.logo} resizeMode="contain" />
+            {/* ── Header ────────────────────────────────────────────────── */}
+            <LinearGradient
+              colors={[C.navy, C.navyMid]}
+              style={[S.header, { paddingTop: insets.top + rs(16) }]}
+            >
+              <View style={S.hdrGlow} pointerEvents="none" />
+
+              {/* Logo row */}
+              <View style={S.hdrLogoRow}>
+                <Image
+                  source={require('../../assets/images/iconwhite.png')}
+                  style={S.logo}
+                  resizeMode="contain"
+                />
+                <View style={S.hdrBadge}>
+                  <Text style={S.hdrBadgeTxt}>{totalOrders} orders</Text>
                 </View>
               </View>
-              <View style={styles.revenueCard}>
+
+              {/* Revenue card */}
+              <View style={S.revenueCard}>
                 <View>
-                  <Text style={styles.revenueLabel}>Total Revenue</Text>
-                  <Text style={styles.revenueAmount}>GH₵ {totalRevenue.toFixed(2)}</Text>
+                  <Text style={S.revLbl}>Total Revenue</Text>
+                  <Text style={S.revAmt}>GH₵ {totalRevenue.toFixed(2)}</Text>
                 </View>
-                <View style={styles.revenueIconContainer}>
-                  <MaterialCommunityIcons name="finance" size={28} color="#84cc16" />
+                <View style={S.revIcon}>
+                  <MaterialCommunityIcons name="finance" size={rs(26)} color={C.lime} />
                 </View>
               </View>
+
+              <View style={S.hdrArc} />
             </LinearGradient>
 
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Total</Text>
-                <Text style={styles.statNumber}>{totalOrders}</Text>
-                <View style={[styles.statBar, { backgroundColor: '#0C1559' }]} />
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Pending</Text>
-                <Text style={styles.statNumber}>{pendingOrders}</Text>
-                <View style={[styles.statBar, { backgroundColor: '#F59E0B' }]} />
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statLabel}>Delivered</Text>
-                <Text style={styles.statNumber}>{deliveredOrders}</Text>
-                <View style={[styles.statBar, { backgroundColor: '#10B981' }]} />
-              </View>
+            {/* ── Stat pills ────────────────────────────────────────────── */}
+            <View style={S.statRow}>
+              {[
+                { label: 'Total',     value: totalOrders,    color: C.navy    },
+                { label: 'Pending',   value: pendingCount,   color: '#F59E0B' },
+                { label: 'Delivered', value: deliveredCount, color: '#84cc16' },
+                { label: 'Cancelled', value: cancelledCount, color: '#EF4444' },
+              ].map((s) => (
+                <View key={s.label} style={S.statCard}>
+                  <Text style={[S.statNum, { color: s.color }]}>{s.value}</Text>
+                  <Text style={S.statLbl}>{s.label}</Text>
+                  <View style={[S.statBar, { backgroundColor: s.color }]} />
+                </View>
+              ))}
             </View>
 
-            <View style={styles.filterWrapper}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
-                {["All", "Pending", "Processing", "Delivered", "Cancelled"].map((tab) => {
-                  const isActive = filter === tab;
-                  return (
-                    <TouchableOpacity
-                      key={tab}
-                      onPress={() => setFilter(tab as any)}
-                      style={[styles.filterPill, isActive ? styles.filterPillActive : styles.filterPillInactive]}
-                    >
-                      <Text style={[styles.filterText, isActive ? styles.filterTextActive : styles.filterTextInactive]}>{tab}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
+            {/* ── Filter chips ──────────────────────────────────────────── */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={S.chipScrollView}
+              contentContainerStyle={S.chipStrip}
+            >
+              {FILTERS.map((f) => {
+                const on = filter === f;
+                return (
+                  <TouchableOpacity
+                    key={f}
+                    style={[S.chip, on && S.chipOn]}
+                    onPress={() => setFilter(f)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[S.chipTxt, on && S.chipTxtOn]}>{f}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-            <View style={styles.listContainer}>
+            {/* Spacer between chips and cards */}
+            <View style={{ height: rs(12) }} />
+
+            {/* ── Order list ────────────────────────────────────────────── */}
+            <View style={S.listWrap}>
               <FlatList
-                data={filteredOrders}
+                data={filtered}
                 keyExtractor={(item) => item.id}
                 renderItem={renderOrder}
                 scrollEnabled={false}
+                ItemSeparatorComponent={() => <View style={{ height: rs(12) }} />}
                 ListEmptyComponent={() => (
-                  <View style={styles.emptyState}>
-                    <Feather name="inbox" size={40} color="#CBD5E1" />
-                    <Text style={styles.emptyStateText}>No {filter} orders found.</Text>
+                  <View style={S.emptyWrap}>
+                    <View style={S.emptyCircle}>
+                      <Feather name="inbox" size={rs(36)} color={C.navy} />
+                    </View>
+                    <Text style={S.emptyTitle}>No {filter === 'All' ? '' : filter} orders</Text>
+                    <Text style={S.emptySub}>
+                      {filter === 'All'
+                        ? 'Orders from your store will appear here.'
+                        : `You have no ${filter.toLowerCase()} orders right now.`}
+                    </Text>
                   </View>
                 )}
               />
             </View>
           </ScrollView>
         )}
+
         <BusinessBottomNav />
       </SafeAreaView>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: 'transparent',
-  },
+// ─── Styles ────────────────────────────────────────────────────────────────────
+const S = StyleSheet.create({
+  root:    { flex: 1, backgroundColor: C.bg },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
 
-  // Background
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 20,
-    left: -20,
-  },
-  fadedLogo: {
-    width: 130,
-    height: 130,
-    resizeMode: 'contain',
-    opacity: 0.08, // Subtle opacity like Products screen
-  },
+  watermark:    { position: 'absolute', bottom: 20, left: -20 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
 
-  // Header (Matched to Products Screen)
-  headerContainer: {
-    paddingTop: 60, // Manual padding to clear status bar
-    paddingBottom: 30, // Increased bottom padding to fit revenue card nicely
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    marginBottom: 10,
-    shadowColor: "#0C1559",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoContainer: {
-    height: 40,
-    justifyContent: 'center',
-  },
-  logo: {
-    width: 110,
-    height: 35,
-  },
-  headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-  },
+  scrollContent: { flexGrow: 1 },
 
-  // Revenue Card (Inside Header)
+  // ── Header ─────────────────────────────────────────────────────────────────
+  header: {
+    paddingHorizontal: rs(20),
+    paddingBottom: rs(28),
+    position: 'relative',
+    elevation: 10,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(8) },
+    shadowOpacity: 0.2, shadowRadius: rs(16),
+  },
+  hdrGlow: {
+    position: 'absolute', top: -rs(30), right: -rs(30),
+    width: rs(160), height: rs(160), borderRadius: rs(80),
+    backgroundColor: 'rgba(132,204,22,0.12)',
+  },
+  hdrLogoRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: rs(20),
+  },
+  logo:      { width: 110, height: 34 },
+  hdrBadge: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: rs(20), paddingHorizontal: rs(12), paddingVertical: rs(5),
+  },
+  hdrBadgeTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.85)' },
+
   revenueCard: {
     backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
+    borderRadius: rs(16), padding: rs(16),
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
   },
-  revenueLabel: {
-    fontFamily: 'Montserrat-Medium',
-    color: '#D1D5DB', // Light grey text on dark background
-    fontSize: 13,
-    marginBottom: 4,
-  },
-  revenueAmount: {
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
-    fontSize: 26, // Slightly smaller than before to fit better
-  },
-  revenueIconContainer: {
+  revLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginBottom: rs(4) },
+  revAmt: { fontSize: rf(26), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  revIcon: {
     backgroundColor: 'rgba(255,255,255,0.9)',
-    padding: 10,
-    borderRadius: 12,
+    padding: rs(10), borderRadius: rs(12),
+  },
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    height: rs(24), backgroundColor: C.bg,
+    borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
 
-  // Stats Row
-  statsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: 10, // Adjusted margin since header is self-contained
-    marginBottom: 20,
+  // ── Stat row ───────────────────────────────────────────────────────────────
+  statRow: {
+    flexDirection: 'row', gap: rs(8),
+    paddingHorizontal: rs(16), marginTop: rs(8), marginBottom: rs(16),
   },
-  statItem: {
-    backgroundColor: '#FFF',
-    width: '31%',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    elevation: 4,
+  statCard: {
+    flex: 1, backgroundColor: C.card, borderRadius: rs(14),
+    padding: rs(12), alignItems: 'center',
+    elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
-  statLabel: {
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 11,
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  statNumber: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 18,
-    color: '#0F172A',
-    marginBottom: 8,
-  },
-  statBar: {
-    width: 20,
-    height: 4,
-    borderRadius: 2,
-  },
+  statNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', marginBottom: rs(3) },
+  statLbl: { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: rs(6) },
+  statBar: { width: rs(20), height: rs(3), borderRadius: rs(2) },
 
-  // Filters
-  filterWrapper: {
-    marginBottom: 16,
+  // ── Filter chips ───────────────────────────────────────────────────────────
+  chipScrollView: { flexGrow: 0, flexShrink: 0 },
+  chipStrip: {
+    paddingHorizontal: rs(16), paddingVertical: rs(4),
+    gap: rs(8), flexDirection: 'row', flexGrow: 0, alignItems: 'center',
   },
-  filterContainer: {
-    paddingHorizontal: 20,
-    gap: 8,
+  chip: {
+    height: 36, paddingHorizontal: rs(16), borderRadius: 18,
+    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)',
+    backgroundColor: C.card, justifyContent: 'center', alignItems: 'center',
+    elevation: 1, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(2),
   },
-  filterPill: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  filterPillActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
-  },
-  filterPillInactive: {
-    backgroundColor: '#FFF',
-    borderColor: '#E2E8F0',
-  },
-  filterText: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  filterTextActive: {
-    color: '#FFF',
-  },
-  filterTextInactive: {
-    color: '#64748B',
-  },
+  chipOn:    { backgroundColor: C.navy, borderColor: C.navy },
+  chipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  chipTxtOn: { color: '#fff' },
 
-  // Order List
-  listContainer: {
-    paddingHorizontal: 20,
+  // ── Order cards ────────────────────────────────────────────────────────────
+  listWrap: { paddingHorizontal: rs(16) },
+  card: {
+    backgroundColor: C.card, borderRadius: rs(20), overflow: 'hidden',
+    elevation: 4, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.07, shadowRadius: rs(12),
   },
+  cardBar:   { height: rs(3) },
+  cardInner: { padding: rs(14) },
 
-  // Card Design
-  orderCard: {
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    overflow: 'hidden',
+  cardTop: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginBottom: rs(14),
   },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#FAFAFA',
+  orderIdRow: { flexDirection: 'row', alignItems: 'center', gap: rs(8), flex: 1, marginRight: rs(8) },
+  orderIcon: {
+    width: rs(30), height: rs(30), borderRadius: rs(10),
+    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
   },
-  orderIdContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  iconCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#E0E7FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
-  },
-  orderNumber: {
-    fontSize: 15,
-    color: '#0F172A',
-    fontFamily: 'Montserrat-Bold',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-  },
-  statusText: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Bold',
-    textTransform: 'uppercase',
-  },
+  orderNum: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, flex: 1 },
 
-  // Dashed Divider
-  dashedDivider: {
-    flexDirection: 'row',
-    overflow: 'hidden',
-    paddingHorizontal: 16,
-    opacity: 0.3,
-    marginVertical: 2,
+  statusPill: {
+    height: 26, paddingHorizontal: rs(10), borderRadius: 13,
+    flexDirection: 'row', alignItems: 'center', gap: rs(5), flexShrink: 0,
   },
-  dash: {
-    width: 6,
-    height: 1,
-    backgroundColor: '#94A3B8',
-    marginRight: 4,
-  },
+  statusDot: { width: rs(6), height: rs(6), borderRadius: rs(3) },
+  statusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold' },
 
-  cardBody: {
-    padding: 16,
+  infoGrid: {
+    backgroundColor: '#F8FAFC', borderRadius: rs(12),
+    padding: rs(12), gap: rs(8), marginBottom: rs(14),
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  label: {
-    fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
-    fontSize: 13,
-  },
-  value: {
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
-    fontSize: 13,
-  },
+  infoItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  infoLbl:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  infoVal:  { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: '#334155', maxWidth: '60%', textAlign: 'right' },
 
-  cardFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    paddingTop: 4,
-  },
-  totalLabel: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-  amount: {
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
-  },
+  cardFoot: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  footLbl:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
+  footAmt:  { fontSize: rf(18), fontFamily: 'Montserrat-Bold', color: C.navy },
   detailsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0C1559',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 10,
+    flexDirection: 'row', alignItems: 'center', gap: rs(4),
+    backgroundColor: C.navy, paddingVertical: rs(9), paddingHorizontal: rs(14), borderRadius: rs(12),
   },
-  detailsBtnText: {
-    color: '#FFF',
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
-    marginRight: 2,
-  },
+  detailsBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.lime },
 
-  // Empty State
-  emptyState: {
-    alignItems: 'center',
-    padding: 40,
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    marginTop: 10,
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
+  // ── Empty state ────────────────────────────────────────────────────────────
+  emptyWrap: {
+    alignItems: 'center', paddingTop: rs(48), paddingHorizontal: rs(40),
   },
-  emptyStateText: {
-    fontSize: 14,
-    color: '#94A3B8',
-    fontFamily: 'Montserrat-Medium',
-    marginTop: 10,
+  emptyCircle: {
+    width: rs(80), height: rs(80), borderRadius: rs(40),
+    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16),
+    elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.06, shadowRadius: rs(8),
   },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
-
+  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(8) },
+  emptySub:   {
+    fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle,
+    textAlign: 'center', lineHeight: rf(20),
+  },
 });
 
 export default OrdersScreen;

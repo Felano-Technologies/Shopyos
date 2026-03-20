@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   visitTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
 
   mapFab: {
-    position: 'absolute', bottom: 86, alignSelf: 'center',
+    position: 'absolute', bottom: 86, alignSelf: 'center', marginBottom: 15,
     borderRadius: 30, elevation: 10, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.28, shadowRadius: 14, zIndex: 50,
   },
