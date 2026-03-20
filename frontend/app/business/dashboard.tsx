@@ -64,15 +64,6 @@ const BusinessDashboard = () => {
     }
   }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
 
-// --- AUTO-PROTECTION LOGIC ---
-  useEffect(() => {
-    if (!isLoadingBusinesses && selectedBusiness) {
-      // If the status is NOT verified, kick them out to the status page
-      if (selectedBusiness.verificationStatus !== 'verified') {
-        router.replace('/business/verification-status');
-      }
-    }
-  }, [selectedBusiness?.verificationStatus, isLoadingBusinesses]);
 
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);

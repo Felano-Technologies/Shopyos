@@ -29,8 +29,8 @@ const BusinessBottomNav = () => {
         if (businessId) {
           // Fetch order count
           const dashResp = await getBusinessDashboard(businessId);
-          if (dashResp.success && dashResp.data?.stats) {
-            setOrderCount(dashResp.data.stats.pendingOrders || 0);
+          if (dashResp?.stats) {
+            setOrderCount(dashResp.stats.pendingOrders || 0);
           }
         }
       } catch (error) {
