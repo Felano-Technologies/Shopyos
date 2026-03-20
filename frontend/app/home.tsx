@@ -197,7 +197,7 @@ export default function Home() {
       setAnimValues(vals);
       Animated.stagger(
         70,
-        vals.map((v) =>
+        vals.map((v: Animated.Value) =>
           Animated.timing(v, { toValue: 1, duration: 380, useNativeDriver: true })
         )
       ).start();

@@ -1,37 +1,37 @@
 import React, { useState } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, Image, TouchableOpacity, 
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert 
+  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator 
 } from 'react-native';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-
-// --- MOCK DATA (Replace with your API data later) ---
-const MOCK_REVIEWS = [
-  { id: '1', user: 'Kwame Mensah', rating: 5, comment: 'Excellent product! Delivery was very fast.', date: '2 days ago', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Kwame', reply: null },
-  { id: '2', user: 'Abena Osei', rating: 4, comment: 'Good quality, but packaging was slightly dented.', date: '1 week ago', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Abena', reply: 'We are sorry about the packaging. We will improve on it for your next order!' },
-  { id: '3', user: 'Yaw Boakye', rating: 2, comment: 'Not what I expected from the pictures.', date: '2 weeks ago', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Yaw', reply: null },
-  { id: '4', user: 'Ama Serwaa', rating: 5, comment: 'Will definitely buy from this store again.', date: '1 month ago', avatar: 'https://api.dicebear.com/7.x/avataaars/png?seed=Ama', reply: null },
-];
+import { useBusinessReviews, useReplyToReview, useMyBusinesses } from '@/hooks/useBusiness';
 
 export default function ReviewsScreen() {
-  const [reviews, setReviews] = useState<any[]>(MOCK_REVIEWS);
   const [replyModalVisible, setReplyModalVisible] = useState(false);
   const [selectedReview, setSelectedReview] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
 
-  // --- NEW: Search & Filter States ---
+  // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', '5 Stars', '4 Stars', 'Below 4'];
 
-  // --- NEW: Filtering Logic ---
-  const filteredReviews = reviews.filter(review => {
-    // Search match (Customer name or comment text)
+  // Fetch store and reviews
+  const { data: businessesData } = useMyBusinesses();
+  const currentBusinessId = businessesData?.businesses?.[0]?._id;
+
+  const { data: reviewsData, isLoading } = useBusinessReviews(currentBusinessId);
+  const { mutate: replyToReviewMutate, isPending: isReplying } = useReplyToReview();
+
+  const reviews = reviewsData?.reviews || [];
+
+  // Filtering Logic
+  const filteredReviews = reviews.filter((review: any) => {
     const nameMatch = (review.user || '').toLowerCase().includes(searchQuery.toLowerCase());
     const commentMatch = (review.comment || '').toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesSearch = nameMatch || commentMatch;
+    const productMatch = (review.productName || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = nameMatch || commentMatch || productMatch;
 
-    // Filter match (Star rating)
     let matchesFilter = true;
     if (activeFilter === '5 Stars') matchesFilter = review.rating === 5;
     if (activeFilter === '4 Stars') matchesFilter = review.rating === 4;
@@ -47,11 +47,16 @@ export default function ReviewsScreen() {
   };
 
   const sendReply = () => {
-    if (!replyText.trim()) return;
-    const updatedReviews = reviews.map(r => r.id === selectedReview.id ? { ...r, reply: replyText } : r);
-    setReviews(updatedReviews);
-    setReplyModalVisible(false);
-    Alert.alert("Success", "Reply posted!");
+    if (!replyText.trim() || !selectedReview) return;
+    replyToReviewMutate({ reviewId: selectedReview.id, text: replyText }, {
+      onSuccess: () => {
+        setReplyModalVisible(false);
+        Alert.alert("Success", "Reply posted!");
+      },
+      onError: () => {
+        Alert.alert("Error", "Failed to post reply.");
+      }
+    });
   };
 
   const renderStars = (rating: number) => (
@@ -68,9 +73,12 @@ export default function ReviewsScreen() {
         <Image source={{ uri: item.avatar }} style={styles.avatar} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.userName}>{item.user}</Text>
+          {item.type === 'product' && item.productName && (
+             <Text style={styles.productBadge}>Product: {item.productName}</Text>
+          )}
           <View style={styles.ratingRow}>
             {renderStars(item.rating)}
-            <Text style={styles.dateText}>{item.date}</Text>
+            <Text style={styles.dateText}>{new Date(item.date).toLocaleDateString()}</Text>
           </View>
         </View>
       </View>
@@ -129,11 +137,16 @@ export default function ReviewsScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={filteredReviews}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
+      {isLoading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#0C1559" />
+        </View>
+      ) : (
+        <FlatList
+          data={filteredReviews}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
@@ -155,6 +168,7 @@ export default function ReviewsScreen() {
           </View>
         }
       />
+      )}
 
       {/* Reply Modal */}
       <Modal visible={replyModalVisible} animationType="slide" transparent={true}>
@@ -175,8 +189,16 @@ export default function ReviewsScreen() {
               onChangeText={setReplyText}
               autoFocus
             />
-            <TouchableOpacity style={styles.sendBtn} onPress={sendReply}>
-              <Text style={styles.sendText}>Post Reply</Text>
+            <TouchableOpacity 
+              style={[styles.sendBtn, isReplying && { opacity: 0.7 }]} 
+              onPress={sendReply}
+              disabled={isReplying}
+            >
+              {isReplying ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.sendText}>Post Reply</Text>
+              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -244,6 +266,7 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9' },
   userName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  productBadge: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#B45309', backgroundColor: '#FEF3C7', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, alignSelf: 'flex-start', marginTop: 4 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
   dateText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
   commentText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 20 },

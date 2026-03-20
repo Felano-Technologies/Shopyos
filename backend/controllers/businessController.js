@@ -921,6 +921,113 @@ const unfollowBusiness = async (req, res, next) => {
   }
 };
 
+// @desc    Get all reviews for a business
+// @route   GET /api/business/:id/reviews
+// @access  Private (Store Owner)
+const getBusinessReviews = async (req, res, next) => {
+  try {
+    const businessId = req.params.id;
+    const userId = req.user.id;
+
+    // Verify ownership
+    const store = await repositories.stores.findById(businessId);
+    if (!store) return res.status(404).json({ success: false, error: 'Business not found' });
+    if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+    // 1. Fetch store reviews
+    const { data: storeReviews } = await repositories.reviews.db
+      .from('store_reviews')
+      .select(`
+        id, rating, review_text, created_at,
+        user:buyer_id (
+          user_profiles (full_name, avatar_url)
+        )
+      `)
+      .eq('store_id', businessId)
+      .is('deleted_at', null);
+
+    // 2. Fetch product reviews for this store's products
+    const { data: productReviews, error: prError } = await repositories.reviews.db
+      .from('product_reviews')
+      .select(`
+        id, rating, review_text, created_at,
+        products!inner ( store_id, title ),
+        user:buyer_id (
+          user_profiles ( full_name, avatar_url )
+        )
+      `)
+      .eq('products.store_id', businessId)
+      .is('deleted_at', null);
+
+    if (prError) throw prError;
+
+    // Combine and format them
+    const allReviews = [];
+
+    const formatUser = (userRel) => {
+      const profiles = userRel?.user_profiles;
+      const profile = Array.isArray(profiles) ? profiles[0] : profiles;
+      return {
+        name: profile?.full_name || 'Anonymous',
+        avatar: profile?.avatar_url || null
+      };
+    };
+
+    (storeReviews || []).forEach(r => {
+      const u = formatUser(r.user);
+      allReviews.push({
+        id: r.id,
+        type: 'store',
+        rating: r.rating,
+        comment: r.review_text,
+        date: r.created_at,
+        user: u.name,
+        avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${r.id}`
+      });
+    });
+
+    (productReviews || []).forEach(r => {
+      const u = formatUser(r.user);
+      allReviews.push({
+        id: r.id,
+        type: 'product',
+        productName: r.products?.title,
+        rating: r.rating,
+        comment: r.review_text,
+        date: r.created_at,
+        user: u.name,
+        avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${r.id}`
+      });
+    });
+
+    // Sort by date descending
+    allReviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Also fetch replies for these reviews.
+    const reviewIds = allReviews.map(r => r.id);
+    if (reviewIds.length > 0) {
+      const { data: comments } = await repositories.reviews.db
+        .from('review_comments')
+        .select('review_id, comment')
+        .in('review_id', reviewIds)
+        .eq('user_id', userId);
+
+      const repliesMap = {};
+      (comments || []).forEach(c => {
+         repliesMap[c.review_id] = c.comment;
+      });
+
+      allReviews.forEach(r => {
+         r.reply = repliesMap[r.id] || null;
+      });
+    }
+
+    res.status(200).json({ success: true, reviews: allReviews });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createBusiness,
   getMyBusinesses,
@@ -933,5 +1040,6 @@ module.exports = {
   getBusinessDashboard,
   getBusinessAnalytics,
   followBusiness,
-  unfollowBusiness
+  unfollowBusiness,
+  getBusinessReviews
 };

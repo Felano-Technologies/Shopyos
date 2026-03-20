@@ -7,7 +7,8 @@ const {
   createBusiness, getMyBusinesses, getBusinessById,
   updateBusiness, deleteBusiness, uploadLogo,
   uploadBanner, getBusinessDashboard, getBusinessAnalytics,
-  getAllBusinesses, followBusiness, unfollowBusiness
+  getAllBusinesses, followBusiness, unfollowBusiness,
+  getBusinessReviews
 } = require('../controllers/businessController');
 
 // Define cache keys for business routes
@@ -31,6 +32,7 @@ router.post('/:id/upload-banner', protect, upload.single('banner'), uploadBanner
 // Dashboard/Analytics routes have intensive DB queries. Cache for 60 seconds (near real-time)
 router.get('/dashboard/:id', protect, cacheMiddleware((req) => dashboardCacheKey(req.params.id), 60), getBusinessDashboard);
 router.get('/analytics/:id', protect, cacheMiddleware((req) => analyticsCacheKey(req.params.id, req.query), 60), getBusinessAnalytics);
+router.get('/:id/reviews', protect, getBusinessReviews);
 
 router.post('/:id/follow', protect, followBusiness);
 router.delete('/:id/follow', protect, unfollowBusiness);

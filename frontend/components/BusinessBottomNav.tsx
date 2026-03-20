@@ -91,7 +91,7 @@ const BusinessBottomNav = () => {
                 >
                   <View style={{ position: 'relative' }}>
                     <Feather name={item.icon as any} size={18} color="#FFF" />
-                    {item.hasBadge && <Badge count={item.count || 0} />}
+                    {item.hasBadge && (item.count || 0) > 0 && <Badge count={item.count || 0} />}
                   </View>
 
                   <Text style={styles.activeText} numberOfLines={1} ellipsizeMode="clip">
@@ -101,7 +101,7 @@ const BusinessBottomNav = () => {
               ) : (
                 <View style={styles.iconWrapper}>
                   <Feather name={item.icon as any} size={22} color="#94A3B8" />
-                  {item.hasBadge && <Badge count={item.count || 0} />}
+                  {item.hasBadge && (item.count || 0) > 0 && <Badge count={item.count || 0} />}
                 </View>
               )}
             </TouchableOpacity>

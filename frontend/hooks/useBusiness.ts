@@ -109,3 +109,29 @@ export const useUpdateCampaignStatus = () => {
     },
   });
 };
+
+export const useBusinessReviews = (businessId: string | undefined) => {
+  return useQuery({
+    queryKey: ['business', 'reviews', businessId],
+    queryFn: async () => {
+      if (!businessId) return null;
+      const response = await ApiService.getBusinessReviews(businessId);
+      return response;
+    },
+    enabled: !!businessId,
+  });
+};
+
+export const useReplyToReview = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ reviewId, text }: { reviewId: string; text: string }) => {
+      return await ApiService.replyToReview(reviewId, text);
+    },
+    // We can invalidate specific keys if needed, but we'll leave it simple for now
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business', 'reviews'] });
+    },
+  });
+};

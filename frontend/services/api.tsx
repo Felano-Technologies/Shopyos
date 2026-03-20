@@ -810,6 +810,26 @@ export const getBusinessAnalytics = async (
     throw new Error(error.message || 'Network error');
   }
 };
+
+export const getBusinessReviews = async (businessId: string) => {
+  try {
+    const response = await api.get(`/business/${businessId}/reviews`);
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to fetch business reviews');
+    throw new Error(error.message || 'Network error fetching business reviews');
+  }
+};
+
+export const replyToReview = async (reviewId: string, text: string) => {
+  try {
+    const response = await api.post(`/reviews/${reviewId}/comments`, { text });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to post reply');
+    throw new Error(error.message || 'Network error posting reply');
+  }
+};
  
 export const loginBusiness = async (
   email: string,

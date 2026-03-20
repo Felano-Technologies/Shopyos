@@ -34,6 +34,7 @@ class OrderRepository extends BaseRepository {
         ),
         store:store_id (
           id,
+          owner_id,
           store_name,
           phone,
           address_line1,
