@@ -698,17 +698,21 @@ const getBusinessAnalytics = async (req, res, next) => {
 
     // Aggregate Data
     let totalRevenue = 0;
-    let totalOrders = filteredOrders.length;
+    let totalOrders = 0;
     const productSales = {};
     const categorySales = {}; // Need product category, but order items only have title usually. 
     // Optimization: In a real app, join products table or store category in order_items. 
     // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
 
     const revenueStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
+    const completedStatuses = ['delivered', 'completed'];
 
     filteredOrders.forEach(order => {
       if (revenueStatuses.includes(order.status)) {
         totalRevenue += parseFloat(order.total_amount || 0);
+      }
+      if (completedStatuses.includes(order.status)) {
+        totalOrders += 1;
       }
 
       order.order_items?.forEach(item => {
@@ -737,17 +741,46 @@ const getBusinessAnalytics = async (req, res, next) => {
         d.setDate(d.getDate() - i);
         chartLabels.push(days[d.getDay()]);
 
-        // Sum revenue for this day
         const dayRevenue = filteredOrders
-          .filter(o => new Date(o.created_at).getDate() === d.getDate() && revenueStatuses.includes(o.status))
+          .filter(o => {
+            const od = new Date(o.created_at);
+            return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && revenueStatuses.includes(o.status);
+          })
           .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
         chartData.push(dayRevenue);
       }
-    } else {
-      // Simplify for month/year for this MVP iteration
-      // Just distributed evenly or mock slightly to show graph structure if no real data
-      chartLabels.push('Start', 'End');
-      chartData.push(0, totalRevenue);
+    } else if (timeframe === 'month') {
+      for (let i = 3; i >= 0; i--) {
+        chartLabels.push(`Wk ${4-i}`);
+        
+        const endWk = new Date();
+        endWk.setDate(endWk.getDate() - (i*7));
+        const startWk = new Date();
+        startWk.setDate(endWk.getDate() - 7);
+
+        const wkRevenue = filteredOrders
+          .filter(o => {
+            const od = new Date(o.created_at);
+            return od >= startWk && od <= endWk && revenueStatuses.includes(o.status);
+          })
+          .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+        chartData.push(wkRevenue);
+      }
+    } else if (timeframe === 'year') {
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        chartLabels.push(monthNames[d.getMonth()]);
+
+        const mthRevenue = filteredOrders
+          .filter(o => {
+            const od = new Date(o.created_at);
+            return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear() && revenueStatuses.includes(o.status);
+          })
+          .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+        chartData.push(mthRevenue);
+      }
     }
 
     res.status(200).json({

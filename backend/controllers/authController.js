@@ -123,7 +123,11 @@ const login = async (req, res, next) => {
 
     const userRoles = await repositories.roles.getUserRoles(user.id);
     const hasRole = userRoles.length > 0;
-    const role = userRoles?.[0]?.role?.name || 'none';
+
+    // Pick the most specific role by priority — prevents driver being routed as buyer
+    const ROLE_PRIORITY = { admin: 4, driver: 3, seller: 2, buyer: 1 };
+    const roleNames = userRoles.map(r => r.role.name);
+    const role = roleNames.sort((a, b) => (ROLE_PRIORITY[b] || 0) - (ROLE_PRIORITY[a] || 0))[0] || 'none';
 
     const accessToken = generateAccessToken(user.id);
     const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
@@ -134,7 +138,7 @@ const login = async (req, res, next) => {
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY,
       role,
-      roles: userRoles.map(r => r.role.name),
+      roles: roleNames,
       requiresRoleSelection: !hasRole,
       message: 'Login successful'
     });

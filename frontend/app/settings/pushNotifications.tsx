@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
+import { getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
 
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
@@ -50,10 +51,18 @@ export default function PushNotificationsScreen() {
       });
     }
 
-    // 3) Load stored preference
+    // 3) Load preference — backend is source of truth, local SecureStore as fallback
     const loadPref = async () => {
-      const stored = await SecureStore.getItemAsync('prefPushNotifications');
-      setPushEnabled(stored === 'true');
+      try {
+        const prefs = await getNotificationPreferences();
+        const backendEnabled = prefs?.preferences?.push_enabled ?? prefs?.push_enabled ?? true;
+        setPushEnabled(backendEnabled);
+        await SecureStore.setItemAsync('prefPushNotifications', backendEnabled ? 'true' : 'false');
+      } catch {
+        // Fallback to local store if API fails
+        const stored = await SecureStore.getItemAsync('prefPushNotifications');
+        setPushEnabled(stored !== 'false'); // default to true until set
+      }
     };
 
     // 4) Register for push only if permission is granted
@@ -80,16 +89,12 @@ export default function PushNotificationsScreen() {
 
     // 5) Optional: Listen for incoming notifications (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(
-      (notification) => {
-        console.log('Notification received in foreground:', notification);
-      }
+      (_notification) => { /* handled */ }
     );
 
     // 6) Optional: Listen for responses (user taps on notification)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
-      (response) => {
-        console.log('User tapped notification:', response);
-      }
+      (_response) => { /* handled */ }
     );
 
     return () => {
@@ -107,6 +112,8 @@ export default function PushNotificationsScreen() {
     try {
       const newValue = !pushEnabled;
       setPushEnabled(newValue);
+
+      // Save locally immediately
       await SecureStore.setItemAsync('prefPushNotifications', newValue ? 'true' : 'false');
 
       if (newValue) {
@@ -120,18 +127,21 @@ export default function PushNotificationsScreen() {
             );
             setPushEnabled(false);
             await SecureStore.setItemAsync('prefPushNotifications', 'false');
+            await updateNotificationPreferences({ push_enabled: false });
             return;
           }
         }
 
         const tokenData = await Notifications.getExpoPushTokenAsync();
         setExpoPushToken(tokenData.data);
-        Alert.alert('Push Notifications', 'Enabled');
-      } else {
-        Alert.alert('Push Notifications', 'Disabled');
       }
+
+      // Sync to backend — this is what actually makes the server stop/start sending pushes
+      await updateNotificationPreferences({ push_enabled: newValue });
+      Alert.alert('Push Notifications', newValue ? 'Enabled' : 'Disabled');
     } catch (e) {
       console.error('Error saving push pref:', e);
+      Alert.alert('Error', 'Could not update notification settings.');
     }
   };
 

@@ -92,7 +92,7 @@ const RoleSelectionScreen = () => {
         } else if (selectedRole === 'seller') {
           router.replace('/business/dashboard');
         } else if (selectedRole === 'driver') {
-          router.replace('/home');
+          router.replace('/driver/dashboard');
         }
       }, 500);
       

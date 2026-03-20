@@ -18,6 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { getUserData } from '@/services/api';
 
 export default function DriverVerification() {
   const router = useRouter();
@@ -49,6 +50,15 @@ export default function DriverVerification() {
       setViewState('pending');
     }
   }, [params]);
+
+  // Auto-fill personal info from signup data
+  useEffect(() => {
+    getUserData().then((user) => {
+      if (user?.name) setFullName(user.name);
+      if (user?.email) setEmail(user.email);
+      if (user?.fullPhoneNumber) setPhone(user.fullPhoneNumber);
+    }).catch(() => { /* fail silently */ });
+  }, []);
 
   // --- IMAGE PICKER LOGIC ---
   const pickImage = async (source: 'camera' | 'gallery', target: string) => {
@@ -220,31 +230,33 @@ export default function DriverVerification() {
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Full Name (as on ID)</Text>
                     <TextInput 
-                        style={styles.input} 
-                    
+                        style={[styles.input, styles.inputPrefilled]} 
                         value={fullName}
                         onChangeText={setFullName}
+                        placeholder="From your profile"
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Mobile Number</Text>
                     <TextInput 
-                        style={styles.input} 
+                        style={[styles.input, styles.inputPrefilled]} 
                         keyboardType="phone-pad"
                         value={phone}
                         onChangeText={setPhone}
+                        placeholder="From your profile"
                     />
                 </View>
 
                 <View style={styles.inputGroup}>
                     <Text style={styles.label}>Email Address</Text>
                     <TextInput 
-                        style={styles.input}  
+                        style={[styles.input, styles.inputPrefilled]}  
                         keyboardType="email-address"
                         autoCapitalize="none"
                         value={email}
                         onChangeText={setEmail}
+                        placeholder="From your profile"
                     />
                 </View>
             </View>
@@ -389,6 +401,7 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 16 },
   label: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: 8 },
   input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 15, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
+  inputPrefilled: { backgroundColor: '#F1F5F9', color: '#64748B', borderColor: '#CBD5E1' },
   
   // Pills
   pillContainer: { flexDirection: 'row', gap: 10 },
