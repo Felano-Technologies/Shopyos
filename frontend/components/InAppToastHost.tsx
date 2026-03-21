@@ -259,30 +259,30 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16
+    paddingVertical: 8,
+    paddingHorizontal: 12
   },
   kicker: {
     color: '#84cc16', // Match accent
-    fontSize: 10,
+    fontSize: 9,
     fontFamily: 'Montserrat-Bold',
     textTransform: 'uppercase',
     letterSpacing: 0.8,
-    marginBottom: 4
+    marginBottom: 2
   },
   title: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    marginBottom: 4
+    marginBottom: 2
   },
   message: {
     color: 'rgba(255,255,255,0.7)',
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Montserrat-Medium'
   },
   progressTrack: {
-    marginTop: 12,
+    marginTop: 6,
     height: 3,
     borderRadius: 999,
     backgroundColor: 'rgba(255,255,255,0.1)',

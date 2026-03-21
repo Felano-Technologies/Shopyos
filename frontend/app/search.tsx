@@ -15,7 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
-import { addToCart } from '@/services/api';
+import { useCart } from './context/CartContext';
 import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
 
 const { width } = Dimensions.get('window');
@@ -61,6 +61,7 @@ type ViewMode = 'grid' | 'list';
 
 export default function SearchScreen() {
   const router  = useRouter();
+  const { addToCart } = useCart();
   const params  = useLocalSearchParams();
 
   const [query,          setQuery]        = useState('');
@@ -158,10 +159,16 @@ export default function SearchScreen() {
   const handleAddToCart = async (item: any) => {
     setAddingId(item._id);
     try {
-      await addToCart(item._id, 1);
-      CustomInAppCustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
+      addToCart({
+        id: item._id,
+        title: item.name,
+        category: item.category || 'General',
+        price: parseFloat(item.price) || 0,
+        image: item.images?.[0] || 'https://via.placeholder.com/300'
+      });
+      CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
     } catch {
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Could not add to cart' });
+      CustomInAppToast.show({ type: 'error', title: 'Could not add to cart', message: 'Please try again later' });
     } finally {
       setAddingId(null);
     }
