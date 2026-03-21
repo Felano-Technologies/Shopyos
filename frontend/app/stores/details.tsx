@@ -39,7 +39,7 @@ import {
   createReviewComment,
   createStoreReview
 } from '@/services/api';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useChat } from '../context/ChatContext';
 
 // --- Components ---
@@ -179,7 +179,7 @@ export default function StoreDetailsScreen() {
       });
 
       if (res.success) {
-        Toast.show({ type: 'success', text1: 'Review Posted!', text2: 'Thanks for supporting local businesses.' });
+        CustomInAppCustomInAppToast.show({ type: 'success', title: 'Review Posted!', message: 'Thanks for supporting local businesses.' });
         setReviewModalVisible(false);
         setUserRating(0);
         setUserComment('');
@@ -225,7 +225,7 @@ export default function StoreDetailsScreen() {
       setChatLoading(true);
       const ownerId = storeData?.owner?._id || storeData?.owner;
       if (!ownerId) {
-        Toast.show({ type: 'error', text1: 'Cannot Chat' });
+        CustomInAppCustomInAppToast.show({ type: 'error', title: 'Cannot Chat' });
         return;
       }
       const res = await startConversation(ownerId);
@@ -241,7 +241,7 @@ export default function StoreDetailsScreen() {
         });
       }
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: 'Chat Error' });
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Chat Error' });
     } finally {
       setChatLoading(false);
     }
@@ -256,7 +256,7 @@ export default function StoreDetailsScreen() {
         await followStore(store.id);
         setIsFollowing(true);
       }
-    } catch (error) { Toast.show({ type: 'error', text1: 'Error' }); }
+    } catch (error) { CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error' }); }
   };
 
   const handleShare = async () => {

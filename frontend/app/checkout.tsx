@@ -8,7 +8,7 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 import { useCart } from './context/CartContext';
 import {
@@ -78,7 +78,7 @@ export default function CheckoutScreen() {
 
   const handlePlaceOrder = async () => {
     if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
-      Toast.show({ type: 'error', text1: 'Required Info', text2: 'Please provide address and phone number.' });
+      CustomInAppToast.show({ type: 'error', title: 'Required Info', message: 'Please provide address and phone number.' });
       return;
     }
 
@@ -112,7 +112,7 @@ export default function CheckoutScreen() {
         }
       }
     } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Order Failed', text2: e.message || 'Please try again.' });
+      CustomInAppToast.show({ type: 'error', title: 'Order Failed', message: e.message || 'Please try again.' });
     } finally {
       setIsOrdering(false);
     }

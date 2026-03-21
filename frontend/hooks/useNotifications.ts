@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
-import Toast from 'react-native-toast-message';
 import { useRouter, usePathname } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';

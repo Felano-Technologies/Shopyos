@@ -8,7 +8,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminOrders } from '@/services/api';
 
 const { width } = Dimensions.get('window');
@@ -39,7 +39,7 @@ export default function AdminOrders() {
             const data = Array.isArray(res?.orders) ? res.orders : (Array.isArray(res) ? res : []);
             setOrders(data);
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to load orders' });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load orders' });
         } finally {
             setLoading(false);
             setRefreshing(false);

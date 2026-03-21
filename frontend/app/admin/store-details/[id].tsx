@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminStores, adminVerifyStore } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
@@ -36,7 +36,7 @@ export default function StoreVerificationDetails() {
             const data = res?.stores?.[0] || res?.data?.[0] || res?.[0];
             setStore(data);
         } catch (err) {
-            Toast.show({ type: 'error', text1: 'Error', text2: 'Could not load store details' });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load store details' });
         } finally { setLoading(false); }
     };
 
@@ -44,15 +44,15 @@ export default function StoreVerificationDetails() {
         try {
             setActionLoading(true);
             await adminVerifyStore(store.id, status, rejectReason);
-            Toast.show({ 
+            CustomInAppCustomInAppToast.show({ 
                 type: 'success', 
-                text1: status === 'verified' ? 'Approved' : 'Rejected',
-                text2: `${store.store_name} has been processed.` 
+                title: status === 'verified' ? 'Approved' : 'Rejected',
+                message: `${store.store_name} has been processed.` 
             });
             setRejectModal(false);
             router.back();
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.message });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
         } finally { setActionLoading(false); }
     };
 
@@ -66,7 +66,7 @@ const handleContactMerchant = (email: string) => {
         if (!url) return;
         const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
         Linking.openURL(formattedUrl).catch(() => {
-            Toast.show({ type: 'error', text1: 'Invalid URL', text2: 'Could not open the website.' });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Invalid URL', message: 'Could not open the website.' });
         });
     };
 

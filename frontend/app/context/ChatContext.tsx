@@ -8,7 +8,7 @@ import {
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { usePathname, useGlobalSearchParams, useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { CallOverlay } from '../../components/CallOverlay';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
@@ -206,10 +206,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
               // Show toast for incoming messages not currently on screen
               if (!isMe && !isViewingThisChat) {
-                Toast.show({
+                CustomInAppCustomInAppToast.show({
                   type: 'info',
-                  text1: conv.name,
-                  text2: message.content,
+                  title: conv.name,
+                  message: message.content,
                   position: 'top',
                   onPress: () => {
                     router.push({
@@ -221,7 +221,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
                         chatType: conv.otherParticipant?.store ? 'buyer' : 'seller',
                       },
                     });
-                    Toast.hide();
+                    ;
                   },
                 });
               }
@@ -363,10 +363,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setupPeerConnection = async (conversationId: string) => {
     if (isExpoGo) {
-      Toast.show({ 
+      CustomInAppCustomInAppToast.show({ 
         type: 'info', 
-        text1: 'Not Supported', 
-        text2: 'Calling is only available in the standalone app build.' 
+        title: 'Not Supported', 
+        message: 'Calling is only available in the standalone app build.' 
       });
       return;
     }
@@ -389,7 +389,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        Toast.show({ type: 'error', text1: 'Permission Denied', text2: 'Microphone access is required for calls.' });
+        CustomInAppCustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Microphone access is required for calls.' });
         return;
       }
 

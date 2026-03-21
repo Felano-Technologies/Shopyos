@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminUsers, adminUpdateUserStatus } from '@/services/api';
 
 const ROLE_FILTERS = ['All', 'buyer', 'seller', 'driver', 'admin'];
@@ -35,7 +35,7 @@ export default function AdminUsers() {
             const data = Array.isArray(res?.users) ? res.users : (Array.isArray(res) ? res : []);
             setUsers(data);
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to load users' });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load users' });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -59,10 +59,10 @@ export default function AdminUsers() {
                     onPress: async () => {
                         try {
                             await adminUpdateUserStatus(user.id, isActive ? 'suspended' : 'active');
-                            Toast.show({ type: 'success', text1: isActive ? 'User Suspended' : 'User Reactivated' });
+                            CustomInAppCustomInAppToast.show({ type: 'success', title: isActive ? 'User Suspended' : 'User Reactivated' });
                             loadUsers();
                         } catch (e: any) {
-                            Toast.show({ type: 'error', text1: 'Error', text2: e.message });
+                            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
                         }
                     }
                 }

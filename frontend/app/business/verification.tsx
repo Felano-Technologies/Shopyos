@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { verifyBusinessDetails } from '@/services/api';
@@ -105,12 +105,12 @@ const BusinessVerification = () => {
   const handleVerify = async () => {
     // Original Validation Logic
     if (!details.ownerName || !details.registrationNumber || !details.taxId) {
-      Toast.show({ type: 'error', text1: 'Missing Info', text2: 'Please fill all required fields' });
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill all required fields' });
       return;
     }
 
     if (details.documents.length === 0) {
-      Toast.show({ type: 'error', text1: 'Docs Required', text2: 'Upload at least one verification document' });
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Docs Required', message: 'Upload at least one verification document' });
       return;
     }
 
@@ -124,7 +124,7 @@ const BusinessVerification = () => {
         throw new Error(response.message || 'Verification failed');
       }
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: 'Failed', text2: error.message || 'Please try again' });
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Failed', message: error.message || 'Please try again' });
     } finally {
       setLoading(false);
     }

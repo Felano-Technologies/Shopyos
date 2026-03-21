@@ -12,7 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { addToCart } from '@/services/api';
@@ -159,9 +159,9 @@ export default function SearchScreen() {
     setAddingId(item._id);
     try {
       await addToCart(item._id, 1);
-      Toast.show({ type: 'success', text1: 'Added to cart', text2: item.name });
+      CustomInAppCustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
     } catch {
-      Toast.show({ type: 'error', text1: 'Could not add to cart' });
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Could not add to cart' });
     } finally {
       setAddingId(null);
     }

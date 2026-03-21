@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -46,10 +46,10 @@ const LoginScreen = () => {
 
       if (response.message == "Login successful") {
 
-        Toast.show({
+        CustomInAppToast.show({
           type: 'success',
-          text1: 'Login Successful 😊',
-          text2: 'Welcome back! 🎉',
+          title: 'Login Successful 😊',
+          message: 'Welcome back! 🎉',
         });
 
         // Check if user needs to select a role (using the needsRole flag from API)
@@ -71,17 +71,17 @@ const LoginScreen = () => {
           }
         }
       } else {
-        Toast.show({
+        CustomInAppToast.show({
           type: 'error',
-          text1: 'Login Failed ❌',
-          text2: response.message || 'Please try again.',
+          title: 'Login Failed ❌',
+          message: response.message || 'Please try again.',
         });
       }
     } catch (error: any) {
-      Toast.show({
+      CustomInAppToast.show({
         type: 'error',
-        text1: 'Sign In Failed ⚠️',
-        text2: error.message || 'Something went wrong.',
+        title: 'Sign In Failed ⚠️',
+        message: error.message || 'Something went wrong.',
       });
     } finally {
       setLoading(false);

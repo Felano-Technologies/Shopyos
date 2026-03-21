@@ -4,7 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { queryClient } from '@/lib/query/client';
 import { socketService } from './socket';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
@@ -149,12 +149,10 @@ api.interceptors.response.use(
       }
  
       // Exhausted retries — show Toast and reject
-      Toast.show({
+      CustomInAppToast.show({
         type: 'error',
-        text1: 'Too many requests',
-        text2: 'Please slow down and try again in a moment.',
-        position: 'top',
-        visibilityTime: 4000,
+        title: 'Too many requests',
+        message: 'Please slow down and try again in a moment.',
       });
  
       return Promise.reject(error);

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useChat } from '../context/ChatContext';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -68,7 +68,7 @@ export default function ChatInbox() {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
           const ok = await deleteConversation(item.id, 'buyer');
-          Toast.show({ type: ok ? 'success' : 'error', text1: ok ? 'Deleted' : 'Error' });
+          CustomInAppCustomInAppToast.show({ type: ok ? 'success' : 'error', title: ok ? 'Deleted' : 'Error' });
         },
       },
     ]);

@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
 import { getOrderDetails, updateOrderStatus } from '@/services/api';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -129,7 +129,7 @@ export default function OrderDetailsScreen() {
       
       queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
       
-      Toast.show({ type: 'success', text1: 'Status updated', text2: `Order is now ${newStatus.replace(/_/g, ' ')}` });
+      CustomInAppToast.show({ type: 'success', title: 'Status updated', message: `Order is now ${newStatus.replace(/_/g, ' ')}` });
     } catch (e: any) {
       Alert.alert('Update failed', e.message);
     } finally {
@@ -341,7 +341,6 @@ export default function OrderDetailsScreen() {
 
         </ScrollView>
       </SafeAreaView>
-      <Toast />
     </View>
   );
 }

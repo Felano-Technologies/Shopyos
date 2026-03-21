@@ -4,7 +4,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator,
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Appearance } from 'react-native';
@@ -38,24 +38,24 @@ const RegisterScreen = () => {
       setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber);
       if (data.message == "User created successfully") {
-        Toast.show({
+        CustomInAppCustomInAppToast.show({
           type: 'success',
-          text1: 'Sign up Successful',
-          text2: 'Welcome! 🎉',
+          title: 'Sign up Successful',
+          message: 'Welcome! 🎉',
         });
         router.push('/login');
       } else {
-        Toast.show({
+        CustomInAppCustomInAppToast.show({
           type: 'error',
-          text1: 'Sign up Failed',
-          text2: data.message || 'Please try again.',
+          title: 'Sign up Failed',
+          message: data.message || 'Please try again.',
         });
       }
     } catch (error: any) {
-      Toast.show({
+      CustomInAppCustomInAppToast.show({
         type: 'error',
-        text1: 'Sign Up Failed',
-        text2: error.message || 'Something went wrong.',
+        title: 'Sign Up Failed',
+        message: error.message || 'Something went wrong.',
       });
     } finally {
       setLoading(false);

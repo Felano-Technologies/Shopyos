@@ -14,7 +14,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { Appearance } from 'react-native';
 import { updateUserRole } from '@/services/api';
 
@@ -65,10 +65,10 @@ const RoleSelectionScreen = () => {
 
   const handleRoleSelection = async () => {
     if (!selectedRole) {
-      Toast.show({
+      CustomInAppToast.show({
         type: 'error',
-        text1: 'Selection Required',
-        text2: 'Please select a role to continue.',
+        title: 'Selection Required',
+        message: 'Please select a role to continue.',
       });
       return;
     }
@@ -78,12 +78,11 @@ const RoleSelectionScreen = () => {
       const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
       const response = await updateUserRole(backendRole);
       
-      console.log('Role update response:', response);
 
-      Toast.show({
+      CustomInAppToast.show({
         type: 'success',
-        text1: 'Success! 🎉',
-        text2: `You are now a ${selectedRole}!`,
+        title: 'Success! 🎉',
+        message: `You are now a ${selectedRole}!`,
       });
 
       setTimeout(() => {
@@ -98,10 +97,10 @@ const RoleSelectionScreen = () => {
       
     } catch (error: any) {
       console.error('Error saving role:', error);
-      Toast.show({
+      CustomInAppToast.show({
         type: 'error',
-        text1: 'Error ❌',
-        text2: error.response?.data?.error || 'Failed to save your role selection.',
+        title: 'Error ❌',
+        message: error.response?.data?.error || 'Failed to save your role selection.',
       });
     } finally {
       setLoading(false);

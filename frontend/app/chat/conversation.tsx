@@ -17,7 +17,7 @@ import {
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { useChat } from '../context/ChatContext';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 const { width } = Dimensions.get('window');
 
@@ -177,7 +177,7 @@ export default function ConversationScreen() {
       setMessages((prev) =>
         prev.map((m) => m.id === tempId ? { ...m, pending: false, failed: true } : m)
       );
-      Toast.show({ type: 'error', text1: 'Failed to send', text2: 'Tap to retry.' });
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Failed to send', message: 'Tap to retry.' });
     } finally { setSending(false); setReplyTo(null); }
   };
 
@@ -192,20 +192,20 @@ export default function ConversationScreen() {
   const doCopy = () => {
     if (!selectedMsg) return;
     Clipboard.setString(selectedMsg.content); setMenuVisible(false);
-    Toast.show({ type: 'success', text1: 'Copied to clipboard' });
+    CustomInAppCustomInAppToast.show({ type: 'success', title: 'Copied to clipboard' });
   };
   const doDelete = () => {
     if (!selectedMsg) return;
     if (selectedMsg.sender_id !== currentUserId) {
       setMenuVisible(false);
-      Toast.show({ type: 'error', text1: 'You can only delete your own messages.' }); return;
+      CustomInAppCustomInAppToast.show({ type: 'error', title: 'You can only delete your own messages.' }); return;
     }
     setMenuVisible(false);
     Alert.alert('Delete Message', 'Remove this message?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
           try { await apiDeleteMessage(selectedMsg.id); setMessages((p) => p.filter((m) => m.id !== selectedMsg.id)); }
-          catch { Toast.show({ type: 'error', text1: 'Could not delete.' }); }
+          catch { CustomInAppCustomInAppToast.show({ type: 'error', title: 'Could not delete.' }); }
         },
       },
     ]);

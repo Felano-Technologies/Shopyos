@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAdminAuditLogs } from '@/services/api';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 
@@ -26,7 +26,7 @@ export default function AdminAuditLogs() {
             const data = Array.isArray(res?.logs) ? res.logs : (Array.isArray(res) ? res : []);
             setLogs(data);
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to load logs' });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load logs' });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -67,7 +67,7 @@ export default function AdminAuditLogs() {
         // Simulation of export logic
         setTimeout(() => {
             setIsExporting(false);
-            Toast.show({ type: 'success', text1: 'Export Ready', text2: 'Log report has been generated.' });
+            CustomInAppCustomInAppToast.show({ type: 'success', title: 'Export Ready', message: 'Log report has been generated.' });
         }, 1500);
     };
 

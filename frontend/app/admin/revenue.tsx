@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAdminRevenue, getAdminDashboard } from '@/services/api';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 export default function AdminRevenue() {
     const router = useRouter();
@@ -24,7 +24,7 @@ export default function AdminRevenue() {
             const txs = Array.isArray(revRes?.transactions) ? revRes.transactions : [];
             setTransactions(txs);
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: err.message || 'Failed to load revenue' });
+            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load revenue' });
         } finally {
             setLoading(false);
             setRefreshing(false);
