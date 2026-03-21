@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,20 +21,44 @@ import { getUserData, getNotificationPreferences, updateNotificationPreferences,
 export default function SettingsScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('User');
-  const [email, setEmail] = useState('user@example.com'); // Mock email
+  const [email, setEmail] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
 
+  // Skeleton Animation Value
+  const skeletonAnim = React.useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(skeletonAnim, {
+          toValue: 0.8,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(skeletonAnim, {
+          toValue: 0.4,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       const fetchUserData = async () => {
+        setIsLoading(true);
         try {
           const userData = await getUserData();
           if (userData) {
             setUsername(userData.name || 'User');
             setEmail(userData.email || '');
+            setAvatarUrl(userData.avatar_url || null);
           }
 
           const prefs = await getNotificationPreferences();
@@ -42,6 +67,8 @@ export default function SettingsScreen() {
           }
         } catch (error) {
           console.log('Error loading settings', error);
+        } finally {
+          setIsLoading(false);
         }
       };
       fetchUserData();
@@ -122,18 +149,32 @@ export default function SettingsScreen() {
             <Text style={styles.screenTitle}>Settings</Text>
 
             {/* Profile Card */}
-            <View style={styles.profileCard}>
-              <View style={styles.avatarContainer}>
-                <Text style={styles.avatarText}>{username.charAt(0)}</Text>
+            {isLoading ? (
+              <View style={styles.profileCard}>
+                <Animated.View style={[styles.avatarSkeleton, { opacity: skeletonAnim }]} />
+                <View style={styles.profileInfo}>
+                  <Animated.View style={[styles.nameSkeleton, { opacity: skeletonAnim }]} />
+                  <Animated.View style={[styles.emailSkeleton, { opacity: skeletonAnim }]} />
+                </View>
               </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{username}</Text>
-                <Text style={styles.profileEmail}>{email}</Text>
+            ) : (
+              <View style={styles.profileCard}>
+                <View style={styles.avatarContainer}>
+                  {avatarUrl ? (
+                    <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarText}>{username.charAt(0)}</Text>
+                  )}
+                </View>
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>{username}</Text>
+                  <Text style={styles.profileEmail}>{email}</Text>
+                </View>
+                <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')}>
+                  <Feather name="edit-2" size={16} color="#FFF" />
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')}>
-                <Feather name="edit-2" size={16} color="#FFF" />
-              </TouchableOpacity>
-            </View>
+            )}
           </View>
         </SafeAreaView>
       </View>
@@ -280,11 +321,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#FFF',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
   },
   avatarText: {
     fontSize: 24,
     fontFamily: 'Montserrat-Bold',
     color: '#0C1559',
+  },
+  
+  // Skeleton Styles
+  avatarSkeleton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  nameSkeleton: {
+    width: 120,
+    height: 18,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  emailSkeleton: {
+    width: 160,
+    height: 14,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 6,
   },
   profileInfo: {
     flex: 1,

@@ -7,6 +7,7 @@ import Toast from 'react-native-toast-message';
 import { useRouter, usePathname } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 export const useNotifications = () => {
   const queryClient = useQueryClient();
@@ -82,15 +83,10 @@ export const useUnreadNotificationCount = () => {
           })
           .catch((err) => console.warn('Failed to play notification sound:', err));
 
-        Toast.show({
-          type: 'success', // generic green toast
-          text1: data.title,
-          text2: data.message,
-          position: 'top',
-          onPress: () => {
-            router.push('/notification');
-            Toast.hide();
-          }
+        CustomInAppToast.show({
+          title: data.title,
+          message: data.message,
+          data: data,
         });
       }
     };

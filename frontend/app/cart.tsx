@@ -1,184 +1,25 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Dimensions, Platform, Alert, Modal, TextInput, ScrollView, KeyboardAvoidingView, Animated, PanResponder, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from './context/CartContext';
-import { createOrder, addToCart as apiAddToCart, clearBackendCart, getUserData, getPaymentMethods } from '@/services/api';
-import Toast from 'react-native-toast-message';
-const { width, height } = Dimensions.get('window');
+const { width } = (require('react-native')).Dimensions.get('window');
 
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
 
-  const { items: cartItems, removeFromCart, updateQuantity, clearCart } = useCart();
+  const { items: cartItems, removeFromCart, updateQuantity } = useCart();
 
-  // Simplified Calculation States
-  const [subtotal, setSubtotal] = useState(0);
-  const [total, setTotal] = useState(0);
-
-  const [modalVisible, setModalVisible] = useState(false);
-  const [paymentMethodType, setPaymentMethodType] = useState<'momo' | 'card' | 'cod'>('momo');
-  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
-  const [savedMethods, setSavedMethods] = useState<any[]>([]);
-  const [saveAddress, setSaveAddress] = useState(false);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryPhone, setDeliveryPhone] = useState('');
-  const [isOrdering, setIsOrdering] = useState(false);
-  const [isPreloading, setIsPreloading] = useState(false);
-
-  // --- Modal Animation ---
-  const panY = useRef(new Animated.Value(0)).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 0,
-      onPanResponderMove: (_, gestureState) => { if (gestureState.dy > 0) panY.setValue(gestureState.dy); },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy > 150) closeModal();
-        else Animated.spring(panY, { toValue: 0, useNativeDriver: true }).start();
-      },
-    })
-  ).current;
-
-  const closeModal = () => {
-    Animated.timing(panY, { toValue: height, duration: 300, useNativeDriver: true }).start(() => {
-      setModalVisible(false);
-      panY.setValue(0);
-    });
-  };
+  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false, tabBarStyle: { display: 'none' }, presentation: 'card' });
-    navigation.getParent()?.setOptions({ tabBarStyle: { display: "none" } });
-    return () => { navigation.getParent()?.setOptions({ tabBarStyle: { display: "flex" } }); };
+    navigation.setOptions({ headerShown: false });
   }, [navigation]);
 
-  // --- Simplified Calculations ---
-  useEffect(() => {
-    const baseTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-    setSubtotal(baseTotal);
-    setTotal(baseTotal);
-  }, [cartItems]);
-
-  const handleCheckoutPress = async () => {
-    if (cartItems.length === 0) return;
-    try {
-      setIsPreloading(true);
-      const [profileResponse, paymentResponse] = await Promise.all([
-        getUserData(),
-        getPaymentMethods()
-      ]);
-
-      const profile = profileResponse.user || profileResponse;
-      if (profile) {
-        setDeliveryAddress(profile.address_line1 || '');
-        setDeliveryPhone(profile.phone || '');
-      }
-
-      if (paymentResponse && paymentResponse.success) {
-        setSavedMethods(paymentResponse.data);
-        const defaultMethod = paymentResponse.data.find((m: any) => m.is_default);
-        if (defaultMethod) {
-          setPaymentMethodType(defaultMethod.type);
-          setSelectedMethodId(defaultMethod.id);
-        }
-      }
-    } catch (error) {
-      console.log('Error pre-loading checkout info:', error);
-    } finally {
-      setIsPreloading(false);
-      setModalVisible(true);
-    }
-  };
-
-  const handleFinalPayment = async () => {
-    if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
-      Toast.show({ type: 'error', text1: 'Required Info', text2: 'Please provide address and phone number.' });
-      return;
-    }
-
-    try {
-      setIsOrdering(true);
-      await clearBackendCart().catch(() => { });
-      for (const item of cartItems) {
-        await apiAddToCart(item.id, item.quantity);
-      }
-
-      const res = await createOrder({
-        deliveryAddress: deliveryAddress,
-        deliveryCity: 'Accra',
-        deliveryCountry: 'Ghana',
-        deliveryPhone: deliveryPhone,
-        paymentMethod: paymentMethodType,
-        paymentMethodId: selectedMethodId
-      });
-
-      if (res.success) {
-        closeModal();
-        clearCart();
-        await clearBackendCart().catch(() => { });
-        const orderId = res.orders[0].id;
-
-        if (paymentMethodType === 'cod') {
-          Alert.alert("Order Placed!", `Order #: ${res.orders[0].order_number}`, [{ text: "OK", onPress: () => router.push(`/order/${orderId}` as any) }]);
-        } else {
-          router.push({ pathname: `/payment/${orderId}`, params: { method: paymentMethodType, methodId: selectedMethodId } } as any);
-        }
-      }
-    } catch (e: any) {
-      Toast.show({ type: 'error', text1: 'Order Failed', text2: e.message || 'Please try again.' });
-    } finally {
-      setIsOrdering(false);
-    }
-  };
-
-  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card' | 'cod', icon: any, label: string, sub: string }) => {
-    const isSelected = paymentMethodType === type;
-    const filteredSaved = savedMethods.filter(m => m.type === type);
-
-    return (
-      <View style={{ marginBottom: 12 }}>
-        <TouchableOpacity
-          style={[styles.paymentOption, isSelected && styles.paymentOptionSelected]}
-          onPress={() => {
-            setPaymentMethodType(type);
-            if (filteredSaved.length > 0) {
-              const defaultForType = filteredSaved.find(m => m.is_default) || filteredSaved[0];
-              setSelectedMethodId(defaultForType.id);
-            } else {
-              setSelectedMethodId(null);
-            }
-          }}
-        >
-          <View style={[styles.optionIconContainer, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <MaterialCommunityIcons name={icon} size={24} color={isSelected ? '#FFF' : '#0C1559'} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 15 }}>
-            <Text style={[styles.optionLabel, isSelected && { color: '#FFF' }]}>{label}</Text>
-            <Text style={[styles.optionSub, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
-          </View>
-          <View style={[styles.radioOuter, isSelected && { borderColor: '#FFF' }]}>
-            {isSelected && <View style={[styles.radioInner, { backgroundColor: '#FFF' }]} />}
-          </View>
-        </TouchableOpacity>
-
-        {isSelected && filteredSaved.length > 0 && (
-          <View style={styles.savedMethodsContainer}>
-            {filteredSaved.map(m => (
-              <TouchableOpacity key={m.id} style={[styles.savedMethodItem, selectedMethodId === m.id && styles.savedMethodItemActive]} onPress={() => setSelectedMethodId(m.id)}>
-                <Ionicons name={selectedMethodId === m.id ? "checkmark-circle" : "ellipse-outline"} size={18} color={selectedMethodId === m.id ? "#A3E635" : "#64748B"} />
-                <Text style={[styles.savedMethodText, selectedMethodId === m.id && styles.savedMethodTextActive]}>{m.title} ({m.type === 'card' ? `**** ${m.identifier.slice(-4)}` : m.identifier})</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  };
 
   return (
     <View style={styles.container}>
@@ -233,7 +74,7 @@ export default function CartScreen() {
             <Text style={styles.summaryLabel}>Order Total</Text>
             <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
           </View>
-          <TouchableOpacity style={styles.checkoutBtn} onPress={handleCheckoutPress}>
+          <TouchableOpacity style={styles.checkoutBtn} onPress={() => router.push('/checkout' as any)}>
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
               <Text style={styles.checkoutText}>Checkout</Text>
               <Feather name="arrow-right" size={20} color="#FFF" />
@@ -242,61 +83,6 @@ export default function CartScreen() {
         </View>
       )}
 
-      <Modal animationType="fade" transparent={true} visible={modalVisible} onRequestClose={closeModal}>
-        <View style={styles.modalOverlay}>
-          <Animated.View style={[styles.modalContent, { transform: [{ translateY: panY }] }]} {...panResponder.panHandlers}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-              <View style={styles.handleArea}><View style={styles.modalHandle} /></View>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-                <Text style={styles.modalTitle}>Checkout Details</Text>
-
-                <View style={styles.billContainer}>
-                  <View style={styles.billRow}><Text style={styles.billLabel}>Items Total</Text><Text style={styles.billValue}>₵{subtotal.toFixed(2)}</Text></View>
-                  <View style={[styles.divider, { backgroundColor: '#E2E8F0', marginVertical: 15 }]} />
-                  <View style={styles.billRow}><Text style={styles.totalLabelLarge}>Total Payable</Text><Text style={styles.totalValueLarge}>₵{total.toFixed(2)}</Text></View>
-                </View>
-
-                <Text style={[styles.modalSectionTitle, { marginTop: 20 }]}>Delivery Information</Text>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Delivery Address</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons name="location-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                    <TextInput style={styles.modalInput} placeholder="House No, Street Name, Area" value={deliveryAddress} onChangeText={setDeliveryAddress} />
-                  </View>
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>Phone Number</Text>
-                  <View style={styles.inputWrapper}>
-                    <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
-                    <TextInput style={styles.modalInput} placeholder="024 XXX XXXX" value={deliveryPhone} onChangeText={setDeliveryPhone} keyboardType="phone-pad" />
-                  </View>
-                </View>
-
-                <View style={styles.checkboxRow}>
-                  <TouchableOpacity style={[styles.checkbox, saveAddress && styles.checkboxChecked]} onPress={() => setSaveAddress(!saveAddress)}>
-                    {saveAddress && <Ionicons name="checkmark" size={14} color="#FFF" />}
-                  </TouchableOpacity>
-                  <Text style={styles.checkboxLabel}>Save delivery information for next time</Text>
-                </View>
-
-                <Text style={styles.modalSectionTitle}>Payment Method</Text>
-
-                <PaymentOption type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money" />
-                <PaymentOption type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX" />
-                <PaymentOption type="cod" icon="cash-multiple" label="Cash on Delivery" sub="Pay when you receive" />
-
-                <TouchableOpacity style={[styles.payButton, isOrdering && { opacity: 0.7 }]} onPress={handleFinalPayment} disabled={isOrdering}>
-                  <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.payGradient}>
-                    {isOrdering ? <ActivityIndicator color="#FFF" /> : <Text style={styles.payButtonText}>Place Order • ₵{total.toFixed(2)}</Text>}
-                  </LinearGradient>
-                </TouchableOpacity>
-              </ScrollView>
-            </KeyboardAvoidingView>
-          </Animated.View>
-        </View>
-      </Modal>
     </View>
   );
 }

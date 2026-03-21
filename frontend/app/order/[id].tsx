@@ -165,14 +165,15 @@ const OrderDetailsScreen = () => {
   const itemsSubtotal: number = (order.order_items ?? []).reduce(
     (sum: number, i: any) => sum + parseFloat(i.price || 0) * (i.quantity || 1), 0
   );
-  const deliveryFee: number   = parseFloat(order.delivery_fee  || 0);
-  const discount: number      = parseFloat(order.discount      || 0);
+  const deliveryFee: number = parseFloat(order.delivery_fee  || 0);
+  const taxAmount: number   = parseFloat(order.tax           || 0);
+  const discount: number    = parseFloat(order.discount      || 0);
 
   // Use total_amount from backend if present, otherwise compute from items
   const grandTotal: number =
     order.total_amount
       ? parseFloat(order.total_amount)
-      : itemsSubtotal + deliveryFee - discount;
+      : itemsSubtotal + deliveryFee + taxAmount - discount;
 
   // Date string
   let dateStr = '';
@@ -195,7 +196,7 @@ const OrderDetailsScreen = () => {
           <Text style={S.hdrTitle}>Order Tracking</Text>
           <TouchableOpacity
             style={S.hdrBtn}
-            onPress={() => router.push({ pathname: '/order/tracking', params: { orderId: order.id } })}
+          onPress={() => router.push({ pathname: '/order/tracking', params: { orderId: order.id, deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', orderNumber: order.order_number } })}
           >
             <Feather name="map" size={rs(18)} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
@@ -262,7 +263,7 @@ const OrderDetailsScreen = () => {
           <TouchableOpacity
             style={S.trackingHint}
             activeOpacity={0.85}
-            onPress={() => router.push({ pathname: '/order/tracking', params: { orderId: order.id } })}
+            onPress={() => router.push({ pathname: '/order/tracking', params: { orderId: order.id, deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', orderNumber: order.order_number } })}
           >
             <View style={S.trackingHintIcon}>
               <Ionicons name="map-outline" size={rs(22)} color={C.limeText} />
@@ -339,7 +340,7 @@ const OrderDetailsScreen = () => {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={S.infoLbl}>Drop-off Address</Text>
-                <Text style={S.infoVal}>{order.delivery_address || 'N/A'}</Text>
+                <Text style={S.infoVal}>{order.delivery_address_line1 || order.delivery_address || 'N/A'}</Text>
               </View>
             </View>
             {order.delivery_phone && (
@@ -401,6 +402,13 @@ const OrderDetailsScreen = () => {
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Delivery fee</Text>
                 <Text style={S.priceVal}>₵{deliveryFee.toFixed(2)}</Text>
+              </View>
+            )}
+
+            {taxAmount > 0 && (
+              <View style={S.priceRow}>
+                <Text style={S.priceLbl}>Taxes & fees (VAT, NHIL, GETFund)</Text>
+                <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
               </View>
             )}
 

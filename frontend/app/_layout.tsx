@@ -14,6 +14,7 @@ import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
+import { InAppToastHost } from '../components/InAppToastHost';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
@@ -171,7 +172,8 @@ function AppContent() {
               <Stack.Screen name="categories/[id]" options={{ animation: 'fade_from_bottom' }} />
               <Stack.Screen name="chat/index" />
               <Stack.Screen name="chat/conversation" />
-              <Stack.Screen name="cart" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="cart" options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="checkout" options={{ animation: 'slide_from_right' }} />
 
 
               <Stack.Screen name="stores/details" />
@@ -199,6 +201,7 @@ function AppContent() {
 
             <StatusBar style="auto" />
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
+            <InAppToastHost />
           </View>
         </ThemeProvider>
       </ChatProvider>

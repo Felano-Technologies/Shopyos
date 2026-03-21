@@ -17,7 +17,9 @@ import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 import { useChat } from './context/ChatContext';
-import { getPromotedProducts, recordAdClick, getUserData } from '@/services/api';
+import { getPromotedProducts, recordAdClick, getUserData, storage } from '@/services/api';
+import { useCart } from './context/CartContext';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 const { width } = Dimensions.get('window');
 
@@ -69,6 +71,12 @@ export default function Home() {
   const unreadCount = buyerConversations?.reduce(
     (acc: number, c: any) => acc + (c.unread || 0), 0
   ) || 0;
+
+  const { items: cartItems } = useCart();
+  const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+  const { data: notifData } = useUnreadNotificationCount();
+  const unreadNotifCount = notifData?.unreadCount ?? 0;
 
   const { data: categoriesData } = useCategories();
   const allCatNames    = ['All', ...(categoriesData || []).map((c: any) => c.name)];
@@ -166,28 +174,81 @@ export default function Home() {
 
   // ── Location ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    let sub: Location.LocationSubscription | null = null;
     (async () => {
-      const cached = await AsyncStorage.getItem('CACHED_LOCATION_TEXT');
-      if (cached) setLocationText(cached);
+      // 1. Set from cached text instantly
+      const cachedTxt = await storage.getItem('CACHED_LOCATION_TEXT');
+      const cachedCoordsStr = await storage.getItem('CACHED_LOCATION_COORDS');
+      if (cachedTxt) setLocationText(cachedTxt);
+
+      // 2. Try fetching Live GPS first
+      let liveCoords = null;
       const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') { if (!cached) setLocationText('Location unavailable'); return; }
-      sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.Balanced, distanceInterval: 100, timeInterval: 60_000 },
-        async ({ coords: { latitude, longitude } }) => {
-          try {
-            const [info] = await Location.reverseGeocodeAsync({ latitude, longitude });
-            if (info) {
-              const { city, region, country } = info;
-              const txt = `${city ?? region ?? country ?? 'Unknown'}${country ? `, ${country}` : ''}`;
-              setLocationText(txt);
-              await AsyncStorage.setItem('CACHED_LOCATION_TEXT', txt);
-            }
-          } catch {}
+      if (status === 'granted') {
+        try {
+          const currentLoc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          liveCoords = { latitude: currentLoc.coords.latitude, longitude: currentLoc.coords.longitude };
+        } catch (e) {
+          console.log('Live GPS error', e);
         }
-      );
+      }
+
+      // 3. Fallback to profile Data if no live GPS
+      if (!liveCoords) {
+        try {
+          const userData = await getUserData();
+          if (userData?.latitude && userData?.longitude) {
+            liveCoords = { latitude: userData.latitude, longitude: userData.longitude };
+          } else if (userData?.city) {
+            const profileLoc = userData.city + (userData.country ? `, ${userData.country}` : '');
+            if (profileLoc !== cachedTxt) {
+              setLocationText(profileLoc);
+              await storage.setItem('CACHED_LOCATION_TEXT', profileLoc);
+            }
+            return; // We have a city, no need to geocode.
+          }
+        } catch (err) {
+          console.log('Profile location fallback error', err);
+        }
+      }
+
+      // 4. Reverse Geocode ONLY if moved significantly or no cache
+      if (liveCoords) {
+        let shouldGeocode = !cachedTxt;
+        if (cachedCoordsStr) {
+          try {
+            const cachedCoords = JSON.parse(cachedCoordsStr);
+            // ~500m threshold difference
+            const latDiff = Math.abs(cachedCoords.latitude - liveCoords.latitude);
+            const lonDiff = Math.abs(cachedCoords.longitude - liveCoords.longitude);
+            if (latDiff > 0.005 || lonDiff > 0.005) {
+              shouldGeocode = true;
+            }
+          } catch(e) {}
+        } else {
+          shouldGeocode = true;
+        }
+
+        if (shouldGeocode) {
+          try {
+            const [info] = await Location.reverseGeocodeAsync({ 
+              latitude: liveCoords.latitude, 
+              longitude: liveCoords.longitude 
+            });
+
+            if (info) {
+              const txt = `${info.city ?? info.region ?? info.country ?? 'Unknown'}${info.country ? `, ${info.country}` : ''}`;
+              setLocationText(txt);
+              await storage.setItem('CACHED_LOCATION_TEXT', txt);
+              await storage.setItem('CACHED_LOCATION_COORDS', JSON.stringify(liveCoords));
+            }
+          } catch (e) {
+            console.log('Geocoding rate limit hit / failed', e);
+          }
+        }
+      } else if (!cachedTxt) {
+        setLocationText('Location unavailable');
+      }
     })();
-    return () => { sub?.remove(); };
   }, []);
 
   // ── Card stagger animation ──────────────────────────────────────────────────
@@ -356,11 +417,15 @@ export default function Home() {
               <View style={S.headerActions}>
                 <TouchableOpacity style={S.headerBtn} onPress={() => router.push('/cart' as any)}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
-                  <View style={S.hdrBadge}><Text style={S.hdrBadgeTxt}>2</Text></View>
+                  {cartCount > 0 && (
+                    <View style={S.hdrBadge}><Text style={S.hdrBadgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text></View>
+                  )}
                 </TouchableOpacity>
                 <TouchableOpacity style={S.headerBtn} onPress={() => router.push('/notification' as any)}>
                   <Ionicons name="notifications-outline" size={18} color="rgba(255,255,255,0.85)" />
-                  <View style={S.hdrBadge}><Text style={S.hdrBadgeTxt}>3</Text></View>
+                  {unreadNotifCount > 0 && (
+                    <View style={S.hdrBadge}><Text style={S.hdrBadgeTxt}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text></View>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
@@ -530,8 +595,8 @@ const S = StyleSheet.create({
   locationRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
   locationTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.55)', maxWidth: width * 0.55 },
   headerMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  greeting:      { fontSize: 19, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, marginRight: 8 },
-  headerActions: { flexDirection: 'row', gap: 8 },
+  greeting:      { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, marginRight: 8 },
+  headerActions: { flexDirection: 'row', gap: 8, marginBottom: 7 },
   headerBtn: {
     width: 38, height: 38, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.11)',
