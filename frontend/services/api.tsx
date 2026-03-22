@@ -1536,3 +1536,59 @@ export const rejectDriverVerification = async (id: string, reason: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+// ─── Advertising / Banner Campaigns ──────────────────────────────────────────
+
+export const createBannerCampaign = async (formData: FormData) => {
+  try {
+    const response = await api.post('/advertising/banners', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getMyBannerCampaigns = async () => {
+  try {
+    const response = await api.get('/advertising/banners/my');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAllBannerCampaigns = async () => {
+  try {
+    const response = await api.get('/advertising/banners/all');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateBannerCampaignStatus = async (
+  campaignId: string,
+  status: 'Active' | 'Rejected',
+  reason?: string
+) => {
+  try {
+    const response = await api.put(`/advertising/banners/${campaignId}/status`, {
+      status,
+      reason,
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getActiveBanners = async () => {
+  try {
+    const response = await api.get('/advertising/banners/active');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

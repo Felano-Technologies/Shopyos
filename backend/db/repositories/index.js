@@ -18,6 +18,7 @@ const NotificationRepository = require('./NotificationRepository');
 const FavoriteRepository = require('./FavoriteRepository');
 const AdminRepository = require('./AdminRepository');
 const PromotedProductRepository = require('./PromotedProductRepository');
+const BannerCampaignRepository = require('./BannerCampaignRepository');
 const PayoutRepository = require('./PayoutRepository');
 const ReportRepository = require('./ReportRepository');
 const AuditLogRepository = require('./AuditLogRepository');
@@ -40,6 +41,7 @@ const repositories = {
   favorites: new FavoriteRepository(supabaseAdmin),
   admin: new AdminRepository(supabaseAdmin),
   promotedProducts: new PromotedProductRepository(supabaseAdmin),
+  bannerCampaigns: new BannerCampaignRepository(supabaseAdmin),
   payouts: new PayoutRepository(supabaseAdmin),
   reports: new ReportRepository(supabaseAdmin),
   auditLogs: new AuditLogRepository(supabaseAdmin),

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Modal, Image, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform
@@ -10,16 +10,14 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
+import { 
+  getAllBannerCampaigns, 
+  updateBannerCampaignStatus 
+} from '@/services/api';
+
 const { width, height } = Dimensions.get('window');
 
 type AdStatus = 'Pending' | 'Active' | 'Rejected' | 'Completed';
-
-// --- Mock Data ---
-const MOCK_ADS = [
-  { id: '1', storeName: 'Sneaker Hub', title: 'Weekend Flash Sale', placement: 'Home Top Banner', duration: 3, paid: 150, status: 'Pending', banner: 'https://images.unsplash.com/photo-1600185365483-26d7a4cc7519?auto=format&fit=crop&w=800&q=80', date: '2026-03-21' },
-  { id: '2', storeName: 'Tech World', title: 'New iPhone Drop', placement: 'Search Highlight', duration: 7, paid: 210, status: 'Active', banner: 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?auto=format&fit=crop&w=800&q=80', date: '2026-03-20' },
-  { id: '3', storeName: 'Beauty Bliss', title: 'Skincare Promo', placement: 'Category Featured', duration: 5, paid: 100, status: 'Pending', banner: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=800&q=80', date: '2026-03-21' },
-];
 
 const FILTER_TABS: AdStatus[] = ['Pending', 'Active', 'Completed', 'Rejected'];
 
@@ -27,7 +25,8 @@ export default function AdminAds() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
-  const [ads, setAds] = useState(MOCK_ADS);
+  const [ads, setAds] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<AdStatus>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -38,50 +37,80 @@ export default function AdminAds() {
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  const fetchAds = async () => {
+    try {
+      setLoading(true);
+      const res = await getAllBannerCampaigns();
+      if (res.success) {
+        setAds(res.campaigns || []);
+      }
+    } catch (error) {
+      console.error('Fetch ads error:', error);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load ad campaigns' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAds();
+  }, []);
+
   const filteredAds = ads.filter(ad => 
     ad.status === filter && 
-    (ad.storeName.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    ((ad.store?.store_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
      ad.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   const pendingCount = ads.filter(a => a.status === 'Pending').length;
 
-  const handleApprove = (id: string) => {
-    setActionLoading(id);
-    setTimeout(() => {
-      setAds(prev => prev.map(ad => ad.id === id ? { ...ad, status: 'Active' } : ad));
-      Toast.show({ type: 'success', text1: 'Ad Approved', text2: 'The campaign is now live on the platform.' });
+  const handleApprove = async (id: string) => {
+    try {
+      setActionLoading(id);
+      const res = await updateBannerCampaignStatus(id, 'Active');
+      if (res.success) {
+        setAds(prev => prev.map(ad => ad.id === id ? { ...ad, status: 'Active' } : ad));
+        Toast.show({ type: 'success', text1: 'Ad Approved', text2: 'The campaign is now live on the platform.' });
+      }
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.message || 'Approval failed' });
+    } finally {
       setActionLoading(null);
-    }, 1000);
+    }
   };
 
-  const handleReject = () => {
+  const handleReject = async () => {
     if (!targetAd || !rejectReason.trim()) return;
-    setActionLoading(targetAd.id);
-    
-    setTimeout(() => {
-      setAds(prev => prev.map(ad => ad.id === targetAd.id ? { ...ad, status: 'Rejected' } : ad));
-      Toast.show({ type: 'success', text1: 'Ad Rejected', text2: `Refund of ₵${targetAd.paid} queued for merchant.` });
-      setRejectModal(false);
-      setTargetAd(null);
-      setRejectReason('');
+    try {
+      setActionLoading(targetAd.id);
+      const res = await updateBannerCampaignStatus(targetAd.id, 'Rejected', rejectReason.trim());
+      if (res.success) {
+        setAds(prev => prev.map(ad => ad.id === targetAd.id ? { ...ad, status: 'Rejected' } : ad));
+        Toast.show({ type: 'success', text1: 'Ad Rejected', text2: `Rejection recorded. Refund of ₵${targetAd.paid_amount} queued.` });
+        setRejectModal(false);
+        setTargetAd(null);
+        setRejectReason('');
+      }
+    } catch (error: any) {
+      Toast.show({ type: 'error', text1: 'Error', text2: error.message || 'Rejection failed' });
+    } finally {
       setActionLoading(null);
-    }, 1000);
+    }
   };
 
-  const AdCard = ({ item }: { item: typeof MOCK_ADS[0] }) => (
+  const AdCard = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={styles.storeInfo}>
           <MaterialCommunityIcons name="storefront-outline" size={16} color="#0C1559" />
-          <Text style={styles.storeName}>{item.storeName}</Text>
+          <Text style={styles.storeName}>{item.store?.store_name || 'Unknown Store'}</Text>
         </View>
-        <Text style={styles.dateText}>{item.date}</Text>
+        <Text style={styles.dateText}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</Text>
       </View>
 
       <View style={styles.cardBody}>
-        <TouchableOpacity style={styles.bannerPreview} onPress={() => setPreviewImage(item.banner)}>
-          <Image source={{ uri: item.banner }} style={styles.bannerImg} />
+        <TouchableOpacity style={styles.bannerPreview} onPress={() => setPreviewImage(item.banner_url)}>
+          <Image source={{ uri: item.banner_url }} style={styles.bannerImg} />
           <View style={styles.zoomOverlay}>
             <Feather name="zoom-in" size={16} color="#FFF" />
           </View>
@@ -95,10 +124,10 @@ export default function AdminAds() {
           </View>
           <View style={styles.detailRow}>
             <Feather name="clock" size={12} color="#64748B" />
-            <Text style={styles.detailText}>{item.duration} Days</Text>
+            <Text style={styles.detailText}>{item.duration_days} Days</Text>
           </View>
           <View style={styles.paidBadge}>
-            <Text style={styles.paidText}>Paid: ₵{item.paid}</Text>
+            <Text style={styles.paidText}>Paid: ₵{item.paid_amount}</Text>
           </View>
         </View>
       </View>
