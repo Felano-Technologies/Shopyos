@@ -11,7 +11,16 @@ const PRICING = {
 exports.createCampaign = async (req, res, next) => {
   try {
     const { title, placement, duration } = req.body;
-    const store_id = req.store.id;
+    
+    // Get user's store
+    const storeResults = await repositories.stores.findByOwner(req.user.id);
+    const store = Array.isArray(storeResults) ? storeResults[0] : (storeResults?.data?.[0] || storeResults.data);
+    
+    if (!store) {
+      return res.status(404).json({ error: 'No store found for this account. Please create a store first.' });
+    }
+    
+    const store_id = store.id;
 
     if (!title || !placement || !duration) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -46,7 +55,15 @@ exports.createCampaign = async (req, res, next) => {
 
 exports.getMyCampaigns = async (req, res, next) => {
   try {
-    const store_id = req.store.id;
+    // Get user's store
+    const storeResults = await repositories.stores.findByOwner(req.user.id);
+    const store = Array.isArray(storeResults) ? storeResults[0] : (storeResults?.data?.[0] || storeResults.data);
+    
+    if (!store) {
+      return res.status(200).json({ success: true, campaigns: [] });
+    }
+
+    const store_id = store.id;
     const campaigns = await repositories.bannerCampaigns.getMyCampaigns(store_id);
     res.status(200).json({ success: true, campaigns });
   } catch (error) {
@@ -66,27 +83,16 @@ exports.getAllCampaigns = async (req, res, next) => {
 exports.updateCampaignStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body; // 'Active' or 'Rejected'
+    const { status, reason } = req.body; // 'Approved' or 'Rejected'
 
     let updateData = { status };
     if (status === 'Rejected') {
       updateData.rejection_reason = reason;
-    } else if (status === 'Active') {
-      updateData.start_date = new Date().toISOString();
-      const end = new Date();
-      // Needs fetching the campaign duration first
-      const campaign = await repositories.bannerCampaigns.supabase.from('banner_campaigns').select('duration_days').eq('id', id).single();
-      end.setDate(end.getDate() + (campaign.data.duration_days || 0));
-      updateData.end_date = end.toISOString();
-    }
+    } 
+    // Admin approving only moves it to 'Approved' (Waiting for Payment)
+    // It becomes 'Active' only after verifyPayment
 
     const updated = await repositories.bannerCampaigns.updateCampaign(id, updateData);
-
-    // If rejected, process refund (Simulated)
-    if (status === 'Rejected' && updated.paid_amount > 0) {
-      // Add logic to refund to wallet
-      logger.info(`Simulated Refund: Returning ${updated.paid_amount} to store ${updated.store_id}`);
-    }
 
     res.status(200).json({ success: true, campaign: updated });
   } catch (error) {
@@ -98,6 +104,128 @@ exports.getActiveBanners = async (req, res, next) => {
   try {
     const activeAds = await repositories.bannerCampaigns.getActiveBanners();
     res.status(200).json({ success: true, banners: activeAds });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const axios = require('axios');
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+const PAYSTACK_BASE_URL = 'https://api.paystack.co';
+
+/**
+ * Initialize Campaign Payment
+ * @route   POST /api/advertising/banners/pay-initialize
+ */
+exports.initializeCampaignPayment = async (req, res, next) => {
+  try {
+    const { campaignId, email } = req.body;
+    
+    if (!campaignId || !email) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // Fetch campaign details
+    const { data: campaign, error: fetchErr } = await repositories.bannerCampaigns.supabase
+      .from('banner_campaigns')
+      .select('*')
+      .eq('id', campaignId)
+      .single();
+
+    if (fetchErr || !campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+
+    if (campaign.status !== 'Approved') {
+      return res.status(400).json({ error: 'Campaign must be approved by admin before payment' });
+    }
+
+    const amountInPesewas = Math.round(campaign.paid_amount * 100);
+
+    const payload = {
+      email,
+      amount: amountInPesewas,
+      currency: 'GHS',
+      metadata: {
+        type: 'BANNER_AD',
+        campaignId: campaign.id,
+        userId: req.user.id
+      }
+    };
+
+    const response = await axios.post(
+      `${PAYSTACK_BASE_URL}/transaction/initialize`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.data.status) {
+      return res.status(400).json({ success: false, error: response.data.message });
+    }
+
+    // Update campaign with reference
+    await repositories.bannerCampaigns.updateCampaign(campaignId, {
+      paystack_reference: response.data.data.reference
+    });
+
+    res.status(200).json({
+      success: true,
+      data: response.data.data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Verify Campaign Payment
+ * @route   GET /api/advertising/banners/verify/:reference
+ */
+exports.verifyCampaignPayment = async (req, res, next) => {
+  try {
+    const { reference } = req.params;
+    
+    const response = await axios.get(
+      `${PAYSTACK_BASE_URL}/transaction/verify/${encodeURIComponent(reference)}`,
+      {
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
+      }
+    );
+
+    const txn = response.data.data;
+    if (response.data.status && txn.status === 'success') {
+      const campaignId = txn.metadata?.campaignId;
+      
+      // Update campaign to Active
+      const duration = txn.metadata?.duration || 0;
+      const start = new Date();
+      const end = new Date();
+      
+      // Fetch duration if not in metadata
+      const { data: existing } = await repositories.bannerCampaigns.supabase
+        .from('banner_campaigns')
+        .select('duration_days')
+        .eq('id', campaignId)
+        .single();
+      
+      const days = duration || existing?.duration_days || 0;
+      end.setDate(start.getDate() + days);
+
+      await repositories.bannerCampaigns.updateCampaign(campaignId, {
+        status: 'Active',
+        start_date: start.toISOString(),
+        end_date: end.toISOString()
+      });
+
+      res.status(200).json({ success: true, message: 'Payment verified and Ad is now Active' });
+    } else {
+      res.status(400).json({ success: false, error: 'Payment not successful' });
+    }
   } catch (error) {
     next(error);
   }

@@ -8,7 +8,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 import { 
   getAllBannerCampaigns, 
@@ -17,9 +17,9 @@ import {
 
 const { width, height } = Dimensions.get('window');
 
-type AdStatus = 'Pending' | 'Active' | 'Rejected' | 'Completed';
+type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
 
-const FILTER_TABS: AdStatus[] = ['Pending', 'Active', 'Completed', 'Rejected'];
+const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
 
 export default function AdminAds() {
   const router = useRouter();
@@ -46,7 +46,11 @@ export default function AdminAds() {
       }
     } catch (error) {
       console.error('Fetch ads error:', error);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to load ad campaigns' });
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Fetch Error',
+        message: 'Failed to load ad campaigns. Please try again.'
+      });
     } finally {
       setLoading(false);
     }
@@ -67,13 +71,21 @@ export default function AdminAds() {
   const handleApprove = async (id: string) => {
     try {
       setActionLoading(id);
-      const res = await updateBannerCampaignStatus(id, 'Active');
+      const res = await updateBannerCampaignStatus(id, 'Approved');
       if (res.success) {
-        setAds(prev => prev.map(ad => ad.id === id ? { ...ad, status: 'Active' } : ad));
-        Toast.show({ type: 'success', text1: 'Ad Approved', text2: 'The campaign is now live on the platform.' });
+        setAds(prev => prev.map(ad => ad.id === id ? { ...ad, status: 'Approved' } : ad));
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Ad Approved',
+          message: 'The merchant can now pay to activate the campaign.'
+        });
       }
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: 'Error', text2: error.message || 'Approval failed' });
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Approval Error',
+        message: error.message || 'Approval failed'
+      });
     } finally {
       setActionLoading(null);
     }
@@ -86,13 +98,21 @@ export default function AdminAds() {
       const res = await updateBannerCampaignStatus(targetAd.id, 'Rejected', rejectReason.trim());
       if (res.success) {
         setAds(prev => prev.map(ad => ad.id === targetAd.id ? { ...ad, status: 'Rejected' } : ad));
-        Toast.show({ type: 'success', text1: 'Ad Rejected', text2: `Rejection recorded. Refund of ₵${targetAd.paid_amount} queued.` });
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Ad Rejected',
+          message: 'The merchant will be notified of the rejection.'
+        });
         setRejectModal(false);
         setTargetAd(null);
         setRejectReason('');
       }
     } catch (error: any) {
-      Toast.show({ type: 'error', text1: 'Error', text2: error.message || 'Rejection failed' });
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Rejection Error',
+        message: error.message || 'Rejection failed'
+      });
     } finally {
       setActionLoading(null);
     }
@@ -138,7 +158,7 @@ export default function AdminAds() {
             style={[styles.actionBtn, styles.rejectBtn]} 
             onPress={() => { setTargetAd(item); setRejectModal(true); }}
           >
-            <Text style={styles.rejectText}>Reject & Refund</Text>
+            <Text style={styles.rejectText}>Reject Ad</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={[styles.actionBtn, styles.approveBtn]} 
@@ -245,9 +265,9 @@ export default function AdminAds() {
       <Modal visible={rejectModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Reject & Refund Ad</Text>
+            <Text style={styles.modalTitle}>Reject Ad Campaign</Text>
             <Text style={styles.modalSub}>
-              Rejecting this ad will automatically queue a refund of <Text style={{fontFamily: 'Montserrat-Bold', color: '#0C1559'}}>₵{targetAd?.paid}</Text> to {targetAd?.storeName}'s wallet. Please provide a reason.
+              Rejecting this ad will notify the merchant. Please provide a reason for the rejection.
             </Text>
             
             <TextInput 

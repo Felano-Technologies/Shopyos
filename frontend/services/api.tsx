@@ -1570,7 +1570,7 @@ export const getAllBannerCampaigns = async () => {
 
 export const updateBannerCampaignStatus = async (
   campaignId: string,
-  status: 'Active' | 'Rejected',
+  status: 'Active' | 'Rejected' | 'Approved',
   reason?: string
 ) => {
   try {
@@ -1587,6 +1587,15 @@ export const updateBannerCampaignStatus = async (
 export const getActiveBanners = async () => {
   try {
     const response = await api.get('/advertising/banners/active');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const initializeBannerPayment = async (payload: { campaignId: string; email: string }) => {
+  try {
+    const response = await api.post('/advertising/banners/pay-initialize', payload);
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

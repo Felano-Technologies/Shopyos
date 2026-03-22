@@ -43,6 +43,8 @@ router.get('/my-campaigns', seller, getMyCampaigns);
 // Banner Campaign Routes
 router.post('/banners', seller, upload.single('banner'), bannerCampaignController.createCampaign);
 router.get('/banners/my', seller, bannerCampaignController.getMyCampaigns);
+router.post('/banners/pay-initialize', seller, bannerCampaignController.initializeCampaignPayment);
+router.get('/banners/verify/:reference', seller, bannerCampaignController.verifyCampaignPayment);
 
 // Admin Routes
 router.get('/banners/all', hasAnyRole('admin'), bannerCampaignController.getAllCampaigns);

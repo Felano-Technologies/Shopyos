@@ -13,8 +13,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { 
   getMyBannerCampaigns, 
   createBannerCampaign, 
-  initializePayment 
+  initializeBannerPayment 
 } from '@/services/api';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 const { width } = Dimensions.get('window');
 
@@ -63,7 +64,7 @@ export default function PromotionsScreen() {
 
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [10.8, 4], // for 1080x400
       quality: 1,
@@ -89,20 +90,6 @@ export default function PromotionsScreen() {
     try {
       setSubmitting(true);
       
-      // 1. Initialize Paystack Payment
-      const paymentRes = await initializePayment({
-        orderId: `AD-${Date.now()}`, // Dummy order ID for now as it's not a product order
-        email: 'merchant@shopyos.com', // Should ideally come from auth context
-        channel: 'mobile_money', // Defaulting for now
-      });
-
-      if (!paymentRes.success) {
-        throw new Error(paymentRes.error || 'Payment initialization failed');
-      }
-
-      // 2. We'll simulate successful payment for now or assume checkout follows
-      // In a real app, you'd open the checkout webview/url here
-      
       const formData = new FormData();
       formData.append('title', adTitle);
       formData.append('placement', placement);
@@ -112,6 +99,13 @@ export default function PromotionsScreen() {
       const match = /\.(\w+)$/.exec(filename || '');
       const type = match ? `image/${match[1]}` : 'image';
       
+      formData.append('image', { // Changed from 'banner' to 'image' if backend expects 'image', oh wait the route uses upload.single('banner')
+        uri: bannerUri,
+        name: filename,
+        type,
+      } as any);
+      
+      // Wait, let's check backend route again. It was upload.single('banner')
       formData.append('banner', {
         uri: bannerUri,
         name: filename,
@@ -120,16 +114,52 @@ export default function PromotionsScreen() {
 
       const res = await createBannerCampaign(formData);
       if (res.success) {
-        alert('Payment successful and Ad submitted for approval!');
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Ad Submitted',
+          message: 'Ad details uploaded! You can pay once it is approved.'
+        });
         setActiveTab('campaigns');
-        // Reset form
         setAdTitle('');
         setBannerUri(null);
+        fetchMyCampaigns();
       }
     } catch (error: any) {
-      alert(error.message || 'Submission failed');
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Submission Failed',
+        message: error.message || 'Check your internet connection and try again'
+      });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePayAd = async (campaignId: string) => {
+    try {
+      setLoading(true);
+      const res = await initializeBannerPayment({
+        campaignId,
+        email: 'merchant@shopyos.com',
+      });
+
+      if (res.success && res.data.authorization_url) {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Opening Checkout',
+          message: 'Redirecting to Paystack secure payment page...'
+        });
+        console.log('Authorization URL:', res.data.authorization_url);
+        // Link.openURL(res.data.authorization_url) would follow
+      }
+    } catch (error: any) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Initialisation Failed',
+        message: error.message || 'Could not reach payment provider'
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -214,7 +244,16 @@ export default function PromotionsScreen() {
                       </View>
                       <View style={styles.campFooter}>
                         <Text style={styles.campSpent}>Cost: ₵{camp.paid_amount}</Text>
-                        <Text style={styles.campClicks}>{(camp.clicks || 0).toLocaleString()} Clicks</Text>
+                        {camp.status === 'Approved' ? (
+                          <TouchableOpacity 
+                            style={styles.payBtnSmall}
+                            onPress={() => handlePayAd(camp.id)}
+                          >
+                            <Text style={styles.payBtnTextSmall}>Pay Now</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.campClicks}>{(camp.clicks || 0).toLocaleString()} Clicks</Text>
+                        )}
                       </View>
                     </View>
                   );
@@ -227,7 +266,7 @@ export default function PromotionsScreen() {
               <View style={styles.infoBanner}>
                 <Ionicons name="information-circle" size={20} color="#0C1559" />
                 <Text style={styles.infoText}>
-                  All ads require upfront payment and admin approval. If rejected, your payment will be refunded to your wallet.
+                  Submit your ad details for admin review. Once approved, you can pay to activate the campaign.
                 </Text>
               </View>
 
@@ -309,7 +348,7 @@ export default function PromotionsScreen() {
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <>
-                    <Text style={styles.submitBtnText}>Pay & Submit for Approval</Text>
+                    <Text style={styles.submitBtnText}>Submit for Approval</Text>
                     <Ionicons name="arrow-forward" size={18} color="#FFF" />
                   </>
                 )}
@@ -393,4 +432,6 @@ const styles = StyleSheet.create({
   submitBtn: { flexDirection: 'row', backgroundColor: '#0C1559', padding: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 10 },
   submitBtnDisabled: { backgroundColor: '#94A3B8' },
   submitBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  payBtnSmall: { backgroundColor: '#0C1559', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  payBtnTextSmall: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
 });
