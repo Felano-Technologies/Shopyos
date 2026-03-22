@@ -23,6 +23,7 @@ const {
   getDriverVerificationDetails,
   approveDriverVerification,
   rejectDriverVerification,
+  getReportDetails,
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
