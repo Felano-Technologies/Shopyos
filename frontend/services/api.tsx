@@ -217,13 +217,22 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     }
- 
     // ── Non-expiry 401: clear storage ─────────────────────────────────────────
     if (error.response?.status === 401 && !originalRequest._retry) {
       try {
         await storage.removeItem('userToken');
         await storage.removeItem('refreshToken');
         await storage.removeItem('userId');
+
+        // Force redirect to login screen on auth failure
+        try {
+          const { router } = require('expo-router');
+          if (router) {
+            router.replace('/login');
+          }
+        } catch (e) {
+          // ignore if called outside react lifecycle
+        }
       } catch (storageError) {
         console.error('Error clearing tokens:', storageError);
       }
@@ -1484,3 +1493,41 @@ export const updateDriverLocation = async (
   }
 };
  
+// ─── Admin Driver Verifications ─────────────────────────────────────────────
+
+export const getPendingDriverVerifications = async () => {
+  try {
+    const response = await api.get('/admin/driver-verifications');
+    // Normalize response if needed
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getDriverVerificationDetails = async (id: string) => {
+  try {
+    const response = await api.get(`/admin/driver-verifications/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const approveDriverVerification = async (id: string) => {
+  try {
+    const response = await api.put(`/admin/driver-verifications/${id}/approve`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const rejectDriverVerification = async (id: string, reason: string) => {
+  try {
+    const response = await api.put(`/admin/driver-verifications/${id}/reject`, { reason });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
