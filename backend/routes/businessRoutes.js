@@ -15,7 +15,15 @@ const {
 const dashboardCacheKey = (id) => `shopyos:stores:dashboard:${id}`;
 const analyticsCacheKey = (id, params) => `shopyos:stores:analytics:${id}:${hashParams(params)}`;
 
-router.post('/create', protect, createBusiness);
+const createUploadFields = upload.fields([
+  { name: 'logo', maxCount: 1 },
+  { name: 'coverImage', maxCount: 1 },
+  { name: 'businessCert', maxCount: 1 },
+  { name: 'businessLicense', maxCount: 1 },
+  { name: 'proofOfBank', maxCount: 1 }
+]);
+
+router.post('/create', protect, createUploadFields, createBusiness);
 
 // Usually skip caching for user-specific views unless they are heavily hit, but we'll leave this uncached since it relies on req.user.id
 router.get('/my-businesses', protect, getMyBusinesses);

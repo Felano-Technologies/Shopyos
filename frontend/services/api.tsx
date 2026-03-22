@@ -403,22 +403,27 @@ export const updateUserRole = async (role: string) => {
   }
 };
  
-export const businessRegister = async (businessData: {
-  businessName: string;
-  description: string;
-  category: string;
-  address: string;
-  city: string;
-  country: string;
-  phone: string;
-  website?: string;
-  instagram?: string;
-  facebook?: string;
-  logo?: string;
-  coverImage?: string;
-}) => {
+export const businessRegister = async (businessData: any) => {
   try {
-    const response = await api.post('/business/create', businessData);
+    const formData = new FormData();
+    Object.keys(businessData).forEach(key => {
+      if (businessData[key] !== undefined && businessData[key] !== null) {
+        if (typeof businessData[key] === 'string' && businessData[key].startsWith('file://')) {
+          const uri = businessData[key];
+          const filename = uri.split('/').pop() || 'upload.jpg';
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
+          formData.append(key, { uri, name: filename, type } as any);
+        } else {
+          formData.append(key, businessData[key]);
+        }
+      }
+    });
+
+    const response = await api.post('/business/create', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
     if (response.data.token) await storage.setItem('businessToken', response.data.token);
     if (response.data.business?._id) {
       await storage.setItem('currentBusinessId', response.data.business._id);

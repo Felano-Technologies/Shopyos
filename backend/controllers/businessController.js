@@ -20,7 +20,14 @@ const createBusiness = async (req, res, next) => {
       facebook,
       logo,
       coverImage,
-      email
+      email,
+      businessCert, // from req.body or handled via files
+      taxId,
+      businessLicense, // via files
+      bankName,
+      accountName,
+      accountNumber,
+      proofOfBank // via files
     } = req.body;
 
     // Validate required fields
@@ -61,6 +68,39 @@ const createBusiness = async (req, res, next) => {
       .replace(/^-|-$/g, '')
       + '-' + Date.now();
 
+    // Process uploaded files using Cloudinary
+    let fileUrls = {
+      logo: logo || null,
+      coverImage: coverImage || null,
+      businessCert: null,
+      businessLicense: null,
+      proofOfBank: null
+    };
+
+    if (req.files) {
+      try {
+        const uploadPromises = [];
+        const processFile = (fieldName, folder) => {
+          if (req.files[fieldName] && req.files[fieldName][0]) {
+            return uploadFileToCloudinary(req.files[fieldName][0], folder)
+              .then(result => { fileUrls[fieldName] = result.url; });
+          }
+          return Promise.resolve();
+        };
+
+        await Promise.all([
+          processFile('logo', 'shopyos/store-logos'),
+          processFile('coverImage', 'shopyos/store-banners'),
+          processFile('businessCert', 'shopyos/store-documents'),
+          processFile('businessLicense', 'shopyos/store-documents'),
+          processFile('proofOfBank', 'shopyos/store-documents')
+        ]);
+      } catch (uploadError) {
+        logger.error('Error uploading business files:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload documents' });
+      }
+    }
+
     // Create store
     const store = await repositories.stores.create({
       owner_id: userId,
@@ -76,8 +116,15 @@ const createBusiness = async (req, res, next) => {
       website_url: website || null,
       social_instagram: instagram || null,
       social_facebook: facebook || null,
-      logo_url: logo || null,
-      banner_url: coverImage || null,
+      logo_url: fileUrls.logo,
+      banner_url: fileUrls.coverImage,
+      business_cert_url: fileUrls.businessCert,
+      tax_id: taxId || null,
+      business_license_url: fileUrls.businessLicense,
+      bank_name: bankName || null,
+      account_name: accountName || null,
+      account_number: accountNumber || null,
+      proof_of_bank_url: fileUrls.proofOfBank,
       verification_status: 'pending',
       is_active: true
     });

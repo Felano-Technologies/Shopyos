@@ -258,6 +258,13 @@ export default function BusinessRegistrationScreen() {
         facebook: '',
         logo: formData.storePhotos?.[0] || '',
         coverImage: formData.storePhotos?.[1] || '',
+        businessCert: formData.businessCert || '',
+        taxId: formData.taxId || '',
+        businessLicense: formData.businessLicense || '',
+        bankName: formData.bankName || '',
+        accountName: formData.accountName || '',
+        accountNumber: formData.accountNumber || '',
+        proofOfBank: formData.proofOfBank || '',
       });
       // Invalidate cached business list so dashboard fetches fresh data
       await queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
