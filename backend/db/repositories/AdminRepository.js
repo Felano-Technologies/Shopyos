@@ -129,7 +129,7 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Array>} List of stores
    */
   async getAllStores(options = {}) {
-    const { limit = 50, offset = 0, verificationStatus, search } = options;
+    const { limit = 50, offset = 0, verificationStatus, search, id } = options;
 
     let query = this.supabase
       .from('stores')
@@ -140,6 +140,10 @@ class AdminRepository extends BaseRepository {
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (id) {
+      query = query.eq('id', id);
+    }
 
     if (verificationStatus) {
       query = query.eq('verification_status', verificationStatus);

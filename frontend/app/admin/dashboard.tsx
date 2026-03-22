@@ -133,7 +133,7 @@ export default function AdminDashboard() {
   // --- NEW: Added Driver Verification and optimized for a 2x2 grid ---
   const CONTROL_CARDS = [
     { label: 'Store Verification',  icon: 'storefront',       route: '/admin/stores'      },
-    { label: 'Driver Verification', icon: 'bicycle',          route: '/admin/driver-verifications/deriverVerifications'},
+    { label: 'Driver Verification', icon: 'bicycle',          route: '/admin/driver-verifications/driverVerifications'},
     { label: 'Ad Approvals',        icon: 'megaphone',        route: '/admin/ads'         }, 
     { label: 'Audit Logs',          icon: 'list',             route: '/admin/audit-logs'  },
     { label: 'Settings',            icon: 'settings-sharp',   route: '/admin/settings'    },

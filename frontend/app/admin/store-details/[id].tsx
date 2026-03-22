@@ -89,7 +89,24 @@ const handleContactMerchant = (email: string) => {
         </TouchableOpacity>
     );
 
-    if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>;
+    if (loading) {
+        // Need to require/import Skeleton component inline or ensure it's imported at top
+        const Skeleton = require('@/components/Skeleton').default;
+        return (
+            <View style={styles.container}>
+                <View style={[styles.header, { height: 120, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }]} />
+                <View style={{ padding: 20, alignItems: 'center', marginTop: -40 }}>
+                    <Skeleton width={100} height={100} borderRadius={50} style={{ borderWidth: 4, borderColor: '#FFF' }} />
+                    <Skeleton width={150} height={24} style={{ marginTop: 15, marginBottom: 10 }} />
+                    <Skeleton width={80} height={26} borderRadius={20} />
+                </View>
+                <View style={{ padding: 20 }}>
+                    <Skeleton width="100%" height={150} borderRadius={16} style={{ marginBottom: 20 }} />
+                    <Skeleton width="100%" height={200} borderRadius={16} />
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>

@@ -137,7 +137,24 @@ export default function DriverVerificationDetailScreen() {
           </View>
           <View style={S.hdrArc} />
         </LinearGradient>
-        <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
+        <View style={{ padding: 20 }}>
+          {(() => {
+            const Skeleton = require('@/components/Skeleton').default;
+            return (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+                  <Skeleton width={80} height={80} borderRadius={40} style={{ marginRight: 15 }} />
+                  <View style={{ flex: 1 }}>
+                    <Skeleton width="80%" height={24} style={{ marginBottom: 10 }} />
+                    <Skeleton width="50%" height={16} />
+                  </View>
+                </View>
+                <Skeleton width="100%" height={120} borderRadius={16} style={{ marginBottom: 20 }} />
+                <Skeleton width="100%" height={200} borderRadius={16} />
+              </>
+            );
+          })()}
+        </View>
       </View>
     );
   }

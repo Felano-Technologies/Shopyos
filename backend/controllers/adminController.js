@@ -153,13 +153,14 @@ const updateUserRole = async (req, res, next) => {
  */
 const getAllStores = async (req, res, next) => {
   try {
-    const { limit, offset, verificationStatus, search } = req.query;
+    const { limit, offset, verificationStatus, search, id } = req.query;
 
     const stores = await repositories.admin.getAllStores({
       limit: parseInt(limit) || 50,
       offset: parseInt(offset) || 0,
       verificationStatus,
-      search
+      search,
+      id
     });
 
     res.status(200).json({
