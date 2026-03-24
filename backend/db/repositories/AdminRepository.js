@@ -19,8 +19,7 @@ class AdminRepository extends BaseRepository {
     let query = this.supabase
       .from('user_profiles')
       .select(`
-        *,
-        stores:stores(count)
+        *
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);

@@ -176,7 +176,6 @@ export default function AdminDashboard() {
       iconColor:'#15803D',
       badge:   null,
     },
-    { label: 'Categories',          icon: 'tag',              route: '/admin/categories'  },
     {
       label:   'Settings',
       icon:    'settings-sharp',
@@ -290,28 +289,46 @@ export default function AdminDashboard() {
         {/* ── Revenue chart ───────────────────────────────────────────────────── */}
         <Text style={S.secTitle}>Revenue Growth</Text>
         <View style={S.card}>
-          <View style={[S.chartBars, { height: CHART_H + rs(20) }]}>
-            {CHART.map((d, i) => {
-              const barH   = Math.round((d.value / CHART_MAX) * CHART_H);
-              const isLast = i === CHART.length - 1;
-              const isPeak = d.value === Math.max(...CHART.filter((_, j) => j !== CHART.length - 1).map((c) => c.value));
-              const barColor = isLast ? C.navy : isPeak ? C.lime : '#EEF2FF';
-              return (
-                <View key={d.month} style={S.barWrap}>
-                  <View style={[S.bar, { height: barH, backgroundColor: barColor }]} />
-                  <Text style={S.barLbl}>{d.month}</Text>
-                </View>
-              );
-            })}
-          </View>
-          <View style={S.chartFoot}>
-            <Text style={S.chartGrowth}>+24% from last month</Text>
-            <Ionicons name="caret-up" size={rs(12)} color={C.lime} />
-          </View>
+          {stats.totalRevenue === 0 ? (
+            <View style={{ alignItems: 'center', paddingVertical: rs(30) }}>
+              <MaterialCommunityIcons name="chart-bell-curve" size={rs(40)} color={C.subtle} />
+              <Text style={{ marginTop: rs(10), fontFamily: 'Montserrat-Medium', color: C.subtle, fontSize: rf(13) }}>
+                Not enough sales data for graph
+              </Text>
+            </View>
+          ) : (
+            <>
+              <View style={[S.chartBars, { height: CHART_H + rs(20) }]}>
+                {CHART.map((d, i) => {
+                  const barH   = Math.round((d.value / CHART_MAX) * CHART_H);
+                  const isLast = i === CHART.length - 1;
+                  const isPeak = d.value === Math.max(...CHART.filter((_, j) => j !== CHART.length - 1).map((c) => c.value));
+                  const barColor = isLast ? C.navy : isPeak ? C.lime : '#EEF2FF';
+                  return (
+                    <View key={d.month} style={S.barWrap}>
+                      <View style={[S.bar, { height: barH, backgroundColor: barColor }]} />
+                      <Text style={S.barLbl}>{d.month}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={S.chartFoot}>
+                <Text style={S.chartGrowth}>+24% from last month</Text>
+                <Ionicons name="caret-up" size={rs(12)} color={C.lime} />
+              </View>
+            </>
+          )}
         </View>
 
         {/* ── Live activity ────────────────────────────────────────────────────── */}
-        <Text style={S.secTitle}>Live Activity</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(10) }}>
+          <Text style={[S.secTitle, { marginBottom: 0 }]}>Live Activity</Text>
+          {activityFeed.length > 0 && (
+            <TouchableOpacity onPress={() => router.push('/admin/audit-logs' as any)}>
+              <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#0C1559' }}>View All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         <View style={S.card}>
           {activityFeed.length === 0 ? (
             <View style={S.emptyActivity}>
@@ -319,10 +336,10 @@ export default function AdminDashboard() {
               <Text style={S.emptyActivityTxt}>No recent activity</Text>
             </View>
           ) : (
-            activityFeed.slice(0, 8).map((item, i) => {
+            activityFeed.slice(0, 3).map((item, i) => {
               const cfg       = getAction(item.action);
               const actorName = item.user?.full_name || item.user?.email || 'System';
-              const isLast    = i === Math.min(activityFeed.length, 8) - 1;
+              const isLast    = i === Math.min(activityFeed.length, 3) - 1;
               const actionLabel = (item.action ?? '')
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (c: string) => c.toUpperCase());
@@ -420,7 +437,7 @@ const S = StyleSheet.create({
   revenueHero: {
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: rs(20), padding: rs(16),
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', marginBottom: rs(20),
   },
   heroLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.55)', marginBottom: rs(4) },
   heroVal: { fontSize: rf(28), fontFamily: 'Montserrat-Bold',   color: '#fff', letterSpacing: -0.5 },
