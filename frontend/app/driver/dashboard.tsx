@@ -25,15 +25,38 @@ const { width } = Dimensions.get('window');
 
 export default function Dashboard() {
   const router = useRouter();
-  const { profile, isChecking } = useDriverGuard();
+  const { profile: initialProfile, isChecking } = useDriverGuard();
+  const [profile, setProfile] = useState<any>(initialProfile);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
   const [user, setUser] = useState<any>(null);
-  
-  // Strict verification check (like business logic)
-  // We allow them to see the dashboard, but restrict 'Go Online' if is_verified is false
+
+  // Verification flags
   const isVerified = profile?.is_verified === true || profile?.is_verified === 1 || profile?.verification_status === 'verified';
   const isPending = !isVerified && !profile?.rejection_reason;
   const isRejected = !!profile?.rejection_reason;
+
+  // DIRECT RE-FETCH ON MOUNT (Bypass Tanstack Cache entirely for this crucial check)
+  useEffect(() => {
+    const forceFreshProfile = async () => {
+      try {
+        const { getDriverProfile } = require('@/services/api');
+        const response = await getDriverProfile();
+        const fresh = response?.profile || response?.data || response;
+        if (fresh) {
+           console.log('DEBUG [Dashboard] Directly fetched LATEST profile:', fresh.is_verified);
+           setProfile(fresh);
+        }
+      } catch (err) {
+        console.warn('Direct profile fetch failed:', err);
+      }
+    };
+    forceFreshProfile();
+  }, []);
+
+  useEffect(() => {
+    if (initialProfile) setProfile(initialProfile);
+  }, [initialProfile]);
 
   useEffect(() => {
     if (profile) {

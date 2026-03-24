@@ -94,16 +94,25 @@ export default function DriverEarnings() {
         {/* Weekly Chart Placeholder */}
         <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
-                <Text style={styles.chartTitle}>Today's Completed</Text>
-                <Text style={styles.chartTotal}>{stats.completed} Orders</Text>
+                <Text style={styles.chartTitle}>Today's Snapshot</Text>
+                <Text style={[styles.chartTotal, stats.completed === 0 && { color: '#64748B' }]}>
+                    {stats.completed} Orders Completed
+                </Text>
             </View>
             <View style={styles.chartBars}>
-                {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
-                    <View key={index} style={styles.barContainer}>
-                        <View style={[styles.bar, { height: [40, 60, 30, 80, 50, 90, 70][index] }]} />
-                        <Text style={styles.dayLabel}>{day}</Text>
-                    </View>
-                ))}
+                {[0.2, 0.4, 0.3, 0.8, 0.5, 0.9, 0.7].map((factor, index) => {
+                    // If no data today, make all bars zero height to show "empty" state
+                    const barHeight = stats.total > 0 ? (80 * factor) : 4; 
+                    return (
+                        <View key={index} style={styles.barContainer}>
+                            <View style={[
+                                styles.bar, 
+                                { height: barHeight, opacity: stats.total > 0 ? 1 : 0.2 }
+                            ]} />
+                            <Text style={styles.dayLabel}>{['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]}</Text>
+                        </View>
+                    );
+                })}
             </View>
         </View>
 

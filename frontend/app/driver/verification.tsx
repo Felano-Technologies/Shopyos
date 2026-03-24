@@ -74,14 +74,15 @@ export default function DriverVerification() {
 
         // Pre-fill form if they started but didn't finish or are pending/rejected
         if (driver.vehicle_type) setVehicleType(driver.vehicle_type);
-        if (driver.plate_number) setPlateNumber(driver.plate_number);
-        if (driver.license_number) setLicenseNumber(driver.license_number);
+        if (driver.license_plate) setPlateNumber(driver.license_plate);
+        if (driver.drivers_license_number) setLicenseNumber(driver.drivers_license_number);
         
         // Documents (URLs)
         setDocImages(prev => ({
           ...prev,
           idCard: driver.national_id_url || prev.idCard,
           licenseFront: driver.license_image_url || prev.licenseFront,
+          licenseBack: driver.license_image_url || prev.licenseBack, // Use front as back fallback if only one exists
           insurance: driver.insurance_doc_url || prev.insurance,
         }));
 

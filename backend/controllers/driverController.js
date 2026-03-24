@@ -74,7 +74,6 @@ const submitVerification = async (req, res, next) => {
 const getDriverProfile = async (req, res, next) => {
     try {
         const profile = await repositories.drivers.findByUserId(req.user.id);
-        console.log(`DEBUG [driverController] Sending profile for userId ${req.user.id}:`, JSON.stringify(profile, null, 2));
 
         res.status(200).json({
             success: true,

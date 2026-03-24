@@ -109,8 +109,7 @@ class DeliveryRepository extends BaseRepository {
           id,
           latitude,
           longitude,
-          notes,
-          created_at
+          timestamp
         )
       `)
       .eq('id', deliveryId)
@@ -221,8 +220,7 @@ class DeliveryRepository extends BaseRepository {
       .insert({
         delivery_id: deliveryId,
         latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        notes: locationData.notes || null
+        longitude: locationData.longitude
       })
       .select()
       .single();
@@ -242,7 +240,7 @@ class DeliveryRepository extends BaseRepository {
       .from('delivery_location_updates')
       .select('*')
       .eq('delivery_id', deliveryId)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(limit);
 
     if (error) throw error;
@@ -259,7 +257,7 @@ class DeliveryRepository extends BaseRepository {
       .from('delivery_location_updates')
       .select('*')
       .eq('delivery_id', deliveryId)
-      .order('created_at', { ascending: false })
+      .order('timestamp', { ascending: false })
       .limit(1)
       .single();
 
