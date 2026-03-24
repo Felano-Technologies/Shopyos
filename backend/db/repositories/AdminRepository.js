@@ -19,7 +19,14 @@ class AdminRepository extends BaseRepository {
     let query = this.supabase
       .from('user_profiles')
       .select(`
-        *
+        id,
+        user_id,
+        full_name,
+        phone,
+        role,
+        account_status,
+        created_at,
+        users!user_id(email)
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
@@ -38,7 +45,12 @@ class AdminRepository extends BaseRepository {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data;
+    
+    // Normalize data for frontend - flatten joined email
+    return (data || []).map(u => ({
+      ...u,
+      email: u.users?.email || u.phone || '—'
+    }));
   }
 
   /**

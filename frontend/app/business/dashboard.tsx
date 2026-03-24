@@ -13,7 +13,7 @@ import {
     ActivityIndicator
 } from 'react-native';
 import { router } from 'expo-router';
-import { storage } from '@/services/api';
+import { storage, logoutUser } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -74,6 +74,17 @@ const BusinessDashboard = () => {
 
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);
+  };
+ 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (e) {
+      console.warn('Logout API failed:', e);
+    } finally {
+      setShowNoBusinessModal(false);
+      router.replace('/login');
+    }
   };
 
   if (loading) {
@@ -284,6 +295,22 @@ const BusinessDashboard = () => {
               <Text style={styles.alertButtonText}>Create Business</Text>
               <Feather name="arrow-right" size={18} color="#FFF" />
             </TouchableOpacity>
+ 
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+              <TouchableOpacity
+                style={[styles.outlineButton, { flex: 1 }]}
+                onPress={() => { setShowNoBusinessModal(false); router.replace('/'); }}
+              >
+                <Text style={styles.outlineButtonText}>Go Home</Text>
+              </TouchableOpacity>
+ 
+              <TouchableOpacity
+                style={[styles.outlineButton, { flex: 1, borderColor: '#EF4444' }]}
+                onPress={handleLogout}
+              >
+                <Text style={[styles.outlineButtonText, { color: '#EF4444' }]}>Logout</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -356,8 +383,21 @@ const styles = StyleSheet.create({
   alertTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10 },
   alertMessage: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', marginBottom: 25, lineHeight: 22 },
   alertButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0C1559', paddingVertical: 15, paddingHorizontal: 30, borderRadius: 16, width: '100%', gap: 8 },
-  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-    loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }
+  alertButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', marginRight: 8 },
+  outlineButton: {
+    height: 50,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  outlineButtonText: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: '#64748B',
+  },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }
 });
 
 export default BusinessDashboard;

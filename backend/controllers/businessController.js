@@ -125,6 +125,7 @@ const createBusiness = async (req, res, next) => {
       bank_name: bankName || null,
       account_name: accountName || null,
       account_number: accountNumber || null,
+      payout_method: req.body.payoutMethod || 'bank',
       proof_of_bank_url: fileUrls.proofOfBank,
       verification_status: 'pending',
       is_active: true

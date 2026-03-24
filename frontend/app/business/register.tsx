@@ -53,7 +53,7 @@ const BusinessSetupScreen = () => {
     city: '', country: '', phone: '', website: '',
     instagram: '', facebook: '',
     taxId: '', bankName: '', accountName: '', accountNumber: '',
-    registrationNumber: '', ownerName: ''
+    registrationNumber: '', ownerName: '', payoutMethod: 'bank'
   });
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -189,6 +189,7 @@ const BusinessSetupScreen = () => {
         businessCert: certUrl,
         businessLicense: licenseUrl,
         proofOfBank: proofBankUrl,
+        payoutMethod: formData.payoutMethod,
         socialMedia: {
           instagram: formData.instagram,
           facebook: formData.facebook
@@ -255,7 +256,10 @@ const BusinessSetupScreen = () => {
               start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.headerContainer}
             >
-              <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <TouchableOpacity 
+                onPress={() => router.canGoBack() ? router.back() : router.replace('/business/dashboard')} 
+                style={styles.backButton}
+              >
                 <Ionicons name="arrow-back" size={24} color="#FFF" />
               </TouchableOpacity>
               <View style={{ alignItems: 'center' }}>
@@ -403,7 +407,7 @@ const BusinessSetupScreen = () => {
               />
 
               <InputField
-                label="Registration Number"
+                label="Registration Number (Optional)"
                 icon="hash"
                 value={formData.registrationNumber}
                 onChangeText={(t: string) => handleInputChange('registrationNumber', t)}
@@ -411,7 +415,7 @@ const BusinessSetupScreen = () => {
               />
 
               <InputField
-                label="Tax ID (TIN)"
+                label="Tax ID / TIN (Optional)"
                 icon="shield"
                 value={formData.taxId}
                 onChangeText={(t: string) => handleInputChange('taxId', t)}
@@ -462,32 +466,50 @@ const BusinessSetupScreen = () => {
               </TouchableOpacity>
             </View>
 
-            {/* --- Banking Details --- */}
+            {/* --- Payout Details --- */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Banking Details</Text>
+              <Text style={styles.sectionTitle}>Payout Details</Text>
               
+              {/* Payout Method Picker */}
+              <View style={styles.row}>
+                <TouchableOpacity 
+                   style={[styles.payoutOption, formData.payoutMethod === 'bank' && styles.payoutOptionActive]}
+                   onPress={() => handleInputChange('payoutMethod', 'bank')}
+                >
+                  <MaterialCommunityIcons name="bank-outline" size={20} color={formData.payoutMethod === 'bank' ? '#FFF' : '#64748B'} />
+                  <Text style={[styles.payoutLabel, formData.payoutMethod === 'bank' && styles.payoutTextActive]}>Bank</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                   style={[styles.payoutOption, formData.payoutMethod === 'momo' && styles.payoutOptionActive]}
+                   onPress={() => handleInputChange('payoutMethod', 'momo')}
+                >
+                  <MaterialCommunityIcons name="cellphone-wireless" size={20} color={formData.payoutMethod === 'momo' ? '#FFF' : '#64748B'} />
+                  <Text style={[styles.payoutLabel, formData.payoutMethod === 'momo' && styles.payoutTextActive]}>MoMo</Text>
+                </TouchableOpacity>
+              </View>
+ 
               <InputField
-                label="Bank Name"
-                icon="home"
+                label={formData.payoutMethod === 'bank' ? "Bank Name" : "MoMo Provider"}
+                icon={formData.payoutMethod === 'bank' ? "home" : "smartphone"}
                 value={formData.bankName}
                 onChangeText={(t: string) => handleInputChange('bankName', t)}
-                placeholder="e.g. GCB Bank"
+                placeholder={formData.payoutMethod === 'bank' ? "e.g. GCB Bank" : "e.g. MTN, Telecel, AT"}
               />
-
+ 
               <InputField
-                label="Account Name"
+                label={formData.payoutMethod === 'bank' ? "Account Name" : "MoMo Name"}
                 icon="user"
                 value={formData.accountName}
                 onChangeText={(t: string) => handleInputChange('accountName', t)}
                 placeholder="Exact name on account"
               />
-
+ 
               <InputField
-                label="Account Number"
-                icon="credit-card"
+                label={formData.payoutMethod === 'bank' ? "Account Number" : "MoMo Number"}
+                icon={formData.payoutMethod === 'bank' ? "credit-card" : "phone-call"}
                 value={formData.accountNumber}
                 onChangeText={(t: string) => handleInputChange('accountNumber', t)}
-                placeholder="Enter account number"
+                placeholder={formData.payoutMethod === 'bank' ? "Enter account number" : "24 XXXXXXX"}
                 keyboardType="numeric"
               />
             </View>
@@ -817,6 +839,32 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#334155',
     fontFamily: 'Montserrat-Medium',
+  },
+  payoutOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: 15,
+    marginHorizontal: 4,
+  },
+  payoutOptionActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
+  },
+  payoutLabel: {
+    marginLeft: 8,
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 13,
+    color: '#64748B',
+  },
+  payoutTextActive: {
+    color: '#FFF',
   },
 });
 
