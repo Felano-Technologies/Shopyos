@@ -23,6 +23,8 @@ const PayoutRepository = require('./PayoutRepository');
 const ReportRepository = require('./ReportRepository');
 const AuditLogRepository = require('./AuditLogRepository');
 const PaymentMethodRepository = require('./PaymentMethodRepository');
+const DriverRepository = require('./DriverRepository');
+
 
 // Initialize repositories with supabase admin client
 const repositories = {
@@ -45,7 +47,8 @@ const repositories = {
   payouts: new PayoutRepository(supabaseAdmin),
   reports: new ReportRepository(supabaseAdmin),
   auditLogs: new AuditLogRepository(supabaseAdmin),
-  paymentMethods: new PaymentMethodRepository(supabaseAdmin)
+  paymentMethods: new PaymentMethodRepository(supabaseAdmin),
+  drivers: new DriverRepository(supabaseAdmin),
 };
 
 module.exports = repositories;

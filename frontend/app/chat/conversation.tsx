@@ -177,7 +177,7 @@ export default function ConversationScreen() {
       setMessages((prev) =>
         prev.map((m) => m.id === tempId ? { ...m, pending: false, failed: true } : m)
       );
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Failed to send', message: 'Tap to retry.' });
+      CustomInAppToast.show({ type: 'error', title: 'Failed to send', message: 'Tap to retry.' });
     } finally { setSending(false); setReplyTo(null); }
   };
 
@@ -192,20 +192,20 @@ export default function ConversationScreen() {
   const doCopy = () => {
     if (!selectedMsg) return;
     Clipboard.setString(selectedMsg.content); setMenuVisible(false);
-    CustomInAppCustomInAppToast.show({ type: 'success', title: 'Copied to clipboard' });
+    CustomInAppToast.show({ type: 'success', title: 'Copied to clipboard', message: 'Message copied to your clipboard.' });
   };
   const doDelete = () => {
     if (!selectedMsg) return;
     if (selectedMsg.sender_id !== currentUserId) {
       setMenuVisible(false);
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'You can only delete your own messages.' }); return;
+      CustomInAppToast.show({ type: 'error', title: 'Unauthorized', message: 'You can only delete your own messages.' }); return;
     }
     setMenuVisible(false);
     Alert.alert('Delete Message', 'Remove this message?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
           try { await apiDeleteMessage(selectedMsg.id); setMessages((p) => p.filter((m) => m.id !== selectedMsg.id)); }
-          catch { CustomInAppCustomInAppToast.show({ type: 'error', title: 'Could not delete.' }); }
+          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete message.' }); }
         },
       },
     ]);

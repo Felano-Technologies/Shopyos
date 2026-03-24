@@ -24,7 +24,7 @@ export default function AdminRevenue() {
             const txs = Array.isArray(revRes?.transactions) ? revRes.transactions : [];
             setTransactions(txs);
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load revenue' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load revenue' });
         } finally {
             setLoading(false);
             setRefreshing(false);

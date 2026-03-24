@@ -206,11 +206,10 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
               // Show toast for incoming messages not currently on screen
               if (!isMe && !isViewingThisChat) {
-                CustomInAppCustomInAppToast.show({
+                CustomInAppToast.show({
                   type: 'info',
                   title: conv.name,
                   message: message.content,
-                  position: 'top',
                   onPress: () => {
                     router.push({
                       pathname: '/chat/conversation',
@@ -363,7 +362,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setupPeerConnection = async (conversationId: string) => {
     if (isExpoGo) {
-      CustomInAppCustomInAppToast.show({ 
+      CustomInAppToast.show({ 
         type: 'info', 
         title: 'Not Supported', 
         message: 'Calling is only available in the standalone app build.' 
@@ -389,7 +388,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { status } = await Audio.requestPermissionsAsync();
       if (status !== 'granted') {
-        CustomInAppCustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Microphone access is required for calls.' });
+        CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Microphone access is required for calls.' });
         return;
       }
 

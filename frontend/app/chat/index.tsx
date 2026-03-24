@@ -68,7 +68,11 @@ export default function ChatInbox() {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
           const ok = await deleteConversation(item.id, 'buyer');
-          CustomInAppCustomInAppToast.show({ type: ok ? 'success' : 'error', title: ok ? 'Deleted' : 'Error' });
+          CustomInAppToast.show({ 
+            type: ok ? 'success' : 'error', 
+            title: ok ? 'Deleted' : 'Error',
+            message: ok ? 'Conversation deleted successfully' : 'Failed to delete conversation'
+          });
         },
       },
     ]);

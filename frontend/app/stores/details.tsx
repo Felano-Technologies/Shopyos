@@ -179,7 +179,7 @@ export default function StoreDetailsScreen() {
       });
 
       if (res.success) {
-        CustomInAppCustomInAppToast.show({ type: 'success', title: 'Review Posted!', message: 'Thanks for supporting local businesses.' });
+        CustomInAppToast.show({ type: 'success', title: 'Review Posted!', message: 'Thanks for supporting local businesses.' });
         setReviewModalVisible(false);
         setUserRating(0);
         setUserComment('');
@@ -225,7 +225,11 @@ export default function StoreDetailsScreen() {
       setChatLoading(true);
       const ownerId = storeData?.owner?._id || storeData?.owner;
       if (!ownerId) {
-        CustomInAppCustomInAppToast.show({ type: 'error', title: 'Cannot Chat' });
+        CustomInAppToast.show({ 
+          type: 'error', 
+          title: 'Cannot Chat',
+          message: 'This store owner is currently unavailable or doesn\'t exist.'
+        });
         return;
       }
       const res = await startConversation(ownerId);
@@ -241,7 +245,11 @@ export default function StoreDetailsScreen() {
         });
       }
     } catch (error: any) {
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Chat Error' });
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Chat Error',
+        message: 'Something went wrong while trying to start a chat. Please try again later.'
+      });
     } finally {
       setChatLoading(false);
     }
@@ -256,7 +264,13 @@ export default function StoreDetailsScreen() {
         await followStore(store.id);
         setIsFollowing(true);
       }
-    } catch (error) { CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error' }); }
+    } catch (error) { 
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Error',
+        message: 'Could not complete the action. Please check your connection.'
+      }); 
+    }
   };
 
   const handleShare = async () => {

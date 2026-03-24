@@ -1521,7 +1521,28 @@ export const updateDriverLocation = async (
   }
 };
  
+export const getDriverProfile = async () => {
+    try {
+        const response = await api.get('/deliveries/driver/profile');
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.userMessage || extractErrorMessage(error));
+    }
+};
+
+export const submitDriverVerification = async (formData: FormData) => {
+    try {
+        const response = await api.post('/deliveries/verify', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.userMessage || extractErrorMessage(error));
+    }
+};
+
 // ─── Admin Driver Verifications ─────────────────────────────────────────────
+
 
 export const getPendingDriverVerifications = async () => {
   try {

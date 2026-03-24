@@ -82,7 +82,7 @@ export default function AdminStores() {
             setStores(data);
             refreshPendingCount();
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load stores' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load stores' });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -95,10 +95,10 @@ export default function AdminStores() {
         try {
             setActionLoading(storeId);
             await adminVerifyStore(storeId, 'verified');
-            CustomInAppCustomInAppToast.show({ type: 'success', title: 'Approved', message: `${storeName} has been verified` });
+            CustomInAppToast.show({ type: 'success', title: 'Approved', message: `${storeName} has been verified` });
             loadStores();
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not approve store' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not approve store' });
         } finally {
             setActionLoading(null);
         }
@@ -114,17 +114,17 @@ export default function AdminStores() {
         const storeId = rejectTarget?.id || rejectTarget?._id;
         if (!storeId) return;
         if (!rejectReason.trim()) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Reason required', message: 'Please provide a rejection reason' });
+            CustomInAppToast.show({ type: 'error', title: 'Reason required', message: 'Please provide a rejection reason' });
             return;
         }
         try {
             setActionLoading(storeId);
             setRejectModal(false);
             await adminVerifyStore(storeId, 'rejected', rejectReason.trim());
-            CustomInAppCustomInAppToast.show({ type: 'success', title: 'Rejected', message: `${rejectTarget?.store_name} has been rejected` });
+            CustomInAppToast.show({ type: 'success', title: 'Rejected', message: `${rejectTarget?.store_name} has been rejected` });
             loadStores();
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not reject store' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not reject store' });
         } finally {
             setActionLoading(null);
             setRejectTarget(null);
@@ -140,7 +140,7 @@ export default function AdminStores() {
 
         const goToDetails = () => {
             if (!actualId) {
-                CustomInAppCustomInAppToast.show({ type: 'error', title: 'Invalid Store', message: 'Missing store identifier.' });
+                CustomInAppToast.show({ type: 'error', title: 'Invalid Store', message: 'Missing store identifier.' });
                 return;
             }
             router.push(`/admin/store-details/${actualId}` as any);

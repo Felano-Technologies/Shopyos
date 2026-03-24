@@ -2,6 +2,7 @@ const repositories = require('../db/repositories');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
+const notificationService = require('../services/notificationService');
 
 const createBusiness = async (req, res, next) => {
   try {
@@ -128,6 +129,12 @@ const createBusiness = async (req, res, next) => {
       verification_status: 'pending',
       is_active: true
     });
+
+    // Notify admins
+    const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank;
+    if (hasVerificationDocs) {
+      await notificationService.notifyAdminsVerificationRequest(store.id, 'store', store.store_name);
+    }
 
     // Get store with owner details
     const storeWithOwner = await repositories.stores.getStoreDetails(store.id);
@@ -422,6 +429,12 @@ const updateBusiness = async (req, res, next) => {
 
     // Update store
     const updatedStore = await repositories.stores.update(businessId, mappedData);
+
+    // If verification documents were uploaded, notify admins
+    const hasNewDocs = mappedData.business_cert_url || mappedData.business_license_url || mappedData.proof_of_bank_url;
+    if (hasNewDocs) {
+      await notificationService.notifyAdminsVerificationRequest(updatedStore.id, 'store', updatedStore.store_name);
+    }
 
     // Format response for backward compatibility
     const business = {

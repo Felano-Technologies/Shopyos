@@ -26,7 +26,7 @@ export default function AdminAuditLogs() {
             const data = Array.isArray(res?.logs) ? res.logs : (Array.isArray(res) ? res : []);
             setLogs(data);
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load logs' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load logs' });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -67,7 +67,7 @@ export default function AdminAuditLogs() {
         // Simulation of export logic
         setTimeout(() => {
             setIsExporting(false);
-            CustomInAppCustomInAppToast.show({ type: 'success', title: 'Export Ready', message: 'Log report has been generated.' });
+            CustomInAppToast.show({ type: 'success', title: 'Export Ready', message: 'Log report has been generated.' });
         }, 1500);
     };
 
