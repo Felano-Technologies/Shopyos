@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Dimensions,
   Image,
   Keyboard,
+  ActivityIndicator,
   Pressable
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -18,91 +19,113 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import { useCategories } from '@/hooks/useCategories';
+import { searchProducts } from '@/services/api';
+import { queryClient } from '@/lib/query/client';
 
 const { width } = Dimensions.get('window');
 
-// --- 1. MOCK DATABASE (Combined Data) ---
+// Helper for fallback images
+const getFallbackImage = (index: number) => {
+  const images = [
+    require('../../assets/images/search/men cloth.png'),
+    require('../../assets/images/search/womencloth.png'),
+    require('../../assets/images/search/sports.jpg'),
+    require('../../assets/images/search/fooddrinks.png'),
+    require('../../assets/images/search/Arts1.png'),
+    require('../../assets/images/search/bag1.jpg'),
+  ];
+  return images[index % images.length];
+};
 
-// Categories
-const CATEGORIES = [
-  { id: 'c1', type: 'category', title: 'Men', image: require('../../assets/images/search/men cloth.png') },
-  { id: 'c2', type: 'category', title: 'Women', image: require('../../assets/images/search/womencloth.png') },
-  { id: 'c3', type: 'category', title: 'Sports', image: require('../../assets/images/search/sports.jpg') },
-  { id: 'c4', type: 'category', title: 'Food & Drinks', image: require('../../assets/images/search/fooddrinks.png') },
-  { id: 'c5', type: 'category', title: 'Arts & Craft', image: require('../../assets/images/search/Arts1.png') },
-  { id: 'c6', type: 'category', title: 'Bags', image: require('../../assets/images/search/bag1.jpg') },
-  { id: 'c7', type: 'category', title: 'Accessories', image: require('../../assets/images/search/accessories.png') },
-  { id: 'c8', type: 'category', title: 'Footwear', image: require('../../assets/images/search/slipper1.png') },
-  { id: 'c9', type: 'category', title: 'Home', image: require('../../assets/images/search/table2.jpg') },
-  { id: 'c10', type: 'category', title: 'Fitness', image: require('../../assets/images/search/supplement2.jpg') },
-];
-
-// Products (Aggregated from Home)
-const PRODUCTS = [
-  { id: 'p1', type: 'product', title: 'The Dad Artwork', price: 250.0, image: require('../../assets/images/products/artwork2.jpg'), category: 'Art' },
-  { id: 'p2', type: 'product', title: 'Nike Air Force 1', price: 175.0, image: require('../../assets/images/products/nike.jpg'), category: 'Sneakers' },
-  { id: 'f1', type: 'product', title: 'Summer Collection', price: 150.0, image: require('../../assets/images/featured/feat1.jpg'), category: 'Clothing' },
-  { id: 'f2', type: 'product', title: 'Urban Streetwear', price: 220.0, image: require('../../assets/images/featured/feat2.jpg'), category: 'Clothing' },
-  { id: 'd2', type: 'product', title: 'Artisan Jacket', price: 120.0, image: require('../../assets/images/categories/jacket.jpg'), category: 'Jackets' },
-  { id: 's1', type: 'product', title: 'Headset Pro', price: 300.0, image: require('../../assets/images/categories/headset.jpg'), category: 'Electronics' },
-];
-
-// Combine all for searching
-const ALL_ITEMS = [...CATEGORIES, ...PRODUCTS];
 
 export default function CategoryScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // 🔍 Filter Logic
-  const filteredData = searchQuery.length === 0
-    ? CATEGORIES
-    : ALL_ITEMS.filter(item =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  const { data: categoriesData, isLoading: loadingCats } = useCategories();
+  const categories = categoriesData || [];
 
-  // FIXED: Matches app/categories/[id].tsx
+  // Search logic
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await searchProducts({ query: searchQuery });
+        if (res.success) {
+          setSearchResults(res.products.map((p: any) => ({
+            ...p,
+            id: p._id,
+            type: 'product',
+            title: p.name,
+            image: { uri: p.images?.[0] }
+          })));
+        }
+      } catch (e) {
+        console.error('Search error:', e);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const displayData = searchQuery.length < 2
+    ? categories.map((c: any) => ({ ...c, title: c.name, type: 'category' }))
+    : searchResults;
+
   const handlePress = (item: any) => {
-    // Debug log to confirm what we are sending
-    console.log(`Navigating to: /categories/${item.id}`);
-
     if (item.type === 'category') {
-      // We must use the 'id' (e.g. c1, c2) because your [id].tsx file expects it
-      router.push(`/categories/${item.id}`);
+      router.push({
+        pathname: '/search',
+        params: { category: item.name }
+      } as any);
     } else {
       router.push({
-        pathname: '/product/details',
+        pathname: `/product/${item.id}`,
         params: {
-          id: item.id,
-          title: item.title,
+          name: item.title,
           price: item.price,
-          image: item.image,
-          category: item.category
+          image: item.images?.[0] || ''
         }
-      });
+      } as any);
     }
   };
+
   // --- Renderers ---
 
-  const renderCategoryCard = (item: any) => (
-    <TouchableOpacity
-      style={styles.cardContainer}
-      activeOpacity={0.9}
-      onPress={() => handlePress(item)}
-    >
-      <ImageBackground source={item.image} style={styles.image} imageStyle={{ borderRadius: 16 }}>
-        <LinearGradient
-          colors={['transparent', 'rgba(12, 21, 89, 0.9)']}
-          style={styles.gradientOverlay}
-        >
-          <Text style={styles.categoryText}>{item.title}</Text>
-          <View style={styles.arrowContainer}>
-            <Feather name="grid" size={12} color="#FFF" />
-          </View>
-        </LinearGradient>
-      </ImageBackground>
-    </TouchableOpacity>
-  );
+  const renderCategoryCard = (item: any, index: number) => {
+    const displayImage = item.image_url ? { uri: item.image_url } : getFallbackImage(index);
+    
+    return (
+      <TouchableOpacity
+        style={styles.cardContainer}
+        activeOpacity={0.9}
+        onPress={() => handlePress(item)}
+      >
+        <ImageBackground source={displayImage} style={styles.image} imageStyle={{ borderRadius: 16 }}>
+          <LinearGradient
+            colors={['transparent', 'rgba(12, 21, 89, 0.9)']}
+            style={styles.gradientOverlay}
+          >
+            <Text style={styles.categoryText}>{item.title}</Text>
+            <View style={styles.arrowContainer}>
+              <Feather name="grid" size={12} color="#FFF" />
+            </View>
+          </LinearGradient>
+        </ImageBackground>
+      </TouchableOpacity>
+    );
+  };
+
 
   const renderProductCard = (item: any) => (
     <TouchableOpacity
@@ -156,21 +179,26 @@ export default function CategoryScreen() {
 
           {/* 📦 Grid List */}
           <FlatList
-            data={filteredData}
-            keyExtractor={(item) => item.id}
+            data={displayData}
+            keyExtractor={(item) => item.id || item.slug}
             numColumns={2}
             contentContainerStyle={styles.gridContent}
             showsVerticalScrollIndicator={false}
-            renderItem={({ item }) =>
-              item.type === 'category' ? renderCategoryCard(item) : renderProductCard(item)
+            renderItem={({ item, index }) =>
+              item.type === 'category' ? renderCategoryCard(item, index) : renderProductCard(item)
             }
             ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Ionicons name="search-outline" size={48} color="#CBD5E1" />
-                <Text style={styles.emptyText}>No items found matching "{searchQuery}"</Text>
-              </View>
+              loadingCats || isSearching ? (
+                <View style={styles.emptyState}><ActivityIndicator size="large" color="#0C1559" /></View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="search-outline" size={48} color="#CBD5E1" />
+                  <Text style={styles.emptyText}>No items found matching "{searchQuery}"</Text>
+                </View>
+              )
             }
           />
+
 
         </SafeAreaView>
         <BottomNav />

@@ -64,6 +64,13 @@ const BusinessDashboard = () => {
     }
   }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
 
+  // If loading is finished and no business is found, show the registration modal
+  useEffect(() => {
+    if (!loading && !selectedBusiness && !isLoadingBusinesses) {
+      setShowNoBusinessModal(true);
+    }
+  }, [loading, selectedBusiness, isLoadingBusinesses]);
+
 
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);
@@ -258,7 +265,10 @@ const BusinessDashboard = () => {
           </ScrollView>
         ) : (
           <View style={styles.centered}>
-            <Text style={styles.noBizText}>Initializing Dashboard...</Text>
+            <ActivityIndicator size="large" color="#0C1559" />
+            <Text style={[styles.noBizText, { marginTop: 15 }]}>
+              {isLoadingBusinesses ? "Fetching your business..." : "Preparing Dashboard..."}
+            </Text>
           </View>
         )}
       </SafeAreaView>

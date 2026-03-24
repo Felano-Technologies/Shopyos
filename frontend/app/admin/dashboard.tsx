@@ -136,6 +136,7 @@ export default function AdminDashboard() {
     { label: 'Driver Verification', icon: 'bicycle',          route: '/admin/driver-verifications/driverVerifications'},
     { label: 'Ad Approvals',        icon: 'megaphone',        route: '/admin/ads'         }, 
     { label: 'Audit Logs',          icon: 'list',             route: '/admin/audit-logs'  },
+    { label: 'Categories',          icon: 'tag',              route: '/admin/categories'  },
     { label: 'Settings',            icon: 'settings-sharp',   route: '/admin/settings'    },
   ];
 

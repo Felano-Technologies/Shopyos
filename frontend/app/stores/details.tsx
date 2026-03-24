@@ -94,6 +94,7 @@ export default function StoreDetailsScreen() {
     hours: storeData.openingHours || "Mon - Sat: 9am - 6pm",
     latitude: storeData.latitude ? parseFloat(storeData.latitude) : 6.6745,
     longitude: storeData.longitude ? parseFloat(storeData.longitude) : -1.5716,
+    isTrusted: storeData.isTrusted || false,
   } : {
     id: params.id,
     name: params.name || "Store",
@@ -430,10 +431,19 @@ export default function StoreDetailsScreen() {
         <View style={styles.profileSection}>
           <View style={styles.logoWrapper}>
             {store.logo ? <Image source={store.logo} style={styles.storeLogo} /> : <View style={[styles.storeLogo, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="storefront-outline" size={32} color="#94A3B8" /></View>}
-            <View style={styles.verifiedBadge}><MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" /></View>
+            {store.isTrusted && (
+              <View style={styles.verifiedBadge}><MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" /></View>
+            )}
           </View>
           <View style={styles.infoContent}>
-            <Text style={styles.storeName}>{store.name}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.storeName}>{store.name}</Text>
+              {store.isTrusted && (
+                <View style={styles.verifiedBadge}>
+                  <Ionicons name="checkmark-circle" size={18} color="#84cc16" />
+                </View>
+              )}
+            </View>
             <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{store.rating.toFixed(1)} ({reviews.length} Reviews)</Text></View>
           </View>
         </View>

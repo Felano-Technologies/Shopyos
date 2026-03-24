@@ -33,11 +33,20 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
       // Create form data for upload
       const formData = new FormData();
       
-      // Append the image file
+      // Detect file name and type
+      const filename = imageUri.split('/').pop() || `upload_${Date.now()}`;
+      const match = /\.(\w+)$/.exec(filename);
+      const extension = match ? match[1] : '';
+      let fileType = 'image/jpeg';
+      
+      if (extension.toLowerCase() === 'pdf') fileType = 'application/pdf';
+      else if (extension) fileType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
+
+      // Append the file
       formData.append('file', {
         uri: imageUri,
-        type: 'image/jpeg',
-        name: `upload_${Date.now()}.jpg`,
+        type: fileType,
+        name: filename,
       } as any);
 
       // Required: Your upload preset

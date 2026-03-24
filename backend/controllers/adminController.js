@@ -193,11 +193,25 @@ const verifyStore = async (req, res, next) => {
       });
     }
 
+    // 1. Fetch current store details to check for documents
+    const currentStore = await repositories.stores.findById(storeId);
+    
+    // 2. Determine trusted status (only if verified)
+    let isTrusted = false;
+    if (status === 'verified' && currentStore) {
+      isTrusted = !!(
+        currentStore.business_cert_url || 
+        currentStore.business_license_url || 
+        currentStore.proof_of_bank_url
+      );
+    }
+
     const store = await repositories.admin.updateStoreVerification(storeId, status, reason);
 
-    // Sync the is_verified boolean to match the verification_status
+    // Sync the is_verified boolean and set is_trusted
     await repositories.stores.update(storeId, {
-      is_verified: status === 'verified'
+      is_verified: status === 'verified',
+      is_trusted: isTrusted
     });
 
     // Create audit log
@@ -206,7 +220,7 @@ const verifyStore = async (req, res, next) => {
       action: 'verify_store',
       entityType: 'store',
       entityId: storeId,
-      changes: { verification_status: status, reason },
+      changes: { verification_status: status, is_trusted: isTrusted, reason },
       ipAddress: req.ip,
       userAgent: req.headers['user-agent']
     });

@@ -1,5 +1,5 @@
 // app/business/setup.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,10 +17,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { businessRegister, storage } from '@/services/api';
+import * as DocumentPicker from 'expo-document-picker';
+import { businessRegister, storage, getAllCategories } from '@/services/api';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 
 const { width } = Dimensions.get('window');
@@ -50,17 +51,39 @@ const BusinessSetupScreen = () => {
   const [formData, setFormData] = useState({
     businessName: '', description: '', category: '', address: '',
     city: '', country: '', phone: '', website: '',
-    instagram: '', facebook: ''
+    instagram: '', facebook: '',
+    taxId: '', bankName: '', accountName: '', accountNumber: '',
+    registrationNumber: '', ownerName: ''
   });
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
+  const [businessCert, setBusinessCert] = useState<string | null>(null);
+  const [businessLicense, setBusinessLicense] = useState<string | null>(null);
+  const [proofOfBank, setProofOfBank] = useState<string | null>(null);
 
   const { uploadImage, loading: uploadLoading } = useCloudinaryUpload();
 
-  const categories = [
-    'Fashion', 'Electronics', 'Home', 'Art',
-    'Beauty', 'Food', 'Jewelry', 'Sports', 'Other'
-  ];
+  const [dynamicCategories, setDynamicCategories] = useState<string[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await getAllCategories();
+        if (res.success && res.categories) {
+          setDynamicCategories(res.categories.map((c: any) => c.name));
+        }
+      } catch (e) {
+        console.warn('Failed to fetch categories:', e);
+        // Fallback to minimal defaults if API fails
+        setDynamicCategories(['Fashion', 'Electronics', 'Other']);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    };
+    fetchCats();
+  }, []);
+
 
   // --- Logic ---
   const pickImage = async (type: 'logo' | 'cover') => {
@@ -85,6 +108,25 @@ const BusinessSetupScreen = () => {
       Alert.alert('Error', 'Failed to pick image');
     }
   };
+
+  const handlePickDocument = async (type: 'cert' | 'license' | 'bank') => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        if (type === 'cert') setBusinessCert(uri);
+        else if (type === 'license') setBusinessLicense(uri);
+        else if (type === 'bank') setProofOfBank(uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick document');
+    }
+  };
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -114,6 +156,9 @@ const BusinessSetupScreen = () => {
 
       let logoUrl = '';
       let coverImageUrl = '';
+      let certUrl = '';
+      let licenseUrl = '';
+      let proofBankUrl = '';
 
       // Uploads
       if (logo) {
@@ -124,11 +169,26 @@ const BusinessSetupScreen = () => {
         const res = await uploadImage(coverImage, 'shopyos/store-banners');
         if (res) coverImageUrl = res.url;
       }
+      if (businessCert) {
+        const res = await uploadImage(businessCert, 'shopyos/store-documents');
+        if (res) certUrl = res.url;
+      }
+      if (businessLicense) {
+        const res = await uploadImage(businessLicense, 'shopyos/store-documents');
+        if (res) licenseUrl = res.url;
+      }
+      if (proofOfBank) {
+        const res = await uploadImage(proofOfBank, 'shopyos/store-documents');
+        if (res) proofBankUrl = res.url;
+      }
 
       const submitData = {
         ...formData,
         logo: logoUrl,
         coverImage: coverImageUrl,
+        businessCert: certUrl,
+        businessLicense: licenseUrl,
+        proofOfBank: proofBankUrl,
         socialMedia: {
           instagram: formData.instagram,
           facebook: formData.facebook
@@ -270,16 +330,21 @@ const BusinessSetupScreen = () => {
                 contentContainerStyle={styles.catScroll}
                 keyboardShouldPersistTaps="handled"
               >
-                {categories.map((cat) => (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[styles.catChip, formData.category === cat && styles.catActive]}
-                    onPress={() => handleInputChange('category', cat)}
-                  >
-                    <Text style={[styles.catText, formData.category === cat && styles.catTextActive]}>{cat}</Text>
-                  </TouchableOpacity>
-                ))}
+                {categoriesLoading ? (
+                  <ActivityIndicator size="small" color="#0C1559" style={{ marginHorizontal: 10 }} />
+                ) : (
+                  dynamicCategories.map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.catChip, formData.category === cat && styles.catActive]}
+                      onPress={() => handleInputChange('category', cat)}
+                    >
+                      <Text style={[styles.catText, formData.category === cat && styles.catTextActive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
               </ScrollView>
+
             </View>
 
             {/* --- Contact & Location --- */}
@@ -322,6 +387,108 @@ const BusinessSetupScreen = () => {
                 value={formData.address}
                 onChangeText={(t: string) => handleInputChange('address', t)}
                 placeholder="Street name, PLT number..."
+              />
+            </View>
+
+            {/* --- Legal & Verification --- */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Legal & Verification</Text>
+              
+              <InputField
+                label="Owner Full Name"
+                icon="user"
+                value={formData.ownerName}
+                onChangeText={(t: string) => handleInputChange('ownerName', t)}
+                placeholder="Legally registered name"
+              />
+
+              <InputField
+                label="Registration Number"
+                icon="hash"
+                value={formData.registrationNumber}
+                onChangeText={(t: string) => handleInputChange('registrationNumber', t)}
+                placeholder="Business registration number"
+              />
+
+              <InputField
+                label="Tax ID (TIN)"
+                icon="shield"
+                value={formData.taxId}
+                onChangeText={(t: string) => handleInputChange('taxId', t)}
+                placeholder="Enter TIN"
+              />
+            </View>
+
+            {/* --- Verification Documents --- */}
+            <View style={styles.sectionCard}>
+              <View style={{ marginBottom: 15 }}>
+                <Text style={styles.sectionTitle}>Verification Documents (Optional)</Text>
+                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, fontFamily: 'Montserrat-Medium' }}>
+                   Uploading documents earns you a <Text style={{ color: '#84cc16', fontWeight: 'bold' }}>"Trusted"</Text> green tick for shoppers.
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={[styles.docItem, businessCert && styles.docItemActive]} 
+                onPress={() => handlePickDocument('cert')}
+              >
+                <MaterialCommunityIcons name={businessCert ? "file-check" : "file-outline"} size={22} color="#0C1559" />
+                <Text style={styles.docName} numberOfLines={1}>
+                  {businessCert ? "Certificate Added" : "Upload Business Certificate"}
+                </Text>
+                <Feather name={businessCert ? "check-circle" : "upload"} size={16} color={businessCert ? "#84cc16" : "#94A3B8"} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.docItem, businessLicense && styles.docItemActive]} 
+                onPress={() => handlePickDocument('license')}
+              >
+                <MaterialCommunityIcons name={businessLicense ? "file-check" : "file-outline"} size={22} color="#0C1559" />
+                <Text style={styles.docName} numberOfLines={1}>
+                  {businessLicense ? "License Added" : "Upload Business License"}
+                </Text>
+                <Feather name={businessLicense ? "check-circle" : "upload"} size={16} color={businessLicense ? "#84cc16" : "#94A3B8"} />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.docItem, proofOfBank && styles.docItemActive]} 
+                onPress={() => handlePickDocument('bank')}
+              >
+                <MaterialCommunityIcons name={proofOfBank ? "file-check" : "file-outline"} size={22} color="#0C1559" />
+                <Text style={styles.docName} numberOfLines={1}>
+                  {proofOfBank ? "Proof Added" : "Upload Proof of Bank"}
+                </Text>
+                <Feather name={proofOfBank ? "check-circle" : "upload"} size={16} color={proofOfBank ? "#84cc16" : "#94A3B8"} />
+              </TouchableOpacity>
+            </View>
+
+            {/* --- Banking Details --- */}
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>Banking Details</Text>
+              
+              <InputField
+                label="Bank Name"
+                icon="home"
+                value={formData.bankName}
+                onChangeText={(t: string) => handleInputChange('bankName', t)}
+                placeholder="e.g. GCB Bank"
+              />
+
+              <InputField
+                label="Account Name"
+                icon="user"
+                value={formData.accountName}
+                onChangeText={(t: string) => handleInputChange('accountName', t)}
+                placeholder="Exact name on account"
+              />
+
+              <InputField
+                label="Account Number"
+                icon="credit-card"
+                value={formData.accountNumber}
+                onChangeText={(t: string) => handleInputChange('accountNumber', t)}
+                placeholder="Enter account number"
+                keyboardType="numeric"
               />
             </View>
 
@@ -629,6 +796,27 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
+  },
+  docItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  docItemActive: {
+    borderColor: '#0C1559',
+    backgroundColor: '#F0F4FF',
+  },
+  docName: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 13,
+    color: '#334155',
+    fontFamily: 'Montserrat-Medium',
   },
 });
 

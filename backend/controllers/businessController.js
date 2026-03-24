@@ -223,6 +223,7 @@ const getMyBusinesses = async (req, res, next) => {
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
+      isTrusted: store.is_trusted || false,
       rating: store.avg_rating || 0,
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
@@ -305,6 +306,7 @@ const getBusinessById = async (req, res, next) => {
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
+      isTrusted: store.is_trusted || false,
       rating: store.avg_rating || 0,
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
@@ -943,6 +945,7 @@ const getAllBusinesses = async (req, res, next) => {
         logo_url,
         average_rating,
         is_verified,
+        is_trusted,
         products:products(count)
       `)
       .eq('is_active', true)
@@ -998,6 +1001,7 @@ const getAllBusinesses = async (req, res, next) => {
       logo: s.logo_url,
       rating: s.average_rating || 0,
       verified: s.is_verified || false,
+      isTrusted: s.is_trusted || false,
       catalogues: s.products?.[0]?.count || 0
     }));
 

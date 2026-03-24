@@ -91,11 +91,6 @@ const OrdersScreen = () => {
     }
   }, []);
 
-  useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then((status) => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, []);
 
   useEffect(() => {
     fetchOrders(true);

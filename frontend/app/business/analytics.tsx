@@ -53,12 +53,6 @@ const Analytics = () => {
   const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then((status) => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, []);
-
-  useEffect(() => {
     storage.getItem('currentBusinessId').then(setBusinessId);
   }, []);
 

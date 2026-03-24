@@ -9,8 +9,8 @@ export const useMyBusinesses = (params?: { limit?: number; offset?: number }) =>
       const response = await ApiService.getMyBusinesses(params);
       return response;
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes - business list doesn't change often
-    gcTime: 30 * 60 * 1000,
+    staleTime: 30 * 1000, // 30 seconds - allow for quick updates after registration
+    gcTime: 5 * 60 * 1000,
   });
 };
 

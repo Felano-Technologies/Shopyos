@@ -75,6 +75,7 @@ export default function StoresScreen() {
           logo:        b.logo        || null,
           catalogues:  b.catalogues  || 0,
           verified:    b.verified    || false,
+          isTrusted:   b.isTrusted   || false,
         }));
 
         Animated.sequence([
@@ -129,11 +130,11 @@ export default function StoresScreen() {
           style={styles.popularImgGradient}
         />
 
-        {/* Verified badge — top right, on top of the image */}
-        {item.verified && (
+        {/* Trusted badge — top right, on top of the image */}
+        {item.isTrusted && (
           <View style={styles.verifiedBadge}>
             <Ionicons name="checkmark" size={9} color={C.limeText} />
-            <Text style={styles.verifiedBadgeTxt}>Verified</Text>
+            <Text style={styles.verifiedBadgeTxt}>Trusted</Text>
           </View>
         )}
       </View>
@@ -170,7 +171,7 @@ export default function StoresScreen() {
       <View style={styles.storeRowInfo}>
         <View style={styles.storeNameRow}>
           <Text style={styles.storeRowName} numberOfLines={1}>{item.name}</Text>
-          {item.verified && (
+          {item.isTrusted && (
             <View style={styles.inlineVerified}>
               <Ionicons name="checkmark" size={8} color={C.limeText} />
             </View>

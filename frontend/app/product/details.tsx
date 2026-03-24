@@ -66,7 +66,8 @@ export default function ProductDetails() {
         image: params.image as string,
         storeImage: null as string | null,
         rating: 0,
-        reviewsCount: 0
+        reviewsCount: 0,
+        isTrusted: false
     });
 
     useEffect(() => {
@@ -94,6 +95,7 @@ export default function ProductDetails() {
                     storeImage: res.product.store?.logo || null,
                     rating: res.product.average_rating || 0,
                     reviewsCount: res.product.total_reviews || 0,
+                    isTrusted: res.product.store?.is_trusted || false,
                 }));
             }
         } catch (err) { console.log("Error loading product details", err); }
@@ -255,7 +257,12 @@ export default function ProductDetails() {
                                 <Image source={{ uri: product.storeImage || 'https://via.placeholder.com/100?text=Store' }} style={styles.sellerAvatar} />
                                 <View>
                                     <Text style={styles.sellerLabel}>Sold by</Text>
-                                    <Text style={styles.sellerName}>{product.sellerName}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                        <Text style={styles.sellerName}>{product.sellerName}</Text>
+                                        {product.isTrusted && (
+                                            <Ionicons name="checkmark-circle" size={14} color="#84cc16" />
+                                        )}
+                                    </View>
                                 </View>
                             </View>
                             <TouchableOpacity style={styles.visitBtn} onPress={() => product.storeId && router.push({ pathname: '/stores/details', params: { id: product.storeId } })}>
