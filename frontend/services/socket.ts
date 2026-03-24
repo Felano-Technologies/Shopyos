@@ -63,18 +63,40 @@ class SocketService {
         this.socket.on('connect', () => {
           console.log('✅ Socket.IO connected:', this.socket?.id);
           this.reconnectAttempts = 0;
-          
-          // Re-emit all registered events after reconnection
           this.reattachEventHandlers();
         });
 
         // Connection error
-        this.socket.on('connect_error', (error: any) => {
-          console.error('❌ Socket.IO connection error:', error.message);
-          this.reconnectAttempts++;
+        this.socket.on('connect_error', async (error: any) => {
+          const message = error.message || '';
+          console.error('❌ Socket.IO connection error:', message);
           
+          // Handle JWT expired error specifically
+          if (message.includes('jwt expired') || message.includes('Authentication failed')) {
+            console.warn('🔑 Token expired during socket connection, attempting forced refresh...');
+            
+            try {
+              // We make a lightweight request to trigger the axios silent-refresh interceptor
+              // which is already configured in api.tsx to update storage and notify the socket.
+              // Note: we use this.importApi() to avoid circular dependencies if any
+              const { api } = require('./api');
+              await api.get('/auth/me'); 
+              
+              // Now that token is likely refreshed in storage, 
+              // we update the auth object for the current socket instance
+              const newToken = await storage.getItem('userToken');
+              if (newToken && this.socket) {
+                this.socket.auth = { token: newToken };
+                this.socket.connect(); // Force reconnection with new token
+                return;
+              }
+            } catch (err) {
+              console.error('Failed to refresh token for socket:', err);
+            }
+          }
+
+          this.reconnectAttempts++;
           if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('Max reconnection attempts reached');
             this.disconnect();
           }
         });
@@ -82,10 +104,7 @@ class SocketService {
         // Disconnection
         this.socket.on('disconnect', (reason: string) => {
           console.log('🔌 Socket.IO disconnected:', reason);
-          
-          // Auto-reconnect on unexpected disconnections
           if (reason === 'io server disconnect') {
-            // Server disconnected, manually reconnect
             this.socket?.connect();
           }
         });
@@ -108,6 +127,9 @@ class SocketService {
           });
 
           this.socket!.once('connect_error', (err: any) => {
+            // Give it a chance to auto-retry if it's a transient error or just refreshed
+            if (err.message?.includes('jwt expired')) return; 
+            
             clearTimeout(timeout);
             rejectConnect(err);
           });

@@ -29,11 +29,16 @@ export default function Dashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [user, setUser] = useState<any>(null);
   
-  const isVerified = profile?.is_verified === true || profile?.is_verified === 1 || profile?.verification_status === 'verified' || user?.role === 'driver';
-  const isPending = profile?.verification_status === 'pending' || (profile?.is_verified === false && !profile?.rejection_reason);
+  // Strict verification check (like business logic)
+  // We allow them to see the dashboard, but restrict 'Go Online' if is_verified is false
+  const isVerified = profile?.is_verified === true || profile?.is_verified === 1 || profile?.verification_status === 'verified';
+  const isPending = !isVerified && !profile?.rejection_reason;
+  const isRejected = !!profile?.rejection_reason;
 
   useEffect(() => {
     if (profile) {
+      console.log('DEBUG [DriverDashboard] Profile data from backend:', JSON.stringify(profile, null, 2));
+      
       // Find the availability status
       const driverObj = profile?.profile || profile?.data || profile;
       if (driverObj && driverObj.is_available !== undefined) {
@@ -211,7 +216,7 @@ export default function Dashboard() {
             >
               <Feather name="shield" size={16} color="#0C1559" />
               <Text style={styles.verificationText}>
-                {isPending ? 'Verification in progress. It will be done soon.' : 'Complete your verification to start earning.'}
+                {isRejected ? 'Application rejected. Tap to see why.' : (isPending ? 'Verification in progress. It will be done soon.' : 'Complete your verification to start earning.')}
               </Text>
               <Feather name="chevron-right" size={14} color="#0C1559" />
             </TouchableOpacity>
