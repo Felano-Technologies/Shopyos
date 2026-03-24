@@ -146,6 +146,7 @@ exports.initializeCampaignPayment = async (req, res, next) => {
       email,
       amount: amountInPesewas,
       currency: 'GHS',
+      callback_url: `${process.env.FRONTEND_URL}/business/promotions?reference=${campaign.id}`,
       metadata: {
         type: 'BANNER_AD',
         campaignId: campaign.id,

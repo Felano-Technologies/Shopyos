@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS banner_campaigns (
   start_date TIMESTAMP,
   end_date TIMESTAMP,
   rejection_reason TEXT,
+  paystack_reference VARCHAR(100),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );

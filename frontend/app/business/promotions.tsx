@@ -2,18 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
   TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
-  ActivityIndicator
+  ActivityIndicator, Linking
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { 
   getMyBannerCampaigns, 
   createBannerCampaign, 
-  initializeBannerPayment 
+  initializeBannerPayment,
+  verifyBannerPayment 
 } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
@@ -39,6 +40,39 @@ export default function PromotionsScreen() {
   const [duration, setDuration] = useState(3);
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const { reference } = useLocalSearchParams();
+
+  const verifyPayment = async (paystackRef: string) => {
+    try {
+      setLoading(true);
+      const res = await verifyBannerPayment(paystackRef);
+      if (res.success) {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Payment Successful',
+          message: 'Your ad campaign is now live!'
+        });
+        fetchMyCampaigns();
+      }
+    } catch (error: any) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Verification Failed',
+        message: error.message || 'Payment could not be verified'
+      });
+    } finally {
+      setLoading(false);
+      // Clean URL
+      router.replace('/business/promotions');
+    }
+  };
+
+  useEffect(() => {
+    if (reference) {
+      verifyPayment(reference as string);
+    }
+  }, [reference]);
 
   const fetchMyCampaigns = async () => {
     try {
@@ -99,13 +133,6 @@ export default function PromotionsScreen() {
       const match = /\.(\w+)$/.exec(filename || '');
       const type = match ? `image/${match[1]}` : 'image';
       
-      formData.append('image', { // Changed from 'banner' to 'image' if backend expects 'image', oh wait the route uses upload.single('banner')
-        uri: bannerUri,
-        name: filename,
-        type,
-      } as any);
-      
-      // Wait, let's check backend route again. It was upload.single('banner')
       formData.append('banner', {
         uri: bannerUri,
         name: filename,
@@ -149,8 +176,8 @@ export default function PromotionsScreen() {
           title: 'Opening Checkout',
           message: 'Redirecting to Paystack secure payment page...'
         });
-        console.log('Authorization URL:', res.data.authorization_url);
-        // Link.openURL(res.data.authorization_url) would follow
+        
+        Linking.openURL(res.data.authorization_url);
       }
     } catch (error: any) {
       CustomInAppToast.show({
@@ -211,7 +238,7 @@ export default function PromotionsScreen() {
                 </View>
                 <View style={styles.statCard}>
                   <Feather name="pie-chart" size={20} color="#0C1559" />
-                  <Text style={styles.statValue}>₵{campaigns.reduce((acc, c) => acc + parseFloat(c.paid_amount || 0), 0)}</Text>
+                  <Text style={styles.statValue}>₵{campaigns.reduce((acc, c) => (['Active', 'Completed'].includes(c.status) ? acc + parseFloat(c.paid_amount || 0) : acc), 0)}</Text>
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>
