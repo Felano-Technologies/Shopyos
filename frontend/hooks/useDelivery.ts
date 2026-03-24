@@ -96,7 +96,7 @@ export const useDriverProfile = () => {
       const response = await ApiService.getDriverProfile();
       return response;
     },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 30 * 1000, 
+    gcTime: 5 * 60 * 1000,
   });
 };

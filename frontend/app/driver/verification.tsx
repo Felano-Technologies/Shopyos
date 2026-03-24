@@ -47,19 +47,53 @@ export default function DriverVerification() {
   });
 
   useEffect(() => {
-    if (params.status === 'pending') {
-      setViewState('pending');
-    }
+    loadProfileData();
   }, [params]);
 
-  // Auto-fill personal info from signup data
-  useEffect(() => {
-    getUserData().then((user) => {
-      if (user?.name) setFullName(user.name);
-      if (user?.email) setEmail(user.email);
-      if (user?.fullPhoneNumber) setPhone(user.fullPhoneNumber);
-    }).catch(() => { /* fail silently */ });
-  }, []);
+  const loadProfileData = async () => {
+    try {
+      const [user, driverRes] = await Promise.all([
+        getUserData(),
+        getDriverProfile()
+      ]);
+
+      if (user) {
+        if (user.name) setFullName(user.name);
+        if (user.email) setEmail(user.email);
+        if (user.fullPhoneNumber) setPhone(user.fullPhoneNumber);
+        if (user.avatar_url) setProfilePhoto(user.avatar_url);
+      }
+
+      const driver = driverRes?.profile || driverRes?.data || driverRes;
+      if (driver) {
+        // If already verified, go to dashboard
+        if (driver.is_verified || driver.verification_status === 'verified') {
+          router.replace('/driver/dashboard');
+          return;
+        }
+
+        // Pre-fill form if they started but didn't finish or are pending/rejected
+        if (driver.vehicle_type) setVehicleType(driver.vehicle_type);
+        if (driver.plate_number) setPlateNumber(driver.plate_number);
+        if (driver.license_number) setLicenseNumber(driver.license_number);
+        
+        // Documents (URLs)
+        setDocImages(prev => ({
+          ...prev,
+          idCard: driver.national_id_url || prev.idCard,
+          licenseFront: driver.license_image_url || prev.licenseFront,
+          insurance: driver.insurance_doc_url || prev.insurance,
+        }));
+
+        if (!params.status && (driver.verification_status === 'pending' || (driver.is_verified === false && !driver.rejection_reason))) {
+            setViewState('pending');
+        }
+      }
+    } catch (error) {
+       console.log('Error loading data', error);
+    }
+  };
+
 
   // --- IMAGE PICKER LOGIC ---
   const pickImage = async (source: 'camera' | 'gallery', target: string) => {
@@ -263,7 +297,7 @@ export default function DriverVerification() {
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.navBar}>
-                <TouchableOpacity onPress={() => router.replace('/login')} style={styles.backBtn}>
+                <TouchableOpacity onPress={() => router.replace('/driver/dashboard')} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#A3E635" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Driver Registration</Text>

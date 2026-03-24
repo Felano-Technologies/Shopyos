@@ -17,7 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getUserData, CustomInAppToast } from '@/services/api';
+import { getUserData, CustomInAppToast, updateDriverAvailability } from '@/services/api';
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 import { useDriverGuard } from '@/hooks/useDriverGuard';
 
@@ -29,8 +29,18 @@ export default function Dashboard() {
   const [isOnline, setIsOnline] = useState(false);
   const [user, setUser] = useState<any>(null);
   
-  const isVerified = profile?.is_verified || profile?.verification_status === 'verified';
-  const isPending = profile?.verification_status === 'pending';
+  const isVerified = profile?.is_verified === true || profile?.is_verified === 1 || profile?.verification_status === 'verified' || user?.role === 'driver';
+  const isPending = profile?.verification_status === 'pending' || (profile?.is_verified === false && !profile?.rejection_reason);
+
+  useEffect(() => {
+    if (profile) {
+      // Find the availability status
+      const driverObj = profile?.profile || profile?.data || profile;
+      if (driverObj && driverObj.is_available !== undefined) {
+          setIsOnline(!!driverObj.is_available);
+      }
+    }
+  }, [profile]);
 
   // --- TanStack Query Hooks ---
   const { data: statsData } = useDriverStats('today');
@@ -60,7 +70,9 @@ export default function Dashboard() {
   }, []);
 
   // Toggle Online Status
-  const toggleOnline = () => {
+  const toggleOnline = async () => {
+    if (isChecking) return;
+    
     if (!isVerified) {
       CustomInAppToast.show({ 
         type: 'error', 
@@ -69,8 +81,26 @@ export default function Dashboard() {
       });
       return;
     }
-    setIsOnline(!isOnline);
+    
+    const newStatus = !isOnline;
+    try {
+      await updateDriverAvailability(newStatus);
+      setIsOnline(newStatus);
+      CustomInAppToast.show({
+        type: 'success',
+        title: newStatus ? 'You are Online' : 'You are Offline',
+        message: newStatus ? 'You will now see delivery requests' : 'You will not receive new requests'
+      });
+    } catch (error: any) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Update Failed',
+        message: error.message || 'Could not update your status'
+      });
+    }
   };
+
+
 
   const handleAccept = async (id: string) => {
     if (!isVerified) {
@@ -211,6 +241,7 @@ export default function Dashboard() {
                 thumbColor={isOnline ? '#A3E635' : '#f4f3f4'}
                 onValueChange={toggleOnline}
                 value={isOnline}
+                disabled={isChecking}
               />
             </View>
           </View>

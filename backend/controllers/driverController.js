@@ -83,7 +83,30 @@ const getDriverProfile = async (req, res, next) => {
     }
 };
 
+/**
+ * Update driver availability (online/offline)
+ * @route   PUT /api/deliveries/driver/availability
+ * @access  Private (Driver)
+ */
+const updateAvailability = async (req, res, next) => {
+  try {
+    const { isAvailable } = req.body;
+    const userId = req.user.id;
+
+    const profile = await repositories.drivers.updateAvailability(userId, isAvailable);
+
+    res.status(200).json({
+      success: true,
+      message: `Driver is now ${isAvailable ? 'online' : 'offline'}`,
+      profile
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   submitVerification,
-  getDriverProfile
+  getDriverProfile,
+  updateAvailability
 };

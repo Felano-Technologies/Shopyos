@@ -67,6 +67,27 @@ class DriverRepository extends BaseRepository {
       return data;
     }
   }
+
+  /**
+   * Update driver availability status
+   * @param {string} userId - User UUID
+   * @param {boolean} isAvailable - Availability status
+   * @returns {Promise<Object>} Updated profile
+   */
+  async updateAvailability(userId, isAvailable) {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .update({ 
+          is_available: isAvailable, 
+          updated_at: new Date().toISOString() 
+      })
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
 }
 
 module.exports = DriverRepository;

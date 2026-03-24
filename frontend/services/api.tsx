@@ -1531,6 +1531,16 @@ export const getDriverProfile = async () => {
     }
 };
 
+export const updateDriverAvailability = async (isAvailable: boolean) => {
+    try {
+        const response = await api.put('/deliveries/driver/availability', { isAvailable });
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.userMessage || extractErrorMessage(error));
+    }
+};
+
+
 export const submitDriverVerification = async (formData: FormData) => {
     try {
         const response = await api.post('/deliveries/verify', formData, {

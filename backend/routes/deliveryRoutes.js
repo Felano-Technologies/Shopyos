@@ -19,7 +19,8 @@ const {
 } = require('../controllers/deliveryController');
 const {
   submitVerification,
-  getDriverProfile
+  getDriverProfile,
+  updateAvailability
 } = require('../controllers/driverController');
 const upload = require('../middleware/upload');
 const { protect, driver, hasAnyRole } = require('../middleware/authMiddleware');
@@ -107,8 +108,12 @@ router.post('/verify', driverUploadFields, submitVerification);
 
 // @route   GET /api/deliveries/driver/profile
 // @desc    Get driver profile
-// @access  Private (Driver)
+// @access  Private (Driver/Auth)
 router.get('/driver/profile', getDriverProfile);
 
-module.exports = router;
+// @route   PUT /api/deliveries/driver/availability
+// @desc    Update driver availability
+// @access  Private (Driver)
+router.put('/driver/availability', driver, updateAvailability);
 
+module.exports = router;
