@@ -95,7 +95,7 @@ const BusinessVerification = () => {
   };
 
   const handleUploadLogo = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled) setDetails(prev => ({ ...prev, logo: result.assets[0].uri }));
   };
 

@@ -202,6 +202,8 @@ const getMyBusinesses = async (req, res, next) => {
       offset: offsetNum
     });
 
+    console.log(`[MY_BUSINESSES] UserID: ${userId}, Count Found: ${totalCount}, Stores:`, rawStores?.length);
+
     // Format response for backward compatibility
     const businesses = rawStores.map(store => ({
       _id: store.id,

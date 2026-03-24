@@ -55,7 +55,12 @@ const BusinessDashboard = () => {
 
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
-
+ 
+  // Force refetch on mount to catch newly registered businesses
+  useEffect(() => {
+    refetchBusinesses();
+  }, []);
+ 
   // --- Sync Storage ---
   useEffect(() => {
     if (selectedBusiness?._id) {
@@ -66,7 +71,7 @@ const BusinessDashboard = () => {
 
   // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
-    if (!loading && !selectedBusiness && !isLoadingBusinesses) {
+    if (!loading && !selectedBusiness && !isLoadingBusinesses && !isRefetchingBusinesses) {
       setShowNoBusinessModal(true);
     }
   }, [loading, selectedBusiness, isLoadingBusinesses]);

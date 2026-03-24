@@ -23,10 +23,292 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { businessRegister, storage, getAllCategories } from '@/services/api';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query/keys';
 
 const { width } = Dimensions.get('window');
 
-// --- MOVED OUTSIDE: Input Component to prevent re-render issues ---
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 50,
+  },
+  bottomLogos: {
+    position: 'absolute',
+    bottom: 20,
+    left: -20,
+  },
+  fadedLogo: {
+    width: 150,
+    height: 150,
+    resizeMode: 'contain',
+    opacity: 0.08,
+  },
+  headerContainer: {
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
+    textAlign: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+  },
+  sectionCard: {
+    backgroundColor: '#FFF',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: 16,
+  },
+  coverUpload: {
+    height: 140,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  uploadedCover: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  uploadPlaceholder: {
+    alignItems: 'center',
+  },
+  uploadText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontFamily: 'Montserrat-Medium',
+  },
+  editBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  logoUpload: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  uploadedLogo: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  logoPlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addLogoBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#0C1559',
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#FFF',
+  },
+  logoTextContainer: {
+    marginLeft: 15,
+  },
+  logoLabel: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  logoSub: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    color: '#64748B',
+  },
+  inputContainer: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Bold',
+    color: '#334155',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    height: 52,
+  },
+  input: {
+    flex: 1,
+    fontSize: 14,
+    color: '#0F172A',
+    fontFamily: 'Montserrat-Medium',
+  },
+  row: {
+    flexDirection: 'row',
+  },
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  catChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  catActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
+  },
+  catText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+  },
+  catTextActive: {
+    color: '#FFF',
+  },
+  payoutOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingVertical: 12,
+    marginBottom: 15,
+    marginHorizontal: 4,
+  },
+  payoutOptionActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
+  },
+  payoutLabel: {
+    marginLeft: 8,
+    fontFamily: 'Montserrat-Bold',
+    fontSize: 13,
+    color: '#64748B',
+  },
+  payoutTextActive: {
+    color: '#FFF',
+  },
+  docItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    padding: 14,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  docItemActive: {
+    borderColor: '#0C1559',
+    backgroundColor: '#F0F4FF',
+  },
+  docName: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 13,
+    color: '#334155',
+    fontFamily: 'Montserrat-Medium',
+  },
+  submitBtn: {
+    marginHorizontal: 20,
+    marginBottom: 30,
+    borderRadius: 16,
+    shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  submitGradient: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderRadius: 16,
+    gap: 8,
+  },
+  submitText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+  },
+});
+
 const InputField = ({ label, icon, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: any) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>{label}</Text>
@@ -35,7 +317,7 @@ const InputField = ({ label, icon, value, onChangeText, placeholder, multiline =
       <TextInput
         style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
         value={value}
-        onChangeText={onChangeText} // Direct prop passing
+        onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor="#94A3B8"
         multiline={multiline}
@@ -47,6 +329,7 @@ const InputField = ({ label, icon, value, onChangeText, placeholder, multiline =
 );
 
 const BusinessSetupScreen = () => {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     businessName: '', description: '', category: '', address: '',
@@ -55,37 +338,30 @@ const BusinessSetupScreen = () => {
     taxId: '', bankName: '', accountName: '', accountNumber: '',
     registrationNumber: '', ownerName: '', payoutMethod: 'bank'
   });
+
+  const [categories, setCategories] = useState<any[]>([]);
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [businessCert, setBusinessCert] = useState<string | null>(null);
   const [businessLicense, setBusinessLicense] = useState<string | null>(null);
   const [proofOfBank, setProofOfBank] = useState<string | null>(null);
 
-  const { uploadImage, loading: uploadLoading } = useCloudinaryUpload();
-
-  const [dynamicCategories, setDynamicCategories] = useState<string[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const { uploadImage, uploading: uploadLoading } = useCloudinaryUpload();
 
   useEffect(() => {
     const fetchCats = async () => {
       try {
         const res = await getAllCategories();
-        if (res.success && res.categories) {
-          setDynamicCategories(res.categories.map((c: any) => c.name));
-        }
-      } catch (e) {
-        console.warn('Failed to fetch categories:', e);
-        // Fallback to minimal defaults if API fails
-        setDynamicCategories(['Fashion', 'Electronics', 'Other']);
-      } finally {
-        setCategoriesLoading(false);
-      }
+        if (res.success) setCategories(res.categories || []);
+      } catch (e) { console.log(e); }
     };
     fetchCats();
   }, []);
 
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
 
-  // --- Logic ---
   const pickImage = async (type: 'logo' | 'cover') => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -94,7 +370,7 @@ const BusinessSetupScreen = () => {
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,
@@ -109,118 +385,64 @@ const BusinessSetupScreen = () => {
     }
   };
 
-  const handlePickDocument = async (type: 'cert' | 'license' | 'bank') => {
+  const pickDocument = async (type: 'cert' | 'license' | 'bank') => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: ['application/pdf', 'image/*'],
-        copyToCacheDirectory: true
       });
-      
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
-        if (type === 'cert') setBusinessCert(uri);
-        else if (type === 'license') setBusinessLicense(uri);
-        else if (type === 'bank') setProofOfBank(uri);
+      if (!result.canceled) {
+        if (type === 'cert') setBusinessCert(result.assets[0].uri);
+        else if (type === 'license') setBusinessLicense(result.assets[0].uri);
+        else setProofOfBank(result.assets[0].uri);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick document');
     }
   };
 
-
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const validateForm = () => {
-    if (!formData.businessName.trim()) return alertError('Business Name is required');
-    if (!formData.description.trim()) return alertError('Description is required');
-    if (!formData.category) return alertError('Select a Category');
-    if (!formData.address.trim()) return alertError('Address is required');
-    if (!formData.phone.trim()) return alertError('Phone Number is required');
-    return true;
-  };
-
-  const alertError = (msg: string) => {
-    Alert.alert('Missing Information', msg);
-    return false;
-  };
-
   const handleCreateBusiness = async () => {
-    if (!validateForm()) return;
+    if (!formData.businessName || !formData.category || !formData.address || !formData.city || !formData.phone) {
+      Alert.alert('Missing Info', 'Please fill in all required fields marked with *');
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const token = await storage.getItem('userToken');
-      if (!token) return router.replace('/login');
-
       let logoUrl = '';
-      let coverImageUrl = '';
+      let coverUrl = '';
       let certUrl = '';
       let licenseUrl = '';
-      let proofBankUrl = '';
+      let bankUrl = '';
 
-      // Uploads
-      if (logo) {
-        const res = await uploadImage(logo, 'shopyos/store-logos');
-        if (res) logoUrl = res.url;
-      }
-      if (coverImage) {
-        const res = await uploadImage(coverImage, 'shopyos/store-banners');
-        if (res) coverImageUrl = res.url;
-      }
-      if (businessCert) {
-        const res = await uploadImage(businessCert, 'shopyos/store-documents');
-        if (res) certUrl = res.url;
-      }
-      if (businessLicense) {
-        const res = await uploadImage(businessLicense, 'shopyos/store-documents');
-        if (res) licenseUrl = res.url;
-      }
-      if (proofOfBank) {
-        const res = await uploadImage(proofOfBank, 'shopyos/store-documents');
-        if (res) proofBankUrl = res.url;
-      }
+      if (logo) logoUrl = await uploadImage(logo);
+      if (coverImage) coverUrl = await uploadImage(coverImage);
+      if (businessCert) certUrl = await uploadImage(businessCert);
+      if (businessLicense) licenseUrl = await uploadImage(businessLicense);
+      if (proofOfBank) bankUrl = await uploadImage(proofOfBank);
 
       const submitData = {
         ...formData,
         logo: logoUrl,
-        coverImage: coverImageUrl,
+        coverImage: coverUrl,
         businessCert: certUrl,
         businessLicense: licenseUrl,
-        proofOfBank: proofBankUrl,
-        payoutMethod: formData.payoutMethod,
-        socialMedia: {
-          instagram: formData.instagram,
-          facebook: formData.facebook
-        }
+        proofOfBank: bankUrl,
       };
 
       const response = await businessRegister(submitData);
 
       if (response.success) {
-        Alert.alert('Success!', 'Business created successfully! Let\'s get you verified.', [
-          { text: 'Go to Verification', onPress: () => router.replace('/business/verification') }
-        ]);
+        queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
+        Alert.alert(
+          'Success!',
+          'Your business has been registered. It is now pending approval by our administrators.',
+          [{ text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }]
+        );
+      } else {
+        Alert.alert('Registration Failed', response.error || 'Something went wrong');
       }
     } catch (error: any) {
-      // --- DEBUG LOGGING ---
-      console.log("FULL ERROR OBJECT:", JSON.stringify(error, null, 2));
-      if (error.response) {
-        console.log("STATUS:", error.response.status);
-        console.log("DATA:", error.response.data);
-      }
-      // ---------------------
-
-      let errorMessage = 'Registration failed. Please try again.';
-
-      if (error.response && error.response.data && error.response.data.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      Alert.alert('Registration Error', errorMessage);
+      Alert.alert('Error', error.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
@@ -229,41 +451,31 @@ const BusinessSetupScreen = () => {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-
-      {/* Background Watermark */}
-      <View style={StyleSheet.absoluteFillObject}>
-        <View style={styles.bottomLogos}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
-        </View>
-      </View>
-
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-        {/* Keyboard Avoiding View Wrapper */}
-        <KeyboardAvoidingView
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1 }}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
-          <ScrollView
+          <ScrollView 
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
           >
-
-            {/* Header */}
+            {/* --- Header --- */}
             <LinearGradient
               colors={['#0C1559', '#1e3a8a']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
               style={styles.headerContainer}
             >
               <TouchableOpacity 
-                onPress={() => router.canGoBack() ? router.back() : router.replace('/business/dashboard')} 
                 style={styles.backButton}
+                onPress={() => {
+                  if (router.canGoBack()) router.back();
+                  else router.replace('/business/dashboard');
+                }}
               >
-                <Ionicons name="arrow-back" size={24} color="#FFF" />
+                <Ionicons name="chevron-back" size={24} color="#FFF" />
               </TouchableOpacity>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={styles.headerTitle}>Setup Business</Text>
+              <View style={{ alignItems: 'center', flex: 1 }}>
+                <Text style={styles.headerTitle}>Register Business</Text>
                 <Text style={styles.headerSubtitle}>Let's get your store online</Text>
               </View>
               <View style={{ width: 40 }} />
@@ -305,70 +517,64 @@ const BusinessSetupScreen = () => {
               </View>
             </View>
 
-            {/* --- Business Info Section --- */}
+            {/* --- Basic Info --- */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Basic Details</Text>
-
+              <Text style={styles.sectionTitle}>Basic Information</Text>
               <InputField
-                label="Business Name"
-                icon="briefcase"
+                label="Business Name *"
+                icon="shopping-bag"
                 value={formData.businessName}
                 onChangeText={(t: string) => handleInputChange('businessName', t)}
-                placeholder="e.g. Urban Trends"
+                placeholder="Enter business name"
               />
-
               <InputField
                 label="Description"
-                icon="file-text"
+                icon="info"
                 value={formData.description}
                 onChangeText={(t: string) => handleInputChange('description', t)}
-                placeholder="Tell us about what you sell..."
+                placeholder="Briefly describe your business"
                 multiline
               />
 
-              {/* Category Pills */}
-              <Text style={styles.label}>Category</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.catScroll}
-                keyboardShouldPersistTaps="handled"
-              >
-                {categoriesLoading ? (
-                  <ActivityIndicator size="small" color="#0C1559" style={{ marginHorizontal: 10 }} />
-                ) : (
-                  dynamicCategories.map((cat) => (
-                    <TouchableOpacity
-                      key={cat}
-                      style={[styles.catChip, formData.category === cat && styles.catActive]}
-                      onPress={() => handleInputChange('category', cat)}
-                    >
-                      <Text style={[styles.catText, formData.category === cat && styles.catTextActive]}>{cat}</Text>
-                    </TouchableOpacity>
-                  ))
-                )}
-              </ScrollView>
-
+              <Text style={styles.label}>Business Category *</Text>
+              <View style={styles.catGrid}>
+                {categories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat.id || cat.name}
+                    style={[styles.catChip, formData.category === cat.name && styles.catActive]}
+                    onPress={() => handleInputChange('category', cat.name)}
+                  >
+                    <Text style={[styles.catText, formData.category === cat.name && styles.catTextActive]}>
+                      {cat.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             {/* --- Contact & Location --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Contact & Location</Text>
-
               <InputField
-                label="Phone Number"
+                label="Phone Number *"
                 icon="phone"
                 value={formData.phone}
                 onChangeText={(t: string) => handleInputChange('phone', t)}
-                placeholder="+233 24 123 4567"
+                placeholder="+233..."
                 keyboardType="phone-pad"
               />
-
+              <InputField
+                label="Address *"
+                icon="map-pin"
+                value={formData.address}
+                onChangeText={(t: string) => handleInputChange('address', t)}
+                placeholder="Street address"
+              />
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
                   <InputField
-                    label="City"
-                    icon="map-pin"
+                    label="City *"
+                    icon="map"
                     value={formData.city}
                     onChangeText={(t: string) => handleInputChange('city', t)}
                     placeholder="Accra"
@@ -376,7 +582,7 @@ const BusinessSetupScreen = () => {
                 </View>
                 <View style={{ flex: 1 }}>
                   <InputField
-                    label="Country"
+                    label="Country *"
                     icon="flag"
                     value={formData.country}
                     onChangeText={(t: string) => handleInputChange('country', t)}
@@ -384,134 +590,105 @@ const BusinessSetupScreen = () => {
                   />
                 </View>
               </View>
-
-              <InputField
-                label="Full Address"
-                icon="map"
-                value={formData.address}
-                onChangeText={(t: string) => handleInputChange('address', t)}
-                placeholder="Street name, PLT number..."
-              />
             </View>
 
-            {/* --- Legal & Verification --- */}
+            {/* --- Verification Documents (Optional for small business) --- */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Legal & Verification</Text>
-              
+              <Text style={styles.sectionTitle}>Legal & Verification (Optional)</Text>
               <InputField
-                label="Owner Full Name"
+                label="Business Registration Number"
+                icon="file-text"
+                value={formData.registrationNumber}
+                onChangeText={(t: string) => handleInputChange('registrationNumber', t)}
+                placeholder="REG-123456"
+              />
+              <InputField
+                label="Tax Identification Number (TIN)"
+                icon="hash"
+                value={formData.taxId}
+                onChangeText={(t: string) => handleInputChange('taxId', t)}
+                placeholder="T-000..."
+              />
+              <InputField
+                label="Full Name of Owner"
                 icon="user"
                 value={formData.ownerName}
                 onChangeText={(t: string) => handleInputChange('ownerName', t)}
-                placeholder="Legally registered name"
+                placeholder="Owner's legal name"
               />
 
-              <InputField
-                label="Registration Number (Optional)"
-                icon="hash"
-                value={formData.registrationNumber}
-                onChangeText={(t: string) => handleInputChange('registrationNumber', t)}
-                placeholder="Business registration number"
-              />
-
-              <InputField
-                label="Tax ID / TIN (Optional)"
-                icon="shield"
-                value={formData.taxId}
-                onChangeText={(t: string) => handleInputChange('taxId', t)}
-                placeholder="Enter TIN"
-              />
-            </View>
-
-            {/* --- Verification Documents --- */}
-            <View style={styles.sectionCard}>
-              <View style={{ marginBottom: 15 }}>
-                <Text style={styles.sectionTitle}>Verification Documents (Optional)</Text>
-                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2, fontFamily: 'Montserrat-Medium' }}>
-                   Uploading documents earns you a <Text style={{ color: '#84cc16', fontWeight: 'bold' }}>"Trusted"</Text> green tick for shoppers.
-                </Text>
-              </View>
-              
-              <TouchableOpacity 
-                style={[styles.docItem, businessCert && styles.docItemActive]} 
-                onPress={() => handlePickDocument('cert')}
+              <Text style={[styles.label, { marginTop: 10 }]}>Upload Documents</Text>
+              <TouchableOpacity
+                style={[styles.docItem, businessCert && styles.docItemActive]}
+                onPress={() => pickDocument('cert')}
               >
-                <MaterialCommunityIcons name={businessCert ? "file-check" : "file-outline"} size={22} color="#0C1559" />
-                <Text style={styles.docName} numberOfLines={1}>
-                  {businessCert ? "Certificate Added" : "Upload Business Certificate"}
-                </Text>
-                <Feather name={businessCert ? "check-circle" : "upload"} size={16} color={businessCert ? "#84cc16" : "#94A3B8"} />
+                <Feather name="file" size={20} color={businessCert ? '#0C1559' : '#94A3B8'} />
+                <Text style={styles.docName}>{businessCert ? 'Registration Certificate Added' : 'Registration Certificate (PDF/Image)'}</Text>
+                {businessCert && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.docItem, businessLicense && styles.docItemActive]} 
-                onPress={() => handlePickDocument('license')}
+              <TouchableOpacity
+                style={[styles.docItem, businessLicense && styles.docItemActive]}
+                onPress={() => pickDocument('license')}
               >
-                <MaterialCommunityIcons name={businessLicense ? "file-check" : "file-outline"} size={22} color="#0C1559" />
-                <Text style={styles.docName} numberOfLines={1}>
-                  {businessLicense ? "License Added" : "Upload Business License"}
-                </Text>
-                <Feather name={businessLicense ? "check-circle" : "upload"} size={16} color={businessLicense ? "#84cc16" : "#94A3B8"} />
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.docItem, proofOfBank && styles.docItemActive]} 
-                onPress={() => handlePickDocument('bank')}
-              >
-                <MaterialCommunityIcons name={proofOfBank ? "file-check" : "file-outline"} size={22} color="#0C1559" />
-                <Text style={styles.docName} numberOfLines={1}>
-                  {proofOfBank ? "Proof Added" : "Upload Proof of Bank"}
-                </Text>
-                <Feather name={proofOfBank ? "check-circle" : "upload"} size={16} color={proofOfBank ? "#84cc16" : "#94A3B8"} />
+                <Feather name="shield" size={20} color={businessLicense ? '#0C1559' : '#94A3B8'} />
+                <Text style={styles.docName}>{businessLicense ? 'Business License Added' : 'Operating License (PDF/Image)'}</Text>
+                {businessLicense && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
               </TouchableOpacity>
             </View>
 
-            {/* --- Payout Details --- */}
+            {/* --- Banking & Payouts --- */}
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>Payout Details</Text>
-              
-              {/* Payout Method Picker */}
+              <Text style={styles.sectionTitle}>Payout Account</Text>
+              <Text style={styles.label}>Preferred Payout Method</Text>
               <View style={styles.row}>
-                <TouchableOpacity 
-                   style={[styles.payoutOption, formData.payoutMethod === 'bank' && styles.payoutOptionActive]}
-                   onPress={() => handleInputChange('payoutMethod', 'bank')}
+                <TouchableOpacity
+                  style={[styles.payoutOption, formData.payoutMethod === 'bank' && styles.payoutOptionActive]}
+                  onPress={() => handleInputChange('payoutMethod', 'bank')}
                 >
-                  <MaterialCommunityIcons name="bank-outline" size={20} color={formData.payoutMethod === 'bank' ? '#FFF' : '#64748B'} />
+                  <MaterialCommunityIcons name="bank" size={22} color={formData.payoutMethod === 'bank' ? '#FFF' : '#64748B'} />
                   <Text style={[styles.payoutLabel, formData.payoutMethod === 'bank' && styles.payoutTextActive]}>Bank</Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                   style={[styles.payoutOption, formData.payoutMethod === 'momo' && styles.payoutOptionActive]}
-                   onPress={() => handleInputChange('payoutMethod', 'momo')}
+                <TouchableOpacity
+                  style={[styles.payoutOption, formData.payoutMethod === 'momo' && styles.payoutOptionActive]}
+                  onPress={() => handleInputChange('payoutMethod', 'momo')}
                 >
-                  <MaterialCommunityIcons name="cellphone-wireless" size={20} color={formData.payoutMethod === 'momo' ? '#FFF' : '#64748B'} />
+                  <MaterialCommunityIcons name="cellphone-text" size={22} color={formData.payoutMethod === 'momo' ? '#FFF' : '#64748B'} />
                   <Text style={[styles.payoutLabel, formData.payoutMethod === 'momo' && styles.payoutTextActive]}>MoMo</Text>
                 </TouchableOpacity>
               </View>
- 
+
               <InputField
-                label={formData.payoutMethod === 'bank' ? "Bank Name" : "MoMo Provider"}
-                icon={formData.payoutMethod === 'bank' ? "home" : "smartphone"}
+                label={formData.payoutMethod === 'bank' ? "Bank Name" : "MoMo Network"}
+                icon="award"
                 value={formData.bankName}
                 onChangeText={(t: string) => handleInputChange('bankName', t)}
-                placeholder={formData.payoutMethod === 'bank' ? "e.g. GCB Bank" : "e.g. MTN, Telecel, AT"}
+                placeholder={formData.payoutMethod === 'bank' ? "Ecobank, GCB, etc." : "MTN, Vodafone, Airteltigo"}
               />
- 
               <InputField
-                label={formData.payoutMethod === 'bank' ? "Account Name" : "MoMo Name"}
-                icon="user"
+                label="Account Holder Name"
+                icon="user-check"
                 value={formData.accountName}
                 onChangeText={(t: string) => handleInputChange('accountName', t)}
-                placeholder="Exact name on account"
+                placeholder="Name on account"
               />
- 
               <InputField
-                label={formData.payoutMethod === 'bank' ? "Account Number" : "MoMo Number"}
-                icon={formData.payoutMethod === 'bank' ? "credit-card" : "phone-call"}
+                label="Account / Phone Number"
+                icon="credit-card"
                 value={formData.accountNumber}
                 onChangeText={(t: string) => handleInputChange('accountNumber', t)}
-                placeholder={formData.payoutMethod === 'bank' ? "Enter account number" : "24 XXXXXXX"}
+                placeholder="Enter number"
                 keyboardType="numeric"
               />
+
+              <TouchableOpacity
+                style={[styles.docItem, proofOfBank && styles.docItemActive, { marginTop: 10 }]}
+                onPress={() => pickDocument('bank')}
+              >
+                <Feather name="credit-card" size={20} color={proofOfBank ? '#0C1559' : '#94A3B8'} />
+                <Text style={styles.docName}>{proofOfBank ? 'Proof of Account Added' : 'Proof of Account (Statement/Screenshot)'}</Text>
+                {proofOfBank && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
+              </TouchableOpacity>
             </View>
 
             {/* --- Social Links --- */}
@@ -575,297 +752,5 @@ const BusinessSetupScreen = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  mainContainer: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
-  safeArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 50,
-  },
-
-  // Background
-  bottomLogos: {
-    position: 'absolute',
-    bottom: 20,
-    left: -20,
-  },
-  fadedLogo: {
-    width: 150,
-    height: 150,
-    resizeMode: 'contain',
-    opacity: 0.08,
-  },
-
-  // Header
-  headerContainer: {
-    paddingTop: 60,
-    paddingBottom: 30,
-    paddingHorizontal: 20,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  backButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 12,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFF',
-    textAlign: 'center',
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-  },
-
-  // Section Cards
-  sectionCard: {
-    backgroundColor: '#FFF',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-    marginBottom: 16,
-  },
-
-  // Media Uploads
-  coverUpload: {
-    height: 140,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderStyle: 'dashed',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  uploadedCover: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  uploadPlaceholder: {
-    alignItems: 'center',
-  },
-  uploadText: {
-    marginTop: 8,
-    color: '#94A3B8',
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 12,
-  },
-  editBadge: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    padding: 6,
-    borderRadius: 8,
-  },
-  logoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  logoUpload: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    position: 'relative',
-  },
-  uploadedLogo: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 35,
-  },
-  logoPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  addLogoBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#0C1559',
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#FFF',
-  },
-  logoTextContainer: {
-    flex: 1,
-  },
-  logoLabel: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
-  },
-  logoSub: {
-    fontSize: 12,
-    color: '#94A3B8',
-    marginTop: 2,
-  },
-
-  // Inputs
-  inputContainer: {
-    marginBottom: 16,
-  },
-  label: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-SemiBold',
-    color: '#334155',
-    marginBottom: 6,
-    marginLeft: 2,
-  },
-  inputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    height: 50,
-  },
-  input: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Montserrat-Medium',
-    color: '#0F172A',
-  },
-  row: {
-    flexDirection: 'row',
-  },
-
-  // Categories
-  catScroll: {
-    gap: 8,
-    paddingBottom: 4,
-  },
-  catChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  catActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
-  },
-  catText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-  catTextActive: {
-    color: '#FFF',
-  },
-
-  // Submit
-  submitBtn: {
-    marginHorizontal: 20,
-    marginBottom: 30,
-    borderRadius: 16,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-  submitGradient: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 16,
-    gap: 8,
-  },
-  submitText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-  },
-  docItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  docItemActive: {
-    borderColor: '#0C1559',
-    backgroundColor: '#F0F4FF',
-  },
-  docName: {
-    flex: 1,
-    marginLeft: 10,
-    fontSize: 13,
-    color: '#334155',
-    fontFamily: 'Montserrat-Medium',
-  },
-  payoutOption: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: 12,
-    paddingVertical: 12,
-    marginBottom: 15,
-    marginHorizontal: 4,
-  },
-  payoutOptionActive: {
-    backgroundColor: '#0C1559',
-    borderColor: '#0C1559',
-  },
-  payoutLabel: {
-    marginLeft: 8,
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 13,
-    color: '#64748B',
-  },
-  payoutTextActive: {
-    color: '#FFF',
-  },
-});
 
 export default BusinessSetupScreen;

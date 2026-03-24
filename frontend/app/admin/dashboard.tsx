@@ -289,12 +289,10 @@ export default function AdminDashboard() {
         {/* ── Revenue chart ───────────────────────────────────────────────────── */}
         <Text style={S.secTitle}>Revenue Growth</Text>
         <View style={S.card}>
-          {stats.totalRevenue === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: rs(30) }}>
-              <MaterialCommunityIcons name="chart-bell-curve" size={rs(40)} color={C.subtle} />
-              <Text style={{ marginTop: rs(10), fontFamily: 'Montserrat-Medium', color: C.subtle, fontSize: rf(13) }}>
-                Not enough sales data for graph
-              </Text>
+          {!loading && stats.totalRevenue === 0 ? (
+            <View style={[S.emptyActivity, { height: CHART_H + rs(40) }]}>
+              <Feather name="bar-chart-2" size={rs(30)} color={C.subtle} />
+              <Text style={S.emptyActivityTxt}>No revenue data yet</Text>
             </View>
           ) : (
             <>

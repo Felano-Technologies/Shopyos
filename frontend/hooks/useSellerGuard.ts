@@ -45,7 +45,9 @@ export const useSellerGuard = () => {
     const checkVerification = async () => {
       // 1. If we have API data, use it as the source of truth
       if (business) {
-        if (business.verificationStatus !== 'verified') {
+        // Only force registration-status if they've been REJECTED.
+        // If they are PENDING, let them see the dashboard to prepare their products etc.
+        if (business.verificationStatus === 'rejected') {
           if (!pathname.startsWith('/business/verification-status')) {
              router.replace('/business/verification-status');
           }
