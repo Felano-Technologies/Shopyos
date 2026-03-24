@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 14, borderRadius: 16, marginBottom: 10, elevation: 1 },
   orderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   orderIconBox: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  orderNumber: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  orderNumber: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
   orderStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', textTransform: 'capitalize' },
   orderAmount: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
   tipCard: { marginHorizontal: 20, marginTop: 20, borderRadius: 18, padding: 20 },

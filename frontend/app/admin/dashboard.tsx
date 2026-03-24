@@ -1,3 +1,5 @@
+// app/admin/dashboard.tsx  — updated with 2 new control cards
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
@@ -9,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {
-  getAdminDashboard, getAdminPayouts,
+  getAdminDashboard,
   getAdminAuditLogs,
 } from '@/services/api';
 
@@ -30,7 +32,7 @@ const C = {
   subtle:  '#94A3B8',
 };
 
-// ─── Static chart data ─────────────────────────────────────────────────────────
+// ─── Static chart data ────────────────────────────────────────────────────────
 const CHART = [
   { month: 'Jan', value: 80  },
   { month: 'Feb', value: 100 },
@@ -40,9 +42,9 @@ const CHART = [
   { month: 'Jun', value: 140 },
 ];
 const CHART_MAX = Math.max(...CHART.map((c) => c.value));
-const CHART_H   = rs(80); // pixel height of chart area
+const CHART_H   = rs(80);
 
-// ─── Activity icon map ─────────────────────────────────────────────────────────
+// ─── Activity icon map ────────────────────────────────────────────────────────
 const ACTION_MAP: Record<string, { icon: any; bg: string }> = {
   store_verified:        { icon: 'shield-checkmark', bg: '#DBEAFE' },
   store_rejected:        { icon: 'close-circle',     bg: '#FEE2E2' },
@@ -51,6 +53,8 @@ const ACTION_MAP: Record<string, { icon: any; bg: string }> = {
   payout_rejected:       { icon: 'close',             bg: '#FEE2E2' },
   order_status_changed:  { icon: 'cart',              bg: '#F3E8FF' },
   report_resolved:       { icon: 'flag',              bg: '#E0F2FE' },
+  driver_approved:       { icon: 'car',               bg: '#DCFCE7' },
+  driver_rejected:       { icon: 'car',               bg: '#FEE2E2' },
 };
 const getAction = (action: string) =>
   ACTION_MAP[action] ?? { icon: 'notifications', bg: '#F1F5F9' };
@@ -74,6 +78,7 @@ export default function AdminDashboard() {
   const [stats,      setStats]      = useState({
     totalUsers: 0, totalStores: 0, totalOrders: 0, totalRevenue: 0,
     ordersGrowth: 0, storesGrowth: 0, usersGrowth: 0,
+    pendingDriverVerifications: 0,
   });
   const [activityFeed, setActivityFeed] = useState<any[]>([]);
 
@@ -83,9 +88,7 @@ export default function AdminDashboard() {
         getAdminDashboard(),
         getAdminAuditLogs({ limit: 8 }).catch(() => ({ logs: [], data: [] })),
       ]);
-
       if (dashRes.success) setStats(dashRes.stats);
-
       const logs =
         Array.isArray(actRes?.logs)  ? actRes.logs  :
         Array.isArray(actRes?.data)  ? actRes.data  :
@@ -100,7 +103,6 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
-
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   if (loading && !refreshing) {
@@ -111,7 +113,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // ── Stat cards config ──────────────────────────────────────────────────────
+  // ── Stat cards ──────────────────────────────────────────────────────────────
   const STAT_CARDS = [
     {
       label: 'Orders', value: stats.totalOrders,
@@ -130,14 +132,59 @@ export default function AdminDashboard() {
     },
   ];
 
-  // --- NEW: Added Driver Verification and optimized for a 2x2 grid ---
+  // ── Platform Management controls (now 5 cards in a 2-column+1 layout) ───────
+  const pendingDrivers = stats.pendingDriverVerifications ?? 0;
+
   const CONTROL_CARDS = [
-    { label: 'Store Verification',  icon: 'storefront',       route: '/admin/stores'      },
-    { label: 'Driver Verification', icon: 'bicycle',          route: '/admin/driver-verifications/driverVerifications'},
-    { label: 'Ad Approvals',        icon: 'megaphone',        route: '/admin/ads'         }, 
-    { label: 'Audit Logs',          icon: 'list',             route: '/admin/audit-logs'  },
+    {
+      label:   'Driver Verifications',
+      icon:    'car-sport',
+      route:   '/admin/driver-verifications',
+      bg:      '#FEF3C7',
+      iconColor:'#D97706',
+      badge:   pendingDrivers > 0 ? pendingDrivers : null,
+    },
+    {
+      label:   'Categories',
+      icon:    'grid',
+      route:   '/admin/categories',
+      bg:      '#EDE9FE',
+      iconColor:'#7C3AED',
+      badge:   null,
+    },
+    {
+      label:   'Store Verification',
+      icon:    'shield-checkmark',
+      route:   '/admin/stores',
+      bg:      '#DBEAFE',
+      iconColor:'#1E40AF',
+      badge:   null,
+    },
+    {
+      label:   'Ads Approval',
+      icon:    'megaphone',
+      route:   '/admin/ads',
+      bg:      '#FCE7F3',
+      iconColor:'#DB2777',
+      badge:   null,
+    },
+    {
+      label:   'Audit Logs',
+      icon:    'list',
+      route:   '/admin/audit-logs',
+      bg:      '#DCFCE7',
+      iconColor:'#15803D',
+      badge:   null,
+    },
     { label: 'Categories',          icon: 'tag',              route: '/admin/categories'  },
-    { label: 'Settings',            icon: 'settings-sharp',   route: '/admin/settings'    },
+    {
+      label:   'Settings',
+      icon:    'settings-sharp',
+      route:   '/admin/settings',
+      bg:      '#F1F5F9',
+      iconColor:C.muted,
+      badge:   null,
+    },
   ];
 
   return (
@@ -167,7 +214,6 @@ export default function AdminDashboard() {
                   System <Text style={{ color: C.lime }}>Hub</Text>
                 </Text>
               </View>
-              {/* Admin avatar */}
               <View style={S.avatarWrap}>
                 <Text style={S.avatarLetter}>A</Text>
               </View>
@@ -199,7 +245,7 @@ export default function AdminDashboard() {
         <View style={S.hdrArc} />
       </LinearGradient>
 
-      {/* ── Scroll ──────────────────────────────────────────────────────────── */}
+      {/* ── Scroll body ──────────────────────────────────────────────────────── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[S.scroll, { paddingBottom: rs(110) + insets.bottom }]}
@@ -207,7 +253,7 @@ export default function AdminDashboard() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} colors={[C.navy]} />
         }
       >
-        {/* ── Stat cards ─────────────────────────────────────────────────── */}
+        {/* ── Stat cards ─────────────────────────────────────────────────────── */}
         <View style={S.statGrid}>
           {STAT_CARDS.map((s) => (
             <TouchableOpacity
@@ -241,51 +287,31 @@ export default function AdminDashboard() {
           ))}
         </View>
 
-        {/* ── Revenue chart ───────────────────────────────────────────────── */}
+        {/* ── Revenue chart ───────────────────────────────────────────────────── */}
         <Text style={S.secTitle}>Revenue Growth</Text>
         <View style={S.card}>
-          {stats.totalRevenue === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: 30 }}>
-              <MaterialCommunityIcons name="chart-bell-curve" size={40} color={C.subtle} />
-              <Text style={{ marginTop: 10, fontFamily: 'Montserrat-Medium', color: C.subtle, fontSize: 13 }}>
-                Not enough sales data for graph
-              </Text>
-            </View>
-          ) : (
-            <>
-              {/* Bars */}
-              <View style={[S.chartBars, { height: CHART_H + rs(20) }]}>
-                {CHART.map((d, i) => {
-                  const barH   = Math.round((d.value / CHART_MAX) * CHART_H);
-                  const isLast = i === CHART.length - 1;
-                  const isPeak = d.value === Math.max(...CHART.filter((_, j) => j !== CHART.length - 1).map((c) => c.value));
-                  const barColor = isLast ? C.navy : isPeak ? C.lime : '#EEF2FF';
-                  return (
-                    <View key={d.month} style={S.barWrap}>
-                      <View style={[S.bar, { height: barH, backgroundColor: barColor }]} />
-                      <Text style={S.barLbl}>{d.month}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-              {/* Footer */}
-              <View style={S.chartFoot}>
-                <Text style={S.chartGrowth}>+24% from last month</Text>
-                <Ionicons name="caret-up" size={rs(12)} color={C.lime} />
-              </View>
-            </>
-          )}
+          <View style={[S.chartBars, { height: CHART_H + rs(20) }]}>
+            {CHART.map((d, i) => {
+              const barH   = Math.round((d.value / CHART_MAX) * CHART_H);
+              const isLast = i === CHART.length - 1;
+              const isPeak = d.value === Math.max(...CHART.filter((_, j) => j !== CHART.length - 1).map((c) => c.value));
+              const barColor = isLast ? C.navy : isPeak ? C.lime : '#EEF2FF';
+              return (
+                <View key={d.month} style={S.barWrap}>
+                  <View style={[S.bar, { height: barH, backgroundColor: barColor }]} />
+                  <Text style={S.barLbl}>{d.month}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={S.chartFoot}>
+            <Text style={S.chartGrowth}>+24% from last month</Text>
+            <Ionicons name="caret-up" size={rs(12)} color={C.lime} />
+          </View>
         </View>
 
-        {/* ── Live activity ───────────────────────────────────────────────── */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(10) }}>
-          <Text style={[S.secTitle, { marginBottom: 0 }]}>Live Activity</Text>
-          {activityFeed.length > 0 && (
-            <TouchableOpacity onPress={() => router.push('/admin/audit-logs' as any)}>
-              <Text style={{ fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' }}>View All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* ── Live activity ────────────────────────────────────────────────────── */}
+        <Text style={S.secTitle}>Live Activity</Text>
         <View style={S.card}>
           {activityFeed.length === 0 ? (
             <View style={S.emptyActivity}>
@@ -293,14 +319,13 @@ export default function AdminDashboard() {
               <Text style={S.emptyActivityTxt}>No recent activity</Text>
             </View>
           ) : (
-            activityFeed.slice(0, 3).map((item, i) => {
+            activityFeed.slice(0, 8).map((item, i) => {
               const cfg       = getAction(item.action);
               const actorName = item.user?.full_name || item.user?.email || 'System';
-              const isLast    = i === Math.min(activityFeed.length, 3) - 1;
+              const isLast    = i === Math.min(activityFeed.length, 8) - 1;
               const actionLabel = (item.action ?? '')
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (c: string) => c.toUpperCase());
-
               return (
                 <View key={item.id ?? i} style={[S.actRow, isLast && { borderBottomWidth: 0 }]}>
                   <View style={[S.actIcon, { backgroundColor: cfg.bg }]}>
@@ -319,8 +344,10 @@ export default function AdminDashboard() {
           )}
         </View>
 
-        {/* ── Platform controls ───────────────────────────────────────────── */}
+        {/* ── Platform Management controls ─────────────────────────────────────── */}
         <Text style={S.secTitle}>Platform Management</Text>
+
+        {/* 2-column grid */}
         <View style={S.ctrlGrid}>
           {CONTROL_CARDS.map((c) => (
             <TouchableOpacity
@@ -329,8 +356,14 @@ export default function AdminDashboard() {
               activeOpacity={0.82}
               onPress={() => router.push(c.route as any)}
             >
-              <View style={S.ctrlIcon}>
-                <Ionicons name={c.icon as any} size={rs(22)} color={C.navy} />
+              {/* Badge for pending count */}
+              {c.badge ? (
+                <View style={S.ctrlBadge}>
+                  <Text style={S.ctrlBadgeTxt}>{c.badge}</Text>
+                </View>
+              ) : null}
+              <View style={[S.ctrlIcon, { backgroundColor: c.bg }]}>
+                <Ionicons name={c.icon as any} size={rs(22)} color={c.iconColor} />
               </View>
               <Text style={S.ctrlLbl}>{c.label}</Text>
             </TouchableOpacity>
@@ -343,10 +376,11 @@ export default function AdminDashboard() {
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
+const CTRL_W = Math.floor((SW - rs(18) * 2 - rs(10)) / 2);
+
 const S = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
-
   watermark:    { position: 'absolute', bottom: -50, right: -50, opacity: 0.05 },
   watermarkImg: { width: 300, height: 300, resizeMode: 'contain' },
 
@@ -366,14 +400,15 @@ const S = StyleSheet.create({
     width: rs(100), height: rs(100), borderRadius: rs(50),
     backgroundColor: 'rgba(30,58,138,0.6)',
   },
-  hdrInner:  { paddingHorizontal: rs(22) },
+  hdrInner: { paddingHorizontal: rs(22) },
   hdrTop: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'flex-start', marginBottom: rs(16),
   },
   hdrEye: {
     fontSize: rf(10), fontFamily: 'Montserrat-Bold',
-    color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: rs(3),
+    color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2,
+    textTransform: 'uppercase', marginBottom: rs(3),
   },
   hdrTitle: { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: '#fff', letterSpacing: -0.4 },
   avatarWrap: {
@@ -382,12 +417,10 @@ const S = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center',
   },
   avatarLetter: { fontSize: rf(18), fontFamily: 'Montserrat-Bold', color: C.lime },
-
-  // Revenue hero
   revenueHero: {
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: rs(20), padding: rs(16),
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', marginBottom: 20
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
   },
   heroLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.55)', marginBottom: rs(4) },
   heroVal: { fontSize: rf(28), fontFamily: 'Montserrat-Bold',   color: '#fff', letterSpacing: -0.5 },
@@ -399,7 +432,6 @@ const S = StyleSheet.create({
   },
   heroBadgeTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
   heroSub:      { fontSize: rf(9),  fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.4)' },
-
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
     backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
@@ -429,8 +461,6 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
-
-  // Section title
   secTitle: {
     fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(10),
   },
@@ -441,7 +471,7 @@ const S = StyleSheet.create({
   bar:       { width: '100%', borderRadius: rs(6) },
   barLbl:    { fontSize: rf(8), fontFamily: 'Montserrat-SemiBold', color: C.subtle },
   chartFoot: { flexDirection: 'row', alignItems: 'center', gap: rs(4) },
-  chartGrowth:{ fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
+  chartGrowth: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
 
   // Activity
   emptyActivity:   { alignItems: 'center', paddingVertical: rs(24), gap: rs(8) },
@@ -457,30 +487,30 @@ const S = StyleSheet.create({
   actSub:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },
   actTime: { fontSize: rf(9),  fontFamily: 'Montserrat-Medium', color: C.subtle, flexShrink: 0 },
 
-  // Controls
-  ctrlGrid: { 
-    flexDirection: 'row', 
-    flexWrap: 'wrap', // Allows items to wrap to next line
-    justifyContent: 'space-between', // Spaces them evenly
-    rowGap: rs(12), // Adds vertical space between rows
-    marginBottom: rs(20) 
+  // Controls — 2-column flexible grid
+  ctrlGrid: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: rs(10), marginBottom: rs(20),
   },
   ctrlCard: {
-    width: '48%', // Fits 2 items per row nicely
-    backgroundColor: C.card, borderRadius: rs(20),
-    paddingVertical: rs(16), alignItems: 'center',
+    width: CTRL_W, backgroundColor: C.card, borderRadius: rs(20),
+    paddingVertical: rs(18), alignItems: 'center',
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
+    position: 'relative',
   },
   ctrlIcon: {
-    width: rs(44), height: rs(44), borderRadius: rs(14),
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(8),
+    width: rs(48), height: rs(48), borderRadius: rs(15),
+    justifyContent: 'center', alignItems: 'center', marginBottom: rs(10),
   },
-  ctrlLbl: { 
-    fontSize: rf(10), 
-    fontFamily: 'Montserrat-Bold', 
-    color: C.navy, 
-    textAlign: 'center',
-    paddingHorizontal: rs(5)
+  ctrlLbl: {
+    fontSize: rf(11), fontFamily: 'Montserrat-Bold',
+    color: C.navy, textAlign: 'center', paddingHorizontal: rs(8),
   },
+  ctrlBadge: {
+    position: 'absolute', top: rs(10), right: rs(10),
+    minWidth: rs(20), height: rs(20), borderRadius: rs(10),
+    backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center',
+    paddingHorizontal: rs(4),
+  },
+  ctrlBadgeTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold', color: '#fff' },
 });
