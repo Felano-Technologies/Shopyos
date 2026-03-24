@@ -142,23 +142,13 @@ class AdminRepository extends BaseRepository {
   }
 
   /**
-   * Update user role
-   * @param {string} userId - User ID
-   * @param {string} role - New role (buyer, seller, driver, admin)
-   * @returns {Promise<Object>} Updated user
+   * Update user role by user UUID
+   * @param {string} userId - User UUID
+   * @param {string} roleName - New role (buyer, seller, driver, admin)
+   * @returns {Promise<Object>} Updated user_role record
    */
-  async updateUserRole(profileId, roleName) {
-    // 1. Get user_id
-    const { data: profile } = await this.supabase
-      .from('user_profiles')
-      .select('user_id')
-      .eq('id', profileId)
-      .single();
-
-    if (!profile) throw new Error('User profile not found');
-    const userId = profile.user_id;
-
-    // 2. Get role ID
+  async setUserRoleByUserId(userId, roleName) {
+    // 1. Get role ID
     const { data: roleData } = await this.supabase
       .from('roles')
       .select('id')
@@ -167,8 +157,10 @@ class AdminRepository extends BaseRepository {
 
     if (!roleData) throw new Error(`Role ${roleName} not found`);
 
-    // 3. Update user_roles (simple implementation: clear and set)
+    // 2. Clear existing roles (driver/seller/buyer are usually mutually exclusive for the primary role)
     await this.supabase.from('user_roles').delete().eq('user_id', userId);
+
+    // 3. Set new role
     const { data, error } = await this.supabase
       .from('user_roles')
       .insert({
@@ -181,6 +173,24 @@ class AdminRepository extends BaseRepository {
 
     if (error) throw error;
     return data;
+  }
+
+  /**
+   * Update user role by profile primary key ID
+   * @param {string} profileId - User profile ID
+   * @param {string} roleName - New role name
+   */
+  async updateUserRole(profileId, roleName) {
+    // 1. Get user_id from profileId
+    const { data: profile } = await this.supabase
+      .from('user_profiles')
+      .select('user_id')
+      .eq('id', profileId)
+      .single();
+
+    if (!profile) throw new Error('User profile not found');
+    
+    return this.setUserRoleByUserId(profile.user_id, roleName);
   }
 
   /**
@@ -519,8 +529,9 @@ class AdminRepository extends BaseRepository {
       .select()
       .single();
     if (error) throw error;
-    // Also update their user role if necessary
-    await this.updateUserRole(data.user_id, 'driver');
+    
+    // Also update their user role to 'driver'
+    await this.setUserRoleByUserId(data.user_id, 'driver');
     return data;
   }
 
