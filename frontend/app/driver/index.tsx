@@ -4,18 +4,7 @@ import { useRouter, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-// Mock Auth Service (Replace with your actual API context)
-const mockCheckDriverStatus = async () => {
-  return new Promise<'verified' | 'pending' | 'new'>((resolve) => {
-    setTimeout(() => {
-      // CHANGE THIS VALUE TO TEST DIFFERENT STATES:
-      // 'new'      -> Shows Verification Form
-      // 'pending'  -> Shows "Under Review" Screen
-      // 'verified' -> Redirects to Dashboard
-      resolve('new'); 
-    }, 1500);
-  });
-};
+import { getDriverProfile } from '@/services/api';
 
 export default function DriverGatekeeper() {
   const router = useRouter();
@@ -26,15 +15,25 @@ export default function DriverGatekeeper() {
   }, []);
 
   const checkStatus = async () => {
-    const driverStatus = await mockCheckDriverStatus();
-    
-    if (driverStatus === 'verified') {
-      router.replace('/driver/dashboard');
-    } else {
-      // Pass the status param so Verification screen knows whether to show Form or Pending screen
+    try {
+      const response = await getDriverProfile();
+      const driver = response?.profile || response?.data || response;
+
+      // If driver record exists (even if not verified), let them see their dashboard.
+      // The dashboard's useDriverGuard will handle specific restrictions if they are pending.
+      if (driver) {
+        router.replace('/driver/dashboard');
+      } else {
+        router.replace({
+          pathname: '/driver/verification',
+          params: { status: 'new' }
+        });
+      }
+    } catch (error: any) {
+      // If profile not found, it's a new driver
       router.replace({
         pathname: '/driver/verification',
-        params: { status: driverStatus }
+        params: { status: 'new' }
       });
     }
   };

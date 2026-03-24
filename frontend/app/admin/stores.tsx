@@ -15,11 +15,15 @@ type FilterType = 'all' | 'pending' | 'verified' | 'rejected';
 
 interface Store {
     id?: string;
-    _id?: string; // Handling MongoDB _id fallback
+    _id?: string;
     store_name: string;
     description?: string;
     city?: string;
     category?: string;
+    logo?: string;
+    coverImage?: string;
+    logo_url?: string;
+    banner_url?: string;
     verification_status: string;
     is_verified: boolean;
     rejection_reason?: string;
@@ -154,9 +158,13 @@ export default function AdminStores() {
             >
                 <View style={styles.cardHeader}>
                     <View style={styles.storeAvatar}>
-                        <Text style={styles.storeAvatarText}>
-                            {(item.store_name || 'S').charAt(0).toUpperCase()}
-                        </Text>
+                        {item.logo_url ? (
+                            <Image source={{ uri: item.logo_url }} style={styles.logoImage} />
+                        ) : (
+                            <Text style={styles.storeAvatarText}>
+                                {(item.store_name || 'S').charAt(0).toUpperCase()}
+                            </Text>
+                        )}
                     </View>
                     <View style={styles.storeInfo}>
                         <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
@@ -373,6 +381,7 @@ const styles = StyleSheet.create({
     cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
     storeAvatar: { width: 50, height: 50, borderRadius: 15, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
     storeAvatarText: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+    logoImage: { width: '100%', height: '100%', borderRadius: 15 },
     storeInfo: { flex: 1 },
     storeName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
     storeOwner: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginTop: 2 },

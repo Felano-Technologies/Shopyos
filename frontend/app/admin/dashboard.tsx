@@ -139,7 +139,7 @@ export default function AdminDashboard() {
     {
       label:   'Driver Verifications',
       icon:    'car-sport',
-      route:   '/admin/driver-verifications',
+      route:   '/admin/driverVerifications',
       bg:      '#FEF3C7',
       iconColor:'#D97706',
       badge:   pendingDrivers > 0 ? pendingDrivers : null,

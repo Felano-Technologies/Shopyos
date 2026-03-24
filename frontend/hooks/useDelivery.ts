@@ -88,3 +88,15 @@ export const useUpdateDeliveryStatus = () => {
     },
   });
 };
+
+export const useDriverProfile = () => {
+  return useQuery({
+    queryKey: ['driver_profile'],
+    queryFn: async () => {
+      const response = await ApiService.getDriverProfile();
+      return response;
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+};

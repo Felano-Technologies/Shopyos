@@ -5,10 +5,9 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
   ScrollView,
-  Alert,
-  ActivityIndicator,
   Image,
   Dimensions,
   Platform,
@@ -21,7 +20,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { businessRegister, storage, getAllCategories } from '@/services/api';
+import { businessRegister, storage, getAllCategories, CustomInAppToast } from '@/services/api';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -366,7 +365,7 @@ const BusinessSetupScreen = () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'We need access to your photos to upload images.');
+        CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'We need access to your photos to upload images.' });
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -381,7 +380,7 @@ const BusinessSetupScreen = () => {
         else setCoverImage(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to pick image' });
     }
   };
 
@@ -396,13 +395,13 @@ const BusinessSetupScreen = () => {
         else setProofOfBank(result.assets[0].uri);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick document');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to pick document' });
     }
   };
 
   const handleCreateBusiness = async () => {
     if (!formData.businessName || !formData.category || !formData.address || !formData.city || !formData.phone) {
-      Alert.alert('Missing Info', 'Please fill in all required fields marked with *');
+      CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill in all required fields marked with *' });
       return;
     }
 
@@ -439,16 +438,17 @@ const BusinessSetupScreen = () => {
 
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
-        Alert.alert(
-          'Success!',
-          'Your business has been registered. It is now pending approval by our administrators.',
-          [{ text: 'Go to Dashboard', onPress: () => router.replace('/business/dashboard') }]
-        );
+        CustomInAppToast.show({ 
+          type: 'success', 
+          title: 'Success!', 
+          message: 'Your business has been registered. It is now pending approval.' 
+        });
+        router.replace('/business/dashboard');
       } else {
-        Alert.alert('Registration Failed', response.error || 'Something went wrong');
+        CustomInAppToast.show({ type: 'error', title: 'Registration Failed', message: response.error || 'Something went wrong' });
       }
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'An unexpected error occurred');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || 'An unexpected error occurred' });
     } finally {
       setLoading(false);
     }

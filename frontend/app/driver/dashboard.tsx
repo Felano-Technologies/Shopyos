@@ -17,15 +17,20 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getUserData } from '@/services/api';
+import { getUserData, CustomInAppToast } from '@/services/api';
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
+import { useDriverGuard } from '@/hooks/useDriverGuard';
 
 const { width } = Dimensions.get('window');
 
 export default function Dashboard() {
   const router = useRouter();
+  const { profile, isChecking } = useDriverGuard();
   const [isOnline, setIsOnline] = useState(false);
   const [user, setUser] = useState<any>(null);
+  
+  const isVerified = profile?.is_verified || profile?.verification_status === 'verified';
+  const isPending = profile?.verification_status === 'pending';
 
   // --- TanStack Query Hooks ---
   const { data: statsData } = useDriverStats('today');
@@ -56,12 +61,33 @@ export default function Dashboard() {
 
   // Toggle Online Status
   const toggleOnline = () => {
+    if (!isVerified) {
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Restricted Access', 
+        message: 'You must be verified before you can go online. It will be done soon.' 
+      });
+      return;
+    }
     setIsOnline(!isOnline);
   };
 
   const handleAccept = async (id: string) => {
+    if (!isVerified) {
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Verification Required', 
+        message: 'Your account is under review. You will be able to accept orders once it is done.' 
+      });
+      return;
+    }
+
     if (activeDeliveries.length > 0) {
-      Alert.alert("Active Delivery", "Please complete your current delivery before accepting a new one.");
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Active Delivery', 
+        message: 'Please complete your current delivery before accepting a new one.' 
+      });
       return;
     }
 
@@ -69,7 +95,11 @@ export default function Dashboard() {
       await assignDriverMutation.mutateAsync(id);
       router.push({ pathname: '/driver/activeOrder', params: { deliveryId: id } } as any);
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to accept order");
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Error', 
+        message: e.message || 'Failed to accept order' 
+      });
     }
   };
 
@@ -143,6 +173,20 @@ export default function Dashboard() {
       {/* --- HEADER --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
+          {!isVerified && (
+            <TouchableOpacity 
+              style={styles.verificationBanner}
+              activeOpacity={0.9}
+              onPress={() => router.push('/driver/verification')}
+            >
+              <Feather name="shield" size={16} color="#0C1559" />
+              <Text style={styles.verificationText}>
+                {isPending ? 'Verification in progress. It will be done soon.' : 'Complete your verification to start earning.'}
+              </Text>
+              <Feather name="chevron-right" size={14} color="#0C1559" />
+            </TouchableOpacity>
+          )}
+
           <View style={styles.headerTop}>
             <View style={styles.profileRow}>
               <Image
@@ -256,7 +300,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     zIndex: 10,
   },
-  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 10 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25, marginTop: 5 },
+  verificationBanner: {
+    backgroundColor: '#A3E635',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    marginTop: 5,
+    gap: 10
+  },
+  verificationText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559'
+  },
   profileRow: { flexDirection: 'row', alignItems: 'center' },
   avatar: { width: 50, height: 50, borderRadius: 25, borderWidth: 2, borderColor: '#A3E635', marginRight: 12, backgroundColor: '#FFF' },
   greeting: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },

@@ -511,7 +511,7 @@ const S = StyleSheet.create({
   statsStrip: {
     flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: rs(16), padding: rs(14), borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
+    alignItems: 'center', marginBottom: 20,
   },
   statItem:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(10) },
   statDivider: { width: 0.5, height: '70%', backgroundColor: 'rgba(255,255,255,0.2)' },

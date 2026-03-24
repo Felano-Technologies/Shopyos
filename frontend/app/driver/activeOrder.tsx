@@ -7,7 +7,6 @@ import {
   Dimensions,
   Image,
   ScrollView,
-  Alert,
   ActivityIndicator
 } from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
@@ -15,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
+import { CustomInAppToast } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,13 +57,20 @@ export default function ActiveOrderScreen() {
         setStep(3);
       } else if (step === 3) {
         await updateStatusMutation.mutateAsync({ deliveryId, status: 'delivered' });
-        Alert.alert("Order Completed", "Great job! Your earnings have been updated.", [
-          { text: "OK", onPress: () => router.replace('/driver/dashboard') }
-        ]);
+        CustomInAppToast.show({ 
+          type: 'success', 
+          title: 'Order Completed', 
+          message: 'Great job! Your earnings have been updated.' 
+        });
+        router.replace('/driver/dashboard');
         return;
       }
     } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to update status");
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Error', 
+        message: e.message || 'Failed to update status' 
+      });
     }
   };
 

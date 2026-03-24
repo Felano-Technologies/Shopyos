@@ -112,23 +112,39 @@ const handleContactMerchant = (email: string) => {
         <View style={styles.container}>
             <StatusBar style="light" />
             
-            <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
-                <SafeAreaView edges={['top']}>
-                    <View style={styles.headerRow}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                            <Ionicons name="arrow-back" size={24} color="#FFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Merchant Review</Text>
-                        <View style={{ width: 40 }} />
-                    </View>
-                </SafeAreaView>
-            </LinearGradient>
+            {store?.banner_url ? (
+                <View style={styles.header}>
+                    <Image source={{ uri: store.banner_url }} style={StyleSheet.absoluteFill} />
+                    <LinearGradient colors={['rgba(12, 21, 89, 0.8)', 'rgba(30, 58, 138, 0.5)']} style={StyleSheet.absoluteFill} />
+                    <SafeAreaView edges={['top']}>
+                        <View style={styles.headerRow}>
+                            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                                <Ionicons name="arrow-back" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                            <Text style={styles.headerTitle}>Merchant Review</Text>
+                            <View style={{ width: 40 }} />
+                        </View>
+                    </SafeAreaView>
+                </View>
+            ) : (
+                <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+                    <SafeAreaView edges={['top']}>
+                        <View style={styles.headerRow}>
+                            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                                <Ionicons name="arrow-back" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                            <Text style={styles.headerTitle}>Merchant Review</Text>
+                            <View style={{ width: 40 }} />
+                        </View>
+                    </SafeAreaView>
+                </LinearGradient>
+            )}
 
             
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.brandCard}>
                     <View style={styles.logoContainer}>
-                        {store?.logo ? <Image source={{ uri: store.logo }} style={styles.logo} /> : 
+                        {store?.logo_url ? <Image source={{ uri: store.logo_url }} style={styles.logo} /> : 
                         <View style={styles.logoPlaceholder}><Text style={styles.logoInitial}>{store?.store_name?.charAt(0)}</Text></View>}
                     </View>
                     <Text style={styles.storeName}>{store?.store_name}</Text>

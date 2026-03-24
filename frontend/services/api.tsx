@@ -5,6 +5,7 @@ import { Platform } from 'react-native';
 import { queryClient } from '@/lib/query/client';
 import { socketService } from './socket';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+export { CustomInAppToast };
 
 // Dynamic baseURL based on platform and environment
 const getBaseURL = () => {
