@@ -136,11 +136,54 @@ export default function AdminDashboard() {
   const pendingDrivers = stats.pendingDriverVerifications ?? 0;
 
   const CONTROL_CARDS = [
-    { label: 'Store Verification',  icon: 'storefront',       route: '/admin/stores'      },
-    { label: 'Driver Verification', icon: 'bicycle',          route: '/admin/driver-verifications/deriverVerifications'},
-    { label: 'Ad Approvals',        icon: 'megaphone',        route: '/admin/ads'         }, 
-    { label: 'Audit Logs',          icon: 'list',             route: '/admin/audit-logs'  },
-    { label: 'Settings',            icon: 'settings-sharp',   route: '/admin/settings'    },
+    {
+      label:   'Driver Verifications',
+      icon:    'car-sport',
+      route:   '/admin/driver-verifications',
+      bg:      '#FEF3C7',
+      iconColor:'#D97706',
+      badge:   pendingDrivers > 0 ? pendingDrivers : null,
+    },
+    {
+      label:   'Categories',
+      icon:    'grid',
+      route:   '/admin/categories',
+      bg:      '#EDE9FE',
+      iconColor:'#7C3AED',
+      badge:   null,
+    },
+    {
+      label:   'Store Verification',
+      icon:    'shield-checkmark',
+      route:   '/admin/stores',
+      bg:      '#DBEAFE',
+      iconColor:'#1E40AF',
+      badge:   null,
+    },
+    {
+      label:   'Ads Approval',
+      icon:    'megaphone',
+      route:   '/admin/ads',
+      bg:      '#FCE7F3',
+      iconColor:'#DB2777',
+      badge:   null,
+    },
+    {
+      label:   'Audit Logs',
+      icon:    'list',
+      route:   '/admin/audit-logs',
+      bg:      '#DCFCE7',
+      iconColor:'#15803D',
+      badge:   null,
+    },
+    {
+      label:   'Settings',
+      icon:    'settings-sharp',
+      route:   '/admin/settings',
+      bg:      '#F1F5F9',
+      iconColor:C.muted,
+      badge:   null,
+    },
   ];
 
   return (
@@ -246,7 +289,6 @@ export default function AdminDashboard() {
         {/* ── Revenue chart ───────────────────────────────────────────────────── */}
         <Text style={S.secTitle}>Revenue Growth</Text>
         <View style={S.card}>
-          {/* Bars */}
           <View style={[S.chartBars, { height: CHART_H + rs(20) }]}>
             {CHART.map((d, i) => {
               const barH   = Math.round((d.value / CHART_MAX) * CHART_H);
@@ -261,14 +303,13 @@ export default function AdminDashboard() {
               );
             })}
           </View>
-          {/* Footer */}
           <View style={S.chartFoot}>
             <Text style={S.chartGrowth}>+24% from last month</Text>
             <Ionicons name="caret-up" size={rs(12)} color={C.lime} />
           </View>
         </View>
 
-        {/* ── Live activity ───────────────────────────────────────────────── */}
+        {/* ── Live activity ────────────────────────────────────────────────────── */}
         <Text style={S.secTitle}>Live Activity</Text>
         <View style={S.card}>
           {activityFeed.length === 0 ? (
@@ -277,10 +318,10 @@ export default function AdminDashboard() {
               <Text style={S.emptyActivityTxt}>No recent activity</Text>
             </View>
           ) : (
-            activityFeed.slice(0, 3).map((item, i) => {
+            activityFeed.slice(0, 8).map((item, i) => {
               const cfg       = getAction(item.action);
               const actorName = item.user?.full_name || item.user?.email || 'System';
-              const isLast    = i === Math.min(activityFeed.length, 3) - 1;
+              const isLast    = i === Math.min(activityFeed.length, 8) - 1;
               const actionLabel = (item.action ?? '')
                 .replace(/_/g, ' ')
                 .replace(/\b\w/g, (c: string) => c.toUpperCase());
@@ -378,7 +419,7 @@ const S = StyleSheet.create({
   revenueHero: {
     backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: rs(20), padding: rs(16),
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', marginBottom: 20
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
   },
   heroLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.55)', marginBottom: rs(4) },
   heroVal: { fontSize: rf(28), fontFamily: 'Montserrat-Bold',   color: '#fff', letterSpacing: -0.5 },
