@@ -23,38 +23,38 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F1F5F9',
-  navy:    '#0C1559',
+  bg: '#F1F5F9',
+  navy: '#0C1559',
   navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+  lime: '#84cc16',
+  limeText: '#1a2e00',
+  card: '#FFFFFF',
+  body: '#0F172A',
+  muted: '#64748B',
+  subtle: '#94A3B8',
 };
 
 const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
-  const insets    = useSafeAreaInsets();
+  const insets = useSafeAreaInsets();
 
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
 
-  const [products,            setProducts]            = useState<any[]>([]);
-  const [editingId,           setEditingId]           = useState<string | null>(null);
-  const [name,                setName]                = useState('');
-  const [price,               setPrice]               = useState('');
-  const [stock,               setStock]               = useState('');
-  const [description,         setDescription]         = useState('');
-  const [image,               setImage]               = useState<string | null>(null);
-  const [isActive,            setIsActive]            = useState(true);
-  const [category,            setCategory]            = useState('');
-  const [categories,          setCategories]          = useState<{ id?: string; name: string; count?: number }[]>([]);
-  const [categoryModal,       setCategoryModal]        = useState(false);
-  const [verificationStatus,  setVerificationStatus]  = useState<string | null>(null);
-  const [isSubmitting,        setIsSubmitting]        = useState(false);
-  const [searchQuery,         setSearch]              = useState('');
+  const [products, setProducts] = useState<any[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [name, setName] = useState('');
+  const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('');
+  const [description, setDescription] = useState('');
+  const [image, setImage] = useState<string | null>(null);
+  const [isActive, setIsActive] = useState(true);
+  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<{ id?: string; name: string; count?: number }[]>([]);
+  const [categoryModal, setCategoryModal] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchQuery, setSearch] = useState('');
 
   const isBlocked = verificationStatus === 'pending' || verificationStatus === 'rejected';
 
@@ -65,14 +65,14 @@ const ProductsScreen = () => {
       const data = await getStoreProducts(businessId, { includeInactive: true });
       if (data.success) {
         setProducts(data.products.map((p: any) => ({
-          id:          p._id,
-          name:        p.name,
-          price:       p.price.toString(),
-          stock:       p.stockQuantity?.toString() || '0',
-          image:       p.images?.[0] || null,
-          isActive:    p.isActive ?? p.is_active ?? true,
+          id: p._id,
+          name: p.name,
+          price: p.price.toString(),
+          stock: p.stockQuantity?.toString() || '0',
+          image: p.images?.[0] || null,
+          isActive: p.isActive ?? p.is_active ?? true,
           description: p.description || '',
-          category:    p.category || '',
+          category: p.category || '',
         })));
       }
     } catch (e) { console.error('Failed to fetch products', e); }
@@ -82,7 +82,7 @@ const ProductsScreen = () => {
     try {
       const res = await getAllCategories();
       if (res.success && res.categories) setCategories(res.categories);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -100,8 +100,8 @@ const ProductsScreen = () => {
   }
 
   // ── Derived stats ─────────────────────────────────────────────────────────
-  const totalProducts    = products.length;
-  const portfolioValue   = products.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.stock) || 0), 0);
+  const totalProducts = products.length;
+  const portfolioValue = products.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.stock) || 0), 0);
   const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -480,9 +480,9 @@ const ProductsScreen = () => {
 };
 
 const S = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
-  watermark:    { position: 'absolute', bottom: 20, left: -20 },
+  root: { flex: 1, backgroundColor: C.bg },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
+  watermark: { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
   scroll: { flexGrow: 1 },
 
@@ -496,8 +496,8 @@ const S = StyleSheet.create({
     width: rs(150), height: rs(150), borderRadius: rs(75),
     backgroundColor: 'rgba(132,204,22,0.12)',
   },
-  hdrRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(18) },
-  logo:     { width: 110, height: 34 },
+  hdrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(18) },
+  logo: { width: 110, height: 34 },
   hdrBtn: {
     width: rs(40), height: rs(40), borderRadius: rs(13),
     backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5,
@@ -513,11 +513,11 @@ const S = StyleSheet.create({
     borderRadius: rs(16), padding: rs(14), borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center', marginBottom: 20,
   },
-  statItem:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(10) },
+  statItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(10) },
   statDivider: { width: 0.5, height: '70%', backgroundColor: 'rgba(255,255,255,0.2)' },
-  statIcon:    { width: rs(36), height: rs(36), borderRadius: rs(10), justifyContent: 'center', alignItems: 'center' },
-  statLbl:     { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)' },
-  statVal:     { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: '#fff' },
+  statIcon: { width: rs(36), height: rs(36), borderRadius: rs(10), justifyContent: 'center', alignItems: 'center' },
+  statLbl: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)' },
+  statVal: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: '#fff' },
 
   // Verification banner
   verifyBanner: {
@@ -527,8 +527,8 @@ const S = StyleSheet.create({
     borderRadius: rs(12), padding: rs(14),
   },
   verifyBannerRed: { backgroundColor: '#FEE2E2', borderLeftColor: '#EF4444' },
-  verifyTitle:     { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: rs(2) },
-  verifySub:       { fontSize: rf(12), fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: rf(18) },
+  verifyTitle: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#92400E', marginBottom: rs(2) },
+  verifySub: { fontSize: rf(12), fontFamily: 'Montserrat-Regular', color: '#78350F', lineHeight: rf(18) },
 
   // Form
   formWrap: { paddingHorizontal: rs(16), marginTop: rs(8), marginBottom: rs(16) },
@@ -538,19 +538,19 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.07, shadowRadius: rs(12),
   },
   formHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(14) },
-  formTitle:  { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
-  cancelTxt:  { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: '#EF4444' },
-  newBadge:   { backgroundColor: '#DCFCE7', paddingHorizontal: rs(8), paddingVertical: rs(2), borderRadius: rs(8) },
-  newBadgeTxt:{ fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: '#15803D' },
+  formTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
+  cancelTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: '#EF4444' },
+  newBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: rs(8), paddingVertical: rs(2), borderRadius: rs(8) },
+  newBadgeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: '#15803D' },
 
-  inputRow:   { flexDirection: 'row', gap: rs(12), marginBottom: rs(4) },
+  inputRow: { flexDirection: 'row', gap: rs(12), marginBottom: rs(4) },
   imgBox: {
     width: rs(88), height: rs(88), borderRadius: rs(16),
     borderWidth: 1, borderColor: '#E2E8F0', borderStyle: 'dashed',
     backgroundColor: '#F8FAFC', overflow: 'hidden',
     justifyContent: 'center', alignItems: 'center',
   },
-  imgPlaceholder:    { alignItems: 'center' },
+  imgPlaceholder: { alignItems: 'center' },
   imgPlaceholderTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(4) },
 
   inputField: {
@@ -558,9 +558,9 @@ const S = StyleSheet.create({
     backgroundColor: '#F1F5F9', borderRadius: rs(12),
     paddingHorizontal: rs(12), height: rs(42), marginBottom: rs(4),
   },
-  inputIcon:     { marginRight: rs(8) },
-  currencySymbol:{ fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted, marginRight: rs(8) },
-  inputTxt:      { flex: 1, fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body },
+  inputIcon: { marginRight: rs(8) },
+  currencySymbol: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.muted, marginRight: rs(8) },
+  inputTxt: { flex: 1, fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.body },
 
   toggleRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -575,7 +575,7 @@ const S = StyleSheet.create({
   submitBtnTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: '#fff' },
 
   // Product list
-  listWrap:   { paddingHorizontal: rs(16) },
+  listWrap: { paddingHorizontal: rs(16) },
   searchBar: {
     flexDirection: 'row', alignItems: 'center', gap: rs(10),
     backgroundColor: C.card, borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(48),
@@ -583,7 +583,7 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(4),
   },
   searchInput: { flex: 1, fontSize: rf(14), fontFamily: 'Montserrat-Medium', color: C.body },
-  listHeader:  { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: rs(10) },
+  listHeader: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: rs(10) },
 
   productRow: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
@@ -591,23 +591,23 @@ const S = StyleSheet.create({
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(1) }, shadowOpacity: 0.04, shadowRadius: rs(6),
   },
-  productImg:        { width: rs(58), height: rs(58), borderRadius: rs(12), backgroundColor: '#F1F5F9' },
-  productImgFallback:{ justifyContent: 'center', alignItems: 'center' },
-  productInfo:       { flex: 1 },
-  productName:       { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(4) },
-  productMeta:       { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(3) },
-  productPrice:      { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
-  activeDot:         { width: rs(6), height: rs(6), borderRadius: rs(3) },
-  activeTxt:         { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
-  productStock:      { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
-  productActions:    { flexDirection: 'row', gap: rs(8) },
-  actionBtn:         { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  deleteBtn:         { backgroundColor: '#FEF2F2' },
+  productImg: { width: rs(58), height: rs(58), borderRadius: rs(12), backgroundColor: '#F1F5F9' },
+  productImgFallback: { justifyContent: 'center', alignItems: 'center' },
+  productInfo: { flex: 1 },
+  productName: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(4) },
+  productMeta: { flexDirection: 'row', alignItems: 'center', gap: rs(6), marginBottom: rs(3) },
+  productPrice: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
+  activeDot: { width: rs(6), height: rs(6), borderRadius: rs(3) },
+  activeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
+  productStock: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  productActions: { flexDirection: 'row', gap: rs(8) },
+  actionBtn: { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  deleteBtn: { backgroundColor: '#FEF2F2' },
 
-  emptyWrap:  { alignItems: 'center', paddingVertical: rs(40) },
-  emptyCircle:{ width: rs(72), height: rs(72), borderRadius: rs(36), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14) },
-  emptyTitle: { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body, marginBottom: rs(4) },
-  emptySub:   { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  emptyWrap: { alignItems: 'center', paddingVertical: rs(40) },
+  emptyCircle: { width: rs(72), height: rs(72), borderRadius: rs(36), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14) },
+  emptyTitle: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(4) },
+  emptySub: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle },
 
   // Category modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -617,11 +617,11 @@ const S = StyleSheet.create({
   },
   modalHandle: { width: rs(36), height: rs(4), borderRadius: rs(2), backgroundColor: '#E2E8F0', alignSelf: 'center', marginBottom: rs(14) },
   modalHdrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16), paddingBottom: rs(14), borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9' },
-  modalTitle:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body },
-  modalClose:  { width: rs(30), height: rs(30), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+  modalTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: C.body },
+  modalClose: { width: rs(30), height: rs(30), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
   catItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: rs(14), borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9' },
-  catTxt:  { fontSize: rf(15), fontFamily: 'Montserrat-Medium', color: C.muted },
-  catTxtOn:{ fontFamily: 'Montserrat-Bold', color: C.navy },
+  catTxt: { fontSize: rf(15), fontFamily: 'Montserrat-Medium', color: C.muted },
+  catTxtOn: { fontFamily: 'Montserrat-Bold', color: C.navy },
 });
 
 export default ProductsScreen;

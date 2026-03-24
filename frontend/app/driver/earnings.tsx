@@ -1,22 +1,48 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-
-// Mock Transaction Data
-const TRANSACTIONS = [
-  { id: '1', title: 'Delivery #8821', time: '10:30 AM', amount: 25.00, type: 'credit' },
-  { id: '2', title: 'Delivery #8820', time: '09:15 AM', amount: 18.50, type: 'credit' },
-  { id: '3', title: 'Cash Out', time: 'Yesterday', amount: -200.00, type: 'debit' },
-  { id: '4', title: 'Weekly Bonus', time: 'Yesterday', amount: 50.00, type: 'bonus' },
-];
+import { getDriverStats, getMyDeliveries, CustomInAppToast } from '@/services/api';
 
 export default function DriverEarnings() {
   const router = useRouter();
+  const [stats, setStats] = useState({ total: 0, completed: 0, earnings: 0 });
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const renderTransaction = ({ item }: { item: typeof TRANSACTIONS[0] }) => (
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, historyRes] = await Promise.all([
+        getDriverStats('today'),
+        getMyDeliveries()
+      ]);
+
+      if (statsRes.success) setStats(statsRes.stats);
+      
+      if (historyRes.success && historyRes.deliveries) {
+        setTransactions(historyRes.deliveries.slice(0, 5).map((d: any) => ({
+          id: d.id || d._id,
+          title: `Delivery #${d.order?.order_number || 'N/A'}`,
+          time: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          amount: d.status === 'delivered' ? (d.delivery_fee || 15.0) : 0,
+          type: d.status === 'delivered' ? 'credit' : 'debit'
+        })));
+      }
+    } catch (e) {
+      console.error('Failed to fetch earnings data', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderTransaction = ({ item }: { item: any }) => (
     <View style={styles.transItem}>
       <View style={[styles.iconBox, item.type === 'debit' ? styles.debitBox : styles.creditBox]}>
         <Feather 
@@ -54,10 +80,10 @@ export default function DriverEarnings() {
             </View>
 
             <View style={styles.balanceContainer}>
-                <Text style={styles.balanceLabel}>Total Balance</Text>
-                <Text style={styles.balanceValue}>₵458.50</Text>
-                <TouchableOpacity style={styles.cashoutBtn}>
-                    <Text style={styles.cashoutText}>Cash Out</Text>
+                <Text style={styles.balanceLabel}>Total Today</Text>
+                <Text style={styles.balanceValue}>₵{stats.earnings.toFixed(2)}</Text>
+                <TouchableOpacity style={styles.cashoutBtn} onPress={() => CustomInAppToast.show({ type: 'info', title: 'Payout', message: 'Payouts are processed weekly. You will receive it in your MOMO wallet.' })}>
+                    <Text style={styles.cashoutText}>Request Payout</Text>
                     <Feather name="chevron-right" size={16} color="#0C1559" />
                 </TouchableOpacity>
             </View>
@@ -68,8 +94,8 @@ export default function DriverEarnings() {
         {/* Weekly Chart Placeholder */}
         <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
-                <Text style={styles.chartTitle}>Weekly Summary</Text>
-                <Text style={styles.chartTotal}>₵840.00</Text>
+                <Text style={styles.chartTitle}>Today's Completed</Text>
+                <Text style={styles.chartTotal}>{stats.completed} Orders</Text>
             </View>
             <View style={styles.chartBars}>
                 {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, index) => (
@@ -82,14 +108,19 @@ export default function DriverEarnings() {
         </View>
 
         {/* Recent Activity */}
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <FlatList
-            data={TRANSACTIONS}
-            keyExtractor={item => item.id}
-            renderItem={renderTransaction}
-            contentContainerStyle={{ paddingBottom: 40 }}
-            showsVerticalScrollIndicator={false}
-        />
+        <Text style={styles.sectionTitle}>Recent Deliveries</Text>
+        {loading ? (
+          <ActivityIndicator size="small" color="#0C1559" />
+        ) : (
+          <FlatList
+              data={transactions}
+              keyExtractor={item => item.id}
+              renderItem={renderTransaction}
+              contentContainerStyle={{ paddingBottom: 40 }}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#64748B' }}>No recent deliveries</Text>}
+          />
+        )}
       </View>
     </View>
   );

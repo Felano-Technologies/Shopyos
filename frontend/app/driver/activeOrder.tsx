@@ -131,7 +131,7 @@ export default function ActiveOrderScreen() {
 
           <View style={styles.statusRow}>
             <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
-            <Text style={styles.timeRemaining}>~ 8 mins</Text>
+            <Text style={styles.timeRemaining}>~ {delivery?.estimated_time || (step === 0 ? '5' : '15')} mins</Text>
           </View>
 
           {/* Address Info */}

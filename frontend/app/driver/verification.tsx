@@ -67,13 +67,13 @@ export default function DriverVerification() {
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert("Permission Denied", "We need camera access to verify your identity.");
+        CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'We need camera access to verify your identity.' });
         return;
       }
     } else {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert("Permission Denied", "We need gallery access to upload photos.");
+        CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'We need gallery access to upload photos.' });
         return;
       }
     }

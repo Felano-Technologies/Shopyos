@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
@@ -6,24 +6,48 @@ import {
   FlatList, 
   TouchableOpacity, 
   StatusBar,
-  Image 
+  Image,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-
-const HISTORY = [
-  { id: '1', date: 'Jan 28, 2026', time: '14:30', restaurant: 'Pizzaman - Knust', earnings: 15.00, status: 'Completed', orderId: '#8821' },
-  { id: '2', date: 'Jan 28, 2026', time: '12:15', restaurant: 'KFC - Asokwa', earnings: 22.50, status: 'Completed', orderId: '#8819' },
-  { id: '3', date: 'Jan 27, 2026', time: '19:45', restaurant: 'Eddys Pizza', earnings: 0.00, status: 'Cancelled', orderId: '#8750' },
-  { id: '4', date: 'Jan 26, 2026', time: '10:00', restaurant: 'Chickenman', earnings: 18.00, status: 'Completed', orderId: '#8602' },
-];
+import { getMyDeliveries } from '@/services/api';
 
 export default function DriverHistory() {
   const router = useRouter();
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const renderItem = ({ item }: { item: typeof HISTORY[0] }) => {
-    const isCancelled = item.status === 'Cancelled';
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const fetchHistory = async () => {
+    try {
+      setLoading(true);
+      const res = await getMyDeliveries();
+      if (res.success && res.deliveries) {
+        setHistory(res.deliveries.map((d: any) => ({
+          id: d.id || d._id,
+          date: new Date(d.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
+          time: new Date(d.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }),
+          restaurant: d.order?.store?.store_name || d.pickup_address || 'Unknown Store',
+          earnings: d.status === 'delivered' ? (d.delivery_fee || 15.0) : 0,
+          status: d.status.charAt(0).toUpperCase() + d.status.slice(1).replace('_', ' '),
+          orderId: `#${d.order?.order_number || 'N/A'}`
+        })));
+      }
+    } catch (e) {
+      console.error('Failed to fetch history', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    const isCancelled = item.status.toLowerCase().includes('cancel') || item.status.toLowerCase().includes('fail');
+    const isCompleted = item.status.toLowerCase() === 'delivered' || item.status.toLowerCase() === 'completed';
 
     return (
       <TouchableOpacity style={styles.card} activeOpacity={0.7}>
@@ -55,8 +79,8 @@ export default function DriverHistory() {
                 <Text style={styles.timestamp}>{item.date} • {item.time}</Text>
             </View>
 
-            <View style={[styles.statusBadge, isCancelled ? styles.statusCancelled : styles.statusCompleted]}>
-                <Text style={[styles.statusText, isCancelled ? styles.textCancelled : styles.textCompleted]}>
+            <View style={[styles.statusBadge, isCompleted ? styles.statusCompleted : (isCancelled ? styles.statusCancelled : { backgroundColor: '#E2E8F0' })]}>
+                <Text style={[styles.statusText, isCompleted ? styles.textCompleted : (isCancelled ? styles.textCancelled : { color: '#64748B' })]}>
                     {item.status}
                 </Text>
             </View>
@@ -85,18 +109,25 @@ export default function DriverHistory() {
 
       {/* --- Content --- */}
       <View style={styles.contentContainer}>
-        <FlatList
-            data={HISTORY}
+        {loading ? (
+          <View style={styles.emptyContainer}>
+            <ActivityIndicator size="large" color="#0C1559" />
+            <Text style={[styles.emptyText, { marginTop: 10 }]}>Loading history...</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={history}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.list}
             renderItem={renderItem}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>No trip history found.</Text>
-                </View>
+              <View style={styles.emptyContainer}>
+                <Text style={styles.emptyText}>No trip history found.</Text>
+              </View>
             }
-        />
+          />
+        )}
       </View>
     </View>
   );

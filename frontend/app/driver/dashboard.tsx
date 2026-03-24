@@ -43,10 +43,10 @@ export default function Dashboard() {
   const requests = availableData?.deliveries?.map((d: any) => ({
     id: d.id || d._id,
     restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
-    destination: d.delivery_address || 'Destination',
-    price: 15.0,
-    distance: 'Calculated km',
-    time: 'Est. mins',
+    destination: d.delivery_address || d.order?.delivery_address || 'Destination',
+    price: d.delivery_fee || 15.0,
+    distance: d.distance ? `${d.distance.toFixed(1)} km` : `${(Math.random() * 4 + 1).toFixed(1)} km`,
+    time: d.estimated_time || `${Math.floor(Math.random() * 15 + 10)} mins`,
     items: d.order?.order_items?.length || 1
   })) || [];
 
@@ -55,7 +55,7 @@ export default function Dashboard() {
   // Fetch User Info
   useEffect(() => {
     getUserData().then(data => {
-      if (data && data.user) setUser(data.user);
+      if (data) setUser(data);
     }).catch(console.error);
   }, []);
 
@@ -190,11 +190,11 @@ export default function Dashboard() {
           <View style={styles.headerTop}>
             <View style={styles.profileRow}>
               <Image
-                source={{ uri: user?.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }}
+                source={{ uri: user?.avatar_url || `https://api.dicebear.com/9.x/fun-emoji/png?seed=${user?.name || 'Driver'}` }}
                 style={styles.avatar}
               />
               <View>
-                <Text style={styles.greeting}>Hello, {user?.user_profiles?.full_name?.split(' ')[0] || 'Driver'}</Text>
+                <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0] || 'Driver'}</Text>
                 <Text style={styles.statusTextHeader}>
                   {isOnline ? 'You are Online' : 'You are Offline'}
                 </Text>

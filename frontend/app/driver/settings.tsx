@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,20 +10,37 @@ import {
   requestLocationPermissions,
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
+import { getDriverProfile, getUserData, CustomInAppToast } from '@/services/api';
 
 export default function DriverSettings() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [shareLiveLocation, setShareLiveLocation] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  const [driver, setDriver] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Load location sharing preference on mount
+  // Load profile and preferences on mount
   useEffect(() => {
-    loadLocationPreference();
+    loadData();
   }, []);
 
-  const loadLocationPreference = async () => {
-    const enabled = await getLocationSharingPreference();
-    setShareLiveLocation(enabled);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [u, d, locPref] = await Promise.all([
+        getUserData(),
+        getDriverProfile(),
+        getLocationSharingPreference()
+      ]);
+      setUser(u);
+      setDriver(d?.profile || d);
+      setShareLiveLocation(locPref);
+    } catch (error) {
+      console.error('Failed to load settings data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleLocationToggle = async (value: boolean) => {
@@ -33,26 +50,20 @@ export default function DriverSettings() {
         const permissions = await requestLocationPermissions();
         
         if (!permissions.foreground) {
-          Alert.alert(
-            'Permission Required',
-            'Location permission is required to share your live location during deliveries.',
-            [{ text: 'OK' }]
-          );
+          CustomInAppToast.show({ 
+            type: 'error', 
+            title: 'Permission Required', 
+            message: 'Location permission is required to share your live location during deliveries.' 
+          });
           return;
         }
 
         if (!permissions.background) {
-          Alert.alert(
-            'Background Permission Required',
-            'Background location permission is needed to track your location while delivering. Please enable it in your device settings.',
-            [
-              { text: 'Cancel', style: 'cancel' },
-              { text: 'Open Settings', onPress: () => {
-                // TODO: Open device settings
-                console.log('Open settings');
-              }}
-            ]
-          );
+            CustomInAppToast.show({ 
+                type: 'error', 
+                title: 'Background Permission Required', 
+                message: 'Background location permission is needed to track your location while delivering. Please enable it in your device settings.' 
+            });
           return;
         }
       }
@@ -64,21 +75,19 @@ export default function DriverSettings() {
       // Invalidate queries to trigger useBackgroundTasks to re-evaluate
       queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
 
-      Alert.alert(
-        value ? 'Location Sharing Enabled' : 'Location Sharing Disabled',
-        value
-          ? 'Your location will be shared during active deliveries.'
-          : 'Your location will no longer be shared.',
-        [{ text: 'OK' }]
-      );
+      CustomInAppToast.show({
+        type: 'success',
+        title: value ? 'Location Sharing Enabled' : 'Location Sharing Disabled',
+        message: value ? 'Your location will be shared during active deliveries.' : 'Your location will no longer be shared.'
+      });
     } catch (error) {
       console.error('Error toggling location sharing:', error);
-      Alert.alert('Error', 'Failed to update location sharing preference.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to update location sharing preference.' });
     }
   };
 
-  const SettingRow = ({ icon, label, value }: any) => (
-    <TouchableOpacity style={styles.row}>
+  const SettingRow = ({ icon, label, value, onPress }: any) => (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
         <View style={styles.rowLeft}>
             <View style={styles.iconCircle}>
                 <Feather name={icon} size={20} color="#0C1559" />
@@ -129,11 +138,16 @@ export default function DriverSettings() {
             </View>
             
             <View style={styles.profileCard}>
-                <Image source={{ uri: 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }} style={styles.avatar} />
-                <Text style={styles.name}>Williams Boampong</Text>
+                <Image 
+                    source={{ uri: user?.avatar_url || `https://api.dicebear.com/9.x/fun-emoji/png?seed=${user?.name || 'Driver'}` }} 
+                    style={styles.avatar} 
+                />
+                <Text style={styles.name}>{user?.name || 'Williams Boampong'}</Text>
                 <View style={styles.ratingBadge}>
                     <Ionicons name="star" size={14} color="#F59E0B" />
-                    <Text style={styles.ratingText}>4.9 (1,240 deliveries)</Text>
+                    <Text style={styles.ratingText}>
+                        {driver?.rating || '5.0'} ({driver?.total_deliveries || 0} deliveries)
+                    </Text>
                 </View>
             </View>
         </SafeAreaView>
@@ -147,9 +161,9 @@ export default function DriverSettings() {
       >
         <Text style={styles.sectionTitle}>Vehicle Details</Text>
         <View style={styles.section}>
-            <SettingRow icon="truck" label="Vehicle Type" value="Motorbike" />
-            <SettingRow icon="hash" label="Plate Number" value="AS-459-24" />
-            <SettingRow icon="file-text" label="Insurance" value="Active" />
+            <SettingRow icon="truck" label="Vehicle Type" value={driver?.vehicle_type || 'Motorbike'} />
+            <SettingRow icon="hash" label="Plate Number" value={driver?.plate_number || '---'} />
+            <SettingRow icon="file-text" label="License" value={driver?.license_number ? 'Verified' : 'Pending'} />
         </View>
 
         <Text style={styles.sectionTitle}>Preferences</Text>
