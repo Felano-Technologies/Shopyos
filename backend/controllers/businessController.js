@@ -344,6 +344,44 @@ const updateBusiness = async (req, res, next) => {
     // Map old field names to new schema
     const mappedData = {};
 
+    // Process uploaded files using Cloudinary if present
+    if (req.files) {
+      try {
+        const processFile = (fieldName, folder) => {
+          if (req.files[fieldName] && req.files[fieldName][0]) {
+            return uploadFileToCloudinary(req.files[fieldName][0], folder)
+              .then(result => { mappedData[fieldName] = result.url; });
+          }
+          return Promise.resolve();
+        };
+
+        await Promise.all([
+          processFile('logo', 'shopyos/store-logos'),
+          processFile('coverImage', 'shopyos/store-banners'),
+          processFile('businessCert', 'shopyos/store-documents'),
+          processFile('businessLicense', 'shopyos/store-documents'),
+          processFile('proofOfBank', 'shopyos/store-documents')
+        ]);
+        
+        // Map resulting URLs to the database column names if they were uploaded
+        if (mappedData.logo) mappedData.logo_url = mappedData.logo;
+        if (mappedData.coverImage) mappedData.banner_url = mappedData.coverImage;
+        if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
+        if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
+        if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;
+        
+        // Clean up temporary mapped fields before database update
+        delete mappedData.logo;
+        delete mappedData.coverImage;
+        delete mappedData.businessCert;
+        delete mappedData.businessLicense;
+        delete mappedData.proofOfBank;
+      } catch (uploadError) {
+        logger.error('Error uploading business files during update:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload documents' });
+      }
+    }
+
     if (updateData.businessName) mappedData.store_name = updateData.businessName;
     if (updateData.description) mappedData.description = updateData.description;
     if (updateData.category) mappedData.category = updateData.category;
@@ -355,8 +393,20 @@ const updateBusiness = async (req, res, next) => {
     if (updateData.website) mappedData.website_url = updateData.website;
     if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
     if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
-    if (updateData.logo) mappedData.logo_url = updateData.logo;
-    if (updateData.coverImage) mappedData.banner_url = updateData.coverImage;
+    
+    // Support direct URL updates if provided in body (fallback if no file was uploaded)
+    if (updateData.logo && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
+    if (updateData.coverImage && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
+    if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
+    if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
+    if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;
+    
+    // Legal & Verification Fields
+    if (updateData.registrationNumber) mappedData.registration_number = updateData.registrationNumber;
+    if (updateData.taxId) mappedData.tax_id = updateData.taxId;
+    if (updateData.bankName) mappedData.bank_name = updateData.bankName;
+    if (updateData.accountName) mappedData.account_name = updateData.accountName;
+    if (updateData.accountNumber) mappedData.account_number = updateData.accountNumber;
     if (updateData.verificationStatus) mappedData.verification_status = updateData.verificationStatus;
     if (updateData.rejectionReason) mappedData.rejection_reason = updateData.rejectionReason;
     if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;

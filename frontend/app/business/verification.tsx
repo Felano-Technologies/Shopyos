@@ -39,7 +39,9 @@ type BusinessDetails = {
   yearsInOperation: string;
   website: string;
   description: string;
-  documents: string[];
+  businessCert?: string;
+  businessLicense?: string;
+  proofOfBank?: string;
   logo?: string;
 };
 
@@ -80,15 +82,14 @@ const BusinessVerification = () => {
     yearsInOperation: '',
     website: '',
     description: '',
-    documents: [],
   });
 
-  const handleUploadDocument = async () => {
+  const handleUploadDocument = async (type: 'businessCert' | 'businessLicense' | 'proofOfBank') => {
     try {
       setUploading(true);
       const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'] });
       if (!result.canceled && result.assets) {
-        setDetails(prev => ({ ...prev, documents: [...prev.documents, result.assets[0].uri] }));
+        setDetails(prev => ({ ...prev, [type]: result.assets[0].uri }));
       }
     } catch (e) { console.log(e); } finally { setUploading(false); }
   };
@@ -98,19 +99,17 @@ const BusinessVerification = () => {
     if (!result.canceled) setDetails(prev => ({ ...prev, logo: result.assets[0].uri }));
   };
 
-  const removeDocument = (index: number) => {
-    setDetails(prev => ({ ...prev, documents: prev.documents.filter((_, i) => i !== index) }));
-  };
+
 
   const handleVerify = async () => {
     // Original Validation Logic
     if (!details.ownerName || !details.registrationNumber || !details.taxId) {
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill all required fields' });
+      CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill all required fields' });
       return;
     }
 
-    if (details.documents.length === 0) {
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Docs Required', message: 'Upload at least one verification document' });
+    if (!details.businessCert && !details.businessLicense) {
+      CustomInAppToast.show({ type: 'error', title: 'Docs Required', message: 'Upload at least one verification document' });
       return;
     }
 
@@ -124,7 +123,7 @@ const BusinessVerification = () => {
         throw new Error(response.message || 'Verification failed');
       }
     } catch (error: any) {
-      CustomInAppCustomInAppToast.show({ type: 'error', title: 'Failed', message: error.message || 'Please try again' });
+      CustomInAppToast.show({ type: 'error', title: 'Failed', message: error.message || 'Please try again' });
     } finally {
       setLoading(false);
     }
@@ -192,25 +191,55 @@ const BusinessVerification = () => {
 
           {/* SECTION 4: DOCUMENTS */}
           <View style={styles.docCard}>
-            <View style={styles.docHeader}>
-                <Text style={styles.sectionHeader}>Verification Documents <Text style={{color: '#EF4444'}}>*</Text></Text>
-                <TouchableOpacity style={styles.addDocBtn} onPress={handleUploadDocument} disabled={uploading}>
-                    {uploading ? <ActivityIndicator size="small" color="#FFF" /> : <Feather name="plus" size={20} color="#FFF" />}
-                </TouchableOpacity>
-            </View>
-            {details.documents.map((doc, i) => (
-                <View key={i} style={styles.docItem}>
-                    <MaterialCommunityIcons name="file-document-outline" size={20} color="#0C1559" />
-                    <Text style={styles.docName} numberOfLines={1}>Document_{i+1}.pdf</Text>
-                    <TouchableOpacity onPress={() => removeDocument(i)}><Feather name="trash-2" size={16} color="#EF4444" /></TouchableOpacity>
-                </View>
-            ))}
-            {details.documents.length === 0 && (
-                <TouchableOpacity style={styles.emptyDocArea} onPress={handleUploadDocument}>
-                    <Feather name="upload-cloud" size={24} color="#CBD5E1" />
-                    <Text style={styles.emptyDocText}>Upload business license or ID</Text>
-                </TouchableOpacity>
-            )}
+            <Text style={styles.sectionHeader}>Verification Documents <Text style={{color: '#EF4444'}}>*</Text></Text>
+            
+            {/* Business Certificate */}
+            <TouchableOpacity 
+              style={[styles.docItem, details.businessCert && { borderColor: '#0C1559', borderWidth: 1 }]} 
+              onPress={() => handleUploadDocument('businessCert')}
+            >
+              <MaterialCommunityIcons name={details.businessCert ? "file-check" : "file-outline"} size={20} color="#0C1559" />
+              <Text style={styles.docName} numberOfLines={1}>
+                {details.businessCert ? "Business Certificate Uploaded" : "Upload Business Certificate"}
+              </Text>
+              {details.businessCert ? (
+                <Feather name="check-circle" size={16} color="#84cc16" />
+              ) : (
+                <Feather name="upload" size={16} color="#94A3B8" />
+              )}
+            </TouchableOpacity>
+
+            {/* Business License */}
+            <TouchableOpacity 
+              style={[styles.docItem, details.businessLicense && { borderColor: '#0C1559', borderWidth: 1 }]} 
+              onPress={() => handleUploadDocument('businessLicense')}
+            >
+              <MaterialCommunityIcons name={details.businessLicense ? "file-check" : "file-outline"} size={20} color="#0C1559" />
+              <Text style={styles.docName} numberOfLines={1}>
+                {details.businessLicense ? "Business License Uploaded" : "Upload Business License"}
+              </Text>
+              {details.businessLicense ? (
+                <Feather name="check-circle" size={16} color="#84cc16" />
+              ) : (
+                <Feather name="upload" size={16} color="#94A3B8" />
+              )}
+            </TouchableOpacity>
+
+            {/* Proof of Bank */}
+            <TouchableOpacity 
+              style={[styles.docItem, details.proofOfBank && { borderColor: '#0C1559', borderWidth: 1 }]} 
+              onPress={() => handleUploadDocument('proofOfBank')}
+            >
+              <MaterialCommunityIcons name={details.proofOfBank ? "file-check" : "file-outline"} size={20} color="#0C1559" />
+              <Text style={styles.docName} numberOfLines={1}>
+                {details.proofOfBank ? "Proof of Bank Uploaded" : "Upload Proof of Bank"}
+              </Text>
+              {details.proofOfBank ? (
+                <Feather name="check-circle" size={16} color="#84cc16" />
+              ) : (
+                <Feather name="upload" size={16} color="#94A3B8" />
+              )}
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity style={styles.submitBtn} onPress={handleVerify} disabled={loading}>
@@ -235,7 +264,7 @@ const BusinessVerification = () => {
         </View>
       </Modal>
 
-      <Toast />
+
     </View>
   );
 };

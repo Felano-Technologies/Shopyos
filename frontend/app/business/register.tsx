@@ -117,11 +117,11 @@ const BusinessSetupScreen = () => {
 
       // Uploads
       if (logo) {
-        const res = await uploadImage(logo, 'business_image');
+        const res = await uploadImage(logo, 'shopyos/store-logos');
         if (res) logoUrl = res.url;
       }
       if (coverImage) {
-        const res = await uploadImage(coverImage, 'business_image');
+        const res = await uploadImage(coverImage, 'shopyos/store-banners');
         if (res) coverImageUrl = res.url;
       }
 

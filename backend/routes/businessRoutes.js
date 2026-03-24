@@ -31,7 +31,7 @@ router.get('/my-businesses', protect, getMyBusinesses);
 router.get('/all', protect, cacheMiddleware((req) => storeCacheKey.all(req.query), 300), getAllBusinesses);
 router.get('/:id', protect, cacheMiddleware((req) => storeCacheKey.detail(req.params.id), 300), getBusinessById);
 
-router.put('/update/:id', protect, updateBusiness);
+router.put('/update/:id', protect, createUploadFields, updateBusiness);
 router.delete('/:id', protect, deleteBusiness);
 
 router.post('/:id/upload-logo', protect, upload.single('logo'), uploadLogo);

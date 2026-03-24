@@ -460,7 +460,27 @@ export const switchBusiness = async (businessId: string) => {
  
 export const updateBusiness = async (businessId: string, updateData: any) => {
   try {
-    const response = await api.put(`/business/update/${businessId}`, updateData);
+    const formData = new FormData();
+    let hasFiles = false;
+
+    Object.keys(updateData).forEach(key => {
+      const value = updateData[key];
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'string' && (value.startsWith('file://') || value.startsWith('content://'))) {
+          const uri = value;
+          const name = uri.split('/').pop() || 'upload.jpg';
+          const match = /\.(\w+)$/.exec(name);
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
+          formData.append(key, { uri, name, type } as any);
+          hasFiles = true;
+        } else {
+          formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
+        }
+      }
+    });
+
+    const config = hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+    const response = await api.put(`/business/update/${businessId}`, hasFiles ? formData : updateData, config);
     return response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to update business');
@@ -469,17 +489,20 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
 };
  
 export const verifyBusinessDetails = async (businessId: string, details: any) => {
-  try {
-    const response = await api.put(`/business/update/${businessId}`, {
-      ...details,
-      verificationStatus: 'pending',
-    });
-    return response.data;
-  } catch (error: any) {
-    if (error.response) throw new Error(error.response.data.error || 'Failed to submit verification');
-    throw new Error(error.message || 'Network error submitting verification');
-  }
+  return await updateBusiness(businessId, {
+    ...details,
+    verificationStatus: 'pending',
+  });
 };
+
+
+
+
+
+
+
+
+
  
 // ─── Cart ─────────────────────────────────────────────────────────────────────
  
