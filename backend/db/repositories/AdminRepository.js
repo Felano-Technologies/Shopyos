@@ -23,34 +23,51 @@ class AdminRepository extends BaseRepository {
         user_id,
         full_name,
         phone,
-        role,
-        account_status,
         created_at,
-        users!user_id(email)
+        users!user_id!inner(
+          email,
+          is_active,
+          user_roles(
+            roles(name)
+          )
+        )
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (role) {
-      query = query.eq('role', role);
+      // PostgREST filtering on joined tables
+      query = query.eq('users.user_roles.roles.name', role);
     }
 
     if (accountStatus) {
-      query = query.eq('account_status', accountStatus);
+      const isActive = accountStatus === 'active';
+      query = query.eq('users.is_active', isActive);
     }
 
     if (search) {
-      query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+      query = query.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
     }
 
     const { data, error } = await query;
     if (error) throw error;
     
-    // Normalize data for frontend - flatten joined email
-    return (data || []).map(u => ({
-      ...u,
-      email: u.users?.email || u.phone || '—'
-    }));
+    // Normalize data for frontend
+    return (data || []).map(u => {
+      const roles = u.users?.user_roles || [];
+      const roleName = roles.length > 0 ? roles[0].roles?.name : 'buyer';
+      
+      return {
+        id: u.id,
+        user_id: u.user_id,
+        full_name: u.full_name,
+        phone: u.phone,
+        email: u.users?.email || '—',
+        role: roleName,
+        account_status: u.users?.is_active ? 'active' : 'suspended',
+        created_at: u.created_at
+      };
+    });
   }
 
   /**
@@ -58,36 +75,37 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Object>} User stats
    */
   async getUserStats() {
-    const { data: totalUsers, error: totalError } = await this.supabase
+    // We use RPC or multiple queries. For simplicity and accuracy with joins:
+    const { count: total, error: totalErr } = await this.supabase
       .from('user_profiles')
       .select('id', { count: 'exact', head: true });
 
-    const { data: activeUsers, error: activeError } = await this.supabase
-      .from('user_profiles')
+    const { count: active, error: activeErr } = await this.supabase
+      .from('users')
       .select('id', { count: 'exact', head: true })
-      .eq('account_status', 'active');
+      .eq('is_active', true);
 
-    const { data: sellers, error: sellersError } = await this.supabase
-      .from('user_profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'seller');
+    const { count: sellers, error: sellerErr } = await this.supabase
+      .from('user_roles')
+      .select('id, roles!inner(name)', { count: 'exact', head: true })
+      .eq('roles.name', 'seller');
 
-    const { data: drivers, error: driversError } = await this.supabase
-      .from('user_profiles')
-      .select('id', { count: 'exact', head: true })
-      .eq('role', 'driver');
+    const { count: drivers, error: driverErr } = await this.supabase
+      .from('user_roles')
+      .select('id, roles!inner(name)', { count: 'exact', head: true })
+      .eq('roles.name', 'driver');
 
-    if (totalError || activeError || sellersError || driversError) {
-      throw totalError || activeError || sellersError || driversError;
+    if (totalErr || activeErr || sellerErr || driverErr) {
+      throw totalErr || activeErr || sellerErr || driverErr;
     }
 
     return {
-      total: totalUsers,
-      active: activeUsers,
-      suspended: totalUsers - activeUsers,
-      sellers: sellers,
-      drivers: drivers,
-      buyers: totalUsers - sellers - drivers
+      total: total || 0,
+      active: active || 0,
+      suspended: (total || 0) - (active || 0),
+      sellers: sellers || 0,
+      drivers: drivers || 0,
+      buyers: (total || 0) - (sellers || 0) - (drivers || 0)
     };
   }
 
@@ -98,14 +116,24 @@ class AdminRepository extends BaseRepository {
    * @param {string} reason - Reason for status change
    * @returns {Promise<Object>} Updated user
    */
-  async updateUserStatus(userId, status, reason = null) {
-    const { data, error } = await this.supabase
+  async updateUserStatus(profileId, status, reason = null) {
+    // 1. Get the actual user_id from profileId
+    const { data: profile } = await this.supabase
       .from('user_profiles')
+      .select('user_id')
+      .eq('id', profileId)
+      .single();
+
+    if (!profile) throw new Error('User profile not found');
+
+    // 2. Update users table (is_active)
+    const { data, error } = await this.supabase
+      .from('users')
       .update({
-        account_status: status,
+        is_active: status === 'active',
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId)
+      .eq('id', profile.user_id)
       .select()
       .single();
 
@@ -119,14 +147,35 @@ class AdminRepository extends BaseRepository {
    * @param {string} role - New role (buyer, seller, driver, admin)
    * @returns {Promise<Object>} Updated user
    */
-  async updateUserRole(userId, role) {
-    const { data, error } = await this.supabase
+  async updateUserRole(profileId, roleName) {
+    // 1. Get user_id
+    const { data: profile } = await this.supabase
       .from('user_profiles')
-      .update({
-        role: role,
-        updated_at: new Date().toISOString()
+      .select('user_id')
+      .eq('id', profileId)
+      .single();
+
+    if (!profile) throw new Error('User profile not found');
+    const userId = profile.user_id;
+
+    // 2. Get role ID
+    const { data: roleData } = await this.supabase
+      .from('roles')
+      .select('id')
+      .eq('name', roleName)
+      .single();
+
+    if (!roleData) throw new Error(`Role ${roleName} not found`);
+
+    // 3. Update user_roles (simple implementation: clear and set)
+    await this.supabase.from('user_roles').delete().eq('user_id', userId);
+    const { data, error } = await this.supabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role_id: roleData.id,
+        is_active: true
       })
-      .eq('id', userId)
       .select()
       .single();
 

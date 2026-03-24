@@ -10,7 +10,8 @@ import {
     RefreshControl, 
     Dimensions, 
     Modal, 
-    ActivityIndicator
+    ActivityIndicator,
+    ImageBackground
 } from 'react-native';
 import { router } from 'expo-router';
 import { storage, logoutUser } from '@/services/api';
@@ -55,6 +56,49 @@ const BusinessDashboard = () => {
 
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
+
+  const renderHeaderContent = () => (
+    <>
+      <View style={styles.topBar}>
+        <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
+        <View style={styles.topIcons}>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
+            <Ionicons name="notifications-outline" size={22} color="#FFF" />
+            {unreadCount > 0 && (
+              <View style={styles.badgeContainer}>
+                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
+            <Ionicons name="settings-outline" size={22} color="#FFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.businessProfile}>
+        <View style={styles.logoWrapper}>
+          {selectedBusiness?.logo ? (
+            <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
+          ) : (
+            <View style={styles.logoPlaceholder}>
+              <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
+            </View>
+          )}
+          <View style={styles.verifiedBadge}><Ionicons name="checkmark" size={10} color="#FFF" /></View>
+        </View>
+        <View style={styles.businessTexts}>
+          <Text style={styles.welcomeLabel}>Store Dashboard</Text>
+          <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={14} color="#F59E0B" />
+            <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
+          </View>
+        </View>
+      </View>
+    </>
+  );
+
  
   // Force refetch on mount to catch newly registered businesses
   useEffect(() => {
@@ -71,10 +115,14 @@ const BusinessDashboard = () => {
 
   // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
-    if (!loading && !selectedBusiness && !isLoadingBusinesses && !isRefetchingBusinesses) {
-      setShowNoBusinessModal(true);
+    if (!loading && !isLoadingBusinesses && !isRefetchingBusinesses) {
+      if (!selectedBusiness) {
+        setShowNoBusinessModal(true);
+      } else {
+        setShowNoBusinessModal(false);
+      }
     }
-  }, [loading, selectedBusiness, isLoadingBusinesses]);
+  }, [loading, selectedBusiness, isLoadingBusinesses, isRefetchingBusinesses]);
 
 
   const onRefresh = async () => {
@@ -136,45 +184,31 @@ const BusinessDashboard = () => {
             showsVerticalScrollIndicator={false}
           >
             {/* --- HERO SECTION --- */}
-            <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroContainer}>
-              <View style={styles.topBar}>
-                <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
-                <View style={styles.topIcons}>
-                  <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
-                    <Ionicons name="notifications-outline" size={22} color="#FFF" />
-                    {unreadCount > 0 && (
-                      <View style={styles.badgeContainer}>
-                        <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
-                    <Ionicons name="settings-outline" size={22} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.businessProfile}>
-                <View style={styles.logoWrapper}>
-                  {selectedBusiness?.logo ? (
-                    <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
-                  ) : (
-                    <View style={styles.logoPlaceholder}>
-                      <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
-                    </View>
-                  )}
-                  <View style={styles.verifiedBadge}><Ionicons name="checkmark" size={10} color="#FFF" /></View>
-                </View>
-                <View style={styles.businessTexts}>
-                  <Text style={styles.welcomeLabel}>Store Dashboard</Text>
-                  <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={14} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
-                  </View>
-                </View>
-              </View>
-            </LinearGradient>
+            <View style={{ position: 'relative', overflow: 'hidden' }}>
+              {selectedBusiness?.coverImage ? (
+                <ImageBackground 
+                  source={{ uri: selectedBusiness.coverImage }} 
+                  style={[styles.heroContainer, { paddingBottom: 60 }]}
+                  resizeMode="cover"
+                >
+                  <LinearGradient 
+                    colors={['rgba(12, 21, 89, 0.4)', 'rgba(30, 58, 138, 0.8)']} 
+                    style={StyleSheet.absoluteFill}
+                  />
+                  {/* --- Header Content (Moved inside ImageBackground) --- */}
+                  {renderHeaderContent()}
+                </ImageBackground>
+              ) : (
+                <LinearGradient 
+                  colors={['#0C1559', '#1e3a8a']} 
+                  start={{ x: 0, y: 0 }} 
+                  end={{ x: 1, y: 1 }} 
+                  style={styles.heroContainer}
+                >
+                  {renderHeaderContent()}
+                </LinearGradient>
+              )}
+            </View>
 
             {/* --- FLOATING STATS --- */}
             <View style={styles.floatingStatsContainer}>

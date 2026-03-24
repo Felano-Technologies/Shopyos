@@ -28,12 +28,17 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
     try {
       // Your Cloudinary configuration from the dashboard
       const cloudName = 'dffwsjxmi'; // Your cloud name
-      const uploadPreset = 'shopyos'; // You need to create this in Cloudinary settings
+      const uploadPreset = 'shopyos'; // As per user confirmation
+      const folderPath = 'shopyos'; // Default folder for organization
 
       // Create form data for upload
       const formData = new FormData();
+      formData.append('upload_preset', uploadPreset);
       
-      // Detect file name and type
+      // If a specific folder is passed, use it, otherwise use 'shopyos'
+      formData.append('folder', folder || folderPath);
+
+      // Detect file name...
       const filename = imageUri.split('/').pop() || `upload_${Date.now()}`;
       const match = /\.(\w+)$/.exec(filename);
       const extension = match ? match[1] : '';
@@ -49,10 +54,7 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
         name: filename,
       } as any);
 
-      // Required: Your upload preset
-      formData.append('upload_preset', uploadPreset);
-      
-      // Optional: Add folder for organization
+      // Add dynamic folder if provided, else use default
       if (folder) {
         formData.append('folder', folder);
       }

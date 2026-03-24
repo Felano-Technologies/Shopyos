@@ -346,7 +346,7 @@ const BusinessSetupScreen = () => {
   const [businessLicense, setBusinessLicense] = useState<string | null>(null);
   const [proofOfBank, setProofOfBank] = useState<string | null>(null);
 
-  const { uploadImage, uploading: uploadLoading } = useCloudinaryUpload();
+  const { uploadImage, loading: uploadLoading } = useCloudinaryUpload();
 
   useEffect(() => {
     const fetchCats = async () => {
@@ -414,19 +414,25 @@ const BusinessSetupScreen = () => {
       let licenseUrl = '';
       let bankUrl = '';
 
-      if (logo) logoUrl = await uploadImage(logo);
-      if (coverImage) coverUrl = await uploadImage(coverImage);
-      if (businessCert) certUrl = await uploadImage(businessCert);
-      if (businessLicense) licenseUrl = await uploadImage(businessLicense);
-      if (proofOfBank) bankUrl = await uploadImage(proofOfBank);
+      // Upload images in parallel for better speed
+      const uploadResults = await Promise.all([
+        logo ? uploadImage(logo) : Promise.resolve(null),
+        coverImage ? uploadImage(coverImage) : Promise.resolve(null),
+        businessCert ? uploadImage(businessCert) : Promise.resolve(null),
+        businessLicense ? uploadImage(businessLicense) : Promise.resolve(null),
+        proofOfBank ? uploadImage(proofOfBank) : Promise.resolve(null),
+      ]);
 
+      const [resLogo, resCover, resCert, resLicense, resBank] = uploadResults;
+
+      // Use uploaded URL if successful, otherwise fallback to local URI (backend will handle it)
       const submitData = {
         ...formData,
-        logo: logoUrl,
-        coverImage: coverUrl,
-        businessCert: certUrl,
-        businessLicense: licenseUrl,
-        proofOfBank: bankUrl,
+        logo: resLogo?.url || logo,
+        coverImage: resCover?.url || coverImage,
+        businessCert: resCert?.url || businessCert,
+        businessLicense: resLicense?.url || businessLicense,
+        proofOfBank: resBank?.url || proofOfBank,
       };
 
       const response = await businessRegister(submitData);
