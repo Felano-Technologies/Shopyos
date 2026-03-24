@@ -2,6 +2,7 @@ const repositories = require('../db/repositories');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
+const notificationService = require('../services/notificationService');
 
 const createBusiness = async (req, res, next) => {
   try {
@@ -20,7 +21,14 @@ const createBusiness = async (req, res, next) => {
       facebook,
       logo,
       coverImage,
-      email
+      email,
+      businessCert, // from req.body or handled via files
+      taxId,
+      businessLicense, // via files
+      bankName,
+      accountName,
+      accountNumber,
+      proofOfBank // via files
     } = req.body;
 
     // Validate required fields
@@ -61,6 +69,39 @@ const createBusiness = async (req, res, next) => {
       .replace(/^-|-$/g, '')
       + '-' + Date.now();
 
+    // Process uploaded files using Cloudinary
+    let fileUrls = {
+      logo: logo || null,
+      coverImage: coverImage || null,
+      businessCert: null,
+      businessLicense: null,
+      proofOfBank: null
+    };
+
+    if (req.files) {
+      try {
+        const uploadPromises = [];
+        const processFile = (fieldName, folder) => {
+          if (req.files[fieldName] && req.files[fieldName][0]) {
+            return uploadFileToCloudinary(req.files[fieldName][0], folder)
+              .then(result => { fileUrls[fieldName] = result.url; });
+          }
+          return Promise.resolve();
+        };
+
+        await Promise.all([
+          processFile('logo', 'shopyos/store-logos'),
+          processFile('coverImage', 'shopyos/store-banners'),
+          processFile('businessCert', 'shopyos/store-documents'),
+          processFile('businessLicense', 'shopyos/store-documents'),
+          processFile('proofOfBank', 'shopyos/store-documents')
+        ]);
+      } catch (uploadError) {
+        logger.error('Error uploading business files:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload documents' });
+      }
+    }
+
     // Create store
     const store = await repositories.stores.create({
       owner_id: userId,
@@ -76,11 +117,24 @@ const createBusiness = async (req, res, next) => {
       website_url: website || null,
       social_instagram: instagram || null,
       social_facebook: facebook || null,
-      logo_url: logo || null,
-      banner_url: coverImage || null,
+      logo_url: fileUrls.logo,
+      banner_url: fileUrls.coverImage,
+      business_cert_url: fileUrls.businessCert,
+      tax_id: taxId || null,
+      business_license_url: fileUrls.businessLicense,
+      bank_name: bankName || null,
+      account_name: accountName || null,
+      account_number: accountNumber || null,
+      proof_of_bank_url: fileUrls.proofOfBank,
       verification_status: 'pending',
       is_active: true
     });
+
+    // Notify admins
+    const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank;
+    if (hasVerificationDocs) {
+      await notificationService.notifyAdminsVerificationRequest(store.id, 'store', store.store_name);
+    }
 
     // Get store with owner details
     const storeWithOwner = await repositories.stores.getStoreDetails(store.id);
@@ -297,6 +351,44 @@ const updateBusiness = async (req, res, next) => {
     // Map old field names to new schema
     const mappedData = {};
 
+    // Process uploaded files using Cloudinary if present
+    if (req.files) {
+      try {
+        const processFile = (fieldName, folder) => {
+          if (req.files[fieldName] && req.files[fieldName][0]) {
+            return uploadFileToCloudinary(req.files[fieldName][0], folder)
+              .then(result => { mappedData[fieldName] = result.url; });
+          }
+          return Promise.resolve();
+        };
+
+        await Promise.all([
+          processFile('logo', 'shopyos/store-logos'),
+          processFile('coverImage', 'shopyos/store-banners'),
+          processFile('businessCert', 'shopyos/store-documents'),
+          processFile('businessLicense', 'shopyos/store-documents'),
+          processFile('proofOfBank', 'shopyos/store-documents')
+        ]);
+        
+        // Map resulting URLs to the database column names if they were uploaded
+        if (mappedData.logo) mappedData.logo_url = mappedData.logo;
+        if (mappedData.coverImage) mappedData.banner_url = mappedData.coverImage;
+        if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
+        if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
+        if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;
+        
+        // Clean up temporary mapped fields before database update
+        delete mappedData.logo;
+        delete mappedData.coverImage;
+        delete mappedData.businessCert;
+        delete mappedData.businessLicense;
+        delete mappedData.proofOfBank;
+      } catch (uploadError) {
+        logger.error('Error uploading business files during update:', uploadError);
+        return res.status(500).json({ success: false, error: 'Failed to upload documents' });
+      }
+    }
+
     if (updateData.businessName) mappedData.store_name = updateData.businessName;
     if (updateData.description) mappedData.description = updateData.description;
     if (updateData.category) mappedData.category = updateData.category;
@@ -308,8 +400,20 @@ const updateBusiness = async (req, res, next) => {
     if (updateData.website) mappedData.website_url = updateData.website;
     if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
     if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
-    if (updateData.logo) mappedData.logo_url = updateData.logo;
-    if (updateData.coverImage) mappedData.banner_url = updateData.coverImage;
+    
+    // Support direct URL updates if provided in body (fallback if no file was uploaded)
+    if (updateData.logo && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
+    if (updateData.coverImage && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
+    if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
+    if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
+    if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;
+    
+    // Legal & Verification Fields
+    if (updateData.registrationNumber) mappedData.registration_number = updateData.registrationNumber;
+    if (updateData.taxId) mappedData.tax_id = updateData.taxId;
+    if (updateData.bankName) mappedData.bank_name = updateData.bankName;
+    if (updateData.accountName) mappedData.account_name = updateData.accountName;
+    if (updateData.accountNumber) mappedData.account_number = updateData.accountNumber;
     if (updateData.verificationStatus) mappedData.verification_status = updateData.verificationStatus;
     if (updateData.rejectionReason) mappedData.rejection_reason = updateData.rejectionReason;
     if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;
@@ -325,6 +429,12 @@ const updateBusiness = async (req, res, next) => {
 
     // Update store
     const updatedStore = await repositories.stores.update(businessId, mappedData);
+
+    // If verification documents were uploaded, notify admins
+    const hasNewDocs = mappedData.business_cert_url || mappedData.business_license_url || mappedData.proof_of_bank_url;
+    if (hasNewDocs) {
+      await notificationService.notifyAdminsVerificationRequest(updatedStore.id, 'store', updatedStore.store_name);
+    }
 
     // Format response for backward compatibility
     const business = {

@@ -35,7 +35,7 @@ export default function AdminUsers() {
             const data = Array.isArray(res?.users) ? res.users : (Array.isArray(res) ? res : []);
             setUsers(data);
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load users' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load users' });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -59,10 +59,14 @@ export default function AdminUsers() {
                     onPress: async () => {
                         try {
                             await adminUpdateUserStatus(user.id, isActive ? 'suspended' : 'active');
-                            CustomInAppCustomInAppToast.show({ type: 'success', title: isActive ? 'User Suspended' : 'User Reactivated' });
+                            CustomInAppToast.show({ 
+                              type: 'success', 
+                              title: isActive ? 'User Suspended' : 'User Reactivated',
+                              message: `User status has been updated successfully.`
+                            });
                             loadUsers();
                         } catch (e: any) {
-                            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
+                            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
                         }
                     }
                 }

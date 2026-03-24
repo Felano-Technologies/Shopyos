@@ -39,7 +39,7 @@ export default function AdminOrders() {
             const data = Array.isArray(res?.orders) ? res.orders : (Array.isArray(res) ? res : []);
             setOrders(data);
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load orders' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load orders' });
         } finally {
             setLoading(false);
             setRefreshing(false);

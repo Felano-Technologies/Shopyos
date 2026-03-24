@@ -15,22 +15,11 @@ const {
   createReport
 } = require('../controllers/advertisingController');
 const { protect, seller, hasAnyRole } = require('../middleware/authMiddleware');
+const upload = require('../middleware/upload');
+const bannerCampaignController = require('../controllers/bannerCampaignController');
 
-// Public routes
-// @route   GET /api/advertising/promoted
-// @desc    Get active promoted products
-// @access  Public
-router.get('/promoted', getPromotedProducts);
-
-// @route   POST /api/advertising/campaigns/:campaignId/impression
-// @desc    Record ad impression
-// @access  Public
-router.post('/campaigns/:campaignId/impression', recordImpression);
-
-// @route   POST /api/advertising/campaigns/:campaignId/click
-// @desc    Record ad click
-// @access  Public
-router.post('/campaigns/:campaignId/click', recordClick);
+// Banner Ads (Banners vs Promoted Products)
+router.get('/banners/active', bannerCampaignController.getActiveBanners);
 
 // Protected routes
 router.use(protect);
@@ -50,6 +39,16 @@ router.post('/campaigns', seller, createCampaign);
 // @desc    Get seller's campaigns
 // @access  Seller
 router.get('/my-campaigns', seller, getMyCampaigns);
+
+// Banner Campaign Routes
+router.post('/banners', seller, upload.single('banner'), bannerCampaignController.createCampaign);
+router.get('/banners/my', seller, bannerCampaignController.getMyCampaigns);
+router.post('/banners/pay-initialize', seller, bannerCampaignController.initializeCampaignPayment);
+router.get('/banners/verify/:reference', seller, bannerCampaignController.verifyCampaignPayment);
+
+// Admin Routes
+router.get('/banners/all', hasAnyRole('admin'), bannerCampaignController.getAllCampaigns);
+router.put('/banners/:id/status', hasAnyRole('admin'), bannerCampaignController.updateCampaignStatus);
 
 // @route   GET /api/advertising/campaigns/:campaignId
 // @desc    Get campaign details

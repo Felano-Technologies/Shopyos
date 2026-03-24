@@ -11,7 +11,7 @@ const supabase = createClient(
  */
 async function checkSchema() {
   console.log('🔍 Checking database schema...');
-  const tablesToCheck = ['payouts', 'balance_logs', 'promoted_products', 'conversations', 'messages'];
+  const tablesToCheck = ['payouts', 'balance_logs', 'promoted_products', 'banner_campaigns', 'conversations', 'messages'];
 
   for (const table of tablesToCheck) {
     const { error } = await supabase.from(table).select('id').limit(1);

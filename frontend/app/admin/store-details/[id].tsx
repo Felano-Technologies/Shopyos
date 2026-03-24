@@ -36,7 +36,7 @@ export default function StoreVerificationDetails() {
             const data = res?.stores?.[0] || res?.data?.[0] || res?.[0];
             setStore(data);
         } catch (err) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load store details' });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load store details' });
         } finally { setLoading(false); }
     };
 
@@ -44,7 +44,7 @@ export default function StoreVerificationDetails() {
         try {
             setActionLoading(true);
             await adminVerifyStore(store.id, status, rejectReason);
-            CustomInAppCustomInAppToast.show({ 
+            CustomInAppToast.show({ 
                 type: 'success', 
                 title: status === 'verified' ? 'Approved' : 'Rejected',
                 message: `${store.store_name} has been processed.` 
@@ -52,7 +52,7 @@ export default function StoreVerificationDetails() {
             setRejectModal(false);
             router.back();
         } catch (err: any) {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
         } finally { setActionLoading(false); }
     };
 
@@ -66,7 +66,7 @@ const handleContactMerchant = (email: string) => {
         if (!url) return;
         const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
         Linking.openURL(formattedUrl).catch(() => {
-            CustomInAppCustomInAppToast.show({ type: 'error', title: 'Invalid URL', message: 'Could not open the website.' });
+            CustomInAppToast.show({ type: 'error', title: 'Invalid URL', message: 'Could not open the website.' });
         });
     };
 
@@ -89,7 +89,24 @@ const handleContactMerchant = (email: string) => {
         </TouchableOpacity>
     );
 
-    if (loading) return <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>;
+    if (loading) {
+        // Need to require/import Skeleton component inline or ensure it's imported at top
+        const Skeleton = require('@/components/Skeleton').default;
+        return (
+            <View style={styles.container}>
+                <View style={[styles.header, { height: 120, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }]} />
+                <View style={{ padding: 20, alignItems: 'center', marginTop: -40 }}>
+                    <Skeleton width={100} height={100} borderRadius={50} style={{ borderWidth: 4, borderColor: '#FFF' }} />
+                    <Skeleton width={150} height={24} style={{ marginTop: 15, marginBottom: 10 }} />
+                    <Skeleton width={80} height={26} borderRadius={20} />
+                </View>
+                <View style={{ padding: 20 }}>
+                    <Skeleton width="100%" height={150} borderRadius={16} style={{ marginBottom: 20 }} />
+                    <Skeleton width="100%" height={200} borderRadius={16} />
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
@@ -156,13 +173,28 @@ const handleContactMerchant = (email: string) => {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Verification Assets</Text>
                     <View style={styles.docGrid}>
-                        {(store?.documents || [1]).map((doc: any, index: number) => (
-                            <TouchableOpacity key={index} style={styles.docCard} onPress={() => setViewingDoc('https://images.sampletemplates.com/wp-content/uploads/2016/08/Business-Certificate-Template.jpg')}>
-                                <MaterialCommunityIcons name="file-certificate" size={32} color="#0C1559" />
-                                <Text style={styles.docName}>Certificate_{index + 1}</Text>
-                                <Text style={styles.tapToZoom}>Tap to zoom</Text>
-                            </TouchableOpacity>
-                        ))}
+                        {(() => {
+                            const docs = [
+                                { title: 'Business Certificate', url: store?.business_cert_url, type: 'cert' },
+                                { title: 'Business License', url: store?.business_license_url, type: 'license' },
+                                { title: 'Proof of Bank', url: store?.proof_of_bank_url, type: 'bank' }
+                            ].filter(d => Boolean(d.url));
+
+                            if (docs.length === 0) {
+                                return <Text style={{ fontSize: 13, color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No verification documents uploaded.</Text>;
+                            }
+
+                            return docs.map((doc, index) => (
+                                <TouchableOpacity key={index} style={styles.docCard} onPress={() => setViewingDoc(doc.url)}>
+                                    <MaterialCommunityIcons 
+                                        name={doc.type === 'bank' ? 'bank' : 'file-certificate'} 
+                                        size={32} color="#0C1559" 
+                                    />
+                                    <Text style={styles.docName}>{doc.title}</Text>
+                                    <Text style={styles.tapToZoom}>Tap to view</Text>
+                                </TouchableOpacity>
+                            ));
+                        })()}
                     </View>
                 </View>
                 <View style={{ height: 120 }} />

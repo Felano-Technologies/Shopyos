@@ -129,7 +129,7 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Array>} List of stores
    */
   async getAllStores(options = {}) {
-    const { limit = 50, offset = 0, verificationStatus, search } = options;
+    const { limit = 50, offset = 0, verificationStatus, search, id } = options;
 
     let query = this.supabase
       .from('stores')
@@ -140,6 +140,10 @@ class AdminRepository extends BaseRepository {
       `)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (id) {
+      query = query.eq('id', id);
+    }
 
     if (verificationStatus) {
       query = query.eq('verification_status', verificationStatus);
@@ -377,6 +381,101 @@ class AdminRepository extends BaseRepository {
           : log.user.user_profiles?.full_name || null,
       } : null,
     }));
+  }
+
+  /**
+   * Get driver verifications list
+   */
+  async getDriverVerifications() {
+    const { data, error } = await this.supabase
+      .from('driver_profiles')
+      .select(`
+        *,
+        user:users!user_id(id, email, user_profiles(*))
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return data.map(d => {
+      const up = Array.isArray(d.user?.user_profiles) ? d.user.user_profiles[0] : d.user?.user_profiles;
+      return {
+        ...d,
+        full_name: up?.full_name || 'Unknown',
+        email: d.user?.email || 'Unknown',
+        phone: up?.phone || 'Unknown',
+        avatar_url: up?.avatar_url,
+        status: d.is_verified ? 'approved' : (d.rejection_reason ? 'rejected' : 'pending'),
+        verification_status: d.is_verified ? 'approved' : (d.rejection_reason ? 'rejected' : 'pending'),
+        license_image: d.license_image_url,
+        insurance_image: d.insurance_doc_url,
+        id_image: d.national_id_url,
+        vehicle_reg_image: d.vehicle_reg_url,
+        roadworthy_image: d.roadworthy_url,
+        vehicle_plate: d.license_plate,
+      };
+    });
+  }
+
+  /**
+   * Get single driver verification details
+   */
+  async getDriverVerificationDetails(id) {
+    const { data, error } = await this.supabase
+      .from('driver_profiles')
+      .select(`
+        *,
+        user:users!user_id(id, email, user_profiles(*))
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) throw error;
+
+    const up = Array.isArray(data.user?.user_profiles) ? data.user.user_profiles[0] : data.user?.user_profiles;
+    return {
+      ...data,
+      user_profiles: up || {},
+      status: data.is_verified ? 'approved' : (data.rejection_reason ? 'rejected' : 'pending'),
+      verification_status: data.is_verified ? 'approved' : (data.rejection_reason ? 'rejected' : 'pending'),
+      email: data.user?.email,
+      license_image: data.license_image_url,
+      insurance_image: data.insurance_doc_url,
+      id_image: data.national_id_url,
+      vehicle_reg_image: data.vehicle_reg_url,
+      roadworthy_image: data.roadworthy_url,
+      vehicle_plate: data.license_plate,
+    };
+  }
+
+  /**
+   * Approve driver verification
+   */
+  async approveDriver(id) {
+    const { data, error } = await this.supabase
+      .from('driver_profiles')
+      .update({ is_verified: true, rejection_reason: null, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    // Also update their user role if necessary
+    await this.updateUserRole(data.user_id, 'driver');
+    return data;
+  }
+
+  /**
+   * Reject driver verification
+   */
+  async rejectDriver(id, reason) {
+    const { data, error } = await this.supabase
+      .from('driver_profiles')
+      .update({ is_verified: false, rejection_reason: reason, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
   }
 }
 

@@ -38,21 +38,21 @@ const RegisterScreen = () => {
       setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber);
       if (data.message == "User created successfully") {
-        CustomInAppCustomInAppToast.show({
+        CustomInAppToast.show({
           type: 'success',
           title: 'Sign up Successful',
           message: 'Welcome! 🎉',
         });
         router.push('/login');
       } else {
-        CustomInAppCustomInAppToast.show({
+        CustomInAppToast.show({
           type: 'error',
           title: 'Sign up Failed',
           message: data.message || 'Please try again.',
         });
       }
     } catch (error: any) {
-      CustomInAppCustomInAppToast.show({
+      CustomInAppToast.show({
         type: 'error',
         title: 'Sign Up Failed',
         message: error.message || 'Something went wrong.',

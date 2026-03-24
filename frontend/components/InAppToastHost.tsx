@@ -9,6 +9,7 @@ export type InAppNotification = {
   title: string;
   message: string;
   data?: any;
+  onPress?: () => void;
 };
 
 let toastQueue: InAppNotification[] = [];
@@ -204,6 +205,10 @@ export function InAppToastHost() {
           style={styles.toastCard}
           onPress={() => {
             dismissCurrentToast();
+            if (currentToast.onPress) {
+              currentToast.onPress();
+              return;
+            }
             if (!canNavigate) return;
             if (orderId) {
               router.push({ pathname: '/order/[id]', params: { id: orderId } });

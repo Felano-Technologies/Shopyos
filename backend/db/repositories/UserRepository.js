@@ -361,6 +361,26 @@ class UserRepository extends BaseRepository {
 
     return !!data;
   }
+  /**
+   * Get all admin users
+   * @returns {Promise<Array<Object>>}
+   */
+  async getAdmins() {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .select(`
+        id,
+        email,
+        user_roles!inner(is_active, roles!inner(name))
+      `)
+      .eq('user_roles.roles.name', 'admin')
+      .eq('user_roles.is_active', true)
+      .is('deleted_at', null);
+
+    if (error) throw error;
+    return data;
+  }
 }
+
 
 module.exports = UserRepository;

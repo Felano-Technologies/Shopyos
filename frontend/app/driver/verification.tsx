@@ -18,7 +18,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { getUserData } from '@/services/api';
+import { getUserData, submitDriverVerification, getDriverProfile } from '@/services/api';
+
 
 export default function DriverVerification() {
   const router = useRouter();
@@ -126,7 +127,9 @@ export default function DriverVerification() {
   };
 
   // --- SUBMIT LOGIC ---
-  const handleSubmit = () => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
     if (!fullName || !email || !phone) {
         Alert.alert("Missing Info", "Please fill in your personal details.");
         return;
@@ -144,7 +147,57 @@ export default function DriverVerification() {
         return;
     }
     
-    setViewState('success');
+    setIsSubmitting(true);
+    try {
+        const formData = new FormData();
+        formData.append('vehicleType', vehicleType);
+        formData.append('plateNumber', plateNumber);
+        formData.append('licenseNumber', licenseNumber);
+
+        // Append files
+        if (docImages.idCard) {
+            formData.append('idCard', {
+                uri: docImages.idCard,
+                name: 'id_card.jpg',
+                type: 'image/jpeg',
+            } as any);
+        }
+        if (docImages.licenseFront) {
+            formData.append('licenseFront', {
+                uri: docImages.licenseFront,
+                name: 'license_front.jpg',
+                type: 'image/jpeg',
+            } as any);
+        }
+        if (docImages.licenseBack) {
+            formData.append('licenseBack', {
+                uri: docImages.licenseBack,
+                name: 'license_back.jpg',
+                type: 'image/jpeg',
+            } as any);
+        }
+        if (docImages.insurance) {
+            formData.append('insurance', {
+                uri: docImages.insurance,
+                name: 'insurance.jpg',
+                type: 'image/jpeg',
+            } as any);
+        }
+        if (profilePhoto) {
+            formData.append('profilePhoto', {
+                uri: profilePhoto,
+                name: 'profile_photo.jpg',
+                type: 'image/jpeg',
+            } as any);
+        }
+
+        await submitDriverVerification(formData);
+        setViewState('success');
+    } catch (error: any) {
+        Alert.alert("Submission Failed", error.message || "Something went wrong. Please try again.");
+    } finally {
+        setIsSubmitting(false);
+    }
   };
 
   const handleCloseSuccess = () => {
@@ -340,9 +393,20 @@ export default function DriverVerification() {
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.submitBtn} activeOpacity={0.8} onPress={handleSubmit}>
-                <Text style={styles.submitText}>Submit for Verification</Text>
-                <Feather name="arrow-right" size={20} color="#0C1559" />
+            <TouchableOpacity 
+                style={[styles.submitBtn, isSubmitting && { opacity: 0.7 }]} 
+                activeOpacity={0.8} 
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+            >
+                {isSubmitting ? (
+                    <ActivityIndicator color="#0C1559" />
+                ) : (
+                    <>
+                        <Text style={styles.submitText}>Submit for Verification</Text>
+                        <Feather name="arrow-right" size={20} color="#0C1559" />
+                    </>
+                )}
             </TouchableOpacity>
 
             <View style={{ height: 50 }} />

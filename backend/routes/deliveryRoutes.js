@@ -17,7 +17,20 @@ const {
   getDeliveryByOrder,
   getDriverStats
 } = require('../controllers/deliveryController');
+const {
+  submitVerification,
+  getDriverProfile
+} = require('../controllers/driverController');
+const upload = require('../middleware/upload');
 const { protect, driver, hasAnyRole } = require('../middleware/authMiddleware');
+
+const driverUploadFields = upload.fields([
+  { name: 'idCard', maxCount: 1 },
+  { name: 'licenseFront', maxCount: 1 },
+  { name: 'licenseBack', maxCount: 1 },
+  { name: 'insurance', maxCount: 1 },
+  { name: 'profilePhoto', maxCount: 1 }
+]);
 
 // All delivery routes require authentication
 router.use(protect);
@@ -87,4 +100,15 @@ router.get('/:deliveryId/location', getLocationUpdates);
 // @access  Private
 router.get('/:deliveryId/latest-location', getLatestLocation);
 
+// @route   POST /api/deliveries/verify
+// @desc    Submit driver verification details
+// @access  Private (Driver)
+router.post('/verify', driverUploadFields, submitVerification);
+
+// @route   GET /api/deliveries/driver/profile
+// @desc    Get driver profile
+// @access  Private (Driver)
+router.get('/driver/profile', getDriverProfile);
+
 module.exports = router;
+

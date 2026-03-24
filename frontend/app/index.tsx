@@ -7,6 +7,7 @@ import { Appearance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // import * as SecureStore from 'expo-secure-store'; // ⛔ temporarily disabled
 
+import { storage, getUserData } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -17,9 +18,6 @@ const IndexScreen = () => {
   const fadeOutAnim = useRef(new Animated.Value(1)).current; // Screen fade-out overlay
   const bgScale = useRef(new Animated.Value(1)).current; // background zoom
   const bgTranslateY = useRef(new Animated.Value(0)).current; // background drift
-
-
-
 
   useEffect(() => {
     // Parallel fade + background zoom animations
@@ -41,20 +39,42 @@ const IndexScreen = () => {
       }),
     ]).start();
 
-    // Temporarily simplified navigation (skip login check)
-    const timer = setTimeout(() => {
+    // Perform auth check concurrently with animation wait
+    const authCheckPromise = async () => {
+      try {
+        const token = await storage.getItem('userToken');
+        if (!token) return '/getstarted';
+
+        const user = await getUserData();
+        const role = user.role?.toLowerCase();
+
+        if (user.requiresRoleSelection || !role || role === 'none') return '/role';
+        if (role === 'customer' || role === 'buyer') return '/home';
+        if (role === 'seller') return '/business/dashboard';
+        if (role === 'driver') return '/driver';
+        if (role === 'admin') return '/admin/dashboard';
+
+        return '/home';
+      } catch (error) {
+        console.warn('Startup Auth Check Failed:', error);
+        return '/getstarted'; // Session invalid or network issue
+      }
+    };
+
+    const runStartup = async () => {
+      const minWaitPromise = new Promise((resolve) => setTimeout(resolve, 2000));
+      const [nextRoute] = await Promise.all([authCheckPromise(), minWaitPromise]);
+
       Animated.timing(fadeOutAnim, {
         toValue: 0,
         duration: 1000, // smooth fade out
         useNativeDriver: true,
       }).start(() => {
-        // Step 3: Navigate only after fade-out finishes
-        router.replace('/getstarted');
+        router.replace(nextRoute as any);
       });
-    }, 2000); // Start fade-out after 1.8s
+    };
 
-
-    return () => clearTimeout(timer);
+    runStartup();
   }, []);
 
   return (

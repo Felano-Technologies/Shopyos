@@ -217,13 +217,22 @@ api.interceptors.response.use(
         isRefreshing = false;
       }
     }
- 
     // ── Non-expiry 401: clear storage ─────────────────────────────────────────
     if (error.response?.status === 401 && !originalRequest._retry) {
       try {
         await storage.removeItem('userToken');
         await storage.removeItem('refreshToken');
         await storage.removeItem('userId');
+
+        // Force redirect to login screen on auth failure
+        try {
+          const { router } = require('expo-router');
+          if (router) {
+            router.replace('/login');
+          }
+        } catch (e) {
+          // ignore if called outside react lifecycle
+        }
       } catch (storageError) {
         console.error('Error clearing tokens:', storageError);
       }
@@ -394,22 +403,27 @@ export const updateUserRole = async (role: string) => {
   }
 };
  
-export const businessRegister = async (businessData: {
-  businessName: string;
-  description: string;
-  category: string;
-  address: string;
-  city: string;
-  country: string;
-  phone: string;
-  website?: string;
-  instagram?: string;
-  facebook?: string;
-  logo?: string;
-  coverImage?: string;
-}) => {
+export const businessRegister = async (businessData: any) => {
   try {
-    const response = await api.post('/business/create', businessData);
+    const formData = new FormData();
+    Object.keys(businessData).forEach(key => {
+      if (businessData[key] !== undefined && businessData[key] !== null) {
+        if (typeof businessData[key] === 'string' && businessData[key].startsWith('file://')) {
+          const uri = businessData[key];
+          const filename = uri.split('/').pop() || 'upload.jpg';
+          const match = /\.(\w+)$/.exec(filename);
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
+          formData.append(key, { uri, name: filename, type } as any);
+        } else {
+          formData.append(key, businessData[key]);
+        }
+      }
+    });
+
+    const response = await api.post('/business/create', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
     if (response.data.token) await storage.setItem('businessToken', response.data.token);
     if (response.data.business?._id) {
       await storage.setItem('currentBusinessId', response.data.business._id);
@@ -446,7 +460,27 @@ export const switchBusiness = async (businessId: string) => {
  
 export const updateBusiness = async (businessId: string, updateData: any) => {
   try {
-    const response = await api.put(`/business/update/${businessId}`, updateData);
+    const formData = new FormData();
+    let hasFiles = false;
+
+    Object.keys(updateData).forEach(key => {
+      const value = updateData[key];
+      if (value !== undefined && value !== null) {
+        if (typeof value === 'string' && (value.startsWith('file://') || value.startsWith('content://'))) {
+          const uri = value;
+          const name = uri.split('/').pop() || 'upload.jpg';
+          const match = /\.(\w+)$/.exec(name);
+          const type = match ? `image/${match[1]}` : `image/jpeg`;
+          formData.append(key, { uri, name, type } as any);
+          hasFiles = true;
+        } else {
+          formData.append(key, typeof value === 'object' ? JSON.stringify(value) : value);
+        }
+      }
+    });
+
+    const config = hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
+    const response = await api.put(`/business/update/${businessId}`, hasFiles ? formData : updateData, config);
     return response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to update business');
@@ -455,17 +489,20 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
 };
  
 export const verifyBusinessDetails = async (businessId: string, details: any) => {
-  try {
-    const response = await api.put(`/business/update/${businessId}`, {
-      ...details,
-      verificationStatus: 'pending',
-    });
-    return response.data;
-  } catch (error: any) {
-    if (error.response) throw new Error(error.response.data.error || 'Failed to submit verification');
-    throw new Error(error.message || 'Network error submitting verification');
-  }
+  return await updateBusiness(businessId, {
+    ...details,
+    verificationStatus: 'pending',
+  });
 };
+
+
+
+
+
+
+
+
+
  
 // ─── Cart ─────────────────────────────────────────────────────────────────────
  
@@ -1484,3 +1521,135 @@ export const updateDriverLocation = async (
   }
 };
  
+export const getDriverProfile = async () => {
+    try {
+        const response = await api.get('/deliveries/driver/profile');
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.userMessage || extractErrorMessage(error));
+    }
+};
+
+export const submitDriverVerification = async (formData: FormData) => {
+    try {
+        const response = await api.post('/deliveries/verify', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return response.data;
+    } catch (error: any) {
+        throw new Error(error.userMessage || extractErrorMessage(error));
+    }
+};
+
+// ─── Admin Driver Verifications ─────────────────────────────────────────────
+
+
+export const getPendingDriverVerifications = async () => {
+  try {
+    const response = await api.get('/admin/driver-verifications');
+    // Normalize response if needed
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getDriverVerificationDetails = async (id: string) => {
+  try {
+    const response = await api.get(`/admin/driver-verifications/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const approveDriverVerification = async (id: string) => {
+  try {
+    const response = await api.put(`/admin/driver-verifications/${id}/approve`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const rejectDriverVerification = async (id: string, reason: string) => {
+  try {
+    const response = await api.put(`/admin/driver-verifications/${id}/reject`, { reason });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+// ─── Advertising / Banner Campaigns ──────────────────────────────────────────
+
+export const createBannerCampaign = async (formData: FormData) => {
+  try {
+    const response = await api.post('/advertising/banners', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getMyBannerCampaigns = async () => {
+  try {
+    const response = await api.get('/advertising/banners/my');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAllBannerCampaigns = async () => {
+  try {
+    const response = await api.get('/advertising/banners/all');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateBannerCampaignStatus = async (
+  campaignId: string,
+  status: 'Active' | 'Rejected' | 'Approved',
+  reason?: string
+) => {
+  try {
+    const response = await api.put(`/advertising/banners/${campaignId}/status`, {
+      status,
+      reason,
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getActiveBanners = async () => {
+  try {
+    const response = await api.get('/advertising/banners/active');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const initializeBannerPayment = async (payload: { campaignId: string; email: string }) => {
+  try {
+    const response = await api.post('/advertising/banners/pay-initialize', payload);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+export const verifyBannerPayment = async (reference: string) => {
+  try {
+    const response = await api.get(`/advertising/banners/verify/${reference}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

@@ -27,7 +27,7 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
 
     try {
       // Your Cloudinary configuration from the dashboard
-      const cloudName = 'dxgveihpo'; // Your cloud name
+      const cloudName = 'dffwsjxmi'; // Your cloud name
       const uploadPreset = 'shopyos'; // You need to create this in Cloudinary settings
 
       // Create form data for upload

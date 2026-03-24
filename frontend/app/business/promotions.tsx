@@ -1,22 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-  TextInput, Image, Dimensions, KeyboardAvoidingView, Platform 
+  TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Linking
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { 
+  getMyBannerCampaigns, 
+  createBannerCampaign, 
+  initializeBannerPayment,
+  verifyBannerPayment 
+} from '@/services/api';
+import { CustomInAppToast } from "@/components/InAppToastHost";
 
 const { width } = Dimensions.get('window');
-
-// --- Mock Data ---
-const MOCK_CAMPAIGNS = [
-  { id: '1', title: 'Weekend Flash Sale', placement: 'Home Top Banner', duration: '3 Days', status: 'Active', spent: 150, clicks: 1205 },
-  { id: '2', title: 'New Sneaker Drop', placement: 'Search Highlight', duration: '7 Days', status: 'Pending Approval', spent: 200, clicks: 0 },
-  { id: '3', title: 'Valentine Promo', placement: 'Category Featured', duration: '5 Days', status: 'Completed', spent: 100, clicks: 3400 },
-];
 
 const PRICING = {
   'Home Top Banner': 50, // per day
@@ -29,29 +31,163 @@ export default function PromotionsScreen() {
   const insets = useSafeAreaInsets();
   
   const [activeTab, setActiveTab] = useState<'campaigns' | 'create'>('campaigns');
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   // Create Ad Form State
   const [adTitle, setAdTitle] = useState('');
   const [placement, setPlacement] = useState<keyof typeof PRICING>('Home Top Banner');
   const [duration, setDuration] = useState(3);
-  const [bannerUploaded, setBannerUploaded] = useState(false);
+  const [bannerUri, setBannerUri] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const { reference } = useLocalSearchParams();
+
+  const verifyPayment = async (paystackRef: string) => {
+    try {
+      setLoading(true);
+      const res = await verifyBannerPayment(paystackRef);
+      if (res.success) {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Payment Successful',
+          message: 'Your ad campaign is now live!'
+        });
+        fetchMyCampaigns();
+      }
+    } catch (error: any) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Verification Failed',
+        message: error.message || 'Payment could not be verified'
+      });
+    } finally {
+      setLoading(false);
+      // Clean URL
+      router.replace('/business/promotions');
+    }
+  };
+
+  useEffect(() => {
+    if (reference) {
+      verifyPayment(reference as string);
+    }
+  }, [reference]);
+
+  const fetchMyCampaigns = async () => {
+    try {
+      setLoading(true);
+      const res = await getMyBannerCampaigns();
+      if (res.success) {
+        setCampaigns(res.campaigns || []);
+      }
+    } catch (error) {
+      console.error('Fetch my campaigns error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'campaigns') {
+      fetchMyCampaigns();
+    }
+  }, [activeTab]);
 
   const totalCost = PRICING[placement] * duration;
+
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [10.8, 4], // for 1080x400
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setBannerUri(result.assets[0].uri);
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return { color: '#059669', bg: '#D1FAE5' };
-      case 'Pending Approval': return { color: '#D97706', bg: '#FEF3C7' };
+      case 'Pending': return { color: '#D97706', bg: '#FEF3C7' };
       case 'Completed': return { color: '#64748B', bg: '#F1F5F9' };
       case 'Rejected': return { color: '#DC2626', bg: '#FEE2E2' };
       default: return { color: '#64748B', bg: '#F1F5F9' };
     }
   };
 
-  const handlePaymentSubmit = () => {
-    // Here you would trigger your MoMo/Paystack gateway
-    alert(`Redirecting to payment gateway for ₵${totalCost}...\n\nOnce paid, status becomes 'Pending Approval'.`);
-    setActiveTab('campaigns');
+  const handleSubmit = async () => {
+    if (!adTitle || !bannerUri) return;
+    try {
+      setSubmitting(true);
+      
+      const formData = new FormData();
+      formData.append('title', adTitle);
+      formData.append('placement', placement);
+      formData.append('duration', duration.toString());
+      
+      const filename = bannerUri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename || '');
+      const type = match ? `image/${match[1]}` : 'image';
+      
+      formData.append('banner', {
+        uri: bannerUri,
+        name: filename,
+        type,
+      } as any);
+
+      const res = await createBannerCampaign(formData);
+      if (res.success) {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Ad Submitted',
+          message: 'Ad details uploaded! You can pay once it is approved.'
+        });
+        setActiveTab('campaigns');
+        setAdTitle('');
+        setBannerUri(null);
+        fetchMyCampaigns();
+      }
+    } catch (error: any) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Submission Failed',
+        message: error.message || 'Check your internet connection and try again'
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handlePayAd = async (campaignId: string) => {
+    try {
+      setLoading(true);
+      const res = await initializeBannerPayment({
+        campaignId,
+        email: 'merchant@shopyos.com',
+      });
+
+      if (res.success && res.data.authorization_url) {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Opening Checkout',
+          message: 'Redirecting to Paystack secure payment page...'
+        });
+        
+        Linking.openURL(res.data.authorization_url);
+      }
+    } catch (error: any) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Initialisation Failed',
+        message: error.message || 'Could not reach payment provider'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -97,44 +233,59 @@ export default function PromotionsScreen() {
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
                   <Feather name="trending-up" size={20} color="#84cc16" />
-                  <Text style={styles.statValue}>4,605</Text>
+                  <Text style={styles.statValue}>{campaigns.reduce((acc, c) => acc + (c.clicks || 0), 0).toLocaleString()}</Text>
                   <Text style={styles.statLabel}>Total Ad Clicks</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Feather name="pie-chart" size={20} color="#0C1559" />
-                  <Text style={styles.statValue}>₵450</Text>
+                  <Text style={styles.statValue}>₵{campaigns.reduce((acc, c) => (['Active', 'Completed'].includes(c.status) ? acc + parseFloat(c.paid_amount || 0) : acc), 0)}</Text>
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>
 
               <Text style={styles.sectionTitle}>Campaign History</Text>
-              {MOCK_CAMPAIGNS.map(camp => {
-                const theme = getStatusColor(camp.status);
-                return (
-                  <View key={camp.id} style={styles.campaignCard}>
-                    <View style={styles.campHeader}>
-                      <Text style={styles.campTitle}>{camp.title}</Text>
-                      <View style={[styles.badge, { backgroundColor: theme.bg }]}>
-                        <Text style={[styles.badgeText, { color: theme.color }]}>{camp.status}</Text>
+              {loading ? (
+                <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />
+              ) : campaigns.length === 0 ? (
+                <Text style={{ textAlign: 'center', color: '#94A3B8', marginTop: 20 }}>No campaigns yet</Text>
+              ) : (
+                campaigns.map(camp => {
+                  const theme = getStatusColor(camp.status);
+                  return (
+                    <View key={camp.id} style={styles.campaignCard}>
+                      <View style={styles.campHeader}>
+                        <Text style={styles.campTitle}>{camp.title}</Text>
+                        <View style={[styles.badge, { backgroundColor: theme.bg }]}>
+                          <Text style={[styles.badgeText, { color: theme.color }]}>{camp.status}</Text>
+                        </View>
+                      </View>
+                      <View style={styles.campBody}>
+                        <View style={styles.campDetail}>
+                          <Feather name="layout" size={14} color="#64748B" />
+                          <Text style={styles.campDetailTxt}>{camp.placement}</Text>
+                        </View>
+                        <View style={styles.campDetail}>
+                          <Feather name="clock" size={14} color="#64748B" />
+                          <Text style={styles.campDetailTxt}>{camp.duration_days} Days</Text>
+                        </View>
+                      </View>
+                      <View style={styles.campFooter}>
+                        <Text style={styles.campSpent}>Cost: ₵{camp.paid_amount}</Text>
+                        {camp.status === 'Approved' ? (
+                          <TouchableOpacity 
+                            style={styles.payBtnSmall}
+                            onPress={() => handlePayAd(camp.id)}
+                          >
+                            <Text style={styles.payBtnTextSmall}>Pay Now</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <Text style={styles.campClicks}>{(camp.clicks || 0).toLocaleString()} Clicks</Text>
+                        )}
                       </View>
                     </View>
-                    <View style={styles.campBody}>
-                      <View style={styles.campDetail}>
-                        <Feather name="layout" size={14} color="#64748B" />
-                        <Text style={styles.campDetailTxt}>{camp.placement}</Text>
-                      </View>
-                      <View style={styles.campDetail}>
-                        <Feather name="clock" size={14} color="#64748B" />
-                        <Text style={styles.campDetailTxt}>{camp.duration}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.campFooter}>
-                      <Text style={styles.campSpent}>Cost: ₵{camp.spent}</Text>
-                      <Text style={styles.campClicks}>{camp.clicks.toLocaleString()} Clicks</Text>
-                    </View>
-                  </View>
-                );
-              })}
+                  );
+                })
+              )}
             </>
           ) : (
             /* --- CREATE AD FORM --- */
@@ -142,7 +293,7 @@ export default function PromotionsScreen() {
               <View style={styles.infoBanner}>
                 <Ionicons name="information-circle" size={20} color="#0C1559" />
                 <Text style={styles.infoText}>
-                  All ads require upfront payment and admin approval. If rejected, your payment will be refunded to your wallet.
+                  Submit your ad details for admin review. Once approved, you can pay to activate the campaign.
                 </Text>
               </View>
 
@@ -189,13 +340,17 @@ export default function PromotionsScreen() {
 
               <Text style={styles.inputLabel}>Upload Ad Banner</Text>
               <TouchableOpacity 
-                style={[styles.uploadBox, bannerUploaded && { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]} 
-                onPress={() => setBannerUploaded(true)}
+                style={[styles.uploadBox, bannerUri && { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]} 
+                onPress={handlePickImage}
               >
-                <Feather name={bannerUploaded ? "check-circle" : "upload-cloud"} size={32} color={bannerUploaded ? "#10B981" : "#94A3B8"} />
-                <Text style={styles.uploadText}>
-                  {bannerUploaded ? "Banner.jpg uploaded" : "Tap to upload (1080x400px)"}
-                </Text>
+                {bannerUri ? (
+                  <Image source={{ uri: bannerUri }} style={{ width: '100%', height: '100%', borderRadius: 20 }} resizeMode="cover" />
+                ) : (
+                  <>
+                    <Feather name="upload-cloud" size={32} color="#94A3B8" />
+                    <Text style={styles.uploadText}>Tap to upload (1080x400px)</Text>
+                  </>
+                )}
               </TouchableOpacity>
 
               {/* Checkout Summary */}
@@ -212,16 +367,21 @@ export default function PromotionsScreen() {
               </View>
 
               <TouchableOpacity 
-                style={[styles.submitBtn, (!adTitle || !bannerUploaded) && styles.submitBtnDisabled]}
-                disabled={!adTitle || !bannerUploaded}
-                onPress={handlePaymentSubmit}
+                style={[styles.submitBtn, (!adTitle || !bannerUri || submitting) && styles.submitBtnDisabled]}
+                disabled={!adTitle || !bannerUri || submitting}
+                onPress={handleSubmit}
               >
-                <Text style={styles.submitBtnText}>Pay & Submit for Approval</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                {submitting ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <>
+                    <Text style={styles.submitBtnText}>Submit for Approval</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#FFF" />
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           )}
-
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -299,4 +459,6 @@ const styles = StyleSheet.create({
   submitBtn: { flexDirection: 'row', backgroundColor: '#0C1559', padding: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 10 },
   submitBtnDisabled: { backgroundColor: '#94A3B8' },
   submitBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  payBtnSmall: { backgroundColor: '#0C1559', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  payBtnTextSmall: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
 });

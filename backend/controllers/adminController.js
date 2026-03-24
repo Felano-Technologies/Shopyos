@@ -153,13 +153,14 @@ const updateUserRole = async (req, res, next) => {
  */
 const getAllStores = async (req, res, next) => {
   try {
-    const { limit, offset, verificationStatus, search } = req.query;
+    const { limit, offset, verificationStatus, search, id } = req.query;
 
     const stores = await repositories.admin.getAllStores({
       limit: parseInt(limit) || 50,
       offset: parseInt(offset) || 0,
       verificationStatus,
-      search
+      search,
+      id
     });
 
     res.status(200).json({
@@ -496,6 +497,64 @@ const getRevenue = async (req, res, next) => {
   }
 };
 
+/**
+ * Get all driver verifications
+ * @route   GET /api/admin/driver-verifications
+ */
+const getDriverVerifications = async (req, res, next) => {
+  try {
+    const drivers = await repositories.admin.getDriverVerifications();
+    res.status(200).json({ success: true, drivers });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get driver verification details
+ * @route   GET /api/admin/driver-verifications/:id
+ */
+const getDriverVerificationDetails = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const driver = await repositories.admin.getDriverVerificationDetails(id);
+    if (!driver) return res.status(404).json({ success: false, error: 'Driver not found' });
+    res.status(200).json({ success: true, driver });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Approve driver verification
+ * @route   PUT /api/admin/driver-verifications/:id/approve
+ */
+const approveDriverVerification = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const driver = await repositories.admin.approveDriver(id);
+    res.status(200).json({ success: true, message: 'Driver approved successfully', driver });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reject driver verification
+ * @route   PUT /api/admin/driver-verifications/:id/reject
+ */
+const rejectDriverVerification = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    const driver = await repositories.admin.rejectDriver(id, reason);
+    res.status(200).json({ success: true, message: 'Driver rejected successfully', driver });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllUsers,
@@ -513,4 +572,8 @@ module.exports = {
   updatePayoutStatus,
   getAllOrders,
   getRevenue,
+  getDriverVerifications,
+  getDriverVerificationDetails,
+  approveDriverVerification,
+  rejectDriverVerification,
 };

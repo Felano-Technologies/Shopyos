@@ -16,10 +16,14 @@ const {
   getAllPayouts,
   updatePayoutStatus,
   getAllReports,
-  getReportDetails,
   updateReportStatus,
   getAllOrders,
   getRevenue,
+  getDriverVerifications,
+  getDriverVerificationDetails,
+  approveDriverVerification,
+  rejectDriverVerification,
+  getReportDetails,
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -109,5 +113,18 @@ router.get('/orders', getAllOrders);
 // Revenue
 // @route   GET /api/admin/revenue
 router.get('/revenue', getRevenue);
+
+// Driver Verifications
+// @route   GET /api/admin/driver-verifications
+router.get('/driver-verifications', getDriverVerifications);
+
+// @route   GET /api/admin/driver-verifications/:id
+router.get('/driver-verifications/:id', getDriverVerificationDetails);
+
+// @route   PUT /api/admin/driver-verifications/:id/approve
+router.put('/driver-verifications/:id/approve', approveDriverVerification);
+
+// @route   PUT /api/admin/driver-verifications/:id/reject
+router.put('/driver-verifications/:id/reject', rejectDriverVerification);
 
 module.exports = router;

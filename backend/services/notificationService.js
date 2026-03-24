@@ -327,6 +327,43 @@ class NotificationService {
       }
     });
   }
+  /**
+   * Notify admins when a business or driver submits verification documents
+   * @param {string} sourceId - The ID of the store or driver profile
+   * @param {string} sourceType - 'store' or 'driver'
+   * @param {string} name - The name of the business or driver
+   */
+  async notifyAdminsVerificationRequest(sourceId, sourceType, name) {
+    try {
+      const admins = await repositories.users.getAdmins();
+      if (!admins || admins.length === 0) return;
+
+      const title = `New Verification Request: ${sourceType === 'store' ? 'Business' : 'Driver'}`;
+      const message = `${name} has submitted documents for verification. Please review them.`;
+      const type = sourceType === 'store' ? 'business_verification' : 'driver_verification';
+
+      for (const admin of admins) {
+        await this.sendNotification({
+          userId: admin.id,
+          type,
+          title,
+          message,
+          data: { sourceId, sourceType, name },
+          relatedId: sourceId,
+          relatedType: sourceType,
+          push: {
+            data: {
+              screen: sourceType === 'store' ? 'AdminStoreDetails' : 'AdminDriverDetails',
+              id: sourceId
+            }
+          }
+        });
+      }
+    } catch (error) {
+      logger.error('Failed to notify admins of verification request:', error);
+    }
+  }
 }
+
 
 module.exports = new NotificationService();
