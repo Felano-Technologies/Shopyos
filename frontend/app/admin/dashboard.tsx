@@ -132,7 +132,6 @@ export default function AdminDashboard() {
     },
   ];
 
-  // ── Platform Management controls (now 5 cards in a 2-column+1 layout) ───────
   const pendingDrivers = stats.pendingDriverVerifications ?? 0;
 
   const CONTROL_CARDS = [
