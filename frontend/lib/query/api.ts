@@ -63,7 +63,7 @@ export const productsApi = {
 export const categoriesApi = {
   getAll: async () => {
     const response = await ApiService.getAllCategories();
-    return response.data || [];
+    return response.categories || [];
   },
 };
 
@@ -97,7 +97,12 @@ export const profileApi = {
 export const favoritesApi = {
   getAll: async () => {
     const response = await ApiService.getFavorites();
-    return response.favorites || [];
+    const favorites = response.favorites || [];
+    return favorites.map((f: any) => ({
+      ...f.product,
+      favoriteId: f.id,
+      productId: f.productId, // Original ID from backend formatting
+    }));
   },
   
   add: async (productId: string) => {

@@ -245,6 +245,12 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
           {renderSettingItem({
+            icon: 'heart',
+            label: 'My Favorites',
+            onPress: () => router.push('/favorites')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
             icon: 'credit-card',
             label: 'Payment Methods',
             onPress: () => router.push('/settings/paymentMethods')

@@ -24,10 +24,13 @@ class FavoriteRepository extends BaseRepository {
           price,
           description,
           category,
-          images,
           store_id,
-          stores (
-            name,
+          product_images (
+            image_url,
+            is_primary
+          ),
+          stores:store_id (
+            store_name,
             logo_url
           )
         )

@@ -102,10 +102,12 @@ const getUserFavorites = async (req, res, next) => {
                 price: fav.products.price,
                 description: fav.products.description,
                 category: fav.products.category,
-                images: fav.products.images,
+                images: fav.products.product_images 
+                  ? fav.products.product_images.map(img => img.image_url)
+                  : [],
                 store: fav.products.stores ? {
                     id: fav.products.store_id,
-                    name: fav.products.stores.name,
+                    name: fav.products.stores.store_name,
                     logo: fav.products.stores.logo_url
                 } : null
             } : null
