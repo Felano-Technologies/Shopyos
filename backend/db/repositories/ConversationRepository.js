@@ -76,7 +76,7 @@ class ConversationRepository extends BaseRepository {
           user_profiles (full_name, avatar_url),
           stores (id, store_name, logo_url)
         ),
-        messages!messages_conversation_id_fkey (
+        messages (
           id,
           content,
           created_at,
@@ -160,13 +160,15 @@ class ConversationRepository extends BaseRepository {
       .from(this.tableName)
       .select(`
         *,
-        participant1:participant1_id (
+        participant1:users!participant1_id (
           id,
-          user_profiles (full_name, avatar_url, phone)
+          user_profiles (full_name, avatar_url, phone),
+          stores (id, store_name, logo_url)
         ),
-        participant2:participant2_id (
+        participant2:users!participant2_id (
           id,
-          user_profiles (full_name, avatar_url, phone)
+          user_profiles (full_name, avatar_url, phone),
+          stores (id, store_name, logo_url)
         )
       `)
       .eq('id', conversationId)
