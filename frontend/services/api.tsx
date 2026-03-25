@@ -117,7 +117,7 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await storage.getItem('userToken');
+      const token = await secureStorage.getItem('userToken');
       if (token) config.headers.Authorization = `Bearer ${token}`;
     } catch (error) {
       console.error('Error getting token from storage:', error);
@@ -197,7 +197,7 @@ api.interceptors.response.use(
       isRefreshing = true;
  
       try {
-        const storedRefreshToken = await storage.getItem('refreshToken');
+        const storedRefreshToken = await secureStorage.getItem('refreshToken');
         if (!storedRefreshToken) throw new Error('No refresh token stored');
  
         const refreshRes = await api.post('/auth/refresh', {
@@ -205,8 +205,8 @@ api.interceptors.response.use(
         });
         const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
  
-        await storage.setItem('userToken', newAccessToken);
-        if (newRefreshToken) await storage.setItem('refreshToken', newRefreshToken);
+        await secureStorage.setItem('userToken', newAccessToken);
+        if (newRefreshToken) await secureStorage.setItem('refreshToken', newRefreshToken);
  
         api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
  
@@ -237,9 +237,9 @@ api.interceptors.response.use(
     // ── Non-expiry 401: clear storage ─────────────────────────────────────────
     if (error.response?.status === 401 && !originalRequest._retry) {
       try {
-        await storage.removeItem('userToken');
-        await storage.removeItem('refreshToken');
-        await storage.removeItem('userId');
+        await secureStorage.removeItem('userToken');
+        await secureStorage.removeItem('refreshToken');
+        await secureStorage.removeItem('userId');
 
         // Force redirect to login screen on auth failure
         try {

@@ -369,15 +369,27 @@ export default function SearchScreen() {
       <View style={styles.discSection} ref={refTrending} onLayout={() => measureElement(refTrending, 'trending')}>
         <Text style={styles.discLabel}>Trending now</Text>
         <View style={styles.trendWrap}>
-          {TRENDING.map(t => (
-            <TouchableOpacity
-              key={t}
-              style={styles.trendChip}
-              onPress={() => { setQuery(t); inputRef.current?.focus(); }}
-            >
-              <Text style={styles.trendChipTxt}>{t}</Text>
-            </TouchableOpacity>
-          ))}
+          {categories.length > 0 ? (
+            categories.slice(0, 5).map((cat: any) => (
+              <TouchableOpacity
+                key={cat.id || cat.name}
+                style={styles.trendChip}
+                onPress={() => setCategory(cat.name)}
+              >
+                <Text style={styles.trendChipTxt}>{cat.name}</Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            TRENDING.map(t => (
+              <TouchableOpacity
+                key={t}
+                style={styles.trendChip}
+                onPress={() => { setQuery(t); inputRef.current?.focus(); }}
+              >
+                <Text style={styles.trendChipTxt}>{t}</Text>
+              </TouchableOpacity>
+            ))
+          )}
         </View>
       </View>
 
@@ -387,7 +399,7 @@ export default function SearchScreen() {
           <View style={styles.discSection}>
             <Text style={styles.discLabel}>Browse categories</Text>
             <View style={styles.catTileGrid}>
-              {categories.slice(0, 6).map((cat: any, i: number) => {
+              {[...categories].sort((a,b) => a.name.localeCompare(b.name)).slice(0, 12).map((cat: any, i: number) => {
                 const accent = CAT_ACCENTS[i % CAT_ACCENTS.length];
                 const isOn   = category === cat.name;
                 return (

@@ -2,7 +2,7 @@
 // Socket.IO client singleton for real-time messaging
 
 import { io, Socket } from 'socket.io-client';
-import { storage } from './api';
+import { storage, secureStorage } from './api';
 
 type SocketEventCallback = (data: any) => void;
 
@@ -38,7 +38,7 @@ class SocketService {
 
     this.connectionPromise = new Promise(async (resolve, reject) => {
       try {
-        const token = await storage.getItem('userToken');
+        const token = await secureStorage.getItem('userToken');
         
         if (!token) {
           console.error('❌ No authentication token found');
@@ -84,7 +84,7 @@ class SocketService {
               
               // Now that token is likely refreshed in storage, 
               // we update the auth object for the current socket instance
-              const newToken = await storage.getItem('userToken');
+              const newToken = await secureStorage.getItem('userToken');
               if (newToken && this.socket) {
                 this.socket.auth = { token: newToken };
                 this.socket.connect(); // Force reconnection with new token

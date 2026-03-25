@@ -9,12 +9,24 @@ class CategoryController {
 
     getAll = async (req, res, next) => {
         try {
-            const { data: categories, error } = await this.repo.db
+            // Fetch categories with product counts via a RPC or subquery
+            // For Supabase, we can use a select with a count on join
+            const { data, error } = await this.repo.db
                 .from('categories')
-                .select('*')
-                .order('name');
+                .select('*, products(id)')
+                .eq('is_active', true);
 
             if (error) throw error;
+
+            // Transform to include productCount
+            const categories = data.map(cat => ({
+                ...cat,
+                productCount: cat.products?.length || 0
+            }));
+
+            // Sort by product count descending
+            categories.sort((a, b) => b.productCount - a.productCount);
+
             res.status(200).json({ success: true, categories });
         } catch (error) {
             next(error);

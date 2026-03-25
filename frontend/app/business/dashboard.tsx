@@ -77,7 +77,7 @@ const BusinessDashboard = () => {
   };
 
   useEffect(() => {
-    if (!loading && selectedBusiness) {
+    if (!loading && selectedBusiness && isVerified) {
       const timer = setTimeout(() => {
         measureElement(refStats, 'stats');
         measureElement(refActions, 'actions');
@@ -87,7 +87,7 @@ const BusinessDashboard = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [loading, !!selectedBusiness]);
+  }, [loading, !!selectedBusiness, isVerified]);
 
   const onboardingSteps = [
     {
