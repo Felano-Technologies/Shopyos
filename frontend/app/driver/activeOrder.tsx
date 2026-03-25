@@ -14,7 +14,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
-import { CustomInAppToast } from '@/services/api';
+import { Linking, Platform } from 'react-native';
+import { getUserData, startConversation, CustomInAppToast } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,6 +45,34 @@ export default function ActiveOrderScreen() {
       }
     }
   }, [delivery?.status]);
+
+  const handleCall = (phoneNumber: string) => {
+    if (!phoneNumber) {
+      CustomInAppToast.show({ type: 'error', title: 'No Phone Number', message: 'Could not find a valid phone number for this contact.' });
+      return;
+    }
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const handleChat = async (participantId: string, name: string, avatar: string) => {
+    if (!participantId) return;
+    try {
+      const res = await startConversation(participantId);
+      if (res.success && res.conversation) {
+        router.push({
+          pathname: '/chat/conversation',
+          params: {
+            conversationId: res.conversation.id,
+            name: name,
+            avatar: avatar,
+            chatType: 'seller' // Defaulting to seller/neutral for driver chats
+          }
+        });
+      }
+    } catch (e) {
+      CustomInAppToast.show({ type: 'error', title: 'Chat Error', message: 'Could not open conversation at this time.' });
+    }
+  };
 
   const handleProgress = async () => {
     try {
@@ -148,37 +177,75 @@ export default function ActiveOrderScreen() {
                 {step <= 1 ? (delivery.pickup_address) : (delivery.delivery_address)}
               </Text>
             </View>
-            <TouchableOpacity style={styles.navBtn}>
+            <TouchableOpacity 
+              style={styles.navBtn} 
+              onPress={() => {
+                const addr = step <= 1 ? delivery.pickup_address : delivery.delivery_address;
+                const url = Platform.select({
+                  ios: `maps:0,0?q=${addr}`,
+                  android: `geo:0,0?q=${addr}`
+                });
+                if (url) Linking.openURL(url);
+              }}
+            >
               <FontAwesome5 name="location-arrow" size={18} color="#FFF" />
             </TouchableOpacity>
           </View>
 
+          {/* Contact Section - Showing both for convenience */}
+          <Text style={styles.summaryTitle}>Contacts</Text>
+          
+          {/* Store Contact */}
           <View style={styles.contactRow}>
             <View style={styles.customerInfo}>
               <Image
-                source={{ uri: (step <= 1 ? storeDetails?.logo_url : buyerProfile?.avatar_url) || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah' }}
+                source={{ uri: storeDetails?.logo_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Store' }}
                 style={styles.customerImg}
               />
               <View>
-                <Text style={styles.customerName}>
-                  {step <= 1 ? (storeDetails?.store_name || "Store Contact") : (buyerProfile?.full_name || "Customer")}
-                </Text>
-                <Text style={styles.customerRole}>{step <= 1 ? "Seller" : "Customer"}</Text>
+                <Text style={styles.customerName}>{storeDetails?.store_name || "Store"}</Text>
+                <Text style={styles.customerRole}>Seller</Text>
               </View>
             </View>
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.circleBtn}
-                onPress={() => {
-                  const targetId = step <= 1 ? delivery.order?.store?.owner_id : delivery.order?.buyer_id;
-                  if (targetId) {
-                    router.push(`/chat/${targetId}` as any);
-                  }
-                }}
+                onPress={() => handleChat(storeDetails?.owner_id, storeDetails?.store_name, storeDetails?.logo_url)}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}>
+              <TouchableOpacity 
+                style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
+                onPress={() => handleCall(storeDetails?.phone)}
+              >
+                <Ionicons name="call-outline" size={22} color="#0C1559" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Customer Contact */}
+          <View style={styles.contactRow}>
+            <View style={styles.customerInfo}>
+              <Image
+                source={{ uri: buyerProfile?.avatar_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah' }}
+                style={styles.customerImg}
+              />
+              <View>
+                <Text style={styles.customerName}>{buyerProfile?.full_name || "Customer"}</Text>
+                <Text style={styles.customerRole}>Recipient</Text>
+              </View>
+            </View>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={styles.circleBtn}
+                onPress={() => handleChat(delivery.order?.buyer_id, buyerProfile?.full_name, buyerProfile?.avatar_url)}
+              >
+                <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.circleBtn, { backgroundColor: '#E0E7FF' }]}
+                onPress={() => handleCall(buyerProfile?.phone)}
+              >
                 <Ionicons name="call-outline" size={22} color="#0C1559" />
               </TouchableOpacity>
             </View>
@@ -193,11 +260,16 @@ export default function ActiveOrderScreen() {
               <View key={index} style={styles.orderItem}>
                 <Text style={styles.qty}>{item.quantity}x</Text>
                 <Text style={styles.itemName}>{item.product_title}</Text>
+                <Text style={styles.itemPrice}>₵{(item.unit_price * item.quantity).toFixed(2)}</Text>
               </View>
             ))}
             {(!delivery.order?.order_items || delivery.order.order_items.length === 0) && (
               <Text style={styles.noItems}>No item details available</Text>
             )}
+            <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Total Price</Text>
+                <Text style={styles.totalValue}>₵{delivery.order?.total_amount?.toFixed(2) || '0.00'}</Text>
+            </View>
           </View>
 
         </ScrollView>
@@ -275,8 +347,13 @@ const styles = StyleSheet.create({
   summaryTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 15, textTransform: 'uppercase' },
   orderItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   qty: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#A3E635', marginRight: 12, backgroundColor: '#0C1559', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  itemName: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155' },
+  itemName: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#334155', flex: 1 },
+  itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   noItems: { fontSize: 14, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
+
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  totalLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
+  totalValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
 
   // Footer
   footer: {

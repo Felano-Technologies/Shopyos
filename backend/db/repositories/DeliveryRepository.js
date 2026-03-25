@@ -62,12 +62,8 @@ class DeliveryRepository extends BaseRepository {
     // Set timestamps based on status
     if (status === 'picked_up') {
       updateData.picked_up_at = new Date().toISOString();
-    } else if (status === 'in_transit') {
-      updateData.in_transit_at = new Date().toISOString();
     } else if (status === 'delivered') {
       updateData.delivered_at = new Date().toISOString();
-    } else if (status === 'cancelled') {
-      updateData.cancelled_at = new Date().toISOString();
     }
 
     return this.update(deliveryId, updateData);
@@ -343,9 +339,7 @@ class DeliveryRepository extends BaseRepository {
    */
   async cancelDelivery(deliveryId, reason) {
     return this.update(deliveryId, {
-      status: 'cancelled',
-      cancelled_at: new Date().toISOString(),
-      cancellation_reason: reason
+      status: 'cancelled'
     });
   }
 }
