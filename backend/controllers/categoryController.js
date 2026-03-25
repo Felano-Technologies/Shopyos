@@ -7,31 +7,35 @@ class CategoryController {
         this.repo = repositories.products;
     }
 
-    getAll = async (req, res, next) => {
+    async getAll(req, res) {
         try {
-            // Fetch categories with product counts via a RPC or subquery
-            // For Supabase, we can use a select with a count on join
-            const { data, error } = await this.repo.db
-                .from('categories')
-                .select('*, products(id)')
-                .eq('is_active', true);
+            // Fetch categories and product counts in parallel
+            const [{ data: categories, error: catError }, { data: catCounts, error: rpcError }] = await Promise.all([
+                this.repo.db.from('categories').select('*').eq('is_active', true),
+                this.repo.db.rpc('get_category_counts')
+            ]);
 
-            if (error) throw error;
+            if (catError) throw catError;
+            if (rpcError) throw rpcError;
 
-            // Transform to include productCount
-            const categories = data.map(cat => ({
+            // Map counts to category names for O(1) lookup
+            const countMap = (catCounts || []).reduce((acc, curr) => {
+                acc[curr.category] = parseInt(curr.product_count);
+                return acc;
+            }, {});
+
+            // Merge counts and sort
+            const result = (categories || []).map(cat => ({
                 ...cat,
-                productCount: cat.products?.length || 0
-            }));
+                product_count: countMap[cat.name] || 0
+            })).sort((a, b) => b.product_count - a.product_count);
 
-            // Sort by product count descending
-            categories.sort((a, b) => b.productCount - a.productCount);
-
-            res.status(200).json({ success: true, categories });
+            return res.status(200).json({ success: true, categories: result });
         } catch (error) {
-            next(error);
+            logger.error('Fetch categories error:', error);
+            return res.status(500).json({ success: false, message: 'Server Error' });
         }
-    };
+    }
 
     create = async (req, res, next) => {
         try {
