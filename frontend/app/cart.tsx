@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,6 +6,8 @@ import { useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useCart } from './context/CartContext';
+import { useOnboarding } from './context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 const { width } = (require('react-native')).Dimensions.get('window');
 
 export default function CartScreen() {
@@ -19,6 +21,48 @@ export default function CartScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refQty = useRef<View>(null);
+  const refCheckout = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (cartItems.length > 0) {
+      const timer = setTimeout(() => {
+        measureElement(refQty, 'qty');
+        measureElement(refCheckout, 'checkout');
+        startTour('cart');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [cartItems.length]);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.qty,
+      title: 'Adjust Quantities',
+      description: 'Need more or less? Quickly update item counts here.',
+    },
+    {
+      targetLayout: layouts.checkout,
+      title: 'Ready to Order?',
+      description: 'Proceed to checkout to choose your delivery and payment options.',
+    },
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('cart');
+  };
 
 
   return (
@@ -38,7 +82,7 @@ export default function CartScreen() {
       <FlatList
         data={cartItems}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <View style={styles.cartItem}>
             <Image source={typeof item.image === 'number' ? item.image : { uri: item.image }} style={styles.itemImage} />
             <View style={styles.itemDetails}>
@@ -49,7 +93,11 @@ export default function CartScreen() {
               <Text style={styles.itemCategory}>{item.category}</Text>
               <View style={styles.priceControlRow}>
                 <Text style={styles.itemPrice}>₵{item.price.toFixed(2)}</Text>
-                <View style={styles.qtyContainer}>
+                <View 
+                  style={styles.qtyContainer}
+                  ref={index === 0 ? refQty : undefined}
+                  onLayout={index === 0 ? () => measureElement(refQty, 'qty') : undefined}
+                >
                   <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.id, -1)}><Feather name="minus" size={14} color="#0C1559" /></TouchableOpacity>
                   <Text style={styles.qtyText}>{item.quantity}</Text>
                   <TouchableOpacity style={[styles.qtyBtn, styles.qtyBtnActive]} onPress={() => updateQuantity(item.id, 1)}><Feather name="plus" size={14} color="#FFF" /></TouchableOpacity>
@@ -74,7 +122,12 @@ export default function CartScreen() {
             <Text style={styles.summaryLabel}>Order Total</Text>
             <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
           </View>
-          <TouchableOpacity style={styles.checkoutBtn} onPress={() => router.push('/checkout' as any)}>
+          <TouchableOpacity 
+            style={styles.checkoutBtn} 
+            onPress={() => router.push('/checkout' as any)}
+            ref={refCheckout}
+            onLayout={() => measureElement(refCheckout, 'checkout')}
+          >
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
               <Text style={styles.checkoutText}>Checkout</Text>
               <Feather name="arrow-right" size={20} color="#FFF" />
@@ -83,6 +136,11 @@ export default function CartScreen() {
         </View>
       )}
 
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'cart'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }

@@ -19,6 +19,8 @@ import { useChat } from './context/ChatContext';
 import { getPromotedProducts, recordAdClick, getUserData, storage } from '@/services/api';
 import { useCart } from './context/CartContext';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { useOnboarding } from './context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 const { width } = Dimensions.get('window');
 
@@ -105,6 +107,70 @@ export default function Home() {
   const isDragging  = useRef(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
+
+  // --- Onboarding Refs & State ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refGreeting = useRef<View>(null);
+  const refActions = useRef<View>(null);
+  const refCategories = useRef<ScrollView>(null);
+  const refChat = useRef<View>(null);
+
+  const captureLayout = (key: string) => (event: any) => {
+    const { x, y, width, height } = event.nativeEvent.layout;
+    // We need absolute coordinates for the spotlight.
+    // For fixed elements or those at the top, relative might work,
+    // but measureInWindow is safer for a global modal.
+  };
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    // Delay slightly to ensure measurements are accurate after initial render
+    const timer = setTimeout(() => {
+      measureElement(refGreeting, 'greeting');
+      measureElement(refActions, 'actions');
+      measureElement(refCategories, 'categories');
+      measureElement(refChat, 'chat');
+      
+      // Auto-start if not completed
+      startTour('home');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.greeting,
+      title: `Welcome to Shopyos!`,
+      description: `We've personalized your dashboard based on your location and preferences.`,
+    },
+    {
+      targetLayout: layouts.actions,
+      title: 'Easy Access',
+      description: 'Quickly check your cart or see notifications from your favorite stores.',
+    },
+    {
+      targetLayout: layouts.categories,
+      title: 'Shop by Category',
+      description: 'Find exactly what you need by browsing our curated categories.',
+    },
+    {
+      targetLayout: layouts.chat,
+      title: 'Real-time Chat',
+      description: 'Have a question? Chat with sellers instantly to get more details or negotiate.',
+    },
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('home');
+  };
 
   // ── Load user name ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -397,7 +463,7 @@ export default function Home() {
           <View style={S.hdrGlow1} pointerEvents="none" />
           <View style={S.hdrGlow2} pointerEvents="none" />
 
-          <View style={S.headerInner}>
+          <View style={S.headerInner} ref={refGreeting} onLayout={() => measureElement(refGreeting, 'greeting')}>
             <TouchableOpacity style={S.locationRow}>
               <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
               <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
@@ -413,7 +479,7 @@ export default function Home() {
                 {' 👋'}
               </Text>
 
-              <View style={S.headerActions}>
+              <View style={S.headerActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
                 <TouchableOpacity style={S.headerBtn} onPress={() => router.push('/cart' as any)}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {cartCount > 0 && (
@@ -481,6 +547,8 @@ export default function Home() {
 
           {/* ── Category chips ────────────────────────────────────────────── */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
+            ref={refCategories}
+            onLayout={() => measureElement(refCategories, 'categories')}
             contentContainerStyle={S.chipStrip}>
             {allCatNames.map((cat) => {
               const on = selectedCat === cat;
@@ -551,7 +619,13 @@ export default function Home() {
         </Animated.ScrollView>
 
         {/* ── Chat FAB — moved up from bottom: 88 → 140 ─────────────────── */}
-        <TouchableOpacity style={S.chatFab} onPress={() => router.push('/chat' as any)} activeOpacity={0.85}>
+        <TouchableOpacity 
+          style={S.chatFab} 
+          onPress={() => router.push('/chat' as any)} 
+          activeOpacity={0.85}
+          ref={refChat}
+          onLayout={() => measureElement(refChat, 'chat')}
+        >
           <LinearGradient colors={[C.navy, C.navyMid]} style={S.chatFabGrad}>
             <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />
             {unreadCount > 0 && (
@@ -564,6 +638,12 @@ export default function Home() {
 
         <BottomNav />
       </SafeAreaView>
+
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'home'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }

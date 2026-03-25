@@ -16,6 +16,8 @@ import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from './context/CartContext';
 import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
+import { useOnboarding } from './context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 52) / 2;
@@ -78,6 +80,53 @@ export default function SearchScreen() {
   const inputRef  = useRef<TextInput>(null);
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refSearchPill = useRef<View>(null);
+  const refActions = useRef<View>(null);
+  const refTrending = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      measureElement(refSearchPill, 'search');
+      measureElement(refActions, 'actions');
+      measureElement(refTrending, 'trending');
+      startTour('search');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.search,
+      title: 'Smart Search',
+      description: 'Find products, stores, or categories instantly by typing here.',
+    },
+    {
+      targetLayout: layouts.actions,
+      title: 'Filter & Sort',
+      description: 'Refine your results by price, date, or popularity to find the best deals.',
+    },
+    {
+      targetLayout: layouts.trending,
+      title: 'Discovery',
+      description: 'Explore trending searches and top categories to see what’s hot right now.',
+    },
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('search');
+  };
 
   // ── Recent searches ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -317,7 +366,7 @@ export default function SearchScreen() {
 
       <View style={styles.discDivider} />
 
-      <View style={styles.discSection}>
+      <View style={styles.discSection} ref={refTrending} onLayout={() => measureElement(refTrending, 'trending')}>
         <Text style={styles.discLabel}>Trending now</Text>
         <View style={styles.trendWrap}>
           {TRENDING.map(t => (
@@ -413,7 +462,7 @@ export default function SearchScreen() {
                     }
                   </Text>
                 </View>
-                <View style={styles.hdrActions}>
+                <View style={styles.hdrActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
                   <TouchableOpacity
                     style={styles.hdrBtn}
                     onPress={() => router.push('/cart' as any)}
@@ -430,7 +479,7 @@ export default function SearchScreen() {
               </View>
 
               {/* Search pill */}
-              <View style={[styles.searchPill, query.length > 0 && styles.searchPillFocused]}>
+              <View style={[styles.searchPill, query.length > 0 && styles.searchPillFocused]} ref={refSearchPill} onLayout={() => measureElement(refSearchPill, 'search')}>
                 <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
                 <TextInput
                   ref={inputRef}
@@ -626,6 +675,12 @@ export default function SearchScreen() {
 
         <BottomNav />
       </View>
+
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'search'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </Pressable>
   );
 }

@@ -12,6 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '@/components/BottomNav';
 import { getAllStores } from '@/services/api';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
+import { useOnboarding } from './context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 const { width } = Dimensions.get('window');
 
@@ -54,6 +56,60 @@ export default function StoresScreen() {
 
   const fadeAnim   = useRef(new Animated.Value(1)).current;
   const isSearching = searchQuery.length > 0;
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refSearch = useRef<View>(null);
+  const refFilter = useRef<View>(null);
+  const refPopular = useRef<View>(null);
+  const refMap = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      measureElement(refSearch, 'search');
+      measureElement(refFilter, 'filter');
+      measureElement(refPopular, 'popular');
+      measureElement(refMap, 'map');
+      startTour('stores');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.search,
+      title: 'Store Finder',
+      description: 'Looking for a specific vendor? Find them quickly here.',
+    },
+    {
+      targetLayout: layouts.filter,
+      title: 'Verified Only',
+      description: 'Use filters to see only verified and top-rated merchants.',
+    },
+    {
+      targetLayout: layouts.popular,
+      title: 'Top Picks',
+      description: 'Explore our community’s most trusted and popular stores.',
+    },
+    {
+      targetLayout: layouts.map,
+      title: 'Map View',
+      description: 'Prefer to shop locally? See exactly where stores are located around you.',
+    },
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('stores');
+  };
 
   const fetchStores = useCallback(async () => {
     try {
@@ -249,7 +305,7 @@ export default function StoresScreen() {
               </View>
 
               <View style={styles.searchRow}>
-                <View style={[styles.searchPill, searchQuery.length > 0 && styles.searchPillActive]}>
+                <View style={[styles.searchPill, searchQuery.length > 0 && styles.searchPillActive]} ref={refSearch} onLayout={() => measureElement(refSearch, 'search')}>
                   <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
                   <TextInput
                     style={styles.searchInput}
@@ -275,6 +331,8 @@ export default function StoresScreen() {
                   style={styles.filterFab}
                   onPress={() => setShowFilter(true)}
                   activeOpacity={0.85}
+                  ref={refFilter}
+                  onLayout={() => measureElement(refFilter, 'filter')}
                 >
                   <Feather name="sliders" size={16} color={C.limeText} />
                 </TouchableOpacity>
@@ -317,7 +375,7 @@ export default function StoresScreen() {
 
                 {!isSearching && popularStores.length > 0 && (
                   <>
-                    <View style={styles.secHeader}>
+                    <View style={styles.secHeader} ref={refPopular} onLayout={() => measureElement(refPopular, 'popular')}>
                       <Text style={styles.secTitle}>Popular Stores</Text>
                       <Text style={styles.secMeta}>{popularStores.length} stores</Text>
                     </View>
@@ -351,6 +409,8 @@ export default function StoresScreen() {
           style={styles.mapFab}
           activeOpacity={0.88}
           onPress={() => router.push('/stores/storesMap' as any)}
+          ref={refMap}
+          onLayout={() => measureElement(refMap, 'map')}
         >
           <LinearGradient colors={[C.navy, C.navyMid]} style={styles.mapFabInner}>
             <MaterialCommunityIcons name="map-marker-radius" size={18} color="#fff" />
@@ -417,6 +477,12 @@ export default function StoresScreen() {
           </View>
         </Modal>
       </View>
+
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'stores'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </Pressable>
   );
 }

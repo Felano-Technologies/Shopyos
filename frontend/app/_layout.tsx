@@ -15,6 +15,7 @@ import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
+import { OnboardingProvider } from '@/app/context/OnboardingContext';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
@@ -226,7 +227,9 @@ export default function RootLayout() {
 
   return (
     <QueryProvider>
-      <AppContent />
+      <OnboardingProvider>
+        <AppContent />
+      </OnboardingProvider>
     </QueryProvider>
   );
 }

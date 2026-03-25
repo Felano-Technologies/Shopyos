@@ -450,6 +450,7 @@ const getUserData = async (req, res, next) => {
       longitude: profile?.longitude,
       role: userRoles?.[0]?.role?.name || 'none',
       roles: userRoles.map(r => ({ name: r.role.name, displayName: r.role.display_name, assignedAt: r.assigned_at })),
+      onboarding_state: profile?.onboarding_state || {},
       email_verified: user.email_verified,
       is_active: user.is_active,
       last_login_at: user.last_login_at,
@@ -565,8 +566,42 @@ const updateUserLocation = async (req, res, next) => {
   }
 };
 
+const updateOnboardingState = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { screen, completed = true } = req.body;
+
+    if (!screen) {
+      return res.status(400).json({ success: false, error: 'Screen key is required' });
+    }
+
+    const profile = await repositories.userProfiles.findByUserId(userId);
+    const currentState = profile?.onboarding_state || {};
+    
+    const newState = {
+      ...currentState,
+      [screen]: completed
+    };
+
+    const updatedProfile = await repositories.userProfiles.updateByUserId(userId, {
+      onboarding_state: newState
+    });
+
+    await cacheDel(`shopyos:users:${userId}:auth`);
+
+    res.status(200).json({ 
+      success: true, 
+      data: updatedProfile.onboarding_state,
+      message: `Onboarding for ${screen} updated` 
+    });
+  } catch (error) {
+    logger.error('Error updating onboarding state:', error);
+    next(error);
+  }
+};
+
 module.exports = {
   register, login, refreshAccessToken, logout, logoutAll,
   getSessions, revokeSession, resetPassword, confirmResetPassword, getUserData,
-  addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation
+  addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState
 };

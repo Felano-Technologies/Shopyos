@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, Image, ScrollView,
@@ -12,6 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { getStoreOrders, storage } from '@/services/api';
+import { useOnboarding } from '../context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 
@@ -65,6 +67,7 @@ const OrdersScreen = () => {
   const [loading,    setLoading]    = useState(true);
   const [orders,     setOrders]     = useState<Order[]>([]);
 
+
   const fetchOrders = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
@@ -114,6 +117,62 @@ const OrdersScreen = () => {
 
   const filtered = filter === 'All' ? orders : orders.filter((o) => o.status === filter);
 
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refRevenue = useRef<View>(null);
+  const refStats = useRef<View>(null);
+  const refFilters = useRef<ScrollView>(null);
+  const refFirstItem = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && isVerified) {
+      const timer = setTimeout(() => {
+        measureElement(refRevenue, 'revenue');
+        measureElement(refStats, 'stats');
+        measureElement(refFilters, 'filters');
+        if (filtered.length > 0) measureElement(refFirstItem, 'list');
+        startTour('business_orders');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, isVerified, filtered.length]);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.revenue,
+      title: 'Total Revenue',
+      description: 'Track your store’s financial success at a glance.',
+    },
+    {
+      targetLayout: layouts.stats,
+      title: 'Order Status',
+      description: 'Quickly see how many orders are pending, delivered, or cancelled.',
+    },
+    {
+      targetLayout: layouts.filters,
+      title: 'Search Filters',
+      description: 'Filter your orders by status to focus on what needs your attention.',
+    },
+    ...(layouts.list ? [{
+      targetLayout: layouts.list,
+      title: 'Manage Orders',
+      description: 'Tap any order to see full details and update its processing status.',
+    }] : []),
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('business_orders');
+  };
+
   // Stats
   const totalRevenue    = orders.reduce((s, o) => s + o.totalAmount, 0);
   const totalOrders     = orders.length;
@@ -132,6 +191,8 @@ const OrdersScreen = () => {
         style={S.card}
         activeOpacity={0.85}
         onPress={() => router.push({ pathname: '/business/orderDetails', params: { id: item.id } })}
+        ref={filtered[0]?.id === item.id ? refFirstItem : undefined}
+        onLayout={filtered[0]?.id === item.id ? () => measureElement(refFirstItem, 'list') : undefined}
       >
         {/* Status accent bar */}
         <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
@@ -224,7 +285,7 @@ const OrdersScreen = () => {
               </View>
 
               {/* Revenue card */}
-              <View style={S.revenueCard}>
+              <View style={S.revenueCard} ref={refRevenue} onLayout={() => measureElement(refRevenue, 'revenue')}>
                 <View>
                   <Text style={S.revLbl}>Total Revenue</Text>
                   <Text style={S.revAmt}>GH₵ {totalRevenue.toFixed(2)}</Text>
@@ -238,7 +299,7 @@ const OrdersScreen = () => {
             </LinearGradient>
 
             {/* ── Stat pills ────────────────────────────────────────────── */}
-            <View style={S.statRow}>
+            <View style={S.statRow} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
               {[
                 { label: 'Total',     value: totalOrders,    color: C.navy    },
                 { label: 'Pending',   value: pendingCount,   color: '#F59E0B' },
@@ -259,6 +320,8 @@ const OrdersScreen = () => {
               showsHorizontalScrollIndicator={false}
               style={S.chipScrollView}
               contentContainerStyle={S.chipStrip}
+              ref={refFilters}
+              onLayout={() => measureElement(refFilters, 'filters')}
             >
               {FILTERS.map((f) => {
                 const on = filter === f;
@@ -305,6 +368,12 @@ const OrdersScreen = () => {
         )}
 
         <BusinessBottomNav />
+
+        <SpotlightTour 
+          visible={isTourActive && activeScreen === 'business_orders'} 
+          steps={onboardingSteps}
+          onComplete={handleOnboardingComplete}
+        />
       </SafeAreaView>
     </View>
   );

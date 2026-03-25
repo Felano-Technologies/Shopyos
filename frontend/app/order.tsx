@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
@@ -12,6 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
 import { useOrders } from '@/hooks/useOrders';
+import { useOnboarding } from './context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
@@ -81,6 +83,7 @@ const OrdersScreen = () => {
   const [searchQuery,  setSearchQuery]  = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
 
+
   const FILTERS = ['All', 'Pending', 'Paid', 'Confirmed', 'In Transit', 'Delivered', 'Cancelled'];
 
   const statusParam = activeFilter === 'All'
@@ -114,6 +117,53 @@ const OrdersScreen = () => {
   });
 
   const handleFilterChange = (f: string) => { setActiveFilter(f); setPage(1); };
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refSearch = useRef<View>(null);
+  const refFilters = useRef<ScrollView>(null);
+  const refFirstOrder = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      measureElement(refSearch, 'search');
+      measureElement(refFilters, 'filters');
+      if (filteredOrders.length > 0) measureElement(refFirstOrder, 'order');
+      startTour('orders');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [filteredOrders.length]);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.search,
+      title: 'Find Orders',
+      description: 'Search for past or current orders by ID or store name.',
+    },
+    {
+      targetLayout: layouts.filters,
+      title: 'Status Filters',
+      description: 'Quickly narrow down orders by their current status.',
+    },
+    ...(layouts.order ? [{
+      targetLayout: layouts.order,
+      title: 'Live Tracking',
+      description: 'See the real-time status and timeline of your order right here.',
+    }] : []),
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('orders');
+  };
 
   // ── Timeline ────────────────────────────────────────────────────────────────
   const renderTimeline = (step: number) => (
@@ -151,6 +201,8 @@ const OrdersScreen = () => {
         style={S.card}
         activeOpacity={0.82}
         onPress={() => router.push(`/order/${item.id}` as any)}
+        ref={filteredOrders[0]?.id === item.id ? refFirstOrder : undefined}
+        onLayout={filteredOrders[0]?.id === item.id ? () => measureElement(refFirstOrder, 'order') : undefined}
       >
         <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
         <View style={S.cardBody}>
@@ -288,7 +340,7 @@ const OrdersScreen = () => {
               </View>
             </View>
 
-            <View style={[S.searchPill, searchQuery.length > 0 && S.searchPillActive]}>
+            <View style={[S.searchPill, searchQuery.length > 0 && S.searchPillActive]} ref={refSearch} onLayout={() => measureElement(refSearch, 'search')}>
               <Feather name="search" size={rs(14)} color="rgba(255,255,255,0.5)" />
               <TextInput
                 style={S.searchInput}
@@ -327,6 +379,8 @@ const OrdersScreen = () => {
         // aligning the scroll view itself to the start prevents centring
         style={S.chipScrollView}
         contentContainerStyle={S.chipStrip}
+        ref={refFilters}
+        onLayout={() => measureElement(refFilters, 'filters')}
       >
         {FILTERS.map((f) => {
           const on = activeFilter === f;
@@ -392,6 +446,12 @@ const OrdersScreen = () => {
           }
         />
       )}
+
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'orders'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 };

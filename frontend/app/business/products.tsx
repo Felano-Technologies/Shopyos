@@ -11,6 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useOnboarding } from '../context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {
   getStoreProducts, createProduct, deleteProduct,
   uploadProductImages, updateProduct, getAllCategories, storage,
@@ -55,6 +57,62 @@ const ProductsScreen = () => {
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearch] = useState('');
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refForm = useRef<View>(null);
+  const refPhoto = useRef<View>(null);
+  const refSubmit = useRef<View>(null);
+  const refFirstItem = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isVerified) {
+      const timer = setTimeout(() => {
+        measureElement(refForm, 'form');
+        measureElement(refPhoto, 'photo');
+        measureElement(refSubmit, 'submit');
+        if (products.length > 0) measureElement(refFirstItem, 'list');
+        startTour('business_products');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isVerified, products.length]);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.form,
+      title: 'List a Product',
+      description: 'Ready to sell? Use this form to add your items to the Shopyos marketplace.',
+    },
+    {
+      targetLayout: layouts.photo,
+      title: 'Product Images',
+      description: 'Clear photos help sell faster! Tap here to upload your product imagery.',
+    },
+    {
+      targetLayout: layouts.submit,
+      title: 'Add to Store',
+      description: 'Once you’re done, tap here to make your product live for customers.',
+    },
+    ...(layouts.list ? [{
+      targetLayout: layouts.list,
+      title: 'Manage Inventory',
+      description: 'Keep track of your stock levels and edit or delete items as needed.',
+    }] : []),
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('business_products');
+  };
 
   const isBlocked = verificationStatus === 'pending' || verificationStatus === 'rejected';
 
@@ -255,7 +313,7 @@ const ProductsScreen = () => {
             style={[S.formWrap, isBlocked && { opacity: 0.4 }]}
             pointerEvents={isBlocked ? 'none' : 'auto'}
           >
-            <View style={S.formCard}>
+            <View style={S.formCard} ref={refForm} onLayout={() => measureElement(refForm, 'form')}>
               <View style={S.formHeader}>
                 <Text style={S.formTitle}>{editingId ? 'Edit Product' : 'Add New Item'}</Text>
                 {editingId ? (
@@ -269,7 +327,13 @@ const ProductsScreen = () => {
 
               <View style={S.inputRow}>
                 {/* Image picker */}
-                <TouchableOpacity style={S.imgBox} onPress={pickImage} disabled={isSubmitting}>
+                <TouchableOpacity 
+                  style={S.imgBox} 
+                  onPress={pickImage} 
+                  disabled={isSubmitting}
+                  ref={refPhoto}
+                  onLayout={() => measureElement(refPhoto, 'photo')}
+                >
                   {image ? (
                     <Image source={{ uri: image }} style={StyleSheet.absoluteFill} />
                   ) : (
@@ -353,6 +417,8 @@ const ProductsScreen = () => {
                 disabled={isSubmitting || isBlocked}
                 activeOpacity={0.85}
                 style={{ marginTop: rs(14) }}
+                ref={refSubmit}
+                onLayout={() => measureElement(refSubmit, 'submit')}
               >
                 <LinearGradient
                   colors={editingId ? ['#CA8A04', '#EAB308'] : [C.navy, C.navyMid]}
@@ -393,8 +459,12 @@ const ProductsScreen = () => {
                 keyExtractor={(p) => p.id}
                 scrollEnabled={false}
                 ItemSeparatorComponent={() => <View style={{ height: rs(10) }} />}
-                renderItem={({ item }) => (
-                  <View style={S.productRow}>
+                renderItem={({ item, index }) => (
+                  <View 
+                    style={S.productRow}
+                    ref={index === 0 ? refFirstItem : undefined}
+                    onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
+                  >
                     {item.image ? (
                       <Image source={{ uri: item.image }} style={S.productImg} />
                     ) : (
@@ -441,6 +511,12 @@ const ProductsScreen = () => {
         </ScrollView>
 
         <BusinessBottomNav />
+
+        <SpotlightTour 
+          visible={isTourActive && activeScreen === 'business_products'} 
+          steps={onboardingSteps}
+          onComplete={handleOnboardingComplete}
+        />
       </SafeAreaView>
 
       {/* ── Category modal ────────────────────────────────────────────── */}

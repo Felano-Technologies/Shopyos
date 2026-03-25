@@ -419,6 +419,16 @@ export const updateUserRole = async (role: string) => {
     throw new Error(error.message || 'Network error during role update');
   }
 };
+
+export const updateOnboardingState = async (screen: string, completed: boolean = true) => {
+  try {
+    const response = await api.put('/auth/onboarding', { screen, completed });
+    return response.data;
+  } catch (error: any) {
+    console.error('Failed to update onboarding state:', error);
+    return null;
+  }
+};
  
 export const businessRegister = async (businessData: any) => {
   try {

@@ -20,6 +20,7 @@ router.get('/roles', protect, authController.getUserRoles);
 router.put('/profile', protect, authController.updateProfile);
 router.put('/role', protect, authController.updateUserRole); // Deprecated - use add-role
 router.put('/location', protect, authController.updateUserLocation);
+router.put('/onboarding', protect, authController.updateOnboardingState);
 
 // Session management (NEW)
 router.post('/logout-all', protect, authController.logoutAll);

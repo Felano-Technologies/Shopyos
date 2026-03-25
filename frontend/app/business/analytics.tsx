@@ -11,6 +11,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { storage } from '@/services/api';
 import { router } from 'expo-router';
+import { useOnboarding } from '../context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
 import { useBusinessAnalytics } from '@/hooks/useBusiness';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
@@ -58,6 +60,7 @@ const Analytics = () => {
 
   const { data, isLoading, refetch, isRefetching } =
     useBusinessAnalytics(businessId || '', timeframe);
+
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {
@@ -79,6 +82,62 @@ const Analytics = () => {
     },
     topProducts:          Array.isArray(data?.topProducts)          ? data.topProducts          : [],
     categoryDistribution: Array.isArray(data?.categoryDistribution) ? data.categoryDistribution : [],
+  };
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refToggle = useRef<View>(null);
+  const refTrend = useRef<View>(null);
+  const refStats = useRef<View>(null);
+  const refTopProducts = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!isLoading && isVerified) {
+      const timer = setTimeout(() => {
+        measureElement(refToggle, 'toggle');
+        measureElement(refTrend, 'trend');
+        measureElement(refStats, 'stats');
+        if (analytics.topProducts.length > 0) measureElement(refTopProducts, 'products');
+        startTour('business_analytics');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, isVerified, analytics.topProducts.length]);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.toggle,
+      title: 'Timeframe Filters',
+      description: 'Analyze your performance across different periods: Weekly, Monthly, or Yearly.',
+    },
+    {
+      targetLayout: layouts.trend,
+      title: 'Revenue Trends',
+      description: 'Visualize your store’s financial growth with this interactive chart.',
+    },
+    {
+      targetLayout: layouts.stats,
+      title: 'Key Metrics',
+      description: 'Track your total revenue and order volume in real-time.',
+    },
+    ...(layouts.products ? [{
+      targetLayout: layouts.products,
+      title: 'Best Sellers',
+      description: 'See which products are driving the most value for your business.',
+    }] : []),
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('business_analytics');
   };
 
   // Guard: chart can only be used when labels AND at least one non-zero value exist
@@ -152,7 +211,7 @@ const Analytics = () => {
           <View style={S.body}>
 
             {/* Timeframe toggle */}
-            <View style={S.toggleRow}>
+            <View style={S.toggleRow} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
               {(['week', 'month', 'year'] as const).map((p) => {
                 const on = timeframe === p;
                 return (
@@ -171,7 +230,7 @@ const Analytics = () => {
 
             {/* Revenue chart */}
             <Text style={S.secTitle}>Revenue Trend</Text>
-            <View style={S.card}>
+            <View style={S.card} ref={refTrend} onLayout={() => measureElement(refTrend, 'trend')}>
               {hasChart ? (
                 <LineChart
                   data={{
@@ -199,7 +258,7 @@ const Analytics = () => {
             </View>
 
             {/* Stats grid */}
-            <View style={S.statsGrid}>
+            <View style={S.statsGrid} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
               <View style={S.statCard}>
                 <View style={[S.iconBox, { backgroundColor: '#DCFCE7' }]}>
                   <Ionicons name="cash" size={rs(20)} color="#15803D" />
@@ -251,7 +310,12 @@ const Analytics = () => {
             <Text style={S.secTitle}>Top Products</Text>
             {analytics.topProducts.length > 0 ? (
               analytics.topProducts.map((p: any, i: number) => (
-                <View key={i} style={S.productCard}>
+                <View 
+                  key={i} 
+                  style={S.productCard}
+                  ref={i === 0 ? refTopProducts : undefined}
+                  onLayout={i === 0 ? () => measureElement(refTopProducts, 'products') : undefined}
+                >
                   <View style={[S.rankBadge, {
                     backgroundColor:
                       i === 0 ? '#EAB308' :
@@ -295,6 +359,12 @@ const Analytics = () => {
         </Animated.ScrollView>
 
         <BusinessBottomNav />
+
+        <SpotlightTour 
+          visible={isTourActive && activeScreen === 'business_analytics'} 
+          steps={onboardingSteps}
+          onComplete={handleOnboardingComplete}
+        />
       </SafeAreaView>
 
       {isRefetching && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,8 @@ import {
   StatusBar,
   Animated,
 } from 'react-native';
+import { useOnboarding } from './context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -28,6 +30,53 @@ export default function SettingsScreen() {
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refProfile = useRef<View>(null);
+  const refEdit = useRef<View>(null);
+  const refAccount = useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      measureElement(refProfile, 'profile');
+      measureElement(refEdit, 'edit');
+      measureElement(refAccount, 'account');
+      startTour('settings');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.profile,
+      title: 'Your Identity',
+      description: 'This is how stores and drivers will identify you during transactions.',
+    },
+    {
+      targetLayout: layouts.edit,
+      title: 'Update Profile',
+      description: 'Tap here to change your name, phone number, or profile picture.',
+    },
+    {
+      targetLayout: layouts.account,
+      title: 'Manage Account',
+      description: 'Add payment methods and check your transaction history here.',
+    },
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('settings');
+  };
 
   // Skeleton Animation Value
   const skeletonAnim = React.useRef(new Animated.Value(0.4)).current;
@@ -158,7 +207,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <View style={styles.profileCard}>
+              <View style={styles.profileCard} ref={refProfile} onLayout={() => measureElement(refProfile, 'profile')}>
                 <View style={styles.avatarContainer}>
                   {avatarUrl ? (
                     <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
@@ -170,7 +219,7 @@ export default function SettingsScreen() {
                   <Text style={styles.profileName}>{username}</Text>
                   <Text style={styles.profileEmail}>{email}</Text>
                 </View>
-                <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')}>
+                <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')} ref={refEdit} onLayout={() => measureElement(refEdit, 'edit')}>
                   <Feather name="edit-2" size={16} color="#FFF" />
                 </TouchableOpacity>
               </View>
@@ -188,7 +237,7 @@ export default function SettingsScreen() {
 
         {/* Section: Account */}
         <Text style={styles.sectionHeader}>Account</Text>
-        <View style={styles.sectionCard}>
+        <View style={styles.sectionCard} ref={refAccount} onLayout={() => measureElement(refAccount, 'account')}>
           {renderSettingItem({
             icon: 'user',
             label: 'Personal Information',
@@ -262,6 +311,12 @@ export default function SettingsScreen() {
         <View style={{ height: 40 }} />
 
       </ScrollView>
+
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'settings'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 }

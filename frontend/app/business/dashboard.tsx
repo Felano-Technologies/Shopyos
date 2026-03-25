@@ -22,6 +22,9 @@ import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
+import { useOnboarding } from '../context/OnboardingContext';
+import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import LottieView from 'lottie-react-native';
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
@@ -57,9 +60,66 @@ const BusinessDashboard = () => {
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
 
+  // --- Onboarding ---
+  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const [layouts, setLayouts] = useState<any>({});
+  const refStats = React.useRef<View>(null);
+  const refActions = React.useRef<View>(null);
+  const refChart = React.useRef<View>(null);
+  const refTop = React.useRef<View>(null);
+
+  const measureElement = (ref: any, key: string) => {
+    if (ref.current) {
+      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (!loading && selectedBusiness) {
+      const timer = setTimeout(() => {
+        measureElement(refStats, 'stats');
+        measureElement(refActions, 'actions');
+        measureElement(refChart, 'chart');
+        measureElement(refTop, 'top');
+        startTour('business_dashboard');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, !!selectedBusiness]);
+
+  const onboardingSteps = [
+    {
+      targetLayout: layouts.top,
+      title: 'Store Settings',
+      description: 'Quickly access your notifications and store-wide settings here.',
+    },
+    {
+      targetLayout: layouts.stats,
+      title: 'Store Pulse',
+      description: 'Keep an eye on your inventory count, total sales, and pending deliveries.',
+      lottieSource: require('../../assets/pulse.json'),
+    },
+    {
+      targetLayout: layouts.actions,
+      title: 'Quick Shortcuts',
+      description: 'Rapidly add new products, manage orders, or promote your store.',
+    },
+    {
+      targetLayout: layouts.chart,
+      title: 'Sales Tracking',
+      description: 'Visualize your store’s performance over various time periods.',
+    },
+  ].filter(s => !!s.targetLayout);
+
+  const handleOnboardingComplete = () => {
+    markCompleted('business_dashboard');
+  };
+
   const renderHeaderContent = () => (
     <>
-      <View style={styles.topBar}>
+      <View style={styles.topBar} ref={refTop} onLayout={() => measureElement(refTop, 'top')}>
         <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
         <View style={styles.topIcons}>
           <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
@@ -211,7 +271,13 @@ const BusinessDashboard = () => {
             </View>
 
             {/* --- FLOATING STATS --- */}
-            <View style={styles.floatingStatsContainer}>
+            <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
+              <LottieView 
+                source={require('../../assets/pulse.json')}
+                autoPlay 
+                loop 
+                style={styles.statsPulse}
+              />
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.totalProducts}</Text>
                 <Text style={styles.statLabel}>Products</Text>
@@ -229,7 +295,7 @@ const BusinessDashboard = () => {
             </View>
 
             {/* --- QUICK ACTIONS --- */}
-            <View style={styles.sectionContainer}>
+            <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
               <Text style={styles.sectionTitle}>Quick Actions</Text>
               <View style={styles.servicesGrid}>
                 {[
@@ -249,7 +315,7 @@ const BusinessDashboard = () => {
             </View>
 
             {/* --- PERFORMANCE CHART --- */}
-            <View style={styles.chartCard}>
+            <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
               <View style={styles.chartHeader}>
                 <View>
                   <Text style={styles.cardTitle}>Sales Performance</Text>
@@ -355,6 +421,12 @@ const BusinessDashboard = () => {
       </Modal>
 
       <BusinessBottomNav />
+
+      <SpotlightTour 
+        visible={isTourActive && activeScreen === 'business_dashboard'} 
+        steps={onboardingSteps}
+        onComplete={handleOnboardingComplete}
+      />
     </View>
   );
 };
@@ -384,8 +456,9 @@ const styles = StyleSheet.create({
   businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 4 },
   ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
-  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center' },
-  statItem: { alignItems: 'center', flex: 1 },
+  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
+  statsPulse: { position: 'absolute', top: -15, left: -15, width: 80, height: 80, opacity: 0.15 },
+  statItem: { alignItems: 'center', flex: 1, zIndex: 1 },
   statNumber: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
   statLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
   statDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
