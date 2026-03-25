@@ -441,9 +441,9 @@ export const businessRegister = async (businessData: any) => {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    if (response.data.token) await storage.setItem('businessToken', response.data.token);
+    if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
     if (response.data.business?._id) {
-      await storage.setItem('currentBusinessId', response.data.business._id);
+      await secureStorage.setItem('currentBusinessId', response.data.business._id);
     }
     return response.data;
   } catch (error: any) {
@@ -466,8 +466,8 @@ export const getMyBusinesses = async (params: { limit?: number; offset?: number 
 export const switchBusiness = async (businessId: string) => {
   try {
     const response = await api.post('/business/switch', { businessId });
-    if (response.data.token) await storage.setItem('businessToken', response.data.token);
-    await storage.setItem('currentBusinessId', businessId);
+    if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
+    await secureStorage.setItem('currentBusinessId', businessId);
     return response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to switch business');
@@ -893,9 +893,9 @@ export const loginBusiness = async (
     const response = await api.post('/business/login', {
       email, password, latitude, longitude,
     });
-    if (response.data.token) await storage.setItem('businessToken', response.data.token);
+    if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
     if (response.data.business) {
-      await storage.setItem('currentBusinessId', response.data.business._id);
+      await secureStorage.setItem('currentBusinessId', response.data.business._id);
       await storage.setItem('userRole', 'seller');
     }
     return response.data;

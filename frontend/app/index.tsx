@@ -7,7 +7,7 @@ import { Appearance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // import * as SecureStore from 'expo-secure-store'; // ⛔ temporarily disabled
 
-import { storage, getUserData } from '@/services/api';
+import { storage, getUserData, secureStorage } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -42,7 +42,7 @@ const IndexScreen = () => {
     // Perform auth check concurrently with animation wait
     const authCheckPromise = async () => {
       try {
-        const token = await storage.getItem('userToken');
+        const token = await secureStorage.getItem('userToken');
         if (!token) return '/getstarted';
 
         const user = await getUserData();
