@@ -96,19 +96,19 @@ const getUserFavorites = async (req, res, next) => {
             id: fav.id,
             productId: fav.product_id,
             addedAt: fav.created_at,
-            product: fav.products ? {
-                id: fav.products.id,
-                name: fav.products.name,
-                price: fav.products.price,
-                description: fav.products.description,
-                category: fav.products.category,
-                images: fav.products.product_images 
-                  ? fav.products.product_images.map(img => img.image_url)
+            product: fav.product ? {
+                id: fav.product.id,
+                name: fav.product.name,
+                price: fav.product.price,
+                description: fav.product.description,
+                category: fav.product.category,
+                images: fav.product.product_images 
+                  ? fav.product.product_images.map(img => img.image_url)
                   : [],
-                store: fav.products.stores ? {
-                    id: fav.products.store_id,
-                    name: fav.products.stores.store_name,
-                    logo: fav.products.stores.logo_url
+                store: fav.product.store ? {
+                    id: fav.product.store_id,
+                    name: fav.product.store.store_name,
+                    logo: fav.product.store.logo_url
                 } : null
             } : null
         }));

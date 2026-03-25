@@ -18,9 +18,9 @@ class FavoriteRepository extends BaseRepository {
         id,
         product_id,
         created_at,
-        products (
+        product:product_id (
           id,
-          name,
+          name:title,
           price,
           description,
           category,
@@ -29,7 +29,7 @@ class FavoriteRepository extends BaseRepository {
             image_url,
             is_primary
           ),
-          stores:store_id (
+          store:store_id (
             store_name,
             logo_url
           )
