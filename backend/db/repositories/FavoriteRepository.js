@@ -20,7 +20,7 @@ class FavoriteRepository extends BaseRepository {
         created_at,
         product:product_id (
           id,
-          name:title,
+          title,
           price,
           description,
           category,

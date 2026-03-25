@@ -98,7 +98,7 @@ const getUserFavorites = async (req, res, next) => {
             addedAt: fav.created_at,
             product: fav.product ? {
                 id: fav.product.id,
-                name: fav.product.name,
+                name: fav.product.title,
                 price: fav.product.price,
                 description: fav.product.description,
                 category: fav.product.category,
