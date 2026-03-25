@@ -5,6 +5,7 @@ import {
   markConversationRead,
   deleteConversation as apiDeleteConversation,
   storage,
+  secureStorage
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { usePathname, useGlobalSearchParams, useRouter } from 'expo-router';
@@ -82,7 +83,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchChats = async () => {
     try {
-      const token = await storage.getItem('userToken');
+      const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
       if (!token) return;
 
       let activeUserId = await storage.getItem('userId');
@@ -157,8 +158,18 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           };
         });
 
-        setBuyerChats(formatted);
-        setSellerChats(formatted);
+        const buyers = formatted.filter(c => {
+          const s = c.otherParticipant?.store;
+          return s && (s.id || s._id || s.store_name);
+        });
+        
+        const sellers = formatted.filter(c => {
+          const s = c.otherParticipant?.store;
+          return !s || !(s.id || s._id || s.store_name);
+        });
+
+        setBuyerChats(buyers);
+        setSellerChats(sellers);
       }
     } catch (error: any) {
       if (error.response?.status !== 401) {
@@ -174,7 +185,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const initSocket = async () => {
       try {
-        const token = await storage.getItem('userToken');
+        const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
         if (!token) return;
 
         await socketService.connect();

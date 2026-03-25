@@ -61,29 +61,6 @@ const Analytics = () => {
   const { data, isLoading, refetch, isRefetching } =
     useBusinessAnalytics(businessId || '', timeframe);
 
-  // ── END OF HOOKS ──────────────────────────────────────────────────────────
-
-  if (isChecking || !isVerified) {
-    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
-  }
-
-  // ── Safe data merge ────────────────────────────────────────────────────────
-  // We spread EMPTY_ANALYTICS first so any missing key from `data` falls back
-  // to a safe default rather than undefined.
-  const analytics = {
-    chart: {
-      labels:   data?.chart?.labels   ?? EMPTY_ANALYTICS.chart.labels,
-      datasets: data?.chart?.datasets ?? EMPTY_ANALYTICS.chart.datasets,
-    },
-    stats: {
-      revenue: data?.stats?.revenue ?? 0,
-      orders:  data?.stats?.orders  ?? 0,
-      growth:  data?.stats?.growth  ?? 0,
-    },
-    topProducts:          Array.isArray(data?.topProducts)          ? data.topProducts          : [],
-    categoryDistribution: Array.isArray(data?.categoryDistribution) ? data.categoryDistribution : [],
-  };
-
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -100,6 +77,21 @@ const Analytics = () => {
     }
   };
 
+  // ── Safe data merge ────────────────────────────────────────────────────────
+  const analytics = {
+    chart: {
+      labels:   data?.chart?.labels   ?? EMPTY_ANALYTICS.chart.labels,
+      datasets: data?.chart?.datasets ?? EMPTY_ANALYTICS.chart.datasets,
+    },
+    stats: {
+      revenue: data?.stats?.revenue   ?? 0,
+      orders:  data?.stats?.orders    ?? 0,
+      growth:  data?.stats?.growth    ?? 0,
+    },
+    topProducts:          Array.isArray(data?.topProducts)          ? data.topProducts          : [],
+    categoryDistribution: Array.isArray(data?.categoryDistribution) ? data.categoryDistribution : [],
+  };
+
   useEffect(() => {
     if (!isLoading && isVerified) {
       const timer = setTimeout(() => {
@@ -112,6 +104,12 @@ const Analytics = () => {
       return () => clearTimeout(timer);
     }
   }, [isLoading, isVerified, analytics.topProducts.length]);
+
+  // ── END OF HOOKS ──────────────────────────────────────────────────────────
+
+  if (isChecking || !isVerified) {
+    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
+  }
 
   const onboardingSteps = [
     {

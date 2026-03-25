@@ -108,7 +108,6 @@ export default function ChatInbox() {
   // ── Conversation row ─────────────────────────────────────────────────────────
   const renderItem = ({ item }: { item: any }) => {
     const unread = item.unread > 0;
-    const byMe = item.messages?.[item.messages.length - 1]?.sender === 'me';
     return (
       <TouchableOpacity
         style={[styles.row, unread && styles.rowUnread]}
@@ -141,7 +140,7 @@ export default function ChatInbox() {
           </View>
           <View style={styles.bottomRow}>
             <Text style={[styles.preview, unread && styles.previewUnread]} numberOfLines={1}>
-              {byMe ? 'You: ' : ''}{item.lastMessage}
+              {item.lastMessage}
             </Text>
             {unread
               ? <View style={styles.badge}>

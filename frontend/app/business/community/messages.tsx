@@ -19,7 +19,12 @@ const { height } = Dimensions.get('window');
 export default function MessagesScreen() {
   const router = useRouter();
   // Fetch only SELLER chats from Global Context
-  const { sellerConversations, markAsRead } = useChat();
+  const { sellerConversations, markAsRead, refresh } = useChat();
+ 
+  // Refresh when screen focuses 
+  React.useEffect(() => {
+    refresh && refresh();
+  }, []);
 
   // --- NEW: Search and Filter States ---
   const [searchQuery, setSearchQuery] = useState('');
@@ -76,7 +81,6 @@ export default function MessagesScreen() {
             style={[styles.message, item.unread > 0 && styles.messageBold]} 
             numberOfLines={1}
           >
-            {item.messages && item.messages[item.messages.length - 1]?.sender === 'me' ? 'You: ' : ''}
             {item.lastMessage}
           </Text>
           

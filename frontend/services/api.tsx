@@ -112,12 +112,11 @@ export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
- 
-// ─── Request interceptor: attach token ───────────────────────────────────────
+
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await secureStorage.getItem('userToken');
+      const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
       if (token) config.headers.Authorization = `Bearer ${token}`;
     } catch (error) {
       console.error('Error getting token from storage:', error);
@@ -272,9 +271,9 @@ export const registerUser = async (
       name, email, fullPhoneNumber, password,
     });
     if (response.data.token) {
-      await storage.setItem('userToken', response.data.token);
+      await secureStorage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) {
-        await storage.setItem('refreshToken', response.data.refreshToken);
+        await secureStorage.setItem('refreshToken', response.data.refreshToken);
       }
     }
     return response.data;
@@ -326,9 +325,9 @@ export const logoutUser = async () => {
     await Promise.all([
       secureStorage.removeItem('userToken'),
       secureStorage.removeItem('refreshToken'),
-      secureStorage.removeItem('userId'),
       secureStorage.removeItem('businessToken'),
-      secureStorage.removeItem('currentBusinessId'),
+      storage.removeItem('userId'),
+      storage.removeItem('currentBusinessId'),
       storage.removeItem('currentBusinessVerificationStatus'),
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
@@ -356,7 +355,7 @@ export const loginUser = async (
       try {
         const meResponse = await api.get('/auth/me');
         if (meResponse.data?.id) {
-          await secureStorage.setItem('userId', meResponse.data.id);
+          await storage.setItem('userId', meResponse.data.id);
         }
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
@@ -453,7 +452,7 @@ export const businessRegister = async (businessData: any) => {
 
     if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
     if (response.data.business?._id) {
-      await secureStorage.setItem('currentBusinessId', response.data.business._id);
+      await storage.setItem('currentBusinessId', response.data.business._id);
     }
     return response.data;
   } catch (error: any) {
@@ -477,7 +476,7 @@ export const switchBusiness = async (businessId: string) => {
   try {
     const response = await api.post('/business/switch', { businessId });
     if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
-    await secureStorage.setItem('currentBusinessId', businessId);
+    await storage.setItem('currentBusinessId', businessId);
     return response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to switch business');
@@ -521,7 +520,8 @@ export const verifyBusinessDetails = async (businessId: string, details: any) =>
     verificationStatus: 'pending',
   });
 };
-
+
+
 
 
 
@@ -903,9 +903,12 @@ export const loginBusiness = async (
     const response = await api.post('/business/login', {
       email, password, latitude, longitude,
     });
-    if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
+    if (response.data.token) {
+      await secureStorage.setItem('businessToken', response.data.token);
+      await secureStorage.setItem('userToken', response.data.token); // Synchronize for interceptor
+    }
     if (response.data.business) {
-      await secureStorage.setItem('currentBusinessId', response.data.business._id);
+      await storage.setItem('currentBusinessId', response.data.business._id);
       await storage.setItem('userRole', 'seller');
     }
     return response.data;

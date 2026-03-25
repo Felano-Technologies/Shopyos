@@ -31,14 +31,22 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const userData = await getUserData();
       if (userData?.onboarding_state) {
         setOnboardingState(userData.onboarding_state);
+        return userData.onboarding_state;
       }
     } catch (error) {
       console.warn('Failed to load onboarding state:', error);
     }
+    return null;
   };
 
-  const startTour = (screen: string) => {
-    if (!onboardingState[screen]) {
+  const startTour = async (screen: string) => {
+    let current = onboardingState;
+    if (Object.keys(current).length === 0) {
+      const fresh = await loadOnboardingState();
+      if (fresh) current = fresh;
+    }
+    
+    if (!current[screen]) {
       setActiveScreen(screen);
       setIsTourActive(true);
     }

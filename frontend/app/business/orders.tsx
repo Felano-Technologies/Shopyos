@@ -98,26 +98,8 @@ const OrdersScreen = () => {
   useEffect(() => {
     fetchOrders(true);
   }, [fetchOrders]);
-  // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
-  // Now safe to have conditional returns
-  if (isChecking || !isVerified) {
-    return (
-      <View style={S.centred}>
-        <ActivityIndicator size="large" color={C.navy} />
-      </View>
-    );
-  }
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchOrders(false);
-    setRefreshing(false);
-  };
-
-  const filtered = filter === 'All' ? orders : orders.filter((o) => o.status === filter);
-
-  // --- Onboarding ---
+  // --- Onboarding & Refs ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refRevenue = useRef<View>(null);
@@ -133,6 +115,14 @@ const OrdersScreen = () => {
     }
   };
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchOrders(false);
+    setRefreshing(false);
+  };
+
+  const filtered = filter === 'All' ? orders : orders.filter((o) => o.status === filter);
+
   useEffect(() => {
     if (!loading && isVerified) {
       const timer = setTimeout(() => {
@@ -145,6 +135,15 @@ const OrdersScreen = () => {
       return () => clearTimeout(timer);
     }
   }, [loading, isVerified, filtered.length]);
+  // ── END OF HOOKS ──────────────────────────────────────────────────────────
+
+  if (isChecking || !isVerified) {
+    return (
+      <View style={S.centred}>
+        <ActivityIndicator size="large" color={C.navy} />
+      </View>
+    );
+  }
 
   const onboardingSteps = [
     {
