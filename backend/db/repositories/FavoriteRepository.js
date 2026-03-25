@@ -16,26 +16,36 @@ class FavoriteRepository extends BaseRepository {
             .from(this.tableName)
             .select(`
         id,
+        user_id,
         product_id,
         created_at,
-        product:product_id (
+        product:product_id!inner (
           id,
           title,
           price,
           description,
           category,
           store_id,
+          is_active,
+          deleted_at,
           product_images (
             image_url,
             is_primary
           ),
-          store:store_id (
+          store:store_id!inner (
+            id,
             store_name,
-            logo_url
+            logo_url,
+            is_active,
+            is_verified
           )
         )
       `)
             .eq('user_id', userId)
+            .eq('product.is_active', true)
+            .is('product.deleted_at', null)
+            .eq('product.store.is_active', true)
+            .eq('product.store.is_verified', true)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
