@@ -13,7 +13,7 @@ import {
 import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage } from "@/services/api";
 
 export default function SecuritySettings() {
   const router = useRouter();
@@ -28,9 +28,9 @@ export default function SecuritySettings() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const tfa = await AsyncStorage.getItem("twoFactorEnabled");
-        const bio = await AsyncStorage.getItem("biometricEnabled");
-        const sec = await AsyncStorage.getItem("securityQuestionsEnabled");
+        const tfa = await storage.getItem("twoFactorEnabled");
+        const bio = await storage.getItem("biometricEnabled");
+        const sec = await storage.getItem("securityQuestionsEnabled");
 
         if (tfa !== null) setTwoFactorEnabled(JSON.parse(tfa));
         if (bio !== null) setBiometricEnabled(JSON.parse(bio));
@@ -45,7 +45,7 @@ export default function SecuritySettings() {
   // ─── Save to AsyncStorage ───
   const saveSetting = async (key: string, value: boolean) => {
     try {
-      await AsyncStorage.setItem(key, JSON.stringify(value));
+      await storage.setItem(key, JSON.stringify(value));
     } catch (error) {
       console.error(`Error saving ${key}:`, error);
     }

@@ -5,7 +5,6 @@
 
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { storage } from '../../services/api';
 import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE } from './taskNames';
 import { flushQueue } from './queue';
@@ -38,7 +37,7 @@ export const startDriverLocationTracking = async (
     const { status: bg } = await Location.getBackgroundPermissionsAsync();
     if (bg !== 'granted') return { success: false, message: 'Background permission not granted' };
 
-    await AsyncStorage.setItem('activeDeliveryId', deliveryId);
+    await storage.setItem('activeDeliveryId', deliveryId);
 
     await Location.startLocationUpdatesAsync(TASK_DRIVER_LOCATION, {
       accuracy: Location.Accuracy.Balanced,
@@ -67,7 +66,7 @@ export const stopDriverLocationTracking = async (): Promise<void> => {
       await Location.stopLocationUpdatesAsync(TASK_DRIVER_LOCATION);
       console.log('[TaskController] Driver location tracking stopped');
     }
-    await AsyncStorage.removeItem('activeDeliveryId');
+    await storage.removeItem('activeDeliveryId');
     await flushQueue();
   } catch (error) {
     console.error('[TaskController] Error stopping driver tracking:', error);

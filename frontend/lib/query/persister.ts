@@ -1,4 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '../../services/api';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 
@@ -9,20 +9,20 @@ export const asyncStoragePersister: Persister = {
   persistClient: async (client: PersistedClient) => {
     try {
       const sanitizedClient = sanitizeForStorage(client);
-      await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(sanitizedClient));
+      await storage.setItem(CACHE_KEY, JSON.stringify(sanitizedClient));
     } catch (error) {
       console.error('Failed to persist query cache:', error);
     }
   },
   restoreClient: async () => {
     try {
-      const cached = await AsyncStorage.getItem(CACHE_KEY);
+      const cached = await storage.getItem(CACHE_KEY);
       if (!cached) return undefined;
       
       const parsed = JSON.parse(cached) as PersistedClient;
       
       if (Date.now() - parsed.timestamp > CACHE_MAX_AGE) {
-        await AsyncStorage.removeItem(CACHE_KEY);
+        await storage.removeItem(CACHE_KEY);
         return undefined;
       }
       
@@ -34,7 +34,7 @@ export const asyncStoragePersister: Persister = {
   },
   removeClient: async () => {
     try {
-      await AsyncStorage.removeItem(CACHE_KEY);
+      await storage.removeItem(CACHE_KEY);
     } catch (error) {
       console.error('Failed to remove query cache:', error);
     }

@@ -54,10 +54,15 @@ class NotificationRepository extends BaseRepository {
   // --- Push Token Management ---
 
   async savePushToken(userId, token, deviceName = null) {
-    const { data: existing } = await this.db.from('expo_push_tokens').select('id').eq('token', token).single();
+    const { data: existing } = await this.db.from('expo_push_tokens').select('id, user_id').eq('token', token).single();
+    
     if (existing) {
-      // Just update last_used
-      await this.db.from('expo_push_tokens').update({ last_used_at: new Date() }).eq('token', token);
+      const updates = { last_used_at: new Date() };
+      // If the token is now belonging to a different user, update the association
+      if (existing.user_id !== userId) {
+        updates.user_id = userId;
+      }
+      await this.db.from('expo_push_tokens').update(updates).eq('token', token);
       return;
     }
 

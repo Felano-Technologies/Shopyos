@@ -32,7 +32,6 @@ class NotificationService {
    */
   async sendNotification(params) {
     const { userId, type, title, message, data, relatedId, relatedType } = params;
-    console.log(`🔔 [NotificationService] sendNotification called for user: ${userId}, type: ${type}`);
 
     try {
       // Create in-app notification

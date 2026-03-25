@@ -9,7 +9,6 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -111,13 +110,13 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const cached = await AsyncStorage.getItem('userName');
+        const cached = await storage.getItem('userName');
         if (cached) { setUserName(cached); return; }
         const user  = await getUserData();
         const name  = user?.name || user?.user?.name || '';
         const first = name.split(' ')[0];
         setUserName(first);
-        if (first) await AsyncStorage.setItem('userName', first);
+        if (first) await storage.setItem('userName', first);
       } catch {}
     })();
   }, []);

@@ -15,9 +15,7 @@ export const useDriverGuard = () => {
   
   const { data: profileData, isLoading } = useDriverProfile();
   
-  if (profileData) {
-    console.log('DEBUG [useDriverGuard] Raw ProfileData:', JSON.stringify(profileData, null, 2));
-  }
+
 
 
   useEffect(() => {

@@ -18,7 +18,6 @@ class ExpoPushService {
         try {
             // 1. Fetch user's push tokens from the DB
             const tokens = await repositories.notifications.getUserPushTokens(userId);
-            console.log(`📡 [ExpoPushService] Found ${tokens?.length || 0} tokens for user ${userId}`);
             
             if (!tokens || tokens.length === 0) {
                 return false;

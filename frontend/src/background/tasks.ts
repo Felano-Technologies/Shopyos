@@ -7,7 +7,7 @@ import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE, PROXIMITY_RADIUS_METERS } from './taskNames';
-import { updateDriverLocation } from '../../services/api';
+import { updateDriverLocation, storage, secureStorage } from '../../services/api';
 import { enqueueLocation } from './queue';
 
 // ─── Haversine distance helper (returns metres) ────────────────────────────────
@@ -39,8 +39,7 @@ TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   console.log('[BackgroundTask] Driver location update:', { latitude, longitude, timestamp: new Date().toISOString() });
 
   try {
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    const deliveryId = await AsyncStorage.getItem('activeDeliveryId');
+    const deliveryId = await secureStorage.getItem('activeDeliveryId');
     if (!deliveryId) {
       console.warn('[BackgroundTask] No active delivery ID found. Skipping location update.');
       return;
@@ -50,8 +49,7 @@ TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   } catch (err: any) {
     console.error('[BackgroundTask] Failed to send location, queuing for later:', err.message);
     try {
-      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-      const deliveryId = await AsyncStorage.getItem('activeDeliveryId');
+      const deliveryId = await secureStorage.getItem('activeDeliveryId');
       if (deliveryId) await enqueueLocation(latitude, longitude, deliveryId);
     } catch (queueError) {
       console.error('[BackgroundTask] Failed to queue location:', queueError);
@@ -80,7 +78,6 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
   if (!locations || locations.length === 0) return;
 
   const { latitude, longitude } = locations[locations.length - 1].coords;
-  const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 
   // 1. Reverse geocode + cache ─────────────────────────────────────────────────
   try {
@@ -88,7 +85,7 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
     if (place) {
       const { city, region, country } = place;
       const locationText = `${city ?? region ?? country ?? 'Unknown'}${country ? `, ${country}` : ''}`;
-      await AsyncStorage.setItem('CACHED_LOCATION_TEXT', locationText);
+      await storage.setItem('CACHED_LOCATION_TEXT', locationText);
       console.log('[GeofenceTask] Cached location text:', locationText);
     }
   } catch (geoErr) {
@@ -97,13 +94,13 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
 
   // 2. Update backend position ─────────────────────────────────────────────────
   try {
-    const userToken = await AsyncStorage.getItem('userToken');
+    const userToken = await secureStorage.getItem('userToken');
     if (userToken) {
       const axios = require('axios');
-      // Pull the base URL from AsyncStorage where the app stores it on boot,
+      // Pull the base URL from storage where the app stores it on boot,
       // falling back to the env variable.
       const baseUrl =
-        (await AsyncStorage.getItem('API_BASE_URL')) ||
+        (await storage.getItem('API_BASE_URL')) ||
         process.env.EXPO_PUBLIC_API_URL ||
         'https://shopyos-backend.onrender.com/api/v1';
       await axios.put(
@@ -119,7 +116,7 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
 
   // 3. Proximity check ──────────────────────────────────────────────────────────
   try {
-    const storeRaw = await AsyncStorage.getItem('CACHED_STORES');
+    const storeRaw = await storage.getItem('CACHED_STORES');
     if (!storeRaw) return;
 
     const stores: { id: string; store_name: string; latitude: number | string; longitude: number | string }[] =
@@ -136,7 +133,7 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
 
       // Per-store cooldown
       const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
-      const lastStr = await AsyncStorage.getItem(cooldownKey);
+      const lastStr = await storage.getItem(cooldownKey);
       if (lastStr && now - parseInt(lastStr, 10) < COOLDOWN_MS) continue;
 
       // Fire local notification
@@ -149,7 +146,7 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
         },
         trigger: null, // fire immediately
       });
-      await AsyncStorage.setItem(cooldownKey, now.toString());
+      await storage.setItem(cooldownKey, now.toString());
       console.log(`[GeofenceTask] Proximity alert → ${store.store_name} (${Math.round(dist)}m)`);
     }
   } catch (proximityErr) {

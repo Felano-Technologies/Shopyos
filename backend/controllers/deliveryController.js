@@ -150,8 +150,8 @@ const assignDriver = async (req, res, next) => {
     const order = await repositories.orders.findById(delivery.order_id);
     const driver = await repositories.users.findById(driverId);
 
-    // Notify customer that driver has been assigned
-    if (order && driver) {
+    // Notify customer that driver has been assigned (if driver is not the buyer)
+    if (order && driver && order.buyer_id !== driverId) {
       await notificationService.sendNotification({
         userId: order.buyer_id,
         type: 'delivery_assigned',
@@ -312,8 +312,8 @@ const updateDeliveryStatus = async (req, res, next) => {
     if (status === 'picked_up') {
       await repositories.orders.updateStatus(updatedDelivery.order_id, 'in_transit');
 
-      // Notify customer that order has been picked up
-      if (order && driver) {
+      // Notify customer that order has been picked up (if driver is not the buyer)
+      if (order && driver && order.buyer_id !== driverId) {
         await notificationService.sendNotification({
           userId: order.buyer_id,
           type: 'order_picked_up',
@@ -330,8 +330,8 @@ const updateDeliveryStatus = async (req, res, next) => {
         });
       }
     } else if (status === 'in_transit') {
-      // Notify customer that driver is on the way
-      if (order && driver) {
+      // Notify customer that driver is on the way (if driver is not the buyer)
+      if (order && driver && order.buyer_id !== driverId) {
         await notificationService.sendNotification({
           userId: order.buyer_id,
           type: 'delivery_in_transit',
@@ -350,8 +350,8 @@ const updateDeliveryStatus = async (req, res, next) => {
     } else if (status === 'delivered') {
       await repositories.orders.updateStatus(updatedDelivery.order_id, 'delivered');
 
-      // Notify customer that order has been delivered
-      if (order) {
+      // Notify customer that order has been delivered (if driver is not the buyer)
+      if (order && order.buyer_id !== driverId) {
         await notificationService.sendNotification({
           userId: order.buyer_id,
           type: 'order_delivered',
@@ -368,8 +368,8 @@ const updateDeliveryStatus = async (req, res, next) => {
         });
       }
     } else if (status === 'failed' || status === 'cancelled') {
-      // Notify customer of delivery issue
-      if (order) {
+      // Notify customer of delivery issue (if driver is not the buyer)
+      if (order && order.buyer_id !== driverId) {
         await notificationService.sendNotification({
           userId: order.buyer_id,
           type: 'delivery_issue',

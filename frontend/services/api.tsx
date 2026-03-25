@@ -1,4 +1,5 @@
 import axios from 'axios';
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -27,6 +28,21 @@ export const baseURL = getBaseURL();
 export const API_URL = `${baseURL}/api/v1/`;
 
 export const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (Platform.OS === 'web') return localStorage.getItem(key);
+    return await AsyncStorage.getItem(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (Platform.OS === 'web') localStorage.setItem(key, value);
+    else await AsyncStorage.setItem(key, value);
+  },
+  async removeItem(key: string): Promise<void> {
+    if (Platform.OS === 'web') localStorage.removeItem(key);
+    else await AsyncStorage.removeItem(key);
+  },
+};
+
+export const secureStorage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') return localStorage.getItem(key);
     return await SecureStore.getItemAsync(key);
@@ -306,13 +322,13 @@ export const logoutUser = async () => {
     console.error('Error calling logout API:', error);
   } finally {
     queryClient.clear();
-    await AsyncStorage.removeItem('SHOPYOS_QUERY_CACHE');
+    await storage.removeItem('SHOPYOS_QUERY_CACHE');
     await Promise.all([
-      storage.removeItem('userToken'),
-      storage.removeItem('refreshToken'),
-      storage.removeItem('userId'),
-      storage.removeItem('businessToken'),
-      storage.removeItem('currentBusinessId'),
+      secureStorage.removeItem('userToken'),
+      secureStorage.removeItem('refreshToken'),
+      secureStorage.removeItem('userId'),
+      secureStorage.removeItem('businessToken'),
+      secureStorage.removeItem('currentBusinessId'),
       storage.removeItem('currentBusinessVerificationStatus'),
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
@@ -333,14 +349,14 @@ export const loginUser = async (
     });
  
     if (response.data.token) {
-      await storage.setItem('userToken', response.data.token);
+      await secureStorage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) {
-        await storage.setItem('refreshToken', response.data.refreshToken);
+        await secureStorage.setItem('refreshToken', response.data.refreshToken);
       }
       try {
         const meResponse = await api.get('/auth/me');
         if (meResponse.data?.id) {
-          await storage.setItem('userId', meResponse.data.id);
+          await secureStorage.setItem('userId', meResponse.data.id);
         }
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);

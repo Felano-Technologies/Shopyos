@@ -16,10 +16,9 @@
 import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
-import { getUserData, getAllStores } from '@/services/api';
+import { getUserData, getAllStores, storage } from '@/services/api';
 import { useActiveDeliveries } from './useDelivery';
 import {
   ensureBackgroundTasksForUser,
@@ -67,12 +66,12 @@ async function runForegroundGeofenceCheck() {
       if (place) {
         const { city, region, country } = place;
         const text = `${city ?? region ?? country ?? 'Unknown'}${country ? `, ${country}` : ''}`;
-        await AsyncStorage.setItem('CACHED_LOCATION_TEXT', text);
+        await storage.setItem('CACHED_LOCATION_TEXT', text);
       }
     } catch { /* non-critical */ }
 
     // 2. Proximity check
-    const storeRaw = await AsyncStorage.getItem('CACHED_STORES');
+    const storeRaw = await storage.getItem('CACHED_STORES');
     if (!storeRaw) return;
     const stores: { id: string; store_name: string; latitude: number | string; longitude: number | string }[] =
       JSON.parse(storeRaw);
@@ -87,7 +86,7 @@ async function runForegroundGeofenceCheck() {
       if (dist > PROXIMITY_RADIUS_METERS) continue;
 
       const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
-      const last = await AsyncStorage.getItem(cooldownKey);
+      const last = await storage.getItem(cooldownKey);
       if (last && now - parseInt(last, 10) < COOLDOWN_MS) continue;
 
       await Notifications.scheduleNotificationAsync({
@@ -99,7 +98,7 @@ async function runForegroundGeofenceCheck() {
         },
         trigger: null,
       });
-      await AsyncStorage.setItem(cooldownKey, now.toString());
+      await storage.setItem(cooldownKey, now.toString());
       console.log(`[ForegroundGeofence] Proximity alert → ${store.store_name} (${Math.round(dist)}m)`);
     }
   } catch (err) {
@@ -142,7 +141,7 @@ export const useBackgroundTasks = () => {
           latitude: s.latitude,
           longitude: s.longitude,
         }));
-        await AsyncStorage.setItem('CACHED_STORES', JSON.stringify(slim));
+        await storage.setItem('CACHED_STORES', JSON.stringify(slim));
         console.log('[BackgroundTasks] Cached', slim.length, 'stores for proximity checks');
       } catch (err) {
         console.warn('[BackgroundTasks] Failed to cache stores:', err);

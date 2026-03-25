@@ -11,8 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CustomInAppToast } from "@/components/InAppToastHost";
+import { CustomInAppToast, storage } from "@/services/api";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from './context/CartContext';
@@ -82,7 +81,7 @@ export default function SearchScreen() {
 
   // ── Recent searches ────────────────────────────────────────────────────────
   useEffect(() => {
-    AsyncStorage.getItem(RECENT_KEY).then(raw => {
+    storage.getItem(RECENT_KEY).then(raw => {
       if (raw) setRecent(JSON.parse(raw));
     });
   }, []);
@@ -91,14 +90,14 @@ export default function SearchScreen() {
     if (!term.trim()) return;
     setRecent(prev => {
       const next = [term, ...prev.filter(r => r !== term)].slice(0, MAX_RECENT);
-      AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      storage.setItem(RECENT_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
 
   const clearRecent = useCallback(async () => {
     setRecent([]);
-    await AsyncStorage.removeItem(RECENT_KEY);
+    await storage.removeItem(RECENT_KEY);
   }, []);
 
   // ── Data ────────────────────────────────────────────────────────────────────

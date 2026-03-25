@@ -3,10 +3,10 @@
  * Stores location updates when offline and flushes them when connection is restored
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { updateDriverLocation } from '../../services/api';
+import { updateDriverLocation, storage } from '../../services/api';
 
 const QUEUE_KEY = 'LOCATION_QUEUE';
+const MAX_QUEUE_SIZE = 50;
 
 interface QueuedLocation {
   latitude: number;
@@ -33,8 +33,10 @@ export const enqueueLocation = async (
     };
 
     existingQueue.push(newPoint);
-    await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(existingQueue));
-    console.log('[LocationQueue] Queued location point. Queue size:', existingQueue.length);
+    
+    // Keep only the most recent points to avoid storage overflow
+    const trimmedQueue = existingQueue.slice(-MAX_QUEUE_SIZE);
+    await storage.setItem(QUEUE_KEY, JSON.stringify(trimmedQueue));
   } catch (error) {
     console.error('[LocationQueue] Failed to enqueue location:', error);
   }
@@ -45,7 +47,7 @@ export const enqueueLocation = async (
  */
 export const getQueue = async (): Promise<QueuedLocation[]> => {
   try {
-    const queueJson = await AsyncStorage.getItem(QUEUE_KEY);
+    const queueJson = await storage.getItem(QUEUE_KEY);
     return queueJson ? JSON.parse(queueJson) : [];
   } catch (error) {
     console.error('[LocationQueue] Failed to get queue:', error);
@@ -61,11 +63,9 @@ export const flushQueue = async (): Promise<void> => {
   try {
     const queue = await getQueue();
     if (queue.length === 0) {
-      console.log('[LocationQueue] No queued locations to flush');
       return;
     }
 
-    console.log('[LocationQueue] Flushing', queue.length, 'queued locations');
 
     // Send all queued locations
     const failedUpdates: QueuedLocation[] = [];
@@ -84,8 +84,7 @@ export const flushQueue = async (): Promise<void> => {
 
     // Keep failed updates in queue
     if (failedUpdates.length > 0) {
-      await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(failedUpdates));
-      console.log('[LocationQueue] Kept', failedUpdates.length, 'failed updates in queue');
+      await storage.setItem(QUEUE_KEY, JSON.stringify(failedUpdates));
     } else {
       await clearQueue();
     }
@@ -99,8 +98,7 @@ export const flushQueue = async (): Promise<void> => {
  */
 export const clearQueue = async (): Promise<void> => {
   try {
-    await AsyncStorage.removeItem(QUEUE_KEY);
-    console.log('[LocationQueue] Queue cleared');
+    await storage.removeItem(QUEUE_KEY);
   } catch (error) {
     console.error('[LocationQueue] Failed to clear queue:', error);
   }
