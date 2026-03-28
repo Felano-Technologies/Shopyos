@@ -31,7 +31,16 @@ const getTransporter = () => {
 };
 
 const generateAccessToken = (userId) => {
-  return jwt.sign({ id: userId, type: 'access' }, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+  return jwt.sign(
+    { 
+      sub: userId,              // ← Supabase reads this as auth.uid()
+      id: userId,               // ← keep this so your existing middleware still works
+      type: 'access',
+      role: 'authenticated'     // ← Supabase requires this
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
+  );
 };
 
 const createRefreshToken = async (userId, req, familyId = null) => {
