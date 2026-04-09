@@ -7,7 +7,7 @@ class CategoryController {
         this.repo = repositories.products;
     }
 
-    async getAll(req, res) {
+    getAll = async (req, res) => {
         try {
             // Fetch categories and product counts in parallel
             const [{ data: categories, error: catError }, { data: catCounts, error: rpcError }] = await Promise.all([
