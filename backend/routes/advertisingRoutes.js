@@ -20,6 +20,7 @@ const bannerCampaignController = require('../controllers/bannerCampaignControlle
 
 // Banner Ads (Banners vs Promoted Products)
 router.get('/banners/active', bannerCampaignController.getActiveBanners);
+router.get('/promoted', getPromotedProducts);
 
 // Protected routes
 router.use(protect);

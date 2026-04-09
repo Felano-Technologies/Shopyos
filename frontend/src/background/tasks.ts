@@ -39,7 +39,7 @@ TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   console.log('[BackgroundTask] Driver location update:', { latitude, longitude, timestamp: new Date().toISOString() });
 
   try {
-    const deliveryId = await secureStorage.getItem('activeDeliveryId');
+    const deliveryId = await storage.getItem('activeDeliveryId');
     if (!deliveryId) {
       console.warn('[BackgroundTask] No active delivery ID found. Skipping location update.');
       return;
@@ -49,7 +49,7 @@ TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   } catch (err: any) {
     console.error('[BackgroundTask] Failed to send location, queuing for later:', err.message);
     try {
-      const deliveryId = await secureStorage.getItem('activeDeliveryId');
+      const deliveryId = await storage.getItem('activeDeliveryId');
       if (deliveryId) await enqueueLocation(latitude, longitude, deliveryId);
     } catch (queueError) {
       console.error('[BackgroundTask] Failed to queue location:', queueError);

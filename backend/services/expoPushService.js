@@ -35,6 +35,8 @@ class ExpoPushService {
                 messages.push({
                     to: pushToken,
                     sound: 'default',
+                    priority: 'high',
+                    channelId: 'default',
                     title: payload.title,
                     body: payload.body,
                     data: payload.data, // This is where we pass notificationId, messageId, etc.

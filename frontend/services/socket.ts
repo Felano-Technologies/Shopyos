@@ -38,7 +38,7 @@ class SocketService {
 
     this.connectionPromise = new Promise(async (resolve, reject) => {
       try {
-        const token = await secureStorage.getItem('userToken');
+        const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
         
         if (!token) {
           console.error('❌ No authentication token found');
