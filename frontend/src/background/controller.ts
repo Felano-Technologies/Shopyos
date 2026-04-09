@@ -44,8 +44,8 @@ export const startDriverLocationTracking = async (
       distanceInterval: 100,
       timeInterval: 30_000,
       foregroundService: {
-        notificationTitle: 'Active Delivery',
-        notificationBody: 'Tracking your location for real-time delivery updates',
+        notificationTitle: 'Shopyos — Active Delivery',
+        notificationBody: 'Your live location is being shared with the customer for real-time tracking.',
         notificationColor: '#0C1559',
       },
       pausesUpdatesAutomatically: false,
@@ -108,8 +108,8 @@ export const startGeofenceTracking = async (): Promise<{ success: boolean; messa
       distanceInterval: 50,   // 50 m minimum movement before next update
       timeInterval: 60_000,   // 60 s maximum interval
       foregroundService: {
-        notificationTitle: 'Shopyos',
-        notificationBody: 'Finding nearby stores for you…',
+        notificationTitle: 'Shopyos — Nearby Stores',
+        notificationBody: 'Checking for stores near you to send relevant notifications.',
         notificationColor: '#84cc16',
       },
       showsBackgroundLocationIndicator: false,

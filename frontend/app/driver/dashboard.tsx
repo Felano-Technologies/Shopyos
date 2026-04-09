@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -17,9 +17,18 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getUserData, CustomInAppToast, updateDriverAvailability } from '@/services/api';
+import * as Location from 'expo-location';
+import { getUserData, CustomInAppToast, updateDriverAvailability, storage } from '@/services/api';
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 import { useDriverGuard } from '@/hooks/useDriverGuard';
+import LocationDisclosure from '@/components/ui/LocationDisclosure';
+import {
+  startDriverLocationTracking,
+  stopDriverLocationTracking,
+  requestLocationPermissions,
+  setLocationSharingPreference,
+  getLocationSharingPreference,
+} from '@/src/background/controller';
 
 const { width } = Dimensions.get('window');
 
@@ -29,6 +38,8 @@ export default function Dashboard() {
   const [profile, setProfile] = useState<any>(initialProfile);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isOnline, setIsOnline] = useState(false);
+  const [showDisclosure, setShowDisclosure] = useState(false);
+  const [locationGranted, setLocationGranted] = useState(false);
   const [user, setUser] = useState<any>(null);
 
   // Verification flags
@@ -97,35 +108,93 @@ export default function Dashboard() {
     }).catch(console.error);
   }, []);
 
-  // Toggle Online Status
-  const toggleOnline = async () => {
-    if (isChecking) return;
-    
-    if (!isVerified) {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Restricted Access', 
-        message: 'You must be verified before you can go online. It will be done soon.' 
+  // Check location permission status on mount
+  useEffect(() => {
+    (async () => {
+      const { status: bg } = await Location.getBackgroundPermissionsAsync();
+      setLocationGranted(bg === 'granted');
+    })();
+  }, []);
+
+  // Handle disclosure accept — request actual system permissions
+  const handleDisclosureAccept = useCallback(async () => {
+    setShowDisclosure(false);
+    const perms = await requestLocationPermissions();
+    setLocationGranted(perms.background);
+    if (perms.background) {
+      await setLocationSharingPreference(true);
+      // Now proceed with going online
+      await goOnline();
+    } else {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Permission Denied',
+        message: 'Background location is required for delivery tracking. You can enable it in Settings.',
       });
-      return;
     }
-    
-    const newStatus = !isOnline;
+  }, []);
+
+  // The actual go-online logic (extracted so disclosure flow can call it)
+  const goOnline = async () => {
     try {
-      await updateDriverAvailability(newStatus);
-      setIsOnline(newStatus);
+      await updateDriverAvailability(true);
+      setIsOnline(true);
       CustomInAppToast.show({
         type: 'success',
-        title: newStatus ? 'You are Online' : 'You are Offline',
-        message: newStatus ? 'You will now see delivery requests' : 'You will not receive new requests'
+        title: 'You are Online',
+        message: 'You will now see delivery requests',
       });
     } catch (error: any) {
       CustomInAppToast.show({
         type: 'error',
         title: 'Update Failed',
-        message: error.message || 'Could not update your status'
+        message: error.message || 'Could not update your status',
       });
     }
+  };
+
+  // Toggle Online Status
+  const toggleOnline = async () => {
+    if (isChecking) return;
+
+    if (!isVerified) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Restricted Access',
+        message: 'You must be verified before you can go online. It will be done soon.',
+      });
+      return;
+    }
+
+    // Going offline
+    if (isOnline) {
+      try {
+        await updateDriverAvailability(false);
+        setIsOnline(false);
+        await stopDriverLocationTracking();
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'You are Offline',
+          message: 'You will not receive new requests',
+        });
+      } catch (error: any) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Update Failed',
+          message: error.message || 'Could not update your status',
+        });
+      }
+      return;
+    }
+
+    // Going online — check background location first
+    if (!locationGranted) {
+      // Show disclosure modal before requesting system permission
+      setShowDisclosure(true);
+      return;
+    }
+
+    await goOnline();
   };
 
 
@@ -343,6 +412,14 @@ export default function Dashboard() {
           </View>
         )}
       </View>
+
+      {/* Prominent Location Disclosure — required by Google / Apple */}
+      <LocationDisclosure
+        visible={showDisclosure}
+        onAccept={handleDisclosureAccept}
+        onDecline={() => setShowDisclosure(false)}
+        context="driver"
+      />
     </View>
   );
 }

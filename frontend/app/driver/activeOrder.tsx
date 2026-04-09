@@ -16,6 +16,11 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
 import { Linking, Platform } from 'react-native';
 import { getUserData, startConversation, CustomInAppToast } from '@/services/api';
+import {
+  startDriverLocationTracking,
+  stopDriverLocationTracking,
+  isTrackingLocation,
+} from '@/src/background/controller';
 
 const { width, height } = Dimensions.get('window');
 
@@ -45,6 +50,31 @@ export default function ActiveOrderScreen() {
       }
     }
   }, [delivery?.status]);
+
+  // Start background location tracking when this screen mounts
+  useEffect(() => {
+    if (!deliveryId) return;
+
+    const startTracking = async () => {
+      const alreadyTracking = await isTrackingLocation();
+      if (!alreadyTracking) {
+        const result = await startDriverLocationTracking(deliveryId);
+        if (result.success) {
+          console.log('[ActiveOrder] Background location tracking started for delivery:', deliveryId);
+        } else {
+          console.warn('[ActiveOrder] Could not start background tracking:', result.message);
+        }
+      }
+    };
+
+    startTracking();
+
+    // Cleanup: stop tracking only if navigating away without completing
+    // (completion is handled separately in handleProgress)
+    return () => {
+      // Don't stop here — let the dashboard or delivery completion handle it
+    };
+  }, [deliveryId]);
 
   const handleCall = (phoneNumber: string) => {
     if (!phoneNumber) {
@@ -86,6 +116,8 @@ export default function ActiveOrderScreen() {
         setStep(3);
       } else if (step === 3) {
         await updateStatusMutation.mutateAsync({ deliveryId, status: 'delivered' });
+        // Stop background tracking when delivery is completed
+        await stopDriverLocationTracking();
         CustomInAppToast.show({ 
           type: 'success', 
           title: 'Order Completed', 
