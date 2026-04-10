@@ -14,7 +14,7 @@ import {
     ImageBackground
 } from 'react-native';
 import { router } from 'expo-router';
-import { storage, logoutUser } from '@/services/api';
+import { storage, secureStorage, logoutUser } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -175,13 +175,21 @@ const BusinessDashboard = () => {
 
   // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
-    if (!loading && !isLoadingBusinesses && !isRefetchingBusinesses) {
-      if (!selectedBusiness) {
-        setShowNoBusinessModal(true);
-      } else {
-        setShowNoBusinessModal(false);
+    const checkAuthAndShowModal = async () => {
+      if (!loading && !isLoadingBusinesses && !isRefetchingBusinesses) {
+        // Only show the modal if we are actually logged in
+        const token = await secureStorage.getItem('userToken');
+        if (!token) return;
+
+        if (!selectedBusiness) {
+          setShowNoBusinessModal(true);
+        } else {
+          setShowNoBusinessModal(false);
+        }
       }
-    }
+    };
+    
+    checkAuthAndShowModal();
   }, [loading, selectedBusiness, isLoadingBusinesses, isRefetchingBusinesses]);
 
 

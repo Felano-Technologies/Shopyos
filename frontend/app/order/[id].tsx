@@ -452,7 +452,7 @@ const OrderDetailsScreen = () => {
         {order.status.toLowerCase() === 'delivered' && (
           <TouchableOpacity
             style={S.reviewBtn}
-            onPress={() => router.push(`/order/review/${order.id}` as any)}
+            onPress={() => router.push(`/review/${order.id}` as any)}
             activeOpacity={0.88}
           >
             <LinearGradient colors={[C.navy, C.navyMid]} style={S.reviewBtnGrad}>

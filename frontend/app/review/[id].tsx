@@ -17,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getOrderDetails, createProductReview, createStoreReview, createDriverReview } from '@/services/api';
+import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
 
 const { width } = Dimensions.get('window');
 
@@ -36,28 +37,33 @@ const ReviewScreen = () => {
     const [driverRating, setDriverRating] = useState(0);
     const [driverComment, setDriverComment] = useState('');
 
-    const fetchOrder = async () => {
+    const fetchOrderData = async () => {
         try {
-            const data = await getOrderDetails(id as string);
-            if (data && data.order_items) {
-                setOrder(data);
-                // Initialize ratings
+            const res = await getOrderDetails(id as string);
+            const orderData = res.order || res;
+            
+            if (orderData && orderData.order_items) {
+                setOrder(orderData);
                 const ratings: { [key: string]: number } = {};
-                data.order_items.forEach((item: any) => {
+                orderData.order_items.forEach((item: any) => {
                     ratings[item.product_id] = 5;
                 });
                 setProductRatings(ratings);
+            } else {
+                Alert.alert('Error', 'Order not found');
+                router.back();
             }
         } catch (e) {
             console.error(e);
-            Alert.alert('Error', 'Failed to load order');
+            Alert.alert('Error', 'Failed to load order details');
+            router.back();
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (id) fetchOrder();
+        if (id) fetchOrderData();
     }, [id]);
 
     const handleSubmit = async () => {
@@ -123,13 +129,7 @@ const ReviewScreen = () => {
         </View>
     );
 
-    if (loading) {
-        return (
-            <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#0C1559" />
-            </View>
-        );
-    }
+    if (loading) return <ReviewSkeleton />;
 
     const delivery = order?.deliveries?.[0];
     const driver = delivery?.driver;
@@ -143,7 +143,7 @@ const ReviewScreen = () => {
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                             <Ionicons name="close" size={24} color="#FFF" />
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Review & Rate</Text>
+                        <Text style={styles.headerTitle}>Order Review</Text>
                         <View style={{ width: 40 }} />
                     </View>
                 </SafeAreaView>
@@ -179,28 +179,30 @@ const ReviewScreen = () => {
                 )}
 
                 {/* Store Review */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Store Experience</Text>
-                    <View style={styles.card}>
-                        <View style={styles.entityHeader}>
-                            <View style={styles.iconCircle}>
-                                <MaterialCommunityIcons name="store" size={24} color="#0C1559" />
+                {order?.store && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>Store Experience</Text>
+                        <View style={styles.card}>
+                            <View style={styles.entityHeader}>
+                                <View style={styles.iconCircle}>
+                                    <MaterialCommunityIcons name="store" size={24} color="#0C1559" />
+                                </View>
+                                <View style={styles.headerInfo}>
+                                    <Text style={styles.entityName}>{order?.store?.store_name}</Text>
+                                    <Text style={styles.entitySub}>Service & Quality</Text>
+                                </View>
                             </View>
-                            <View style={styles.headerInfo}>
-                                <Text style={styles.entityName}>{order?.store?.store_name}</Text>
-                                <Text style={styles.entitySub}>Service & Quality</Text>
-                            </View>
+                            <StarRating rating={storeRating} onRate={setStoreRating} />
+                            <TextInput
+                                style={styles.commentInput}
+                                placeholder="Share your thoughts on the store..."
+                                multiline
+                                value={storeComment}
+                                onChangeText={setStoreComment}
+                            />
                         </View>
-                        <StarRating rating={storeRating} onRate={setStoreRating} />
-                        <TextInput
-                            style={styles.commentInput}
-                            placeholder="Share your thoughts on the store..."
-                            multiline
-                            value={storeComment}
-                            onChangeText={setStoreComment}
-                        />
                     </View>
-                </View>
+                )}
 
                 {/* Product Reviews */}
                 <View style={styles.section}>

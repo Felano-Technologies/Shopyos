@@ -224,8 +224,8 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         try {
-          await storage.removeItem('userToken');
-          await storage.removeItem('refreshToken');
+          await secureStorage.removeItem('userToken');
+          await secureStorage.removeItem('refreshToken');
           await storage.removeItem('userId');
         } catch (_) {}
         return Promise.reject(refreshError);
@@ -236,18 +236,21 @@ api.interceptors.response.use(
     // ── Non-expiry 401: clear storage ─────────────────────────────────────────
     if (error.response?.status === 401 && !originalRequest._retry) {
       try {
+        // Check if token existed before clearing — helps prevent double redirects during manual logout
+        const existingToken = await secureStorage.getItem('userToken');
+        
         await secureStorage.removeItem('userToken');
         await secureStorage.removeItem('refreshToken');
-        await secureStorage.removeItem('userId');
+        await storage.removeItem('userId');
 
-        // Force redirect to login screen on auth failure
-        try {
-          const { router } = require('expo-router');
-          if (router) {
-            router.replace('/login');
-          }
-        } catch (e) {
-          // ignore if called outside react lifecycle
+        // Only force redirect if we haven't already cleared the session manually
+        if (existingToken) {
+          try {
+            const { router } = require('expo-router');
+            if (router) {
+              router.replace('/login');
+            }
+          } catch (e) {}
         }
       } catch (storageError) {
         console.error('Error clearing tokens:', storageError);
@@ -1265,7 +1268,7 @@ export const getDriverStats = async (
  
 export const createProductReview = async (reviewData: {
   productId: string;
-  orderId: string;
+  orderId?: string;
   rating: number;
   reviewText?: string;
 }) => {

@@ -274,7 +274,7 @@ export default function ProductDetails() {
                         <View style={styles.reviewsSection}>
                             <View style={styles.sectionHeaderRow}>
                                 <Text style={styles.sectionTitle}>Community Reviews</Text>
-                                <TouchableOpacity onPress={() => router.push(`/review/${product.id}` as any)}>
+                                <TouchableOpacity onPress={() => router.push(`/review/product/${product.id}` as any)}>
                                     <Text style={styles.writeReviewText}>Write a Review</Text>
                                 </TouchableOpacity>
                             </View>
