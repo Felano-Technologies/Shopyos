@@ -1693,3 +1693,18 @@ export const verifyBannerPayment = async (reference: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+export const searchStores = async (params: {
+  search?: string;
+  category?: string;
+  limit?: number;
+  offset?: number;
+  sortBy?: string;
+}) => {
+  try {
+    const response = await api.get('/business/all', { params });
+    // Normalize response: getAllBusinesses returns { success: true, data: [...], pagination: {...} }
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

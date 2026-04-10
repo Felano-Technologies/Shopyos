@@ -135,3 +135,15 @@ export const useReplyToReview = () => {
     },
   });
 };
+export const useStoreSearch = (query: string, limit = 10) => {
+  return useQuery({
+    queryKey: ['stores', 'search', query],
+    queryFn: async () => {
+      const response = await ApiService.searchStores({ search: query, limit });
+      return response;
+    },
+    enabled: query.length >= 2,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+  });
+};

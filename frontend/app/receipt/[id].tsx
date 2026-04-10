@@ -109,7 +109,6 @@ export default function ReceiptScreen() {
     const m = (payment?.payment_method ?? '').toLowerCase();
     if (m.includes('mobile') || m.includes('momo')) return 'Mobile Money';
     if (m.includes('card'))  return 'Bank Card';
-    if (m.includes('cash'))  return 'Cash on Delivery';
     return payment?.payment_method ?? 'MoMo / Card';
   })();
 

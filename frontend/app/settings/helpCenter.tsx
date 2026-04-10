@@ -46,7 +46,7 @@ const FAQS = [
     id: '4',
     category: 'Payments',
     question: 'What payment methods do you accept?',
-    answer: 'We accept Mobile Money (MTN, Vodafone, AirtelTigo) and Visa/Mastercard debit cards. Cash on delivery is available for select verified users.'
+    answer: 'We accept Mobile Money (MTN, Vodafone, AirtelTigo) and Visa/Mastercard debit cards.'
   },
   {
     id: '5',

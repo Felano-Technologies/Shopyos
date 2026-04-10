@@ -111,7 +111,6 @@ const createOrder = async (req, res, next) => {
       // Map payment method to DB enum
       let dbPaymentMethod = 'card';
       if (paymentMethod === 'momo') dbPaymentMethod = 'mobile_money';
-      else if (paymentMethod === 'cod') dbPaymentMethod = 'bank_transfer'; // Placeholder for COD until enum is updated
 
       const order = await repositories.orders.createOrderWithItems(orderData, orderItems, dbPaymentMethod);
 

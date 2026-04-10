@@ -31,14 +31,28 @@ const C = {
 
 // ─── Icon config per notification type ────────────────────────────────────────
 const TYPE_CFG: Record<string, { icon: any; color: string; bg: string }> = {
-  order:   { icon: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF' },
-  payment: { icon: 'credit-card',    color: '#059669', bg: '#ECFDF5' },
-  alert:   { icon: 'alert-triangle', color: '#D97706', bg: '#FFFBEB' },
-  success: { icon: 'check-circle',   color: '#059669', bg: '#ECFDF5' },
-  promo:   { icon: 'tag',            color: '#7C3AED', bg: '#F5F3FF' },
-  info:    { icon: 'info',           color: C.muted,   bg: '#F8FAFC' },
+  order:     { icon: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF' },
+  message:   { icon: 'mail',           color: '#8B5CF6', bg: '#F5F3FF' },
+  payment:   { icon: 'credit-card',    color: '#10B981', bg: '#ECFDF5' },
+  review:    { icon: 'star',           color: '#F59E0B', bg: '#FFFBEB' },
+  promotion: { icon: 'award',          color: '#EC4899', bg: '#FDF2F8' },
+  stock:     { icon: 'alert-triangle', color: '#EF4444', bg: '#FEF2F2' },
+  info:      { icon: 'info',           color: C.muted,   bg: '#F8FAFC' },
 };
-const getTypeCfg = (type: string) => TYPE_CFG[type?.toLowerCase()] ?? TYPE_CFG.info;
+
+const getTypeCfg = (type: string) => {
+  const t = type?.toLowerCase() || '';
+  if (t.startsWith('order') || t.includes('purchase')) return TYPE_CFG.order;
+  if (t.startsWith('message') || t.includes('chat'))   return TYPE_CFG.message;
+  if (t.startsWith('new_message'))                     return TYPE_CFG.message;
+  if (t.startsWith('payment'))                         return TYPE_CFG.payment;
+  if (t.startsWith('review'))                          return TYPE_CFG.review;
+  if (t.startsWith('promotion'))                       return TYPE_CFG.promotion;
+  if (t.startsWith('low_stock') || t.includes('alert')) return TYPE_CFG.stock;
+  if (t.startsWith('delivery'))                        return TYPE_CFG.order;
+  
+  return TYPE_CFG[t] ?? TYPE_CFG.info;
+};
 
 // ─── Safe date label ──────────────────────────────────────────────────────────
 function dateLabel(value: any): string {
@@ -77,7 +91,7 @@ const NotificationScreen = () => {
   const markOneMutation = useMarkNotificationRead();
 
   const rawNotifications: any[] = data?.notifications ?? [];
-  const unreadCount = rawNotifications.filter((n) => !n.read).length;
+  const unreadCount = rawNotifications.filter((n) => !n.is_read).length;
   const groups      = groupNotifications(rawNotifications);
 
   // Optimistic local read state
@@ -98,7 +112,7 @@ const NotificationScreen = () => {
     catch (e) { console.error('Mark one read failed', e); }
   };
 
-  const isRead = (n: any) => n.read || readIds.has(n.id);
+  const isRead = (n: any) => n.is_read || readIds.has(n.id);
 
   // ── Render: REFINED NOTIFICATION CARD ───────────────────────────────────────
   const renderItem = useCallback(({ item }: { item: any }) => {

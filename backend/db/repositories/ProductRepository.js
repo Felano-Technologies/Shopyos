@@ -115,7 +115,7 @@ class ProductRepository extends BaseRepository {
       const searchTerms = query.trim().split(/\s+/).filter(Boolean);
       for (const term of searchTerms) {
         const pattern = `%${term}%`;
-        dbQuery = dbQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern}`);
+        dbQuery = dbQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
       }
     }
 
@@ -144,7 +144,7 @@ class ProductRepository extends BaseRepository {
     // Get total count for pagination metadata
     let countQuery = this.db
       .from(this.tableName)
-      .select('id', { count: 'exact', head: true })
+      .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
       .eq('is_active', true)
       .is('deleted_at', null)
       .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
@@ -153,7 +153,7 @@ class ProductRepository extends BaseRepository {
       const searchTerms = query.trim().split(/\s+/).filter(Boolean);
       for (const term of searchTerms) {
         const pattern = `%${term}%`;
-        countQuery = countQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern}`);
+        countQuery = countQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
       }
     }
     if (category) countQuery = countQuery.eq('category', category);

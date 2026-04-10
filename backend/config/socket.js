@@ -88,6 +88,20 @@ function initializeSocket(httpServer) {
   io.on('connection', (socket) => {
     logger.info(`Client connected: user=${socket.userId}, socket=${socket.id}`);
 
+    // Join user-specific room for notifications
+    socket.join(`user:${socket.userId}`);
+
+    // Listen for room joining requests (e.g., for specific conversations)
+    socket.on('room:join', (room) => {
+      socket.join(room);
+      logger.debug(`User ${socket.userId} joined room ${room}`);
+    });
+
+    socket.on('room:leave', (room) => {
+      socket.leave(room);
+      logger.debug(`User ${socket.userId} left room ${room}`);
+    });
+
     socket.on('disconnect', (reason) => {
       logger.info(`Client disconnected: user=${socket.userId}, socket=${socket.id}, reason=${reason}`);
     });

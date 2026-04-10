@@ -33,7 +33,7 @@ export default function CheckoutScreen() {
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const [paymentMethodType, setPaymentMethodType] = useState<'momo' | 'card' | 'cod'>('momo');
+  const [paymentMethodType, setPaymentMethodType] = useState<'momo' | 'card'>('momo');
   const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
   const [savedMethods, setSavedMethods] = useState<any[]>([]);
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -102,14 +102,7 @@ export default function CheckoutScreen() {
         clearCart();
         await clearBackendCart().catch(() => {});
         const orderId = res.orders[0].id;
-
-        if (paymentMethodType === 'cod') {
-          Alert.alert('Order Placed!', `Order #: ${res.orders[0].order_number}`, [
-            { text: 'OK', onPress: () => router.replace(`/order/${orderId}` as any) },
-          ]);
-        } else {
-          router.replace({ pathname: `/payment/${orderId}`, params: { method: paymentMethodType, methodId: selectedMethodId } } as any);
-        }
+        router.replace({ pathname: `/payment/${orderId}`, params: { method: paymentMethodType, methodId: selectedMethodId } } as any);
       }
     } catch (e: any) {
       CustomInAppToast.show({ type: 'error', title: 'Order Failed', message: e.message || 'Please try again.' });
@@ -118,7 +111,7 @@ export default function CheckoutScreen() {
     }
   };
 
-  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card' | 'cod'; icon: any; label: string; sub: string }) => {
+  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card'; icon: any; label: string; sub: string }) => {
     const isSelected = paymentMethodType === type;
     const filteredSaved = savedMethods.filter((m) => m.type === type);
 
@@ -277,7 +270,6 @@ export default function CheckoutScreen() {
             <Text style={S.sectionTitle}>Payment Method</Text>
             <PaymentOption type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money" />
             <PaymentOption type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX" />
-            <PaymentOption type="cod" icon="cash-multiple" label="Cash on Delivery" sub="Pay when you receive" />
 
             {/* Place Order */}
             <TouchableOpacity

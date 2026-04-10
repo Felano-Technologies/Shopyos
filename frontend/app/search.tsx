@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { CustomInAppToast, storage } from "@/services/api";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
+import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from './context/CartContext';
 import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
@@ -163,11 +164,14 @@ export default function SearchScreen() {
   const isActive = query.length >= 2;
   const { data: allData,    isLoading: loadingAll    } = useProducts(filters, 50);
   const { data: searchData, isLoading: loadingSearch } = useProductSearch(query, filters, 50);
+  const { data: storeSearchData, isLoading: loadingStores } = useStoreSearch(query, 10);
 
   const loading  = isActive ? loadingSearch : loadingAll;
   const products = isActive
     ? (searchData?.success ? searchData.products  : [])
     : (allData?.success    ? allData.products     : []);
+  
+  const stores = isActive && storeSearchData?.success ? storeSearchData.data : [];
 
   // Cross-fade on data / view change
   useEffect(() => {
@@ -225,6 +229,50 @@ export default function SearchScreen() {
   // ── Header title ────────────────────────────────────────────────────────────
   const headingTop    = isActive ? 'Results for' : 'Discover';
   const headingBottom = isActive ? `"${query}"` : 'Find your match';
+
+  // ── Render: stores ──────────────────────────────────────────────────────────
+  const renderStores = () => {
+    if (!stores || stores.length === 0) return null;
+    return (
+      <View style={styles.storesSection}>
+        <View style={styles.storesHeader}>
+          <Text style={styles.storesTitle}>Sellers</Text>
+          <Text style={styles.storesCount}>
+            {stores.length} found
+          </Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.storeList}
+        >
+          {stores.map((store: any) => (
+            <TouchableOpacity
+              key={store.id}
+              style={styles.storeCard}
+              onPress={() => router.push({
+                pathname: `/stores/details`,
+                params: { id: store.id, name: store.name, logo: store.logo }
+              } as any)}
+            >
+              <View style={styles.storeLogoWrap}>
+                <Image
+                  source={{ uri: store.logo || 'https://via.placeholder.com/60' }}
+                  style={styles.storeLogo}
+                />
+                {store.verified && (
+                  <View style={styles.verifiedBadgeSmall}>
+                    <Ionicons name="checkmark-circle" size={10} color={C.lime} />
+                  </View>
+                )}
+              </View>
+              <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    );
+  };
 
   // ── Render: grid card ───────────────────────────────────────────────────────
   const renderGrid = ({ item }: { item: any }) => (
@@ -666,6 +714,7 @@ export default function SearchScreen() {
                       showsVerticalScrollIndicator={false}
                       keyboardShouldPersistTaps="handled"
                       renderItem={renderGrid}
+                      ListHeaderComponent={renderStores}
                       ListEmptyComponent={renderEmpty}
                     />
                   ) : (
@@ -676,6 +725,7 @@ export default function SearchScreen() {
                       showsVerticalScrollIndicator={false}
                       keyboardShouldPersistTaps="handled"
                       renderItem={renderList}
+                      ListHeaderComponent={renderStores}
                       ListEmptyComponent={renderEmpty}
                     />
                   )}
@@ -997,6 +1047,52 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+  },
+
+  // Stores section
+  storesSection: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)', marginBottom: 8 },
+  storesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  storesTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C2.navy, textTransform: 'uppercase', letterSpacing: 0.5 },
+  storesCount: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C2.subtle },
+  storeList: { paddingLeft: 16, paddingRight: 16, gap: 16, flexDirection: 'row' },
+  storeCard: {
+    width: 68,
+    alignItems: 'center',
+    gap: 8,
+  },
+  storeLogoWrap: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#fff',
+    padding: 0,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    position: 'relative',
+  },
+  storeLogo: { width: '100%', height: '100%', borderRadius: 28 },
+  storeName: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C2.body, textAlign: 'center' },
+  verifiedBadgeSmall: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 1,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
 
   // ── Featured card (list top result) ───────────────────────────────────────
