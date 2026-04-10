@@ -1307,6 +1307,15 @@ export const createDriverReview = async (reviewData: {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export const getReviewableProducts = async () => {
+  try {
+    const response = await api.get('/reviews/reviewable-products');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
  
 export const getProductReviews = async (
   productId: string,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
-  TextInput, ScrollView, Platform,
+  TextInput, ScrollView, Platform, Image
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -71,6 +71,8 @@ interface Order {
   status: string;
   itemsCount: number;
   storeName: string;
+  storeLogo?: string;
+  storeCategory?: string;
 }
 
 const OrdersScreen = () => {
@@ -98,15 +100,21 @@ const OrdersScreen = () => {
   const totalPages: number = pagination?.totalPages ?? 1;
   const totalItems: number = pagination?.totalItems ?? rawOrders.length;
 
-  const orders: Order[] = rawOrders.map((o: any) => ({
-    id:          o.id,
-    orderNumber: o.order_number,
-    totalAmount: o.total_amount ? parseFloat(o.total_amount) : 0,
-    date:        o.created_at,
-    status:      o.status ?? 'unknown',
-    itemsCount:  o.order_items?.length ?? 0,
-    storeName:   o.store?.store_name ?? 'Shopyos Store',
-  }));
+  const orders: Order[] = rawOrders.map((o: any) => {
+    const orderObj = {
+      id:          o.id,
+      orderNumber: o.order_number,
+      totalAmount: o.total_amount ? parseFloat(o.total_amount) : 0,
+      date:        o.created_at,
+      status:      o.status ?? 'unknown',
+      itemsCount:  o.order_items?.length ?? 0,
+      storeName:   o.store?.store_name ?? 'Shopyos Store',
+      storeLogo:   o.store?.logo || o.store?.logo_url,
+      storeCategory: o.store?.store_category || o.store?.category || 'General',
+    };
+    console.log(`DEBUG: Order ${orderObj.orderNumber} data:`, { store: orderObj.storeName, cat: orderObj.storeCategory, hasLogo: !!orderObj.storeLogo });
+    return orderObj;
+  });
 
   const filteredOrders = orders.filter((o) => {
     if (!searchQuery) return true;
@@ -209,9 +217,16 @@ const OrdersScreen = () => {
           <View style={S.cardTop}>
             <View style={S.storeRow}>
               <View style={S.storeIcon}>
-                <MaterialCommunityIcons name="store-outline" size={rs(14)} color={C.navy} />
+                {item.storeLogo ? (
+                  <Image source={{ uri: item.storeLogo }} style={S.storeLogoImg} />
+                ) : (
+                  <MaterialCommunityIcons name="store-outline" size={rs(14)} color={C.navy} />
+                )}
               </View>
-              <Text style={S.storeName} numberOfLines={1}>{item.storeName}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={S.storeName} numberOfLines={1}>{item.storeName}</Text>
+                <Text style={S.storeCat}>{item.storeCategory || 'General'}</Text>
+              </View>
             </View>
             <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
               <View style={[S.statusDot, { backgroundColor: cfg.color }]} />
@@ -574,8 +589,11 @@ const S = StyleSheet.create({
   storeIcon: {
     width: rs(28), height: rs(28), borderRadius: rs(9),
     backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden'
   },
-  storeName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#334155', flex: 1 },
+  storeLogoImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  storeName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#334155' },
+  storeCat: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(1) },
   statusPill: {
     height: 26, paddingHorizontal: rs(10), borderRadius: 13,
     flexDirection: 'row', alignItems: 'center', gap: rs(5), flexShrink: 0,

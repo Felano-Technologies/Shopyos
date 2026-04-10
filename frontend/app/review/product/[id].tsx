@@ -16,7 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getProductById, createProductReview } from '@/services/api';
+import { getProductById, createProductReview, getReviewableProducts } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
 
 const { width } = Dimensions.get('window');
@@ -25,17 +25,28 @@ const ProductReviewScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [product, setProduct] = useState<any>(null);
+    const [matchingOrderId, setMatchingOrderId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
 
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState('');
 
-    const fetchProduct = async () => {
+    const fetchData = async () => {
         try {
+            // 1. Fetch product details
             const res = await getProductById(id as string);
             if (res && res.success) {
                 setProduct(res.product);
+                
+                // 2. Try to find a matching order for this product (to satisfy DB constraints)
+                try {
+                    const reviewable = await getReviewableProducts();
+                    const match = reviewable.data?.find((item: any) => item.productId === res.product.id || item.productId === res.product._id);
+                    if (match) setMatchingOrderId(match.orderId);
+                } catch (err) {
+                    console.log("Could not find matching order, submission might fail if DB requires it", err);
+                }
             } else {
                 Alert.alert('Error', 'Could not find product to review');
                 router.back();
@@ -50,7 +61,7 @@ const ProductReviewScreen = () => {
     };
 
     useEffect(() => {
-        if (id) fetchProduct();
+        if (id) fetchData();
     }, [id]);
 
     const handleSubmit = async () => {
@@ -60,9 +71,18 @@ const ProductReviewScreen = () => {
         }
 
         try {
+            if (!matchingOrderId) {
+                Alert.alert(
+                    "Verified Purchase Required", 
+                    "To ensure authentic feedback, Shopyos only allows reviews for products you have successfully purchased and received. Please check your order history."
+                );
+                return;
+            }
+
             setSubmitting(true);
             await createProductReview({
-                productId: product.id || product._id, // Support both formats
+                productId: product.id || product._id,
+                orderId: matchingOrderId,
                 rating: rating,
                 reviewText: comment
             });

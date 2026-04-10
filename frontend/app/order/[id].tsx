@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, cancelOrder } from '@/services/api';
+import { getOrderDetails, cancelOrder, startConversation } from '@/services/api';
 import { queryClient } from '@/lib/query/client';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
@@ -119,6 +119,31 @@ const OrderDetailsScreen = () => {
     ]);
   };
 
+  const [chatLoading, setChatLoading] = useState(false);
+
+  const handleChat = async (ownerId: string, storeName: string, logoUrl: string) => {
+    if (chatLoading || !ownerId) return;
+    try {
+      setChatLoading(true);
+      const res = await startConversation(ownerId);
+      if (res.success && res.conversation) {
+        router.push({
+          pathname: '/chat/conversation',
+          params: {
+            conversationId: res.conversation.id,
+            name: storeName,
+            avatar: logoUrl,
+            chatType: 'buyer'
+          }
+        } as any);
+      }
+    } catch (error: any) {
+      Alert.alert("Error", "Could not open chat with the store.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   // ── Loading skeleton ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -181,6 +206,12 @@ const OrderDetailsScreen = () => {
 
   const isLiveTrackable = ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
 
+  console.log("DEBUG: Order/Store Data", {
+    storeName: order.store?.store_name,
+    storeLogo: order.store?.logo || order.store?.logo_url,
+    storeCategory: order.store?.store_category || order.store?.category
+  });
+
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -196,7 +227,22 @@ const OrderDetailsScreen = () => {
           <Text style={S.hdrTitle}>Order Tracking</Text>
           <TouchableOpacity
             style={S.hdrBtn}
-          onPress={() => router.push({ pathname: '/order/tracking', params: { orderId: order.id, deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', orderNumber: order.order_number } })}
+            onPress={() => router.push({ 
+              pathname: '/order/tracking', 
+              params: { 
+                orderId: order.id, 
+                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', 
+                orderNumber: order.order_number,
+                driverName: driver?.user_profiles?.full_name,
+                driverAvatar: driver?.user_profiles?.avatar_url,
+                driverPhone: driver?.user_profiles?.phone,
+                driverVehicle: driver?.vehicle_type,
+                driverPlate: driver?.plate_number,
+                storeName: order.store?.store_name,
+                storeLogo: order.store?.logo || order.store?.logo_url,
+                storeCategory: order.store?.store_category || order.store?.category
+              } 
+            })}
           >
             <Feather name="map" size={rs(18)} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
@@ -204,11 +250,11 @@ const OrderDetailsScreen = () => {
 
         {/* Order number + status pill */}
         <View style={S.hdrMeta}>
-          <View>
-            <Text style={S.hdrOrderNum}>#{order.order_number}</Text>
+          <View style={{ flex: 1, marginRight: 15 }}>
+            <Text style={S.hdrOrderNum} numberOfLines={1}>#{order.order_number}</Text>
             <Text style={S.hdrDate}>{dateStr}</Text>
           </View>
-          <View style={[S.statusPill, { backgroundColor: statusCfg.bg }]}>
+          <View style={[S.statusPill, { backgroundColor: statusCfg.bg, flexShrink: 0 }]}>
             <View style={[S.statusDot, { backgroundColor: statusCfg.color }]} />
             <Text style={[S.statusTxt, { color: statusCfg.color }]}>{statusCfg.label}</Text>
           </View>
@@ -263,7 +309,22 @@ const OrderDetailsScreen = () => {
           <TouchableOpacity
             style={S.trackingHint}
             activeOpacity={0.85}
-            onPress={() => router.push({ pathname: '/order/tracking', params: { orderId: order.id, deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', orderNumber: order.order_number } })}
+            onPress={() => router.push({ 
+              pathname: '/order/tracking', 
+              params: { 
+                orderId: order.id, 
+                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', 
+                orderNumber: order.order_number,
+                driverName: driver?.user_profiles?.full_name,
+                driverAvatar: driver?.user_profiles?.avatar_url,
+                driverPhone: driver?.user_profiles?.phone,
+                driverVehicle: driver?.vehicle_type,
+                driverPlate: driver?.plate_number,
+                storeName: order.store?.store_name,
+                storeLogo: order.store?.logo || order.store?.logo_url,
+                storeCategory: order.store?.store_category || order.store?.category
+              } 
+            })}
           >
             <View style={S.trackingHintIcon}>
               <Ionicons name="map-outline" size={rs(22)} color={C.limeText} />
@@ -292,18 +353,22 @@ const OrderDetailsScreen = () => {
                   <Text style={S.ratingTxt}>4.8 · Verified Courier</Text>
                 </View>
               </View>
-              <View style={S.driverActions}>
-                <TouchableOpacity
-                  style={[S.actionCircle, { backgroundColor: '#ECFCCB' }]}
-                  onPress={() => router.push(`/chat/${driver.id}` as any)}
+              <View style={S.actionBtns}>
+                <TouchableOpacity 
+                   style={S.actionBtn}
+                   onPress={() => handleChat(
+                     driver.id,
+                     driver.user_profiles?.full_name || 'Driver',
+                     driver.user_profiles?.avatar_url || ''
+                   )}
                 >
-                  <Ionicons name="chatbubble-ellipses" size={rs(18)} color={C.limeText} />
+                  <Ionicons name="chatbubble-ellipses" size={24} color="#0C1559" />
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[S.actionCircle, { backgroundColor: '#EEF2FF' }]}
+                <TouchableOpacity 
+                  style={S.actionBtn}
                   onPress={() => Linking.openURL(`tel:${driver.user_profiles?.phone}`)}
                 >
-                  <Ionicons name="call" size={rs(18)} color={C.navy} />
+                  <Ionicons name="call" size={24} color="#0C1559" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -315,17 +380,30 @@ const OrderDetailsScreen = () => {
           <Text style={S.sectionLbl}>Store</Text>
           <View style={S.card}>
             <View style={[S.storeIconWrap, { backgroundColor: '#EEF2FF' }]}>
-              <MaterialCommunityIcons name="store" size={rs(22)} color={C.navy} />
+              {order.store?.logo || order.store?.logo_url ? (
+                <Image source={{ uri: order.store.logo || order.store.logo_url }} style={S.storeLogo} />
+              ) : (
+                <MaterialCommunityIcons name="store" size={rs(22)} color={C.navy} />
+              )}
             </View>
             <View style={S.storeInfo}>
               <Text style={S.storeName}>{order.store?.store_name || 'Shopyos Store'}</Text>
-              <Text style={S.storeCat}>{order.store?.category || 'General'}</Text>
+              <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
             </View>
             <TouchableOpacity
               style={S.chatCircle}
-              onPress={() => router.push(`/chat/${order.store?.owner_id}` as any)}
+              disabled={chatLoading}
+              onPress={() => handleChat(
+                order.store?.owner_id || order.store?.owner?._id || order.store?.owner,
+                order.store?.store_name || 'Store',
+                order.store?.logo || order.store?.logo_url || ''
+              )}
             >
-              <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
+              {chatLoading ? (
+                  <ActivityIndicator size="small" color={C.navy} />
+              ) : (
+                  <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -521,6 +599,9 @@ const S = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center',
   },
   hdrTitle: { fontSize: rf(17), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  hdrContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, marginBottom: 20 },
+  orderId: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#FFF', flexShrink: 1 },
+  orderDate: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 4 },
   hdrMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   hdrOrderNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: '#fff' },
   hdrDate:     { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3) },
@@ -596,11 +677,12 @@ const S = StyleSheet.create({
   driverName:   { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body },
   ratingRow:    { flexDirection: 'row', alignItems: 'center', gap: rs(4), marginTop: rs(3) },
   ratingTxt:    { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
-  driverActions:{ flexDirection: 'row', gap: rs(8) },
-  actionCircle: { width: rs(38), height: rs(38), borderRadius: rs(19), justifyContent: 'center', alignItems: 'center' },
+  actionBtns:{ flexDirection: 'row', gap: rs(8) },
+  actionBtn: { width: rs(38), height: rs(38), borderRadius: rs(19), justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' },
 
   // Store
-  storeIconWrap: { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center' },
+  storeIconWrap: { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  storeLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
   storeInfo:     { flex: 1 },
   storeName:     { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.navy },
   storeCat:      { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },

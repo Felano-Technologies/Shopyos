@@ -7,7 +7,8 @@ import {
   Dimensions,
   Animated,
   Easing,
-  Linking
+  Linking,
+  Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -25,11 +26,20 @@ export default function OrderTrackingMap() {
   const orderId        = params.orderId as string;
   const deliveryAddress = (params.deliveryAddress as string) || 'Delivery Address';
   const orderNumber    = (params.orderNumber as string) || '';
-  // Driver params — only populated when a real driver is assigned
+  
+  // Driver params
   const driverName    = params.driverName as string | undefined;
+  const driverAvatar  = params.driverAvatar as string | undefined;
   const driverPhone   = params.driverPhone as string | undefined;
   const driverVehicle = params.driverVehicle as string | undefined;
   const driverPlate   = params.driverPlate as string | undefined;
+
+  // Store params
+  const storeName     = params.storeName as string | undefined;
+  const storeLogo     = params.storeLogo as string | undefined;
+  const storeCategory = params.storeCategory as string | undefined;
+
+  console.log("DEBUG: Tracking Params Received:", params);
 
   const hasDriver = !!driverName;
 
@@ -86,18 +96,25 @@ export default function OrderTrackingMap() {
       </View>
 
       {/* --- Bottom Sheet --- */}
-      <View style={[styles.bottomSheet, hasDriver ? { height: height * 0.42 } : { height: height * 0.32 }]}>
+      <View style={[styles.bottomSheet, hasDriver ? { height: height * 0.45 } : { height: height * 0.35 }]}>
         <View style={styles.dragHandle} />
 
         {/* Status Header */}
         <View style={styles.statusHeader}>
-          <View>
-            <Text style={styles.statusTitle}>
-              {hasDriver ? 'Driver is on the way' : 'Looking for a driver…'}
-            </Text>
-            {orderNumber ? (
-              <Text style={styles.statusSub}>Order #{orderNumber}</Text>
-            ) : null}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={styles.statusTitle}>
+                {hasDriver ? 'Driver is on the way' : 'Looking for a driver…'}
+              </Text>
+              {orderNumber ? (
+                <Text style={styles.statusSub}>Order #{orderNumber}</Text>
+              ) : null}
+            </View>
+            {storeLogo && (
+              <View style={styles.storeLogoBadge}>
+                <Image source={{ uri: storeLogo }} style={styles.miniLogo} />
+              </View>
+            )}
           </View>
           <View style={styles.progressBar}>
             <View style={[styles.progressFill, { width: hasDriver ? '55%' : '25%' }]} />
@@ -109,9 +126,15 @@ export default function OrderTrackingMap() {
         {/* Driver Card — real or empty state */}
         {hasDriver ? (
           <View style={styles.driverCard}>
-            {/* Avatar placeholder */}
-            <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={26} color="#0C1559" />
+            {/* Driver Avatar */}
+            <View style={styles.avatarContainer}>
+              {driverAvatar ? (
+                <Image source={{ uri: driverAvatar }} style={styles.driverAvatarImg} />
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  <Ionicons name="person" size={26} color="#0C1559" />
+                </View>
+              )}
             </View>
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{driverName}</Text>
@@ -155,7 +178,10 @@ export default function OrderTrackingMap() {
               <Ionicons name="location" size={20} color="#0C1559" />
             </View>
             <View style={styles.addressBox}>
-              <Text style={styles.addressLabel}>Drop-off</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Text style={styles.addressLabel}>Drop-off</Text>
+                {storeName && <Text style={styles.storeTag}>{storeCategory || 'Store'} · {storeName}</Text>}
+              </View>
               <Text style={styles.addressText} numberOfLines={2}>{deliveryAddress}</Text>
             </View>
           </View>
@@ -280,6 +306,13 @@ const styles = StyleSheet.create({
   addressBox: { flex: 1 },
   addressLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 2 },
   addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  
+  // New Styles
+  avatarContainer: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
+  driverAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  storeLogoBadge: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' },
+  miniLogo: { width: '100%', height: '100%' },
+  storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
 });
 
 
