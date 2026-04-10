@@ -138,8 +138,8 @@ const BusinessDashboard = () => {
 
       <View style={styles.businessProfile}>
         <View style={styles.logoWrapper}>
-          {selectedBusiness?.logo ? (
-            <Image source={{ uri: selectedBusiness.logo }} style={styles.businessLogo} />
+          {selectedBusiness?.logo_url ? (
+            <Image source={{ uri: selectedBusiness.logo_url }} style={styles.businessLogo} />
           ) : (
             <View style={styles.logoPlaceholder}>
               <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
@@ -245,9 +245,9 @@ const BusinessDashboard = () => {
           >
             {/* --- HERO SECTION --- */}
             <View style={{ position: 'relative', overflow: 'hidden' }}>
-              {selectedBusiness?.coverImage ? (
+              {selectedBusiness?.banner_url ? (
                 <ImageBackground 
-                  source={{ uri: selectedBusiness.coverImage }} 
+                  source={{ uri: selectedBusiness.banner_url }} 
                   style={[styles.heroContainer, { paddingBottom: 60 }]}
                   resizeMode="cover"
                 >

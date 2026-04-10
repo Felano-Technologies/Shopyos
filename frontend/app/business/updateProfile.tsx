@@ -22,14 +22,15 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 import { getMyBusinesses, updateBusiness } from '@/services/api';
+import { useMyBusinesses, useUpdateBusiness } from '@/hooks/useBusiness';
 
 const { width } = Dimensions.get('window');
 
 const BusinessUpdateScreen = () => {
-  const [loadingData, setLoadingData] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const { data: bizData, isLoading: loadingData } = useMyBusinesses();
+  const updateMutation = useUpdateBusiness();
 
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     businessName: '',
     description: '',
@@ -45,7 +46,6 @@ const BusinessUpdateScreen = () => {
 
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
-  
   const [logoChanged, setLogoChanged] = useState(false);
   const [coverChanged, setCoverChanged] = useState(false);
 
@@ -57,44 +57,29 @@ const BusinessUpdateScreen = () => {
     'Sports & Outdoors', 'Other'
   ];
 
-  // --- Fetch Data ---
+  // --- Map Data to Form ---
   useEffect(() => {
-    const fetchBusinessDetails = async () => {
-      try {
-        const response = await getMyBusinesses();
-        if (response.success && response.businesses.length > 0) {
-          const biz = response.businesses[0];
-          setBusinessId(biz._id);
-          
-          setFormData({
-            businessName: biz.businessName || '',
-            description: biz.description || '',
-            category: biz.category || '',
-            address: biz.address || '',
-            city: biz.city || '',
-            country: biz.country || '',
-            phone: biz.phone || '',
-            website: biz.website || '',
-            instagram: biz.socialMedia?.instagram || '',
-            facebook: biz.socialMedia?.facebook || ''
-          });
-          
-          setLogo(biz.logo || null);
-          setCoverImage(biz.coverImage || null);
-        } else {
-          Alert.alert("Error", "Could not load business details.");
-          router.back();
-        }
-      } catch (error) {
-        console.error("Error loading business:", error);
-        Alert.alert("Error", "Failed to load business details.");
-      } finally {
-        setLoadingData(false);
-      }
-    };
-
-    fetchBusinessDetails();
-  }, []);
+    if (bizData?.success && bizData.businesses.length > 0) {
+      const biz = bizData.businesses[0];
+      setBusinessId(biz.id || biz._id); // Handle both naming conventions
+      
+      setFormData({
+        businessName: biz.store_name || biz.businessName || '',
+        description: biz.description || '',
+        category: biz.category || '',
+        address: biz.address_line1 || biz.address || '',
+        city: biz.city || '',
+        country: biz.country || '',
+        phone: biz.phone || '',
+        website: biz.website || '',
+        instagram: biz.socialMedia?.instagram || '',
+        facebook: biz.socialMedia?.facebook || ''
+      });
+      
+      setLogo(biz.logo_url || biz.logo || null);
+      setCoverImage(biz.banner_url || biz.coverImage || null);
+    }
+  }, [bizData]);
 
   // --- Logic ---
   const pickImage = async (type: 'logo' | 'cover') => {
@@ -137,7 +122,6 @@ const BusinessUpdateScreen = () => {
       return;
     }
 
-    setSubmitting(true);
     try {
       let logoUrl = logo;
       let coverImageUrl = coverImage;
@@ -154,17 +138,22 @@ const BusinessUpdateScreen = () => {
 
       const updateData = {
         ...formData,
-        logo: logoUrl,
-        coverImage: coverImageUrl,
+        store_name: formData.businessName, // Ensure compatibility with backend mapping
+        address_line1: formData.address,
+        logo_url: logoUrl,
+        banner_url: coverImageUrl,
         socialMedia: {
-            instagram: formData.instagram,
-            facebook: formData.facebook
+          instagram: formData.instagram,
+          facebook: formData.facebook
         }
       };
 
       if (!businessId) throw new Error("Business ID missing");
 
-      const response = await updateBusiness(businessId, updateData);
+      const response = await updateMutation.mutateAsync({
+        id: businessId,
+        data: updateData
+      });
 
       if (response.success) {
         Alert.alert('Success', 'Business profile updated successfully!', [
@@ -174,8 +163,6 @@ const BusinessUpdateScreen = () => {
     } catch (error: any) {
       console.error('Update Error:', error);
       Alert.alert('Update Failed', error.message || 'Please try again.');
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -358,7 +345,7 @@ const BusinessUpdateScreen = () => {
             <TouchableOpacity
                 style={styles.saveButton}
                 onPress={handleUpdate}
-                disabled={submitting}
+                disabled={updateMutation.isPending}
             >
                 <LinearGradient
                     colors={['#0C1559', '#1e3a8a']}
@@ -366,7 +353,7 @@ const BusinessUpdateScreen = () => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                 >
-                    {submitting || uploadLoading ? (
+                    {updateMutation.isPending || uploadLoading ? (
                         <ActivityIndicator color="#FFF" />
                     ) : (
                         <>

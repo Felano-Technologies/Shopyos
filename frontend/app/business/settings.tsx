@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getMyBusinesses, storage, logoutUser } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useMyBusinesses } from '@/hooks/useBusiness';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -30,6 +31,7 @@ const C = {
 
 interface BusinessData {
   businessName: string;
+  logo_url?: string;
   logo?: string;
   verificationStatus: string;
   owner?: { email: string };
@@ -51,29 +53,14 @@ export default function BusinessSettingsScreen() {
   const { isChecking, isVerified } = useSellerGuard();
 
   const [notificationsOn, setNotificationsOn] = useState(true);
-  const [businessData,    setBusinessData]    = useState<BusinessData | null>(null);
-  const [profileLoading,  setProfileLoading]  = useState(true);
+  const { data: businessesData, isLoading: profileLoading } = useMyBusinesses();
+  const businessData = businessesData?.businesses?.[0] || null;
 
   useEffect(() => {
     storage.getItem('currentBusinessVerificationStatus').then((status) => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
   }, []);
-
-  const fetchProfile = useCallback(async () => {
-    try {
-      const res = await getMyBusinesses();
-      if (res.success && res.businesses?.length > 0) {
-        setBusinessData(res.businesses[0]);
-      }
-    } catch (e) {
-      console.log('Error fetching settings profile:', e);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {
@@ -150,7 +137,7 @@ export default function BusinessSettingsScreen() {
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient
             colors={[C.navy, C.navyMid]}
-            style={[S.header, { paddingTop: insets.top + rs(12) }]}
+            style={[S.header, { paddingTop: insets.top + rs(20), paddingBottom: rs(90) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
 
@@ -173,8 +160,8 @@ export default function BusinessSettingsScreen() {
                 <View style={S.profileInner}>
                   {/* Avatar */}
                   <View style={S.avatarWrap}>
-                    {businessData?.logo ? (
-                      <Image source={{ uri: businessData.logo }} style={S.avatar} />
+                    {businessData?.logo_url ? (
+                      <Image source={{ uri: businessData.logo_url }} style={S.avatar} />
                     ) : (
                       <View style={[S.avatar, S.avatarFallback]}>
                         <Text style={S.avatarInitials}>{initials}</Text>
@@ -217,7 +204,7 @@ export default function BusinessSettingsScreen() {
           </LinearGradient>
 
           {/* Space for card overlap */}
-          <View style={{ height: rs(56) }} />
+          <View style={{ height: rs(110) }} />
 
           {/* ── Settings groups ────────────────────────────────────────── */}
           <View style={S.body}>
@@ -302,7 +289,7 @@ const S = StyleSheet.create({
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: rs(20),
-    paddingBottom: rs(70), // extra space for overlapping card
+    paddingBottom: rs(90), 
     position: 'relative',
     elevation: 10, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
@@ -330,7 +317,7 @@ const S = StyleSheet.create({
   // ── Profile card — floats over header ─────────────────────────────────────
   profileCard: {
     position: 'absolute',
-    bottom: -(rs(28) + rs(48)),  // arc height + half card height
+    bottom: -rs(100),
     left: rs(16), right: rs(16),
     backgroundColor: C.card,
     borderRadius: rs(22),

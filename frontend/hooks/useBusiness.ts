@@ -147,3 +147,21 @@ export const useStoreSearch = (query: string, limit = 10) => {
     gcTime: 15 * 60 * 1000,
   });
 };
+export const useUpdateBusiness = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      return await ApiService.updateBusiness(id, data);
+    },
+    onSuccess: (response, variables) => {
+      if (response.success) {
+        // Invalidate the business list so the dashboard and settings refetch
+        queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
+        // Invalidate specific business dashboard/detail if needed
+        queryClient.invalidateQueries({ queryKey: queryKeys.business.dashboard(variables.id) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.business.detail(variables.id) });
+      }
+    },
+  });
+};
