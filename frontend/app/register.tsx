@@ -16,11 +16,11 @@ const { width } = Dimensions.get('window');
 const RegisterScreen = () => {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode, setCountryCode] = useState('US');
+  const [countryCode, setCountryCode] = useState('GH');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [callingCode, setCallingCode] = useState('1');
+  const [callingCode, setCallingCode] = useState('233');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const isDarkMode = Appearance.getColorScheme() === 'dark';

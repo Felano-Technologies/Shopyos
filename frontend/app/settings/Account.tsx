@@ -65,6 +65,16 @@ const ProfileField = ({
 
   const isSelectable = isCountry || isDropdown;
 
+  // Dynamically extract prefix if it's a phone field
+  let displayValue = value;
+  let detectedPrefix = "+233"; 
+  
+  if (isPhone && value && value.startsWith('+')) {
+    // If starts with +1 (USA), length is 2, otherwise assume +233 or similar (4 digits)
+    detectedPrefix = value.startsWith('+1') ? '+1' : value.substring(0, 4);
+    displayValue = value.replace(detectedPrefix, '');
+  }
+
   return (
     <TouchableOpacity
       style={styles.fieldRow}
@@ -73,19 +83,32 @@ const ProfileField = ({
     >
       <View style={styles.inputWrapper}>
         <View style={styles.iconArea}>{renderIcon()}</View>
-
+        
         {isPhone && (
           <View style={styles.flagContainer}>
-            <Image source={{ uri: 'https://flagcdn.com/w40/gh.png' }} style={styles.flag} />
-            <Text style={styles.phonePrefix}>+233</Text>
+            <Image 
+              source={{ 
+                uri: detectedPrefix === '+1' 
+                  ? 'https://flagcdn.com/w40/us.png' 
+                  : 'https://flagcdn.com/w40/gh.png' 
+              }} 
+              style={styles.flag} 
+            />
+            <Text style={styles.phonePrefix}>{detectedPrefix}</Text>
             <View style={styles.verticalDivider} />
           </View>
         )}
 
         <TextInput
           style={[styles.input, { pointerEvents: isSelectable ? "none" : "auto" }]}
-          value={value}
-          onChangeText={onChangeText}
+          value={displayValue}
+          onChangeText={(t) => {
+            if (isPhone) {
+              onChangeText(`${detectedPrefix}${t.replace(/^\+/, '')}`);
+            } else {
+              onChangeText(t);
+            }
+          }}
           placeholderTextColor="#94A3B8"
           placeholder={loading ? "Loading..." : placeholder}
           editable={!isSelectable}
