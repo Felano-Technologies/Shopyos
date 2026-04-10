@@ -1,28 +1,30 @@
 {
-    "cli": {
-      "version": ">= 14.2.0",
-      "appVersionSource": "remote",
-      "requireCommit": true
+  "cli": {
+    "version": ">= 14.2.0",
+    "appVersionSource": "remote",
+    "requireCommit": true
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development"
     },
-    "build": {
-      "development": {
-        "developmentClient": true,
-        "distribution": "internal"
+    "preview": {
+      "android": {
+        "buildType": "app-bundle"
       },
-      "preview": {
-        "android": {
-          "buildType": "app-bundle"
-        }
-      },
-      "production": {
-        "android": {
-          "buildType": "app-bundle"
-        },
-        "autoIncrement": true
-      }
+      "channel": "preview"
     },
-    "submit": {
-      "production": {}
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "autoIncrement": true,
+      "channel": "production"
     }
+  },
+  "submit": {
+    "production": {}
   }
-  
+}
