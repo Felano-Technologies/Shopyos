@@ -9,6 +9,8 @@ interface OnboardingContextType {
   onboardingState: OnboardingState;
   isTourActive: boolean;
   activeScreen: string | null;
+  user: any | null;
+  isLoading: boolean;
   startTour: (screen: string) => Promise<void>;
   stopTour: () => void;
   markCompleted: (screen: string) => Promise<void>;
@@ -21,20 +23,28 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({});
   const [isTourActive, setIsTourActive] = useState(false);
   const [activeScreen, setActiveScreen] = useState<string | null>(null);
+  const [user, setUser] = useState<any | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadOnboardingState();
   }, []);
 
   const loadOnboardingState = async () => {
+    setIsLoading(true);
     try {
       const userData = await getUserData();
-      if (userData?.onboarding_state) {
-        setOnboardingState(userData.onboarding_state);
+      if (userData) {
+        setUser(userData);
+        if (userData.onboarding_state) {
+          setOnboardingState(userData.onboarding_state);
+        }
         return userData.onboarding_state;
       }
     } catch (error) {
       console.warn('Failed to load onboarding state:', error);
+    } finally {
+      setIsLoading(false);
     }
     return null;
   };
@@ -80,6 +90,8 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         onboardingState,
         isTourActive,
         activeScreen,
+        user,
+        isLoading,
         startTour,
         stopTour,
         markCompleted,

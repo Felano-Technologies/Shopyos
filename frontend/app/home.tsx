@@ -110,7 +110,7 @@ export default function Home() {
   const scrollY = useRef(new Animated.Value(0)).current;
 
   // --- Onboarding Refs & State ---
-  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const { startTour, markCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refGreeting = useRef<View>(null);
   const refActions = useRef<View>(null);
@@ -119,9 +119,6 @@ export default function Home() {
 
   const captureLayout = (key: string) => (event: any) => {
     const { x, y, width, height } = event.nativeEvent.layout;
-    // We need absolute coordinates for the spotlight.
-    // For fixed elements or those at the top, relative might work,
-    // but measureInWindow is safer for a global modal.
   };
 
   const measureElement = (ref: any, key: string) => {
@@ -140,11 +137,35 @@ export default function Home() {
       measureElement(refCategories, 'categories');
       measureElement(refChat, 'chat');
       
-      // Auto-start if not completed
-      startTour('home');
+      // Auto-start logic with safety checks for returning users
+      const shouldAutoStart = async () => {
+        // 1. Wait for onboarding context to load
+        if (onboardingLoading || !user) return;
+
+        // 2. Check if already completed
+        const state = await storage.getItem('HAS_SEEN_HOME_TOUR');
+        if (state === 'true') return;
+
+        // 3. LEGACY USER PROTECTION:
+        // If account created before April 2026 (when tour was added), 
+        // and they are a buyer, we don't force it.
+        const createdDate = new Date(user.created_at || Date.now());
+        const tourReleaseDate = new Date('2026-04-01');
+        
+        if (createdDate < tourReleaseDate && (user.role === 'buyer' || user.role === 'customer')) {
+          // Silent marker so they don't see it next time either
+          markCompleted('home');
+          return;
+        }
+
+        // Auto-start for new users or sellers
+        startTour('home');
+      };
+      
+      shouldAutoStart();
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [onboardingLoading, user]);
 
   const onboardingSteps = [
     {

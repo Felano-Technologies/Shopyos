@@ -75,6 +75,12 @@ const clearAuthCookies = (res) => {
   res.cookie(REFRESH_COOKIE_NAME, '', { ...COOKIE_OPTIONS, maxAge: 0, path: '/api/v1/auth' });
 };
 
+const sanitizePhone = (phone) => {
+  if (!phone) return phone;
+  // Remove duplicate plus signs and extra spaces
+  return phone.replace(/\++/g, '+').trim();
+};
+
 const register = async (req, res, next) => {
   const { name, email, password, fullPhoneNumber } = req.body;
 
@@ -83,7 +89,8 @@ const register = async (req, res, next) => {
     if (existingUser) return res.status(400).json({ error: 'User already exists' });
 
     const user = await repositories.users.createUser({ email, password });
-    await repositories.userProfiles.updateByUserId(user.id, { full_name: name, phone: fullPhoneNumber });
+    const cleanPhone = sanitizePhone(fullPhoneNumber);
+    await repositories.userProfiles.updateByUserId(user.id, { full_name: name, phone: cleanPhone });
 
     const accessToken = generateAccessToken(user.id);
     const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
@@ -100,7 +107,7 @@ const register = async (req, res, next) => {
     };
 
     if (email) rabbitMQService.publishMessage('email', publishPayload);
-    if (fullPhoneNumber) rabbitMQService.publishMessage('sms', { ...publishPayload, eventType: 'WELCOME_SMS' });
+    if (cleanPhone) rabbitMQService.publishMessage('sms', { ...publishPayload, eventType: 'WELCOME_SMS', phone: cleanPhone });
 
     res.status(201).json({
       message: 'User created successfully',
@@ -419,7 +426,7 @@ const updateProfile = async (req, res, next) => {
 
     const updates = {};
     if (name !== undefined) updates.full_name = name;
-    if (phone !== undefined) updates.phone = phone;
+    if (phone !== undefined) updates.phone = sanitizePhone(phone);
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
     if (country !== undefined) updates.country = country;
     if (state_province !== undefined) updates.state_province = state_province;

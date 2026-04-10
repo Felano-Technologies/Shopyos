@@ -26,9 +26,11 @@ const RegisterScreen = () => {
   const isDarkMode = Appearance.getColorScheme() === 'dark';
 
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
-    // Remove leading zero if present
+    // Remove leading plus from code if present to prevent ++
+    const cleanCode = callingCode.replace('+', '');
+    // Remove leading zero from number if present
     const formattedNumber = phoneNumber.replace(/^0/, '');
-    return `+${callingCode}${formattedNumber}`;
+    return `+${cleanCode}${formattedNumber}`;
   };
 
 
