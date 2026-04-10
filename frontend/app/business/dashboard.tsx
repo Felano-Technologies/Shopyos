@@ -32,6 +32,18 @@ import { useSellerGuard } from '../../hooks/useSellerGuard';
 
 const { width } = Dimensions.get('window');
 
+// --- Tokens ---
+const C = {
+  pageBg:  '#F8FAFC',
+  navy:    '#0C1559',
+  navyMid: '#1e3a8a',
+  blue:    '#3b82f6',
+  white:   '#FFFFFF',
+  body:    '#0F172A',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+};
+
 // --- Interfaces ---
 interface Order {
   _id: string;
@@ -117,47 +129,63 @@ const BusinessDashboard = () => {
     markCompleted('business_dashboard');
   };
 
-  const renderHeaderContent = () => (
-    <>
-      <View style={styles.topBar} ref={refTop} onLayout={() => measureElement(refTop, 'top')}>
-        <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
-        <View style={styles.topIcons}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
-            <Ionicons name="notifications-outline" size={22} color="#FFF" />
-            {unreadCount > 0 && (
-              <View style={styles.badgeContainer}>
-                <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
-            <Ionicons name="settings-outline" size={22} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.businessProfile}>
-        <View style={styles.logoWrapper}>
-          {selectedBusiness?.logo_url ? (
-            <Image source={{ uri: selectedBusiness.logo_url }} style={styles.businessLogo} />
-          ) : (
-            <View style={styles.logoPlaceholder}>
-              <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
+  const renderHeaderContent = () => {
+    const headerBg = selectedBusiness?.banner_url || selectedBusiness?.coverImage;
+    
+    return (
+      <View style={styles.headerContainer}>
+        {headerBg ? (
+          <Image source={{ uri: headerBg }} style={StyleSheet.absoluteFillObject} />
+        ) : (
+          <LinearGradient colors={[C.navy, C.navyMid]} style={StyleSheet.absoluteFillObject} />
+        )}
+        <LinearGradient
+          colors={['rgba(12, 21, 89, 0.7)', 'rgba(12, 21, 89, 0.9)']}
+          style={StyleSheet.absoluteFillObject}
+        />
+        
+        <View style={styles.headerContentWrapper}>
+          <View style={styles.topBar}>
+            <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
+            <View style={styles.topIcons}>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
+                <Ionicons name="notifications-outline" size={22} color="#FFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
+                <Ionicons name="settings-outline" size={22} color="#FFF" />
+              </TouchableOpacity>
             </View>
-          )}
-          <View style={styles.verifiedBadge}><Ionicons name="checkmark" size={10} color="#FFF" /></View>
-        </View>
-        <View style={styles.businessTexts}>
-          <Text style={styles.welcomeLabel}>Store Dashboard</Text>
-          <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={14} color="#F59E0B" />
-            <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
+          </View>
+
+          <View style={styles.businessProfile}>
+            <View style={styles.logoWrapper}>
+              {(selectedBusiness?.logo_url || selectedBusiness?.logo) ? (
+                <Image source={{ uri: selectedBusiness.logo_url || selectedBusiness.logo }} style={styles.businessLogo} />
+              ) : (
+                <View style={styles.logoPlaceholder}>
+                  <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
+                </View>
+              )}
+              <View style={styles.verifiedBadge}><Ionicons name="checkmark" size={10} color="#FFF" /></View>
+            </View>
+            <View style={styles.businessTexts}>
+              <Text style={styles.welcomeLabel}>Store Dashboard</Text>
+              <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
+              <View style={styles.ratingRow}>
+                <Ionicons name="star" size={14} color="#F59E0B" />
+                <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
+              </View>
+            </View>
           </View>
         </View>
       </View>
-    </>
-  );
+    );
+  };
 
  
   // Force refetch on mount to catch newly registered businesses
@@ -251,41 +279,18 @@ const BusinessDashboard = () => {
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" />}
             showsVerticalScrollIndicator={false}
           >
-            {/* --- HERO SECTION --- */}
-            <View style={{ position: 'relative', overflow: 'hidden' }}>
-              {selectedBusiness?.banner_url ? (
-                <ImageBackground 
-                  source={{ uri: selectedBusiness.banner_url }} 
-                  style={[styles.heroContainer, { paddingBottom: 60 }]}
-                  resizeMode="cover"
-                >
-                  <LinearGradient 
-                    colors={['rgba(12, 21, 89, 0.4)', 'rgba(30, 58, 138, 0.8)']} 
-                    style={StyleSheet.absoluteFill}
-                  />
-                  {/* --- Header Content (Moved inside ImageBackground) --- */}
-                  {renderHeaderContent()}
-                </ImageBackground>
-              ) : (
-                <LinearGradient 
-                  colors={['#0C1559', '#1e3a8a']} 
-                  start={{ x: 0, y: 0 }} 
-                  end={{ x: 1, y: 1 }} 
-                  style={styles.heroContainer}
-                >
-                  {renderHeaderContent()}
-                </LinearGradient>
-              )}
-            </View>
+            {renderHeaderContent()}
 
             {/* --- FLOATING STATS --- */}
             <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
-              <LottieView 
-                source={require('../../assets/pulse.json')}
-                autoPlay 
-                loop 
-                style={styles.statsPulse}
-              />
+              {isTourActive && (
+                <LottieView 
+                  source={require('../../assets/pulse.json')}
+                  autoPlay 
+                  loop 
+                  style={styles.statsPulse}
+                />
+              )}
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.totalProducts}</Text>
                 <Text style={styles.statLabel}>Products</Text>
@@ -446,8 +451,21 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 120 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.08 },
-  heroContainer: { paddingTop: 50, paddingBottom: 60, paddingHorizontal: 20, borderBottomLeftRadius: 35, borderBottomRightRadius: 35 },
-  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+  headerContainer: {
+    height: 240,
+    borderBottomLeftRadius: 35,
+    borderBottomRightRadius: 35,
+    overflow: 'hidden',
+    backgroundColor: '#0C1559',
+  },
+  headerContentWrapper: {
+    flex: 1,
+    paddingTop: 50,
+    paddingBottom: 40,
+    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+  },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   appLogo: { width: 100, height: 35 },
   topIcons: { flexDirection: 'row', gap: 12 },
   iconBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },

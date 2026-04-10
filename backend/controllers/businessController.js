@@ -161,7 +161,9 @@ const createBusiness = async (req, res, next) => {
         facebook: store.social_facebook || ''
       },
       logo: store.logo_url || '',
+      logo_url: store.logo_url || '',
       coverImage: store.banner_url || '',
+      banner_url: store.banner_url || '',
       verificationStatus: store.verification_status,
       isActive: store.is_active,
       rating: store.avg_rating || 0,
@@ -222,7 +224,9 @@ const getMyBusinesses = async (req, res, next) => {
         facebook: store.social_facebook || ''
       },
       logo: store.logo_url || '',
+      logo_url: store.logo_url || '',
       coverImage: store.banner_url || '',
+      banner_url: store.banner_url || '',
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
@@ -735,10 +739,15 @@ const getBusinessDashboard = async (req, res, next) => {
       // Simpler approach:
       const dayIndex = 6 - Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
       if (dayIndex >= 0 && dayIndex <= 6) {
-        // Only count paid/completed orders in revenue
-        const revenueStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
-        if (revenueStatuses.includes(order.status)) {
+        // Revenue should only be added when the user pays.
+        // Paid statuses representing successful payment:
+        const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
+        
+        if (paidStatuses.includes(order.status.toLowerCase())) {
           chartData[dayIndex] += parseFloat(order.total_amount || 0);
+        } else if (order.status.toLowerCase() === 'refunded') {
+          // Subtract refunds from revenue if they happen within the chart window
+          chartData[dayIndex] -= parseFloat(order.total_amount || 0);
         }
       }
     });
@@ -819,14 +828,19 @@ const getBusinessAnalytics = async (req, res, next) => {
     // Optimization: In a real app, join products table or store category in order_items. 
     // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
 
-    const revenueStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
+    const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
     const completedStatuses = ['delivered', 'completed'];
 
     filteredOrders.forEach(order => {
-      if (revenueStatuses.includes(order.status)) {
+      const status = order.status.toLowerCase();
+      
+      if (paidStatuses.includes(status)) {
         totalRevenue += parseFloat(order.total_amount || 0);
+      } else if (status === 'refunded') {
+        totalRevenue -= parseFloat(order.total_amount || 0);
       }
-      if (completedStatuses.includes(order.status)) {
+
+      if (completedStatuses.includes(status)) {
         totalOrders += 1;
       }
 
@@ -891,9 +905,12 @@ const getBusinessAnalytics = async (req, res, next) => {
         const mthRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
-            return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear() && revenueStatuses.includes(o.status);
+            return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear() && paidStatuses.includes(o.status.toLowerCase());
           })
-          .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+          .reduce((sum, o) => {
+             const amt = parseFloat(o.total_amount || 0);
+             return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
+          }, 0);
         chartData.push(mthRevenue);
       }
     }
