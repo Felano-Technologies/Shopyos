@@ -208,7 +208,7 @@ export default function CheckoutScreen() {
             <View style={S.card}>
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Delivery Address</Text>
+                  <Text style={S.inputLabel}>Delivery Address <Text style={{ color: '#ef4444' }}>*</Text></Text>
                   {prefilled.address && (
                     <View style={S.profileBadge}>
                       <Ionicons name="person-circle-outline" size={11} color={C.lime} />
@@ -229,7 +229,7 @@ export default function CheckoutScreen() {
               </View>
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Phone Number</Text>
+                  <Text style={S.inputLabel}>Phone Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
                   {prefilled.phone && (
                     <View style={S.profileBadge}>
                       <Ionicons name="person-circle-outline" size={11} color={C.lime} />

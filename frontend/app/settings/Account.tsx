@@ -182,6 +182,10 @@ export default function AccountScreen() {
 
   const handleSave = async () => {
     try {
+      if (!userData.name.trim() || !userData.phone.trim()) {
+        alert('Please provide your name and phone number.');
+        return;
+      }
       setSaving(true);
 
       const payload = {
