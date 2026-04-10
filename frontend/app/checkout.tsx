@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
-import { useCart } from './context/CartContext';
+import { useCart } from '@/context/CartContext';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods,

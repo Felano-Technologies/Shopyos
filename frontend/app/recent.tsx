@@ -18,18 +18,28 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCart } from './context/CartContext';
+import { useCart } from '@/context/CartContext';
 import { RecentSkeleton } from '../components/skeletons/RecentSkeleton';
 import { useProducts } from '@/hooks/useProducts';
 
 const { width } = Dimensions.get('window');
+
+interface RecentProduct {
+  id: string;
+  title: string;
+  category: string;
+  price: number;
+  oldPrice: number | null;
+  image: any;
+  timestamp: string;
+}
 
 export default function RecentScreen() {
   const router = useRouter();
   const { addToCart } = useCart();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeSort, setActiveSort] = useState('created_at');
+  const [activeSort, setActiveSort] = useState('newest');
   const [modalVisible, setModalVisible] = useState(false);
 
   // --- Toast Animation State ---
@@ -39,14 +49,14 @@ export default function RecentScreen() {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   // --- TanStack Query Hook ---
-  const sortByParam = activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'created_at';
-  const { data, isLoading } = useProducts({ limit: 50, sortBy: sortByParam });
+  const sortByParam = activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'newest';
+  const { data, isLoading } = useProducts({ sortBy: sortByParam as any }, 50);
   
-  const products = data?.products?.map((p: any) => ({
-    id: p._id,
+  const products: RecentProduct[] = data?.products?.map((p: any) => ({
+    id: p._id || p.id,
     title: p.name,
     category: p.category || 'General',
-    price: p.price,
+    price: parseFloat(p.price) || 0,
     oldPrice: null,
     image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
     timestamp: 'Just now'
@@ -54,12 +64,12 @@ export default function RecentScreen() {
 
   // Filter products based on search query
   const filteredProducts = searchQuery
-    ? products.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
+    ? products.filter((p: RecentProduct) => p.title.toLowerCase().includes(searchQuery.toLowerCase()))
     : products;
 
   const loading = isLoading;
 
-  const handleProductPress = (item: any) => {
+  const handleProductPress = (item: RecentProduct) => {
     router.push({
       pathname: '/product/details',
       params: {
@@ -90,7 +100,7 @@ export default function RecentScreen() {
     }, 2000);
   };
 
-  const handleAddToCart = (item: any) => {
+  const handleAddToCart = (item: RecentProduct) => {
     addToCart({
       id: item.id,
       title: item.title,
@@ -106,7 +116,7 @@ export default function RecentScreen() {
     setModalVisible(false);
   };
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = ({ item }: { item: RecentProduct }) => (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.9}
@@ -250,7 +260,7 @@ export default function RecentScreen() {
             <View style={styles.modalDivider} />
 
             {[
-              { id: 'created_at', label: 'Newest Arrivals', icon: 'new-releases' },
+              { id: 'newest', label: 'Newest Arrivals', icon: 'new-releases' },
               { id: 'low_high', label: 'Price: Low to High', icon: 'trending-up' },
               { id: 'high_low', label: 'Price: High to Low', icon: 'trending-down' }
             ].map((opt) => (

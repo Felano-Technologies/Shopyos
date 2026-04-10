@@ -13,7 +13,7 @@ import { getOrderDetails, cancelOrder, startConversation } from '@/services/api'
 import { queryClient } from '@/lib/query/client';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
-import { useChat } from '../context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -21,50 +21,50 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
+  bg: '#F8FAFC',
+  navy: '#0C1559',
   navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+  lime: '#84cc16',
+  limeText: '#1a2e00',
+  card: '#FFFFFF',
+  body: '#0F172A',
+  muted: '#64748B',
+  subtle: '#94A3B8',
 };
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon: any; label: string }> = {
-  pending:          { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', icon: 'time-outline',             label: 'Waiting for Store'  },
-  paid:             { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', icon: 'card-outline',             label: 'Payment Confirmed'  },
-  processing:       { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', icon: 'sync-outline',             label: 'Preparing Order'    },
-  confirmed:        { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', icon: 'checkmark-done-outline',   label: 'Confirmed'          },
-  ready_for_pickup: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'storefront-outline',       label: 'Ready for Pickup'   },
-  picked_up:        { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline',          label: 'Driver Picked Up'   },
-  in_transit:       { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline',          label: 'On the Way'         },
-  delivered:        { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', icon: 'checkmark-circle-outline', label: 'Delivered'          },
-  cancelled:        { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', icon: 'close-circle-outline',     label: 'Cancelled'          },
+  pending: { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', icon: 'time-outline', label: 'Waiting for Store' },
+  paid: { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', icon: 'card-outline', label: 'Payment Confirmed' },
+  processing: { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', icon: 'sync-outline', label: 'Preparing Order' },
+  confirmed: { color: '#15803D', bg: '#DCFCE7', bar: '#22c55e', icon: 'checkmark-done-outline', label: 'Confirmed' },
+  ready_for_pickup: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'storefront-outline', label: 'Ready for Pickup' },
+  picked_up: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline', label: 'Driver Picked Up' },
+  in_transit: { color: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED', icon: 'bicycle-outline', label: 'On the Way' },
+  delivered: { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', icon: 'checkmark-circle-outline', label: 'Delivered' },
+  cancelled: { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', icon: 'close-circle-outline', label: 'Cancelled' },
 };
 const getStatusCfg = (s: string) =>
   STATUS_CFG[s.toLowerCase()] ?? { color: C.muted, bg: '#F3F4F6', bar: '#9CA3AF', icon: 'help-circle-outline', label: s };
 
 // ─── Progress timeline steps ──────────────────────────────────────────────────
 const TIMELINE = [
-  { id: 'pending',          label: 'Ordered',  icon: 'cart-outline'           },
-  { id: 'processing',       label: 'Preparing',icon: 'sync-outline'           },
-  { id: 'ready_for_pickup', label: 'Ready',    icon: 'storefront-outline'     },
-  { id: 'in_transit',       label: 'On Way',   icon: 'bicycle-outline'        },
-  { id: 'delivered',        label: 'Arrived',  icon: 'checkmark-done-outline' },
+  { id: 'pending', label: 'Ordered', icon: 'cart-outline' },
+  { id: 'processing', label: 'Preparing', icon: 'sync-outline' },
+  { id: 'ready_for_pickup', label: 'Ready', icon: 'storefront-outline' },
+  { id: 'in_transit', label: 'On Way', icon: 'bicycle-outline' },
+  { id: 'delivered', label: 'Arrived', icon: 'checkmark-done-outline' },
 ];
 // Status rank for progress comparison
-const STATUS_RANK = ['pending','paid','confirmed','processing','ready_for_pickup','picked_up','in_transit','delivered'];
+const STATUS_RANK = ['pending', 'paid', 'confirmed', 'processing', 'ready_for_pickup', 'picked_up', 'in_transit', 'delivered'];
 
 const OrderDetailsScreen = () => {
-  const { id }  = useLocalSearchParams();
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
+  const { id } = useLocalSearchParams();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
-  const [order,        setOrder]        = useState<any>(null);
-  const [loading,      setLoading]      = useState(true);
+  const [order, setOrder] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const { startCall } = useChat();
   const [isCancelling, setIsCancelling] = useState(false);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -72,7 +72,7 @@ const OrderDetailsScreen = () => {
   const fetchOrder = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const data      = await getOrderDetails(id as string);
+      const data = await getOrderDetails(id as string);
       const orderData = data.order || data;
       if (orderData?.id) {
         setOrder(orderData);
@@ -182,9 +182,9 @@ const OrderDetailsScreen = () => {
   }
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const statusCfg  = getStatusCfg(order.status);
-  const delivery   = order.deliveries?.[0];
-  const driver     = delivery?.driver;
+  const statusCfg = getStatusCfg(order.status);
+  const delivery = order.deliveries?.[0];
+  const driver = delivery?.driver;
   const currentRank = STATUS_RANK.indexOf(order.status.toLowerCase());
 
   // ── Grand total calculation ─────────────────────────────────────────────────
@@ -192,9 +192,9 @@ const OrderDetailsScreen = () => {
   const itemsSubtotal: number = (order.order_items ?? []).reduce(
     (sum: number, i: any) => sum + parseFloat(i.price || 0) * (i.quantity || 1), 0
   );
-  const deliveryFee: number = parseFloat(order.delivery_fee  || 0);
-  const taxAmount: number   = parseFloat(order.tax           || 0);
-  const discount: number    = parseFloat(order.discount      || 0);
+  const deliveryFee: number = parseFloat(order.delivery_fee || 0);
+  const taxAmount: number = parseFloat(order.tax || 0);
+  const discount: number = parseFloat(order.discount || 0);
 
   // Use total_amount from backend if present, otherwise compute from items
   const grandTotal: number =
@@ -204,15 +204,9 @@ const OrderDetailsScreen = () => {
 
   // Date string
   let dateStr = '';
-  try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch {}
+  try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch { }
 
   const isLiveTrackable = ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
-
-  console.log("DEBUG: Order/Store Data", {
-    storeName: order.store?.store_name,
-    storeLogo: order.store?.logo || order.store?.logo_url,
-    storeCategory: order.store?.store_category || order.store?.category
-  });
 
   return (
     <View style={S.root}>
@@ -229,11 +223,11 @@ const OrderDetailsScreen = () => {
           <Text style={S.hdrTitle}>Order Tracking</Text>
           <TouchableOpacity
             style={S.hdrBtn}
-            onPress={() => router.push({ 
-              pathname: '/order/tracking', 
-              params: { 
-                orderId: order.id, 
-                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', 
+            onPress={() => router.push({
+              pathname: '/order/tracking',
+              params: {
+                orderId: order.id,
+                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '',
                 orderNumber: order.order_number,
                 driverName: driver?.user_profiles?.full_name,
                 driverAvatar: driver?.user_profiles?.avatar_url,
@@ -243,7 +237,7 @@ const OrderDetailsScreen = () => {
                 storeName: order.store?.store_name,
                 storeLogo: order.store?.logo || order.store?.logo_url,
                 storeCategory: order.store?.store_category || order.store?.category
-              } 
+              }
             })}
           >
             <Feather name="map" size={rs(18)} color="rgba(255,255,255,0.85)" />
@@ -273,9 +267,9 @@ const OrderDetailsScreen = () => {
         {/* ── Progress timeline ────────────────────────────────────────────── */}
         <View style={S.timelineWrap}>
           {TIMELINE.map((step, i) => {
-            const stepRank   = STATUS_RANK.indexOf(step.id);
+            const stepRank = STATUS_RANK.indexOf(step.id);
             const isComplete = currentRank >= stepRank && currentRank !== -1;
-            const isActive   =
+            const isActive =
               order.status.toLowerCase() === step.id ||
               (step.id === 'in_transit' && order.status.toLowerCase() === 'picked_up');
             const isLast = i === TIMELINE.length - 1;
@@ -290,7 +284,7 @@ const OrderDetailsScreen = () => {
                 <View style={[
                   S.stepCircle,
                   isComplete && S.stepCircleDone,
-                  isActive   && S.stepCircleActive,
+                  isActive && S.stepCircleActive,
                 ]}>
                   <Ionicons
                     name={step.icon as any}
@@ -311,11 +305,11 @@ const OrderDetailsScreen = () => {
           <TouchableOpacity
             style={S.trackingHint}
             activeOpacity={0.85}
-            onPress={() => router.push({ 
-              pathname: '/order/tracking', 
-              params: { 
-                orderId: order.id, 
-                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '', 
+            onPress={() => router.push({
+              pathname: '/order/tracking',
+              params: {
+                orderId: order.id,
+                deliveryAddress: order.delivery_address_line1 || order.delivery_address || '',
                 orderNumber: order.order_number,
                 driverName: driver?.user_profiles?.full_name,
                 driverAvatar: driver?.user_profiles?.avatar_url,
@@ -325,7 +319,7 @@ const OrderDetailsScreen = () => {
                 storeName: order.store?.store_name,
                 storeLogo: order.store?.logo || order.store?.logo_url,
                 storeCategory: order.store?.store_category || order.store?.category
-              } 
+              }
             })}
           >
             <View style={S.trackingHintIcon}>
@@ -356,17 +350,17 @@ const OrderDetailsScreen = () => {
                 </View>
               </View>
               <View style={S.actionBtns}>
-                <TouchableOpacity 
-                   style={S.actionBtn}
-                   onPress={() => handleChat(
-                     driver.id,
-                     driver.user_profiles?.full_name || 'Driver',
-                     driver.user_profiles?.avatar_url || ''
-                   )}
+                <TouchableOpacity
+                  style={S.actionBtn}
+                  onPress={() => handleChat(
+                    driver.id,
+                    driver.user_profiles?.full_name || 'Driver',
+                    driver.user_profiles?.avatar_url || ''
+                  )}
                 >
                   <Ionicons name="chatbubble-ellipses" size={24} color="#0C1559" />
                 </TouchableOpacity>
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={S.actionBtn}
                   onPress={() => Linking.openURL(`tel:${driver.user_profiles?.phone}`)}
                 >
@@ -412,9 +406,9 @@ const OrderDetailsScreen = () => {
               )}
             >
               {chatLoading ? (
-                  <ActivityIndicator size="small" color={C.navy} />
+                <ActivityIndicator size="small" color={C.navy} />
               ) : (
-                  <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
+                <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
               )}
             </TouchableOpacity>
           </View>
@@ -577,7 +571,7 @@ const OrderDetailsScreen = () => {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: C.bg },
+  root: { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
   emptyCircle: {
@@ -616,7 +610,7 @@ const S = StyleSheet.create({
   orderDate: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.7)', marginTop: 4 },
   hdrMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
   hdrOrderNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: '#fff' },
-  hdrDate:     { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3) },
+  hdrDate: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3) },
   statusPill: {
     flexDirection: 'row', alignItems: 'center', gap: rs(6),
     paddingHorizontal: rs(12), paddingVertical: rs(6), borderRadius: rs(20),
@@ -645,15 +639,15 @@ const S = StyleSheet.create({
     width: rs(36), height: rs(36), borderRadius: rs(18),
     backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', zIndex: 1,
   },
-  stepCircleDone:   { backgroundColor: C.lime },
+  stepCircleDone: { backgroundColor: C.lime },
   stepCircleActive: {
     backgroundColor: C.navy,
     shadowColor: C.navy, shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4, shadowRadius: rs(6), elevation: 4,
   },
-  stepLbl:       { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(6), textAlign: 'center' },
-  stepLblDone:   { color: C.limeText, fontFamily: 'Montserrat-Bold' },
-  stepLblActive: { color: C.navy,    fontFamily: 'Montserrat-Bold' },
+  stepLbl: { fontSize: rf(9), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(6), textAlign: 'center' },
+  stepLblDone: { color: C.limeText, fontFamily: 'Montserrat-Bold' },
+  stepLblActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
 
   // Live tracking hint
   trackingHint: {
@@ -665,11 +659,11 @@ const S = StyleSheet.create({
     width: rs(44), height: rs(44), borderRadius: rs(22),
     backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center',
   },
-  trackingHintTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold',   color: C.limeText },
-  trackingHintSub:   { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: '#3f6212', marginTop: rs(2) },
+  trackingHintTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.limeText },
+  trackingHintSub: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: '#3f6212', marginTop: rs(2) },
 
   // Section label
-  section:    { marginBottom: rs(20) },
+  section: { marginBottom: rs(20) },
   sectionLbl: {
     fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.subtle,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: rs(10),
@@ -685,19 +679,19 @@ const S = StyleSheet.create({
 
   // Driver
   driverAvatar: { width: rs(50), height: rs(50), borderRadius: rs(25), backgroundColor: '#F1F5F9' },
-  driverInfo:   { flex: 1 },
-  driverName:   { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body },
-  ratingRow:    { flexDirection: 'row', alignItems: 'center', gap: rs(4), marginTop: rs(3) },
-  ratingTxt:    { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
-  actionBtns:{ flexDirection: 'row', gap: rs(8) },
+  driverInfo: { flex: 1 },
+  driverName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.body },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: rs(4), marginTop: rs(3) },
+  ratingTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
+  actionBtns: { flexDirection: 'row', gap: rs(8) },
   actionBtn: { width: rs(38), height: rs(38), borderRadius: rs(19), justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' },
 
   // Store
   storeIconWrap: { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   storeLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
-  storeInfo:     { flex: 1 },
-  storeName:     { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.navy },
-  storeCat:      { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },
+  storeInfo: { flex: 1 },
+  storeName: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: C.navy },
+  storeCat: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },
   chatCircle: {
     width: rs(38), height: rs(38), borderRadius: rs(19),
     backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
@@ -709,11 +703,11 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
-  infoRow:    { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
-  infoIcon:   { width: rs(36), height: rs(36), borderRadius: rs(11), justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  infoLbl:    { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
-  infoVal:    { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155' },
-  infoDivider:{ height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
+  infoIcon: { width: rs(36), height: rs(36), borderRadius: rs(11), justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  infoLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
+  infoVal: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155' },
+  infoDivider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
 
   // Items card
   itemsCard: {
@@ -721,13 +715,13 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
-  itemRow:   { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
-  itemImg:   { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
-  itemInfo:  { flex: 1 },
-  itemName:  { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body },
-  itemQty:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium',   color: C.subtle, marginTop: rs(3) },
-  itemPrice: { fontSize: rf(14), fontFamily: 'Montserrat-Bold',     color: C.navy },
-  itemDivider:{ height: 0.5, backgroundColor: '#F8FAFC', marginVertical: rs(12) },
+  itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
+  itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
+  itemInfo: { flex: 1 },
+  itemName: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body },
+  itemQty: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(3) },
+  itemPrice: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
+  itemDivider: { height: 0.5, backgroundColor: '#F8FAFC', marginVertical: rs(12) },
 
   // Payment card
   payCard: {
@@ -735,32 +729,32 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
-  priceRow:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(10) },
-  priceLbl:  { fontSize: rf(13), fontFamily: 'Montserrat-Medium',    color: C.muted },
-  priceVal:  { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold',  color: C.body },
-  payDivider:{ height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
-  totalRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16) },
-  totalLbl:  { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
-  totalVal:  { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: C.lime },
+  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(10) },
+  priceLbl: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
+  priceVal: { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.body },
+  payDivider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
+  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(16) },
+  totalLbl: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body },
+  totalVal: { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: C.lime },
   methodRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(6),
     backgroundColor: '#F8FAFC', paddingVertical: rs(10), borderRadius: rs(12),
   },
   methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
-  receiptRow:{
+  receiptRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: rs(8),
     marginTop: rs(12), paddingTop: rs(12),
     borderTopWidth: 0.5, borderTopColor: '#F1F5F9',
   },
-  receiptTxt:{ fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
+  receiptTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
 
   // Actions
-  reviewBtn:     { borderRadius: rs(16), overflow: 'hidden', marginBottom: rs(12) },
+  reviewBtn: { borderRadius: rs(16), overflow: 'hidden', marginBottom: rs(12) },
   reviewBtnGrad: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: rs(8), paddingVertical: rs(16),
   },
-  reviewBtnTxt:  { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  reviewBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
   cancelBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: rs(8), backgroundColor: '#FEF2F2',

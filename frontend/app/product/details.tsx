@@ -17,7 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCart } from '../context/CartContext';
+import { useCart } from '@/context/CartContext';
 import {
     getProductById,
     addToFavorites,

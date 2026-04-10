@@ -16,7 +16,7 @@ import {
   markConversationRead, storage,
 } from '../../services/api';
 import { socketService } from '../../services/socket';
-import { useChat } from '../context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
 const { width } = Dimensions.get('window');

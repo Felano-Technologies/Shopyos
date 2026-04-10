@@ -11,7 +11,7 @@ import {
   StatusBar,
   Animated,
 } from 'react-native';
-import { useOnboarding } from './context/OnboardingContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';

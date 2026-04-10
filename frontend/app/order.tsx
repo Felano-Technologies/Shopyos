@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { OrdersSkeleton } from '@/components/skeletons/OrdersSkeleton';
 import { useOrders } from '@/hooks/useOrders';
-import { useOnboarding } from './context/OnboardingContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
@@ -112,7 +112,6 @@ const OrdersScreen = () => {
       storeLogo:   o.store?.logo || o.store?.logo_url,
       storeCategory: o.store?.store_category || o.store?.category || 'General',
     };
-    console.log(`DEBUG: Order ${orderObj.orderNumber} data:`, { store: orderObj.storeName, cat: orderObj.storeCategory, hasLogo: !!orderObj.storeLogo });
     return orderObj;
   });
 

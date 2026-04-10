@@ -4,7 +4,7 @@ import {
   Image, Text, Alert, TextInput,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useChat } from '../context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';

@@ -16,11 +16,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
-import { useChat } from './context/ChatContext';
 import { getPromotedProducts, recordAdClick, getUserData, storage } from '@/services/api';
-import { useCart } from './context/CartContext';
+import { useChat } from '@/context/ChatContext';
+import { useCart } from '@/context/CartContext';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
-import { useOnboarding } from './context/OnboardingContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 const { width } = Dimensions.get('window');

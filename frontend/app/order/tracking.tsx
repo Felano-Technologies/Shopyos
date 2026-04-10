@@ -23,23 +23,21 @@ export default function OrderTrackingMap() {
   const params = useLocalSearchParams();
 
   // Real data from params (passed from order details screen)
-  const orderId        = params.orderId as string;
+  const orderId = params.orderId as string;
   const deliveryAddress = (params.deliveryAddress as string) || 'Delivery Address';
-  const orderNumber    = (params.orderNumber as string) || '';
-  
+  const orderNumber = (params.orderNumber as string) || '';
+
   // Driver params
-  const driverName    = params.driverName as string | undefined;
-  const driverAvatar  = params.driverAvatar as string | undefined;
-  const driverPhone   = params.driverPhone as string | undefined;
+  const driverName = params.driverName as string | undefined;
+  const driverAvatar = params.driverAvatar as string | undefined;
+  const driverPhone = params.driverPhone as string | undefined;
   const driverVehicle = params.driverVehicle as string | undefined;
-  const driverPlate   = params.driverPlate as string | undefined;
+  const driverPlate = params.driverPlate as string | undefined;
 
   // Store params
-  const storeName     = params.storeName as string | undefined;
-  const storeLogo     = params.storeLogo as string | undefined;
+  const storeName = params.storeName as string | undefined;
+  const storeLogo = params.storeLogo as string | undefined;
   const storeCategory = params.storeCategory as string | undefined;
-
-  console.log("DEBUG: Tracking Params Received:", params);
 
   const hasDriver = !!driverName;
 
@@ -51,7 +49,7 @@ export default function OrderTrackingMap() {
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.5, duration: 1500, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1,   duration: 1500, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
   }, []);
@@ -306,7 +304,7 @@ const styles = StyleSheet.create({
   addressBox: { flex: 1 },
   addressLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 2 },
   addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  
+
   // New Styles
   avatarContainer: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
   driverAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -315,4 +313,4 @@ const styles = StyleSheet.create({
   storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
 });
 
-
+

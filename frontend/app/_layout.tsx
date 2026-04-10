@@ -7,15 +7,15 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import BottomNav from '../components/BottomNav';
 import DriverBottomNav from '../components/DriverBottomNav';
-import { CartProvider } from './context/CartContext';
-import { ChatProvider } from './context/ChatContext';
+import { CartProvider } from '@/context/CartContext';
+import { ChatProvider } from '@/context/ChatContext';
 import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
-import { OnboardingProvider } from '@/app/context/OnboardingContext';
+import { OnboardingProvider } from '@/context/OnboardingContext';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';

@@ -22,7 +22,7 @@ import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
-import { useOnboarding } from '../context/OnboardingContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import LottieView from 'lottie-react-native';
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';

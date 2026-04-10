@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '@/components/BottomNav';
 import { getAllStores } from '@/services/api';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
-import { useOnboarding } from './context/OnboardingContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 const { width } = Dimensions.get('window');

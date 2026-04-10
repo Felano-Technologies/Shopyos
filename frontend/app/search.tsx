@@ -16,9 +16,9 @@ import { CustomInAppToast, storage } from "@/services/api";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
-import { useCart } from './context/CartContext';
-import { SearchSkeleton } from '../components/skeletons/SearchSkeleton';
-import { useOnboarding } from './context/OnboardingContext';
+import { useCart } from '@/context/CartContext';
+import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 
 const { width } = Dimensions.get('window');

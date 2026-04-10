@@ -40,7 +40,7 @@ import {
   createStoreReview
 } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import { useChat } from '../context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';

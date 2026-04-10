@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
-import { useChat } from '../../context/ChatContext'; 
+import { useChat } from '@/context/ChatContext'; 
 
 const { height } = Dimensions.get('window');
 

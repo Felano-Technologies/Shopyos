@@ -4,7 +4,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getBusinessDashboard, storage } from '@/services/api';
-import { useChat } from '../app/context/ChatContext';
+import { useChat } from '@/context/ChatContext';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

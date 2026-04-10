@@ -11,7 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { storage } from '@/services/api';
 import { router } from 'expo-router';
-import { useOnboarding } from '../context/OnboardingContext';
+import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
 import { useBusinessAnalytics } from '@/hooks/useBusiness';

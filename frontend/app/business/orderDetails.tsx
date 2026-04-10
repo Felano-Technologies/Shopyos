@@ -9,9 +9,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, updateOrderStatus } from '@/services/api';
+import { getOrderDetails, updateOrderStatus, startConversation } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useChat } from '@/context/ChatContext';
+import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 
@@ -52,9 +54,11 @@ export default function OrderDetailsScreen() {
 
   // ── ALL HOOKS FIRST ────────────────────────────────────────────────────────
   const queryClient = useQueryClient();
-  const { isChecking, isVerified } = useSellerGuard();
+  const { isChecking: isGuardChecking, isVerified: isGuardVerified } = useSellerGuard();
+  const { startCall } = useChat();
   const [order,         setOrder]         = useState<any>(null);
   const [loading,       setLoading]       = useState(true);
+  const [chatLoading,   setChatLoading]   = useState(false);
   const [updating,      setUpdating]      = useState(false);
   const [currentStatus, setCurrentStatus] = useState('');
 
@@ -78,11 +82,21 @@ export default function OrderDetailsScreen() {
           status:      o.status,
           date:        o.created_at,
           customer: {
+            id:      o.buyer?.id || o.buyer_id,
             name:    o.buyer?.user_profiles?.full_name || 'Guest Buyer',
             phone:   o.buyer?.user_profiles?.phone || 'N/A',
             email:   o.buyer?.email || 'N/A',
+            avatar:  o.buyer?.user_profiles?.avatar_url,
             address: o.delivery_address_line1 || o.delivery_address || o.deliveries?.[0]?.delivery_address || 'No address provided',
           },
+          driver: o.deliveries?.[0]?.driver ? {
+            id:      o.deliveries[0].driver.id,
+            name:    o.deliveries[0].driver.user_profiles?.full_name || 'Driver',
+            phone:   o.deliveries[0].driver.user_profiles?.phone || '',
+            avatar:  o.deliveries[0].driver.user_profiles?.avatar_url,
+            vehicle: o.deliveries[0].vehicle_type || 'Vehicle',
+            plate:   o.deliveries[0].plate_number,
+          } : null,
           items: mappedItems,
           payment: {
             subtotal:      parseFloat(o.subtotal || o.subtotal_amount || 0),
@@ -104,11 +118,34 @@ export default function OrderDetailsScreen() {
     }
   }, [id]);
 
+  const handleChat = async (ownerId: string, name: string, avatar: string) => {
+    if (chatLoading || !ownerId) return;
+    try {
+      setChatLoading(true);
+      const res = await startConversation(ownerId);
+      if (res.success && res.conversation) {
+        router.push({
+          pathname: '/chat/conversation',
+          params: {
+            conversationId: res.conversation.id,
+            name: name,
+            avatar: avatar,
+            chatType: 'seller'
+          }
+        } as any);
+      }
+    } catch (error: any) {
+      Alert.alert("Error", "Could not open chat.");
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
   useEffect(() => { if (id) fetchOrder(); }, [fetchOrder]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   // Safe early returns now
-  if (isChecking || !isVerified) {
+  if (isGuardChecking || !isGuardVerified) {
     return (
       <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
     );
@@ -116,7 +153,20 @@ export default function OrderDetailsScreen() {
 
   if (loading || !order) {
     return (
-      <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
+      <View style={S.root}>
+        <StatusBar style="light" />
+        <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
+          <View style={S.hdrRow}>
+            <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+              <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
+            </TouchableOpacity>
+            <Text style={S.hdrTitle}>Order Details</Text>
+            <View style={{ width: rs(38) }} />
+          </View>
+          <View style={S.hdrArc} />
+        </LinearGradient>
+        <OrderDetailsSkeleton />
+      </View>
     );
   }
 
@@ -180,11 +230,11 @@ export default function OrderDetailsScreen() {
             </View>
 
             <View style={S.hdrSummary}>
-              <View>
+              <View style={{ flex: 1, marginRight: rs(12) }}>
                 <Text style={S.hdrLbl}>Order Number</Text>
-                <Text style={S.hdrOrderNum}>#{order.orderNumber}</Text>
+                <Text style={S.hdrOrderNum} numberOfLines={1}>#{order.orderNumber}</Text>
               </View>
-              <View style={S.hdrDateWrap}>
+              <View style={[S.hdrDateWrap, { flexShrink: 0 }]}>
                 <Text style={S.hdrDate}>{dateStr}</Text>
                 <Text style={S.hdrTime}>{timeStr}</Text>
               </View>
@@ -264,18 +314,31 @@ export default function OrderDetailsScreen() {
             <View style={S.card}>
               <View style={S.customerRow}>
                 <View style={S.avatar}>
-                  <Text style={S.avatarTxt}>{order.customer.name.charAt(0)}</Text>
+                   {order.customer.avatar ? (
+                      <Image source={{ uri: order.customer.avatar }} style={S.avatarImg} />
+                   ) : (
+                      <Text style={S.avatarTxt}>{order.customer.name.charAt(0)}</Text>
+                   )}
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={S.customerName}>{order.customer.name}</Text>
                   <Text style={S.customerPhone}>{order.customer.phone}</Text>
                 </View>
-                <TouchableOpacity
-                  style={S.iconBtn}
-                  onPress={() => Linking.openURL(`tel:${order.customer.phone}`)}
-                >
-                  <Ionicons name="call" size={rs(18)} color={C.navy} />
-                </TouchableOpacity>
+                <View style={S.actionBtns}>
+                  <TouchableOpacity
+                    style={S.iconBtn}
+                    onPress={() => handleChat(order.customer.id, order.customer.name, order.customer.avatar || '')}
+                    disabled={chatLoading}
+                  >
+                    {chatLoading ? <ActivityIndicator size="small" color={C.navy} /> : <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={S.iconBtn}
+                    onPress={() => Linking.openURL(`tel:${order.customer.phone}`)}
+                  >
+                    <Ionicons name="call" size={rs(18)} color={C.navy} />
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={S.divider} />
@@ -296,6 +359,43 @@ export default function OrderDetailsScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* ── Driver Info (if assigned) ──────────────────────────────── */}
+          {order.driver && (
+            <View style={S.section}>
+               <Text style={S.sectionLbl}>Driver Information</Text>
+               <View style={S.card}>
+                  <View style={S.customerRow}>
+                     <View style={S.avatar}>
+                        {order.driver.avatar ? (
+                           <Image source={{ uri: order.driver.avatar }} style={S.avatarImg} />
+                        ) : (
+                           <Ionicons name="person" size={rs(22)} color={C.navy} />
+                        )}
+                     </View>
+                     <View style={{ flex: 1 }}>
+                        <Text style={S.customerName}>{order.driver.name}</Text>
+                        <Text style={S.customerPhone}>{order.driver.vehicle} · {order.driver.plate || 'No Plate'}</Text>
+                     </View>
+                     <View style={S.actionBtns}>
+                        <TouchableOpacity
+                           style={S.iconBtn}
+                           onPress={() => handleChat(order.driver.id, order.driver.name, order.driver.avatar || '')}
+                           disabled={chatLoading}
+                        >
+                           {chatLoading ? <ActivityIndicator size="small" color={C.navy} /> : <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                           style={S.iconBtn}
+                           onPress={() => Linking.openURL(`tel:${order.driver.phone}`)}
+                        >
+                           <Ionicons name="call" size={rs(18)} color={C.navy} />
+                        </TouchableOpacity>
+                     </View>
+                  </View>
+               </View>
+            </View>
+          )}
 
           {/* ── Order items ────────────────────────────────────────────── */}
           <View style={S.section}>
@@ -440,10 +540,13 @@ const S = StyleSheet.create({
   avatar: {
     width: rs(44), height: rs(44), borderRadius: rs(14),
     backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
+    overflow: 'hidden'
   },
+  avatarImg:     { width: '100%', height: '100%', resizeMode: 'cover' },
   avatarTxt:     { fontSize: rf(20), fontFamily: 'Montserrat-Bold', color: C.navy },
   customerName:  { fontSize: rf(15), fontFamily: 'Montserrat-Bold',   color: C.body },
   customerPhone: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
+  actionBtns:    { flexDirection: 'row', gap: rs(8) },
   iconBtn: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
     backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center',
