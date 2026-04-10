@@ -873,9 +873,12 @@ const getBusinessAnalytics = async (req, res, next) => {
         const dayRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
-            return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && revenueStatuses.includes(o.status);
+            return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && paidStatuses.includes(o.status.toLowerCase());
           })
-          .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+          .reduce((sum, o) => {
+             const amt = parseFloat(o.total_amount || 0);
+             return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
+          }, 0);
         chartData.push(dayRevenue);
       }
     } else if (timeframe === 'month') {
@@ -890,9 +893,12 @@ const getBusinessAnalytics = async (req, res, next) => {
         const wkRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
-            return od >= startWk && od <= endWk && revenueStatuses.includes(o.status);
+            return od >= startWk && od <= endWk && paidStatuses.includes(o.status.toLowerCase());
           })
-          .reduce((sum, o) => sum + parseFloat(o.total_amount || 0), 0);
+          .reduce((sum, o) => {
+             const amt = parseFloat(o.total_amount || 0);
+             return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
+          }, 0);
         chartData.push(wkRevenue);
       }
     } else if (timeframe === 'year') {
