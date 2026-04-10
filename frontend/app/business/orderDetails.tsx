@@ -81,12 +81,14 @@ export default function OrderDetailsScreen() {
             name:    o.buyer?.user_profiles?.full_name || 'Guest Buyer',
             phone:   o.buyer?.user_profiles?.phone || 'N/A',
             email:   o.buyer?.email || 'N/A',
-            address: o.deliveries?.[0]?.delivery_address || o.delivery_address || 'No address provided',
+            address: o.delivery_address_line1 || o.delivery_address || o.deliveries?.[0]?.delivery_address || 'No address provided',
           },
           items: mappedItems,
           payment: {
-            subtotal:      parseFloat(o.subtotal_amount || 0),
+            subtotal:      parseFloat(o.subtotal || o.subtotal_amount || 0),
+            tax:           parseFloat(o.tax || 0),
             deliveryFee:   parseFloat(o.delivery_fee || 0),
+            discount:      parseFloat(o.discount || 0),
             total:         parseFloat(o.total_amount || 0),
             method:        o.payments?.[0]?.payment_method || 'MoMo / Card',
             paymentStatus: o.payments?.[0]?.status || 'pending',
@@ -323,10 +325,26 @@ export default function OrderDetailsScreen() {
                 <Text style={S.summaryLbl}>Subtotal</Text>
                 <Text style={S.summaryVal}>₵{order.payment.subtotal.toFixed(2)}</Text>
               </View>
+
+              {order.payment.tax > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={S.summaryLbl}>Taxes & Fees</Text>
+                  <Text style={S.summaryVal}>₵{order.payment.tax.toFixed(2)}</Text>
+                </View>
+              )}
+
               <View style={S.summaryRow}>
                 <Text style={S.summaryLbl}>Delivery fee</Text>
                 <Text style={S.summaryVal}>₵{order.payment.deliveryFee.toFixed(2)}</Text>
               </View>
+
+              {order.payment.discount > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={S.summaryLbl}>Discount</Text>
+                  <Text style={[S.summaryVal, { color: '#16a34a' }]}>-₵{order.payment.discount.toFixed(2)}</Text>
+                </View>
+              )}
+
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={S.totalLbl}>Total</Text>

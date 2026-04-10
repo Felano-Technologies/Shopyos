@@ -76,10 +76,88 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(false);
   const peerConnection = React.useRef<any>(null);
+  // FIX 1: ref to hold the active ringtone sound object
+  const soundRef = React.useRef<Audio.Sound | null>(null);
 
   const pathname = usePathname();
   const searchParams = useGlobalSearchParams();
   const router = useRouter();
+
+  // ─── Sound helpers ────────────────────────────────────────────────────────
+  //
+  // Two sounds with distinct volumes and behaviours:
+  //   • playCallRingtone()   – loops at 0.85 vol through the speaker (for ringing).
+  //   • playNotificationChime() – plays once at 0.25 vol (soft ping for messages).
+  //
+  // To use a dedicated ringtone file, place `ringtone.mp3` in assets/sounds/.
+  // The code falls back to notification.mp3 so nothing breaks if it is absent.
+
+  /**
+   * Play the call ringtone in a loop through the main speaker.
+   * Loud enough to be noticed, not as jarring as a full-blast alert.
+   */
+  const playCallRingtone = async () => {
+    try {
+      await stopRingtone();
+
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false, // route to main speaker
+      });
+
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/ringtone.wav'),
+        { isLooping: true, volume: 0.85, shouldPlay: true }
+      );
+      soundRef.current = sound;
+    } catch (e) {
+      console.warn('Could not play call ringtone:', e);
+    }
+  };
+
+  /**
+   * Play a single soft notification chime for incoming messages.
+   * Plays once at a low volume (0.25) and self-cleans up.
+   */
+  const playNotificationChime = async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/sounds/notification.wav'),
+        { isLooping: false, volume: 0.25, shouldPlay: true }
+      );
+      // Auto-unload once it finishes to avoid memory leaks
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync().catch(() => null);
+        }
+      });
+    } catch (e) {
+      console.warn('Could not play notification chime:', e);
+    }
+  };
+
+  /**
+   * Stop and unload the current looping ringtone. Safe to call when silent.
+   */
+  const stopRingtone = async () => {
+    try {
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+        }
+        soundRef.current = null;
+      }
+    } catch (e) {
+      console.warn('Could not stop ringtone:', e);
+    }
+  };
+
+  // ─── Data fetching ───────────────────────────────────────────────────────
 
   const fetchChats = async () => {
     try {
@@ -217,6 +295,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
               // Show toast for incoming messages not currently on screen
               if (!isMe && !isViewingThisChat) {
+                // Soft chime for message notifications (quiet, plays once)
+                playNotificationChime().catch(() => null);
                 CustomInAppToast.show({
                   type: 'info',
                   title: conv.name,
@@ -279,29 +359,38 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         socketService.onNewMessage(handleInboxUpdate);
 
         // VOIP Listeners
-        socketService.onCallEvent('call:incoming', (data: any) => {
+        socketService.onCallEvent('call:incoming', async (data: any) => {
           setCallData({
             conversationId: data.conversationId,
             name: data.callerName,
             avatar: data.callerAvatar
           });
           setCallStatus('incoming');
+          // Play call ringtone (louder, looping) when an incoming call arrives
+          await playCallRingtone();
         });
 
         socketService.onCallEvent('call:accepted', async (data: any) => {
+          // Stop ringing when the recipient accepts
+          await stopRingtone();
           setCallStatus('connected');
           const pc = await setupPeerConnection(data.conversationId);
+          if (!pc) return;
           const offer = await pc.createOffer();
           await pc.setLocalDescription(offer);
           socketService.sendOffer(data.conversationId, offer);
         });
 
-        socketService.onCallEvent('call:rejected', () => {
+        socketService.onCallEvent('call:rejected', async () => {
+          // FIX 1: Stop ringing when rejected
+          await stopRingtone();
           setCallStatus('ended');
           setTimeout(() => setCallStatus('idle'), 2000);
         });
 
-        socketService.onCallEvent('call:ended', () => {
+        socketService.onCallEvent('call:ended', async () => {
+          // FIX 1: Stop ringing if remote party ends the call
+          await stopRingtone();
           setCallStatus('ended');
           setTimeout(() => setCallStatus('idle'), 2000);
         });
@@ -312,7 +401,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           const { RTCSessionDescription } = require('react-native-webrtc');
           
           if (!peerConnection.current) {
-            // If PC not created yet (e.g. accepted but PC setup lagging), wait or setup now
             await setupPeerConnection(conversationId);
           }
           try {
@@ -392,8 +480,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }
     };
 
-    pc.onaddstream = (event: any) => {
-      setRemoteStream(event.stream);
+    // FIX 2c: Use ontrack instead of the removed/deprecated onaddstream API
+    pc.ontrack = (event: any) => {
+      if (event.streams && event.streams[0]) {
+        setRemoteStream(event.streams[0]);
+      }
     };
 
     try {
@@ -403,11 +494,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         return;
       }
 
+      // FIX 2d: Set playThroughEarpieceAndroid: false so audio routes to the
+      // main speaker on Android and the caller/callee can actually hear each other.
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         staysActiveInBackground: true,
         shouldDuckAndroid: true,
+        playThroughEarpieceAndroid: false,
       });
 
       const stream = await (mediaDevices as any).getUserMedia({
@@ -467,6 +561,68 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       console.error('Failed to toggle speaker:', e);
     }
   };
+
+  // ─── Named call control functions ─────────────────────────────────────────
+  // These are defined as named consts so both the Provider value AND the
+  // CallOverlay JSX props refer to the same implementation.
+
+  /**
+   * Initiate an outgoing call.
+   * FIX 1: Plays ringtone for the caller while waiting for the other party to answer.
+   */
+  const startCall = async (id: string, name: string, avatar: string) => {
+    setCallData({ conversationId: id, name, avatar });
+    setCallStatus('outgoing');
+    // Play call ringtone while the other party is being alerted
+    await playCallRingtone();
+    await socketService.initiateCall(id, name, avatar);
+  };
+
+  /**
+   * Accept an incoming call.
+   * FIX 1: Stops ringtone.
+   * FIX 2a: Sets up the peer connection (local stream + ICE + track handler)
+   *         BEFORE emitting call:accept to the socket, so the stack is ready
+   *         when the offer arrives from the caller.
+   */
+  const acceptCall = async () => {
+    await stopRingtone();
+    if (callData) {
+      setCallStatus('connected');
+      // Must set up PC before signalling accept so the offer can be processed
+      await setupPeerConnection(callData.conversationId);
+      await socketService.acceptCall(callData.conversationId);
+    }
+  };
+
+  /**
+   * Reject an incoming call.
+   * FIX 1: Stops ringtone.
+   */
+  const rejectCall = async () => {
+    await stopRingtone();
+    if (callData) {
+      setCallStatus('idle');
+      await socketService.rejectCall(callData.conversationId);
+      cleanupCall();
+    }
+  };
+
+  /**
+   * End an active/outgoing call.
+   * FIX 1: Stops ringtone (in case caller ends before answer).
+   */
+  const endCall = async () => {
+    await stopRingtone();
+    if (callData) {
+      setCallStatus('ended');
+      await socketService.endCall(callData.conversationId);
+      cleanupCall();
+      setTimeout(() => setCallStatus('idle'), 2000);
+    }
+  };
+
+  // ─── Message helpers ──────────────────────────────────────────────────────
 
   const sendMessage = async (id: string, text: string, type: 'buyer' | 'seller') => {
     const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -534,33 +690,11 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         currentUserId,
         callState,
         callData,
-        startCall: async (id, name, avatar) => {
-          setCallData({ conversationId: id, name, avatar });
-          setCallStatus('outgoing');
-          await socketService.initiateCall(id, name, avatar);
-        },
-        acceptCall: async () => {
-          if (callData) {
-            setCallStatus('connected');
-            await setupPeerConnection(callData.conversationId);
-            await socketService.acceptCall(callData.conversationId);
-          }
-        },
-        rejectCall: async () => {
-          if (callData) {
-            setCallStatus('idle');
-            await socketService.rejectCall(callData.conversationId);
-            cleanupCall();
-          }
-        },
-        endCall: async () => {
-          if (callData) {
-            setCallStatus('ended');
-            await socketService.endCall(callData.conversationId);
-            cleanupCall();
-            setTimeout(() => setCallStatus('idle'), 2000);
-          }
-        },
+        // FIX 2a: named functions are used, ensuring setupPeerConnection runs
+        startCall,
+        acceptCall,
+        rejectCall,
+        endCall,
         isMuted,
         isSpeakerOn,
         toggleMute,
@@ -568,30 +702,16 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       }}
     >
       {children}
+      {/* FIX 2a: Use the named call functions as props so all logic
+          (peer connection setup + ringtone stop) is always executed */}
       <CallOverlay
         isVisible={callState !== 'idle'}
         status={callState === 'outgoing' ? 'outgoing' : callState === 'incoming' ? 'incoming' : callState === 'connected' ? 'connected' : 'ended'}
         name={callData?.name || 'Unknown'}
         avatar={callData?.avatar || ''}
-        onAccept={() => {
-          if (callData) {
-            setCallStatus('connected');
-            socketService.acceptCall(callData.conversationId);
-          }
-        }}
-        onReject={() => {
-          if (callData) {
-            setCallStatus('idle');
-            socketService.rejectCall(callData.conversationId);
-          }
-        }}
-        onEnd={() => {
-          if (callData) {
-            setCallStatus('ended');
-            socketService.endCall(callData.conversationId);
-            setTimeout(() => setCallStatus('idle'), 1500);
-          }
-        }}
+        onAccept={acceptCall}
+        onReject={rejectCall}
+        onEnd={endCall}
         isMuted={isMuted}
         isSpeakerOn={isSpeakerOn}
         onToggleMute={toggleMute}

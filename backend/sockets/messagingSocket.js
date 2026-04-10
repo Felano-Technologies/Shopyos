@@ -231,8 +231,9 @@ function registerMessagingHandlers(io) {
       socket.to(`conversation:${conversationId}`).emit('call:ended', { conversationId });
     });
 
+    // FIX: Forward conversationId so the callee can identify which peer connection to use
     socket.on('call:offer', ({ conversationId, offer }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:offer', { offer });
+      socket.to(`conversation:${conversationId}`).emit('call:offer', { conversationId, offer });
     });
 
     socket.on('call:answer', ({ conversationId, answer }) => {

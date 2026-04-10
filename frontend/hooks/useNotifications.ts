@@ -72,7 +72,10 @@ export const useUnreadNotificationCount = () => {
       if (pathname !== '/notification' && data?.title && data?.message) {
         // Play haptic feedback and notification sound
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-        Audio.Sound.createAsync(require('@/assets/sounds/notification.mp3'), { shouldPlay: true })
+        Audio.Sound.createAsync(
+          require('@/assets/sounds/notification.mp3'),
+          { shouldPlay: true, volume: 0.25 } // soft chime, not full-blast
+        )
           .then(({ sound }) => {
             sound.setOnPlaybackStatusUpdate((status) => {
               if (status.isLoaded && status.didJustFinish) {

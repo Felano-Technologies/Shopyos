@@ -30,7 +30,10 @@ import {
   getLocationSharingPreference,
 } from '@/src/background/controller';
 
-const { width } = Dimensions.get('window');
+const { width: SW } = Dimensions.get('window');
+const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
+const rs = (n: number) => Math.round(n * SCALE);
+const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 export default function Dashboard() {
   const router = useRouter();
@@ -88,7 +91,13 @@ export default function Dashboard() {
   const { data: activeData, refetch: refetchActive } = useActiveDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
   const activeDeliveries = activeData?.deliveries || [];
   
-  const { data: availableData, refetch: refetchAvailable } = useAvailableDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
+  const { 
+    data: availableData, 
+    refetch: refetchAvailable, 
+    isLoading: isLoadingAvailable,
+    isFetching: isFetchingAvailable 
+  } = useAvailableDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
+
   const requests = availableData?.deliveries?.map((d: any) => ({
     id: d.id || d._id,
     restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
@@ -397,8 +406,21 @@ export default function Dashboard() {
 
             {requests.length === 0 ? (
               <View style={styles.searchingState}>
-                <ActivityIndicator size="large" color="#0C1559" />
-                <Text style={styles.searchingText}>Searching for orders...</Text>
+                {isLoadingAvailable ? (
+                  <>
+                    <ActivityIndicator size="large" color="#0C1559" />
+                    <Text style={styles.searchingText}>Finding orders...</Text>
+                  </>
+                ) : (
+                  <>
+                    <View style={styles.searchingIconCircle}>
+                      <Feather name="search" size={40} color="#94A3B8" />
+                    </View>
+                    <Text style={styles.searchingText}>No orders available right now</Text>
+                    <Text style={styles.searchingSub}>We'll notify you when a new request comes in.</Text>
+                    {isFetchingAvailable && <ActivityIndicator size="small" color="#0C1559" style={{ marginTop: 15 }} />}
+                  </>
+                )}
               </View>
             ) : (
               <FlatList
@@ -489,8 +511,10 @@ const styles = StyleSheet.create({
   liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#DC2626', marginRight: 6 },
   liveText: { color: '#DC2626', fontSize: 10, fontFamily: 'Montserrat-Bold' },
 
-  searchingState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 50 },
-  searchingText: { marginTop: 15, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  searchingState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 },
+  searchingIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+  searchingText: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#475569', textAlign: 'center' },
+  searchingSub: { fontSize: rf(13), fontFamily: 'Montserrat-Regular', color: '#94A3B8', textAlign: 'center', marginTop: 5, width: '80%' },
 
   // Active Order Card
   activeCard: { borderRadius: 20, overflow: 'hidden', marginBottom: 15, elevation: 4, shadowColor: '#365314', shadowOpacity: 0.2, shadowRadius: 10 },

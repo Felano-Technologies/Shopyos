@@ -5,7 +5,7 @@
     "owner": "eugeneanokye99",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/adaptive-icon.png",
+    "icon": "./assets/images/logo - blue.png",
     "scheme": "shopyos",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -22,7 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/logo - blue.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.eugeneanokye99.shopyos",
@@ -80,7 +80,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/images/logo - blue.png",
           "color": "#ffffff"
         }
       ],

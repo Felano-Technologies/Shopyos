@@ -55,8 +55,17 @@ export function InAppToastHost() {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
-      const { sound } = await Audio.Sound.createAsync(require('../assets/sounds/notification.mp3'), { shouldPlay: true, volume: 1 });
+      // Volume 0.25 — soft and smooth, not jarring
+      const { sound } = await Audio.Sound.createAsync(
+        require('../assets/sounds/notification.wav'),
+        { shouldPlay: true, volume: 0.25 }
+      );
       soundRef.current = sound;
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync().catch(() => null);
+        }
+      });
     } catch {
       // Keep toast flow smooth even if sound fails
     }
@@ -134,8 +143,8 @@ export function InAppToastHost() {
     progress.setValue(1);
     isDismissing.current = false;
 
-    // Use our global sound rather than recreating
-    // playSoftToastSound().catch(() => null);
+    // Play soft chime when a toast becomes visible
+    playSoftToastSound().catch(() => null);
 
     Animated.parallel([
       Animated.spring(translateY, {
