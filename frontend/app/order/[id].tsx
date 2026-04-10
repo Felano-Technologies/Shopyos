@@ -13,6 +13,7 @@ import { getOrderDetails, cancelOrder, startConversation } from '@/services/api'
 import { queryClient } from '@/lib/query/client';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
+import { useChat } from '../context/ChatContext';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -64,6 +65,7 @@ const OrderDetailsScreen = () => {
 
   const [order,        setOrder]        = useState<any>(null);
   const [loading,      setLoading]      = useState(true);
+  const { startCall } = useChat();
   const [isCancelling, setIsCancelling] = useState(false);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -390,6 +392,16 @@ const OrderDetailsScreen = () => {
               <Text style={S.storeName}>{order.store?.store_name || 'Shopyos Store'}</Text>
               <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
             </View>
+            <TouchableOpacity
+              style={S.chatCircle}
+              onPress={() => startCall(
+                order.store?.id || order.store?._id,
+                order.store?.store_name || 'Store',
+                order.store?.logo || order.store?.logo_url || ''
+              )}
+            >
+              <Ionicons name="call-outline" size={rs(18)} color={C.navy} />
+            </TouchableOpacity>
             <TouchableOpacity
               style={S.chatCircle}
               disabled={chatLoading}

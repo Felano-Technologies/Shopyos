@@ -36,7 +36,7 @@ class OrderRepository extends BaseRepository {
           id,
           owner_id,
           store_name,
-          logo,
+          logo_url,
           store_category,
           phone,
           address_line1,
@@ -68,7 +68,7 @@ class OrderRepository extends BaseRepository {
           pickup_address,
           delivery_address,
           driver:driver_id (
-            user_profiles (full_name, phone)
+            user_profiles (full_name, phone, avatar_url)
           )
         )
       `)
@@ -99,7 +99,7 @@ class OrderRepository extends BaseRepository {
       where,
       select: `
         *,
-        store:store_id (store_name, logo, store_category),
+        store:store_id (store_name, logo_url, store_category),
         order_items (product_title, quantity, price),
         payments (status, payment_method)
       `,
