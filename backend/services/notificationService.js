@@ -196,20 +196,26 @@ class NotificationService {
    */
   async sendOrderNotification(userId, order, status) {
     const statusMessages = {
-      pending: 'Your order has been placed successfully',
-      confirmed: 'Your order has been confirmed',
-      processing: 'Your order is being processed',
-      shipped: 'Your order has been shipped',
-      delivered: 'Your order has been delivered',
-      cancelled: 'Your order has been cancelled'
+      pending:          'Your order has been placed successfully',
+      payment_processing: 'Your payment is being processed',
+      paid:             'Payment confirmed! The store will start preparing your order soon.',
+      confirmed:        'Your order has been confirmed and is being prepared.',
+      ready_for_pickup: 'Your order is ready! A driver will pick it up soon.',
+      assigned:         'A driver has been assigned to your order.',
+      picked_up:        'Your order has been picked up and is on the way!',
+      in_transit:       'Your driver is heading to your location.',
+      delivered:        'Your order has been delivered! Enjoy your purchase.',
+      completed:        'Order completed. Thank you for shopping!',
+      cancelled:        'Your order has been cancelled.',
+      refunded:         'A refund has been issued for your order.'
     };
 
-    const title = 'Order Update';
-    const message = `${statusMessages[status]} - Order #${order.order_number}`;
+    const title = status === 'pending' ? 'Order Placed' : 'Order Update';
+    const message = `${statusMessages[status] || 'Status updated'} - Order #${order.order_number}`;
 
     await this.sendNotification({
       userId,
-      type: 'order_update',
+      type: `order_${status}`,
       title,
       message,
       data: { orderId: order.id, orderNumber: order.order_number, status },
@@ -217,14 +223,19 @@ class NotificationService {
       relatedType: 'order',
       email: {
         html: `
-          <h2>${title}</h2>
-          <p>${message}</p>
-          <p><strong>Order Total:</strong> GHS ${order.total_amount}</p>
-          <p>Track your order at: ${process.env.FRONTEND_URL}/orders/${order.id}</p>
+          <div style="font-family: sans-serif; padding: 20px;">
+            <h2 style="color: #0C1559;">${title}</h2>
+            <p style="font-size: 16px;">${message}</p>
+            <p><strong>Total:</strong> ₵${order.total_amount}</p>
+            <a href="${process.env.FRONTEND_URL}/order/${order.id}" 
+               style="background: #84cc16; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+               View Order Details
+            </a>
+          </div>
         `
       },
       sms: {
-        text: `${message}. Track at: ${process.env.FRONTEND_URL}/orders/${order.id}`
+        text: `${message}. Details: ORD-#${order.order_number}`
       },
       push: {
         data: {

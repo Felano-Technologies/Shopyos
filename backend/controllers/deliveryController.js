@@ -152,21 +152,7 @@ const assignDriver = async (req, res, next) => {
 
     // Notify customer that driver has been assigned (if driver is not the buyer)
     if (order && driver && order.buyer_id !== driverId) {
-      await notificationService.sendNotification({
-        userId: order.buyer_id,
-        type: 'delivery_assigned',
-        title: 'Driver Assigned',
-        message: `${driver.full_name || 'A driver'} has been assigned to your order #${order.order_number}`,
-        relatedId: updatedDelivery.id,
-        relatedType: 'delivery',
-        data: {
-          orderId: order.id,
-          deliveryId: updatedDelivery.id,
-          driverId: driver.id,
-          driverName: driver.full_name
-        },
-        push: { data: { screen: 'order', orderId: order.id } }
-      });
+      await notificationService.sendOrderNotification(order.buyer_id, order, 'assigned');
     }
 
     res.status(200).json({
@@ -313,59 +299,20 @@ const updateDeliveryStatus = async (req, res, next) => {
       await repositories.orders.updateStatus(updatedDelivery.order_id, 'in_transit');
 
       // Notify customer that order has been picked up (if driver is not the buyer)
-      if (order && driver && order.buyer_id !== driverId) {
-        await notificationService.sendNotification({
-          userId: order.buyer_id,
-          type: 'order_picked_up',
-          title: 'Order Picked Up',
-          message: `${driver.full_name || 'Your driver'} has picked up your order #${order.order_number} and is on the way!`,
-          relatedId: updatedDelivery.id,
-          relatedType: 'delivery',
-          data: {
-            orderId: order.id,
-            deliveryId: updatedDelivery.id,
-            status: 'picked_up'
-          },
-          push: { data: { screen: 'order', orderId: order.id } }
-        });
+      if (order && order.buyer_id !== driverId) {
+        await notificationService.sendOrderNotification(order.buyer_id, order, 'picked_up');
       }
     } else if (status === 'in_transit') {
       // Notify customer that driver is on the way (if driver is not the buyer)
-      if (order && driver && order.buyer_id !== driverId) {
-        await notificationService.sendNotification({
-          userId: order.buyer_id,
-          type: 'delivery_in_transit',
-          title: 'Driver On The Way',
-          message: `${driver.full_name || 'Your driver'} is heading to your location with order #${order.order_number}`,
-          relatedId: updatedDelivery.id,
-          relatedType: 'delivery',
-          data: {
-            orderId: order.id,
-            deliveryId: updatedDelivery.id,
-            status: 'in_transit'
-          },
-          push: { data: { screen: 'order', orderId: order.id } }
-        });
+      if (order && order.buyer_id !== driverId) {
+        await notificationService.sendOrderNotification(order.buyer_id, order, 'in_transit');
       }
     } else if (status === 'delivered') {
       await repositories.orders.updateStatus(updatedDelivery.order_id, 'delivered');
 
       // Notify customer that order has been delivered (if driver is not the buyer)
       if (order && order.buyer_id !== driverId) {
-        await notificationService.sendNotification({
-          userId: order.buyer_id,
-          type: 'order_delivered',
-          title: 'Order Delivered',
-          message: `Your order #${order.order_number} has been successfully delivered. Enjoy!`,
-          relatedId: updatedDelivery.id,
-          relatedType: 'delivery',
-          data: {
-            orderId: order.id,
-            deliveryId: updatedDelivery.id,
-            status: 'delivered'
-          },
-          push: { data: { screen: 'order', orderId: order.id } }
-        });
+        await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
       }
     } else if (status === 'failed' || status === 'cancelled') {
       // Notify customer of delivery issue (if driver is not the buyer)

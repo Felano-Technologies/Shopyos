@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { safePush } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -50,6 +51,7 @@ export default function StoresScreen() {
   const [stores,         setStores]         = useState<any[]>([]);
   const [popularStores,  setPopularStores]  = useState<any[]>([]);
   const [loading,        setLoading]        = useState(true);
+  const [isRefreshing,   setIsRefreshing]   = useState(false);
   const [showFilter,     setShowFilter]     = useState(false);
   const [filterSort,     setFilterSort]     = useState<'rating' | 'newest' | 'name'>('rating');
   const [filterVerified, setFilterVerified] = useState(false);
@@ -75,14 +77,17 @@ export default function StoresScreen() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      measureElement(refSearch, 'search');
-      measureElement(refFilter, 'filter');
-      measureElement(refPopular, 'popular');
-      measureElement(refMap, 'map');
-      startTour('stores');
+      // Only start tour if user isn't actively searching
+      if (searchQuery.length === 0) {
+        measureElement(refSearch, 'search');
+        measureElement(refFilter, 'filter');
+        measureElement(refPopular, 'popular');
+        measureElement(refMap, 'map');
+        startTour('stores');
+      }
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [searchQuery.length === 0]);
 
   const onboardingSteps = [
     {
@@ -113,7 +118,11 @@ export default function StoresScreen() {
 
   const fetchStores = useCallback(async () => {
     try {
-      setLoading(true);
+      // Only show full skeleton if we have no data yet
+      const isInitial = stores.length === 0;
+      if (isInitial) setLoading(true);
+      else setIsRefreshing(true);
+
       const res = await getAllStores({
         search:   searchQuery || undefined,
         category: activeCategory !== 'All' ? activeCategory : undefined,
@@ -135,27 +144,27 @@ export default function StoresScreen() {
         }));
 
         Animated.sequence([
-          Animated.timing(fadeAnim, { toValue: 0.3, duration: 80,  useNativeDriver: true }),
-          Animated.timing(fadeAnim, { toValue: 1,   duration: 240, useNativeDriver: true }),
+          Animated.timing(fadeAnim, { toValue: 0.5, duration: 120, useNativeDriver: true }),
+          Animated.timing(fadeAnim, { toValue: 1,   duration: 300, useNativeDriver: true }),
         ]).start();
 
         setStores(mapped);
-        setPopularStores(mapped.slice(0, 6));
+        if (searchQuery === '' && activeCategory === 'All') {
+          setPopularStores(mapped.slice(0, 6));
+        }
       }
     } catch (e) {
       console.error('Error fetching stores', e);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   }, [searchQuery, activeCategory, filterSort, filterVerified]);
 
   useEffect(() => { fetchStores(); }, [fetchStores]);
 
   const handleVisitStore = (item: any) => {
-    router.push({
-      pathname: '/stores/details',
-      params: { id: item.id, name: item.name, category: item.category, logo: item.logo },
-    });
+    safePush('/stores/details', { id: item.id, name: item.name, category: item.category, logo: item.logo });
   };
 
   // ── Popular card — single logo image, verified badge overlaid on it ────────
@@ -267,7 +276,8 @@ export default function StoresScreen() {
     </View>
   );
 
-  if (loading) {
+  // Only show the full skeleton loader during initial boot with NO data
+  if (loading && stores.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: C.pageBg }}>
         <StatusBar style="light" />
@@ -277,7 +287,7 @@ export default function StoresScreen() {
     );
   }
 
-  const headingEye = isSearching ? 'Results for' : 'Explore';
+  const headingEye = searchQuery.length > 0 ? 'Results for' : 'Explore';
 
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
@@ -293,13 +303,13 @@ export default function StoresScreen() {
                 <View>
                   <Text style={styles.hdrEye}>{headingEye}</Text>
                   <Text style={styles.hdrTitle} numberOfLines={1}>
-                    {isSearching
+                    {searchQuery.length > 0
                       ? <>{'"'}<Text style={{ color: C.lime }}>{searchQuery}</Text>{'"'}</>
                       : <>{'Discover '}<Text style={{ color: C.lime }}>{'Stores'}</Text></>
                     }
                   </Text>
                 </View>
-                <TouchableOpacity style={styles.hdrBtn}>
+                <TouchableOpacity style={styles.hdrBtn} onPress={() => safePush('/notification')}>
                   <Ionicons name="notifications-outline" size={17} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
               </View>
@@ -317,7 +327,9 @@ export default function StoresScreen() {
                     autoCorrect={false}
                     autoCapitalize="none"
                   />
-                  {searchQuery.length > 0 && (
+                  {isRefreshing ? (
+                    <ActivityIndicator size="small" color={C.lime} style={{ marginRight: 4 }} />
+                  ) : searchQuery.length > 0 && (
                     <TouchableOpacity
                       style={styles.clearBtn}
                       onPress={() => setSearchQuery('')}
@@ -408,7 +420,7 @@ export default function StoresScreen() {
         <TouchableOpacity
           style={styles.mapFab}
           activeOpacity={0.88}
-          onPress={() => router.push('/stores/storesMap' as any)}
+          onPress={() => safePush('/stores/storesMap')}
           ref={refMap}
           onLayout={() => measureElement(refMap, 'map')}
         >

@@ -8,6 +8,7 @@ import {
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
+import { safePush } from '@/lib/navigation';
 import * as Location from 'expo-location';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -333,14 +334,11 @@ export default function Home() {
   const onRefresh = async () => Promise.all([refetchRecent(), refetchDeals()]);
 
   const goToDetails = (item: any) =>
-    router.push({
-      pathname: '/product/details',
-      params: {
+    safePush('/product/details', {
         id: item._id, title: item.name, price: item.price,
         category: item.category,
         image: item.images?.[0] || '',
         description: item.description,
-      },
     });
 
   // ── Render: single ad slide ─────────────────────────────────────────────────
@@ -480,13 +478,13 @@ export default function Home() {
               </Text>
 
               <View style={S.headerActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
-                <TouchableOpacity style={S.headerBtn} onPress={() => router.push('/cart' as any)}>
+                <TouchableOpacity style={S.headerBtn} onPress={() => safePush('/cart')}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {cartCount > 0 && (
                     <View style={S.hdrBadge}><Text style={S.hdrBadgeTxt}>{cartCount > 99 ? '99+' : cartCount}</Text></View>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity style={S.headerBtn} onPress={() => router.push('/notification' as any)}>
+                <TouchableOpacity style={S.headerBtn} onPress={() => safePush('/notification')}>
                   <Ionicons name="notifications-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {unreadNotifCount > 0 && (
                     <View style={S.hdrBadge}><Text style={S.hdrBadgeTxt}>{unreadNotifCount > 99 ? '99+' : unreadNotifCount}</Text></View>

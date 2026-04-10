@@ -101,7 +101,7 @@ const OrdersScreen = () => {
   const orders: Order[] = rawOrders.map((o: any) => ({
     id:          o.id,
     orderNumber: o.order_number,
-    totalAmount: o.payments?.[0]?.amount ? parseFloat(o.payments[0].amount) : 0,
+    totalAmount: o.total_amount ? parseFloat(o.total_amount) : 0,
     date:        o.created_at,
     status:      o.status ?? 'unknown',
     itemsCount:  o.order_items?.length ?? 0,

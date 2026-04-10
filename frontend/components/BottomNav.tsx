@@ -10,8 +10,9 @@ import {
   UIManager,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { usePathname, router } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { safePush } from '@/lib/navigation';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -35,7 +36,7 @@ const BottomNav = () => {
       duration: 200, // Faster duration reduces ghosting
       update: { type: 'easeInEaseOut' },
     });
-    router.push(route as any);
+    safePush(route);
   };
 
   return (

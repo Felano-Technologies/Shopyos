@@ -399,45 +399,7 @@ const updateOrderStatus = async (req, res, next) => {
     const updatedOrder = await repositories.orders.updateStatus(orderId, status);
 
     // Notify customer about status changes
-    const statusMessages = {
-      'confirmed': {
-        title: 'Order Confirmed',
-        message: `Your order #${order.order_number} has been confirmed by the seller and is being prepared.`
-      },
-      'preparing': {
-        title: 'Order Being Prepared',
-        message: `Your order #${order.order_number} is now being prepared.`
-      },
-      'ready_for_pickup': {
-        title: 'Order Ready for Pickup',
-        message: `Your order #${order.order_number} is ready! A driver will pick it up soon.`
-      },
-      'cancelled': {
-        title: 'Order Cancelled',
-        message: `Your order #${order.order_number} has been cancelled. You will be refunded shortly.`
-      },
-      'completed': {
-        title: 'Order Completed',
-        message: `Your order #${order.order_number} is complete. Thank you for shopping with us!`
-      }
-    };
-
-    if (statusMessages[status]) {
-      await notificationService.sendNotification({
-        userId: order.buyer_id,
-        type: `order_${status}`,
-        title: statusMessages[status].title,
-        message: statusMessages[status].message,
-        relatedId: order.id,
-        relatedType: 'order',
-        data: {
-          orderId: order.id,
-          orderNumber: order.order_number,
-          status: status
-        },
-        push: { data: { screen: 'order', orderId: order.id } }
-      });
-    }
+    await notificationService.sendOrderNotification(order.buyer_id, order, status);
 
     const { cacheDelPattern } = require('../config/redis');
     if (cacheDelPattern) {

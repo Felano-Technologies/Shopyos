@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage } from "@/services/api";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useStoreSearch } from '@/hooks/useBusiness';
@@ -27,16 +28,16 @@ const MAX_RECENT = 6;
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
-  bg:       '#E9F0FF',
-  navy:     '#0C1559',
-  navyMid:  '#1e3a8a',
-  lime:     '#84cc16',
+  bg: '#E9F0FF',
+  navy: '#0C1559',
+  navyMid: '#1e3a8a',
+  lime: '#84cc16',
   limeText: '#1a2e00',
-  card:     '#FFFFFF',
-  body:     '#0F172A',
-  muted:    '#64748B',
-  subtle:   '#94A3B8',
-  border:   'rgba(12,21,89,0.08)',
+  card: '#FFFFFF',
+  body: '#0F172A',
+  muted: '#64748B',
+  subtle: '#94A3B8',
+  border: 'rgba(12,21,89,0.08)',
   borderMd: 'rgba(12,21,89,0.14)',
 };
 
@@ -51,10 +52,10 @@ const CAT_ACCENTS = [
 ];
 
 const SORT_OPTIONS = [
-  { label: 'Newest',   value: 'newest'    },
-  { label: 'Price ↑',  value: 'price_asc' },
-  { label: 'Price ↓',  value: 'price_desc'},
-  { label: 'Popular',  value: 'popular'   },
+  { label: 'Newest', value: 'newest' },
+  { label: 'Price ↑', value: 'price_asc' },
+  { label: 'Price ↓', value: 'price_desc' },
+  { label: 'Popular', value: 'popular' },
 ];
 
 const TRENDING = ['Sneakers', 'Phones', 'Watches', 'Bags', 'Dresses', 'Laptops'];
@@ -62,24 +63,24 @@ const TRENDING = ['Sneakers', 'Phones', 'Watches', 'Bags', 'Dresses', 'Laptops']
 type ViewMode = 'grid' | 'list';
 
 export default function SearchScreen() {
-  const router  = useRouter();
+  const router = useRouter();
   const { addToCart } = useCart();
-  const params  = useLocalSearchParams();
+  const params = useLocalSearchParams();
 
-  const [query,          setQuery]        = useState('');
-  const [category,       setCategory]     = useState<string | null>(
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<string | null>(
     params.category ? String(params.category) : null
   );
-  const [sortBy,         setSortBy]       = useState<string>(
+  const [sortBy, setSortBy] = useState<string>(
     params.sortBy ? String(params.sortBy) : 'newest'
   );
-  const [viewMode,       setViewMode]     = useState<ViewMode>('grid');
-  const [sortOpen,       setSortOpen]     = useState(false);
-  const [recentSearches, setRecent]       = useState<string[]>([]);
-  const [addingId,       setAddingId]     = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [sortOpen, setSortOpen] = useState(false);
+  const [recentSearches, setRecent] = useState<string[]>([]);
+  const [addingId, setAddingId] = useState<string | null>(null);
 
-  const inputRef  = useRef<TextInput>(null);
-  const fadeAnim  = useRef(new Animated.Value(1)).current;
+  const inputRef = useRef<TextInput>(null);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   // --- Onboarding ---
@@ -156,28 +157,28 @@ export default function SearchScreen() {
 
   const filters = {
     category: category ?? (params.category ? String(params.category) : undefined),
-    sortBy:   sortBy as any,
+    sortBy: sortBy as any,
     minPrice: params.minPrice ? parseFloat(String(params.minPrice)) : undefined,
     maxPrice: params.maxPrice ? parseFloat(String(params.maxPrice)) : undefined,
   };
 
   const isActive = query.length >= 2;
-  const { data: allData,    isLoading: loadingAll    } = useProducts(filters, 50);
+  const { data: allData, isLoading: loadingAll } = useProducts(filters, 50);
   const { data: searchData, isLoading: loadingSearch } = useProductSearch(query, filters, 50);
   const { data: storeSearchData, isLoading: loadingStores } = useStoreSearch(query, 10);
 
-  const loading  = isActive ? loadingSearch : loadingAll;
+  const loading = isActive ? loadingSearch : loadingAll;
   const products = isActive
-    ? (searchData?.success ? searchData.products  : [])
-    : (allData?.success    ? allData.products     : []);
-  
+    ? (searchData?.success ? searchData.products : [])
+    : (allData?.success ? allData.products : []);
+
   const stores = isActive && storeSearchData?.success ? storeSearchData.data : [];
 
   // Cross-fade on data / view change
   useEffect(() => {
     Animated.sequence([
-      Animated.timing(fadeAnim,  { toValue: 0.3, duration: 80,  useNativeDriver: true }),
-      Animated.timing(fadeAnim,  { toValue: 1,   duration: 240, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 0.3, duration: 80, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 240, useNativeDriver: true }),
     ]).start();
   }, [products.length, viewMode, category]);
 
@@ -202,10 +203,7 @@ export default function SearchScreen() {
   };
 
   const handleProductPress = (item: any) => {
-    router.push({
-      pathname: `/product/${item._id}`,
-      params: { name: item.name, price: item.price, image: item.images?.[0] || '' },
-    } as any);
+    safePush(`/product/${item._id}`, { name: item.name, price: item.price, image: item.images?.[0] || '' });
   };
 
   const handleAddToCart = async (item: any) => {
@@ -227,7 +225,7 @@ export default function SearchScreen() {
   };
 
   // ── Header title ────────────────────────────────────────────────────────────
-  const headingTop    = isActive ? 'Results for' : 'Discover';
+  const headingTop = isActive ? 'Results for' : 'Discover';
   const headingBottom = isActive ? `"${query}"` : 'Find your match';
 
   // ── Render: stores ──────────────────────────────────────────────────────────
@@ -250,10 +248,7 @@ export default function SearchScreen() {
             <TouchableOpacity
               key={store.id}
               style={styles.storeCard}
-              onPress={() => router.push({
-                pathname: `/stores/details`,
-                params: { id: store.id, name: store.name, logo: store.logo }
-              } as any)}
+              onPress={() => safePush('/stores/details', { id: store.id, name: store.name, logo: store.logo })}
             >
               <View style={styles.storeLogoWrap}>
                 <Image
@@ -447,9 +442,9 @@ export default function SearchScreen() {
           <View style={styles.discSection}>
             <Text style={styles.discLabel}>Browse categories</Text>
             <View style={styles.catTileGrid}>
-              {[...categories].sort((a,b) => a.name.localeCompare(b.name)).slice(0, 12).map((cat: any, i: number) => {
+              {[...categories].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 12).map((cat: any, i: number) => {
                 const accent = CAT_ACCENTS[i % CAT_ACCENTS.length];
-                const isOn   = category === cat.name;
+                const isOn = category === cat.name;
                 return (
                   <TouchableOpacity
                     key={cat.id || cat.name}
@@ -525,13 +520,13 @@ export default function SearchScreen() {
                 <View style={styles.hdrActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
                   <TouchableOpacity
                     style={styles.hdrBtn}
-                    onPress={() => router.push('/cart' as any)}
+                    onPress={() => safePush('/cart')}
                   >
                     <Feather name="shopping-bag" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.hdrBtn}
-                    onPress={() => router.push('/filter' as any)}
+                    onPress={() => safePush('/filter')}
                   >
                     <Feather name="sliders" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>
@@ -738,8 +733,8 @@ export default function SearchScreen() {
         <BottomNav />
       </View>
 
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'search'} 
+      <SpotlightTour
+        visible={isTourActive && activeScreen === 'search'}
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />
@@ -749,16 +744,16 @@ export default function SearchScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const C2 = {
-  bg:       '#E9F0FF',
-  navy:     '#0C1559',
-  navyMid:  '#1e3a8a',
-  lime:     '#84cc16',
+  bg: '#E9F0FF',
+  navy: '#0C1559',
+  navyMid: '#1e3a8a',
+  lime: '#84cc16',
   limeText: '#1a2e00',
-  card:     '#FFFFFF',
-  body:     '#0F172A',
-  muted:    '#64748B',
-  subtle:   '#94A3B8',
-  border:   'rgba(12,21,89,0.08)',
+  card: '#FFFFFF',
+  body: '#0F172A',
+  muted: '#64748B',
+  subtle: '#94A3B8',
+  border: 'rgba(12,21,89,0.08)',
   borderMd: 'rgba(12,21,89,0.14)',
 };
 
@@ -894,8 +889,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
   },
-  chipOn:    { backgroundColor: C2.lime, borderColor: C2.lime },
-  chipTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.muted },
+  chipOn: { backgroundColor: C2.lime, borderColor: C2.lime },
+  chipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.muted },
   chipTxtOn: { color: C2.limeText },
 
   // ── Toolbar ────────────────────────────────────────────────────────────────
@@ -976,7 +971,7 @@ const styles = StyleSheet.create({
 
   // ── Grid ───────────────────────────────────────────────────────────────────
   gridContent: { paddingHorizontal: 14, paddingBottom: 110 },
-  gridRow:     { justifyContent: 'space-between', marginBottom: 14 },
+  gridRow: { justifyContent: 'space-between', marginBottom: 14 },
   gridCard: {
     width: CARD_W,
     backgroundColor: C2.card,
@@ -989,7 +984,7 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
   },
   gridImgWrap: { width: '100%', height: 136, position: 'relative' },
-  gridImg:     { width: '100%', height: '100%', resizeMode: 'cover' },
+  gridImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   favBtn: {
     position: 'absolute',
     top: 9, right: 9,
@@ -1012,7 +1007,7 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   badgeNewTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C2.limeText, letterSpacing: 0.4 },
-  gridInfo:  { padding: 11 },
+  gridInfo: { padding: 11 },
 
   // ── Shared product text ────────────────────────────────────────────────────
   storeLbl: {
@@ -1117,7 +1112,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.1)',
   },
-  featInfo:  { flex: 1 },
+  featInfo: { flex: 1 },
   featBadge: {
     backgroundColor: C2.lime,
     borderRadius: 20,
@@ -1127,9 +1122,9 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   featBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C2.limeText, letterSpacing: 0.5 },
-  featName:     { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#fff', marginBottom: 3, lineHeight: 19 },
-  featStore:    { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.45)', marginBottom: 6 },
-  featPrice:    { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C2.lime },
+  featName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#fff', marginBottom: 3, lineHeight: 19 },
+  featStore: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.45)', marginBottom: 6 },
+  featPrice: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C2.lime },
   featAddBtn: {
     width: 36, height: 36,
     borderRadius: 12,
@@ -1181,7 +1176,7 @@ const styles = StyleSheet.create({
 
   // ── Discovery ─────────────────────────────────────────────────────────────
   discoveryScroll: { paddingTop: 6, paddingBottom: 110 },
-  discSection:     { paddingHorizontal: 20, paddingVertical: 16 },
+  discSection: { paddingHorizontal: 20, paddingVertical: 16 },
   discHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

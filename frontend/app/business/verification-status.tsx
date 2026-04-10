@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as Haptics from 'expo-haptics';
 import { 
     View, 
     Text, 
@@ -29,14 +30,18 @@ export default function VerificationStatus() {
     const [scaleAnim] = useState(new Animated.Value(0));
     const [sound, setSound] = useState<Audio.Sound | null>(null);
 
-    // --- NEW: SOUND LOGIC ---
+    // --- NEW: SOUND & HAPTIC LOGIC ---
     async function playSuccessSound() {
-        const { sound } = await Audio.Sound.createAsync(
-            // You can replace this URI with a local file in your assets folder
-            { uri: 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3' } 
-        );
-        setSound(sound);
-        await sound.playAsync();
+        try {
+            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const { sound } = await Audio.Sound.createAsync(
+                require('../../assets/sounds/notification.wav')
+            );
+            setSound(sound);
+            await sound.playAsync();
+        } catch (error) {
+            console.warn('Playback error:', error);
+        }
     }
 
     // Cleanup sound when component unmounts
