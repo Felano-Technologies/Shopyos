@@ -20,7 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
+// removed useCloudinaryUpload import
 import { getMyBusinesses, updateBusiness } from '@/services/api';
 import { useMyBusinesses, useUpdateBusiness } from '@/hooks/useBusiness';
 
@@ -49,7 +49,7 @@ const BusinessUpdateScreen = () => {
   const [logoChanged, setLogoChanged] = useState(false);
   const [coverChanged, setCoverChanged] = useState(false);
 
-  const { uploadImage, loading: uploadLoading } = useCloudinaryUpload();
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   const categories = [
     'Fashion & Apparel', 'Electronics', 'Home & Living', 'Art & Crafts',
@@ -123,25 +123,18 @@ const BusinessUpdateScreen = () => {
     }
 
     try {
-      let logoUrl = logo;
-      let coverImageUrl = coverImage;
-
-      if (logoChanged && logo) {
-        const logoResult = await uploadImage(logo, 'business_image');
-        if (logoResult) logoUrl = logoResult.url;
-      }
-
-      if (coverChanged && coverImage) {
-        const coverResult = await uploadImage(coverImage, 'business_image');
-        if (coverResult) coverImageUrl = coverResult.url;
-      }
+      // Logic simplified: we pass the local URIs directly.
+      // The updateBusiness API function (in services/api.tsx) 
+      // automatically detects file:// URIs and handles the upload via its own FormData logic.
+      const logoUrlInput = logoChanged ? logo : logo;
+      const coverImageUrlInput = coverChanged ? coverImage : coverImage;
 
       const updateData = {
         ...formData,
         store_name: formData.businessName, // Ensure compatibility with backend mapping
         address_line1: formData.address,
-        logo_url: logoUrl,
-        banner_url: coverImageUrl,
+        logo_url: logoUrlInput,
+        banner_url: coverImageUrlInput,
         socialMedia: {
           instagram: formData.instagram,
           facebook: formData.facebook

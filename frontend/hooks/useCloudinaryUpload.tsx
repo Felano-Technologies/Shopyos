@@ -34,8 +34,8 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
       // Create form data for upload
       const formData = new FormData();
       formData.append('upload_preset', uploadPreset);
-      
-      // If a specific folder is passed, use it, otherwise use 'shopyos'
+
+      // Use provided folder or default folder path
       formData.append('folder', folder || folderPath);
 
       // Detect file name...
@@ -43,7 +43,7 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
       const match = /\.(\w+)$/.exec(filename);
       const extension = match ? match[1] : '';
       let fileType = 'image/jpeg';
-      
+
       if (extension.toLowerCase() === 'pdf') fileType = 'application/pdf';
       else if (extension) fileType = `image/${extension === 'jpg' ? 'jpeg' : extension}`;
 
@@ -54,20 +54,12 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
         name: filename,
       } as any);
 
-      // Add dynamic folder if provided, else use default
-      if (folder) {
-        formData.append('folder', folder);
-      }
-
       // Upload to Cloudinary using their upload API
       const response = await fetch(
         `https://api.cloudinary.com/v1_1/${cloudName}/upload`,
         {
           method: 'POST',
           body: formData,
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
         }
       );
 
@@ -100,7 +92,7 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
     setError(null);
 
     try {
-      const uploadPromises = imageUris.map((uri) => 
+      const uploadPromises = imageUris.map((uri) =>
         uploadImage(uri, folder)
       );
 

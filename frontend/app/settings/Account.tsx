@@ -18,7 +18,11 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/v
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
-import { getUserData, updateProfile } from '@/services/api';
+import { useQueryClient } from '@tanstack/react-query';
+import * as ImagePicker from 'expo-image-picker';
+import { getUserData, updateProfile, getPaymentMethods, uploadAvatar } from '@/services/api';
+import { CustomInAppToast } from "@/components/InAppToastHost";
+// removed useCloudinaryUpload import
 
 const { width } = Dimensions.get('window');
 
@@ -34,15 +38,18 @@ const AVATARS = AVATAR_SEEDS.map(seed =>
 );
 
 const LOCATION_DATA: Record<string, string[]> = {
-  'Ghana': ['Ashanti', 'Greater Accra', 'Central', 'Western', 'Eastern', 'Northern', 'Volta', 'Brong-Ahafo', 'Upper East', 'Upper West'],
-  'Nigeria': ['Lagos', 'Abuja (FCT)', 'Rivers', 'Kano', 'Oyo', 'Edo', 'Kaduna'],
+  'Ghana': ['Ashanti', 'Greater Accra', 'Central', 'Western', 'Eastern', 'Northern', 'Volta', 'Brong-Ahafo', 'Upper East', 'Upper West', 'Bono', 'Bono East', 'Ahafo', 'Oti', 'Savannah', 'North East'],
+  'Nigeria': ['Lagos', 'Abuja (FCT)', 'Rivers', 'Kano', 'Oyo', 'Edo', 'Kaduna', 'Ogun', 'Anambra', 'Delta', 'Enugu'],
+  'Kenya': ['Nairobi', 'Mombasa', 'Kiambu', 'Kisumu', 'Nakuru', 'Machakos'],
+  'South Africa': ['Gauteng', 'Western Cape', 'KwaZulu-Natal', 'Eastern Cape', 'Limpopo', 'Mpumalanga'],
   'Togo': ['Maritime', 'Plateaux', 'Centrale', 'Kara', 'Savanes'],
   'Ivory Coast': ['Abidjan', 'Yamoussoukro', 'Lagunes', 'Vallée du Bandama', 'Savanes'],
-  'USA': ['California', 'Texas', 'Florida', 'New York', 'Illinois', 'Pennsylvania'],
-  'UK': ['Greater London', 'West Midlands', 'Greater Manchester', 'West Yorkshire', 'Scotland', 'Wales'],
+  'United Kingdom': ['Greater London', 'West Midlands', 'Greater Manchester', 'West Yorkshire', 'Scotland', 'Wales'],
+  'United States': ['California', 'Texas', 'Florida', 'New York', 'Illinois', 'Pennsylvania'],
+  'Canada': ['Ontario', 'Quebec', 'British Columbia', 'Alberta', 'Manitoba'],
 };
 
-const COUNTRIES = Object.keys(LOCATION_DATA);
+const COUNTRIES = Object.keys(LOCATION_DATA).sort();
 
 // --- 2. REUSABLE COMPONENT ---
 const ProfileField = ({
@@ -67,8 +74,8 @@ const ProfileField = ({
 
   // Dynamically extract prefix if it's a phone field
   let displayValue = value;
-  let detectedPrefix = "+233"; 
-  
+  let detectedPrefix = "+233";
+
   if (isPhone && value && value.startsWith('+')) {
     // If starts with +1 (USA), length is 2, otherwise assume +233 or similar (4 digits)
     detectedPrefix = value.startsWith('+1') ? '+1' : value.substring(0, 4);
@@ -83,16 +90,16 @@ const ProfileField = ({
     >
       <View style={styles.inputWrapper}>
         <View style={styles.iconArea}>{renderIcon()}</View>
-        
+
         {isPhone && (
           <View style={styles.flagContainer}>
-            <Image 
-              source={{ 
-                uri: detectedPrefix === '+1' 
-                  ? 'https://flagcdn.com/w40/us.png' 
-                  : 'https://flagcdn.com/w40/gh.png' 
-              }} 
-              style={styles.flag} 
+            <Image
+              source={{
+                uri: detectedPrefix === '+1'
+                  ? 'https://flagcdn.com/w40/us.png'
+                  : 'https://flagcdn.com/w40/gh.png'
+              }}
+              style={styles.flag}
             />
             <Text style={styles.phonePrefix}>{detectedPrefix}</Text>
             <View style={styles.verticalDivider} />
@@ -128,8 +135,30 @@ const ProfileField = ({
 
 export default function AccountScreen() {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [methods, setMethods] = useState<any[]>([]);
+
+  // --- 1. Fetch User Data ---
+  const fetchMethods = useCallback(async () => {
+    try {
+      const resp = await getPaymentMethods();
+      if (resp && resp.success) {
+        setMethods(resp.data || []);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch methods in Account:', err);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchMethods();
+      fetchProfile();
+    }, [fetchMethods])
+  );
 
   // Modals
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -148,19 +177,13 @@ export default function AccountScreen() {
     avatar: AVATARS[0],
   });
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchProfile();
-    }, [])
-  );
-
   const fetchProfile = async () => {
     try {
       const data = await getUserData();
       const user = data.user || data;
 
-      const dateJoined = user.createdAt
-        ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+      const dateJoined = (user.created_at || user.createdAt)
+        ? new Date(user.created_at || user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'N/A';
 
       setUserData({
@@ -256,6 +279,40 @@ export default function AccountScreen() {
     </Modal>
   );
 
+  const pickImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        alert('Sorry, we need camera roll permissions to make this work!');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0].uri) {
+        setShowAvatarModal(false);
+        setUploading(true);
+        const res = await uploadAvatar(result.assets[0].uri);
+        if (res && res.success) {
+          // Profile is already updated on the backend by /upload/avatar
+          setUserData({ ...userData, avatar: res.data.url });
+          CustomInAppToast.show({ type: 'success', title: 'Image Uploaded', message: 'Profile photo updated successfully!' });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to pick/upload image:', error);
+      alert('Failed to update profile photo. Please try again.');
+    } finally {
+      setUploading(false);
+      setSaving(false);
+    }
+  };
+
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" backgroundColor="#0C1559" />
@@ -275,6 +332,7 @@ export default function AccountScreen() {
           <View style={styles.profileSection}>
             <View style={styles.imageWrapper}>
               <Image
+                key={userData.avatar}
                 source={{ uri: userData.avatar }}
                 style={styles.profileImage}
                 defaultSource={require('../../assets/images/icon.png')}
@@ -350,11 +408,14 @@ export default function AccountScreen() {
             <ProfileField
               icon="location-sharp"
               value={userData.region}
-              placeholder={userData.country ? "Select Region/State" : "Select Country First"}
+              placeholder="Select Region/State"
               isDropdown={true}
               onPress={() => {
-                if (userData.country) setShowRegionModal(true);
-                // Optional: Show a subtle toast here instead of alert if preferred
+                if (userData.country) {
+                  setShowRegionModal(true);
+                } else {
+                  alert('Please select a country first to browse regions.');
+                }
               }}
               loading={loading}
             />
@@ -410,6 +471,23 @@ export default function AccountScreen() {
               <TouchableOpacity onPress={() => setShowAvatarModal(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
+            </View>
+            <View style={styles.uploadCta}>
+              <TouchableOpacity style={styles.uploadBtn} onPress={pickImage} disabled={uploading}>
+                {uploading ? (
+                  <ActivityIndicator color="#0C1559" />
+                ) : (
+                  <>
+                    <Ionicons name="cloud-upload-outline" size={20} color="#0C1559" />
+                    <Text style={styles.uploadBtnTxt}>Upload from Gallery</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <View style={styles.orDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.orTxt}>OR CHOOSE PRESET</Text>
+                <View style={styles.dividerLine} />
+              </View>
             </View>
             <FlatList
               data={AVATARS}
@@ -596,5 +674,17 @@ const styles = StyleSheet.create({
   successButton: {
     backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, width: '100%'
   },
-  successButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', textAlign: 'center' }
+  successButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', textAlign: 'center' },
+
+  // Image Upload Styles
+  uploadCta: { paddingHorizontal: 20, marginBottom: 15 },
+  uploadBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    paddingVertical: 14, borderRadius: 16, borderWidth: 2, borderColor: '#0C1559',
+    backgroundColor: '#EEF2FF', borderStyle: 'dashed'
+  },
+  uploadBtnTxt: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  orDivider: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 15 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#F1F5F9' },
+  orTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#94A3B8' }
 });

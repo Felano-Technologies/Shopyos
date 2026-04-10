@@ -21,9 +21,10 @@ import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { businessRegister, storage, getAllCategories, CustomInAppToast } from '@/services/api';
-import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
+// removed useCloudinaryUpload import
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
+import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 
 const { width } = Dimensions.get('window');
 
@@ -407,31 +408,16 @@ const BusinessSetupScreen = () => {
 
     setLoading(true);
     try {
-      let logoUrl = '';
-      let coverUrl = '';
-      let certUrl = '';
-      let licenseUrl = '';
-      let bankUrl = '';
-
-      // Upload images in parallel for better speed
-      const uploadResults = await Promise.all([
-        logo ? uploadImage(logo) : Promise.resolve(null),
-        coverImage ? uploadImage(coverImage) : Promise.resolve(null),
-        businessCert ? uploadImage(businessCert) : Promise.resolve(null),
-        businessLicense ? uploadImage(businessLicense) : Promise.resolve(null),
-        proofOfBank ? uploadImage(proofOfBank) : Promise.resolve(null),
-      ]);
-
-      const [resLogo, resCover, resCert, resLicense, resBank] = uploadResults;
-
-      // Use uploaded URL if successful, otherwise fallback to local URI (backend will handle it)
+      // Logic simplified: we pass the local URIs directly.
+      // The businessRegister function (in services/api.tsx) 
+      // automatically detects file:// URIs and handles the upload via its own FormData logic.
       const submitData = {
         ...formData,
-        logo: resLogo?.url || logo,
-        coverImage: resCover?.url || coverImage,
-        businessCert: resCert?.url || businessCert,
-        businessLicense: resLicense?.url || businessLicense,
-        proofOfBank: resBank?.url || proofOfBank,
+        logo: logo,
+        coverImage: coverImage,
+        businessCert: businessCert,
+        businessLicense: businessLicense,
+        proofOfBank: proofOfBank,
       };
 
       const response = await businessRegister(submitData);
@@ -734,7 +720,7 @@ const BusinessSetupScreen = () => {
             <TouchableOpacity
               style={styles.submitBtn}
               onPress={handleCreateBusiness}
-              disabled={loading || uploadLoading}
+              disabled={loading}
             >
               <LinearGradient
                 colors={['#0C1559', '#1e3a8a']}

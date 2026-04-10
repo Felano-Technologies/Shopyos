@@ -176,6 +176,133 @@ export default function PaymentMethodsScreen() {
       <StatusBar style="light" backgroundColor="#0C1559" />
       <Stack.Screen options={{ headerShown: false }} />
 
+      {/* --- Add Method Modal --- */}
+      <Modal
+        visible={showAddModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowAddModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity 
+            style={{ flex: 1 }} 
+            activeOpacity={1} 
+            onPress={() => setShowAddModal(false)} 
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHandle} />
+              <TouchableOpacity 
+                onPress={() => setShowAddModal(false)} 
+                style={styles.closeBtn}
+              >
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalTitle}>Add Payment Method</Text>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Type Selector */}
+              <View style={styles.typeSelector}>
+                <TouchableOpacity 
+                  style={[styles.typeBtn, newMethod.type === 'momo' && styles.typeBtnActive]}
+                  onPress={() => setNewMethod({ ...newMethod, type: 'momo', provider: 'mtn' })}
+                >
+                  <MaterialCommunityIcons 
+                    name="cellphone-wireless" 
+                    size={20} 
+                    color={newMethod.type === 'momo' ? '#FFF' : '#0C1559'} 
+                  />
+                  <Text style={[styles.typeText, newMethod.type === 'momo' && styles.typeTextActive]}>Mobile Money</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                  style={[styles.typeBtn, newMethod.type === 'card' && styles.typeBtnActive]}
+                  onPress={() => setNewMethod({ ...newMethod, type: 'card', provider: 'visa' })}
+                >
+                  <Ionicons 
+                    name="card" 
+                    size={20} 
+                    color={newMethod.type === 'card' ? '#FFF' : '#0C1559'} 
+                  />
+                  <Text style={[styles.typeText, newMethod.type === 'card' && styles.typeTextActive]}>Card</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Provider Selection */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Select Provider</Text>
+                <View style={styles.providerList}>
+                  {newMethod.type === 'momo' ? (
+                    ['mtn', 'vodafone', 'airteltigo'].map(p => (
+                      <TouchableOpacity 
+                        key={p}
+                        style={[styles.providerBtn, newMethod.provider === p && styles.providerBtnActive]}
+                        onPress={() => setNewMethod({ ...newMethod, provider: p })}
+                      >
+                        <Text style={[styles.providerText, newMethod.provider === p && styles.providerTextActive]}>
+                          {p.toUpperCase()}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  ) : (
+                    ['visa', 'mastercard'].map(p => (
+                      <TouchableOpacity 
+                        key={p}
+                        style={[styles.providerBtn, newMethod.provider === p && styles.providerBtnActive]}
+                        onPress={() => setNewMethod({ ...newMethod, provider: p })}
+                      >
+                        <Text style={[styles.providerText, newMethod.provider === p && styles.providerTextActive]}>
+                          {p.charAt(0).toUpperCase() + p.slice(1)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
+              </View>
+
+              {/* Title / Name */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{newMethod.type === 'card' ? 'Cardholder Name' : 'Account Name'}</Text>
+                <TextInput 
+                  style={styles.input}
+                  placeholder={newMethod.type === 'card' ? 'e.g. John Doe' : 'e.g. My MTN Wallet'}
+                  value={newMethod.title}
+                  onChangeText={(text) => setNewMethod({ ...newMethod, title: text })}
+                />
+              </View>
+
+              {/* Identifier */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>{newMethod.type === 'card' ? 'Card Number' : 'Phone Number'}</Text>
+                <TextInput 
+                  style={styles.input}
+                  placeholder={newMethod.type === 'card' ? '**** **** **** ****' : '05XXXXXXXX'}
+                  value={newMethod.identifier}
+                  keyboardType="numeric"
+                  onChangeText={(text) => setNewMethod({ ...newMethod, identifier: text })}
+                />
+              </View>
+
+              {/* Submit */}
+              <TouchableOpacity 
+                style={styles.submitBtn} 
+                onPress={handleAddMethod}
+                disabled={adding}
+              >
+                {adding ? (
+                  <ActivityIndicator color="#FFF" />
+                ) : (
+                  <Text style={styles.submitBtnText}>Add Payment Method</Text>
+                )}
+              </TouchableOpacity>
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       {/* --- Header --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
@@ -184,7 +311,12 @@ export default function PaymentMethodsScreen() {
               <Ionicons name="arrow-back" size={24} color="#A3E635" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Payment Methods</Text>
-            <View style={{ width: 40 }} />
+            <TouchableOpacity 
+              onPress={() => setShowAddModal(true)} 
+              style={styles.headerAddBtn}
+            >
+              <Ionicons name="add" size={28} color="#A3E635" />
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </View>
@@ -196,27 +328,26 @@ export default function PaymentMethodsScreen() {
             <ActivityIndicator size="large" color="#0C1559" />
           </View>
         ) : (
-          <FlatList
-            data={methods}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            contentContainerStyle={styles.listContent}
-            ListHeaderComponent={
-              <TouchableOpacity
-                style={styles.addBtn}
-                activeOpacity={0.8}
-                onPress={() => setShowAddModal(true)}
-              >
-                <View style={styles.addIconBg}>
-                  <Ionicons name="add" size={24} color="#FFF" />
+          <>
+            <FlatList
+              data={methods}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={styles.listContent}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <MaterialCommunityIcons name="credit-card-plus-outline" size={64} color="#E2E8F0" />
+                  <Text style={styles.emptyText}>No payment methods added yet.</Text>
+                  <TouchableOpacity 
+                    style={styles.emptyAddBtn}
+                    onPress={() => setShowAddModal(true)}
+                  >
+                    <Text style={styles.emptyAddBtnText}>Add your first method</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.addBtnText}>Add New Payment Method</Text>
-              </TouchableOpacity>
-            }
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No payment methods added yet.</Text>
-            }
-          />
+              }
+            />
+          </>
         )}
       </View>
     </View>
@@ -491,7 +622,29 @@ const styles = StyleSheet.create({
   emptyText: {
     textAlign: 'center',
     color: '#94A3B8',
+    marginTop: 12,
+    fontSize: 14,
+    fontFamily: 'Montserrat-Medium',
+  },
+  headerAddBtn: {
+    padding: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 60,
+  },
+  emptyAddBtn: {
     marginTop: 20,
+    backgroundColor: '#0C1559',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+  },
+  emptyAddBtnText: {
+    color: '#A3E635',
+    fontFamily: 'Montserrat-Bold',
     fontSize: 14,
   }
 });

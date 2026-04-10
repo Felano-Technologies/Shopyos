@@ -138,9 +138,8 @@ router.post('/avatar', protect, upload.single('avatar'), async (req, res) => {
 
     // Update user profile with avatar URL
     const repositories = require('../db/repositories');
-    await repositories.users.update(req.user.id, {
-      avatar_url: result.url,
-      avatar_cloudinary_id: result.public_id
+    await repositories.userProfiles.updateByUserId(req.user.id, {
+      avatar_url: result.url
     });
 
     res.status(200).json({

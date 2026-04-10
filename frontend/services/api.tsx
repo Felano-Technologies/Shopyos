@@ -431,6 +431,46 @@ export const updateOnboardingState = async (screen: string, completed: boolean =
     return null;
   }
 };
+
+// ─── Uploads ───────────────────────────────────────────────────────────────────
+
+export const uploadAvatar = async (uri: string) => {
+  try {
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'avatar.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+
+    formData.append('avatar', { uri, name: filename, type } as any);
+
+    const response = await api.post('/upload/avatar', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to upload avatar');
+    throw new Error(error.message || 'Network error during avatar upload');
+  }
+};
+
+export const uploadStoreLogo = async (uri: string) => {
+  try {
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'logo.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+
+    formData.append('logo', { uri, name: filename, type } as any);
+
+    const response = await api.post('/upload/store-logo', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to upload store logo');
+    throw new Error(error.message || 'Network error during logo upload');
+  }
+};
  
 export const businessRegister = async (businessData: any) => {
   try {
