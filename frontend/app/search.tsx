@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
-  TouchableOpacity, Dimensions, Image, Keyboard,
+  TouchableOpacity, Dimensions, Image, ImageBackground, Keyboard,
   Pressable, ScrollView, ActivityIndicator, Animated,
   Platform,
 } from 'react-native';
@@ -59,6 +59,19 @@ const SORT_OPTIONS = [
 ];
 
 const TRENDING = ['Sneakers', 'Phones', 'Watches', 'Bags', 'Dresses', 'Laptops'];
+
+const CATEGORY_IMAGES: Record<string, any> = {
+  'Grocery': require('../assets/images/search/fooddrinks.png'),
+  'Footwear': require('../assets/images/search/slipper1.png'),
+  'Fashion': require('../assets/images/search/womencloth.png'),
+  'Electronics': require('../assets/images/search/appliances.jpeg'),
+  'Home': require('../assets/images/search/table.jpg'),
+  'Health': require('../assets/images/search/supplement.png'),
+  'Art': require('../assets/images/search/Arts1.png'),
+  'Accessories': require('../assets/images/search/accessories.png'),
+  'Beauty': require('../assets/images/search/supplement2.jpg'),
+  'Sports': require('../assets/images/search/sports.jpg'),
+};
 
 type ViewMode = 'grid' | 'list';
 
@@ -407,34 +420,7 @@ export default function SearchScreen() {
         </View>
       )}
 
-      <View style={styles.discDivider} />
 
-      <View style={styles.discSection} ref={refTrending} onLayout={() => measureElement(refTrending, 'trending')}>
-        <Text style={styles.discLabel}>Trending now</Text>
-        <View style={styles.trendWrap}>
-          {categories.length > 0 ? (
-            categories.slice(0, 5).map((cat: any) => (
-              <TouchableOpacity
-                key={cat.id || cat.name}
-                style={styles.trendChip}
-                onPress={() => setCategory(cat.name)}
-              >
-                <Text style={styles.trendChipTxt}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))
-          ) : (
-            TRENDING.map(t => (
-              <TouchableOpacity
-                key={t}
-                style={styles.trendChip}
-                onPress={() => { setQuery(t); inputRef.current?.focus(); }}
-              >
-                <Text style={styles.trendChipTxt}>{t}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </View>
 
       {categories.length > 0 && (
         <>
@@ -442,30 +428,47 @@ export default function SearchScreen() {
           <View style={styles.discSection}>
             <Text style={styles.discLabel}>Browse categories</Text>
             <View style={styles.catTileGrid}>
-              {[...categories].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 12).map((cat: any, i: number) => {
+              {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map((cat: any, i: number) => {
                 const accent = CAT_ACCENTS[i % CAT_ACCENTS.length];
                 const isOn = category === cat.name;
+                const catImg = CATEGORY_IMAGES[cat.name];
+
                 return (
                   <TouchableOpacity
                     key={cat.id || cat.name}
-                    style={[
-                      styles.catTile,
-                      { backgroundColor: isOn ? C.navy : accent.bg },
-                    ]}
+                    style={styles.catTile}
                     onPress={() => {
                       setCategory(isOn ? null : cat.name);
                       setQuery('');
                     }}
                   >
-                    <Text
-                      style={[
-                        styles.catTileTxt,
-                        { color: isOn ? '#fff' : accent.text },
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {cat.name}
-                    </Text>
+                    {catImg ? (
+                      <ImageBackground
+                        source={catImg}
+                        style={StyleSheet.absoluteFillObject}
+                        imageStyle={{ borderRadius: 16 }}
+                      >
+                        <View style={[
+                          styles.catTileOverlay,
+                          { backgroundColor: isOn ? 'rgba(12, 21, 89, 0.75)' : 'rgba(0,0,0,0.22)' }
+                        ]}>
+                          <Text style={styles.catTileTxtInv}>{cat.name}</Text>
+                        </View>
+                      </ImageBackground>
+                    ) : (
+                      <View style={[
+                        styles.catTileFallback,
+                        { backgroundColor: isOn ? C.navy : accent.bg }
+                      ]}>
+                        <Text style={[
+                          styles.catTileTxt,
+                          { color: isOn ? '#fff' : accent.text }
+                        ]}>
+                          {cat.name}
+                        </Text>
+                      </View>
+                    )
+                    }
                   </TouchableOpacity>
                 );
               })}
@@ -570,10 +573,17 @@ export default function SearchScreen() {
         </LinearGradient>
 
         {/* ── Body ────────────────────────────────────────────────────────── */}
-        {loading ? (
+        {(loading && products.length === 0) ? (
           <View style={{ flex: 1 }}><SearchSkeleton /></View>
         ) : (
-          <>
+          <View style={{
+            display: 'flex',
+            backgroundColor: 'pink',
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
+            marginTop: -2,
+            zIndex: 10
+          }}>
             {/* Discovery: no active search and no category selected */}
             {!isActive && !category ? (
               renderDiscovery()
@@ -698,9 +708,13 @@ export default function SearchScreen() {
                 )}
 
                 {/* Product list */}
-                <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+                <Animated.View style={{
+                  flex: 1,
+                  opacity: loading ? 0.6 : fadeAnim
+                }}>
                   {viewMode === 'grid' ? (
                     <FlatList
+                      key="grid"
                       data={products}
                       keyExtractor={item => item._id}
                       numColumns={2}
@@ -714,6 +728,7 @@ export default function SearchScreen() {
                     />
                   ) : (
                     <FlatList
+                      key="list"
                       data={products}
                       keyExtractor={item => item._id}
                       contentContainerStyle={styles.listContent}
@@ -727,7 +742,7 @@ export default function SearchScreen() {
                 </Animated.View>
               </View>
             )}
-          </>
+          </View>
         )}
 
         <BottomNav />
@@ -744,7 +759,7 @@ export default function SearchScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const C2 = {
-  bg: '#E9F0FF',
+  bg: '#FFFFFF',
   navy: '#0C1559',
   navyMid: '#1e3a8a',
   lime: '#84cc16',
@@ -876,7 +891,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     gap: 10,
     flexDirection: 'row',
-    backgroundColor: '#fff',
     alignItems: 'center',
   },
   chip: {
@@ -894,8 +908,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 2,
   },
-  chipOn: { 
-    backgroundColor: C2.lime, 
+  chipOn: {
+    backgroundColor: C2.lime,
     borderColor: C2.lime,
     shadowColor: C2.lime,
     shadowOpacity: 0.2,
@@ -1244,19 +1258,42 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   catTile: {
-    width: (width - 60) / 2,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    borderWidth: 0.5,
-    borderColor: C2.border,
-    elevation: 1,
+    width: (width - 50) / 2,
+    height: 110, // taller
+    borderRadius: 20, // more rounded
+    overflow: 'hidden',
+    elevation: 3,
     shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+  },
+  catTileOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+  },
+  catTileFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)', // transparent feel
+    borderWidth: 1,
+    borderColor: 'rgba(12, 21, 89, 0.05)',
   },
   catTileTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold' },
+  catTileTxtInv: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: '#fff',
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10
+  },
 
   // ── Empty state ───────────────────────────────────────────────────────────
   emptyWrap: {

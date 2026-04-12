@@ -3,7 +3,7 @@ import {
   View, Text, Image, FlatList,
   TouchableOpacity, StyleSheet, Animated, RefreshControl,
   Dimensions, ScrollView, NativeSyntheticEvent,
-  NativeScrollEvent, Platform,
+  NativeScrollEvent, Platform, ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
-import { getPromotedProducts, recordAdClick, getUserData, storage } from '@/services/api';
+import { getPromotedProducts, recordAdClick, getUserData, storage, CustomInAppToast } from '@/services/api';
 import { useChat } from '@/context/ChatContext';
 import { useCart } from '@/context/CartContext';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
@@ -27,28 +27,28 @@ const { width } = Dimensions.get('window');
 
 // ─── Ad carousel constants ────────────────────────────────────────────────────
 // The slide occupies the full width minus horizontal padding (16px each side).
-const SLIDE_W   = width - 32;   // card width
-const SLIDE_H   = 150;          // card height
-const AD_DELAY  = 4000;         // ms between auto-advances
+const SLIDE_W = width - 32;   // card width
+const SLIDE_H = 150;          // card height
+const AD_DELAY = 4000;         // ms between auto-advances
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const C = {
-  pageBg:  '#E9F0FF',
-  navy:    '#0C1559',
+  pageBg: '#E9F0FF',
+  navy: '#0C1559',
   navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+  lime: '#84cc16',
+  limeText: '#1a2e00',
+  card: '#FFFFFF',
+  body: '#0F172A',
+  muted: '#64748B',
+  subtle: '#94A3B8',
 };
 
 // ─── Static fallback banners ──────────────────────────────────────────────────
 const FALLBACK_ADS = [
-  { id: 'f1', badge: 'NEW IN',  title: 'New Arrivals',  sub: 'Fresh styles just dropped',        cta: 'Shop Now', gradient: ['#0C1559','#1e3a8a'] as [string,string], dest: '/search'  },
-  { id: 'f2', badge: '50% OFF', title: 'Deals for You', sub: 'Up to 50% off today only',         cta: 'See Deals',gradient: ['#166534','#14532d'] as [string,string], dest: '/deals'   },
-  { id: 'f3', badge: 'TOP',     title: 'Top Stores',    sub: 'Explore verified sellers near you', cta: 'Browse',   gradient: ['#7C3AED','#4c1d95'] as [string,string], dest: '/stores'  },
+  { id: 'f1', badge: 'NEW IN', title: 'New Arrivals', sub: 'Fresh styles just dropped', cta: 'Shop Now', gradient: ['#0C1559', '#1e3a8a'] as [string, string], dest: '/search' },
+  { id: 'f2', badge: '50% OFF', title: 'Deals for You', sub: 'Up to 50% off today only', cta: 'See Deals', gradient: ['#166534', '#14532d'] as [string, string], dest: '/deals' },
+  { id: 'f3', badge: 'TOP', title: 'Top Stores', sub: 'Explore verified sellers near you', cta: 'Browse', gradient: ['#7C3AED', '#4c1d95'] as [string, string], dest: '/stores' },
 ];
 
 function getGreeting() {
@@ -63,25 +63,45 @@ export default function Home() {
   const insets = useSafeAreaInsets();
 
   const [locationText, setLocationText] = useState('Locating…');
-  const [userName,     setUserName]     = useState('');
-  const [selectedCat,  setSelectedCat]  = useState('All');
-  const [ads,          setAds]          = useState<any[]>(FALLBACK_ADS);
-  const [adIndex,      setAdIndex]      = useState(0);
-  const [animValues,   setAnimValues]   = useState<Animated.Value[]>([]);
+  const [userName, setUserName] = useState('');
+  const [selectedCat, setSelectedCat] = useState('All');
+  const [ads, setAds] = useState<any[]>(FALLBACK_ADS);
+  const [adIndex, setAdIndex] = useState(0);
+  const [animValues, setAnimValues] = useState<Animated.Value[]>([]);
 
   const { buyerConversations } = useChat();
   const unreadCount = buyerConversations?.reduce(
     (acc: number, c: any) => acc + (c.unread || 0), 0
   ) || 0;
 
-  const { items: cartItems } = useCart();
+  const { items: cartItems, addToCart } = useCart();
   const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
+
+  const [addingId, setAddingId] = useState<string | null>(null);
+
+  const handleAddToCart = async (item: any) => {
+    setAddingId(item._id);
+    try {
+      addToCart({
+        id: item._id,
+        title: item.name,
+        category: item.category || 'General',
+        price: parseFloat(item.price) || 0,
+        image: item.images?.[0] || 'https://via.placeholder.com/300'
+      });
+      CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
+    } catch {
+      CustomInAppToast.show({ type: 'error', title: 'Could not add to cart', message: 'Please try again later' });
+    } finally {
+      setAddingId(null);
+    }
+  };
 
   const { data: notifData } = useUnreadNotificationCount();
   const unreadNotifCount = notifData?.unreadCount ?? 0;
 
   const { data: categoriesData } = useCategories();
-  const allCatNames    = ['All', ...(categoriesData || []).map((c: any) => c.name)];
+  const allCatNames = ['All', ...(categoriesData || []).map((c: any) => c.name)];
   const categoryFilter = selectedCat !== 'All' ? selectedCat : undefined;
 
   const {
@@ -90,22 +110,34 @@ export default function Home() {
   } = useProducts({ category: categoryFilter, sortBy: 'newest' }, 10);
 
   const {
+    data: trendingData, isLoading: loadingTrending,
+    refetch: refetchTrending, isRefetching: refetchingTrending,
+  } = useProducts({ category: categoryFilter, sortBy: 'popular' }, 10);
+
+  const {
     data: dealsData, isLoading: loadingDeals,
     refetch: refetchDeals, isRefetching: refetchingDeals,
-  } = useProducts({ sortBy: 'price_asc' }, 5);
+  } = useProducts({ sortBy: 'price_asc' }, 20);
 
-  const loading    = loadingRecent || loadingDeals;
-  const refreshing = refetchingRecent || refetchingDeals;
+  const {
+    data: exploreData, isLoading: loadingExplore,
+    refetch: refetchExplore, isRefetching: refetchingExplore,
+  } = useProducts({ category: categoryFilter }, 30);
+
+  const loading = loadingRecent || loadingDeals || loadingTrending || loadingExplore;
+  const refreshing = refetchingRecent || refetchingDeals || refetchingTrending || refetchingExplore;
   const recentProducts = recentData?.success ? recentData.products : [];
-  const dealsProducts  = dealsData?.success  ? dealsData.products  : [];
+  const trendingProducts = trendingData?.success ? trendingData.products : [];
+  const dealsProducts = dealsData?.success ? dealsData.products : [];
+  const exploreProducts = exploreData?.success ? exploreData.products : [];
 
   // ── Ad carousel refs ────────────────────────────────────────────────────────
   // Using a plain horizontal ScrollView instead of FlatList — pagingEnabled
   // works reliably on ScrollView and avoids the overlap / snap bug that occurs
   // when FlatList tries to reconcile virtualisation with snap offsets.
   const adScrollRef = useRef<ScrollView>(null);
-  const adTimerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isDragging  = useRef(false);
+  const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isDragging = useRef(false);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -136,7 +168,7 @@ export default function Home() {
       measureElement(refActions, 'actions');
       measureElement(refCategories, 'categories');
       measureElement(refChat, 'chat');
-      
+
       // Auto-start logic with safety checks for returning users
       const shouldAutoStart = async () => {
         // 1. Wait for onboarding context to load
@@ -151,7 +183,7 @@ export default function Home() {
         // and they are a buyer, we don't force it.
         const createdDate = new Date(user.created_at || Date.now());
         const tourReleaseDate = new Date('2026-04-01');
-        
+
         if (createdDate < tourReleaseDate && (user.role === 'buyer' || user.role === 'customer')) {
           // Silent marker so they don't see it next time either
           markCompleted('home');
@@ -161,7 +193,7 @@ export default function Home() {
         // Auto-start for new users or sellers
         startTour('home');
       };
-      
+
       shouldAutoStart();
     }, 1500);
     return () => clearTimeout(timer);
@@ -200,12 +232,12 @@ export default function Home() {
       try {
         const cached = await storage.getItem('userName');
         if (cached) { setUserName(cached); return; }
-        const user  = await getUserData();
-        const name  = user?.name || user?.user?.name || '';
+        const user = await getUserData();
+        const name = user?.name || user?.user?.name || '';
         const first = name.split(' ')[0];
         setUserName(first);
         if (first) await storage.setItem('userName', first);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -215,7 +247,7 @@ export default function Home() {
       try {
         const res = await getPromotedProducts();
         if (res?.promotedProducts?.length > 0) setAds(res.promotedProducts);
-      } catch {}
+      } catch { }
     })();
   }, []);
 
@@ -310,16 +342,16 @@ export default function Home() {
             if (latDiff > 0.005 || lonDiff > 0.005) {
               shouldGeocode = true;
             }
-          } catch(e) {}
+          } catch (e) { }
         } else {
           shouldGeocode = true;
         }
 
         if (shouldGeocode) {
           try {
-            const [info] = await Location.reverseGeocodeAsync({ 
-              latitude: liveCoords.latitude, 
-              longitude: liveCoords.longitude 
+            const [info] = await Location.reverseGeocodeAsync({
+              latitude: liveCoords.latitude,
+              longitude: liveCoords.longitude
             });
 
             if (info) {
@@ -352,14 +384,14 @@ export default function Home() {
     }
   }, [recentProducts.length]);
 
-  const onRefresh = async () => Promise.all([refetchRecent(), refetchDeals()]);
+  const onRefresh = async () => Promise.all([refetchRecent(), refetchDeals(), refetchTrending(), refetchExplore()]);
 
   const goToDetails = (item: any) =>
     safePush('/product/details', {
-        id: item._id, title: item.name, price: item.price,
-        category: item.category,
-        image: item.images?.[0] || '',
-        description: item.description,
+      id: item._id, title: item.name, price: item.price,
+      category: item.category,
+      image: item.images?.[0] || '',
+      description: item.description,
     });
 
   // ── Render: single ad slide ─────────────────────────────────────────────────
@@ -373,7 +405,7 @@ export default function Home() {
           style={S.adSlide}
           activeOpacity={0.9}
           onPress={() => {
-            recordAdClick(ad.id).catch(() => {});
+            recordAdClick(ad.id).catch(() => { });
             if (ad.product?._id)
               router.push({ pathname: '/product/details', params: { id: ad.product._id } });
           }}
@@ -445,18 +477,68 @@ export default function Home() {
     </Animated.View>
   );
 
-  // ── Render: deal card ───────────────────────────────────────────────────────
-  const renderDeal = ({ item }: { item: any }) => (
-    <TouchableOpacity style={S.dealCard} activeOpacity={0.82} onPress={() => goToDetails(item)}>
-      <Image source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }} style={S.dealImage} />
-      <View style={S.dealInfo}>
-        <Text style={S.dealTitle} numberOfLines={2}>{item.name}</Text>
-        <Text style={S.dealPrice}>₵{item.price.toFixed(2)}</Text>
+  // ── Render: trending card ───────────────────────────────────────────────────
+  const renderTrending = ({ item }: { item: any }) => (
+    <View style={{ marginRight: 14 }}>
+      <TouchableOpacity style={S.productCard} activeOpacity={0.82} onPress={() => goToDetails(item)}>
+        <Image
+          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+          style={S.productImage}
+        />
+        <View style={S.productInfo}>
+          <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
+          <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
+          <Text style={S.productPrice}>₵{item.price.toFixed(2)}</Text>
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ── Helper: Grid Card ────────────────────────────────────────────────────────
+  const renderGridCard = (item: any) => (
+    <TouchableOpacity
+      key={item._id}
+      style={S.gridCard}
+      activeOpacity={0.88}
+      onPress={() => goToDetails(item)}
+    >
+      <View style={S.gridImgWrap}>
+        <Image
+          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
+          style={S.gridImg}
+        />
+        <TouchableOpacity style={S.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="heart-outline" size={13} color={C.navy} />
+        </TouchableOpacity>
+        {item.isNew && (
+          <View style={S.badgeNew}><Text style={S.badgeNewTxt}>NEW</Text></View>
+        )}
+      </View>
+      <View style={S.gridInfo}>
+        <Text style={S.storeLbl} numberOfLines={1}>
+          {item.store?.name || item.store?.store_name || 'Shopyos'}
+        </Text>
+        <Text style={S.productLbl} numberOfLines={2}>{item.name}</Text>
+        <View style={S.priceRow}>
+          <Text style={S.priceLbl}>₵{parseFloat(item.price).toFixed(2)}</Text>
+          <TouchableOpacity
+            style={S.addBtn}
+            onPress={() => handleAddToCart(item)}
+            disabled={addingId === item._id}
+          >
+            {addingId === item._id
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Ionicons name="add" size={14} color="#fff" />
+            }
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
   );
 
-  if (loading) {
+  const isInitialLoading = loading && recentProducts.length === 0 && dealsProducts.length === 0 && trendingProducts.length === 0 && exploreProducts.length === 0;
+
+  if (isInitialLoading) {
     return (
       <View style={S.root}>
         <StatusBar style="dark" />
@@ -522,6 +604,7 @@ export default function Home() {
         <Animated.ScrollView
           contentContainerStyle={S.scrollContent}
           showsVerticalScrollIndicator={false}
+          style={{ opacity: (loading && !isInitialLoading) ? 0.6 : 1 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
               tintColor={C.navy} colors={[C.navy]} />
@@ -607,6 +690,30 @@ export default function Home() {
             }
           />
 
+          {/* ── Hot & Trending ─────────────────────────────────────────────── */}
+          <View style={[S.sectionHeader, { marginTop: 8 }]}>
+            <Text style={S.sectionTitle}>Hot & Trending</Text>
+            <TouchableOpacity onPress={() => router.push('/search?sortBy=popular' as any)}>
+              <Text style={S.seeAll}>See All</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={trendingProducts}
+            keyExtractor={(item) => item._id}
+            horizontal showsHorizontalScrollIndicator={false}
+            contentContainerStyle={S.recentList}
+            renderItem={renderTrending}
+            ListEmptyComponent={
+              <View style={S.emptyH}>
+                <View style={S.emptyCircle}>
+                  <Feather name="trending-up" size={26} color={C.navyMid} />
+                </View>
+                <Text style={S.emptyTitle}>No trending items</Text>
+                <Text style={S.emptySub}>Trending products will appear here soon.</Text>
+              </View>
+            }
+          />
+
           {/* ── Deals for You ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
             <Text style={S.sectionTitle}>Deals for You</Text>
@@ -614,14 +721,11 @@ export default function Home() {
               <Text style={S.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={dealsProducts}
-            keyExtractor={(item) => item._id}
-            horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={S.dealsList}
-            renderItem={renderDeal}
-            ListEmptyComponent={
-              <View style={S.emptyH}>
+          <View style={S.dealsGrid}>
+            {dealsProducts.length > 0 ? (
+              dealsProducts.map(renderGridCard)
+            ) : (
+              <View style={[S.emptyH, { width: '100%' }]}>
                 <View style={[S.emptyCircle, { backgroundColor: '#f0fdf4' }]}>
                   <MaterialCommunityIcons name="tag-outline" size={26} color="#16a34a" />
                 </View>
@@ -632,15 +736,36 @@ export default function Home() {
                   <Text style={[S.emptyBtnTxt, { color: C.limeText }]}>Explore Products</Text>
                 </TouchableOpacity>
               </View>
-            }
-          />
+            )}
+          </View>
+
+          {/* ── Explore ─────────────────────────────────────────────── */}
+          <View style={[S.sectionHeader, { marginTop: 8 }]}>
+            <Text style={S.sectionTitle}>Explore</Text>
+            <TouchableOpacity onPress={() => router.push('/search' as any)}>
+              <Text style={S.seeAll}>More</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={S.dealsGrid}>
+            {exploreProducts.length > 0 ? (
+              exploreProducts.map(renderGridCard)
+            ) : (
+              <View style={[S.emptyH, { width: '100%' }]}>
+                <View style={S.emptyCircle}>
+                  <Feather name="grid" size={26} color={C.navyMid} />
+                </View>
+                <Text style={S.emptyTitle}>Nothing to explore yet</Text>
+                <Text style={S.emptySub}>New products will be added soon.</Text>
+              </View>
+            )}
+          </View>
 
         </Animated.ScrollView>
 
         {/* ── Chat FAB — moved up from bottom: 88 → 140 ─────────────────── */}
-        <TouchableOpacity 
-          style={S.chatFab} 
-          onPress={() => router.push('/chat' as any)} 
+        <TouchableOpacity
+          style={S.chatFab}
+          onPress={() => router.push('/chat' as any)}
           activeOpacity={0.85}
           ref={refChat}
           onLayout={() => measureElement(refChat, 'chat')}
@@ -658,8 +783,8 @@ export default function Home() {
         <BottomNav />
       </SafeAreaView>
 
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'home'} 
+      <SpotlightTour
+        visible={isTourActive && activeScreen === 'home'}
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />
@@ -669,9 +794,9 @@ export default function Home() {
 
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: C.pageBg },
-  watermark:   { position: 'absolute', bottom: -10, left: -40 },
-  watermarkImg:{ width: 130, height: 130, resizeMode: 'contain', opacity: 0.1 },
+  root: { flex: 1, backgroundColor: C.pageBg },
+  watermark: { position: 'absolute', bottom: -10, left: -40 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.1 },
 
   // Header
   header: {
@@ -689,11 +814,11 @@ const S = StyleSheet.create({
     width: 100, height: 100, borderRadius: 50,
     backgroundColor: 'rgba(30,58,138,0.5)',
   },
-  headerInner:   { paddingHorizontal: 20 },
-  locationRow:   { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
-  locationTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.55)', maxWidth: width * 0.55 },
+  headerInner: { paddingHorizontal: 20 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
+  locationTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.55)', maxWidth: width * 0.55 },
   headerMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  greeting:      { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, marginRight: 8 },
+  greeting: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, marginRight: 8 },
   headerActions: { flexDirection: 'row', gap: 8, marginBottom: 7 },
   headerBtn: {
     width: 38, height: 38, borderRadius: 12,
@@ -725,10 +850,10 @@ const S = StyleSheet.create({
   // Each slide is exactly SLIDE_W × SLIDE_H — no margin, no gap
   // The ScrollView viewport is also SLIDE_W, so exactly one slide shows at a time
   adSlide: {
-    width:        SLIDE_W,
-    height:       SLIDE_H,
+    width: SLIDE_W,
+    height: SLIDE_H,
     borderRadius: 20,
-    overflow:     'hidden',
+    overflow: 'hidden',
     backgroundColor: C.navy,
     // No marginRight — paging relies on slides being exactly one viewport wide
   },
@@ -746,9 +871,9 @@ const S = StyleSheet.create({
     paddingHorizontal: 9, paddingVertical: 3,
     alignSelf: 'flex-start', marginBottom: 7,
   },
-  adBadgeTxt: { fontSize: 9,  fontFamily: 'Montserrat-Bold',   color: C.limeText, letterSpacing: 0.5 },
-  adTitle:    { fontSize: 17, fontFamily: 'Montserrat-Bold',   color: '#fff', lineHeight: 22, marginBottom: 5 },
-  adSub:      { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)', marginBottom: 10 },
+  adBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.limeText, letterSpacing: 0.5 },
+  adTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: '#fff', lineHeight: 22, marginBottom: 5 },
+  adSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.65)', marginBottom: 10 },
   adCta: {
     backgroundColor: '#fff', borderRadius: 20,
     paddingHorizontal: 14, paddingVertical: 6, alignSelf: 'flex-start',
@@ -756,7 +881,7 @@ const S = StyleSheet.create({
   adCtaTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
 
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 10 },
-  dot:       { width: 6,  height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.18)' },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.18)' },
   dotActive: { width: 20, height: 6, borderRadius: 3, backgroundColor: C.navy },
 
   // Chips
@@ -768,8 +893,8 @@ const S = StyleSheet.create({
     elevation: 1, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,
   },
-  chipOn:    { backgroundColor: C.lime, borderColor: C.lime },
-  chipTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  chipOn: { backgroundColor: C.lime, borderColor: C.lime },
+  chipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   chipTxtOn: { color: C.limeText },
 
   // Section headers
@@ -778,7 +903,7 @@ const S = StyleSheet.create({
     alignItems: 'center', paddingHorizontal: 16, marginBottom: 12,
   },
   sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body },
-  seeAll:       { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.lime },
+  seeAll: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.lime },
 
   // Recent products
   recentList: { paddingLeft: 16, paddingBottom: 20 },
@@ -787,24 +912,84 @@ const S = StyleSheet.create({
     elevation: 4, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.08, shadowRadius: 10,
   },
-  productImage:  { width: '100%', height: 116, resizeMode: 'cover' },
-  productInfo:   { padding: 10 },
-  productStore:  { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.subtle, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3 },
-  productTitle:  { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 5 },
-  productPrice:  { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime },
+  productImage: { width: '100%', height: 116, resizeMode: 'cover' },
+  productInfo: { padding: 10 },
+  productStore: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.subtle, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3 },
+  productTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 5 },
+  productPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime },
 
   // Deals
-  dealsList: { paddingLeft: 16, paddingBottom: 24 },
-  dealCard: {
-    width: 136, borderRadius: 16, backgroundColor: C.card,
-    overflow: 'hidden', marginRight: 12,
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
+  dealsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, justifyContent: 'space-between', paddingBottom: 24 },
+  gridCard: {
+    width: (width - 42) / 2, // Matches search grid calculation
+    backgroundColor: C.card,
+    borderRadius: 22,
+    overflow: 'hidden',
+    elevation: 8,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    marginBottom: 14,
   },
-  dealImage: { width: '100%', height: 96, resizeMode: 'cover' },
-  dealInfo:  { padding: 10 },
-  dealTitle: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.body, marginBottom: 5, lineHeight: 16 },
-  dealPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.lime },
+  gridImgWrap: { width: '100%', height: 136, position: 'relative' },
+  gridImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  favBtn: {
+    position: 'absolute',
+    top: 9, right: 9,
+    width: 28, height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  badgeNew: {
+    position: 'absolute',
+    top: 9, left: 9,
+    backgroundColor: C.lime,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeNewTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.limeText, letterSpacing: 0.4 },
+  gridInfo: { padding: 11 },
+  storeLbl: {
+    fontSize: 9,
+    fontFamily: 'Montserrat-Bold',
+    color: C.subtle,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  productLbl: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Bold',
+    color: C.body,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  priceLbl: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: C.lime },
+  addBtn: {
+    width: 28, height: 28,
+    borderRadius: 10,
+    backgroundColor: C.navy,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
 
   // Empty states
   emptyH: {
@@ -817,9 +1002,9 @@ const S = StyleSheet.create({
     width: 60, height: 60, borderRadius: 30,
     backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: 10,
   },
-  emptyTitle:  { fontSize: 14, fontFamily: 'Montserrat-Bold',    color: C.body,   marginBottom: 4 },
-  emptySub:    { fontSize: 12, fontFamily: 'Montserrat-Regular', color: C.subtle, textAlign: 'center', marginBottom: 14, lineHeight: 18 },
-  emptyBtn:    { backgroundColor: C.navyMid, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20 },
+  emptyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 4 },
+  emptySub: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: C.subtle, textAlign: 'center', marginBottom: 14, lineHeight: 18 },
+  emptyBtn: { backgroundColor: C.navyMid, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20 },
   emptyBtnTxt: { color: '#fff', fontSize: 12, fontFamily: 'Montserrat-Bold' },
 
   // Chat FAB — bottom: 140 gives more breathing room above BottomNav

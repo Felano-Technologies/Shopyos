@@ -236,7 +236,9 @@ const BusinessDashboard = () => {
     }
   };
 
-  if (loading) {
+  const isInitialLoading = loading && !dashboardData;
+
+  if (isInitialLoading) {
     return (
       <View style={styles.mainContainer}>
           <StatusBar style="light" />
@@ -274,7 +276,7 @@ const BusinessDashboard = () => {
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         {selectedBusiness ? (
           <ScrollView
-            style={styles.scrollView}
+            style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1 }]}
             contentContainerStyle={styles.scrollContent}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" />}
             showsVerticalScrollIndicator={false}

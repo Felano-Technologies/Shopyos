@@ -614,6 +614,9 @@ const searchProducts = async (req, res, next) => {
     } else if (sortBy === 'newest') {
       sortColumn = 'created_at';
       sortAscending = false;
+    } else if (sortBy === 'popular') {
+      sortColumn = 'sales_count';
+      sortAscending = false;
     } else if (sortBy === 'relevance' && !query) {
       // If relevance but no query, fallback to newest
       sortColumn = 'created_at';

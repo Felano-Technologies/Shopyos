@@ -355,7 +355,10 @@ export default function StoresScreen() {
           <View style={styles.hdrArc} />
         </LinearGradient>
 
-        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
+        <Animated.View style={{ 
+          flex: 1, 
+          opacity: (loading || isRefreshing) ? 0.6 : fadeAnim 
+        }}>
           <FlatList
             data={stores}
             keyExtractor={(item) => item.id}
