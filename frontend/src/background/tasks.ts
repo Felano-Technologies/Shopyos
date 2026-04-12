@@ -97,14 +97,10 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
     const userToken = await secureStorage.getItem('userToken');
     if (userToken) {
       const axios = require('axios');
-      // Pull the base URL from storage where the app stores it on boot,
-      // falling back to the env variable.
-      const baseUrl =
-        (await storage.getItem('API_BASE_URL')) ||
-        process.env.EXPO_PUBLIC_API_URL ||
-        'https://shopyos-backend.onrender.com/api/v1';
+      const { API_URL } = require('../../services/api');
+      
       await axios.put(
-        `${baseUrl}/auth/location`,
+        `${API_URL}auth/location`,
         { latitude, longitude },
         { headers: { Authorization: `Bearer ${userToken}` }, timeout: 8000 }
       );

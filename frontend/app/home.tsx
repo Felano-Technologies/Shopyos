@@ -13,7 +13,7 @@ import * as Location from 'expo-location';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useProducts } from '@/hooks/useProducts';
+import { useProducts, useInfiniteProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 import { getPromotedProducts, recordAdClick, getUserData, storage, CustomInAppToast } from '@/services/api';
@@ -122,14 +122,16 @@ export default function Home() {
   const {
     data: exploreData, isLoading: loadingExplore,
     refetch: refetchExplore, isRefetching: refetchingExplore,
-  } = useProducts({ category: categoryFilter }, 30);
+    fetchNextPage: fetchMoreExplore, hasNextPage: hasMoreExplore,
+    isFetchingNextPage: fetchingMoreExplore
+  } = useInfiniteProducts({ category: categoryFilter }, 24);
 
   const loading = loadingRecent || loadingDeals || loadingTrending || loadingExplore;
   const refreshing = refetchingRecent || refetchingDeals || refetchingTrending || refetchingExplore;
   const recentProducts = recentData?.success ? recentData.products : [];
   const trendingProducts = trendingData?.success ? trendingData.products : [];
   const dealsProducts = dealsData?.success ? dealsData.products : [];
-  const exploreProducts = exploreData?.success ? exploreData.products : [];
+  const exploreProducts = exploreData?.pages?.flatMap((p: any) => p.products || []) || [];
 
   // ── Ad carousel refs ────────────────────────────────────────────────────────
   // Using a plain horizontal ScrollView instead of FlatList — pagingEnabled
@@ -759,6 +761,19 @@ export default function Home() {
               </View>
             )}
           </View>
+          {hasMoreExplore && (
+            <TouchableOpacity 
+              style={[S.emptyBtn, { alignSelf: 'center', marginBottom: 30, paddingHorizontal: 30, paddingVertical: 12 }]} 
+              onPress={() => fetchMoreExplore()}
+              disabled={fetchingMoreExplore}
+            >
+              {fetchingMoreExplore ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={[S.emptyBtnTxt, { fontSize: 13 }]}>Load More</Text>
+              )}
+            </TouchableOpacity>
+          )}
 
         </Animated.ScrollView>
 

@@ -58,7 +58,6 @@ const SORT_OPTIONS = [
   { label: 'Popular', value: 'popular' },
 ];
 
-const TRENDING = ['Sneakers', 'Phones', 'Watches', 'Bags', 'Dresses', 'Laptops'];
 
 const CATEGORY_IMAGES: Record<string, any> = {
   'Grocery': require('../assets/images/search/fooddrinks.png'),
@@ -71,6 +70,11 @@ const CATEGORY_IMAGES: Record<string, any> = {
   'Accessories': require('../assets/images/search/accessories.png'),
   'Beauty': require('../assets/images/search/supplement2.jpg'),
   'Sports': require('../assets/images/search/sports.jpg'),
+  'Home & Kitchen': require('../assets/images/search/table2.jpg'),
+  'Kitchen and home': require('../assets/images/search/table2.jpg'),
+  'Other': require('../assets/images/search/arts2.jpeg'),
+  'Sneakers': require('../assets/images/search/slipper2.jpg'),
+  'Books': require('../assets/images/search/pencil.png'),
 };
 
 type ViewMode = 'grid' | 'list';
@@ -577,11 +581,8 @@ export default function SearchScreen() {
           <View style={{ flex: 1 }}><SearchSkeleton /></View>
         ) : (
           <View style={{
-            display: 'flex',
-            backgroundColor: 'pink',
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
-            marginTop: -2,
+            flex: 1,
+            backgroundColor: '#ffffff',
             zIndex: 10
           }}>
             {/* Discovery: no active search and no category selected */}
@@ -594,6 +595,7 @@ export default function SearchScreen() {
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
+                    style={{ flexGrow: 0, flexShrink: 0 }}
                     contentContainerStyle={styles.chipStrip}
                   >
                     <TouchableOpacity
