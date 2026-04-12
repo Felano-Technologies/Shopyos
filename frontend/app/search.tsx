@@ -447,26 +447,29 @@ export default function SearchScreen() {
                     }}
                   >
                     {catImg ? (
-                      <ImageBackground
-                        source={catImg}
-                        style={StyleSheet.absoluteFillObject}
-                        imageStyle={{ borderRadius: 16 }}
-                      >
-                        <View style={[
-                          styles.catTileOverlay,
-                          { backgroundColor: isOn ? 'rgba(12, 21, 89, 0.75)' : 'rgba(0,0,0,0.22)' }
-                        ]}>
-                          <Text style={styles.catTileTxtInv}>{cat.name}</Text>
+                      <View style={[
+                        styles.catTileInner,
+                        { backgroundColor: isOn ? C.navy : '#1E293B' }
+                      ]}>
+                        <Image
+                          source={catImg}
+                          style={styles.catTileImg}
+                          resizeMode="contain"
+                        />
+                        <View style={styles.catTileTextWrap}>
+                          <Text style={styles.catTileTxtLeft} numberOfLines={2}>
+                            {cat.name}
+                          </Text>
                         </View>
-                      </ImageBackground>
+                      </View>
                     ) : (
                       <View style={[
                         styles.catTileFallback,
-                        { backgroundColor: isOn ? C.navy : accent.bg }
+                        { backgroundColor: isOn ? C.navy : '#1E293B' }
                       ]}>
                         <Text style={[
-                          styles.catTileTxt,
-                          { color: isOn ? '#fff' : accent.text }
+                          styles.catTileTxtLeft,
+                          { color: isOn ? '#fff' : '#E2E8F0' }
                         ]}>
                           {cat.name}
                         </Text>
@@ -1261,40 +1264,50 @@ const styles = StyleSheet.create({
   },
   catTile: {
     width: (width - 50) / 2,
-    height: 110, // taller
-    borderRadius: 20, // more rounded
-    overflow: 'hidden',
-    elevation: 3,
+    height: 96,
+    borderRadius: 16,
+    elevation: 4,
     shadowColor: C2.navy,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
   },
-  catTileOverlay: {
+  catTileInner: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-  },
-  catTileFallback: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 10,
     borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)', // transparent feel
-    borderWidth: 1,
-    borderColor: 'rgba(12, 21, 89, 0.05)',
+    overflow: 'hidden',
+    position: 'relative',
   },
-  catTileTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold' },
-  catTileTxtInv: {
+  catTileImg: {
+    position: 'absolute',
+    right: -10,
+    bottom: -10,
+    width: '65%',
+    height: '90%',
+    opacity: 0.95,
+  },
+  catTileTextWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    right: '40%',
+    paddingTop: 16,
+    paddingLeft: 16,
+  },
+  catTileTxtLeft: {
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
     color: '#fff',
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: -1, height: 1 },
-    textShadowRadius: 10
+    lineHeight: 18,
+  },
+  catTileFallback: {
+    flex: 1,
+    paddingTop: 16,
+    paddingLeft: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.05)',
   },
 
   // ── Empty state ───────────────────────────────────────────────────────────
