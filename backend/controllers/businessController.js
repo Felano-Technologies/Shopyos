@@ -91,7 +91,10 @@ const createBusiness = async (req, res, next) => {
 
         await Promise.all([
           processFile('logo', 'shopyos/store-logos'),
+          processFile('logo_url', 'shopyos/store-logos'),
           processFile('coverImage', 'shopyos/store-banners'),
+          processFile('banner', 'shopyos/store-banners'),
+          processFile('banner_url', 'shopyos/store-banners'),
           processFile('businessCert', 'shopyos/store-documents'),
           processFile('businessLicense', 'shopyos/store-documents'),
           processFile('proofOfBank', 'shopyos/store-documents')
@@ -381,14 +384,20 @@ const updateBusiness = async (req, res, next) => {
         
         // Map resulting URLs to the database column names if they were uploaded
         if (mappedData.logo) mappedData.logo_url = mappedData.logo;
+        if (mappedData.logo_url) mappedData.logo_url = mappedData.logo_url;
         if (mappedData.coverImage) mappedData.banner_url = mappedData.coverImage;
+        if (mappedData.banner) mappedData.banner_url = mappedData.banner;
+        if (mappedData.banner_url) mappedData.banner_url = mappedData.banner_url;
         if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
         if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
         if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;
         
         // Clean up temporary mapped fields before database update
         delete mappedData.logo;
+        delete mappedData.logo_url;
         delete mappedData.coverImage;
+        delete mappedData.banner;
+        delete mappedData.banner_url;
         delete mappedData.businessCert;
         delete mappedData.businessLicense;
         delete mappedData.proofOfBank;
@@ -412,7 +421,10 @@ const updateBusiness = async (req, res, next) => {
     
     // Support direct URL updates if provided in body (fallback if no file was uploaded)
     if (updateData.logo && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
+    if (updateData.logo_url && !mappedData.logo_url) mappedData.logo_url = updateData.logo_url;
     if (updateData.coverImage && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
+    if (updateData.banner && !mappedData.banner_url) mappedData.banner_url = updateData.banner;
+    if (updateData.banner_url && !mappedData.banner_url) mappedData.banner_url = updateData.banner_url;
     if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
     if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
     if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;

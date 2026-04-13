@@ -17,7 +17,10 @@ const analyticsCacheKey = (id, params) => `shopyos:stores:analytics:${id}:${hash
 
 const createUploadFields = upload.fields([
   { name: 'logo', maxCount: 1 },
+  { name: 'logo_url', maxCount: 1 },
   { name: 'coverImage', maxCount: 1 },
+  { name: 'banner', maxCount: 1 },
+  { name: 'banner_url', maxCount: 1 },
   { name: 'businessCert', maxCount: 1 },
   { name: 'businessLicense', maxCount: 1 },
   { name: 'proofOfBank', maxCount: 1 }
