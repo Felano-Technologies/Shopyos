@@ -222,7 +222,7 @@ const getProductById = async (req, res, next) => {
       sku: product.sku,
       stockQuantity: Array.isArray(product.inventory) ? product.inventory[0]?.quantity : (product.inventory?.quantity || 0),
       viewCount: product.view_count,
-      salesCount: product.sales_count,
+      salesCount: product.total_sales || product.sales_count || 0,
       averageRating: product.avg_rating || 0,
       reviewCount: product.review_count || 0,
       store: product.stores ? {
@@ -615,7 +615,8 @@ const searchProducts = async (req, res, next) => {
       sortColumn = 'created_at';
       sortAscending = false;
     } else if (sortBy === 'popular') {
-      sortColumn = 'sales_count';
+      // Use canonical schema column for popularity sorting
+      sortColumn = 'total_sales';
       sortAscending = false;
     } else if (sortBy === 'relevance' && !query) {
       // If relevance but no query, fallback to newest
@@ -647,6 +648,7 @@ const searchProducts = async (req, res, next) => {
       price: p.price,
       images: p.product_images?.map(img => img.image_url) || [],
       category: p.category,
+      salesCount: p.total_sales || p.sales_count || 0,
       averageRating: p.avg_rating || 0,
       reviewCount: p.review_count || 0,
       store: p.stores ? {

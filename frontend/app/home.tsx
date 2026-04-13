@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
   View, Text, Image, FlatList,
   TouchableOpacity, StyleSheet, Animated, RefreshControl,
@@ -16,12 +16,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useProducts, useInfiniteProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
+import Skeleton from '@/components/Skeleton';
 import { getPromotedProducts, recordAdClick, getUserData, storage, CustomInAppToast } from '@/services/api';
 import { useChat } from '@/context/ChatContext';
 import { useCart } from '@/context/CartContext';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
 
 const { width } = Dimensions.get('window');
 
@@ -61,6 +63,7 @@ function getGreeting() {
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const MIN_SKELETON_MS = 450;
 
   const [locationText, setLocationText] = useState('Locating…');
   const [userName, setUserName] = useState('');
@@ -68,6 +71,7 @@ export default function Home() {
   const [ads, setAds] = useState<any[]>(FALLBACK_ADS);
   const [adIndex, setAdIndex] = useState(0);
   const [animValues, setAnimValues] = useState<Animated.Value[]>([]);
+  const [showStartupSkeleton, setShowStartupSkeleton] = useState(true);
 
   const { buyerConversations } = useChat();
   const unreadCount = buyerConversations?.reduce(
@@ -78,6 +82,15 @@ export default function Home() {
   const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
 
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
+  const { data: favoriteProducts = [] } = useFavorites();
+  const addFavoriteMutation = useAddFavorite();
+  const removeFavoriteMutation = useRemoveFavorite();
+
+  const favoriteIds = useMemo(
+    () => new Set((favoriteProducts || []).map((p: any) => String(p.id || p._id || p.productId))),
+    [favoriteProducts]
+  );
 
   const handleAddToCart = async (item: any) => {
     setAddingId(item._id);
@@ -95,6 +108,32 @@ export default function Home() {
     } finally {
       setAddingId(null);
     }
+  };
+
+  const handleToggleFavorite = (item: any) => {
+    const productId = String(item._id || item.id || '');
+    if (!productId || favoriteBusyId === productId) return;
+
+    setFavoriteBusyId(productId);
+    const isFavorite = favoriteIds.has(productId);
+
+    const onSettled = () => setFavoriteBusyId(null);
+
+    if (isFavorite) {
+      removeFavoriteMutation.mutate(productId, { onSettled });
+      return;
+    }
+
+    addFavoriteMutation.mutate(productId, {
+      onSuccess: () => {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Added to favorites',
+          message: item.name || 'Product added to favorites',
+        });
+      },
+      onSettled,
+    });
   };
 
   const { data: notifData } = useUnreadNotificationCount(false);
@@ -117,7 +156,7 @@ export default function Home() {
   const {
     data: dealsData, isLoading: loadingDeals,
     refetch: refetchDeals, isRefetching: refetchingDeals,
-  } = useProducts({ sortBy: 'price_asc' }, 20);
+  } = useProducts({ category: categoryFilter, sortBy: 'price_asc' }, 20);
 
   const {
     data: exploreData, isLoading: loadingExplore,
@@ -496,6 +535,38 @@ export default function Home() {
     </View>
   );
 
+  const renderHorizontalSkeleton = (count: number = 4) => (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.recentList}>
+      {Array.from({ length: count }).map((_, idx) => (
+        <View key={`hs-${idx}`} style={{ marginRight: 14 }}>
+          <View style={S.productCard}>
+            <Skeleton width={152} height={116} borderRadius={0} />
+            <View style={S.productInfo}>
+              <Skeleton width={90} height={9} style={{ marginBottom: 6 }} />
+              <Skeleton width={120} height={13} style={{ marginBottom: 8 }} />
+              <Skeleton width={64} height={14} />
+            </View>
+          </View>
+        </View>
+      ))}
+    </ScrollView>
+  );
+
+  const renderGridSkeleton = (count: number = 4) => (
+    <View style={S.dealsGrid}>
+      {Array.from({ length: count }).map((_, idx) => (
+        <View key={`gs-${idx}`} style={S.gridCard}>
+          <Skeleton width="100%" height={136} borderRadius={0} />
+          <View style={S.gridInfo}>
+            <Skeleton width={80} height={9} style={{ marginBottom: 6 }} />
+            <Skeleton width="90%" height={13} style={{ marginBottom: 8 }} />
+            <Skeleton width={70} height={15} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+
   // ── Helper: Grid Card ────────────────────────────────────────────────────────
   const renderGridCard = (item: any) => (
     <TouchableOpacity
@@ -509,8 +580,24 @@ export default function Home() {
           source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
           style={S.gridImg}
         />
-        <TouchableOpacity style={S.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="heart-outline" size={13} color={C.navy} />
+        <TouchableOpacity
+          style={S.favBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={(e: any) => {
+            e?.stopPropagation?.();
+            handleToggleFavorite(item);
+          }}
+          disabled={favoriteBusyId === String(item._id || item.id || '')}
+        >
+          {favoriteBusyId === String(item._id || item.id || '') ? (
+            <ActivityIndicator size="small" color={C.navy} />
+          ) : (
+            <Ionicons
+              name={favoriteIds.has(String(item._id || item.id || '')) ? 'heart' : 'heart-outline'}
+              size={13}
+              color={favoriteIds.has(String(item._id || item.id || '')) ? '#EF4444' : C.navy}
+            />
+          )}
         </TouchableOpacity>
         {item.isNew && (
           <View style={S.badgeNew}><Text style={S.badgeNewTxt}>NEW</Text></View>
@@ -540,7 +627,15 @@ export default function Home() {
 
   const isInitialLoading = loading && recentProducts.length === 0 && dealsProducts.length === 0 && trendingProducts.length === 0 && exploreProducts.length === 0;
 
-  if (isInitialLoading) {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowStartupSkeleton(false);
+    }, MIN_SKELETON_MS);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (showStartupSkeleton || isInitialLoading) {
     return (
       <View style={S.root}>
         <StatusBar style="light" />
@@ -608,7 +703,7 @@ export default function Home() {
         <Animated.ScrollView
           contentContainerStyle={S.scrollContent}
           showsVerticalScrollIndicator={false}
-          style={{ opacity: (loading && !isInitialLoading) ? 0.6 : 1 }}
+          style={{ opacity: 1 }}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
               tintColor={C.navy} colors={[C.navy]} />
@@ -674,25 +769,29 @@ export default function Home() {
               <Text style={S.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={recentProducts}
-            keyExtractor={(item) => item._id}
-            horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={S.recentList}
-            renderItem={renderRecent}
-            ListEmptyComponent={
-              <View style={S.emptyH}>
-                <View style={S.emptyCircle}>
-                  <Feather name="shopping-bag" size={26} color={C.navyMid} />
-                </View>
-                <Text style={S.emptyTitle}>Nothing here yet</Text>
-                <Text style={S.emptySub}>New products will show up soon</Text>
-                <TouchableOpacity style={S.emptyBtn} onPress={() => router.push('/stores' as any)}>
-                  <Text style={S.emptyBtnTxt}>Browse Stores</Text>
-                </TouchableOpacity>
-              </View>
-            }
-          />
+          {loadingRecent
+            ? renderHorizontalSkeleton()
+            : (
+              <FlatList
+                data={recentProducts}
+                keyExtractor={(item) => item._id}
+                horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={S.recentList}
+                renderItem={renderRecent}
+                ListEmptyComponent={
+                  <View style={S.emptyH}>
+                    <View style={S.emptyCircle}>
+                      <Feather name="shopping-bag" size={26} color={C.navyMid} />
+                    </View>
+                    <Text style={S.emptyTitle}>Nothing here yet</Text>
+                    <Text style={S.emptySub}>New products will show up soon</Text>
+                    <TouchableOpacity style={S.emptyBtn} onPress={() => router.push('/stores' as any)}>
+                      <Text style={S.emptyBtnTxt}>Browse Stores</Text>
+                    </TouchableOpacity>
+                  </View>
+                }
+              />
+            )}
 
           {/* ── Hot & Trending ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
@@ -701,22 +800,26 @@ export default function Home() {
               <Text style={S.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <FlatList
-            data={trendingProducts}
-            keyExtractor={(item) => item._id}
-            horizontal showsHorizontalScrollIndicator={false}
-            contentContainerStyle={S.recentList}
-            renderItem={renderTrending}
-            ListEmptyComponent={
-              <View style={S.emptyH}>
-                <View style={S.emptyCircle}>
-                  <Feather name="trending-up" size={26} color={C.navyMid} />
-                </View>
-                <Text style={S.emptyTitle}>No trending items</Text>
-                <Text style={S.emptySub}>Trending products will appear here soon.</Text>
-              </View>
-            }
-          />
+          {loadingTrending
+            ? renderHorizontalSkeleton()
+            : (
+              <FlatList
+                data={trendingProducts}
+                keyExtractor={(item) => item._id}
+                horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={S.recentList}
+                renderItem={renderTrending}
+                ListEmptyComponent={
+                  <View style={S.emptyH}>
+                    <View style={S.emptyCircle}>
+                      <Feather name="trending-up" size={26} color={C.navyMid} />
+                    </View>
+                    <Text style={S.emptyTitle}>No trending items</Text>
+                    <Text style={S.emptySub}>Trending products will appear here soon.</Text>
+                  </View>
+                }
+              />
+            )}
 
           {/* ── Deals for You ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
@@ -725,23 +828,27 @@ export default function Home() {
               <Text style={S.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          <View style={S.dealsGrid}>
-            {dealsProducts.length > 0 ? (
-              dealsProducts.map(renderGridCard)
-            ) : (
-              <View style={[S.emptyH, { width: '100%' }]}>
-                <View style={[S.emptyCircle, { backgroundColor: '#f0fdf4' }]}>
-                  <MaterialCommunityIcons name="tag-outline" size={26} color="#16a34a" />
-                </View>
-                <Text style={S.emptyTitle}>No deals right now</Text>
-                <Text style={S.emptySub}>Check back later for great prices</Text>
-                <TouchableOpacity style={[S.emptyBtn, { backgroundColor: C.lime }]}
-                  onPress={() => router.push('/filter' as any)}>
-                  <Text style={[S.emptyBtnTxt, { color: C.limeText }]}>Explore Products</Text>
-                </TouchableOpacity>
+          {loadingDeals
+            ? renderGridSkeleton()
+            : (
+              <View style={S.dealsGrid}>
+                {dealsProducts.length > 0 ? (
+                  dealsProducts.map(renderGridCard)
+                ) : (
+                  <View style={[S.emptyH, { width: '100%' }]}>
+                    <View style={[S.emptyCircle, { backgroundColor: '#f0fdf4' }]}>
+                      <MaterialCommunityIcons name="tag-outline" size={26} color="#16a34a" />
+                    </View>
+                    <Text style={S.emptyTitle}>No deals right now</Text>
+                    <Text style={S.emptySub}>Check back later for great prices</Text>
+                    <TouchableOpacity style={[S.emptyBtn, { backgroundColor: C.lime }]}
+                      onPress={() => router.push('/filter' as any)}>
+                      <Text style={[S.emptyBtnTxt, { color: C.limeText }]}>Explore Products</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
             )}
-          </View>
 
           {/* ── Explore ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
@@ -750,19 +857,23 @@ export default function Home() {
               <Text style={S.seeAll}>More</Text>
             </TouchableOpacity>
           </View>
-          <View style={S.dealsGrid}>
-            {exploreProducts.length > 0 ? (
-              exploreProducts.map(renderGridCard)
-            ) : (
-              <View style={[S.emptyH, { width: '100%' }]}>
-                <View style={S.emptyCircle}>
-                  <Feather name="grid" size={26} color={C.navyMid} />
-                </View>
-                <Text style={S.emptyTitle}>Nothing to explore yet</Text>
-                <Text style={S.emptySub}>New products will be added soon.</Text>
+          {loadingExplore
+            ? renderGridSkeleton()
+            : (
+              <View style={S.dealsGrid}>
+                {exploreProducts.length > 0 ? (
+                  exploreProducts.map(renderGridCard)
+                ) : (
+                  <View style={[S.emptyH, { width: '100%' }]}>
+                    <View style={S.emptyCircle}>
+                      <Feather name="grid" size={26} color={C.navyMid} />
+                    </View>
+                    <Text style={S.emptyTitle}>Nothing to explore yet</Text>
+                    <Text style={S.emptySub}>New products will be added soon.</Text>
+                  </View>
+                )}
               </View>
             )}
-          </View>
           {hasMoreExplore && (
             <TouchableOpacity 
               style={[S.emptyBtn, { alignSelf: 'center', marginBottom: 30, paddingHorizontal: 30, paddingVertical: 12 }]} 

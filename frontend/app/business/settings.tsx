@@ -220,6 +220,20 @@ export default function BusinessSettingsScreen() {
           {/* ── Settings groups ────────────────────────────────────────── */}
           <View style={S.body}>
 
+            {!isBusinessVerified && (
+              <View style={S.noticeCard}>
+                <View style={S.noticeHeader}>
+                  <View style={S.noticeIconWrap}>
+                    <Ionicons name="alert-circle-outline" size={rs(16)} color="#854D0E" />
+                  </View>
+                  <Text style={S.noticeTitle}>Verification Needed</Text>
+                </View>
+                <Text style={S.noticeText}>
+                  Your business is not verified yet. Only Edit Profile and Log Out are available until verification is complete.
+                </Text>
+              </View>
+            )}
+
             {/* Business & Finance */}
             <Text style={S.groupLabel}>Business & Finance</Text>
             <SettingGroup>
@@ -375,6 +389,40 @@ const S = StyleSheet.create({
 
   // ── Body ───────────────────────────────────────────────────────────────────
   body:       { paddingHorizontal: rs(16) },
+  noticeCard: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+    borderWidth: 1,
+    borderRadius: rs(14),
+    paddingVertical: rs(12),
+    paddingHorizontal: rs(12),
+    marginBottom: rs(16),
+  },
+  noticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: rs(6),
+    gap: rs(8),
+  },
+  noticeIconWrap: {
+    width: rs(24),
+    height: rs(24),
+    borderRadius: rs(12),
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+  },
+  noticeTitle: {
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-Bold',
+    color: '#854D0E',
+  },
+  noticeText: {
+    fontSize: rf(12),
+    fontFamily: 'Montserrat-Medium',
+    color: '#92400E',
+    lineHeight: rs(18),
+  },
   groupLabel: {
     fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.subtle,
     textTransform: 'uppercase', letterSpacing: 0.8,

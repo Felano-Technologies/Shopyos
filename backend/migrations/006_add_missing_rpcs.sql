@@ -16,7 +16,7 @@ CREATE OR REPLACE FUNCTION increment_product_sales(product_id UUID, sale_qty INT
 RETURNS void AS $$
 BEGIN
   UPDATE products
-  SET sales_count = sales_count + sale_qty
+  SET total_sales = total_sales + sale_qty
   WHERE id = product_id;
 END;
 $$ LANGUAGE plpgsql;
