@@ -1,75 +1,74 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '../Skeleton';
 
+const C = {
+  navy: '#0C1559',
+  navyMid: '#1e3a8a',
+};
+
 export const HomeSkeleton = () => {
+  const insets = useSafeAreaInsets();
+  
   return (
     <View style={styles.container}>
-      <SafeAreaView style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-          
-          {/* Top Section: Location, Logo, and Search */}
-          <View style={styles.topSection}>
-            <Skeleton width={120} height={16} style={{ marginBottom: 16 }} />
-            <View style={styles.logoSearchRow}>
-              <Skeleton width={99} height={32} />
-              <View style={styles.searchAndIcons}>
-                <Skeleton width="100%" height={40} borderRadius={8} style={{ flex: 1, marginRight: 10 }} />
-                <Skeleton width={30} height={30} circle />
-              </View>
+      {/* ── Header Skeleton ── */}
+      <LinearGradient colors={[C.navy, C.navyMid]} style={[styles.header, { paddingTop: insets.top + 10 }]}>
+        <View style={styles.headerInner}>
+          <Skeleton width={120} height={14} style={{ marginBottom: 16, backgroundColor: 'rgba(255,255,255,0.15)' }} />
+          <View style={styles.headerMainRow}>
+            <Skeleton width={180} height={32} style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} />
+            <View style={styles.headerActions}>
+              <Skeleton width={38} height={38} circle style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} />
+              <Skeleton width={38} height={38} circle style={{ backgroundColor: 'rgba(255,255,255,0.15)' }} />
             </View>
           </View>
+        </View>
+      </LinearGradient>
 
-          {/* Banner */}
-          <Skeleton width="auto" height={180} borderRadius={16} style={styles.bannerContainer} />
+      {/* ── Content Skeleton ── */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+        {/* Banner */}
+        <Skeleton width="auto" height={150} borderRadius={24} style={styles.bannerContainer} />
 
-          {/* Category Chips */}
-          <View style={styles.chipsContainer}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {[1, 2, 3, 4, 5].map((item) => (
-                <Skeleton key={item} width={80} height={35} borderRadius={20} style={{ marginRight: 10 }} />
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Recently Added Section */}
-          <View style={styles.sectionHeader}>
-            <Skeleton width={130} height={20} />
-            <Skeleton width={50} height={16} />
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-            {[1, 2, 3].map((item) => (
-              <View key={item} style={styles.recentCard}>
-                <Skeleton width="100%" height={120} borderRadius={0} />
-                <View style={{ padding: 12 }}>
-                  <Skeleton width="90%" height={14} style={{ marginBottom: 8 }} />
-                  <Skeleton width="60%" height={12} style={{ marginBottom: 12 }} />
-                  <Skeleton width="40%" height={16} />
-                </View>
-              </View>
+        {/* Category Chips */}
+        <View style={styles.chipsContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {[1, 2, 3, 4, 5].map((item) => (
+              <Skeleton key={item} width={80} height={35} borderRadius={20} style={{ marginRight: 10 }} />
             ))}
           </ScrollView>
+        </View>
 
-          {/* Deals for You Section */}
-          <View style={styles.sectionHeader}>
-            <Skeleton width={110} height={20} />
-            <Skeleton width={50} height={16} />
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalList}>
-            {[1, 2, 3].map((item) => (
-              <View key={item} style={styles.dealCard}>
-                <Skeleton width="100%" height={100} borderRadius={0} />
-                <View style={{ padding: 10, alignItems: 'center' }}>
-                  <Skeleton width="80%" height={12} style={{ marginBottom: 8 }} />
-                  <Skeleton width="50%" height={14} />
-                </View>
-              </View>
-            ))}
-          </ScrollView>
+        {/* Categories Section */}
+        <View style={styles.sectionHeader}>
+          <Skeleton width={150} height={20} />
+          <Skeleton width={40} height={16} />
+        </View>
+        <View style={styles.catGrid}>
+          {[1, 2, 3, 4].map(idx => (
+           <Skeleton key={idx} width={'48%'} height={96} borderRadius={16} style={{ marginBottom: 10 }} />
+          ))}
+        </View>
 
-        </ScrollView>
-      </SafeAreaView>
+        {/* Products Section */}
+        <View style={styles.sectionHeader}>
+          <Skeleton width={150} height={20} />
+          <Skeleton width={40} height={16} />
+        </View>
+        <View style={styles.catGrid}>
+          {[1, 2, 3, 4].map(idx => (
+            <View key={idx} style={styles.gridCard}>
+              <Skeleton width="100%" height={160} borderRadius={22} style={{ marginBottom: 10 }} />
+              <Skeleton width={80} height={14} style={{ marginBottom: 6 }} />
+              <Skeleton width={120} height={16} style={{ marginBottom: 10 }} />
+              <Skeleton width={60} height={18} />
+            </View>
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -77,58 +76,53 @@ export const HomeSkeleton = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#E9F0FF', // Matches Home screen background
+    backgroundColor: '#E9F0FF',
   },
-  topSection: { 
-    paddingHorizontal: 16, 
-    paddingTop: 8, 
-    paddingBottom: 12 
+  header: {
+    paddingHorizontal: 16,
+    paddingBottom: 50,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
-  logoSearchRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between' 
+  headerInner: {
+    width: '100%',
   },
-  searchAndIcons: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    flex: 1, 
-    marginLeft: 12 
+  headerMainRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  bannerContainer: { 
-    marginHorizontal: 16, 
-    marginTop: 12 
+  headerActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  chipsContainer: { 
-    paddingHorizontal: 16, 
-    paddingVertical: 12 
+  bannerContainer: {
+    marginHorizontal: 16,
+    marginTop: -30,
   },
-  sectionHeader: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    marginHorizontal: 16, 
-    marginTop: 24, 
-    marginBottom: 12 
+  chipsContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 18,
   },
-  horizontalList: { 
-    paddingLeft: 16, 
-    paddingBottom: 20 
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
-  recentCard: { 
-    width: 160, 
-    height: 210,
-    backgroundColor: '#FFF', 
-    borderRadius: 16, 
-    marginRight: 16, 
-    overflow: 'hidden' 
+  catGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 20,
   },
-  dealCard: { 
-    width: 140, 
-    height: 160,
-    backgroundColor: '#FFF', 
-    borderRadius: 16, 
-    marginRight: 16, 
-    overflow: 'hidden' 
-  },
+  gridCard: {
+    width: '48%',
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    padding: 10,
+    marginBottom: 14,
+  }
 });

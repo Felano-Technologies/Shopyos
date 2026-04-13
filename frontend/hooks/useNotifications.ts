@@ -57,13 +57,17 @@ export const useNotifications = () => {
   });
 };
 
-export const useUnreadNotificationCount = () => {
+export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
   const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
 
   // Listen for real-time notification events via socket
   useEffect(() => {
+    if (!enableRealtime) {
+      return;
+    }
+
     let mounted = true;
 
     const handleNewNotification = (data: any) => {
@@ -109,7 +113,7 @@ export const useUnreadNotificationCount = () => {
         socket.off('notification:new', handleNewNotification);
       }
     };
-  }, [queryClient]);
+  }, [enableRealtime, pathname, queryClient]);
 
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
@@ -121,6 +125,8 @@ export const useUnreadNotificationCount = () => {
       const response = await ApiService.getUnreadNotificationCount();
       return response;
     },
+    // This endpoint is lightweight; always refresh when a screen using it mounts.
+    refetchOnMount: 'always',
     staleTime: 1 * 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000,
   });
@@ -133,8 +139,28 @@ export const useMarkNotificationRead = () => {
     mutationFn: async (notificationId: string) => {
       return await ApiService.markNotificationRead(notificationId);
     },
-    onSuccess: () => {
-      // Invalidate notifications list to refetch
+    onSuccess: (_data, notificationId) => {
+      // Optimistically update cached list item read state
+      queryClient.setQueryData(queryKeys.notifications.list(), (prev: any) => {
+        if (!prev?.notifications) return prev;
+        return {
+          ...prev,
+          notifications: prev.notifications.map((n: any) =>
+            n.id === notificationId ? { ...n, is_read: true } : n
+          )
+        };
+      });
+
+      // Optimistically decrement unread badge count
+      queryClient.setQueryData(queryKeys.notifications.unreadCount(), (prev: any) => {
+        const current = Number(prev?.unreadCount || 0);
+        return {
+          ...(prev || {}),
+          unreadCount: Math.max(0, current - 1)
+        };
+      });
+
+      // Keep server state authoritative
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
@@ -149,6 +175,20 @@ export const useMarkAllNotificationsRead = () => {
       return await ApiService.markAllNotificationsRead();
     },
     onSuccess: () => {
+      // Optimistically clear unread state across the app
+      queryClient.setQueryData(queryKeys.notifications.unreadCount(), (prev: any) => ({
+        ...(prev || {}),
+        unreadCount: 0
+      }));
+
+      queryClient.setQueryData(queryKeys.notifications.list(), (prev: any) => {
+        if (!prev?.notifications) return prev;
+        return {
+          ...prev,
+          notifications: prev.notifications.map((n: any) => ({ ...n, is_read: true }))
+        };
+      });
+
       // Invalidate notifications list to refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });

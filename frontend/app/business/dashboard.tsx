@@ -66,7 +66,7 @@ const BusinessDashboard = () => {
   const selectedBusiness = businesses[0] || null;
   
   const { data: dashboardData, isLoading: isLoadingDashboard, refetch: refetchDashboard, isRefetching: isRefetchingDashboard } = useBusinessDashboard(selectedBusiness?._id);
-  const { data: unreadData } = useUnreadNotificationCount();
+  const { data: unreadData } = useUnreadNotificationCount(false);
   const unreadCount = unreadData?.unreadCount || 0;
 
   const loading = isLoadingBusinesses || isLoadingDashboard;

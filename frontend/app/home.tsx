@@ -97,7 +97,7 @@ export default function Home() {
     }
   };
 
-  const { data: notifData } = useUnreadNotificationCount();
+  const { data: notifData } = useUnreadNotificationCount(false);
   const unreadNotifCount = notifData?.unreadCount ?? 0;
 
   const { data: categoriesData } = useCategories();
@@ -543,8 +543,10 @@ export default function Home() {
   if (isInitialLoading) {
     return (
       <View style={S.root}>
-        <StatusBar style="dark" />
-        <SafeAreaView style={{ flex: 1 }}><HomeSkeleton /></SafeAreaView>
+        <StatusBar style="light" />
+        <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
+          <HomeSkeleton />
+        </SafeAreaView>
       </View>
     );
   }

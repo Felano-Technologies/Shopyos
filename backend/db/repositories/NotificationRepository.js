@@ -9,6 +9,23 @@ class NotificationRepository extends BaseRepository {
   }
 
   /**
+   * Some environments do not have notifications.read_at yet.
+   * Retry with is_read-only updates when read_at is missing.
+   */
+  async updateReadState(queryBuilder) {
+    let response = await queryBuilder({
+      is_read: true,
+      read_at: new Date().toISOString()
+    });
+
+    if (response.error && String(response.error.message || '').includes("Could not find the 'read_at' column")) {
+      response = await queryBuilder({ is_read: true });
+    }
+
+    return response;
+  }
+
+  /**
    * Create a notification
    * @param {Object} notificationData - { userId, type, title, message, data, relatedId, relatedType }
    * @returns {Promise<Object>} Created notification
@@ -131,13 +148,15 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated notification
    */
   async markAsRead(notificationId, userId) {
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('id', notificationId)
-      .eq('user_id', userId)
-      .select()
-      .single();
+    const { data, error } = await this.updateReadState((updateData) =>
+      this.db
+        .from(this.tableName)
+        .update(updateData)
+        .eq('id', notificationId)
+        .eq('user_id', userId)
+        .select()
+        .single()
+    );
 
     if (error) throw error;
     return data;
@@ -149,15 +168,17 @@ class NotificationRepository extends BaseRepository {
    * @returns {Promise<number>} Number of updated notifications
    */
   async markAllAsRead(userId) {
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .update({ is_read: true, read_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('is_read', false)
-      .select();
+    const { data, error } = await this.updateReadState((updateData) =>
+      this.db
+        .from(this.tableName)
+        .update(updateData)
+        .eq('user_id', userId)
+        .eq('is_read', false)
+        .select()
+    );
 
     if (error) throw error;
-    return data.length;
+    return data?.length || 0;
   }
 
   /**

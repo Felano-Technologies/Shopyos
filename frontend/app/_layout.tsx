@@ -69,7 +69,15 @@ function AppContent() {
   useUnreadNotificationCount();
 
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
-  const screenBg = colorScheme === 'dark' ? '#000000' : '#FFFFFF';
+  const isIndexRoute = pathname === '/' || pathname === '/index';
+  const isHomeRoute = pathname === '/home';
+  const screenBg = colorScheme === 'dark'
+    ? '#000000'
+    : isIndexRoute
+      ? '#061f65'
+      : isHomeRoute
+      ? '#E9F0FF'
+      : '#FFFFFF';
 
   // --- CUSTOMER NAV LOGIC ---
   const mainCustomerTabs = ['/home', '/stores', '/search', '/settings', '/order'];
@@ -112,8 +120,8 @@ function AppContent() {
               }}
             >
               {/* --- MAIN CUSTOMER SCREENS --- */}
-              <Stack.Screen name="index" options={{ animation: 'fade' }} />
-              <Stack.Screen name="home" options={{ animation: 'none' }} />
+              <Stack.Screen name="index" options={{ animation: 'fade', contentStyle: { backgroundColor: '#061f65' } }} />
+              <Stack.Screen name="home" options={{ animation: 'none', contentStyle: { backgroundColor: '#E9F0FF' } }} />
               <Stack.Screen name="search" options={{ animation: 'fade' }} />
               <Stack.Screen name="order" options={{ animation: 'none' }} />
               <Stack.Screen name="settings" options={{ animation: 'none' }} />

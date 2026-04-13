@@ -275,7 +275,9 @@ class SocketService {
     
     // Store handler for reconnection
     this.addEventHandler('message:new', callback);
-    
+
+    // Ensure the same callback is not bound multiple times on the active socket
+    socket.off('message:new', callback);
     socket.on('message:new', callback);
   }
 
@@ -356,7 +358,10 @@ class SocketService {
     if (!this.eventHandlers.has(event)) {
       this.eventHandlers.set(event, []);
     }
-    this.eventHandlers.get(event)!.push(callback);
+    const handlers = this.eventHandlers.get(event)!;
+    if (!handlers.includes(callback)) {
+      handlers.push(callback);
+    }
   }
 
   /**
@@ -383,6 +388,7 @@ class SocketService {
 
     this.eventHandlers.forEach((callbacks, event) => {
       callbacks.forEach(callback => {
+        this.socket!.off(event, callback);
         this.socket!.on(event, callback);
       });
     });

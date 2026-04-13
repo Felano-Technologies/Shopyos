@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getBusinessDashboard, storage } from '@/services/api';
@@ -45,7 +45,7 @@ const BusinessBottomNav = () => {
     { name: 'Products', icon: 'box', route: '/business/products', count: 0 },
     { name: 'Orders', icon: 'shopping-bag', route: '/business/orders', hasBadge: true, count: orderCount },
     { name: 'Stats', icon: 'bar-chart-2', route: '/business/analytics', count: 0 },
-    { name: 'Community', icon: 'users', route: '/business/community', hasBadge: true, count: chatCount },
+    { name: 'Community', icon: 'message-circle', route: '/business/community', hasBadge: true, count: chatCount },
   ];
 
   const handlePress = (route: string) => {

@@ -3,6 +3,7 @@
 
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const notificationService = require('../services/notificationService');
 
 /**
  * Get dashboard analytics
@@ -213,6 +214,31 @@ const verifyStore = async (req, res, next) => {
       is_verified: status === 'verified',
       is_trusted: isTrusted
     });
+
+    // Notify business owner when admin approves verification
+    if (status === 'verified') {
+      const ownerId = store?.owner_id || currentStore?.owner_id;
+      if (ownerId) {
+        await notificationService.sendNotification({
+          userId: ownerId,
+          type: 'business_approved',
+          title: 'Business Approved',
+          message: `${store?.store_name || currentStore?.store_name || 'Your business'} has been approved by admin.`,
+          relatedId: storeId,
+          relatedType: 'store',
+          data: {
+            storeId,
+            status: 'verified'
+          },
+          push: {
+            data: {
+              screen: 'business/dashboard',
+              storeId
+            }
+          }
+        });
+      }
+    }
 
     // Create audit log
     await repositories.auditLogs.createLog({

@@ -81,6 +81,13 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const searchParams = useGlobalSearchParams();
   const router = useRouter();
+  const pathnameRef = React.useRef(pathname);
+  const conversationIdRef = React.useRef(searchParams?.conversationId);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+    conversationIdRef.current = searchParams?.conversationId;
+  }, [pathname, searchParams?.conversationId]);
 
   const playCallRingtone = async () => {
     try {
@@ -194,58 +201,103 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    let isMounted = true;
+
+    const handleNewMessage = (data: any) => {
+      const { message, conversationId } = data;
+      const isMe = currentUserId && message.sender_id === currentUserId;
+
+      const updateList = (prev: Conversation[]) => {
+        if (!prev.some(c => c.id === conversationId)) {
+          fetchChats();
+          return prev;
+        }
+
+        const isViewing =
+          pathnameRef.current === '/chat/conversation' &&
+          conversationIdRef.current === conversationId;
+
+        return prev
+          .map(c =>
+            c.id === conversationId
+              ? {
+                  ...c,
+                  lastMessage: message.content,
+                  time: new Date(message.created_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }),
+                  unread: isMe || isViewing ? c.unread : c.unread + 1
+                }
+              : c
+          )
+          .sort((a, b) => (a.id === conversationId ? -1 : b.id === conversationId ? 1 : 0));
+      };
+
+      setBuyerChats(updateList);
+      setSellerChats(updateList);
+    };
+
+    const handleIncomingCall = async (data: any) => {
+      if (!isMounted) return;
+      setCallData({ conversationId: data.conversationId, name: data.callerName, avatar: data.callerAvatar });
+      setCallStatus('incoming');
+      await playCallRingtone();
+    };
+
+    const handleAcceptedCall = async (data: any) => {
+      if (!isMounted) return;
+      await stopRingtone();
+      setCallStatus('connected');
+      const pc = await setupPeerConnection(data.conversationId);
+      if (pc) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socketService.sendOffer(data.conversationId, offer);
+      }
+    };
+
+    const handleRejectedCall = async () => {
+      if (!isMounted) return;
+      await stopRingtone();
+      setCallStatus('ended');
+      setTimeout(() => setCallStatus('idle'), 2000);
+    };
+
+    const handleEndedCall = async () => {
+      if (!isMounted) return;
+      await stopRingtone();
+      setCallStatus('ended');
+      setTimeout(() => setCallStatus('idle'), 2000);
+    };
+
     const initSocket = async () => {
       try {
-        const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
+        const token =
+          (await secureStorage.getItem('userToken')) ||
+          (await secureStorage.getItem('businessToken'));
         if (!token) return;
-        await socketService.connect();
-        socketService.onNewMessage((data: any) => {
-          const { message, conversationId } = data;
-          const isMe = currentUserId && message.sender_id === currentUserId;
-          const updateList = (prev: Conversation[]) => {
-            if (!prev.some(c => c.id === conversationId)) { fetchChats(); return prev; }
-            const isViewing = pathname === '/chat/conversation' && searchParams?.conversationId === conversationId;
-            if (!isMe && !isViewing) {
-              playNotificationChime().catch(() => null);
-              CustomInAppToast.show({
-                type: 'info',
-                title: 'New Message',
-                message: message.content,
-                onPress: () => router.push({ pathname: '/chat/conversation', params: { conversationId, chatType: 'seller' } })
-              });
-            }
-            return prev.map(c => c.id === conversationId ? {
-              ...c,
-              lastMessage: message.content,
-              time: new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              unread: isMe || isViewing ? c.unread : c.unread + 1
-            } : c).sort((a,b) => (a.id === conversationId ? -1 : (b.id === conversationId ? 1 : 0)));
-          };
-          setBuyerChats(updateList);
-          setSellerChats(updateList);
-        });
 
-        socketService.onCallEvent('call:incoming', async (data: any) => {
-          setCallData({ conversationId: data.conversationId, name: data.callerName, avatar: data.callerAvatar });
-          setCallStatus('incoming');
-          await playCallRingtone();
-        });
-        socketService.onCallEvent('call:accepted', async (data: any) => {
-          await stopRingtone();
-          setCallStatus('connected');
-          const pc = await setupPeerConnection(data.conversationId);
-          if (pc) {
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socketService.sendOffer(data.conversationId, offer);
-          }
-        });
-        socketService.onCallEvent('call:rejected', async () => { await stopRingtone(); setCallStatus('ended'); setTimeout(() => setCallStatus('idle'), 2000); });
-        socketService.onCallEvent('call:ended', async () => { await stopRingtone(); setCallStatus('ended'); setTimeout(() => setCallStatus('idle'), 2000); });
+        await socketService.connect();
+        await socketService.onNewMessage(handleNewMessage);
+        await socketService.onCallEvent('call:incoming', handleIncomingCall);
+        await socketService.onCallEvent('call:accepted', handleAcceptedCall);
+        await socketService.onCallEvent('call:rejected', handleRejectedCall);
+        await socketService.onCallEvent('call:ended', handleEndedCall);
       } catch (err) {}
     };
+
     initSocket();
-  }, [currentUserId, pathname, searchParams]);
+
+    return () => {
+      isMounted = false;
+      socketService.offNewMessage(handleNewMessage);
+      socketService.offCallEvent('call:incoming', handleIncomingCall);
+      socketService.offCallEvent('call:accepted', handleAcceptedCall);
+      socketService.offCallEvent('call:rejected', handleRejectedCall);
+      socketService.offCallEvent('call:ended', handleEndedCall);
+    };
+  }, [currentUserId]);
 
   const setupPeerConnection = async (conversationId: string) => {
     if (isExpoGo) { CustomInAppToast.show({ type: 'info', title: 'Not Supported', message: 'Calls require standalone app.' }); return; }

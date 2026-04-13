@@ -56,11 +56,14 @@ export default function BusinessSettingsScreen() {
   const { data: businessesData, isLoading: profileLoading } = useMyBusinesses();
   const businessData = businessesData?.businesses?.[0] || null;
 
-  useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then((status) => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, []);
+  const isBusinessVerified = businessData?.verificationStatus === 'verified';
+
+  const handleRestrictedAction = () => {
+    Alert.alert(
+      'Verification Required',
+      'Complete verification to access this setting. You can still edit your profile or log out.'
+    );
+  };
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {
@@ -82,32 +85,40 @@ export default function BusinessSettingsScreen() {
 
   // ── Reusable setting row ───────────────────────────────────────────────────
   const SettingRow = ({
-    icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false,
+    icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false, disabled = false,
   }: {
     icon: any; iconColor: string; iconBg: string; label: string;
     onPress?: () => void; value?: boolean; isToggle?: boolean; isDanger?: boolean;
+    disabled?: boolean;
   }) => (
     <TouchableOpacity
-      style={S.settingRow}
-      onPress={isToggle ? undefined : onPress}
+      style={[S.settingRow, disabled && S.settingRowDisabled]}
+      onPress={isToggle ? undefined : (disabled ? handleRestrictedAction : onPress)}
       activeOpacity={isToggle ? 1 : 0.72}
     >
       <View style={S.settingLeft}>
-        <View style={[S.settingIconWrap, { backgroundColor: iconBg }]}>
-          <Ionicons name={icon} size={rs(18)} color={iconColor} />
+        <View style={[S.settingIconWrap, { backgroundColor: disabled ? '#E2E8F0' : iconBg }]}>
+          <Ionicons name={icon} size={rs(18)} color={disabled ? C.subtle : iconColor} />
         </View>
-        <Text style={[S.settingLabel, isDanger && { color: '#EF4444' }]}>{label}</Text>
+        <Text style={[S.settingLabel, isDanger && { color: '#EF4444' }, disabled && { color: C.subtle }]}>{label}</Text>
       </View>
       {isToggle ? (
         <Switch
           value={value}
-          onValueChange={() => setNotificationsOn((v) => !v)}
+          onValueChange={() => {
+            if (disabled) {
+              handleRestrictedAction();
+              return;
+            }
+            setNotificationsOn((v) => !v);
+          }}
+          disabled={disabled}
           trackColor={{ false: '#E2E8F0', true: C.navy }}
           thumbColor="#fff"
           ios_backgroundColor="#E2E8F0"
         />
       ) : (
-        <Ionicons name="chevron-forward" size={rs(16)} color={isDanger ? '#EF4444' : C.subtle} />
+        <Ionicons name={disabled ? 'lock-closed-outline' : 'chevron-forward'} size={rs(16)} color={isDanger ? '#EF4444' : C.subtle} />
       )}
     </TouchableOpacity>
   );
@@ -215,18 +226,21 @@ export default function BusinessSettingsScreen() {
               <SettingRow
                 icon="briefcase-outline" iconColor="#2563EB" iconBg="#EFF6FF"
                 label="Business Registration"
+                disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/businessRegistration' as any)}
               />
               <Divider />
               <SettingRow
                 icon="card-outline" iconColor="#059669" iconBg="#ECFDF5"
                 label="Payout Methods"
+                disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/payout' as any)}
               />
               <Divider />
               <SettingRow
                 icon="receipt-outline" iconColor="#D97706" iconBg="#FFFBEB"
                 label="Transaction History"
+                disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/transactions' as any)}
               />
             </SettingGroup>
@@ -237,12 +251,14 @@ export default function BusinessSettingsScreen() {
               <SettingRow
                 icon="notifications-outline" iconColor="#7C3AED" iconBg="#F5F3FF"
                 label="Push Notifications"
+                disabled={!isBusinessVerified}
                 isToggle value={notificationsOn}
               />
               <Divider />
               <SettingRow
                 icon="shield-checkmark-outline" iconColor="#DC2626" iconBg="#FEF2F2"
                 label="Security & Privacy"
+                disabled={!isBusinessVerified}
                 onPress={() => {}}
               />
             </SettingGroup>
@@ -253,12 +269,14 @@ export default function BusinessSettingsScreen() {
               <SettingRow
                 icon="help-circle-outline" iconColor={C.muted} iconBg="#F1F5F9"
                 label="Help Center"
+                disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/helpCenter' as any)}
               />
               <Divider />
               <SettingRow
                 icon="chatbubble-ellipses-outline" iconColor={C.muted} iconBg="#F1F5F9"
                 label="Contact Support"
+                disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/contactUs' as any)}
               />
             </SettingGroup>
@@ -371,6 +389,9 @@ const S = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: rs(13), paddingHorizontal: rs(14),
+  },
+  settingRowDisabled: {
+    opacity: 0.65,
   },
   settingLeft:    { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
   settingIconWrap:{
