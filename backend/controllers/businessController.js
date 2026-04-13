@@ -420,11 +420,12 @@ const updateBusiness = async (req, res, next) => {
     if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
     
     // Support direct URL updates if provided in body (fallback if no file was uploaded)
-    if (updateData.logo && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
-    if (updateData.logo_url && !mappedData.logo_url) mappedData.logo_url = updateData.logo_url;
-    if (updateData.coverImage && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
-    if (updateData.banner && !mappedData.banner_url) mappedData.banner_url = updateData.banner;
-    if (updateData.banner_url && !mappedData.banner_url) mappedData.banner_url = updateData.banner_url;
+    const isRemoteUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
+    if (updateData.logo && isRemoteUrl(updateData.logo) && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
+    if (updateData.logo_url && isRemoteUrl(updateData.logo_url) && !mappedData.logo_url) mappedData.logo_url = updateData.logo_url;
+    if (updateData.coverImage && isRemoteUrl(updateData.coverImage) && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
+    if (updateData.banner && isRemoteUrl(updateData.banner) && !mappedData.banner_url) mappedData.banner_url = updateData.banner;
+    if (updateData.banner_url && isRemoteUrl(updateData.banner_url) && !mappedData.banner_url) mappedData.banner_url = updateData.banner_url;
     if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
     if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
     if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;

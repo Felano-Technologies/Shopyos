@@ -414,7 +414,15 @@ export default function StoreDetailsScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         
         <View style={styles.headerContainer}>
-          {store.cover ? <Image source={store.cover} style={styles.coverImage} /> : <LinearGradient colors={['#1e293b', '#0f172a']} style={styles.coverImage} />}
+          {store.cover ? (
+            <Image source={store.cover} style={styles.coverImage} />
+          ) : (
+            <LinearGradient colors={['#1d4ed8', '#1e3a8a', '#0f172a']} style={styles.coverImage} />
+          )}
+          <LinearGradient
+            colors={['rgba(2, 6, 23, 0.05)', 'rgba(2, 6, 23, 0.65)']}
+            style={styles.coverOverlay}
+          />
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
             <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -426,6 +434,11 @@ export default function StoreDetailsScreen() {
                </TouchableOpacity>
             </View>
           </SafeAreaView>
+
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerStoreName} numberOfLines={1}>{store.name}</Text>
+            {store.category ? <Text style={styles.headerStoreMeta} numberOfLines={1}>{store.category}</Text> : null}
+          </View>
         </View>
 
         <View style={styles.profileSection}>
@@ -576,8 +589,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   headerContainer: { height: 180, width: '100%', position: 'relative' },
   coverImage: { width: '100%', height: '100%' },
+  coverOverlay: { ...StyleSheet.absoluteFillObject },
   safeHeader: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 10 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' },
+  headerTitleWrap: { position: 'absolute', left: 16, right: 16, bottom: 14 },
+  headerStoreName: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.65)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  headerStoreMeta: { marginTop: 2, fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#E2E8F0', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   profileSection: { flexDirection: 'row', paddingHorizontal: 20, marginTop: -40, alignItems: 'flex-end', marginBottom: 16 },
   logoWrapper: { position: 'relative' },
   storeLogo: { width: 80, height: 80, borderRadius: 20, borderWidth: 4, borderColor: '#FFF', backgroundColor: '#FFF' },

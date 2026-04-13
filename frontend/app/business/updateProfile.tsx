@@ -17,14 +17,42 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-// removed useCloudinaryUpload import
-import { getMyBusinesses, updateBusiness } from '@/services/api';
 import { useMyBusinesses, useUpdateBusiness } from '@/hooks/useBusiness';
 
 const { width } = Dimensions.get('window');
+
+const InputField = React.memo(function InputField({
+  label,
+  value,
+  field,
+  placeholder,
+  multiline = false,
+  keyboardType = 'default',
+  icon,
+  onChange,
+}: any) {
+  return (
+    <View style={styles.inputContainer}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
+        {icon && <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />}
+        <TextInput
+          style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
+          value={value}
+          onChangeText={(t) => onChange(field, t)}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+          multiline={multiline}
+          textAlignVertical={multiline ? 'top' : 'center'}
+          keyboardType={keyboardType}
+        />
+      </View>
+    </View>
+  );
+});
 
 const BusinessUpdateScreen = () => {
   const { data: bizData, isLoading: loadingData } = useMyBusinesses();
@@ -123,18 +151,15 @@ const BusinessUpdateScreen = () => {
     }
 
     try {
-      // Logic simplified: we pass the local URIs directly.
-      // The updateBusiness API function (in services/api.tsx) 
-      // automatically detects file:// URIs and handles the upload via its own FormData logic.
-      const logoUrlInput = logoChanged ? logo : logo;
-      const coverImageUrlInput = coverChanged ? coverImage : coverImage;
+      const logoInput = logoChanged ? logo : logo;
+      const coverImageInput = coverChanged ? coverImage : coverImage;
 
       const updateData = {
         ...formData,
         store_name: formData.businessName, // Ensure compatibility with backend mapping
         address_line1: formData.address,
-        logo_url: logoUrlInput,
-        banner_url: coverImageUrlInput,
+        logo: logoInput,
+        coverImage: coverImageInput,
         socialMedia: {
           instagram: formData.instagram,
           facebook: formData.facebook
@@ -167,26 +192,6 @@ const BusinessUpdateScreen = () => {
     );
   }
 
-  // --- UI Components ---
-  const InputField = ({ label, value, field, placeholder, multiline = false, keyboardType = 'default', icon }: any) => (
-    <View style={styles.inputContainer}>
-        <Text style={styles.label}>{label}</Text>
-        <View style={[styles.inputWrapper, multiline && { height: 100, alignItems: 'flex-start' }]}>
-            {icon && <Feather name={icon} size={18} color="#64748B" style={{ marginRight: 10, marginTop: multiline ? 12 : 0 }} />}
-            <TextInput
-                style={[styles.input, multiline && { height: '100%', paddingTop: 10 }]}
-                value={value}
-                onChangeText={(t) => handleInputChange(field, t)}
-                placeholder={placeholder}
-                placeholderTextColor="#94A3B8"
-                multiline={multiline}
-                textAlignVertical={multiline ? 'top' : 'center'}
-                keyboardType={keyboardType}
-            />
-        </View>
-    </View>
-  );
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
@@ -206,7 +211,11 @@ const BusinessUpdateScreen = () => {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
             style={{ flex: 1 }}
         >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           
           {/* --- Gradient Header --- */}
           <LinearGradient
@@ -266,6 +275,7 @@ const BusinessUpdateScreen = () => {
                 field="businessName" 
                 placeholder="Tech Haven Ltd." 
                 icon="briefcase"
+              onChange={handleInputChange}
             />
 
             <InputField 
@@ -275,12 +285,13 @@ const BusinessUpdateScreen = () => {
                 placeholder="Tell us about your business..." 
                 multiline={true}
                 icon="file-text"
+                onChange={handleInputChange}
             />
 
             {/* Categories */}
             <View style={styles.inputContainer}>
                 <Text style={styles.label}>Category</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll} keyboardShouldPersistTaps="handled">
                     {categories.map((cat) => (
                         <TouchableOpacity
                             key={cat}
@@ -308,29 +319,30 @@ const BusinessUpdateScreen = () => {
                 placeholder="+233 54 123 4567" 
                 keyboardType="phone-pad"
                 icon="phone"
+                onChange={handleInputChange}
             />
 
             <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
-                    <InputField label="City" value={formData.city} field="city" placeholder="Accra" icon="map-pin" />
+                    <InputField label="City" value={formData.city} field="city" placeholder="Accra" icon="map-pin" onChange={handleInputChange} />
                 </View>
                 <View style={{ flex: 1 }}>
-                    <InputField label="Country" value={formData.country} field="country" placeholder="Ghana" icon="flag" />
+                    <InputField label="Country" value={formData.country} field="country" placeholder="Ghana" icon="flag" onChange={handleInputChange} />
                 </View>
             </View>
 
-            <InputField label="Address" value={formData.address} field="address" placeholder="123 Independence Ave" icon="map" />
+                <InputField label="Address" value={formData.address} field="address" placeholder="123 Independence Ave" icon="map" onChange={handleInputChange} />
 
             <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Social Media</Text>
 
-            <InputField label="Website" value={formData.website} field="website" placeholder="https://..." icon="globe" keyboardType="url" />
+            <InputField label="Website" value={formData.website} field="website" placeholder="https://..." icon="globe" keyboardType="url" onChange={handleInputChange} />
             
             <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
-                    <InputField label="Instagram" value={formData.instagram} field="instagram" placeholder="@handle" icon="instagram" />
+                <InputField label="Instagram" value={formData.instagram} field="instagram" placeholder="@handle" icon="instagram" onChange={handleInputChange} />
                 </View>
                 <View style={{ flex: 1 }}>
-                    <InputField label="Facebook" value={formData.facebook} field="facebook" placeholder="Page Name" icon="facebook" />
+                <InputField label="Facebook" value={formData.facebook} field="facebook" placeholder="Page Name" icon="facebook" onChange={handleInputChange} />
                 </View>
             </View>
 

@@ -531,11 +531,12 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
   try {
     const formData = new FormData();
     let hasFiles = false;
+    const isLocalFileUri = (value: string) => /^(file|content|ph|assets-library):\/\//i.test(value);
 
     Object.keys(updateData).forEach(key => {
       const value = updateData[key];
       if (value !== undefined && value !== null) {
-        if (typeof value === 'string' && (value.startsWith('file://') || value.startsWith('content://'))) {
+        if (typeof value === 'string' && isLocalFileUri(value)) {
           const uri = value;
           const name = uri.split('/').pop() || 'upload.jpg';
           const match = /\.(\w+)$/.exec(name);
