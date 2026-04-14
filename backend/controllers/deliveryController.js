@@ -4,6 +4,7 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
+const rabbitMQService = require('../services/rabbitmq');
 
 /**
  * @route   POST /api/deliveries/create
@@ -313,6 +314,21 @@ const updateDeliveryStatus = async (req, res, next) => {
       // Notify customer that order has been delivered (if driver is not the buyer)
       if (order && order.buyer_id !== driverId) {
         await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
+
+        const buyer = await repositories.users.findById(order.buyer_id);
+        if (buyer?.email) {
+          rabbitMQService.publishMessage('email', {
+            eventType: 'ORDER_DELIVERED',
+            userId: order.buyer_id,
+            role: 'buyer',
+            email: buyer.email,
+            referenceId: order.id,
+            templateData: {
+              orderId: order.order_number,
+              amount: order.total_amount
+            }
+          });
+        }
       }
     } else if (status === 'failed' || status === 'cancelled') {
       // Notify customer of delivery issue (if driver is not the buyer)

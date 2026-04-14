@@ -2,9 +2,8 @@
 // Base repository class with common CRUD operations
 
 class BaseRepository {
-  constructor(supabaseClient, tableName) {
-    this.db = supabaseClient;
-    this.supabase = supabaseClient; // Alias for compatibility with older implementations
+  constructor(dbClient, tableName) {
+    this.db = dbClient;
     this.tableName = tableName;
   }
 

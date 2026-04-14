@@ -109,7 +109,7 @@ class NotificationRepository extends BaseRepository {
   async getUserNotifications(userId, options = {}) {
     const { limit = 20, offset = 0, unreadOnly = false } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from(this.tableName)
       .select('*')
       .eq('user_id', userId)

@@ -161,6 +161,7 @@ const createOrder = async (req, res, next) => {
           email: storeOwner?.email,
           phone: storeProfile?.phone,
           orderId: order.id,
+          referenceId: order.id,
           templateData: { orderId: order.order_number, amount: totalAmount.toFixed(2), itemsCount: orderItems.length }
         };
         if (storeOwner?.email) rabbitMQService.publishMessage('email', sellerPayload);
@@ -178,6 +179,7 @@ const createOrder = async (req, res, next) => {
         email: buyerInfo?.email,
         phone: deliveryPhone || buyerProfile?.phone,
         orderId: order.id,
+        referenceId: order.id,
         templateData: {
           orderId: order.order_number,
           amount: totalAmount.toFixed(2),
@@ -400,6 +402,23 @@ const updateOrderStatus = async (req, res, next) => {
 
     // Notify customer about status changes
     await notificationService.sendOrderNotification(order.buyer_id, order, status);
+
+    if (status === 'delivered' || status === 'completed') {
+      const buyer = await repositories.users.findById(order.buyer_id);
+      if (buyer?.email) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'ORDER_DELIVERED',
+          userId: order.buyer_id,
+          role: 'buyer',
+          email: buyer.email,
+          referenceId: order.id,
+          templateData: {
+            orderId: order.order_number,
+            amount: order.total_amount
+          }
+        });
+      }
+    }
 
     const { cacheDelPattern } = require('../config/redis');
     if (cacheDelPattern) {

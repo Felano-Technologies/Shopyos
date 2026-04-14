@@ -3,7 +3,7 @@ const amqp = require('amqplib');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const winston = require('winston');
-const { getWelcomeTemplates, getOrderCreatedTemplates } = require('../templates');
+const { getEmailTemplateByEvent, getSmsTemplateByEvent } = require('../templates');
 const repositories = require('../db/repositories');
 
 // Basic worker logger
@@ -88,9 +88,9 @@ async function updateLogStatus(eventType, target, referenceId, status, errorMsg 
 
 async function handleEmail(msg) {
     const payload = JSON.parse(msg.content.toString());
-    const { eventType, userId, role, email, orderId, templateData } = payload;
+    const { eventType, userId, role, email, orderId, referenceId, templateData } = payload;
     const target = email;
-    const refId = orderId || userId;
+    const refId = referenceId || orderId || userId;
 
     if (await checkOrLogIdempotency(eventType, target, refId)) {
         return true; // Already processed
@@ -98,11 +98,7 @@ async function handleEmail(msg) {
 
     let template;
     try {
-        if (eventType === 'WELCOME_EMAIL') {
-            template = getWelcomeTemplates(role, templateData.name, templateData.phone).email;
-        } else if (eventType === 'ORDER_CREATED') {
-            template = getOrderCreatedTemplates(role, templateData)?.email;
-        }
+        template = getEmailTemplateByEvent(eventType, role, templateData);
 
         if (!template) {
             logger.warn(`No email template found for event ${eventType} and role ${role}`);
@@ -131,9 +127,9 @@ async function handleEmail(msg) {
 
 async function handleSMS(msg) {
     const payload = JSON.parse(msg.content.toString());
-    const { eventType, userId, role, phone, orderId, templateData } = payload;
+    const { eventType, userId, role, phone, orderId, referenceId, templateData } = payload;
     const target = phone;
-    const refId = orderId || userId;
+    const refId = referenceId || orderId || userId;
 
     if (await checkOrLogIdempotency(eventType, target, refId)) {
         return true; // Already processed
@@ -141,11 +137,7 @@ async function handleSMS(msg) {
 
     let textMsg;
     try {
-        if (eventType === 'WELCOME_SMS') {
-            textMsg = getWelcomeTemplates(role, templateData.name, templateData.phone).sms;
-        } else if (eventType === 'ORDER_CREATED') {
-            textMsg = getOrderCreatedTemplates(role, templateData)?.sms;
-        }
+        textMsg = getSmsTemplateByEvent(eventType, role, templateData);
 
         if (!textMsg) {
             logger.warn(`No SMS template found for event ${eventType} and role ${role}`);

@@ -14,7 +14,7 @@ class ReportRepository extends BaseRepository {
    * @returns {Promise<Object>} Created report
    */
   async createReport(reportData) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .insert({
         reporter_id: reportData.reporterId,
@@ -39,7 +39,7 @@ class ReportRepository extends BaseRepository {
   async getAllReports(options = {}) {
     const { status, reportedType, limit = 50, offset = 0 } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from(this.tableName)
       .select(`
         *,
@@ -68,7 +68,7 @@ class ReportRepository extends BaseRepository {
    * @returns {Promise<Object>} Report details
    */
   async getReportDetails(reportId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select(`
         *,
@@ -83,28 +83,28 @@ class ReportRepository extends BaseRepository {
     // Fetch reported entity based on type
     let reportedEntity = null;
     if (data.reported_type === 'product') {
-      const { data: product } = await this.supabase
+      const { data: product } = await this.db
         .from('products')
         .select('id, title, description, product_images(image_url), is_active')
         .eq('id', data.reported_id)
         .single();
       reportedEntity = product;
     } else if (data.reported_type === 'store') {
-      const { data: store } = await this.supabase
+      const { data: store } = await this.db
         .from('stores')
         .select('id, store_name, is_active')
         .eq('id', data.reported_id)
         .single();
       reportedEntity = store;
     } else if (data.reported_type === 'review') {
-      const { data: review } = await this.supabase
+      const { data: review } = await this.db
         .from('product_reviews')
         .select('id, rating, review_text, created_at')
         .eq('id', data.reported_id)
         .single();
       reportedEntity = review;
     } else if (data.reported_type === 'user') {
-      const { data: user } = await this.supabase
+      const { data: user } = await this.db
         .from('user_profiles')
         .select('id, full_name, email, account_status')
         .eq('id', data.reported_id)
@@ -137,7 +137,7 @@ class ReportRepository extends BaseRepository {
       updateData.resolution = resolution;
     }
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .update(updateData)
       .eq('id', reportId)
@@ -155,7 +155,7 @@ class ReportRepository extends BaseRepository {
    * @returns {Promise<Array>} Reports for entity
    */
   async getReportsByEntity(reportedId, reportedType) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select(`
         *,
@@ -174,7 +174,7 @@ class ReportRepository extends BaseRepository {
    * @returns {Promise<Object>} Report stats
    */
   async getReportStats() {
-    const { data: allReports } = await this.supabase
+    const { data: allReports } = await this.db
       .from(this.tableName)
       .select('status, reported_type');
 
@@ -203,7 +203,7 @@ class ReportRepository extends BaseRepository {
    * @returns {Promise<boolean>} Whether report exists
    */
   async hasUserReported(reporterId, reportedId, reportedType) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('id')
       .eq('reporter_id', reporterId)

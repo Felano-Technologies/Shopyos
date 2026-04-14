@@ -1,7 +1,8 @@
 // db/repositories/index.js
 // Central export for all repository classes
 
-const { supabaseAdmin } = require('../../config/supabase');
+const { createPgClient } = require('../adapters/supabaseLikePgClient');
+const repositoryClient = createPgClient();
 
 const UserRepository = require('./UserRepository');
 const UserProfileRepository = require('./UserProfileRepository');
@@ -26,29 +27,29 @@ const PaymentMethodRepository = require('./PaymentMethodRepository');
 const DriverRepository = require('./DriverRepository');
 
 
-// Initialize repositories with supabase admin client
+// Initialize repositories with selected client
 const repositories = {
-  users: new UserRepository(supabaseAdmin),
-  userProfiles: new UserProfileRepository(supabaseAdmin),
-  roles: new RoleRepository(supabaseAdmin),
-  stores: new StoreRepository(supabaseAdmin),
-  products: new ProductRepository(supabaseAdmin),
-  orders: new OrderRepository(supabaseAdmin),
-  carts: new CartRepository(supabaseAdmin),
-  conversations: new ConversationRepository(supabaseAdmin),
-  messages: new MessageRepository(supabaseAdmin),
-  deliveries: new DeliveryRepository(supabaseAdmin),
-  reviews: new ReviewRepository(supabaseAdmin),
-  notifications: new NotificationRepository(supabaseAdmin),
-  favorites: new FavoriteRepository(supabaseAdmin),
-  admin: new AdminRepository(supabaseAdmin),
-  promotedProducts: new PromotedProductRepository(supabaseAdmin),
-  bannerCampaigns: new BannerCampaignRepository(supabaseAdmin),
-  payouts: new PayoutRepository(supabaseAdmin),
-  reports: new ReportRepository(supabaseAdmin),
-  auditLogs: new AuditLogRepository(supabaseAdmin),
-  paymentMethods: new PaymentMethodRepository(supabaseAdmin),
-  drivers: new DriverRepository(supabaseAdmin),
+  users: new UserRepository(repositoryClient),
+  userProfiles: new UserProfileRepository(repositoryClient),
+  roles: new RoleRepository(repositoryClient),
+  stores: new StoreRepository(repositoryClient),
+  products: new ProductRepository(repositoryClient),
+  orders: new OrderRepository(repositoryClient),
+  carts: new CartRepository(repositoryClient),
+  conversations: new ConversationRepository(repositoryClient),
+  messages: new MessageRepository(repositoryClient),
+  deliveries: new DeliveryRepository(repositoryClient),
+  reviews: new ReviewRepository(repositoryClient),
+  notifications: new NotificationRepository(repositoryClient),
+  favorites: new FavoriteRepository(repositoryClient),
+  admin: new AdminRepository(repositoryClient),
+  promotedProducts: new PromotedProductRepository(repositoryClient),
+  bannerCampaigns: new BannerCampaignRepository(repositoryClient),
+  payouts: new PayoutRepository(repositoryClient),
+  reports: new ReportRepository(repositoryClient),
+  auditLogs: new AuditLogRepository(repositoryClient),
+  paymentMethods: new PaymentMethodRepository(repositoryClient),
+  drivers: new DriverRepository(repositoryClient),
 };
 
 module.exports = repositories;

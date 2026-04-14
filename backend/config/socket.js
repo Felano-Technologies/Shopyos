@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { logger } = require('./logger');
 const { getRedis } = require('./redis');
+const { publishRealtimeEvent } = require('../services/realtimePublisher');
 
 let io = null;
 
@@ -133,8 +134,15 @@ function getIO() {
  * @param {any} data
  */
 function emitToConversation(conversationId, event, data) {
+  publishRealtimeEvent({
+    scope: 'conversation',
+    conversationId,
+    event,
+    payload: data,
+  }).catch(() => {});
+
   if (!io) {
-    logger.warn('Socket.IO not initialized, cannot emit event');
+    logger.debug('Local Socket.IO not initialized, emitted via realtime publisher only');
     return;
   }
   
@@ -150,8 +158,15 @@ function emitToConversation(conversationId, event, data) {
  * @param {any} data
  */
 function emitToUser(userId, event, data) {
+  publishRealtimeEvent({
+    scope: 'user',
+    userId,
+    event,
+    payload: data,
+  }).catch(() => {});
+
   if (!io) {
-    logger.warn('Socket.IO not initialized, cannot emit event');
+    logger.debug('Local Socket.IO not initialized, emitted via realtime publisher only');
     return;
   }
 

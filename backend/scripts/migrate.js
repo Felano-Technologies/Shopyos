@@ -1,28 +1,25 @@
-const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const { getPool } = require('../config/postgres');
+const pgPool = getPool();
 
 /**
  * Check if required tables exist in the database
  */
 async function checkSchema() {
-  console.log('🔍 Checking database schema...');
+  console.log('🔍 Checking database schema (postgres)...');
   const tablesToCheck = ['payouts', 'balance_logs', 'promoted_products', 'banner_campaigns', 'conversations', 'messages'];
 
   for (const table of tablesToCheck) {
-    const { error } = await supabase.from(table).select('id').limit(1);
-
-    if (error && error.code === '42P01') {
-      console.log(`⚠️  Table '${table}' is MISSING. Please run the migration SQL in Supabase Dashboard.`);
-    } else if (error && error.code !== 'PGRST116') {
-      // Ignore empty table error (PGRST116), but report others
-      console.log(`❓ Table '${table}' check error:`, error.message);
-    } else {
+    try {
+      await pgPool.query(`SELECT id FROM ${table} LIMIT 1`);
       console.log(`✅ Table '${table}' exists.`);
+    } catch (error) {
+      if (error.code === '42P01') {
+        console.log(`⚠️  Table '${table}' is MISSING. Please run migration SQL against Postgres.`);
+      } else {
+        console.log(`❓ Table '${table}' check error:`, error.message);
+      }
     }
   }
 }
@@ -41,12 +38,17 @@ async function ensureRolesExist() {
   ];
 
   for (const role of roles) {
-    const { data: existing } = await supabase.from('roles').select('id').eq('name', role.name).single();
-
-    if (!existing) {
-      const { error } = await supabase.from('roles').insert([role]);
-      if (error) console.log(`❌ Role '${role.name}' creation failed:`, error.message);
-      else console.log(`✅ Created role: ${role.name}`);
+    const existing = await pgPool.query('SELECT id FROM roles WHERE name = $1 LIMIT 1', [role.name]);
+    if (existing.rows.length === 0) {
+      try {
+        await pgPool.query(
+          'INSERT INTO roles (name, display_name, description) VALUES ($1, $2, $3)',
+          [role.name, role.display_name, role.description]
+        );
+        console.log(`✅ Created role: ${role.name}`);
+      } catch (error) {
+        console.log(`❌ Role '${role.name}' creation failed:`, error.message);
+      }
     } else {
       console.log(`✓  Role '${role.name}' ready.`);
     }
@@ -60,6 +62,7 @@ async function run() {
   console.log('==================================================');
   console.log('🛠️  Shopyos Database Migration & Setup Tool');
   console.log('==================================================\n');
+  console.log('Database client mode: postgres\n');
 
   try {
     await checkSchema();
@@ -71,6 +74,8 @@ async function run() {
   } catch (err) {
     console.error('\n❌ Unexpected error during setup:', err.message);
     process.exit(1);
+  } finally {
+    await pgPool.end().catch(() => {});
   }
 }
 

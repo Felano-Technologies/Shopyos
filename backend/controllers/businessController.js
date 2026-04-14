@@ -3,6 +3,7 @@ const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../uti
 const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
 const notificationService = require('../services/notificationService');
+const rabbitMQService = require('../services/rabbitmq');
 
 const createBusiness = async (req, res, next) => {
   try {
@@ -99,6 +100,10 @@ const createBusiness = async (req, res, next) => {
           processFile('businessLicense', 'shopyos/store-documents'),
           processFile('proofOfBank', 'shopyos/store-documents')
         ]);
+
+        if (fileUrls.logo_url && !fileUrls.logo) fileUrls.logo = fileUrls.logo_url;
+        if (fileUrls.banner && !fileUrls.coverImage) fileUrls.coverImage = fileUrls.banner;
+        if (fileUrls.banner_url && !fileUrls.coverImage) fileUrls.coverImage = fileUrls.banner_url;
       } catch (uploadError) {
         logger.error('Error uploading business files:', uploadError);
         return res.status(500).json({ success: false, error: 'Failed to upload documents' });
@@ -138,6 +143,39 @@ const createBusiness = async (req, res, next) => {
     const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank;
     if (hasVerificationDocs) {
       await notificationService.notifyAdminsVerificationRequest(store.id, 'store', store.store_name);
+
+      const ownerProfile = await repositories.userProfiles.findByUserId(userId);
+      if (user?.email) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+          userId,
+          role: 'seller',
+          email: user.email,
+          referenceId: store.id,
+          templateData: {
+            businessName: store.store_name,
+            ownerName: ownerProfile?.full_name || 'Business Owner',
+            audience: 'owner'
+          }
+        });
+      }
+
+      const admins = await repositories.users.getAdmins();
+      (admins || []).forEach((admin) => {
+        if (admin?.email) {
+          rabbitMQService.publishMessage('email', {
+            eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+            userId: admin.id,
+            role: 'admin',
+            email: admin.email,
+            referenceId: store.id,
+            templateData: {
+              businessName: store.store_name,
+              audience: 'admin'
+            }
+          });
+        }
+      });
     }
 
     // Get store with owner details
@@ -376,7 +414,10 @@ const updateBusiness = async (req, res, next) => {
 
         await Promise.all([
           processFile('logo', 'shopyos/store-logos'),
+          processFile('logo_url', 'shopyos/store-logos'),
           processFile('coverImage', 'shopyos/store-banners'),
+          processFile('banner', 'shopyos/store-banners'),
+          processFile('banner_url', 'shopyos/store-banners'),
           processFile('businessCert', 'shopyos/store-documents'),
           processFile('businessLicense', 'shopyos/store-documents'),
           processFile('proofOfBank', 'shopyos/store-documents')
@@ -456,6 +497,40 @@ const updateBusiness = async (req, res, next) => {
     const hasNewDocs = mappedData.business_cert_url || mappedData.business_license_url || mappedData.proof_of_bank_url;
     if (hasNewDocs) {
       await notificationService.notifyAdminsVerificationRequest(updatedStore.id, 'store', updatedStore.store_name);
+
+      const owner = await repositories.users.findById(userId);
+      const ownerProfile = await repositories.userProfiles.findByUserId(userId);
+      if (owner?.email) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+          userId,
+          role: 'seller',
+          email: owner.email,
+          referenceId: updatedStore.id,
+          templateData: {
+            businessName: updatedStore.store_name,
+            ownerName: ownerProfile?.full_name || 'Business Owner',
+            audience: 'owner'
+          }
+        });
+      }
+
+      const admins = await repositories.users.getAdmins();
+      (admins || []).forEach((admin) => {
+        if (admin?.email) {
+          rabbitMQService.publishMessage('email', {
+            eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+            userId: admin.id,
+            role: 'admin',
+            email: admin.email,
+            referenceId: updatedStore.id,
+            templateData: {
+              businessName: updatedStore.store_name,
+              audience: 'admin'
+            }
+          });
+        }
+      });
     }
 
     // Format response for backward compatibility

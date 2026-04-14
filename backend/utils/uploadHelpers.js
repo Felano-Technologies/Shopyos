@@ -1,8 +1,7 @@
 // utils/uploadHelpers.js
-// Helper functions for file uploads to Cloudinary
+// Helper functions for file uploads to object storage
 
-const { uploadImage, uploadMultipleImages, deleteImage } = require('../config/cloudinary');
-const { Readable } = require('stream');
+const { uploadImage, deleteImage } = require('../config/storage');
 const { logger } = require('../config/logger');
 
 /**
@@ -17,9 +16,9 @@ const bufferToDataURI = (buffer, mimetype) => {
 };
 
 /**
- * Upload file from multer to Cloudinary
+ * Upload file from multer to object storage
  * @param {object} file - Multer file object
- * @param {string} folder - Cloudinary folder
+ * @param {string} folder - Storage folder
  * @returns {Promise<object>} Upload result
  */
 const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
@@ -31,11 +30,12 @@ const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
     // Convert buffer to data URI
     const dataURI = bufferToDataURI(file.buffer, file.mimetype);
 
-    // Upload to Cloudinary
+    // Upload to object storage
     const result = await uploadImage(dataURI, folder);
 
     return {
       url: result.url,
+      public_url: result.public_url,
       public_id: result.public_id,
       format: result.format,
       width: result.width,
@@ -49,9 +49,9 @@ const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
 };
 
 /**
- * Upload multiple files from multer to Cloudinary
+ * Upload multiple files from multer to object storage
  * @param {Array<object>} files - Array of multer file objects
- * @param {string} folder - Cloudinary folder
+ * @param {string} folder - Storage folder
  * @returns {Promise<Array<object>>} Array of upload results
  */
 const uploadMultipleFilesToCloudinary = async (files, folder = 'shopyos') => {
@@ -70,9 +70,9 @@ const uploadMultipleFilesToCloudinary = async (files, folder = 'shopyos') => {
 
 /**
  * Delete old image and upload new one
- * @param {string} oldPublicId - Old Cloudinary public ID to delete
+ * @param {string} oldPublicId - Old storage key to delete
  * @param {object} newFile - New multer file object
- * @param {string} folder - Cloudinary folder
+ * @param {string} folder - Storage folder
  * @returns {Promise<object>} Upload result
  */
 const replaceImage = async (oldPublicId, newFile, folder = 'shopyos') => {
@@ -125,17 +125,26 @@ const validateImage = (file, maxSize = 5 * 1024 * 1024) => {
 };
 
 /**
- * Extract public ID from Cloudinary URL
- * @param {string} url - Cloudinary URL
+ * Extract object key from storage URL
+ * @param {string} url - Storage key or URL
  * @returns {string|null} Public ID
  */
 const extractPublicId = (url) => {
   if (!url) return null;
 
   try {
-    // URL format: https://res.cloudinary.com/{cloud_name}/image/upload/{version}/{public_id}.{format}
-    const matches = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/);
-    return matches ? matches[1] : null;
+    // Existing records may already store keys directly.
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return url;
+    }
+
+    const publicBaseUrl = (process.env.STORAGE_PUBLIC_URL || '').replace(/\/$/, '');
+    if (publicBaseUrl && url.startsWith(`${publicBaseUrl}/`)) {
+      return url.replace(`${publicBaseUrl}/`, '');
+    }
+
+    const parsed = new URL(url);
+    return parsed.pathname.replace(/^\//, '') || null;
   } catch (error) {
     logger.error('Error extracting public ID:', error);
     return null;

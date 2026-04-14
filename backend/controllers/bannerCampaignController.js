@@ -126,7 +126,7 @@ exports.initializeCampaignPayment = async (req, res, next) => {
     }
 
     // Fetch campaign details
-    const { data: campaign, error: fetchErr } = await repositories.bannerCampaigns.supabase
+    const { data: campaign, error: fetchErr } = await repositories.bannerCampaigns.db
       .from('banner_campaigns')
       .select('*')
       .eq('id', campaignId)
@@ -208,7 +208,7 @@ exports.verifyCampaignPayment = async (req, res, next) => {
       const end = new Date();
       
       // Fetch duration if not in metadata
-      const { data: existing } = await repositories.bannerCampaigns.supabase
+      const { data: existing } = await repositories.bannerCampaigns.db
         .from('banner_campaigns')
         .select('duration_days')
         .eq('id', campaignId)

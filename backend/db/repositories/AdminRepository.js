@@ -16,7 +16,7 @@ class AdminRepository extends BaseRepository {
   async getAllUsers(options = {}) {
     const { limit = 50, offset = 0, role, accountStatus, search } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from('user_profiles')
       .select(`
         id,
@@ -76,21 +76,21 @@ class AdminRepository extends BaseRepository {
    */
   async getUserStats() {
     // We use RPC or multiple queries. For simplicity and accuracy with joins:
-    const { count: total, error: totalErr } = await this.supabase
+    const { count: total, error: totalErr } = await this.db
       .from('user_profiles')
       .select('id', { count: 'exact', head: true });
 
-    const { count: active, error: activeErr } = await this.supabase
+    const { count: active, error: activeErr } = await this.db
       .from('users')
       .select('id', { count: 'exact', head: true })
       .eq('is_active', true);
 
-    const { count: sellers, error: sellerErr } = await this.supabase
+    const { count: sellers, error: sellerErr } = await this.db
       .from('user_roles')
       .select('id, roles!inner(name)', { count: 'exact', head: true })
       .eq('roles.name', 'seller');
 
-    const { count: drivers, error: driverErr } = await this.supabase
+    const { count: drivers, error: driverErr } = await this.db
       .from('user_roles')
       .select('id, roles!inner(name)', { count: 'exact', head: true })
       .eq('roles.name', 'driver');
@@ -118,7 +118,7 @@ class AdminRepository extends BaseRepository {
    */
   async updateUserStatus(profileId, status, reason = null) {
     // 1. Get the actual user_id from profileId
-    const { data: profile } = await this.supabase
+    const { data: profile } = await this.db
       .from('user_profiles')
       .select('user_id')
       .eq('id', profileId)
@@ -127,7 +127,7 @@ class AdminRepository extends BaseRepository {
     if (!profile) throw new Error('User profile not found');
 
     // 2. Update users table (is_active)
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('users')
       .update({
         is_active: status === 'active',
@@ -149,7 +149,7 @@ class AdminRepository extends BaseRepository {
    */
   async setUserRoleByUserId(userId, roleName) {
     // 1. Get role ID
-    const { data: roleData } = await this.supabase
+    const { data: roleData } = await this.db
       .from('roles')
       .select('id')
       .eq('name', roleName)
@@ -158,10 +158,10 @@ class AdminRepository extends BaseRepository {
     if (!roleData) throw new Error(`Role ${roleName} not found`);
 
     // 2. Clear existing roles (driver/seller/buyer are usually mutually exclusive for the primary role)
-    await this.supabase.from('user_roles').delete().eq('user_id', userId);
+    await this.db.from('user_roles').delete().eq('user_id', userId);
 
     // 3. Set new role
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('user_roles')
       .insert({
         user_id: userId,
@@ -182,7 +182,7 @@ class AdminRepository extends BaseRepository {
    */
   async updateUserRole(profileId, roleName) {
     // 1. Get user_id from profileId
-    const { data: profile } = await this.supabase
+    const { data: profile } = await this.db
       .from('user_profiles')
       .select('user_id')
       .eq('id', profileId)
@@ -201,7 +201,7 @@ class AdminRepository extends BaseRepository {
   async getAllStores(options = {}) {
     const { limit = 50, offset = 0, verificationStatus, search, id } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from('stores')
       .select(`
         *,
@@ -244,21 +244,21 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Object>} Store stats
    */
   async getStoreStats() {
-    const { data: totalStores, error: totalError } = await this.supabase
+    const { data: totalStores, error: totalError } = await this.db
       .from('stores')
       .select('id', { count: 'exact', head: true });
 
-    const { data: verified, error: verifiedError } = await this.supabase
+    const { data: verified, error: verifiedError } = await this.db
       .from('stores')
       .select('id', { count: 'exact', head: true })
       .eq('verification_status', 'verified');
 
-    const { data: pending, error: pendingError } = await this.supabase
+    const { data: pending, error: pendingError } = await this.db
       .from('stores')
       .select('id', { count: 'exact', head: true })
       .eq('verification_status', 'pending');
 
-    const { data: active, error: activeError } = await this.supabase
+    const { data: active, error: activeError } = await this.db
       .from('stores')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'active');
@@ -298,7 +298,7 @@ class AdminRepository extends BaseRepository {
       updateData.rejection_reason = reason;
     }
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('stores')
       .update(updateData)
       .eq('id', storeId)
@@ -316,7 +316,7 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated store
    */
   async updateStoreStatus(storeId, status) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('stores')
       .update({
         status: status,
@@ -341,9 +341,9 @@ class AdminRepository extends BaseRepository {
       { data: productStats, error: productError },
       { data: reviewStats, error: reviewError }
     ] = await Promise.all([
-      this.supabase.rpc('get_admin_order_stats'),
-      this.supabase.rpc('get_admin_product_stats'),
-      this.supabase.rpc('get_admin_review_stats')
+      this.db.rpc('get_admin_order_stats'),
+      this.db.rpc('get_admin_product_stats'),
+      this.db.rpc('get_admin_review_stats')
     ]);
 
     if (orderError) throw orderError;
@@ -377,7 +377,7 @@ class AdminRepository extends BaseRepository {
   async getAllOrders(options = {}) {
     const { limit = 50, offset = 0, status, search } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from('orders')
       .select(`
         id, order_number, status, total_amount, created_at,
@@ -412,7 +412,7 @@ class AdminRepository extends BaseRepository {
    */
   async getRevenueTransactions(options = {}) {
     const { limit = 50, offset = 0 } = options;
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('payments')
       .select(`
         id, amount, status, created_at,
@@ -431,7 +431,7 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Array>} Recent activities
    */
   async getRecentActivity(limit = 20) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('audit_logs')
       .select(`
         *,
@@ -457,7 +457,7 @@ class AdminRepository extends BaseRepository {
    * Get driver verifications list
    */
   async getDriverVerifications() {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('driver_profiles')
       .select(`
         *,
@@ -491,7 +491,7 @@ class AdminRepository extends BaseRepository {
    * Get single driver verification details
    */
   async getDriverVerificationDetails(id) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('driver_profiles')
       .select(`
         *,
@@ -522,7 +522,7 @@ class AdminRepository extends BaseRepository {
    * Approve driver verification
    */
   async approveDriver(id) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('driver_profiles')
       .update({ is_verified: true, rejection_reason: null, updated_at: new Date().toISOString() })
       .eq('id', id)
@@ -539,7 +539,7 @@ class AdminRepository extends BaseRepository {
    * Reject driver verification
    */
   async rejectDriver(id, reason) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from('driver_profiles')
       .update({ is_verified: false, rejection_reason: reason, updated_at: new Date().toISOString() })
       .eq('id', id)

@@ -3,7 +3,7 @@
 > **Generated:** 2026-02-26  
 > **Scope:** Review, rebuild, and optimize the existing Node.js ecommerce backend  
 > **Target:** 500+ concurrent users with Redis caching, proper concurrency, and hardened security  
-> **Constraints:** No frontend changes. No new features — only improve what exists. Maintain all API contracts. Supabase (Postgres) + Cloudinary remain. New migration files only (never alter existing migrations).
+> **Constraints:** No frontend changes. No new features — only improve what exists. Maintain all API contracts. Postgres (Postgres) + Object Storage remain. New migration files only (never alter existing migrations).
 
 ---
 
@@ -27,12 +27,12 @@
 | Layer | Files | Technology |
 |---|---|---|
 | Entry point | `server.js` | Express 4.x |
-| Config | `config/supabase.js`, `config/cloudinary.js`, `config/production.js` | Supabase JS client, Cloudinary SDK |
+| Config | `config/postgres.js`, `config/storage.js`, `config/production.js` | Postgres JS client, Object Storage SDK |
 | Middleware | `authMiddleware.js`, `errorHandler.js`, `rateLimiter.js`, `upload.js` | JWT, express-rate-limit, multer |
 | Controllers | 16 controllers | Direct repository calls |
-| Data Access | 21 repositories (`db/repositories/`) | Supabase JS client (PostgREST) |
+| Data Access | 21 repositories (`db/repositories/`) | Postgres JS client (PostgREST) |
 | Services | `notificationService.js` | Nodemailer, Arkesel SMS |
-| Utils | `uploadHelpers.js`, `validateEnv.js` | Cloudinary helpers |
+| Utils | `uploadHelpers.js`, `validateEnv.js` | Object Storage helpers |
 
 ### 1.2 Critical Issues Found
 
@@ -41,10 +41,10 @@
 
 | # | Issue | Severity | Location |
 |---|---|---|---|
-| C1 | **No Redis caching at all** — every request hits Supabase directly | 🔴 Critical | All controllers |
+| C1 | **No Redis caching at all** — every request hits Postgres directly | 🔴 Critical | All controllers |
 | C2 | **Order creation has no database transaction** — `createOrderWithItems()` uses sequential inserts without atomicity; overselling risk | 🔴 Critical | `OrderRepository.js:198-223` |
 | C3 | **No inventory reservation/atomic decrement on order** — stock not decremented at order time, enabling overselling under concurrency | 🔴 Critical | `orderController.js:22-185` |
-| C4 | **`withTransaction()` is a no-op** — returns the same supabase client without actual BEGIN/COMMIT/ROLLBACK | 🔴 Critical | `config/supabase.js:105-114` |
+| C4 | **`withTransaction()` is a no-op** — returns the same Postgres client without actual BEGIN/COMMIT/ROLLBACK | 🔴 Critical | `config/postgres.js:105-114` |
 | C5 | **Rate limiter uses in-memory store** — won't work across multiple server instances; resets on restart | 🟡 High | `middleware/rateLimiter.js` |
 | C6 | **`unhandledRejection` calls `gracefulShutdown()`** — a single unhandled promise rejection terminates the entire server | 🟡 High | `server.js:261-264` |
 | C7 | **Auth middleware queries DB on every request** — no caching of user data after JWT verification | 🟡 High | `authMiddleware.js:21` |
@@ -416,7 +416,7 @@ Create a Postgres function `create_order_atomic()` that:
   LEFT JOIN product_reviews pr ON pr.product_id = oi.product_id AND pr.buyer_id = $1
   WHERE o.buyer_id = $1 AND o.status = 'completed' AND pr.id IS NULL
   ```
-- Or use Supabase client with a single joined query and client-side filtering
+- Or use Postgres client with a single joined query and client-side filtering
 
 ### Task 3.5 — Fix Category Product Count Query
 
@@ -427,7 +427,7 @@ Create a Postgres function `create_order_atomic()` that:
   const { data } = await repositories.products.db
     .rpc('get_category_counts'); // New RPC function
   ```
-- Or use Supabase's `.select('category', { count: 'exact' })` with grouping
+- Or use Postgres's `.select('category', { count: 'exact' })` with grouping
 
 **New migration file:** `migrations/015_category_count_rpc.sql`
 
@@ -539,7 +539,7 @@ Create validation chains for all major endpoints:
 **Modified file:** `middleware/errorHandler.js`
 
 - Add handling for Redis errors (connection refused, timeout)
-- Add handling for Supabase-specific error codes (rate limit, connection pool exhausted)
+- Add handling for Postgres-specific error codes (rate limit, connection pool exhausted)
 - Add request ID in error responses for debugging
 - Log structured error objects with Winston
 
@@ -571,7 +571,7 @@ Create validation chains for all major endpoints:
 
 - Add per-route timeout overrides for long operations (file uploads: 60s, general: 30s)
 - Add `req.socket.setTimeout()` for proper TCP-level timeout
-- Add AbortController pattern for Supabase queries to cancel on timeout
+- Add AbortController pattern for Postgres queries to cancel on timeout
 
 ### Task 4.7 — Remove Debug Console Logs
 
@@ -601,7 +601,7 @@ Expand `/health` endpoint to include:
   environment: '...',
   checks: {
     redis: { status: 'connected', latency: '2ms' },
-    supabase: { status: 'connected', latency: '15ms' },
+    Postgres: { status: 'connected', latency: '15ms' },
     memory: {
       heapUsed: '45MB',
       heapTotal: '80MB',
@@ -671,7 +671,7 @@ Create a script using `autocannon` or `k6` that:
 ## 8. Database Migration Plan
 
 > [!IMPORTANT]
-> All migration files go into `backend/migrations/`. You must manually review and apply them to Supabase.
+> All migration files go into `backend/migrations/`. You must manually review and apply them to Postgres.
 
 ### New Migration Files to Create
 
@@ -822,7 +822,7 @@ graph TD
 | **Modified** | `middleware/rateLimiter.js` | 4 |
 | **Modified** | `middleware/errorHandler.js` | 4 |
 | **Modified** | `config/production.js` | 4 |
-| **Modified** | `config/supabase.js` | 3 |
+| **Modified** | `config/postgres.js` | 3 |
 | **Modified** | `controllers/productController.js` | 2, 4 |
 | **Modified** | `controllers/categoryController.js` | 2 |
 | **Modified** | `controllers/orderController.js` | 2, 3 |

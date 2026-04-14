@@ -12,7 +12,7 @@ class PayoutRepository extends BaseRepository {
      * @returns {Promise<Object>} Created payout record
      */
     async requestPayout(payoutData) {
-        const { data, error } = await this.supabase
+        const { data, error } = await this.db
             .from(this.tableName)
             .insert({
                 store_id: payoutData.storeId,
@@ -37,7 +37,7 @@ class PayoutRepository extends BaseRepository {
     async getStorePayouts(storeId, options = {}) {
         const { status, limit = 20, offset = 0 } = options;
 
-        let query = this.supabase
+        let query = this.db
             .from(this.tableName)
             .select('*')
             .eq('store_id', storeId)
@@ -61,7 +61,7 @@ class PayoutRepository extends BaseRepository {
      * @returns {Promise<Object>} Updated record
      */
     async updatePayoutStatus(payoutId, status, updateData = {}) {
-        const { data, error } = await this.supabase
+        const { data, error } = await this.db
             .from(this.tableName)
             .update({
                 status,

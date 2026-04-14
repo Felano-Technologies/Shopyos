@@ -14,7 +14,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Object>} Created campaign
    */
   async createCampaign(campaignData) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .insert({
         product_id: campaignData.productId,
@@ -46,7 +46,7 @@ class PromotedProductRepository extends BaseRepository {
     const { limit = 20, category, minPrice, maxPrice } = options;
     const now = new Date().toISOString();
 
-    let query = this.supabase
+    let query = this.db
       .from(this.tableName)
       .select(`
         *,
@@ -90,7 +90,7 @@ class PromotedProductRepository extends BaseRepository {
   async getStoreCampaigns(storeId, options = {}) {
     const { status, limit = 20, offset = 0 } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from(this.tableName)
       .select(`
         *,
@@ -114,7 +114,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Object>} Campaign details
    */
   async getCampaignDetails(campaignId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select(`
         *,
@@ -135,7 +135,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated campaign
    */
   async updateCampaignStatus(campaignId, status) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .update({
         status,
@@ -156,7 +156,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Object>} Updated campaign
    */
   async updateCampaignBudget(campaignId, newBudget) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .update({
         budget: newBudget,
@@ -204,7 +204,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Object>} Performance metrics
    */
   async getCampaignMetrics(campaignId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*')
       .eq('id', campaignId)
@@ -236,7 +236,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<boolean>} Whether campaign can serve ads
    */
   async canServeAd(campaignId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('start_date, end_date')
       .eq('id', campaignId)
@@ -260,7 +260,7 @@ class PromotedProductRepository extends BaseRepository {
     const now = new Date().toISOString();
 
     try {
-      const { data, error } = await this.supabase
+      const { data, error } = await this.db
         .from(this.tableName)
         .update({ updated_at: now })
         .lt('end_date', now)

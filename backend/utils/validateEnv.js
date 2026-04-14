@@ -1,7 +1,8 @@
 const validateEnv = () => {
   const required = [
-    'PORT', 'JWT_SECRET', 'SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY',
-    'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET',
+    'PORT', 'JWT_SECRET',
+    'DATABASE_URL',
+    'STORAGE_ENDPOINT', 'STORAGE_REGION', 'STORAGE_BUCKET', 'STORAGE_ACCESS_KEY', 'STORAGE_SECRET_KEY', 'STORAGE_PUBLIC_URL',
     'EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASSWORD', 'EMAIL_FROM', 'EMAIL_FROM_NAME',
     'ARKESEL_API_KEY', 'ARKESEL_SENDER_ID', 'PAYSTACK_SECRET_KEY', 'PAYSTACK_PUBLIC_KEY', 'FRONTEND_URL'
   ];
@@ -18,8 +19,10 @@ const validateEnv = () => {
     process.exit(1);
   }
 
-  if (!/^https?:\/\/.+/.test(process.env.SUPABASE_URL)) { console.error('SUPABASE_URL must be a valid URL'); process.exit(1); }
+  if (!/^postgres(ql)?:\/\/.+/.test(process.env.DATABASE_URL || '')) { console.error('DATABASE_URL must be a valid postgres URL'); process.exit(1); }
   if (!/^https?:\/\/.+/.test(process.env.FRONTEND_URL)) { console.error('FRONTEND_URL must be a valid URL'); process.exit(1); }
+  if (!/^https?:\/\/.+/.test(process.env.STORAGE_ENDPOINT)) { console.error('STORAGE_ENDPOINT must be a valid URL'); process.exit(1); }
+  if (!/^https?:\/\/.+/.test(process.env.STORAGE_PUBLIC_URL)) { console.error('STORAGE_PUBLIC_URL must be a valid URL'); process.exit(1); }
   if (process.env.JWT_SECRET.length < 32) { console.warn('WARNING: JWT_SECRET should be at least 32 characters'); }
 
   optional.forEach(({ key, warning }) => {

@@ -2,6 +2,7 @@ const repositories = require('../db/repositories');
 const { uploadFileToCloudinary } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
+const rabbitMQService = require('../services/rabbitmq');
 
 /**
  * Submit driver verification details
@@ -54,6 +55,38 @@ const submitVerification = async (req, res, next) => {
 
     // Notify admins
     await notificationService.notifyAdminsVerificationRequest(profile.id, 'driver', driverName);
+
+    const user = await repositories.users.findById(userId);
+    if (user?.email) {
+      rabbitMQService.publishMessage('email', {
+        eventType: 'DRIVER_VERIFICATION_SUBMITTED',
+        userId,
+        role: 'driver',
+        email: user.email,
+        referenceId: profile.id,
+        templateData: {
+          driverName,
+          audience: 'driver'
+        }
+      });
+    }
+
+    const admins = await repositories.users.getAdmins();
+    (admins || []).forEach((admin) => {
+      if (admin?.email) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'DRIVER_VERIFICATION_SUBMITTED',
+          userId: admin.id,
+          role: 'admin',
+          email: admin.email,
+          referenceId: profile.id,
+          templateData: {
+            driverName,
+            audience: 'admin'
+          }
+        });
+      }
+    });
     
     res.status(200).json({
       success: true,

@@ -6,7 +6,7 @@ class BannerCampaignRepository extends BaseRepository {
   }
 
   async createCampaign(data) {
-    const { data: campaign, error } = await this.supabase
+    const { data: campaign, error } = await this.db
       .from(this.tableName)
       .insert(data)
       .select('*, store:stores(store_name)')
@@ -17,7 +17,7 @@ class BannerCampaignRepository extends BaseRepository {
   }
 
   async getMyCampaigns(storeId) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*, store:stores(store_name)')
       .eq('store_id', storeId)
@@ -28,7 +28,7 @@ class BannerCampaignRepository extends BaseRepository {
   }
 
   async getAllCampaigns() {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*, store:stores(store_name, owner_id)')
       .order('created_at', { ascending: false });
@@ -38,7 +38,7 @@ class BannerCampaignRepository extends BaseRepository {
   }
 
   async updateCampaign(id, updateData) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .update(updateData)
       .eq('id', id)
@@ -49,7 +49,7 @@ class BannerCampaignRepository extends BaseRepository {
   }
 
   async getActiveBanners() {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*')
       .eq('status', 'Active')

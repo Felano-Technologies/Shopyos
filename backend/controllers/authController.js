@@ -499,19 +499,18 @@ const addRole = async (req, res, next) => {
     const user = await repositories.users.findById(userId);
     const profile = await repositories.userProfiles.findByUserId(userId);
 
-    // If upgraded to seller or driver, send a welcome orientation message
-    if (role === 'seller' || role === 'driver') {
-      const payload = {
-        eventType: 'WELCOME_EMAIL',
-        userId: userId,
-        role: role,
-        email: user?.email,
-        phone: profile?.phone,
-        templateData: { name: profile?.full_name || 'User', phone: profile?.phone }
-      };
-      if (user?.email) rabbitMQService.publishMessage('email', payload);
-      if (profile?.phone) rabbitMQService.publishMessage('sms', { ...payload, eventType: 'WELCOME_SMS' });
-    }
+    // Send role-selection welcome for first-time and subsequent role additions
+    const payload = {
+      eventType: 'ROLE_SELECTED_EMAIL',
+      userId: userId,
+      role,
+      email: user?.email,
+      phone: profile?.phone,
+      referenceId: userId,
+      templateData: { name: profile?.full_name || 'User', phone: profile?.phone }
+    };
+    if (user?.email) rabbitMQService.publishMessage('email', payload);
+    if (profile?.phone) rabbitMQService.publishMessage('sms', { ...payload, eventType: 'ROLE_SELECTED_SMS' });
 
     res.status(200).json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully` });
   } catch (error) {

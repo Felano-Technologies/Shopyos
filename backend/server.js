@@ -16,9 +16,15 @@ validateEnv();
 const { logger, httpLogMiddleware } = require('./config/logger');
 const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
 const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
-const { supabaseAdmin } = require('./config/supabase');
 const { initializeSocket } = require('./config/socket');
 const { registerMessagingHandlers } = require('./sockets/messagingSocket');
+const { getPool } = require('./config/postgres');
+
+const dbHealthCheck = async () => {
+  const start = Date.now();
+  await getPool().query('SELECT 1');
+  return { connected: true, latency: `${Date.now() - start}ms` };
+};
 
 const redis = getRedis();
 
@@ -101,7 +107,7 @@ app.use((req, res, next) => {
     req.socket.setTimeout(timeout);
   }
 
-  // Inject AbortController for Supabase queries
+  // Inject AbortController for database queries
   req.abortController = new AbortController();
   req.on('aborted', () => req.abortController.abort());
   req.on('close', () => req.abortController.abort());
@@ -114,17 +120,14 @@ app.use('/public', express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.status(200).send('Shopyos API is live.'));
 
 app.get('/health', async (req, res) => {
-  // Run Supabase and Redis health checks in parallel
-  const supabaseStart = Date.now();
-  const [supabaseResult, redisResult, appMetrics] = await Promise.all([
-    supabaseAdmin.from('stores').select('id', { count: 'exact', head: true }).limit(1)
-      .then(() => ({ connected: true, latency: `${Date.now() - supabaseStart}ms` }))
-      .catch(err => ({ connected: false, reason: err.message })),
+  // Run database and Redis health checks in parallel
+  const [databaseResult, redisResult, appMetrics] = await Promise.all([
+    dbHealthCheck().catch(err => ({ connected: false, reason: err.message })),
     redisHealthCheck(),
     Promise.resolve(getMetrics())
   ]);
 
-  const overallStatus = supabaseResult.connected ? 'healthy' : 'degraded';
+  const overallStatus = databaseResult.connected ? 'healthy' : 'degraded';
 
   res.status(overallStatus === 'healthy' ? 200 : 503).json({
     success: true,
@@ -135,7 +138,10 @@ app.get('/health', async (req, res) => {
     environment: process.env.NODE_ENV || 'development',
     checks: {
       redis: redisResult,
-      supabase: supabaseResult,
+      database: {
+        client: 'postgres',
+        ...databaseResult,
+      },
       memory: appMetrics.memory
     },
     performance: appMetrics.performance,
@@ -220,8 +226,15 @@ app.use(errorHandler);
 
 // Create HTTP server and attach Socket.IO
 const server = http.createServer(app);
-const io = initializeSocket(server);
-registerMessagingHandlers(io);
+const enableLocalSocket = process.env.ENABLE_LOCAL_SOCKET !== 'false';
+let io = null;
+
+if (enableLocalSocket) {
+  io = initializeSocket(server);
+  registerMessagingHandlers(io);
+} else {
+  logger.info('Local Socket.IO disabled (ENABLE_LOCAL_SOCKET=false). Using external socket service.');
+}
 
 const PORT = process.env.PORT || 5000;
 

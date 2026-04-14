@@ -92,8 +92,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/icondark.png",
-          "imageWidth": 400,
+          "image": "./assets/images/logo - blue.png",
+          "imageWidth": 500,
           "resizeMode": "contain"
         }
       ],

@@ -4,6 +4,7 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
+const rabbitMQService = require('../services/rabbitmq');
 
 /**
  * Get dashboard analytics
@@ -216,9 +217,9 @@ const verifyStore = async (req, res, next) => {
     });
 
     // Notify business owner when admin approves verification
-    if (status === 'verified') {
-      const ownerId = store?.owner_id || currentStore?.owner_id;
-      if (ownerId) {
+    const ownerId = store?.owner_id || currentStore?.owner_id;
+    if (ownerId) {
+      if (status === 'verified') {
         await notificationService.sendNotification({
           userId: ownerId,
           type: 'business_approved',
@@ -235,6 +236,24 @@ const verifyStore = async (req, res, next) => {
               screen: 'business/dashboard',
               storeId
             }
+          }
+        });
+      }
+
+      const ownerUser = await repositories.users.findById(ownerId);
+      const ownerProfile = await repositories.userProfiles.findByUserId(ownerId);
+      if (ownerUser?.email && (status === 'verified' || status === 'rejected')) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'BUSINESS_VERIFICATION_RESULT',
+          userId: ownerId,
+          role: 'seller',
+          email: ownerUser.email,
+          referenceId: storeId,
+          templateData: {
+            businessName: store?.store_name || currentStore?.store_name || 'Your business',
+            ownerName: ownerProfile?.full_name || 'Business Owner',
+            status,
+            reason: reason || ''
           }
         });
       }
@@ -573,6 +592,25 @@ const approveDriverVerification = async (req, res, next) => {
   try {
     const { id } = req.params;
     const driver = await repositories.admin.approveDriver(id);
+
+    if (driver?.user_id) {
+      const user = await repositories.users.findById(driver.user_id);
+      const profile = await repositories.userProfiles.findByUserId(driver.user_id);
+      if (user?.email) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'DRIVER_VERIFICATION_RESULT',
+          userId: driver.user_id,
+          role: 'driver',
+          email: user.email,
+          referenceId: driver.id,
+          templateData: {
+            driverName: profile?.full_name || 'Driver',
+            status: 'approved'
+          }
+        });
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Driver approved successfully', driver });
   } catch (error) {
     next(error);
@@ -589,6 +627,26 @@ const rejectDriverVerification = async (req, res, next) => {
     const { reason } = req.body;
     if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
     const driver = await repositories.admin.rejectDriver(id, reason);
+
+    if (driver?.user_id) {
+      const user = await repositories.users.findById(driver.user_id);
+      const profile = await repositories.userProfiles.findByUserId(driver.user_id);
+      if (user?.email) {
+        rabbitMQService.publishMessage('email', {
+          eventType: 'DRIVER_VERIFICATION_RESULT',
+          userId: driver.user_id,
+          role: 'driver',
+          email: user.email,
+          referenceId: driver.id,
+          templateData: {
+            driverName: profile?.full_name || 'Driver',
+            status: 'rejected',
+            reason
+          }
+        });
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Driver rejected successfully', driver });
   } catch (error) {
     next(error);

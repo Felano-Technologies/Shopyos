@@ -13,7 +13,7 @@ npm install
 cp .env.example .env
 
 # 4. Edit .env with your credentials
-# Required: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, etc.
+# Required: DATABASE_URL, STORAGE_*, REDIS_URL, JWT, and email/payment settings.
 
 # 5. Start development server
 npm run dev
@@ -25,7 +25,8 @@ npm start
 ## Verify Installation
 
 Server should start with:
-```
+
+```text
 ✅ Environment validation passed
 =================================
 🚀 Server running on port 5000
@@ -37,11 +38,13 @@ Server should start with:
 ## Test Health Endpoint
 
 Open browser or use curl:
+
 ```bash
 curl http://localhost:5000/health
 ```
 
 Expected response:
+
 ```json
 {
   "success": true,
@@ -57,6 +60,7 @@ Expected response:
 See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for full instructions.
 
 Quick deploy with PM2:
+
 ```bash
 npm install -g pm2
 pm2 start server.js -i max --name shopyos-api
@@ -75,9 +79,10 @@ pm2 save
 ## Support
 
 For issues:
+
 1. Check logs: `pm2 logs` or console output
 2. Verify `.env` file has all required variables
-3. Check Supabase project is active
+3. Check Postgres database is reachable
 4. Review error messages in logs
 
 ## Features

@@ -14,7 +14,7 @@ class AuditLogRepository extends BaseRepository {
    * @returns {Promise<Object>} Created log entry
    */
   async createLog(logData) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .insert({
         user_id: logData.userId,
@@ -40,7 +40,7 @@ class AuditLogRepository extends BaseRepository {
   async getAuditLogs(options = {}) {
     const { userId, action, entityType, startDate, endDate, limit = 100, offset = 0 } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from(this.tableName)
       .select(`
         *,
@@ -81,7 +81,7 @@ class AuditLogRepository extends BaseRepository {
    * @returns {Promise<Array>} Entity audit trail
    */
   async getEntityHistory(entityId, entityType) {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select(`
         *,
@@ -104,7 +104,7 @@ class AuditLogRepository extends BaseRepository {
   async getUserActivity(userId, options = {}) {
     const { limit = 50, offset = 0 } = options;
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .select('*')
       .eq('user_id', userId)
@@ -123,7 +123,7 @@ class AuditLogRepository extends BaseRepository {
   async getAuditStats(options = {}) {
     const { startDate, endDate } = options;
 
-    let query = this.supabase
+    let query = this.db
       .from(this.tableName)
       .select('action, entity_type');
 
@@ -161,7 +161,7 @@ class AuditLogRepository extends BaseRepository {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    const { data, error } = await this.supabase
+    const { data, error } = await this.db
       .from(this.tableName)
       .delete()
       .lt('timestamp', cutoffDate.toISOString())
