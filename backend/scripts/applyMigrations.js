@@ -16,11 +16,38 @@ const getMigrationFiles = () => {
     throw new Error(`Migrations directory not found: ${MIGRATIONS_DIR}`);
   }
 
-  return fs
+  const files = fs
     .readdirSync(MIGRATIONS_DIR)
     .filter((file) => file.toLowerCase().endsWith('.sql'))
     .sort((a, b) => a.localeCompare(b));
+
+  if (!files.includes('001_initial_schema.sql')) {
+    throw new Error(
+      'Missing required baseline migration: 001_initial_schema.sql. ' +
+      'Ensure it is committed and available in backend/migrations.'
+    );
+  }
+
+  return files;
 };
+
+async function ensureMigrationPrerequisites(client) {
+  // Required by many schema defaults.
+  await client.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"');
+  await client.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto"');
+
+  // Compatibility shim for migrations that reference auth.uid() outside Supabase.
+  await client.query('CREATE SCHEMA IF NOT EXISTS auth');
+  await client.query(`
+    CREATE OR REPLACE FUNCTION auth.uid()
+    RETURNS uuid
+    LANGUAGE sql
+    STABLE
+    AS $$
+      SELECT NULL::uuid
+    $$
+  `);
+}
 
 async function ensureMigrationsTable(client) {
   await client.query(`
@@ -76,6 +103,7 @@ async function run() {
     console.log('==================================================');
 
     await client.query('SELECT pg_advisory_lock($1)', [LOCK_KEY]);
+    await ensureMigrationPrerequisites(client);
     await ensureMigrationsTable(client);
 
     const files = getMigrationFiles();

@@ -2,4 +2,3 @@
 node_modules/
 docs/
 test-connection.js
-migrations/001_initial_schema.sql

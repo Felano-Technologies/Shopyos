@@ -10,7 +10,11 @@ class RabbitMQService {
 
     async connect() {
         try {
-            const url = 'amqps://rfcpcbvc:E7ajVXgQHTw3IGCPlQNHihm1odpsTaLp@gerbil.rmq.cloudamqp.com/rfcpcbvc';
+            const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
+            if (!url) {
+                logger.error('RabbitMQ URL missing. Set RABBITMQ_URL or CLOUDAMQP_URL');
+                return;
+            }
             this.connection = await amqp.connect(url);
 
             this.connection.on('error', (err) => {

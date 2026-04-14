@@ -171,7 +171,10 @@ async function handleSMS(msg) {
 
 async function startWorker() {
     try {
-        const url = process.env.RABBITMQ_URL || 'amqp://localhost';
+        const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
+        if (!url) {
+            throw new Error('RABBITMQ_URL (or CLOUDAMQP_URL) is required for notification worker');
+        }
         const conn = await amqp.connect(url);
         const channel = await conn.createChannel();
 
