@@ -1,8 +1,9 @@
 {
   "scripts": {
-    "start": "node server.js",
+    "start": "npm run migrate:apply && node server.js",
     "dev": "nodemon server.js",
     "migrate": "node scripts/migrate.js",
+    "migrate:apply": "node scripts/applyMigrations.js",
     "worker": "node workers/notificationWorker.js"
   },
   "dependencies": {

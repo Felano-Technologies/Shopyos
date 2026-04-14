@@ -6,7 +6,7 @@ const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('crypto');
 
 dotenv.config();
 
@@ -56,7 +56,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
-  req.requestId = req.headers['x-request-id'] || uuidv4();
+  req.requestId = req.headers['x-request-id'] || randomUUID();
   res.setHeader('X-Request-ID', req.requestId);
   next();
 });
