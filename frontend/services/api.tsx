@@ -8,20 +8,13 @@ import { socketService } from './socket';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 export { CustomInAppToast };
 
-// Dynamic baseURL based on platform and environment
+// API base URL sourced from Expo public environment.
 const getBaseURL = () => {
-  const isDev = __DEV__ ? "development" : "production";
-  if (isDev === "development") {
-    // Development mode - use local server
-    if (Platform.OS === 'android') {
-      return 'https://dios-mnxg.onrender.com'; // Android Emulator http://10.0.2.2:5000
-    } else {
-      return 'https://dios-mnxg.onrender.com'; // iOS Simulator and Web http://localhost:5000
-    }
-  } else {
-    // Production mode - use production server
-    return 'https://dios-mnxg.onrender.com';
+  const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+  if (!apiUrl) {
+    throw new Error('EXPO_PUBLIC_API_URL is not set');
   }
+  return apiUrl.replace(/\/$/, '');
 };
 
 export const baseURL = getBaseURL();

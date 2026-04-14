@@ -17,9 +17,12 @@ class SocketService {
    * Get backend socket URL
    */
   private getSocketURL(): string {
-    const socketURL = process.env.EXPO_PUBLIC_SOCKET_URL || 'https://dios-mnxg.onrender.com';
+    const socketURL = process.env.EXPO_PUBLIC_SOCKET_URL?.trim();
+    if (!socketURL) {
+      throw new Error('EXPO_PUBLIC_SOCKET_URL is not set');
+    }
     console.log('📡 Socket URL:', socketURL);
-    return socketURL;
+    return socketURL.replace(/\/$/, '');
   }
 
   /**
