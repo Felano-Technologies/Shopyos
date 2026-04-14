@@ -10,6 +10,15 @@
 -- and updates the RPC functions to reference the correct column names.
 -- =====================================================
 
+-- Ensure legacy columns exist so references below do not fail on drifted schemas.
+ALTER TABLE promoted_products
+  ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE,
+  ADD COLUMN IF NOT EXISTS budget_allocated DECIMAL(10, 2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS budget_spent DECIMAL(10, 2) DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_impressions INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_clicks INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS cost_per_click DECIMAL(10, 2) DEFAULT 0.10;
+
 -- 1. Add 'status' column (TEXT) to replace the boolean 'is_active'
 ALTER TABLE promoted_products
   ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';

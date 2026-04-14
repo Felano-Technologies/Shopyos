@@ -3,6 +3,10 @@
 -- =====================================================
 -- Migration 022 incorrectly referenced auth.users instead of public.users
 
+-- Ensure created_by exists before managing its foreign key.
+ALTER TABLE categories
+ADD COLUMN IF NOT EXISTS created_by UUID;
+
 -- 1. Drop the incorrect constraint
 ALTER TABLE categories
 DROP CONSTRAINT IF EXISTS categories_created_by_fkey;
