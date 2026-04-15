@@ -33,6 +33,24 @@ const emailTransporter = nodemailer.createTransport({
 const ARKESEL_API_KEY = process.env.ARKESEL_API_KEY;
 const ARKESEL_SENDER_ID = process.env.ARKESEL_SENDER_ID || 'Shopyos';
 
+function extractErrorDetails(error) {
+    return {
+        message: error?.message || 'Unknown error',
+        code: error?.code || null,
+        status: error?.response?.status || null,
+        responseData: error?.response?.data || null,
+        command: error?.command || null,
+        response: error?.response || null
+    };
+}
+
+function markNonRetryable(error, reason) {
+    const err = error instanceof Error ? error : new Error(String(error || 'Unknown error'));
+    err.retryable = false;
+    err.reason = reason;
+    return err;
+}
+
 /**
  * Ensures the notification log is stored and idempotent.
  * @param {string} eventType 
@@ -92,6 +110,12 @@ async function handleEmail(msg) {
     const target = email;
     const refId = referenceId || orderId || userId;
 
+    if (!target) {
+        logger.warn('Email target missing; skipping message', { eventType, referenceId: refId });
+        await updateLogStatus(eventType, 'unknown', refId, 'FAILED', 'Missing email target');
+        return true;
+    }
+
     if (await checkOrLogIdempotency(eventType, target, refId)) {
         return true; // Already processed
     }
@@ -119,9 +143,16 @@ async function handleEmail(msg) {
         return true; // Success
 
     } catch (error) {
-        logger.error(`Failed to send email to ${target}:`, error.message);
-        await updateLogStatus(eventType, target, refId, 'FAILED', error.message);
-        throw error; // Will retry via NACK
+        const details = extractErrorDetails(error);
+        logger.error(`Failed to send email to ${target}`, details);
+        await updateLogStatus(eventType, target, refId, 'FAILED', JSON.stringify(details));
+
+        const nonRetryableCodes = new Set(['EAUTH', 'EENVELOPE', 'EMESSAGE']);
+        if (nonRetryableCodes.has(details.code)) {
+            throw markNonRetryable(error, `non-retryable email error: ${details.code}`);
+        }
+
+        throw error; // Retry only for transient errors
     }
 }
 
@@ -130,6 +161,18 @@ async function handleSMS(msg) {
     const { eventType, userId, role, phone, orderId, referenceId, templateData } = payload;
     const target = phone;
     const refId = referenceId || orderId || userId;
+
+    if (!target) {
+        logger.warn('SMS target missing; skipping message', { eventType, referenceId: refId });
+        await updateLogStatus(eventType, 'unknown', refId, 'FAILED', 'Missing phone target');
+        return true;
+    }
+
+    if (!ARKESEL_API_KEY) {
+        const err = markNonRetryable(new Error('ARKESEL_API_KEY is missing'), 'Missing SMS provider key');
+        await updateLogStatus(eventType, target, refId, 'FAILED', err.message);
+        throw err;
+    }
 
     if (await checkOrLogIdempotency(eventType, target, refId)) {
         return true; // Already processed
@@ -163,9 +206,16 @@ async function handleSMS(msg) {
         }
 
     } catch (error) {
-        logger.error(`Failed to send SMS to ${target}:`, error.message);
-        await updateLogStatus(eventType, target, refId, 'FAILED', error.message);
-        throw error; // Will be NACKed and retried
+        const details = extractErrorDetails(error);
+        logger.error(`Failed to send SMS to ${target}`, details);
+        await updateLogStatus(eventType, target, refId, 'FAILED', JSON.stringify(details));
+
+        // 4xx from provider are usually invalid request/auth and won't succeed on retry.
+        if (details.status && details.status >= 400 && details.status < 500) {
+            throw markNonRetryable(error, `non-retryable SMS provider status: ${details.status}`);
+        }
+
+        throw error; // Retry only for transient errors
     }
 }
 
@@ -201,6 +251,14 @@ async function startWorker() {
                     // Explicit acknowledgment
                     channel.ack(msg);
                 } catch (error) {
+                    if (error?.retryable === false) {
+                        logger.error('Email job failed with non-retryable error. Discarding.', {
+                            reason: error?.reason || error?.message,
+                            eventType: JSON.parse(msg.content.toString())?.eventType || null
+                        });
+                        channel.reject(msg, false);
+                        return;
+                    }
                     // Reject and requeue (simulating retry logic)
                     // In production, we should handle retry max count via headers
                     const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
@@ -227,6 +285,14 @@ async function startWorker() {
                     await handleSMS(msg);
                     channel.ack(msg);
                 } catch (error) {
+                    if (error?.retryable === false) {
+                        logger.error('SMS job failed with non-retryable error. Discarding.', {
+                            reason: error?.reason || error?.message,
+                            eventType: JSON.parse(msg.content.toString())?.eventType || null
+                        });
+                        channel.reject(msg, false);
+                        return;
+                    }
                     const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
                     if (retryCount >= 3) {
                         logger.error(`Max retries reached for SMS job. Discarding.`);
