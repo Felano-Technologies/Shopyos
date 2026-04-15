@@ -42,14 +42,22 @@ class FavoriteRepository extends BaseRepository {
         )
       `)
             .eq('user_id', userId)
-            .eq('product.is_active', true)
-            .is('product.deleted_at', null)
-            .eq('product.store.is_active', true)
-            .eq('product.store.is_verified', true)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return data || [];
+        const favorites = data || [];
+        return favorites.filter((fav) => {
+            const product = fav?.product;
+            const store = product?.store;
+            return Boolean(
+                product &&
+                product.is_active === true &&
+                product.deleted_at == null &&
+                store &&
+                store.is_active === true &&
+                store.is_verified === true
+            );
+        });
     }
 
     /**

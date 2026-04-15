@@ -142,7 +142,9 @@ const login = async (req, res, next) => {
 
     // Pick the most specific role by priority — prevents driver being routed as buyer
     const ROLE_PRIORITY = { admin: 4, driver: 3, seller: 2, buyer: 1 };
-    const roleNames = userRoles.map(r => r.role.name);
+    const roleNames = userRoles
+      .map(r => r?.role?.name)
+      .filter(Boolean);
     const role = roleNames.sort((a, b) => (ROLE_PRIORITY[b] || 0) - (ROLE_PRIORITY[a] || 0))[0] || 'none';
 
     const accessToken = generateAccessToken(user.id);
@@ -465,7 +467,9 @@ const getUserData = async (req, res, next) => {
       latitude: profile?.latitude,
       longitude: profile?.longitude,
       role: userRoles?.[0]?.role?.name || 'none',
-      roles: userRoles.map(r => ({ name: r.role.name, displayName: r.role.display_name, assignedAt: r.assigned_at })),
+      roles: userRoles
+        .filter(r => r?.role)
+        .map(r => ({ name: r.role.name, displayName: r.role.display_name, assignedAt: r.assigned_at })),
       onboarding_state: profile?.onboarding_state || {},
       email_verified: user.email_verified,
       is_active: user.is_active,
@@ -524,10 +528,12 @@ const getUserRoles = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      roles: roles.map(r => ({
-        id: r.id, name: r.role.name, displayName: r.role.display_name,
-        description: r.role.description, assignedAt: r.assigned_at
-      }))
+      roles: roles
+        .filter(r => r?.role)
+        .map(r => ({
+          id: r.id, name: r.role.name, displayName: r.role.display_name,
+          description: r.role.description, assignedAt: r.assigned_at
+        }))
     });
   } catch (error) {
     next(error);

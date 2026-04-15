@@ -6,6 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo - blue.png",
+    "splash": {
+      "image": "./assets/images/icondark-splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f2f2f2"
+    },
     "scheme": "shopyos",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -92,16 +97,31 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/logo - blue.png",
-          "imageWidth": 500,
-          "resizeMode": "contain"
+          "backgroundColor": "#f2f2f2",
+          "image": "./assets/images/icondark-splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "android": {
+            "backgroundColor": "#f2f2f2",
+            "resizeMode": "contain",
+            "imageWidth": 200
+          },
+          "ios": {
+            "backgroundColor": "#f2f2f2",
+            "resizeMode": "contain",
+            "imageWidth": 200
+          },
+          "dark": {
+            "image": "./assets/images/icondark-splash.png",
+            "backgroundColor": "#f2f2f2"
+          }
         }
       ],
       [
         "expo-notifications",
         {
           "icon": "./assets/images/logo - blue.png",
-          "color": "#ffffff"
+          "color": "#7CCB13"
         }
       ],
       "expo-font",

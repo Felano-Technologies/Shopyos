@@ -1062,9 +1062,7 @@ const getAllBusinesses = async (req, res, next) => {
         is_trusted,
         products:products(count)
       `)
-      .eq('is_active', true)
-      .is('products.deleted_at', null)
-      .eq('products.is_active', true);
+      .eq('is_active', true);
 
     // Always show only verified stores to customers
     dataQuery = dataQuery.eq('is_verified', true);
@@ -1217,7 +1215,6 @@ const getBusinessReviews = async (req, res, next) => {
           user_profiles ( full_name, avatar_url )
         )
       `)
-      .eq('products.store_id', businessId)
       .is('deleted_at', null);
 
     if (prError) throw prError;
@@ -1247,7 +1244,9 @@ const getBusinessReviews = async (req, res, next) => {
       });
     });
 
-    (productReviews || []).forEach(r => {
+    const filteredProductReviews = (productReviews || []).filter(r => r?.products?.store_id === businessId);
+
+    filteredProductReviews.forEach(r => {
       const u = formatUser(r.user);
       allReviews.push({
         id: r.id,

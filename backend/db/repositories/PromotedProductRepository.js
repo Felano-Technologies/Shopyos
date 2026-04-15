@@ -60,10 +60,6 @@ class PromotedProductRepository extends BaseRepository {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (category) {
-      query = query.eq('product.category', category);
-    }
-
     const { data, error } = await query;
     if (error) throw error;
 
@@ -71,6 +67,9 @@ class PromotedProductRepository extends BaseRepository {
     let results = data || [];
     // Only show promotions from verified stores
     results = results.filter(p => p.product?.stores?.is_verified === true);
+    if (category) {
+      results = results.filter(p => p.product?.category === category);
+    }
     if (minPrice !== undefined) {
       results = results.filter(p => parseFloat(p.product.price) >= minPrice);
     }
