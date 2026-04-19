@@ -83,14 +83,14 @@ export default function ConversationScreen() {
       if (!uid) {
         try {
           const me = await getUserData();
-          if (me?.id) { uid = me.id; await storage.setItem('userId', uid); }
+          if (me?.id) { uid = me.id; await storage.setItem('userId', me.id); }
         } catch {}
       }
       setCurrentUserId(uid);
     })();
   }, []);
 
-  // ─── Fetch ─────────────────────────────────────────────────────────────────
+  // ─── Fetch ────────────────────────────────────────────────────────────────
   const fetchMessages = useCallback(async (showLoader: boolean) => {
     try {
       if (showLoader) setLoading(true);

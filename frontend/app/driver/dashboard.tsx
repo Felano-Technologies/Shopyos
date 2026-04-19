@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
-import { getUserData, CustomInAppToast, updateDriverAvailability } from '@/services/api';
+import { getDriverProfile, getUserData, CustomInAppToast, updateDriverAvailability } from '@/services/api';
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 import { useDriverGuard } from '@/hooks/useDriverGuard';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
@@ -51,7 +51,6 @@ export default function Dashboard() {
   useEffect(() => {
     const forceFreshProfile = async () => {
       try {
-        const { getDriverProfile } = require('@/services/api');
         const response = await getDriverProfile();
         const fresh = response?.profile || response?.data || response;
         if (fresh) {

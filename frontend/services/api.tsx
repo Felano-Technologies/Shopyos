@@ -3,6 +3,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { router } from 'expo-router';
 import { queryClient } from '@/lib/query/client';
 import { socketService } from './socket';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -238,12 +239,7 @@ api.interceptors.response.use(
 
         // Only force redirect if we haven't already cleared the session manually
         if (existingToken) {
-          try {
-            const { router } = require('expo-router');
-            if (router) {
-              router.replace('/login');
-            }
-          } catch (e) {}
+          router.replace('/login');
         }
       } catch (storageError) {
         console.error('Error clearing tokens:', storageError);

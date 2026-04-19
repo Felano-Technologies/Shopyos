@@ -6,8 +6,9 @@
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
+import axios from 'axios';
 import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE, PROXIMITY_RADIUS_METERS } from './taskNames';
-import { updateDriverLocation, storage, secureStorage } from '../../services/api';
+import { API_URL, updateDriverLocation, storage, secureStorage } from '../../services/api';
 import { enqueueLocation } from './queue';
 
 // ─── Haversine distance helper (returns metres) ────────────────────────────────
@@ -96,9 +97,6 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
   try {
     const userToken = await secureStorage.getItem('userToken');
     if (userToken) {
-      const axios = require('axios');
-      const { API_URL } = require('../../services/api');
-      
       await axios.put(
         `${API_URL}auth/location`,
         { latitude, longitude },

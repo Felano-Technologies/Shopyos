@@ -2,7 +2,7 @@
 // Socket.IO client singleton for real-time messaging
 
 import { io, Socket } from 'socket.io-client';
-import {  secureStorage } from './api';
+import { api, secureStorage } from './api';
 
 type SocketEventCallback = (data: any) => void;
 
@@ -82,7 +82,6 @@ class SocketService {
               // We make a lightweight request to trigger the axios silent-refresh interceptor
               // which is already configured in api.tsx to update storage and notify the socket.
               // Note: we use this.importApi() to avoid circular dependencies if any
-              const { api } = require('./api');
               await api.get('/auth/me'); 
               
               // Now that token is likely refreshed in storage, 

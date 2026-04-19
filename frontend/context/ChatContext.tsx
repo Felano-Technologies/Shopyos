@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   getConversations,
+  getUserData,
   sendMessage as apiSendMessage,
   deleteConversation as apiDeleteConversation,
   storage,
@@ -12,6 +13,8 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { CallOverlay } from '../components/CallOverlay';
 import { Audio } from 'expo-av';
 import Constants from 'expo-constants';
+import ringtoneWav from '../assets/sounds/ringtone.wav';
+import notificationWav from '../assets/sounds/notification.wav';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
@@ -90,7 +93,14 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const playCallRingtone = useCallback(async () => {
     try {
-      await stopRingtone();
+      if (soundRef.current) {
+        const status = await soundRef.current.getStatusAsync();
+        if (status.isLoaded) {
+          await soundRef.current.stopAsync();
+          await soundRef.current.unloadAsync();
+        }
+        soundRef.current = null;
+      }
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
@@ -99,19 +109,19 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
         playThroughEarpieceAndroid: false,
       });
       const { sound } = await Audio.Sound.createAsync(
-        require('../assets/sounds/ringtone.wav'),
+        ringtoneWav,
         { isLooping: true, volume: 0.85, shouldPlay: true }
       );
       soundRef.current = sound;
     } catch (e) {
       console.warn('Could not play call ringtone:', e);
     }
-  });
+  }, []);
 
   const playNotificationChime = async () => {
     try {
       const { sound } = await Audio.Sound.createAsync(
-        require('../assets/sounds/notification.wav'),
+        notificationWav,
         { isLooping: false, volume: 0.25, shouldPlay: true }
       );
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -147,7 +157,6 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       let activeUserId = await storage.getItem('userId');
       if (!activeUserId) {
         try {
-          const { getUserData } = require('../services/api');
           const me = await getUserData();
           if (me?.id) {
             activeUserId = me.id;
@@ -300,8 +309,8 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
 
   const setupPeerConnection = async (conversationId: string) => {
     if (isExpoGo) { CustomInAppToast.show({ type: 'info', title: 'Not Supported', message: 'Calls require standalone app.' }); return; }
-    const { RTCPeerConnection, mediaDevices } = require('react-native-webrtc');
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+    const { RTCPeerConnection, mediaDevices } = await import('react-native-webrtc');
+    const pc: any = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
     pc.onicecandidate = (e: any) => e.candidate && socketService.sendIceCandidate(conversationId, e.candidate);
     pc.ontrack = (e: any) => e.streams?.[0] && setRemoteStream(e.streams[0]);
     try {
@@ -310,7 +319,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true, staysActiveInBackground: true, shouldDuckAndroid: true, playThroughEarpieceAndroid: false });
       const stream = await mediaDevices.getUserMedia({ audio: true, video: false });
       setLocalStream(stream);
-      pc.addStream(stream);
+      stream.getTracks().forEach((track: any) => pc.addTrack(track, stream));
     } catch {}
     peerConnection.current = pc;
     return pc;
