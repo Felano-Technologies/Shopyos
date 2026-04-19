@@ -8,7 +8,6 @@ import {
     TouchableOpacity,
     RefreshControl,
     Dimensions,
-    ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -128,7 +127,7 @@ export default function DriverNotificationsScreen() {
             </View>
             <Text style={styles.emptyTitle}>No Notifications Yet</Text>
             <Text style={styles.emptySubtitle}>
-                You'll receive updates about new deliveries, messages, and earnings here.
+                You&apos;ll receive updates about new deliveries, messages, and earnings here.
             </Text>
             <TouchableOpacity
                 style={styles.goOnlineButton}

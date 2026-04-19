@@ -3,7 +3,7 @@ import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Image, Dimensions, ActivityIndicator, Alert, Linking,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -94,7 +94,7 @@ const OrderDetailsScreen = () => {
       pollInterval.current = setInterval(() => fetchOrder(false), 10_000);
     }
     return () => { if (pollInterval.current) clearInterval(pollInterval.current); };
-  }, [fetchOrder]);
+  }, [fetchOrder, id]);
 
   const handleCancelOrder = () => {
     Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,7 +12,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -37,7 +37,7 @@ const ReviewScreen = () => {
     const [driverRating, setDriverRating] = useState(0);
     const [driverComment, setDriverComment] = useState('');
 
-    const fetchOrderData = async () => {
+    const fetchOrderData = useCallback(async () => {
         try {
             const res = await getOrderDetails(id as string);
             const orderData = res.order || res;
@@ -60,11 +60,11 @@ const ReviewScreen = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, router]);
 
     useEffect(() => {
         if (id) fetchOrderData();
-    }, [id]);
+    }, [fetchOrderData, id]);
 
     const handleSubmit = async () => {
         if (storeRating === 0) {

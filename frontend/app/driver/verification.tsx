@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,7 @@ import {
   Modal,
   Platform,
   KeyboardAvoidingView,
-  ActivityIndicator,
-  Alert
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -46,11 +45,7 @@ export default function DriverVerification() {
     insurance: null as string | null,
   });
 
-  useEffect(() => {
-    loadProfileData();
-  }, [params]);
-
-  const loadProfileData = async () => {
+    const loadProfileData = useCallback(async () => {
     try {
       const [user, driverRes] = await Promise.all([
         getUserData(),
@@ -93,7 +88,11 @@ export default function DriverVerification() {
     } catch (error) {
        console.log('Error loading data', error);
     }
-  };
+    }, [params, router]);
+
+    useEffect(() => {
+        loadProfileData();
+    }, [loadProfileData]);
 
 
   // --- IMAGE PICKER LOGIC ---
@@ -379,7 +378,7 @@ export default function DriverVerification() {
                 </View>
 
                 <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Driver's License Number</Text>
+                    <Text style={styles.label}>Driver&apos;s License Number</Text>
                     <TextInput 
                         style={styles.input}
                         value={licenseNumber}

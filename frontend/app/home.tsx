@@ -3,7 +3,7 @@ import {
   View, Text, Image, FlatList,
   TouchableOpacity, StyleSheet, Animated, RefreshControl,
   Dimensions, ScrollView, NativeSyntheticEvent,
-  NativeScrollEvent, Platform, ActivityIndicator,
+  NativeScrollEvent, ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
@@ -238,7 +238,7 @@ export default function Home() {
       shouldAutoStart();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [onboardingLoading, user]);
+  }, [markCompleted, onboardingLoading, startTour, user]);
 
   const onboardingSteps = [
     {
@@ -423,7 +423,7 @@ export default function Home() {
         )
       ).start();
     }
-  }, [recentProducts.length]);
+  }, [recentProducts]);
 
   const onRefresh = async () => Promise.all([refetchRecent(), refetchDeals(), refetchTrending(), refetchExplore()]);
 

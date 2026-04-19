@@ -7,8 +7,7 @@ import {
   Image, 
   TouchableOpacity, 
   Dimensions,
-  TextInput,
-  ScrollView
+  TextInput
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
@@ -24,7 +23,7 @@ export default function MessagesScreen() {
   // Refresh when screen focuses 
   React.useEffect(() => {
     refresh && refresh();
-  }, []);
+  }, [refresh]);
 
   // --- NEW: Search and Filter States ---
   const [searchQuery, setSearchQuery] = useState('');

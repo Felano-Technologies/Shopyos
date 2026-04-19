@@ -10,7 +10,7 @@
 // immediately without waiting for staleTime to expire.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, businessApi, productsApi } from '../lib/query/api';
+import { ordersApi, businessApi } from '../lib/query/api';
 import { queryKeys } from '../lib/query/keys';
 import {
   createProduct,

@@ -9,7 +9,7 @@ import {
   Image,
   StatusBar
 } from 'react-native';
-import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { getMyOrders } from '@/services/api';

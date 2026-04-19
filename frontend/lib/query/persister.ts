@@ -1,5 +1,4 @@
 import { storage } from '../../services/api';
-import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { PersistedClient, Persister } from '@tanstack/react-query-persist-client';
 
 const CACHE_KEY = 'SHOPYOS_QUERY_CACHE';

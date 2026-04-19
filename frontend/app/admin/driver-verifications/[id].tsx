@@ -8,11 +8,12 @@ import {
   TextInput, Linking,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getDriverVerificationDetails, approveDriverVerification, rejectDriverVerification } from '@/services/api';
+import Skeleton from '@/components/Skeleton';
 import Toast from 'react-native-toast-message';
 
 const { width: SW } = Dimensions.get('window');
@@ -138,22 +139,17 @@ export default function DriverVerificationDetailScreen() {
           <View style={S.hdrArc} />
         </LinearGradient>
         <View style={{ padding: 20 }}>
-          {(() => {
-            const Skeleton = require('@/components/Skeleton').default;
-            return (
-              <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-                  <Skeleton width={80} height={80} borderRadius={40} style={{ marginRight: 15 }} />
-                  <View style={{ flex: 1 }}>
-                    <Skeleton width="80%" height={24} style={{ marginBottom: 10 }} />
-                    <Skeleton width="50%" height={16} />
-                  </View>
-                </View>
-                <Skeleton width="100%" height={120} borderRadius={16} style={{ marginBottom: 20 }} />
-                <Skeleton width="100%" height={200} borderRadius={16} />
-              </>
-            );
-          })()}
+          <>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+              <Skeleton width={80} height={80} borderRadius={40} style={{ marginRight: 15 }} />
+              <View style={{ flex: 1 }}>
+                <Skeleton width="80%" height={24} style={{ marginBottom: 10 }} />
+                <Skeleton width="50%" height={16} />
+              </View>
+            </View>
+            <Skeleton width="100%" height={120} borderRadius={16} style={{ marginBottom: 20 }} />
+            <Skeleton width="100%" height={200} borderRadius={16} />
+          </>
         </View>
       </View>
     );

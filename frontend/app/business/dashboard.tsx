@@ -10,8 +10,7 @@ import {
     RefreshControl, 
     Dimensions, 
     Modal, 
-    ActivityIndicator,
-    ImageBackground
+    ActivityIndicator
 } from 'react-native';
 import { router } from 'expo-router';
 import { storage, secureStorage, logoutUser } from '@/services/api';
@@ -99,7 +98,7 @@ const BusinessDashboard = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [loading, !!selectedBusiness, isVerified]);
+  }, [loading, isVerified, selectedBusiness, startTour]);
 
   const onboardingSteps = [
     {
@@ -191,7 +190,7 @@ const BusinessDashboard = () => {
   // Force refetch on mount to catch newly registered businesses
   useEffect(() => {
     refetchBusinesses();
-  }, []);
+  }, [refetchBusinesses]);
  
   // --- Sync Storage ---
   useEffect(() => {
@@ -410,7 +409,7 @@ const BusinessDashboard = () => {
           <View style={styles.alertContent}>
             <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" /></View>
             <Text style={styles.alertTitle}>No Business Found</Text>
-            <Text style={styles.alertMessage}>You haven't set up a store yet. Create your business profile to start selling.</Text>
+            <Text style={styles.alertMessage}>You have not set up a store yet. Create your business profile to start selling.</Text>
             <TouchableOpacity style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.replace('/business/register'); }}>
               <Text style={styles.alertButtonText}>Create Business</Text>
               <Feather name="arrow-right" size={18} color="#FFF" />

@@ -7,15 +7,14 @@ import {
   StyleSheet,
   Image,
   ScrollView,
-  Alert,
   ActivityIndicator,
   ImageSourcePropType,
-} from 'react-native';
+ Appearance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import { Appearance } from 'react-native';
+
 import { updateUserRole } from '@/services/api';
 
 // 1. Define the Role Type

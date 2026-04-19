@@ -8,14 +8,14 @@ import {
   Image,
   ScrollView,
   ActivityIndicator
-} from 'react-native';
+, Linking, Platform } from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
-import { Linking, Platform } from 'react-native';
-import { getUserData, startConversation, CustomInAppToast } from '@/services/api';
+
+import {  startConversation, CustomInAppToast } from '@/services/api';
 import {
   startDriverLocationTracking,
   stopDriverLocationTracking,
@@ -49,7 +49,7 @@ export default function ActiveOrderScreen() {
         setStep(0);
       }
     }
-  }, [delivery?.status]);
+  }, [delivery, delivery.status, router]);
 
   // Start background location tracking when this screen mounts
   useEffect(() => {

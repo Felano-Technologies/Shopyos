@@ -141,7 +141,7 @@ export default function OrderDetailsScreen() {
     }
   };
 
-  useEffect(() => { if (id) fetchOrder(); }, [fetchOrder]);
+  useEffect(() => { if (id) fetchOrder(); }, [fetchOrder, id]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   // Safe early returns now

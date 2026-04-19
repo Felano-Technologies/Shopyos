@@ -1,14 +1,14 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, {  useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert, Image, Dimensions, Switch, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getMyBusinesses, storage, logoutUser } from '@/services/api';
+import {  logoutUser } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useMyBusinesses } from '@/hooks/useBusiness';
 

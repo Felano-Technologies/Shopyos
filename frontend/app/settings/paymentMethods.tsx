@@ -5,12 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Image,
   Alert,
   ActivityIndicator,
   Modal,
   TextInput,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';

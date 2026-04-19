@@ -10,7 +10,7 @@ import {
   requestLocationPermissions,
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
-import { getDriverProfile, getUserData, updateProfile, CustomInAppToast, uploadAvatar } from '@/services/api';
+import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar } from '@/services/api';
 import * as ImagePicker from 'expo-image-picker';
 // removed useCloudinaryUpload import
 

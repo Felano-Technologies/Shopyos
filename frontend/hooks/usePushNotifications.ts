@@ -76,7 +76,7 @@ export function usePushNotifications() {
                 responseListener.current.remove();
             }
         };
-    }, []);
+    }, [router]);
 
     return { expoPushToken, notification };
 }

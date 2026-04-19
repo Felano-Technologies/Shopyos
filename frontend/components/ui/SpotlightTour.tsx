@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Dimensions,
   LayoutRectangle,
   Animated,
-  Platform,
 } from 'react-native';
 import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import LottieView from 'lottie-react-native';
@@ -55,7 +54,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
         ])
       ).start();
     }
-  }, [visible, currentStepIndex]);
+  }, [visible, currentStepIndex, currentStep, fadeAnim, bounceAnim]);
 
   const handleNext = () => {
     if (currentStepIndex < steps.length - 1) {

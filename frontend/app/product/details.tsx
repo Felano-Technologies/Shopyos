@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -70,15 +70,7 @@ export default function ProductDetails() {
         isTrusted: false
     });
 
-    useEffect(() => {
-        if (params.id) {
-            fetchProductDetails();
-            fetchReviews();
-            checkFavoriteStatus();
-        }
-    }, [params.id]);
-
-    const fetchProductDetails = async () => {
+    const fetchProductDetails = useCallback(async () => {
         try {
             const res = await getProductById(params.id as string);
             if (res.success) {
@@ -99,23 +91,31 @@ export default function ProductDetails() {
                 }));
             }
         } catch (err) { console.log("Error loading product details", err); }
-    };
+    }, [params.id]);
 
-    const fetchReviews = async () => {
+    const fetchReviews = useCallback(async () => {
         try {
             setReviewsLoading(true);
             const res = await getProductReviews(params.id as string);
             if (res.success) setReviews(res.reviews);
         } catch (err) { console.log("Error loading reviews", err); }
         finally { setReviewsLoading(false); }
-    };
+    }, [params.id]);
 
-    const checkFavoriteStatus = async () => {
+    const checkFavoriteStatus = useCallback(async () => {
         try {
             const res = await checkIsFavorite(params.id as string);
             if (res.isFavorite) setIsLiked(true);
         } catch (err) { console.log("Error checking favorite status", err); }
-    };
+    }, [params.id]);
+
+    useEffect(() => {
+        if (params.id) {
+            fetchProductDetails();
+            fetchReviews();
+            checkFavoriteStatus();
+        }
+    }, [checkFavoriteStatus, fetchProductDetails, fetchReviews, params.id]);
 
     // --- Review Handlers ---
     const handleLikeReview = async (reviewId: string) => {

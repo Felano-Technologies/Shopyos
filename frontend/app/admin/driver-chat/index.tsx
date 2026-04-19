@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Image, Dimensions, RefreshControl,
-  ActivityIndicator, Animated, Keyboard,
+  ActivityIndicator, Animated,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -141,7 +141,7 @@ export default function AdminDriverChatList() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [fadeAnim]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 

@@ -21,7 +21,8 @@ export default function AdminAuditLogs() {
 
     const loadLogs = useCallback(async (isRefresh = false) => {
         try {
-            isRefresh ? setRefreshing(true) : setLoading(true);
+            if (isRefresh) setRefreshing(true);
+            else setLoading(true);
             const res = await getAdminAuditLogs({ limit: 100 });
             const data = Array.isArray(res?.logs) ? res.logs : (Array.isArray(res) ? res : []);
             setLogs(data);

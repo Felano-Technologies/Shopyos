@@ -1,13 +1,13 @@
-import Reac, { useEffect, useRef} from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, ImageBackground, Animated } from 'react-native';
+import  { useEffect, useRef} from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated , Appearance } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Appearance } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 // import * as SecureStore from 'expo-secure-store'; // ⛔ temporarily disabled
 
-import { storage, getUserData, secureStorage } from '@/services/api';
+import {  getUserData, secureStorage } from '@/services/api';
 
 const { width, height } = Dimensions.get('window');
 
@@ -75,7 +75,7 @@ const IndexScreen = () => {
     };
 
     runStartup();
-  }, []);
+  }, [bgScale, bgTranslateY, fadeAnim, fadeOutAnim]);
 
   return (
     <View style={styles.container}>

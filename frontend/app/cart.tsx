@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
@@ -8,7 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/context/CartContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-const { width } = (require('react-native')).Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function CartScreen() {
   const router = useRouter();
@@ -45,7 +45,7 @@ export default function CartScreen() {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [cartItems.length]);
+  }, [cartItems.length, startTour]);
 
   const onboardingSteps = [
     {

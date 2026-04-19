@@ -1,13 +1,11 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
+import React, {  useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions , Appearance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import * as SecureStore from 'expo-secure-store';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
-import { Appearance } from 'react-native';
+
 import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
@@ -44,7 +42,7 @@ const LoginScreen = () => {
 
 
 
-      if (response.message == "Login successful") {
+      if (response.message === "Login successful") {
 
         CustomInAppToast.show({
           type: 'success',

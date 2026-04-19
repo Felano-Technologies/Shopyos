@@ -30,7 +30,6 @@
     "axios": "^1.8.3",
     "check": "^1.0.0",
     "date-fns": "^4.1.0",
-    "eslint": "^10.2.1",
     "expo": "~54.0.33",
     "expo-av": "~16.0.8",
     "expo-blur": "~15.0.7",
@@ -91,6 +90,9 @@
     "@types/jest": "^29.5.12",
     "@types/react": "~19.1.10",
     "@types/react-test-renderer": "^18.3.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~10.0.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
     "jest": "~29.7.0",
     "jest-expo": "~54.0.17",
     "typescript": "~5.9.2"

@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Animated, Dimensions, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, AppState, AppStateStatus } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -31,7 +31,7 @@ export default function PaymentProcessingScreen() {
         ).start();
     };
 
-    const handleInitialize = async () => {
+    const handleInitialize = useCallback(async () => {
         try {
             setStatus('initializing');
             setErrorMessage('');
@@ -81,7 +81,7 @@ export default function PaymentProcessingScreen() {
             setErrorMessage(e.message || 'An unexpected error occurred');
             setStatus('failed');
         }
-    };
+    }, [id, method]);
 
     const handleVerify = async (ref: string) => {
         try {
@@ -147,7 +147,7 @@ export default function PaymentProcessingScreen() {
         return () => {
             subscription.remove();
         };
-    }, []);
+    }, [handleInitialize, paymentRef, status]);
 
     const getProcessingText = () => {
         switch (status) {
@@ -233,7 +233,7 @@ export default function PaymentProcessingScreen() {
 
                         {(status === 'waiting' || status === 'verifying') && (
                             <TouchableOpacity style={styles.retryBtn} onPress={() => paymentRef && handleVerify(paymentRef)}>
-                                <Text style={styles.retryText}>I've finished paying</Text>
+                                <Text style={styles.retryText}>I&apos;ve finished paying</Text>
                             </TouchableOpacity>
                         )}
 

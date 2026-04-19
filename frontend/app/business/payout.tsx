@@ -11,11 +11,10 @@ import {
   FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import * as SecureStore from 'expo-secure-store';
 
 import { getPayoutHistory, getMyBusinesses, storage } from '@/services/api';
 
@@ -33,7 +32,7 @@ export default function PayoutScreen() {
     storage.getItem('currentBusinessVerificationStatus').then(status => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     loadData();
@@ -168,7 +167,7 @@ export default function PayoutScreen() {
               </View>
               <Text style={styles.emptyTitle}>No Payout Method Set</Text>
               <Text style={styles.emptyText}>
-                You haven't set up a way to get paid yet. Please update your business details to start receiving earnings.
+                You have not set up a way to get paid yet. Please update your business details to start receiving earnings.
               </Text>
 
               <TouchableOpacity
@@ -194,9 +193,6 @@ export default function PayoutScreen() {
     </View>
   );
 }
-
-// Needed for the bank icon in active state
-import { FontAwesome5 } from '@expo/vector-icons';
 
 const styles = StyleSheet.create({
   mainContainer: {

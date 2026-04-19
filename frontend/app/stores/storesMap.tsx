@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, StyleSheet, Text, Image, TouchableOpacity,
   Dimensions, ActivityIndicator, FlatList, TextInput,
-  ScrollView, Animated, Platform,
+  ScrollView, Animated,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/MapView';
 import { Circle } from 'react-native-maps';
@@ -113,7 +113,7 @@ export default function StoresMap() {
         Animated.timing(pulseAnim, { toValue: 0, duration: 900, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [pulseAnim]);
 
   // ── Load location + stores ──────────────────────────────────────────────────
   useEffect(() => {
@@ -212,7 +212,7 @@ export default function StoresMap() {
     if (filteredStores[activeIndex]) {
       animateToStore(filteredStores[activeIndex]);
     }
-  }, [activeIndex, filteredStores]);
+  }, [activeIndex, animateToStore, filteredStores]);
 
   // ── Carousel scroll → update active marker ────────────────────────────────
   const onCarouselScroll = (event: any) => {

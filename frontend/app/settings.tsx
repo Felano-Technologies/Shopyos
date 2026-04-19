@@ -13,11 +13,9 @@ import {
 } from 'react-native';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import {  Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import { LinearGradient } from 'expo-linear-gradient';
 import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser } from '@/services/api';
 
 export default function SettingsScreen() {
@@ -54,7 +52,7 @@ export default function SettingsScreen() {
       startTour('settings');
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [startTour]);
 
   const onboardingSteps = [
     {
@@ -96,7 +94,7 @@ export default function SettingsScreen() {
         }),
       ])
     ).start();
-  }, []);
+  }, [skeletonAnim]);
 
   useFocusEffect(
     useCallback(() => {

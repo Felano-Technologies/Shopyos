@@ -36,7 +36,7 @@ const GetStartedScreen = () => {
     }, 3000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [carouselImages.length]);
 
   return (
     

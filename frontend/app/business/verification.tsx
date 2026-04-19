@@ -8,8 +8,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
-  Keyboard,
   ActivityIndicator,
   Image,
   ScrollView,
@@ -19,7 +17,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons, Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';

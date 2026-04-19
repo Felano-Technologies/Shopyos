@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { CameraView, Camera } from 'expo-camera'; // Modern Expo Camera
 import { Ionicons } from '@expo/vector-icons';
 

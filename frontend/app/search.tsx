@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
-  TouchableOpacity, Dimensions, Image, ImageBackground, Keyboard,
+  TouchableOpacity, Dimensions, Image, Keyboard,
   Pressable, ScrollView, ActivityIndicator, Animated,
-  Platform,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
@@ -123,7 +122,7 @@ export default function SearchScreen() {
       startTour('search');
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [startTour]);
 
   const onboardingSteps = [
     {
@@ -197,7 +196,7 @@ export default function SearchScreen() {
       Animated.timing(fadeAnim, { toValue: 0.3, duration: 80, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 240, useNativeDriver: true }),
     ]).start();
-  }, [products.length, viewMode, category]);
+  }, [products.length, viewMode, category, fadeAnim]);
 
   // Slide-in sort dropdown
   useEffect(() => {
@@ -206,7 +205,7 @@ export default function SearchScreen() {
       duration: 180,
       useNativeDriver: true,
     }).start();
-  }, [sortOpen]);
+  }, [slideAnim, sortOpen]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleChangeText = (text: string) => {

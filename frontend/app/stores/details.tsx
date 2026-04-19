@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -15,8 +15,7 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
-  Platform,
-  Animated
+  Platform
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/MapView';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
@@ -25,9 +24,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  addToFavorites,
-  removeFromFavorites,
-  checkIsFavorite,
+  
   startConversation,
   getBusinessById,
   getStoreProducts,
@@ -113,11 +110,7 @@ export default function StoreDetailsScreen() {
     longitude: -1.5716,
   };
 
-  useEffect(() => {
-    if (params.id) fetchData();
-  }, [params.id]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const [bizRes, prodRes] = await Promise.all([
@@ -132,7 +125,11 @@ export default function StoreDetailsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
+
+  useEffect(() => {
+    if (params.id) fetchData();
+  }, [fetchData, params.id]);
 
   const fetchReviews = async () => {
     try {

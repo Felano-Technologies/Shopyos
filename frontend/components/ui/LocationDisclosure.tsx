@@ -69,7 +69,7 @@ export default function LocationDisclosure({
       fadeAnim.setValue(0);
       slideAnim.setValue(60);
     }
-  }, [visible]);
+  }, [fadeAnim, slideAnim, visible]);
 
   const isDriver = context === 'driver';
 

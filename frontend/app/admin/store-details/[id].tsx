@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-    Image, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, 
+    Image, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, 
     Linking
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminStores, adminVerifyStore } from '@/services/api';
+import Skeleton from '@/components/Skeleton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -27,9 +28,7 @@ export default function StoreVerificationDetails() {
     const [rejectModal, setRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
 
-    useEffect(() => { fetchStoreDetails(); }, [id]);
-
-    const fetchStoreDetails = async () => {
+    const fetchStoreDetails = useCallback(async () => {
         try {
             setLoading(true);
             const res = await getAdminStores({ id }); 
@@ -38,7 +37,9 @@ export default function StoreVerificationDetails() {
         } catch (err) {
             CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load store details' });
         } finally { setLoading(false); }
-    };
+    }, [id]);
+
+    useEffect(() => { fetchStoreDetails(); }, [fetchStoreDetails]);
 
     const handleAction = async (status: 'verified' | 'rejected') => {
         try {
@@ -90,8 +91,6 @@ const handleContactMerchant = (email: string) => {
     );
 
     if (loading) {
-        // Need to require/import Skeleton component inline or ensure it's imported at top
-        const Skeleton = require('@/components/Skeleton').default;
         return (
             <View style={styles.container}>
                 <View style={[styles.header, { height: 120, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }]} />

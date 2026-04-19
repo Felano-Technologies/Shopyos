@@ -13,7 +13,7 @@ import {
   Linking
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -84,7 +84,7 @@ export default function ContactUsScreen() {
                                 <View style={{ width: 40 }} />
                             </View>
                             <Text style={styles.headerSubtitle}>
-                                We're here to help. Reach out to us anytime.
+                              We&apos;re here to help. Reach out to us anytime.
                             </Text>
                         </SafeAreaView>
                     </LinearGradient>

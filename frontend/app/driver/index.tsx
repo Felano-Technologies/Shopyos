@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, ActivityIndicator, StyleSheet, Image, Text } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
 import { getDriverProfile } from '@/services/api';
@@ -10,11 +9,7 @@ export default function DriverGatekeeper() {
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
 
-  useEffect(() => {
-    checkStatus();
-  }, []);
-
-  const checkStatus = async () => {
+  const checkStatus = useCallback(async () => {
     try {
       const response = await getDriverProfile();
       const driver = response?.profile || response?.data || response;
@@ -36,7 +31,11 @@ export default function DriverGatekeeper() {
         params: { status: 'new' }
       });
     }
-  };
+  }, [router]);
+
+  useEffect(() => {
+    checkStatus();
+  }, [checkStatus]);
 
   return (
     <View style={styles.container}>

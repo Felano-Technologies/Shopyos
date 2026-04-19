@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
+import React, {  useState } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions , Appearance } from 'react-native';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Appearance } from 'react-native';
+
 import Swiper from 'react-native-swiper';
 
 
@@ -39,7 +39,7 @@ const RegisterScreen = () => {
       const fullPhoneNumber = formatPhoneNumber(callingCode, phoneNumber);
       setLoading(true);
       const data = await registerUser(name, email, password, fullPhoneNumber);
-      if (data.message == "User created successfully") {
+      if (data.message === "User created successfully") {
         CustomInAppToast.show({
           type: 'success',
           title: 'Sign up Successful',

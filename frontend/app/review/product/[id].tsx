@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,7 +12,7 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -32,7 +32,7 @@ const ProductReviewScreen = () => {
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState('');
 
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             // 1. Fetch product details
             const res = await getProductById(id as string);
@@ -58,11 +58,11 @@ const ProductReviewScreen = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [id, router]);
 
     useEffect(() => {
         if (id) fetchData();
-    }, [id]);
+    }, [fetchData, id]);
 
     const handleSubmit = async () => {
         if (rating === 0) {

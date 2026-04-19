@@ -20,7 +20,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { businessRegister, storage, getAllCategories, CustomInAppToast } from '@/services/api';
+import { businessRegister, getAllCategories, CustomInAppToast } from '@/services/api';
 // removed useCloudinaryUpload import
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -468,7 +468,7 @@ const BusinessSetupScreen = () => {
               </TouchableOpacity>
               <View style={{ alignItems: 'center', flex: 1 }}>
                 <Text style={styles.headerTitle}>Register Business</Text>
-                <Text style={styles.headerSubtitle}>Let's get your store online</Text>
+                <Text style={styles.headerSubtitle}>Let us get your store online</Text>
               </View>
               <View style={{ width: 40 }} />
             </LinearGradient>

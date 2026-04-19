@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
   TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
   ActivityIndicator, Linking
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import {  useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -43,7 +43,7 @@ export default function PromotionsScreen() {
 
   const { reference } = useLocalSearchParams();
 
-  const verifyPayment = async (paystackRef: string) => {
+  const verifyPayment = useCallback(async (paystackRef: string) => {
     try {
       setLoading(true);
       const res = await verifyBannerPayment(paystackRef);
@@ -66,13 +66,13 @@ export default function PromotionsScreen() {
       // Clean URL
       router.replace('/business/promotions');
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     if (reference) {
       verifyPayment(reference as string);
     }
-  }, [reference]);
+  }, [reference, verifyPayment]);
 
   const fetchMyCampaigns = async () => {
     try {
@@ -202,7 +202,7 @@ export default function PromotionsScreen() {
           </TouchableOpacity>
           <View style={styles.headerTextWrap}>
             <Text style={styles.headerTitle}>Marketing & Ads</Text>
-            <Text style={styles.headerSub}>Boost your store's visibility</Text>
+            <Text style={styles.headerSub}>Boost your store visibility</Text>
           </View>
         </View>
 
@@ -308,7 +308,7 @@ export default function PromotionsScreen() {
 
               <Text style={styles.inputLabel}>Select Placement</Text>
               <View style={styles.placementGrid}>
-                {(Object.keys(PRICING) as Array<keyof typeof PRICING>).map((place) => (
+                {(Object.keys(PRICING) as (keyof typeof PRICING)[]).map((place) => (
                   <TouchableOpacity 
                     key={place} 
                     style={[styles.placeCard, placement === place && styles.placeCardActive]}

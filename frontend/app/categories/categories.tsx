@@ -21,7 +21,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useCategories } from '@/hooks/useCategories';
 import { searchProducts } from '@/services/api';
-import { queryClient } from '@/lib/query/client';
 
 const { width } = Dimensions.get('window');
 
@@ -193,7 +192,7 @@ export default function CategoryScreen() {
               ) : (
                 <View style={styles.emptyState}>
                   <Ionicons name="search-outline" size={48} color="#CBD5E1" />
-                  <Text style={styles.emptyText}>No items found matching "{searchQuery}"</Text>
+                  <Text style={styles.emptyText}>No items found matching &quot;{searchQuery}&quot;</Text>
                 </View>
               )
             }

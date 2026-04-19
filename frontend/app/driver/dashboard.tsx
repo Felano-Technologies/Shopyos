@@ -8,26 +8,23 @@ import {
   Image,
   FlatList,
   Dimensions,
-  ScrollView,
-  ActivityIndicator,
-  Alert
+  ActivityIndicator
 } from 'react-native';
-import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
-import { getUserData, CustomInAppToast, updateDriverAvailability, storage } from '@/services/api';
+import { getUserData, CustomInAppToast, updateDriverAvailability } from '@/services/api';
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 import { useDriverGuard } from '@/hooks/useDriverGuard';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
 import {
-  startDriverLocationTracking,
+  
   stopDriverLocationTracking,
   requestLocationPermissions,
   setLocationSharingPreference,
-  getLocationSharingPreference,
 } from '@/src/background/controller';
 
 const { width: SW } = Dimensions.get('window');
@@ -355,7 +352,7 @@ export default function Dashboard() {
           {/* Daily Stats */}
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
-              <Text style={styles.statLabel}>Today's Earnings</Text>
+              <Text style={styles.statLabel}>Today&apos;s Earnings</Text>
               <Text style={styles.statValue}>₵{stats.earnings.toFixed(2)}</Text>
             </View>
             <View style={styles.verticalDivider} />
@@ -417,7 +414,7 @@ export default function Dashboard() {
                       <Feather name="search" size={40} color="#94A3B8" />
                     </View>
                     <Text style={styles.searchingText}>No orders available right now</Text>
-                    <Text style={styles.searchingSub}>We'll notify you when a new request comes in.</Text>
+                    <Text style={styles.searchingSub}>We&apos;ll notify you when a new request comes in.</Text>
                     {isFetchingAvailable && <ActivityIndicator size="small" color="#0C1559" style={{ marginTop: 15 }} />}
                   </>
                 )}

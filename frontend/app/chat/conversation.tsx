@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   getMessages, sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
-  markConversationRead, storage,
+  markConversationRead, storage, getUserData,
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { useChat } from '@/context/ChatContext';
@@ -82,9 +82,8 @@ export default function ConversationScreen() {
       let uid = await storage.getItem('userId');
       if (!uid) {
         try {
-          const { api } = require('../../services/api');
-          const res = await api.get('/auth/me');
-          if (res.data?.id) { uid = res.data.id; await storage.setItem('userId', uid!); }
+          const me = await getUserData();
+          if (me?.id) { uid = me.id; await storage.setItem('userId', uid); }
         } catch {}
       }
       setCurrentUserId(uid);
@@ -110,7 +109,7 @@ export default function ConversationScreen() {
       fetchMessages(true);
       markConversationRead(conversationId).catch(() => {});
     }
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, fetchMessages]);
 
   // ─── Socket ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -141,7 +140,7 @@ export default function ConversationScreen() {
       socketService.leaveConversation(conversationId).catch(() => {});
       socketService.offNewMessage();
     };
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, fetchMessages]);
 
   // ─── Auto-scroll ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -235,11 +234,11 @@ export default function ConversationScreen() {
     if (date.toDateString() === yday.toDateString()) return 'Yesterday';
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   };
-  const showDate = (i: number) => {
+  const showDate = useCallback((i: number) => {
     if (i === 0) return true;
     return new Date(messages[i].created_at).toDateString() !==
            new Date(messages[i - 1].created_at).toDateString();
-  };
+  }, [messages]);
 
   // ─── Message bubble ────────────────────────────────────────────────────────
   const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
@@ -315,7 +314,7 @@ export default function ConversationScreen() {
         </View>
       </>
     );
-  }, [currentUserId, displayAvatar, displayName, messages]);
+  }, [currentUserId, displayAvatar, displayName, showDate]);
 
   // ─── Root ──────────────────────────────────────────────────────────────────
   return (

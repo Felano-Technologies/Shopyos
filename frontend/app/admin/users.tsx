@@ -3,8 +3,8 @@ import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
     TextInput, ActivityIndicator, Alert, RefreshControl, Dimensions, KeyboardAvoidingView, Platform
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import {  useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -41,7 +41,8 @@ export default function AdminUsers() {
 
     const loadUsers = useCallback(async (isRefresh = false) => {
         try {
-            isRefresh ? setRefreshing(true) : setLoading(true);
+            if (isRefresh) setRefreshing(true);
+            else setLoading(true);
             const params: Record<string, string> = {};
             if (roleFilter !== 'All') params.role = roleFilter;
             if (searchQuery.trim()) params.search = searchQuery.trim();

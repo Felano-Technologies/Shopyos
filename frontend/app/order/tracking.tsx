@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {  useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  Easing,
   Linking,
   Image
 } from 'react-native';
@@ -52,7 +51,7 @@ export default function OrderTrackingMap() {
         Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
+  }, [pulseAnim]);
 
   return (
     <View style={styles.container}>
@@ -163,7 +162,7 @@ export default function OrderTrackingMap() {
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={styles.noDriverTitle}>No driver assigned yet</Text>
               <Text style={styles.noDriverSub}>
-                We're finding the nearest driver for your order. This usually takes a few minutes.
+                We&apos;re finding the nearest driver for your order. This usually takes a few minutes.
               </Text>
             </View>
           </View>

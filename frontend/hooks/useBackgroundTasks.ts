@@ -26,7 +26,6 @@ import {
   stopDriverLocationTracking,
   stopGeofenceTracking,
   startGeofenceTracking,
-  isGeofenceRunning,
 } from '@/src/background/controller';
 import { flushQueue } from '@/src/background/queue';
 import { PROXIMITY_RADIUS_METERS } from '@/src/background/taskNames';
@@ -151,7 +150,7 @@ export const useBackgroundTasks = () => {
     cacheStores();
     const interval = setInterval(cacheStores, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [userData?.id]);
+  }, [userData, userData.id]);
 
   // ── Start / stop tasks whenever user state changes ───────────────────────
   useEffect(() => {

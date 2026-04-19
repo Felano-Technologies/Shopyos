@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import {
   getConversations,
   sendMessage as apiSendMessage,
-  markConversationRead,
   deleteConversation as apiDeleteConversation,
   storage,
   secureStorage
@@ -89,7 +88,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     conversationIdRef.current = searchParams?.conversationId;
   }, [pathname, searchParams?.conversationId]);
 
-  const playCallRingtone = async () => {
+  const playCallRingtone = useCallback(async () => {
     try {
       await stopRingtone();
       await Audio.setAudioModeAsync({
@@ -107,7 +106,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     } catch (e) {
       console.warn('Could not play call ringtone:', e);
     }
-  };
+  });
 
   const playNotificationChime = async () => {
     try {
@@ -297,7 +296,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
       socketService.offCallEvent('call:rejected', handleRejectedCall);
       socketService.offCallEvent('call:ended', handleEndedCall);
     };
-  }, [currentUserId]);
+  }, [currentUserId, playCallRingtone]);
 
   const setupPeerConnection = async (conversationId: string) => {
     if (isExpoGo) { CustomInAppToast.show({ type: 'info', title: 'Not Supported', message: 'Calls require standalone app.' }); return; }

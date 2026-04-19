@@ -87,7 +87,7 @@ export default function StoresScreen() {
       }
     }, 1500);
     return () => clearTimeout(timer);
-  }, [searchQuery.length === 0]);
+  }, [searchQuery.length, startTour]);
 
   const onboardingSteps = [
     {
@@ -159,7 +159,7 @@ export default function StoresScreen() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchQuery, activeCategory, filterSort, filterVerified]);
+  }, [stores.length, searchQuery, activeCategory, filterSort, filterVerified, fadeAnim]);
 
   useEffect(() => { fetchStores(); }, [fetchStores]);
 

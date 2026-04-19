@@ -1,6 +1,5 @@
 // hooks/useCloudinaryUpload.ts
 import { useState } from 'react';
-import { Alert } from 'react-native';
 
 interface UploadResult {
   url: string;

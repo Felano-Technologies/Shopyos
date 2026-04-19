@@ -31,7 +31,8 @@ export default function AdminOrders() {
 
     const loadOrders = useCallback(async (isRefresh = false) => {
         try {
-            isRefresh ? setRefreshing(true) : setLoading(true);
+            if (isRefresh) setRefreshing(true);
+            else setLoading(true);
             const params: Record<string, string> = {};
             if (activeStatus !== 'All') params.status = activeStatus;
             if (searchQuery.trim()) params.search = searchQuery.trim();

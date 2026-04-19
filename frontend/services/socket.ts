@@ -2,7 +2,7 @@
 // Socket.IO client singleton for real-time messaging
 
 import { io, Socket } from 'socket.io-client';
-import { storage, secureStorage } from './api';
+import {  secureStorage } from './api';
 
 type SocketEventCallback = (data: any) => void;
 
