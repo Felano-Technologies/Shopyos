@@ -14,7 +14,6 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import { getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
-
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -25,21 +24,17 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-
 export default function PushNotificationsScreen() {
   const theme = useColorScheme();
   const isDark = theme === 'dark';
-
   const bgColor = isDark ? '#121212' : '#F8F8F8';
   const cardBg = isDark ? '#1E1E1E' : '#FFFFFF';
   const primaryText = isDark ? '#EDEDED' : '#222222';
   const secondaryText = isDark ? '#AAA' : '#666666';
-
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [, setExpoPushToken] = useState<string | null>(null);
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
-
   useEffect(() => {
     // 2) Create the Android notification channel (necessary for Android API 26+)
     if (Platform.OS === 'android') {
@@ -50,7 +45,6 @@ export default function PushNotificationsScreen() {
         lightColor: '#FF231F7C',
       });
     }
-
     // 3) Load preference — backend is source of truth, local SecureStore as fallback
     const loadPref = async () => {
       try {
@@ -64,39 +58,31 @@ export default function PushNotificationsScreen() {
         setPushEnabled(stored !== 'false'); // default to true until set
       }
     };
-
     // 4) Register for push only if permission is granted
     const registerForPushNotifications = async () => {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
-
       if (existingStatus !== 'granted') {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-
       if (finalStatus !== 'granted') {
         Alert.alert('Permission required', 'Enable notifications to receive alerts.');
         return;
       }
-
       const tokenData = await Notifications.getExpoPushTokenAsync();
       setExpoPushToken(tokenData.data);
     };
-
     loadPref();
     registerForPushNotifications();
-
     // 5) Optional: Listen for incoming notifications (foreground)
     notificationListener.current = Notifications.addNotificationReceivedListener(
       (_notification) => { /* handled */ }
     );
-
     // 6) Optional: Listen for responses (user taps on notification)
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (_response) => { /* handled */ }
     );
-
     return () => {
       if (notificationListener.current) {
         notificationListener.current.remove();
@@ -106,16 +92,13 @@ export default function PushNotificationsScreen() {
       }
     };
   }, []);
-
   // Toggle push ON/OFF
   const togglePush = async () => {
     try {
       const newValue = !pushEnabled;
       setPushEnabled(newValue);
-
       // Save locally immediately
       await SecureStore.setItemAsync('prefPushNotifications', newValue ? 'true' : 'false');
-
       if (newValue) {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         if (existingStatus !== 'granted') {
@@ -131,11 +114,9 @@ export default function PushNotificationsScreen() {
             return;
           }
         }
-
         const tokenData = await Notifications.getExpoPushTokenAsync();
         setExpoPushToken(tokenData.data);
       }
-
       // Sync to backend — this is what actually makes the server stop/start sending pushes
       await updateNotificationPreferences({ push_enabled: newValue });
       Alert.alert('Push Notifications', newValue ? 'Enabled' : 'Disabled');
@@ -144,7 +125,6 @@ export default function PushNotificationsScreen() {
       Alert.alert('Error', 'Could not update notification settings.');
     }
   };
-
   // Send a local notification in 3 seconds
   const sendTestNotification = async () => {
     try {
@@ -162,7 +142,6 @@ export default function PushNotificationsScreen() {
       Alert.alert('Error', 'Could not schedule test notification.');
     }
   };
-
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
       <View style={[styles.card, { backgroundColor: cardBg }]}>
@@ -186,7 +165,6 @@ export default function PushNotificationsScreen() {
             thumbColor="#FFFFFF"
           />
         </View>
-
         {pushEnabled && (
           <TouchableOpacity
             style={[
@@ -202,7 +180,6 @@ export default function PushNotificationsScreen() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   card: {

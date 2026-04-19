@@ -20,7 +20,7 @@ export default function PaymentProcessingScreen() {
     const appState = useRef(AppState.currentState);
     const verifyAttempts = useRef(0);
 
-    const startAnimation = () => {
+    const startAnimation = useCallback(() => {
         progress.setValue(0);
         Animated.loop(
             Animated.timing(progress, {
@@ -29,7 +29,7 @@ export default function PaymentProcessingScreen() {
                 useNativeDriver: false,
             })
         ).start();
-    };
+    }, [progress]);
 
     const handleInitialize = useCallback(async () => {
         try {
@@ -81,7 +81,7 @@ export default function PaymentProcessingScreen() {
             setErrorMessage(e.message || 'An unexpected error occurred');
             setStatus('failed');
         }
-    }, [id, method]);
+    }, [id, method, startAnimation]);
 
     const handleVerify = async (ref: string) => {
         try {

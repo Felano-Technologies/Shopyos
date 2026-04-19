@@ -15,29 +15,22 @@ import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/v
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-
 import { getPayoutHistory, getMyBusinesses, storage } from '@/services/api';
-
-const { width } = Dimensions.get('window');
-
 export default function PayoutScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
-
   // Verification guard — redirect unverified businesses
   useEffect(() => {
     storage.getItem('currentBusinessVerificationStatus').then(status => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
   }, [router]);
-
   useEffect(() => {
     loadData();
   }, []);
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -46,7 +39,6 @@ export default function PayoutScreen() {
         const store = businessResp.businesses[0];
         setBalance(parseFloat(store.current_balance || 0));
         setHasPayoutMethod(!!store.payout_method);
-
         const historyResp = await getPayoutHistory(store._id);
         if (historyResp.success) {
           setPayoutHistory(historyResp.data);
@@ -58,7 +50,6 @@ export default function PayoutScreen() {
       setLoading(false);
     }
   };
-
   // --- Render Item for History ---
   const renderHistoryItem = ({ item }: { item: any }) => (
     <View style={styles.historyItem}>
@@ -72,7 +63,6 @@ export default function PayoutScreen() {
       <Text style={styles.historyAmount}>₵{parseFloat(item.amount).toFixed(2)}</Text>
     </View>
   );
-
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -80,20 +70,16 @@ export default function PayoutScreen() {
       </View>
     );
   }
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
           <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
-
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
-
         {/* --- Header --- */}
         <LinearGradient
           colors={['#0C1559', '#1e3a8a']}
@@ -110,13 +96,10 @@ export default function PayoutScreen() {
             </View>
           </SafeAreaView>
         </LinearGradient>
-
         <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
-
           {hasPayoutMethod ? (
             // --- ACTIVE DASHBOARD STATE ---
             <View style={styles.contentContainer}>
-
               {/* Balance Card */}
               <View style={styles.balanceCard}>
                 <View>
@@ -127,7 +110,6 @@ export default function PayoutScreen() {
                   <Text style={styles.withdrawText}>Withdraw</Text>
                 </TouchableOpacity>
               </View>
-
               {/* Method Info */}
               <View style={styles.methodCard}>
                 <View style={styles.methodRow}>
@@ -147,7 +129,6 @@ export default function PayoutScreen() {
                   Next scheduled payout: <Text style={{ fontFamily: 'Montserrat-Bold' }}>Feb 14, 2026</Text>
                 </Text>
               </View>
-
               {/* History List */}
               <Text style={styles.sectionTitle}>Recent Payouts</Text>
               <FlatList
@@ -158,7 +139,6 @@ export default function PayoutScreen() {
                 contentContainerStyle={styles.historyList}
               />
             </View>
-
           ) : (
             // --- EMPTY STATE (No Method Set) ---
             <View style={styles.emptyStateContainer}>
@@ -169,7 +149,6 @@ export default function PayoutScreen() {
               <Text style={styles.emptyText}>
                 You have not set up a way to get paid yet. Please update your business details to start receiving earnings.
               </Text>
-
               <TouchableOpacity
                 style={styles.actionBtn}
                 activeOpacity={0.8}
@@ -178,7 +157,6 @@ export default function PayoutScreen() {
                 <Text style={styles.actionBtnText}>Set Up Payout Method</Text>
                 <Feather name="arrow-right" size={18} color="#FFF" />
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={styles.secondaryBtn}
                 onPress={() => router.back()}
@@ -187,13 +165,11 @@ export default function PayoutScreen() {
               </TouchableOpacity>
             </View>
           )}
-
         </ScrollView>
       </SafeAreaView>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -208,7 +184,6 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-
   // Background
   bottomLogos: {
     position: 'absolute',
@@ -221,7 +196,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     opacity: 0.08,
   },
-
   // Header
   headerContainer: {
     paddingBottom: 20,
@@ -254,13 +228,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#FFF',
   },
-
   // Content Area
   contentContainer: {
     paddingHorizontal: 20,
     marginTop: 10,
   },
-
   // Active State Styles
   balanceCard: {
     backgroundColor: '#0C1559',
@@ -298,7 +270,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     fontSize: 12,
   },
-
   methodCard: {
     backgroundColor: '#FFF',
     borderRadius: 16,
@@ -349,7 +320,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontFamily: 'Montserrat-Regular',
   },
-
   sectionTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
@@ -394,7 +364,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#0C1559',
   },
-
   // Empty State Styles
   emptyStateContainer: {
     alignItems: 'center',

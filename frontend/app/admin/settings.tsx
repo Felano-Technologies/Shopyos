@@ -15,9 +15,6 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-
-const { width } = Dimensions.get('window');
-
 // --- FIXED: Component moved OUTSIDE to prevent re-creation on every render ---
 const SettingItem = ({ icon, label, subLabel, type, value, onValueChange, onPress, color = "#0C1559" }: any) => (
     <TouchableOpacity 
@@ -47,7 +44,6 @@ const SettingItem = ({ icon, label, subLabel, type, value, onValueChange, onPres
         )}
     </TouchableOpacity>
 );
-
 export default function AdminSettings() {
     const router = useRouter();
     
@@ -55,18 +51,15 @@ export default function AdminSettings() {
     const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
     const [pushNotifications, setPushNotifications] = useState(true);
     const [autoApproveSellers, setAutoApproveSellers] = useState(false);
-
     const handleLogout = () => {
         Alert.alert("Sign Out", "Are you sure you want to log out of the admin portal?", [
             { text: "Cancel", style: "cancel" },
             { text: "Logout", style: "destructive", onPress: () => router.replace('/login') }
         ]);
     };
-
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
                 <SafeAreaView edges={['top', 'left', 'right']}>
                     <View style={styles.headerRow}>
@@ -76,7 +69,6 @@ export default function AdminSettings() {
                         <Text style={styles.headerTitle}>System Settings</Text>
                         <View style={{ width: 40 }} />
                     </View>
-
                     <View style={styles.adminProfile}>
                         <View style={styles.avatarContainer}>
                             <Image 
@@ -92,7 +84,6 @@ export default function AdminSettings() {
                     </View>
                 </SafeAreaView>
             </LinearGradient>
-
             <ScrollView 
                 showsVerticalScrollIndicator={false} 
                 contentContainerStyle={styles.scrollContent}
@@ -118,7 +109,6 @@ export default function AdminSettings() {
                         color="#10B981"
                     />
                 </View>
-
                 <Text style={styles.sectionTitle}>Security & Audit</Text>
                 <View style={styles.groupCard}>
                     <SettingItem 
@@ -141,7 +131,6 @@ export default function AdminSettings() {
                         onValueChange={(val: boolean) => setPushNotifications(val)}
                     />
                 </View>
-
                 <Text style={styles.sectionTitle}>System Info</Text>
                 <View style={styles.groupCard}>
                     <SettingItem 
@@ -155,18 +144,15 @@ export default function AdminSettings() {
                         <Text style={styles.versionValue}>v2.0.4-Build</Text>
                     </View>
                 </View>
-
                 <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
                     <Feather name="log-out" size={20} color="#EF4444" />
                     <Text style={styles.logoutText}>Logout Admin Portal</Text>
                 </TouchableOpacity>
-
                 <View style={{ height: 40 }} />
             </ScrollView>
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     header: { paddingBottom: 30, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, elevation: 10 },

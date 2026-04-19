@@ -27,10 +27,7 @@ import LottieView from 'lottie-react-native';
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
-
-
 const { width } = Dimensions.get('window');
-
 // --- Tokens ---
 const C = {
   pageBg:  '#F8FAFC',
@@ -42,7 +39,6 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
-
 // --- Interfaces ---
 interface Order {
   _id: string;
@@ -51,14 +47,10 @@ interface Order {
   status: string;
   createdAt: string;
 }
-
 const BusinessDashboard = () => {
-  const theme = useColorScheme();
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
   const { isChecking, isVerified } = useSellerGuard();
-
-
   // --- TanStack Query Hooks ---
   const { data: businessesData, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses } = useMyBusinesses();
   const businesses = businessesData?.businesses || [];
@@ -67,10 +59,8 @@ const BusinessDashboard = () => {
   const { data: dashboardData, isLoading: isLoadingDashboard, refetch: refetchDashboard, isRefetching: isRefetchingDashboard } = useBusinessDashboard(selectedBusiness?._id);
   const { data: unreadData } = useUnreadNotificationCount(false);
   const unreadCount = unreadData?.unreadCount || 0;
-
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
-
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -78,7 +68,6 @@ const BusinessDashboard = () => {
   const refActions = React.useRef<View>(null);
   const refChart = React.useRef<View>(null);
   const refTop = React.useRef<View>(null);
-
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -86,7 +75,6 @@ const BusinessDashboard = () => {
       });
     }
   };
-
   useEffect(() => {
     if (!loading && selectedBusiness && isVerified) {
       const timer = setTimeout(() => {
@@ -99,7 +87,6 @@ const BusinessDashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [loading, isVerified, selectedBusiness, startTour]);
-
   const onboardingSteps = [
     {
       targetLayout: layouts.top,
@@ -123,11 +110,9 @@ const BusinessDashboard = () => {
       description: 'Visualize your store’s performance over various time periods.',
     },
   ].filter(s => !!s.targetLayout);
-
   const handleOnboardingComplete = () => {
     markCompleted('business_dashboard');
   };
-
   const renderHeaderContent = () => {
     const headerBg = selectedBusiness?.banner_url || selectedBusiness?.coverImage;
     
@@ -160,7 +145,6 @@ const BusinessDashboard = () => {
               </TouchableOpacity>
             </View>
           </View>
-
           <View style={styles.businessProfile}>
             <View style={styles.logoWrapper}>
               {(selectedBusiness?.logo_url || selectedBusiness?.logo) ? (
@@ -185,7 +169,6 @@ const BusinessDashboard = () => {
       </View>
     );
   };
-
  
   // Force refetch on mount to catch newly registered businesses
   useEffect(() => {
@@ -199,7 +182,6 @@ const BusinessDashboard = () => {
       storage.setItem('currentBusinessVerificationStatus', selectedBusiness.verificationStatus || 'pending');
     }
   }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
-
   // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
     const checkAuthAndShowModal = async () => {
@@ -207,7 +189,6 @@ const BusinessDashboard = () => {
         // Only show the modal if we are actually logged in
         const token = await secureStorage.getItem('userToken');
         if (!token) return;
-
         if (!selectedBusiness) {
           setShowNoBusinessModal(true);
         } else {
@@ -218,8 +199,6 @@ const BusinessDashboard = () => {
     
     checkAuthAndShowModal();
   }, [loading, selectedBusiness, isLoadingBusinesses, isRefetchingBusinesses]);
-
-
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);
   };
@@ -234,9 +213,7 @@ const BusinessDashboard = () => {
       router.replace('/login');
     }
   };
-
   const isInitialLoading = loading && !dashboardData;
-
   if (isInitialLoading) {
     return (
       <View style={styles.mainContainer}>
@@ -246,11 +223,9 @@ const BusinessDashboard = () => {
       </View>
     );
   }
-
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
-
     // Show a blank loading screen while the guard checks storage.
   // This prevents a flash of protected content for unverified sellers.
   if (isChecking || !isVerified) {
@@ -260,18 +235,15 @@ const BusinessDashboard = () => {
       </View>
     );
   }
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.bottomLogos}>
           <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
-
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         {selectedBusiness ? (
           <ScrollView
@@ -281,7 +253,6 @@ const BusinessDashboard = () => {
             showsVerticalScrollIndicator={false}
           >
             {renderHeaderContent()}
-
             {/* --- FLOATING STATS --- */}
             <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
               {isTourActive && (
@@ -307,7 +278,6 @@ const BusinessDashboard = () => {
                 <Text style={styles.statLabel}>Pending</Text>
               </View>
             </View>
-
             {/* --- QUICK ACTIONS --- */}
             <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
               <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -327,7 +297,6 @@ const BusinessDashboard = () => {
                 ))}
               </View>
             </View>
-
             {/* --- PERFORMANCE CHART --- */}
             <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
               <View style={styles.chartHeader}>
@@ -360,7 +329,6 @@ const BusinessDashboard = () => {
                 withVerticalLines={false}
               />
             </View>
-
             {/* --- RECENT ORDERS --- */}
             <View style={styles.sectionContainer}>
               <View style={styles.sectionHeaderRow}>
@@ -382,7 +350,6 @@ const BusinessDashboard = () => {
                 </View>
               ))}
             </View>
-
             {/* --- PRO TIP --- */}
             <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
               <View style={styles.tipHeader}>
@@ -391,7 +358,6 @@ const BusinessDashboard = () => {
               </View>
               <Text style={styles.tipText}>Keep your product inventory updated to avoid order cancellations and maintain a high rating.</Text>
             </LinearGradient>
-
           </ScrollView>
         ) : (
           <View style={styles.centered}>
@@ -402,7 +368,6 @@ const BusinessDashboard = () => {
           </View>
         )}
       </SafeAreaView>
-
       {/* --- NO BUSINESS MODAL --- */}
       <Modal animationType="fade" transparent visible={showNoBusinessModal}>
         <View style={styles.alertOverlay}>
@@ -433,9 +398,7 @@ const BusinessDashboard = () => {
           </View>
         </View>
       </Modal>
-
       <BusinessBottomNav />
-
       <SpotlightTour 
         visible={isTourActive && activeScreen === 'business_dashboard'} 
         steps={onboardingSteps}
@@ -444,7 +407,6 @@ const BusinessDashboard = () => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   safeArea: { flex: 1 },
@@ -538,5 +500,4 @@ const styles = StyleSheet.create({
   },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }
 });
-
 export default BusinessDashboard;

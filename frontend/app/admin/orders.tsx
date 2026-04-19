@@ -10,17 +10,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminOrders } from '@/services/api';
-
-const { width } = Dimensions.get('window');
 const STATUS_FILTERS = ['All', 'pending', 'processing', 'delivered', 'cancelled'];
-
 const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
     delivered:  { color: '#15803D', bg: '#DCFCE7', icon: 'checkmark-circle' },
     processing: { color: '#1E40AF', bg: '#DBEAFE', icon: 'sync' },
     pending:    { color: '#B45309', bg: '#FEF3C7', icon: 'time' },
     cancelled:  { color: '#B91C1C', bg: '#FEE2E2', icon: 'close-circle' },
 };
-
 export default function AdminOrders() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
@@ -28,7 +24,6 @@ export default function AdminOrders() {
     const [orders, setOrders] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
-
     const loadOrders = useCallback(async (isRefresh = false) => {
         try {
             if (isRefresh) setRefreshing(true);
@@ -46,9 +41,7 @@ export default function AdminOrders() {
             setRefreshing(false);
         }
     }, [activeStatus, searchQuery]);
-
     useEffect(() => { loadOrders(); }, [loadOrders]);
-
     const formatTime = (ts: string) => {
         const diff = Date.now() - new Date(ts).getTime();
         const m = Math.floor(diff / 60000);
@@ -58,17 +51,14 @@ export default function AdminOrders() {
         if (h < 24) return `${h}h ago`;
         return `${Math.floor(h / 24)}d ago`;
     };
-
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-
             <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
                 <View style={styles.watermarkContainer}>
                     <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
             </View>
-
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
                 <SafeAreaView edges={['top', 'left', 'right']}>
                     <View style={styles.headerRow}>
@@ -97,7 +87,6 @@ export default function AdminOrders() {
                     </View>
                 </SafeAreaView>
             </LinearGradient>
-
             <View style={styles.filterSection}>
                 <FlatList
                     horizontal
@@ -117,7 +106,6 @@ export default function AdminOrders() {
                     )}
                 />
             </View>
-
             {loading ? (
                 <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
             ) : (
@@ -179,7 +167,6 @@ export default function AdminOrders() {
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     center: { alignItems: 'center', paddingTop: 60 },

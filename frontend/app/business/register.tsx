@@ -25,9 +25,6 @@ import { businessRegister, getAllCategories, CustomInAppToast } from '@/services
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
-
-const { width } = Dimensions.get('window');
-
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -308,7 +305,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
 });
-
 const InputField = ({ label, icon, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: any) => (
   <View style={styles.inputContainer}>
     <Text style={styles.label}>{label}</Text>
@@ -327,7 +323,6 @@ const InputField = ({ label, icon, value, onChangeText, placeholder, multiline =
     </View>
   </View>
 );
-
 const BusinessSetupScreen = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -338,16 +333,13 @@ const BusinessSetupScreen = () => {
     taxId: '', bankName: '', accountName: '', accountNumber: '',
     registrationNumber: '', ownerName: '', payoutMethod: 'bank'
   });
-
   const [categories, setCategories] = useState<any[]>([]);
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [businessCert, setBusinessCert] = useState<string | null>(null);
   const [businessLicense, setBusinessLicense] = useState<string | null>(null);
   const [proofOfBank, setProofOfBank] = useState<string | null>(null);
-
-  const { uploadImage, loading: uploadLoading } = useCloudinaryUpload();
-
+  const { loading: uploadLoading } = useCloudinaryUpload();
   useEffect(() => {
     const fetchCats = async () => {
       try {
@@ -357,11 +349,9 @@ const BusinessSetupScreen = () => {
     };
     fetchCats();
   }, []);
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
-
   const pickImage = async (type: 'logo' | 'cover') => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -375,16 +365,14 @@ const BusinessSetupScreen = () => {
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,
       });
-
       if (!result.canceled) {
         if (type === 'logo') setLogo(result.assets[0].uri);
         else setCoverImage(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to pick image' });
     }
   };
-
   const pickDocument = async (type: 'cert' | 'license' | 'bank') => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -395,17 +383,15 @@ const BusinessSetupScreen = () => {
         else if (type === 'license') setBusinessLicense(result.assets[0].uri);
         else setProofOfBank(result.assets[0].uri);
       }
-    } catch (error) {
+    } catch {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to pick document' });
     }
   };
-
   const handleCreateBusiness = async () => {
     if (!formData.businessName || !formData.category || !formData.address || !formData.city || !formData.phone) {
       CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill in all required fields marked with *' });
       return;
     }
-
     setLoading(true);
     try {
       // Logic simplified: we pass the local URIs directly.
@@ -419,9 +405,7 @@ const BusinessSetupScreen = () => {
         businessLicense: businessLicense,
         proofOfBank: proofOfBank,
       };
-
       const response = await businessRegister(submitData);
-
       if (response.success) {
         queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
         CustomInAppToast.show({ 
@@ -439,7 +423,6 @@ const BusinessSetupScreen = () => {
       setLoading(false);
     }
   };
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
@@ -472,11 +455,9 @@ const BusinessSetupScreen = () => {
               </View>
               <View style={{ width: 40 }} />
             </LinearGradient>
-
             {/* --- Media Upload Section --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Brand Identity</Text>
-
               {/* Cover Image */}
               <TouchableOpacity style={styles.coverUpload} onPress={() => pickImage('cover')}>
                 {coverImage ? (
@@ -489,7 +470,6 @@ const BusinessSetupScreen = () => {
                 )}
                 {coverImage && <View style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF" /></View>}
               </TouchableOpacity>
-
               {/* Logo Upload */}
               <View style={styles.logoRow}>
                 <TouchableOpacity style={styles.logoUpload} onPress={() => pickImage('logo')}>
@@ -508,7 +488,6 @@ const BusinessSetupScreen = () => {
                 </View>
               </View>
             </View>
-
             {/* --- Basic Info --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Basic Information</Text>
@@ -527,7 +506,6 @@ const BusinessSetupScreen = () => {
                 placeholder="Briefly describe your business"
                 multiline
               />
-
               <Text style={styles.label}>Business Category *</Text>
               <View style={styles.catGrid}>
                 {categories.map((cat) => (
@@ -543,7 +521,6 @@ const BusinessSetupScreen = () => {
                 ))}
               </View>
             </View>
-
             {/* --- Contact & Location --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Contact & Location</Text>
@@ -583,7 +560,6 @@ const BusinessSetupScreen = () => {
                 </View>
               </View>
             </View>
-
             {/* --- Verification Documents (Optional for small business) --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Legal & Verification (Optional)</Text>
@@ -608,7 +584,6 @@ const BusinessSetupScreen = () => {
                 onChangeText={(t: string) => handleInputChange('ownerName', t)}
                 placeholder="Owner's legal name"
               />
-
               <Text style={[styles.label, { marginTop: 10 }]}>Upload Documents</Text>
               <TouchableOpacity
                 style={[styles.docItem, businessCert && styles.docItemActive]}
@@ -618,7 +593,6 @@ const BusinessSetupScreen = () => {
                 <Text style={styles.docName}>{businessCert ? 'Registration Certificate Added' : 'Registration Certificate (PDF/Image)'}</Text>
                 {businessCert && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
               </TouchableOpacity>
-
               <TouchableOpacity
                 style={[styles.docItem, businessLicense && styles.docItemActive]}
                 onPress={() => pickDocument('license')}
@@ -628,7 +602,6 @@ const BusinessSetupScreen = () => {
                 {businessLicense && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
               </TouchableOpacity>
             </View>
-
             {/* --- Banking & Payouts --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Payout Account</Text>
@@ -649,7 +622,6 @@ const BusinessSetupScreen = () => {
                   <Text style={[styles.payoutLabel, formData.payoutMethod === 'momo' && styles.payoutTextActive]}>MoMo</Text>
                 </TouchableOpacity>
               </View>
-
               <InputField
                 label={formData.payoutMethod === 'bank' ? "Bank Name" : "MoMo Network"}
                 icon="award"
@@ -672,7 +644,6 @@ const BusinessSetupScreen = () => {
                 placeholder="Enter number"
                 keyboardType="numeric"
               />
-
               <TouchableOpacity
                 style={[styles.docItem, proofOfBank && styles.docItemActive, { marginTop: 10 }]}
                 onPress={() => pickDocument('bank')}
@@ -682,7 +653,6 @@ const BusinessSetupScreen = () => {
                 {proofOfBank && <Ionicons name="checkmark-circle" size={20} color="#0C1559" />}
               </TouchableOpacity>
             </View>
-
             {/* --- Social Links --- */}
             <View style={styles.sectionCard}>
               <Text style={styles.sectionTitle}>Online Presence (Optional)</Text>
@@ -693,7 +663,6 @@ const BusinessSetupScreen = () => {
                 onChangeText={(t: string) => handleInputChange('website', t)}
                 placeholder="https://yourstore.com"
               />
-
               <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
                   <InputField
@@ -715,7 +684,6 @@ const BusinessSetupScreen = () => {
                 </View>
               </View>
             </View>
-
             {/* --- Submit Button --- */}
             <TouchableOpacity
               style={styles.submitBtn}
@@ -737,12 +705,10 @@ const BusinessSetupScreen = () => {
                 )}
               </LinearGradient>
             </TouchableOpacity>
-
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
 };
-
 export default BusinessSetupScreen;

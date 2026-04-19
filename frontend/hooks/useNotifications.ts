@@ -7,23 +7,17 @@ import { useRouter, usePathname } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-
 export const useNotifications = () => {
   const queryClient = useQueryClient();
-  const router = useRouter();
-  const pathname = usePathname();
-
   // Listen for real-time notification events via socket
   useEffect(() => {
     let mounted = true;
-
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       // Invalidate both notifications list and unread count so they refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     };
-
     // Connect socket and listen for notification:new events
     socketService.connect()
       .then((socket) => {
@@ -32,7 +26,6 @@ export const useNotifications = () => {
       .catch((err) => {
         console.warn('Failed to connect socket for notifications:', err.message);
       });
-
     return () => {
       mounted = false;
       const socket = socketService.getSocket();
@@ -41,7 +34,6 @@ export const useNotifications = () => {
       }
     };
   }, [queryClient]);
-
   return useQuery({
     queryKey: queryKeys.notifications.list(),
     queryFn: async () => {
@@ -56,24 +48,18 @@ export const useNotifications = () => {
     gcTime: 10 * 60 * 1000,
   });
 };
-
 export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const pathname = usePathname();
-
   // Listen for real-time notification events via socket
   useEffect(() => {
     if (!enableRealtime) {
       return;
     }
-
     let mounted = true;
-
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
-
       if (pathname !== '/notification' && data?.title && data?.message) {
         // Play haptic feedback and notification sound
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -89,7 +75,6 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
             });
           })
           .catch((err) => console.warn('Failed to play notification sound:', err));
-
         CustomInAppToast.show({
           title: data.title,
           message: data.message,
@@ -97,7 +82,6 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
         });
       }
     };
-
     socketService.connect()
       .then((socket) => {
         socket.on('notification:new', handleNewNotification);
@@ -105,7 +89,6 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       .catch((err) => {
         console.warn('Failed to connect socket for unread count:', err.message);
       });
-
     return () => {
       mounted = false;
       const socket = socketService.getSocket();
@@ -114,14 +97,12 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       }
     };
   }, [enableRealtime, pathname, queryClient]);
-
   return useQuery({
     queryKey: queryKeys.notifications.unreadCount(),
     queryFn: async () => {
       const token = await ApiService.secureStorage.getItem('userToken') ||
                    await ApiService.secureStorage.getItem('businessToken');
       if (!token) return { unreadCount: 0 };
-
       const response = await ApiService.getUnreadNotificationCount();
       return response;
     },
@@ -131,10 +112,8 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
     gcTime: 5 * 60 * 1000,
   });
 };
-
 export const useMarkNotificationRead = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async (notificationId: string) => {
       return await ApiService.markNotificationRead(notificationId);
@@ -150,7 +129,6 @@ export const useMarkNotificationRead = () => {
           )
         };
       });
-
       // Optimistically decrement unread badge count
       queryClient.setQueryData(queryKeys.notifications.unreadCount(), (prev: any) => {
         const current = Number(prev?.unreadCount || 0);
@@ -159,17 +137,14 @@ export const useMarkNotificationRead = () => {
           unreadCount: Math.max(0, current - 1)
         };
       });
-
       // Keep server state authoritative
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
   });
 };
-
 export const useMarkAllNotificationsRead = () => {
   const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: async () => {
       return await ApiService.markAllNotificationsRead();
@@ -180,7 +155,6 @@ export const useMarkAllNotificationsRead = () => {
         ...(prev || {}),
         unreadCount: 0
       }));
-
       queryClient.setQueryData(queryKeys.notifications.list(), (prev: any) => {
         if (!prev?.notifications) return prev;
         return {
@@ -188,7 +162,6 @@ export const useMarkAllNotificationsRead = () => {
           notifications: prev.notifications.map((n: any) => ({ ...n, is_read: true }))
         };
       });
-
       // Invalidate notifications list to refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });

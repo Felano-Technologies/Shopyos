@@ -11,12 +11,10 @@ import { StatusBar } from 'expo-status-bar';
 import {  logoutUser } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useMyBusinesses } from '@/hooks/useBusiness';
-
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
 const C = {
   bg:      '#F1F5F9',
   navy:    '#0C1559',
@@ -28,15 +26,6 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
-
-interface BusinessData {
-  businessName: string;
-  logo_url?: string;
-  logo?: string;
-  verificationStatus: string;
-  owner?: { email: string };
-}
-
 const STATUS_INFO: Record<string, { text: string; bg: string; color: string; icon: any }> = {
   verified: { text: 'Verified Merchant',    bg: '#DCFCE7', color: '#15803D', icon: 'checkmark-circle' },
   pending:  { text: 'Verification Pending', bg: '#FEF9C3', color: '#854D0E', icon: 'time'             },
@@ -44,20 +33,15 @@ const STATUS_INFO: Record<string, { text: string; bg: string; color: string; ico
 };
 const getStatus = (s?: string) =>
   STATUS_INFO[s ?? ''] ?? { text: 'Unverified', bg: '#F3F4F6', color: '#4B5563', icon: 'alert-circle' };
-
 export default function BusinessSettingsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
-
   const [notificationsOn, setNotificationsOn] = useState(true);
   const { data: businessesData, isLoading: profileLoading } = useMyBusinesses();
   const businessData = businessesData?.businesses?.[0] || null;
-
   const isBusinessVerified = businessData?.verificationStatus === 'verified';
-
   const handleRestrictedAction = () => {
     Alert.alert(
       'Verification Required',
@@ -65,14 +49,11 @@ export default function BusinessSettingsScreen() {
     );
   };
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
-
   if (isChecking || !isVerified) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
   }
-
   const statusInfo   = getStatus(businessData?.verificationStatus);
   const initials     = (businessData?.businessName ?? 'B').charAt(0).toUpperCase();
-
   const confirmLogout = () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -82,7 +63,6 @@ export default function BusinessSettingsScreen() {
       },
     ]);
   };
-
   // ── Reusable setting row ───────────────────────────────────────────────────
   const SettingRow = ({
     icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false, disabled = false,
@@ -122,24 +102,19 @@ export default function BusinessSettingsScreen() {
       )}
     </TouchableOpacity>
   );
-
   // ── Group wrapper ──────────────────────────────────────────────────────────
   const SettingGroup = ({ children }: { children: React.ReactNode }) => (
     <View style={S.group}>{children}</View>
   );
-
   // ── Divider ───────────────────────────────────────────────────────────────
   const Divider = () => <View style={S.divider} />;
-
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-
       {/* Watermark */}
       <View style={S.watermark}>
         <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
-
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -151,7 +126,6 @@ export default function BusinessSettingsScreen() {
             style={[S.header, { paddingTop: insets.top + rs(20), paddingBottom: rs(90) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
-
             <View style={S.hdrRow}>
               <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
                 <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -160,7 +134,6 @@ export default function BusinessSettingsScreen() {
               {/* placeholder to balance the row */}
               <View style={{ width: rs(38) }} />
             </View>
-
             {/* Profile card — overlapping the header bottom */}
             <View style={S.profileCard}>
               {profileLoading ? (
@@ -184,7 +157,6 @@ export default function BusinessSettingsScreen() {
                       </View>
                     )}
                   </View>
-
                   {/* Info */}
                   <View style={S.profileInfo}>
                     <Text style={S.businessName} numberOfLines={1}>
@@ -198,7 +170,6 @@ export default function BusinessSettingsScreen() {
                       <Text style={[S.statusTxt, { color: statusInfo.color }]}>{statusInfo.text}</Text>
                     </View>
                   </View>
-
                   {/* Edit */}
                   <TouchableOpacity
                     style={S.editBtn}
@@ -209,17 +180,13 @@ export default function BusinessSettingsScreen() {
                 </View>
               )}
             </View>
-
             {/* Arc cutout — behind the card */}
             <View style={S.hdrArc} />
           </LinearGradient>
-
           {/* Space for card overlap */}
           <View style={{ height: rs(110) }} />
-
           {/* ── Settings groups ────────────────────────────────────────── */}
           <View style={S.body}>
-
             {!isBusinessVerified && (
               <View style={S.noticeCard}>
                 <View style={S.noticeHeader}>
@@ -233,7 +200,6 @@ export default function BusinessSettingsScreen() {
                 </Text>
               </View>
             )}
-
             {/* Business & Finance */}
             <Text style={S.groupLabel}>Business & Finance</Text>
             <SettingGroup>
@@ -258,7 +224,6 @@ export default function BusinessSettingsScreen() {
                 onPress={() => router.push('/business/transactions' as any)}
               />
             </SettingGroup>
-
             {/* Preferences */}
             <Text style={S.groupLabel}>Preferences</Text>
             <SettingGroup>
@@ -276,7 +241,6 @@ export default function BusinessSettingsScreen() {
                 onPress={() => {}}
               />
             </SettingGroup>
-
             {/* Support */}
             <Text style={S.groupLabel}>Support</Text>
             <SettingGroup>
@@ -294,13 +258,11 @@ export default function BusinessSettingsScreen() {
                 onPress={() => router.push('/settings/contactUs' as any)}
               />
             </SettingGroup>
-
             {/* Log out */}
             <TouchableOpacity style={S.logoutBtn} onPress={confirmLogout} activeOpacity={0.82}>
               <Feather name="log-out" size={rs(18)} color="#EF4444" />
               <Text style={S.logoutTxt}>Log Out</Text>
             </TouchableOpacity>
-
             <Text style={S.version}>Version 1.0.9</Text>
           </View>
         </ScrollView>
@@ -308,16 +270,13 @@ export default function BusinessSettingsScreen() {
     </View>
   );
 }
-
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
-
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.07 },
   scroll: { flexGrow: 1 },
-
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: rs(20),
@@ -345,7 +304,6 @@ const S = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(28),
     backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
   },
-
   // ── Profile card — floats over header ─────────────────────────────────────
   profileCard: {
     position: 'absolute',
@@ -359,7 +317,6 @@ const S = StyleSheet.create({
   },
   profileLoading: { paddingVertical: rs(20), alignItems: 'center' },
   profileInner:   { flexDirection: 'row', alignItems: 'center' },
-
   avatarWrap:    { position: 'relative', marginRight: rs(14) },
   avatar:        { width: rs(58), height: rs(58), borderRadius: rs(14), backgroundColor: '#F1F5F9' },
   avatarFallback:{ backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
@@ -370,7 +327,6 @@ const S = StyleSheet.create({
     backgroundColor: '#10B981', borderWidth: 2, borderColor: C.card,
     justifyContent: 'center', alignItems: 'center',
   },
-
   profileInfo:  { flex: 1, marginRight: rs(8) },
   businessName: { fontSize: rf(16), fontFamily: 'Montserrat-Bold',    color: C.body,  marginBottom: rs(2) },
   businessEmail:{ fontSize: rf(11), fontFamily: 'Montserrat-Regular', color: C.muted, marginBottom: rs(7) },
@@ -380,13 +336,11 @@ const S = StyleSheet.create({
     borderRadius: rs(8),
   },
   statusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold' },
-
   editBtn: {
     width: rs(38), height: rs(38), borderRadius: rs(12),
     backgroundColor: '#F8FAFC', borderWidth: 0.5, borderColor: '#E2E8F0',
     justifyContent: 'center', alignItems: 'center',
   },
-
   // ── Body ───────────────────────────────────────────────────────────────────
   body:       { paddingHorizontal: rs(16) },
   noticeCard: {
@@ -448,7 +402,6 @@ const S = StyleSheet.create({
   },
   settingLabel: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155' },
   divider:      { height: 0.5, backgroundColor: '#F1F5F9', marginLeft: rs(62) },
-
   // ── Logout ─────────────────────────────────────────────────────────────────
   logoutBtn: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center',

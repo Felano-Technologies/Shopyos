@@ -2,18 +2,13 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, ActivityIndicator, StyleSheet, Image, Text } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-
 import { getDriverProfile } from '@/services/api';
-
 export default function DriverGatekeeper() {
   const router = useRouter();
-  const [status, setStatus] = useState<string | null>(null);
-
   const checkStatus = useCallback(async () => {
     try {
       const response = await getDriverProfile();
       const driver = response?.profile || response?.data || response;
-
       // If driver record exists (even if not verified), let them see their dashboard.
       // The dashboard's useDriverGuard will handle specific restrictions if they are pending.
       if (driver) {
@@ -24,7 +19,7 @@ export default function DriverGatekeeper() {
           params: { status: 'new' }
         });
       }
-    } catch (error: any) {
+    } catch {
       // If profile not found, it's a new driver
       router.replace({
         pathname: '/driver/verification',
@@ -32,11 +27,9 @@ export default function DriverGatekeeper() {
       });
     }
   }, [router]);
-
   useEffect(() => {
     checkStatus();
   }, [checkStatus]);
-
   return (
     <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -54,7 +47,6 @@ export default function DriverGatekeeper() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

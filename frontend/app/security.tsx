@@ -14,16 +14,12 @@ import { Ionicons, FontAwesome5, MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { storage } from "@/services/api";
-
 export default function SecuritySettings() {
   const router = useRouter();
   const theme = useColorScheme();
-  const isDark = theme === "dark";
-
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [securityQuestionsEnabled, setSecurityQuestionsEnabled] = useState(false);
-
   // ─── Load toggle states on mount ───
   useEffect(() => {
     const loadSettings = async () => {
@@ -31,7 +27,6 @@ export default function SecuritySettings() {
         const tfa = await storage.getItem("twoFactorEnabled");
         const bio = await storage.getItem("biometricEnabled");
         const sec = await storage.getItem("securityQuestionsEnabled");
-
         if (tfa !== null) setTwoFactorEnabled(JSON.parse(tfa));
         if (bio !== null) setBiometricEnabled(JSON.parse(bio));
         if (sec !== null) setSecurityQuestionsEnabled(JSON.parse(sec));
@@ -41,7 +36,6 @@ export default function SecuritySettings() {
     };
     loadSettings();
   }, []);
-
   // ─── Save to AsyncStorage ───
   const saveSetting = async (key: string, value: boolean) => {
     try {
@@ -50,12 +44,9 @@ export default function SecuritySettings() {
       console.error(`Error saving ${key}:`, error);
     }
   };
-
   // ─── Handlers ───
   const handleChangePassword = () => router.push("/settings/changePassword");
-
   const handleLoginHistory = () => router.push("/settings/loginHistory");
-
   const handleToggleTwoFactor = async (value: boolean) => {
     setTwoFactorEnabled(value);
     await saveSetting("twoFactorEnabled", value);
@@ -66,7 +57,6 @@ export default function SecuritySettings() {
         : "Two-factor authentication has been disabled."
     );
   };
-
   const handleToggleBiometric = async (value: boolean) => {
     setBiometricEnabled(value);
     await saveSetting("biometricEnabled", value);
@@ -77,7 +67,6 @@ export default function SecuritySettings() {
         : "Biometric authentication has been turned off."
     );
   };
-
   const handleToggleSecurityQuestions = async (value: boolean) => {
     setSecurityQuestionsEnabled(value);
     await saveSetting("securityQuestionsEnabled", value);
@@ -88,7 +77,6 @@ export default function SecuritySettings() {
         : "Security questions have been disabled."
     );
   };
-
   return (
     <SafeAreaView style={styles.container}>
       {/* ─── Header ─── */}
@@ -100,7 +88,6 @@ export default function SecuritySettings() {
         <FontAwesome5 name="user-shield" size={55} color="#fff" />
         <Text style={styles.headerTitle}>Security Settings</Text>
       </View>
-
       {/* ─── Content ─── */}
       <ScrollView contentContainerStyle={styles.content}>
         {/* Change Password */}
@@ -117,7 +104,6 @@ export default function SecuritySettings() {
           </View>
           <Text style={styles.arrow}>{">"}</Text>
         </TouchableOpacity>
-
         {/* Two-Factor Authentication */}
         <View style={styles.item}>
           <View style={styles.iconLabel}>
@@ -137,7 +123,6 @@ export default function SecuritySettings() {
             thumbColor="#fff"
           />
         </View>
-
         {/* Biometric Authentication */}
         <View style={styles.item}>
           <View style={styles.iconLabel}>
@@ -156,7 +141,6 @@ export default function SecuritySettings() {
             thumbColor="#fff"
           />
         </View>
-
         {/* Security Questions */}
         <View style={styles.item}>
           <View style={styles.iconLabel}>
@@ -175,7 +159,6 @@ export default function SecuritySettings() {
             thumbColor="#fff"
           />
         </View>
-
         {/* Login History */}
         <TouchableOpacity style={styles.item} onPress={handleLoginHistory}>
           <View style={styles.iconLabel}>
@@ -194,7 +177,6 @@ export default function SecuritySettings() {
     </SafeAreaView>
   );
 }
-
 // ─── Styles ───
 const styles = StyleSheet.create({
   container: {

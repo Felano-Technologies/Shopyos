@@ -12,12 +12,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { getAllStores } from '@/services/api';
-
 const { width, height } = Dimensions.get('window');
 const CARD_W   = width * 0.72;
 const CARD_GAP = 12;
 const SNAP_W   = CARD_W + CARD_GAP;
-
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const C = {
   navy:    '#0C1559',
@@ -29,13 +27,10 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
-
 // ─── Radius options (km) ──────────────────────────────────────────────────────
 const RADIUS_OPTIONS = [1, 2, 5, 10];
-
 // ─── Category chips ───────────────────────────────────────────────────────────
 const CATEGORIES = ['All', 'Fashion', 'Electronics', 'Grocery', 'Art', 'Home', 'Footwear'];
-
 // ─── Haversine distance (km) ─────────────────────────────────────────────────
 // This is the core "stores near me" logic — gives accurate real-world distance
 // between two lat/lng pairs without needing a third-party API.
@@ -53,16 +48,13 @@ function haversineKm(
     Math.sin(dO / 2) * Math.sin(dO / 2);
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-
 function fmtDist(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(1)} km`;
 }
-
 function initials(name: string): string {
   return (name || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 }
-
 // Fixed fallback colours for stores without logos
 const FALLBACK_COLORS = [
   ['#1e3a8a', '#0C1559'],
@@ -71,7 +63,6 @@ const FALLBACK_COLORS = [
   ['#92400e', '#78350f'],
   ['#4c1d95', '#3b0764'],
 ];
-
 interface StoreItem {
   id: string;
   name: string;
@@ -86,13 +77,11 @@ interface StoreItem {
   distanceKm: number;
   colorIdx: number;
 }
-
 export default function StoresMap() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
   const mapRef  = useRef<MapView>(null);
   const listRef = useRef<FlatList>(null);
-
   const [userCoords,    setUserCoords]    = useState<{ latitude: number; longitude: number } | null>(null);
   const [allStores,     setAllStores]     = useState<StoreItem[]>([]);
   const [filteredStores, setFiltered]     = useState<StoreItem[]>([]);
@@ -102,10 +91,8 @@ export default function StoresMap() {
   const [activeCategory, setCategory]     = useState('All');
   const [searchQuery,    setSearch]        = useState('');
   const [showRadiusPicker, setShowRadius] = useState(false);
-
   // Pulse animation for active marker
   const pulseAnim = useRef(new Animated.Value(0)).current;
-
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -114,14 +101,12 @@ export default function StoresMap() {
       ])
     ).start();
   }, [pulseAnim]);
-
   // ── Load location + stores ──────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         let coords = { latitude: 6.6745, longitude: -1.5716 }; // Kumasi fallback
-
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({
             accuracy: Location.Accuracy.Balanced,
@@ -129,7 +114,6 @@ export default function StoresMap() {
           coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         }
         setUserCoords(coords);
-
         const res = await getAllStores({});
         if (res.success) {
           const mapped: StoreItem[] = (res.businesses || []).map((b: any, i: number) => {
@@ -139,7 +123,6 @@ export default function StoresMap() {
               : coords.latitude  + (Math.random() - 0.5) * 0.04;
             const lng = b.longitude ? parseFloat(b.longitude)
               : coords.longitude + (Math.random() - 0.5) * 0.04;
-
             return {
               id:          b.id,
               name:        b.name        || 'Unknown Store',
@@ -155,7 +138,6 @@ export default function StoresMap() {
               colorIdx:    i % FALLBACK_COLORS.length,
             };
           });
-
           // Sort by distance — nearest first, just like Snapchat's map
           mapped.sort((a, b) => a.distanceKm - b.distanceKm);
           setAllStores(mapped);
@@ -167,17 +149,14 @@ export default function StoresMap() {
       }
     })();
   }, []);
-
   // ── Apply filters (radius + category + search) ─────────────────────────────
   useEffect(() => {
     let result = allStores.filter((s) => s.distanceKm <= radiusKm);
-
     if (activeCategory !== 'All') {
       result = result.filter(
         (s) => s.category.toLowerCase() === activeCategory.toLowerCase()
       );
     }
-
     if (searchQuery.trim().length > 0) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
@@ -186,11 +165,9 @@ export default function StoresMap() {
           s.category.toLowerCase().includes(q)
       );
     }
-
     setFiltered(result);
     setActiveIndex(0);
   }, [allStores, radiusKm, activeCategory, searchQuery]);
-
   // ── Animate map to active store ────────────────────────────────────────────
   const animateToStore = useCallback(
     (store: StoreItem) => {
@@ -206,14 +183,12 @@ export default function StoresMap() {
     },
     []
   );
-
   // When activeIndex changes, animate map
   useEffect(() => {
     if (filteredStores[activeIndex]) {
       animateToStore(filteredStores[activeIndex]);
     }
   }, [activeIndex, animateToStore, filteredStores]);
-
   // ── Carousel scroll → update active marker ────────────────────────────────
   const onCarouselScroll = (event: any) => {
     const idx = Math.round(
@@ -223,13 +198,11 @@ export default function StoresMap() {
       setActiveIndex(idx);
     }
   };
-
   // ── Marker tap → scroll carousel ─────────────────────────────────────────
   const onMarkerPress = (index: number) => {
     setActiveIndex(index);
     listRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
   };
-
   // ── Re-centre on user ──────────────────────────────────────────────────────
   const reCentre = () => {
     if (!userCoords) return;
@@ -243,7 +216,6 @@ export default function StoresMap() {
       500
     );
   };
-
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -254,14 +226,10 @@ export default function StoresMap() {
       </View>
     );
   }
-
-  const activeStore = filteredStores[activeIndex] ?? null;
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={S.root}>
       <StatusBar style="dark" />
-
       {/* ── Full-screen map ──────────────────────────────────────────────── */}
       <MapView
         ref={mapRef}
@@ -288,12 +256,10 @@ export default function StoresMap() {
             lineDashPattern={[6, 4]}
           />
         )}
-
         {/* ── Store markers ─────────────────────────────────────────────── */}
         {filteredStores.map((store, index) => {
           const isActive = index === activeIndex;
-          const [c1, c2]  = FALLBACK_COLORS[store.colorIdx];
-
+          const [c1, ]  = FALLBACK_COLORS[store.colorIdx];
           return (
             <Marker
               key={store.id}
@@ -321,7 +287,6 @@ export default function StoresMap() {
                     ]}
                   />
                 )}
-
                 {/* Marker ring */}
                 <View style={[S.markerRing, isActive && S.markerRingActive]}>
                   {store.logo ? (
@@ -335,7 +300,6 @@ export default function StoresMap() {
                       <Text style={S.markerInitials}>{initials(store.name)}</Text>
                     </View>
                   )}
-
                   {/* Verified checkmark on marker */}
                   {store.verified && (
                     <View style={S.markerVerified}>
@@ -343,7 +307,6 @@ export default function StoresMap() {
                     </View>
                   )}
                 </View>
-
                 {/* Tail */}
                 <View style={[S.markerTail, isActive && S.markerTailActive]} />
               </View>
@@ -351,7 +314,6 @@ export default function StoresMap() {
           );
         })}
       </MapView>
-
       {/* ── Top overlay: back + search + category chips ───────────────── */}
       <View style={[S.topOverlay, { paddingTop: insets.top + 10 }]}>
         {/* Row 1: back + search */}
@@ -359,7 +321,6 @@ export default function StoresMap() {
           <TouchableOpacity style={S.iconPill} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={20} color={C.navy} />
           </TouchableOpacity>
-
           <View style={S.searchPill}>
             <Feather name="search" size={14} color={C.subtle} />
             <TextInput
@@ -379,7 +340,6 @@ export default function StoresMap() {
             )}
           </View>
         </View>
-
         {/* Row 2: category chips */}
         <ScrollView
           horizontal
@@ -400,14 +360,12 @@ export default function StoresMap() {
           })}
         </ScrollView>
       </View>
-
       {/* ── FAB group: re-centre + radius ─────────────────────────────── */}
       <View style={[S.fabGroup, { bottom: 240 + insets.bottom }]}>
         {/* Re-centre on user */}
         <TouchableOpacity style={S.fab} onPress={reCentre}>
           <MaterialCommunityIcons name="crosshairs-gps" size={20} color={C.navy} />
         </TouchableOpacity>
-
         {/* Radius picker toggle */}
         <TouchableOpacity
           style={[S.fab, showRadiusPicker && S.fabActive]}
@@ -419,7 +377,6 @@ export default function StoresMap() {
             color={showRadiusPicker ? C.lime : C.navy}
           />
         </TouchableOpacity>
-
         {/* Radius options — slide out when open */}
         {showRadiusPicker && (
           <View style={S.radiusPicker}>
@@ -437,12 +394,10 @@ export default function StoresMap() {
           </View>
         )}
       </View>
-
       {/* ── Bottom sheet ──────────────────────────────────────────────── */}
       <View style={[S.bottomSheet, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         {/* Handle */}
         <View style={S.handleWrap}><View style={S.handle} /></View>
-
         {/* Count row */}
         <View style={S.countRow}>
           <Text style={S.nearbyCount}>
@@ -457,7 +412,6 @@ export default function StoresMap() {
             <Ionicons name="chevron-down" size={11} color={C.navy} />
           </TouchableOpacity>
         </View>
-
         {/* Empty state */}
         {filteredStores.length === 0 ? (
           <View style={S.emptyCarousel}>
@@ -487,7 +441,6 @@ export default function StoresMap() {
             renderItem={({ item, index }) => {
               const isActive = index === activeIndex;
               const [c1]     = FALLBACK_COLORS[item.colorIdx];
-
               return (
                 <TouchableOpacity
                   style={[S.storeCard, isActive && S.storeCardActive]}
@@ -507,7 +460,6 @@ export default function StoresMap() {
                       <Text style={S.cardLogoInitials}>{initials(item.name)}</Text>
                     </View>
                   )}
-
                   {/* Info */}
                   <View style={S.cardInfo}>
                     <View style={S.cardNameRow}>
@@ -532,7 +484,6 @@ export default function StoresMap() {
                       <Text style={S.cataloguesTxt}>{item.catalogues} items</Text>
                     </View>
                   </View>
-
                   {/* Visit arrow */}
                   <View style={[S.visitArrow, isActive && S.visitArrowActive]}>
                     <Ionicons name="chevron-forward" size={14} color={isActive ? C.limeAlt : C.navy} />
@@ -546,14 +497,12 @@ export default function StoresMap() {
     </View>
   );
 }
-
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   root:       { flex: 1 },
   map:        { width, height },
   loadingWrap:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
   loadingTxt: { marginTop: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.muted },
-
   // ── Top overlay ─────────────────────────────────────────────────────────────
   topOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20,
@@ -577,7 +526,6 @@ const S = StyleSheet.create({
   searchInput: {
     flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.body, height: '100%',
   },
-
   // Chips
   chipStrip: { gap: 7, flexDirection: 'row', paddingVertical: 2 },
   chip: {
@@ -589,7 +537,6 @@ const S = StyleSheet.create({
   chipOn:    { backgroundColor: C.navy },
   chipTxt:   { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.muted },
   chipTxtOn: { color: '#fff' },
-
   // ── FABs ────────────────────────────────────────────────────────────────────
   fabGroup: {
     position: 'absolute', right: 14, zIndex: 20,
@@ -603,7 +550,6 @@ const S = StyleSheet.create({
     shadowOpacity: 0.12, shadowRadius: 8,
   },
   fabActive: { backgroundColor: C.navy },
-
   // Radius picker
   radiusPicker: {
     backgroundColor: '#fff', borderRadius: 14, padding: 6,
@@ -617,7 +563,6 @@ const S = StyleSheet.create({
   radiusOptionOn:    { backgroundColor: '#EEF2FF' },
   radiusOptionTxt:   { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   radiusOptionTxtOn: { color: C.navy, fontFamily: 'Montserrat-Bold' },
-
   // ── Markers ─────────────────────────────────────────────────────────────────
   markerWrap: { alignItems: 'center', position: 'relative' },
   markerPulse: {
@@ -659,7 +604,6 @@ const S = StyleSheet.create({
     marginTop: -1,
   },
   markerTailActive: { borderTopColor: '#84cc16' },
-
   // ── Bottom sheet ─────────────────────────────────────────────────────────────
   bottomSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -671,7 +615,6 @@ const S = StyleSheet.create({
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 6 },
   handle:     { width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0' },
-
   countRow: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between',
@@ -683,14 +626,12 @@ const S = StyleSheet.create({
     backgroundColor: '#EEF2FF', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
   },
   radiusBadgeTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
-
   // Empty carousel
   emptyCarousel: {
     alignItems: 'center', paddingVertical: 24, paddingHorizontal: 30, gap: 6,
   },
   emptyCarouselTxt:  { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
   emptyCarouselLink: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.navyMid },
-
   // Store cards
   carouselContent: { paddingHorizontal: 14, paddingBottom: 8 },
   storeCard: {

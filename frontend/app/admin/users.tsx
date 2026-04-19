@@ -10,24 +10,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminUsers, adminUpdateUserStatus } from '@/services/api';
-
-const { width } = Dimensions.get('window');
-
 const ROLE_FILTERS = ['All', 'buyer', 'seller', 'driver', 'admin'];
-
 const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
     active:    { color: '#059669', bg: '#D1FAE5', dot: '#10B981' },
     suspended: { color: '#B45309', bg: '#FEF3C7', dot: '#F59E0B' },
     banned:    { color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
 };
-
 const ROLE_CONFIG: Record<string, { color: string; bg: string }> = {
     buyer:  { color: '#3B82F6', bg: '#EFF6FF' },
     seller: { color: '#7C3AED', bg: '#F5F3FF' },
     driver: { color: '#0C1559', bg: '#EEF2FF' },
     admin:  { color: '#BE185D', bg: '#FDF2F8' },
 };
-
 export default function AdminUsers() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -38,7 +32,6 @@ export default function AdminUsers() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
-
     const loadUsers = useCallback(async (isRefresh = false) => {
         try {
             if (isRefresh) setRefreshing(true);
@@ -57,9 +50,7 @@ export default function AdminUsers() {
             setRefreshing(false);
         }
     }, [roleFilter, searchQuery]);
-
     useEffect(() => { loadUsers(); }, [loadUsers]);
-
     const handleStatusChange = (user: any) => {
         const isActive = (user.account_status || 'active') === 'active';
         
@@ -93,12 +84,10 @@ export default function AdminUsers() {
             ]
         );
     };
-
     const getInitials = (name?: string, email?: string) => {
         if (name) return name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
         return (email || '?')[0].toUpperCase();
     };
-
     const UserCard = ({ item }: { item: any }) => {
         const status = item.account_status || 'active';
         const role = item.role || 'buyer';
@@ -106,7 +95,6 @@ export default function AdminUsers() {
         const sc = STATUS_CONFIG[status] || STATUS_CONFIG.active;
         const rc = ROLE_CONFIG[role] || ROLE_CONFIG.buyer;
         const isActive = status === 'active';
-
         return (
             <View style={styles.userCard}>
                 <View style={styles.cardHeader}>
@@ -131,7 +119,6 @@ export default function AdminUsers() {
                         </View>
                     </View>
                 </View>
-
                 <View style={styles.cardFooter}>
                     <Text style={styles.dateText}>Joined: {new Date(item.created_at || Date.now()).toLocaleDateString()}</Text>
                     
@@ -155,11 +142,9 @@ export default function AdminUsers() {
             </View>
         );
     };
-
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-
             {/* --- Premium Header --- */}
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top + 10 }]}>
                 <View style={styles.headerRow}>
@@ -175,7 +160,6 @@ export default function AdminUsers() {
                     </TouchableOpacity>
                 </View>
             </LinearGradient>
-
             <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
                 
                 {/* --- Search & Filters --- */}
@@ -197,7 +181,6 @@ export default function AdminUsers() {
                             </TouchableOpacity>
                         )}
                     </View>
-
                     <FlatList
                         horizontal
                         showsHorizontalScrollIndicator={false}
@@ -216,7 +199,6 @@ export default function AdminUsers() {
                         )}
                     />
                 </View>
-
                 {/* --- User List --- */}
                 {loading ? (
                     <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
@@ -243,7 +225,6 @@ export default function AdminUsers() {
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -256,7 +237,6 @@ const styles = StyleSheet.create({
     headerTextWrap: { alignItems: 'center', flex: 1 },
     headerLabel: { color: '#A3E635', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 2, marginBottom: 2 },
     headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-
     // Controls (Search/Filter)
     controlsSection: { paddingTop: 20, zIndex: 5 },
     searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 15, marginHorizontal: 20, height: 50, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 5, elevation: 2 },
@@ -267,7 +247,6 @@ const styles = StyleSheet.create({
     filterChipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
     filterText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
     filterTextActive: { color: '#FFF' },
-
     // List & Cards
     listContent: { padding: 20, paddingBottom: 80 },
     userCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 15, borderWidth: 1, borderColor: '#F1F5F9', elevation: 2, shadowColor: '#0C1559', shadowOpacity: 0.04, shadowRadius: 8 },
@@ -294,7 +273,6 @@ const styles = StyleSheet.create({
     btnSuspend: { backgroundColor: '#FEF2F2', borderColor: '#FECACA' },
     btnActivate: { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' },
     actionBtnText: { fontSize: 12, fontFamily: 'Montserrat-Bold' },
-
     // Empty State
     emptyState: { alignItems: 'center', marginTop: 50 },
     emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },

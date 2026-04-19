@@ -9,24 +9,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-
 import { 
   getAllBannerCampaigns, 
   updateBannerCampaignStatus 
 } from '@/services/api';
-
 const { width, height } = Dimensions.get('window');
-
 type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
-
 const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
-
 export default function AdminAds() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
   const [ads, setAds] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [filter, setFilter] = useState<AdStatus>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -36,7 +31,6 @@ export default function AdminAds() {
   const [targetAd, setTargetAd] = useState<any>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-
   const fetchAds = async () => {
     try {
       setLoading(true);
@@ -55,19 +49,15 @@ export default function AdminAds() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     fetchAds();
   }, []);
-
   const filteredAds = ads.filter(ad => 
     ad.status === filter && 
     ((ad.store?.store_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
      ad.title.toLowerCase().includes(searchQuery.toLowerCase()))
   );
-
   const pendingCount = ads.filter(a => a.status === 'Pending').length;
-
   const handleApprove = async (id: string) => {
     try {
       setActionLoading(id);
@@ -90,7 +80,6 @@ export default function AdminAds() {
       setActionLoading(null);
     }
   };
-
   const handleReject = async () => {
     if (!targetAd || !rejectReason.trim()) return;
     try {
@@ -117,7 +106,6 @@ export default function AdminAds() {
       setActionLoading(null);
     }
   };
-
   const AdCard = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -127,7 +115,6 @@ export default function AdminAds() {
         </View>
         <Text style={styles.dateText}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</Text>
       </View>
-
       <View style={styles.cardBody}>
         <TouchableOpacity style={styles.bannerPreview} onPress={() => setPreviewImage(item.banner_url)}>
           <Image source={{ uri: item.banner_url }} style={styles.bannerImg} />
@@ -151,7 +138,6 @@ export default function AdminAds() {
           </View>
         </View>
       </View>
-
       {item.status === 'Pending' && (
         <View style={styles.actions}>
           <TouchableOpacity 
@@ -171,11 +157,9 @@ export default function AdminAds() {
       )}
     </View>
   );
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-
       {/* --- Premium Header --- */}
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerRow}>
@@ -196,7 +180,6 @@ export default function AdminAds() {
           <View style={{ width: 40 }} />
         </View>
       </LinearGradient>
-
       {/* --- Search & Filters --- */}
       <View style={styles.controlsSection}>
         <View style={styles.searchBar}>
@@ -214,7 +197,6 @@ export default function AdminAds() {
             </TouchableOpacity>
           )}
         </View>
-
         <View style={styles.tabs}>
           {FILTER_TABS.map(tab => (
             <TouchableOpacity
@@ -227,7 +209,6 @@ export default function AdminAds() {
           ))}
         </View>
       </View>
-
       {/* --- Ad List --- */}
       <FlatList
         data={filteredAds}
@@ -245,7 +226,6 @@ export default function AdminAds() {
           </View>
         }
       />
-
       {/* --- Image Preview Modal --- */}
       <Modal visible={!!previewImage} transparent animationType="fade">
         <View style={styles.previewOverlay}>
@@ -260,7 +240,6 @@ export default function AdminAds() {
           </View>
         </View>
       </Modal>
-
       {/* --- Rejection Modal --- */}
       <Modal visible={rejectModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -278,7 +257,6 @@ export default function AdminAds() {
               value={rejectReason}
               onChangeText={setRejectReason}
             />
-
             <View style={styles.modalBtns}>
               <TouchableOpacity style={styles.modalCancel} onPress={() => { setRejectModal(false); setRejectReason(''); }}>
                 <Text style={styles.cancelText}>Cancel</Text>
@@ -294,11 +272,9 @@ export default function AdminAds() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   
@@ -309,7 +285,6 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   headerBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
   headerBadgeText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
-
   controlsSection: { paddingHorizontal: 20, paddingTop: 15, zIndex: 5 },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 14, color: '#0F172A' },
@@ -318,7 +293,6 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: '#0C1559', elevation: 2 },
   tabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   tabTextActive: { color: '#FFF' },
-
   listContent: { padding: 20, paddingBottom: 60 },
   card: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#0C1559', shadowOpacity: 0.05, shadowRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -336,19 +310,16 @@ const styles = StyleSheet.create({
   detailText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
   paidBadge: { alignSelf: 'flex-start', backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 },
   paidText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#059669' },
-
   actions: { flexDirection: 'row', gap: 10, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rejectBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },
   approveBtn: { backgroundColor: '#0C1559' },
   rejectText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#DC2626' },
   approveText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#FFF' },
-
   emptyState: { alignItems: 'center', marginTop: 50 },
   emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
   emptyTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 5 },
   emptySubtitle: { fontSize: 13, color: '#94A3B8', fontFamily: 'Montserrat-Medium', textAlign: 'center' },
-
   // Modals
   previewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)' },
   previewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20 },
@@ -356,7 +327,6 @@ const styles = StyleSheet.create({
   closeBtn: { padding: 5 },
   previewContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   fullImage: { width: width, height: height * 0.5 },
-
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalCard: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25 },
   modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },

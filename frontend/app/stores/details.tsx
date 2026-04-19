@@ -38,23 +38,18 @@ import {
 } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useChat } from '@/context/ChatContext';
-
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
-
 const { width } = Dimensions.get('window');
-
 export default function StoreDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { startCall } = useChat();
-
   const [activeTab, setActiveTab] = useState('Catalogue');
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
-
   // --- Community & Social States ---
   const [reviews, setReviews] = useState<any[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(false);
@@ -62,19 +57,15 @@ export default function StoreDetailsScreen() {
   const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
   const [activeComments, setActiveComments] = useState<any[]>([]);
   const [commentSubmitting, setCommentSubmitting] = useState(false);
-
   // --- Review Creation States ---
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-
   // --- Map Picker State ---
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
-
   const [isFollowing, setIsFollowing] = useState(false);
   const [chatLoading, setChatLoading] = useState(false);
-
   const store = storeData ? {
     id: storeData._id,
     name: storeData.businessName,
@@ -109,7 +100,17 @@ export default function StoreDetailsScreen() {
     latitude: 6.6745,
     longitude: -1.5716,
   };
-
+  const fetchReviews = useCallback(async () => {
+    try {
+      setReviewsLoading(true);
+      const res = await getStoreReviews(params.id as string);
+      if (res.success && res.reviews) setReviews(res.reviews);
+    } catch (error) {
+      console.error("Error fetching reviews", error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [params.id]);
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -125,42 +126,24 @@ export default function StoreDetailsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
-
+  }, [fetchReviews, params.id]);
   useEffect(() => {
     if (params.id) fetchData();
   }, [fetchData, params.id]);
-
-  const fetchReviews = async () => {
-    try {
-      setReviewsLoading(true);
-      const res = await getStoreReviews(params.id as string);
-      if (res.success && res.reviews) setReviews(res.reviews);
-    } catch (error) {
-      console.error("Error fetching reviews", error);
-    } finally {
-      setReviewsLoading(false);
-    }
-  };
-
   // --- Map & Directions Choice Logic ---
   const handleDirections = () => {
     setMapPickerVisible(true);
   };
-
   const openExternalMap = (type: 'google' | 'apple') => {
     const lat = store.latitude;
     const lng = store.longitude;
     const label = encodeURIComponent(store.name);
-
     const url = type === 'apple' 
       ? `maps://?q=${label}&ll=${lat},${lng}`
       : `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-
     Linking.openURL(url);
     setMapPickerVisible(false);
   };
-
   // --- Review Submission Logic ---
   const handleSubmitReview = async () => {
     if (userRating === 0) {
@@ -175,7 +158,6 @@ export default function StoreDetailsScreen() {
         rating: userRating,
         reviewText: userComment
       });
-
       if (res.success) {
         CustomInAppToast.show({ type: 'success', title: 'Review Posted!', message: 'Thanks for supporting local businesses.' });
         setReviewModalVisible(false);
@@ -189,11 +171,9 @@ export default function StoreDetailsScreen() {
       setIsSubmittingReview(false);
     }
   };
-
   const handleLikeReview = async (reviewId: string) => {
     try { await likeReview(reviewId); } catch (err) { console.error(err); }
   };
-
   const handleOpenComments = async (reviewId: string) => {
     setSelectedReviewId(reviewId);
     setIsCommentsVisible(true);
@@ -203,7 +183,6 @@ export default function StoreDetailsScreen() {
       if (res.success) setActiveComments(res.comments);
     } catch (err) { console.error(err); }
   };
-
   const handleSendComment = async (text: string) => {
     if (!selectedReviewId) return;
     try {
@@ -216,7 +195,6 @@ export default function StoreDetailsScreen() {
     } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
     finally { setCommentSubmitting(false); }
   };
-
   const handleChat = async () => {
     if (chatLoading) return;
     try {
@@ -242,7 +220,7 @@ export default function StoreDetailsScreen() {
           }
         });
       }
-    } catch (error: any) {
+    } catch {
       CustomInAppToast.show({ 
         type: 'error', 
         title: 'Chat Error',
@@ -252,7 +230,6 @@ export default function StoreDetailsScreen() {
       setChatLoading(false);
     }
   };
-
   const handleFollow = async () => {
     try {
       if (isFollowing) {
@@ -262,7 +239,7 @@ export default function StoreDetailsScreen() {
         await followStore(store.id);
         setIsFollowing(true);
       }
-    } catch (error) { 
+    } catch { 
       CustomInAppToast.show({ 
         type: 'error', 
         title: 'Error',
@@ -270,13 +247,11 @@ export default function StoreDetailsScreen() {
       }); 
     }
   };
-
   const handleShare = async () => {
     try {
       await Share.share({ message: `Check out ${store.name} on Shopyos!` });
     } catch (error) { console.log('Error sharing:', error); }
   };
-
   const renderContent = () => {
     switch (activeTab) {
       case 'Catalogue':
@@ -305,7 +280,6 @@ export default function StoreDetailsScreen() {
             />
           </View>
         );
-
       case 'About':
         return (
           <View style={styles.aboutContainer}>
@@ -324,7 +298,6 @@ export default function StoreDetailsScreen() {
                 <Text style={styles.contactLabel}>Directions</Text>
               </TouchableOpacity>
             </View>
-
             <View style={styles.infoList}>
               <View style={styles.infoItem}>
                 <Ionicons name="time-outline" size={22} color="#0C1559" />
@@ -341,7 +314,6 @@ export default function StoreDetailsScreen() {
                 </View>
               </View>
             </View>
-
             <Text style={styles.sectionTitle}>Location</Text>
             <View style={styles.mapWrapper}>
               <MapView
@@ -370,7 +342,6 @@ export default function StoreDetailsScreen() {
             </View>
           </View>
         );
-
       case 'Reviews':
         return (
           <View style={styles.reviewsContainer}>
@@ -386,7 +357,6 @@ export default function StoreDetailsScreen() {
                 <Text style={styles.writeBtnText}>Write Review</Text>
               </TouchableOpacity>
             </View>
-
             {reviewsLoading ? (
               <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 30 }} />
             ) : reviews.length === 0 ? (
@@ -404,7 +374,6 @@ export default function StoreDetailsScreen() {
       default: return null;
     }
   };
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -431,13 +400,11 @@ export default function StoreDetailsScreen() {
                </TouchableOpacity>
             </View>
           </SafeAreaView>
-
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerStoreName} numberOfLines={1}>{store.name}</Text>
             {store.category ? <Text style={styles.headerStoreMeta} numberOfLines={1}>{store.category}</Text> : null}
           </View>
         </View>
-
         <View style={styles.profileSection}>
           <View style={styles.logoWrapper}>
             {store.logo ? <Image source={store.logo} style={styles.storeLogo} /> : <View style={[styles.storeLogo, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="storefront-outline" size={32} color="#94A3B8" /></View>}
@@ -457,7 +424,6 @@ export default function StoreDetailsScreen() {
             <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{store.rating.toFixed(1)} ({reviews.length} Reviews)</Text></View>
           </View>
         </View>
-
         <View style={styles.actionRow}>
           <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
             {chatLoading ? <ActivityIndicator size="small" color="#FFF" /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" /><Text style={styles.primaryActionText}>Chat</Text></>}
@@ -473,7 +439,6 @@ export default function StoreDetailsScreen() {
             <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Follow' : 'Follow'}</Text>
           </TouchableOpacity>
         </View>
-
         <View style={styles.tabContainer}>
           {['Catalogue', 'About', 'Reviews'].map((tab) => (
             <TouchableOpacity key={tab} style={styles.tabItem} onPress={() => setActiveTab(tab)}>
@@ -482,11 +447,8 @@ export default function StoreDetailsScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
         {loading ? <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 50 }} /> : renderContent()}
-
       </ScrollView>
-
       {/* --- MAP PICKER ACTION SHEET --- */}
       <Modal visible={mapPickerVisible} animationType="slide" transparent onRequestClose={() => setMapPickerVisible(false)}>
         <View style={styles.pickerOverlay}>
@@ -502,7 +464,6 @@ export default function StoreDetailsScreen() {
                    <View style={styles.pickerIconBg}><Ionicons name="logo-google" size={24} color="#4285F4" /></View>
                    <Text style={styles.pickerText}>Google Maps</Text>
                 </TouchableOpacity>
-
                 {Platform.OS === 'ios' && (
                   <TouchableOpacity style={styles.pickerOption} onPress={() => openExternalMap('apple')}>
                     <View style={styles.pickerIconBg}><Ionicons name="map-outline" size={24} color="#000" /></View>
@@ -510,14 +471,12 @@ export default function StoreDetailsScreen() {
                   </TouchableOpacity>
                 )}
              </View>
-
              <TouchableOpacity style={styles.pickerCancel} onPress={() => setMapPickerVisible(false)}>
                 <Text style={styles.pickerCancelText}>Cancel</Text>
              </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
       {/* --- REDESIGNED REVIEW MODAL --- */}
       <Modal visible={reviewModalVisible} animationType="slide" transparent={true} onRequestClose={() => setReviewModalVisible(false)}>
         <View style={styles.modalOverlay}>
@@ -531,7 +490,6 @@ export default function StoreDetailsScreen() {
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
-
             <View style={styles.modalBody}>
               <View style={styles.ratingCard}>
                 <Text style={styles.modalLabel}>Overall Rating</Text>
@@ -546,7 +504,6 @@ export default function StoreDetailsScreen() {
                   {userRating === 5 ? "Excellent!" : userRating === 4 ? "Very Good" : userRating === 3 ? "Average" : userRating === 2 ? "Poor" : userRating === 1 ? "Terrible" : "Tap to rate"}
                 </Text>
               </View>
-
               <View style={styles.inputSection}>
                 <View style={styles.inputHeader}>
                   <Text style={styles.modalLabel}>Your Review</Text>
@@ -562,7 +519,6 @@ export default function StoreDetailsScreen() {
                   onChangeText={setUserComment}
                 />
               </View>
-
               <TouchableOpacity 
                 style={[styles.submitReviewBtn, (isSubmittingReview || userRating === 0) && { opacity: 0.6 }]} 
                 onPress={handleSubmitReview} 
@@ -576,12 +532,10 @@ export default function StoreDetailsScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
-
       <ReviewCommentsSheet visible={isCommentsVisible} onClose={() => setIsCommentsVisible(false)} reviewId={selectedReviewId} comments={activeComments} onSendComment={handleSendComment} isSubmitting={commentSubmitting} />
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   headerContainer: { height: 180, width: '100%', position: 'relative' },
@@ -640,7 +594,6 @@ const styles = StyleSheet.create({
   mapOverlayBtn: { position: 'absolute', bottom: 15, left: 15, right: 15, borderRadius: 12, overflow: 'hidden' },
   dirBtnGradient: { paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
   dirBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 13 },
-
   // --- Picker Modal Styles ---
   pickerOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   pickerContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40 },
@@ -653,7 +606,6 @@ const styles = StyleSheet.create({
   pickerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#334155' },
   pickerCancel: { backgroundColor: '#F1F5F9', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
   pickerCancelText: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#64748B' },
-
   // Reviews Tab
   reviewsContainer: { paddingHorizontal: 20 },
   reviewSummary: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, backgroundColor: '#FFF', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' },
@@ -665,7 +617,6 @@ const styles = StyleSheet.create({
   followingText: { color: '#FFF' },
   emptyReviews: { alignItems: 'center', paddingVertical: 40 },
   emptyReviewsTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#CBD5E1', marginTop: 12 },
-
   // Review Modal
   modalOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.4)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 35, borderTopRightRadius: 35, paddingTop: 12, paddingBottom: Platform.OS === 'ios' ? 40 : 24 },

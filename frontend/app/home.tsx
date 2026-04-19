@@ -24,15 +24,12 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
-
 const { width } = Dimensions.get('window');
-
 // ─── Ad carousel constants ────────────────────────────────────────────────────
 // The slide occupies the full width minus horizontal padding (16px each side).
 const SLIDE_W = width - 32;   // card width
 const SLIDE_H = 150;          // card height
 const AD_DELAY = 4000;         // ms between auto-advances
-
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 const C = {
   pageBg: '#E9F0FF',
@@ -45,26 +42,22 @@ const C = {
   muted: '#64748B',
   subtle: '#94A3B8',
 };
-
 // ─── Static fallback banners ──────────────────────────────────────────────────
 const FALLBACK_ADS = [
   { id: 'f1', badge: 'NEW IN', title: 'New Arrivals', sub: 'Fresh styles just dropped', cta: 'Shop Now', gradient: ['#0C1559', '#1e3a8a'] as [string, string], dest: '/search' },
   { id: 'f2', badge: '50% OFF', title: 'Deals for You', sub: 'Up to 50% off today only', cta: 'See Deals', gradient: ['#166534', '#14532d'] as [string, string], dest: '/deals' },
   { id: 'f3', badge: 'TOP', title: 'Top Stores', sub: 'Explore verified sellers near you', cta: 'Browse', gradient: ['#7C3AED', '#4c1d95'] as [string, string], dest: '/stores' },
 ];
-
 function getGreeting() {
   const h = new Date().getHours();
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
-
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const MIN_SKELETON_MS = 450;
-
   const [locationText, setLocationText] = useState('Locating…');
   const [userName, setUserName] = useState('');
   const [selectedCat, setSelectedCat] = useState('All');
@@ -72,26 +65,21 @@ export default function Home() {
   const [adIndex, setAdIndex] = useState(0);
   const [animValues, setAnimValues] = useState<Animated.Value[]>([]);
   const [showStartupSkeleton, setShowStartupSkeleton] = useState(true);
-
   const { buyerConversations } = useChat();
   const unreadCount = buyerConversations?.reduce(
     (acc: number, c: any) => acc + (c.unread || 0), 0
   ) || 0;
-
   const { items: cartItems, addToCart } = useCart();
   const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
-
   const [addingId, setAddingId] = useState<string | null>(null);
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
   const { data: favoriteProducts = [] } = useFavorites();
   const addFavoriteMutation = useAddFavorite();
   const removeFavoriteMutation = useRemoveFavorite();
-
   const favoriteIds = useMemo(
     () => new Set((favoriteProducts || []).map((p: any) => String(p.id || p._id || p.productId))),
     [favoriteProducts]
   );
-
   const handleAddToCart = async (item: any) => {
     setAddingId(item._id);
     try {
@@ -109,21 +97,16 @@ export default function Home() {
       setAddingId(null);
     }
   };
-
   const handleToggleFavorite = (item: any) => {
     const productId = String(item._id || item.id || '');
     if (!productId || favoriteBusyId === productId) return;
-
     setFavoriteBusyId(productId);
     const isFavorite = favoriteIds.has(productId);
-
     const onSettled = () => setFavoriteBusyId(null);
-
     if (isFavorite) {
       removeFavoriteMutation.mutate(productId, { onSettled });
       return;
     }
-
     addFavoriteMutation.mutate(productId, {
       onSuccess: () => {
         CustomInAppToast.show({
@@ -135,43 +118,38 @@ export default function Home() {
       onSettled,
     });
   };
-
   const { data: notifData } = useUnreadNotificationCount(false);
   const unreadNotifCount = notifData?.unreadCount ?? 0;
-
   const { data: categoriesData } = useCategories();
   const allCatNames = ['All', ...(categoriesData || []).map((c: any) => c.name)];
   const categoryFilter = selectedCat !== 'All' ? selectedCat : undefined;
-
   const {
     data: recentData, isLoading: loadingRecent,
     refetch: refetchRecent, isRefetching: refetchingRecent,
   } = useProducts({ category: categoryFilter, sortBy: 'newest' }, 10);
-
   const {
     data: trendingData, isLoading: loadingTrending,
     refetch: refetchTrending, isRefetching: refetchingTrending,
   } = useProducts({ category: categoryFilter, sortBy: 'popular' }, 10);
-
   const {
     data: dealsData, isLoading: loadingDeals,
     refetch: refetchDeals, isRefetching: refetchingDeals,
   } = useProducts({ category: categoryFilter, sortBy: 'price_asc' }, 20);
-
   const {
     data: exploreData, isLoading: loadingExplore,
     refetch: refetchExplore, isRefetching: refetchingExplore,
     fetchNextPage: fetchMoreExplore, hasNextPage: hasMoreExplore,
     isFetchingNextPage: fetchingMoreExplore
   } = useInfiniteProducts({ category: categoryFilter }, 24);
-
   const loading = loadingRecent || loadingDeals || loadingTrending || loadingExplore;
   const refreshing = refetchingRecent || refetchingDeals || refetchingTrending || refetchingExplore;
-  const recentProducts = recentData?.success ? recentData.products : [];
+  const recentProducts = useMemo(
+    () => (recentData?.success ? recentData.products : []),
+    [recentData]
+  );
   const trendingProducts = trendingData?.success ? trendingData.products : [];
   const dealsProducts = dealsData?.success ? dealsData.products : [];
   const exploreProducts = exploreData?.pages?.flatMap((p: any) => p.products || []) || [];
-
   // ── Ad carousel refs ────────────────────────────────────────────────────────
   // Using a plain horizontal ScrollView instead of FlatList — pagingEnabled
   // works reliably on ScrollView and avoids the overlap / snap bug that occurs
@@ -179,9 +157,7 @@ export default function Home() {
   const adScrollRef = useRef<ScrollView>(null);
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDragging = useRef(false);
-
   const scrollY = useRef(new Animated.Value(0)).current;
-
   // --- Onboarding Refs & State ---
   const { startTour, markCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -190,10 +166,6 @@ export default function Home() {
   const refCategories = useRef<ScrollView>(null);
   const refChat = useRef<View>(null);
 
-  const captureLayout = (key: string) => (event: any) => {
-    const { x, y, width, height } = event.nativeEvent.layout;
-  };
-
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -201,7 +173,6 @@ export default function Home() {
       });
     }
   };
-
   useEffect(() => {
     // Delay slightly to ensure measurements are accurate after initial render
     const timer = setTimeout(() => {
@@ -209,37 +180,30 @@ export default function Home() {
       measureElement(refActions, 'actions');
       measureElement(refCategories, 'categories');
       measureElement(refChat, 'chat');
-
       // Auto-start logic with safety checks for returning users
       const shouldAutoStart = async () => {
         // 1. Wait for onboarding context to load
         if (onboardingLoading || !user) return;
-
         // 2. Check if already completed
         const state = await storage.getItem('HAS_SEEN_HOME_TOUR');
         if (state === 'true') return;
-
         // 3. LEGACY USER PROTECTION:
         // If account created before April 2026 (when tour was added), 
         // and they are a buyer, we don't force it.
         const createdDate = new Date(user.created_at || Date.now());
         const tourReleaseDate = new Date('2026-04-01');
-
         if (createdDate < tourReleaseDate && (user.role === 'buyer' || user.role === 'customer')) {
           // Silent marker so they don't see it next time either
           markCompleted('home');
           return;
         }
-
         // Auto-start for new users or sellers
         startTour('home');
       };
-
       shouldAutoStart();
     }, 1500);
     return () => clearTimeout(timer);
   }, [markCompleted, onboardingLoading, startTour, user]);
-
   const onboardingSteps = [
     {
       targetLayout: layouts.greeting,
@@ -262,11 +226,9 @@ export default function Home() {
       description: 'Have a question? Chat with sellers instantly to get more details or negotiate.',
     },
   ].filter(s => !!s.targetLayout);
-
   const handleOnboardingComplete = () => {
     markCompleted('home');
   };
-
   // ── Load user name ──────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -281,7 +243,6 @@ export default function Home() {
       } catch { }
     })();
   }, []);
-
   // ── Load promoted ads ───────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -291,7 +252,6 @@ export default function Home() {
       } catch { }
     })();
   }, []);
-
   // ── Auto-advance ad carousel ────────────────────────────────────────────────
   const goToAd = useCallback((idx: number) => {
     const clamped = Math.max(0, Math.min(idx, ads.length - 1));
@@ -299,7 +259,6 @@ export default function Home() {
     adScrollRef.current?.scrollTo({ x: clamped * SLIDE_W, animated: true });
     setAdIndex(clamped);
   }, [ads.length]);
-
   const startTimer = useCallback(() => {
     if (ads.length <= 1) return;
     adTimerRef.current = setInterval(() => {
@@ -312,16 +271,13 @@ export default function Home() {
       }
     }, AD_DELAY);
   }, [ads.length]);
-
   const stopTimer = useCallback(() => {
     if (adTimerRef.current) { clearInterval(adTimerRef.current); adTimerRef.current = null; }
   }, []);
-
   useEffect(() => {
     startTimer();
     return stopTimer;
   }, [startTimer, stopTimer]);
-
   // ── Detect which slide is visible after the user lets go ───────────────────
   const onAdScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     isDragging.current = false;
@@ -331,7 +287,6 @@ export default function Home() {
     stopTimer();
     startTimer();
   };
-
   // ── Location ────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -339,7 +294,6 @@ export default function Home() {
       const cachedTxt = await storage.getItem('CACHED_LOCATION_TEXT');
       const cachedCoordsStr = await storage.getItem('CACHED_LOCATION_COORDS');
       if (cachedTxt) setLocationText(cachedTxt);
-
       // 2. Try fetching Live GPS first
       let liveCoords = null;
       const { status } = await Location.requestForegroundPermissionsAsync();
@@ -351,7 +305,6 @@ export default function Home() {
           console.log('Live GPS error', e);
         }
       }
-
       // 3. Fallback to profile Data if no live GPS
       if (!liveCoords) {
         try {
@@ -370,7 +323,6 @@ export default function Home() {
           console.log('Profile location fallback error', err);
         }
       }
-
       // 4. Reverse Geocode ONLY if moved significantly or no cache
       if (liveCoords) {
         let shouldGeocode = !cachedTxt;
@@ -383,18 +335,16 @@ export default function Home() {
             if (latDiff > 0.005 || lonDiff > 0.005) {
               shouldGeocode = true;
             }
-          } catch (e) { }
+          } catch { }
         } else {
           shouldGeocode = true;
         }
-
         if (shouldGeocode) {
           try {
             const [info] = await Location.reverseGeocodeAsync({
               latitude: liveCoords.latitude,
               longitude: liveCoords.longitude
             });
-
             if (info) {
               const txt = `${info.city ?? info.region ?? info.country ?? 'Unknown'}${info.country ? `, ${info.country}` : ''}`;
               setLocationText(txt);
@@ -410,7 +360,6 @@ export default function Home() {
       }
     })();
   }, []);
-
   // ── Card stagger animation ──────────────────────────────────────────────────
   useEffect(() => {
     if (recentProducts.length > 0) {
@@ -424,9 +373,7 @@ export default function Home() {
       ).start();
     }
   }, [recentProducts]);
-
   const onRefresh = async () => Promise.all([refetchRecent(), refetchDeals(), refetchTrending(), refetchExplore()]);
-
   const goToDetails = (item: any) =>
     safePush('/product/details', {
       id: item._id, title: item.name, price: item.price,
@@ -434,11 +381,9 @@ export default function Home() {
       image: item.images?.[0] || '',
       description: item.description,
     });
-
   // ── Render: single ad slide ─────────────────────────────────────────────────
   const renderAdSlide = (ad: any, i: number) => {
     const isPromoted = !ad.id?.startsWith('f');
-
     if (isPromoted) {
       return (
         <TouchableOpacity
@@ -469,7 +414,6 @@ export default function Home() {
         </TouchableOpacity>
       );
     }
-
     // Static fallback slide
     return (
       <TouchableOpacity
@@ -490,7 +434,6 @@ export default function Home() {
       </TouchableOpacity>
     );
   };
-
   // ── Render: recent card ─────────────────────────────────────────────────────
   const renderRecent = ({ item, index }: { item: any; index: number }) => (
     <Animated.View
@@ -517,7 +460,6 @@ export default function Home() {
       </TouchableOpacity>
     </Animated.View>
   );
-
   // ── Render: trending card ───────────────────────────────────────────────────
   const renderTrending = ({ item }: { item: any }) => (
     <View style={{ marginRight: 14 }}>
@@ -534,7 +476,6 @@ export default function Home() {
       </TouchableOpacity>
     </View>
   );
-
   const renderHorizontalSkeleton = (count: number = 4) => (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.recentList}>
       {Array.from({ length: count }).map((_, idx) => (
@@ -551,7 +492,6 @@ export default function Home() {
       ))}
     </ScrollView>
   );
-
   const renderGridSkeleton = (count: number = 4) => (
     <View style={S.dealsGrid}>
       {Array.from({ length: count }).map((_, idx) => (
@@ -566,7 +506,6 @@ export default function Home() {
       ))}
     </View>
   );
-
   // ── Helper: Grid Card ────────────────────────────────────────────────────────
   const renderGridCard = (item: any) => (
     <TouchableOpacity
@@ -624,17 +563,13 @@ export default function Home() {
       </View>
     </TouchableOpacity>
   );
-
   const isInitialLoading = loading && recentProducts.length === 0 && dealsProducts.length === 0 && trendingProducts.length === 0 && exploreProducts.length === 0;
-
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowStartupSkeleton(false);
     }, MIN_SKELETON_MS);
-
     return () => clearTimeout(timer);
   }, []);
-
   if (showStartupSkeleton || isInitialLoading) {
     return (
       <View style={S.root}>
@@ -645,31 +580,25 @@ export default function Home() {
       </View>
     );
   }
-
   // ── Root ────────────────────────────────────────────────────────────────────
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-
       {/* Watermark */}
       <View style={S.watermark}>
         <Image source={require('../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
-
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
-
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + 10 }]}>
           <View style={S.hdrGlow1} pointerEvents="none" />
           <View style={S.hdrGlow2} pointerEvents="none" />
-
           <View style={S.headerInner} ref={refGreeting} onLayout={() => measureElement(refGreeting, 'greeting')}>
             <TouchableOpacity style={S.locationRow}>
               <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
               <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
               <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.45)" />
             </TouchableOpacity>
-
             <View style={S.headerMainRow}>
               <Text style={S.greeting} numberOfLines={1}>
                 {getGreeting()}
@@ -678,7 +607,6 @@ export default function Home() {
                 ) : null}
                 {' 👋'}
               </Text>
-
               <View style={S.headerActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
                 <TouchableOpacity style={S.headerBtn} onPress={() => safePush('/cart')}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
@@ -695,10 +623,8 @@ export default function Home() {
               </View>
             </View>
           </View>
-
           <View style={S.headerArc} />
         </LinearGradient>
-
         {/* ── Body ───────────────────────────────────────────────────────── */}
         <Animated.ScrollView
           contentContainerStyle={S.scrollContent}
@@ -714,7 +640,6 @@ export default function Home() {
           )}
           scrollEventThrottle={16}
         >
-
           {/* ── Ad carousel — ScrollView + pagingEnabled (no overlap) ─── */}
           <View style={S.carouselWrap}>
             <ScrollView
@@ -734,7 +659,6 @@ export default function Home() {
             >
               {ads.map(renderAdSlide)}
             </ScrollView>
-
             {/* Dot indicators */}
             {ads.length > 1 && (
               <View style={S.dots}>
@@ -745,7 +669,6 @@ export default function Home() {
               </View>
             )}
           </View>
-
           {/* ── Category chips ────────────────────────────────────────────── */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false}
             ref={refCategories}
@@ -761,7 +684,6 @@ export default function Home() {
               );
             })}
           </ScrollView>
-
           {/* ── Recently Added ─────────────────────────────────────────────── */}
           <View style={S.sectionHeader}>
             <Text style={S.sectionTitle}>Recently Added</Text>
@@ -792,7 +714,6 @@ export default function Home() {
                 }
               />
             )}
-
           {/* ── Hot & Trending ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
             <Text style={S.sectionTitle}>Hot & Trending</Text>
@@ -820,7 +741,6 @@ export default function Home() {
                 }
               />
             )}
-
           {/* ── Deals for You ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
             <Text style={S.sectionTitle}>Deals for You</Text>
@@ -849,7 +769,6 @@ export default function Home() {
                 )}
               </View>
             )}
-
           {/* ── Explore ─────────────────────────────────────────────── */}
           <View style={[S.sectionHeader, { marginTop: 8 }]}>
             <Text style={S.sectionTitle}>Explore</Text>
@@ -887,9 +806,7 @@ export default function Home() {
               )}
             </TouchableOpacity>
           )}
-
         </Animated.ScrollView>
-
         {/* ── Chat FAB — moved up from bottom: 88 → 140 ─────────────────── */}
         <TouchableOpacity
           style={S.chatFab}
@@ -907,10 +824,8 @@ export default function Home() {
             )}
           </LinearGradient>
         </TouchableOpacity>
-
         <BottomNav />
       </SafeAreaView>
-
       <SpotlightTour
         visible={isTourActive && activeScreen === 'home'}
         steps={onboardingSteps}
@@ -919,13 +834,11 @@ export default function Home() {
     </View>
   );
 }
-
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
   watermark: { position: 'absolute', bottom: -10, left: -40 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.1 },
-
   // Header
   header: {
     position: 'relative', paddingBottom: 28, zIndex: 10,
@@ -965,9 +878,7 @@ const S = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 26,
     backgroundColor: C.pageBg, borderTopLeftRadius: 26, borderTopRightRadius: 26,
   },
-
   scrollContent: { paddingBottom: 110 },
-
   // ── Ad carousel ─────────────────────────────────────────────────────────────
   carouselWrap: {
     // Centre the scroll view horizontally with 16px margins each side
@@ -1007,11 +918,9 @@ const S = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 6, alignSelf: 'flex-start',
   },
   adCtaTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
-
   dots: { flexDirection: 'row', justifyContent: 'center', gap: 5, marginTop: 10 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.18)' },
   dotActive: { width: 20, height: 6, borderRadius: 3, backgroundColor: C.navy },
-
   // Chips
   chipStrip: { paddingHorizontal: 16, paddingVertical: 14, gap: 8, flexDirection: 'row' },
   chip: {
@@ -1024,7 +933,6 @@ const S = StyleSheet.create({
   chipOn: { backgroundColor: C.lime, borderColor: C.lime },
   chipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   chipTxtOn: { color: C.limeText },
-
   // Section headers
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
@@ -1032,7 +940,6 @@ const S = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body },
   seeAll: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.lime },
-
   // Recent products
   recentList: { paddingLeft: 16, paddingBottom: 20 },
   productCard: {
@@ -1045,7 +952,6 @@ const S = StyleSheet.create({
   productStore: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.subtle, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3 },
   productTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 5 },
   productPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime },
-
   // Deals
   dealsGrid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: 14, justifyContent: 'space-between', paddingBottom: 24 },
   gridCard: {
@@ -1118,7 +1024,6 @@ const S = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
-
   // Empty states
   emptyH: {
     width: width - 64, marginLeft: 16, backgroundColor: C.card, borderRadius: 20,
@@ -1134,7 +1039,6 @@ const S = StyleSheet.create({
   emptySub: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: C.subtle, textAlign: 'center', marginBottom: 14, lineHeight: 18 },
   emptyBtn: { backgroundColor: C.navyMid, paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20 },
   emptyBtnTxt: { color: '#fff', fontSize: 12, fontFamily: 'Montserrat-Bold' },
-
   // Chat FAB — bottom: 140 gives more breathing room above BottomNav
   chatFab: {
     position: 'absolute',

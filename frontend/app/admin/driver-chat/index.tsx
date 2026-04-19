@@ -10,13 +10,11 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
-
 // ─── Responsive helpers ─────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
 // ─── Tokens ─────────────────────────────────────────────────────────────────
 const C = {
   bg:      '#F8FAFC',
@@ -30,24 +28,12 @@ const C = {
   subtle:  '#94A3B8',
   border:  'rgba(12,21,89,0.08)',
 };
-
 // ─── API stubs ───────────────────────────────────────────────────────────────
 // Replace these with real calls from @/services/api
 async function getAdminDriverConversations(): Promise<any[]> {
   // GET /admin/chat/drivers/conversations
   return [];
 }
-
-async function getAdminDriverMessages(driverId: string): Promise<any[]> {
-  // GET /admin/chat/drivers/:driverId/messages
-  return [];
-}
-
-async function sendAdminDriverMessage(driverId: string, text: string): Promise<any> {
-  // POST /admin/chat/drivers/:driverId/messages  { text }
-  return { id: Date.now().toString(), text, sender: 'admin', timestamp: new Date().toISOString(), read: true };
-}
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function formatTime(ts: string): string {
   try {
@@ -58,37 +44,30 @@ function formatTime(ts: string): string {
     return format(d, 'MMM d');
   } catch { return ''; }
 }
-
 function initials(name: string): string {
   return (name || 'D').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 }
-
 // ─── Status pill colours ─────────────────────────────────────────────────────
 const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> = {
   online:  { bg: '#DCFCE7', text: '#166534', dot: '#22c55e' },
   offline: { bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8' },
   busy:    { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B' },
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONVERSATIONS LIST SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
 export default function AdminDriverChatList() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading,       setLoading]       = useState(true);
   const [refreshing,    setRefreshing]    = useState(false);
   const [searchQuery,   setSearchQuery]   = useState('');
   const [filter,        setFilter]        = useState<'all' | 'unread' | 'online'>('all');
-
   const fadeAnim = useRef(new Animated.Value(0)).current;
-
   const loadConversations = useCallback(async () => {
     try {
       const data = await getAdminDriverConversations();
-
       // ── Placeholder data so the UI is never empty during development ──────
       const placeholder: any[] = data.length > 0 ? data : [
         {
@@ -133,7 +112,6 @@ export default function AdminDriverChatList() {
         },
       ];
       setConversations(placeholder);
-
       Animated.timing(fadeAnim, { toValue: 1, duration: 280, useNativeDriver: true }).start();
     } catch (e) {
       console.error('Driver conversations error:', e);
@@ -142,11 +120,8 @@ export default function AdminDriverChatList() {
       setRefreshing(false);
     }
   }, [fadeAnim]);
-
   useEffect(() => { loadConversations(); }, [loadConversations]);
-
   const onRefresh = () => { setRefreshing(true); loadConversations(); };
-
   // ── Filtered list ──────────────────────────────────────────────────────────
   const filtered = conversations.filter((c) => {
     const matchSearch = !searchQuery ||
@@ -158,13 +133,10 @@ export default function AdminDriverChatList() {
       filter === 'online' ? c.status === 'online' : true;
     return matchSearch && matchFilter;
   });
-
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread || 0), 0);
-
   // ── Row render ─────────────────────────────────────────────────────────────
   const renderItem = ({ item }: { item: any }) => {
     const sc = STATUS_COLORS[item.status] ?? STATUS_COLORS.offline;
-
     return (
       <TouchableOpacity
         style={[S.row, item.unread > 0 && S.rowUnread]}
@@ -192,7 +164,6 @@ export default function AdminDriverChatList() {
           {/* Online dot */}
           <View style={[S.statusDot, { backgroundColor: sc.dot }]} />
         </View>
-
         {/* Info */}
         <View style={S.rowInfo}>
           <View style={S.rowTop}>
@@ -229,18 +200,15 @@ export default function AdminDriverChatList() {
       </TouchableOpacity>
     );
   };
-
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <LinearGradient
         colors={[C.navy, C.navyMid]}
         style={[S.header, { paddingTop: insets.top + rs(12) }]}
       >
         <View style={S.hdrGlow} pointerEvents="none" />
-
         <SafeAreaView edges={['left', 'right']}>
           <View style={S.hdrInner}>
             {/* Title row */}
@@ -248,21 +216,18 @@ export default function AdminDriverChatList() {
               <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
                 <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
               </TouchableOpacity>
-
               <View style={S.hdrCenter}>
                 <Text style={S.hdrEye}>Admin</Text>
                 <Text style={S.hdrTitle}>
                   Driver <Text style={{ color: C.lime }}>Chats</Text>
                 </Text>
               </View>
-
               {/* Unread badge pill */}
               <View style={S.hdrPill}>
                 <Text style={S.hdrPillN}>{totalUnread > 0 ? totalUnread : conversations.length}</Text>
                 <Text style={S.hdrPillLbl}>{totalUnread > 0 ? 'unread' : 'drivers'}</Text>
               </View>
             </View>
-
             {/* Search */}
             <View style={[S.searchPill, searchQuery.length > 0 && S.searchPillActive]}>
               <Feather name="search" size={rs(14)} color="rgba(255,255,255,0.5)" />
@@ -287,10 +252,8 @@ export default function AdminDriverChatList() {
             </View>
           </View>
         </SafeAreaView>
-
         <View style={S.hdrArc} />
       </LinearGradient>
-
       {/* ── Filter chips ─────────────────────────────────────────────────── */}
       <View style={S.filterStrip}>
         {(['all', 'unread', 'online'] as const).map((f) => {
@@ -307,7 +270,6 @@ export default function AdminDriverChatList() {
           );
         })}
       </View>
-
       {/* ── List ─────────────────────────────────────────────────────────── */}
       {loading ? (
         <View style={S.loadingWrap}>
@@ -350,13 +312,11 @@ export default function AdminDriverChatList() {
     </View>
   );
 }
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  Styles
 // ─────────────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-
   // Header
   header: {
     paddingBottom: rs(28), position: 'relative',
@@ -409,7 +369,6 @@ const S = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
     backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
   },
-
   // Filter chips
   filterStrip: {
     flexDirection: 'row', gap: rs(8), paddingHorizontal: rs(16),
@@ -425,7 +384,6 @@ const S = StyleSheet.create({
   filterChipOn:    { backgroundColor: C.navy, borderColor: C.navy },
   filterChipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   filterChipTxtOn: { color: '#fff' },
-
   // Conversation row
   row: {
     flexDirection: 'row', alignItems: 'flex-start',
@@ -434,7 +392,6 @@ const S = StyleSheet.create({
     borderBottomWidth: 0.5, borderBottomColor: C.border,
   },
   rowUnread: { backgroundColor: '#F0F4FF' },
-
   // Avatar
   avatarWrap: { position: 'relative', marginRight: rs(13), flexShrink: 0 },
   avatar:     { width: rs(52), height: rs(52), borderRadius: rs(26) },
@@ -447,7 +404,6 @@ const S = StyleSheet.create({
     width: rs(13), height: rs(13), borderRadius: rs(7),
     borderWidth: 2, borderColor: C.card,
   },
-
   // Row content
   rowInfo:    { flex: 1 },
   rowTop: {
@@ -469,7 +425,6 @@ const S = StyleSheet.create({
     paddingHorizontal: rs(5), flexShrink: 0,
   },
   badgeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', color: C.limeText },
-
   // Vehicle chip
   vehicleChip: { flexDirection: 'row', alignItems: 'center', gap: rs(5) },
   vehicleTxt:  { fontSize: rf(10), fontFamily: 'Montserrat-SemiBold', color: C.muted },
@@ -478,7 +433,6 @@ const S = StyleSheet.create({
     borderRadius: rs(10),
   },
   statusPillTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold' },
-
   // Loading / Empty
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   empty: { alignItems: 'center', paddingTop: rs(70), paddingHorizontal: rs(40) },

@@ -1,5 +1,4 @@
 import axios from 'axios';
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
@@ -8,7 +7,6 @@ import { queryClient } from '@/lib/query/client';
 import { socketService } from './socket';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 export { CustomInAppToast };
-
 // API base URL sourced from Expo public environment.
 const getBaseURL = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -17,10 +15,8 @@ const getBaseURL = () => {
   }
   return apiUrl.replace(/\/$/, '');
 };
-
 export const baseURL = getBaseURL();
 export const API_URL = `${baseURL}/api/v1/`;
-
 export const storage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') return localStorage.getItem(key);
@@ -35,7 +31,6 @@ export const storage = {
     else await AsyncStorage.removeItem(key);
   },
 };
-
 export const secureStorage = {
   async getItem(key: string): Promise<string | null> {
     if (Platform.OS === 'web') return localStorage.getItem(key);
@@ -106,7 +101,6 @@ export const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
-
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -210,7 +204,7 @@ api.interceptors.response.use(
           if (sock) {
             sock.auth = { token: newAccessToken };
           }
-        } catch (_) {}
+        } catch {}
  
         processQueue(null, newAccessToken);
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -221,7 +215,7 @@ api.interceptors.response.use(
           await secureStorage.removeItem('userToken');
           await secureStorage.removeItem('refreshToken');
           await storage.removeItem('userId');
-        } catch (_) {}
+        } catch {}
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -236,7 +230,6 @@ api.interceptors.response.use(
         await secureStorage.removeItem('userToken');
         await secureStorage.removeItem('refreshToken');
         await storage.removeItem('userId');
-
         // Only force redirect if we haven't already cleared the session manually
         if (existingToken) {
           router.replace('/login');
@@ -410,7 +403,6 @@ export const updateUserRole = async (role: string) => {
     throw new Error(error.message || 'Network error during role update');
   }
 };
-
 export const updateOnboardingState = async (screen: string, completed: boolean = true) => {
   try {
     const response = await api.put('/auth/onboarding', { screen, completed });
@@ -420,18 +412,14 @@ export const updateOnboardingState = async (screen: string, completed: boolean =
     return null;
   }
 };
-
 // ─── Uploads ───────────────────────────────────────────────────────────────────
-
 export const uploadAvatar = async (uri: string) => {
   try {
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'avatar.jpg';
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
-
     formData.append('avatar', { uri, name: filename, type } as any);
-
     const response = await api.post('/upload/avatar', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -441,16 +429,13 @@ export const uploadAvatar = async (uri: string) => {
     throw new Error(error.message || 'Network error during avatar upload');
   }
 };
-
 export const uploadStoreLogo = async (uri: string) => {
   try {
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'logo.jpg';
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
-
     formData.append('logo', { uri, name: filename, type } as any);
-
     const response = await api.post('/upload/store-logo', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
@@ -477,11 +462,9 @@ export const businessRegister = async (businessData: any) => {
         }
       }
     });
-
     const response = await api.post('/business/create', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
-
     if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
     if (response.data.business?._id) {
       await storage.setItem('currentBusinessId', response.data.business._id);
@@ -521,7 +504,6 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
     const formData = new FormData();
     let hasFiles = false;
     const isLocalFileUri = (value: string) => /^(file|content|ph|assets-library):\/\//i.test(value);
-
     Object.keys(updateData).forEach(key => {
       const value = updateData[key];
       if (value !== undefined && value !== null) {
@@ -537,7 +519,6 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
         }
       }
     });
-
     const config = hasFiles ? { headers: { 'Content-Type': 'multipart/form-data' } } : {};
     const response = await api.put(`/business/update/${businessId}`, hasFiles ? formData : updateData, config);
     return response.data;
@@ -553,16 +534,6 @@ export const verifyBusinessDetails = async (businessId: string, details: any) =>
     verificationStatus: 'pending',
   });
 };
-
-
-
-
-
-
-
-
-
-
  
 // ─── Cart ─────────────────────────────────────────────────────────────────────
  
@@ -674,7 +645,7 @@ export const checkIsFavorite = async (productId: string) => {
   try {
     const response = await api.get(`/favorites/check/${productId}`);
     return response.data;
-  } catch (error: any) {
+  } catch {
     return { isFavorite: false };
   }
 };
@@ -905,7 +876,6 @@ export const getBusinessAnalytics = async (
     throw new Error(error.message || 'Network error');
   }
 };
-
 export const getBusinessReviews = async (businessId: string) => {
   try {
     const response = await api.get(`/business/${businessId}/reviews`);
@@ -915,7 +885,6 @@ export const getBusinessReviews = async (businessId: string) => {
     throw new Error(error.message || 'Network error fetching business reviews');
   }
 };
-
 export const replyToReview = async (reviewId: string, text: string) => {
   try {
     const response = await api.post(`/reviews/${reviewId}/comments`, { text });
@@ -1337,7 +1306,6 @@ export const createDriverReview = async (reviewData: {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const getReviewableProducts = async () => {
   try {
     const response = await api.get('/reviews/reviewable-products');
@@ -1601,7 +1569,6 @@ export const getDriverProfile = async () => {
         throw new Error(error.userMessage || extractErrorMessage(error));
     }
 };
-
 export const updateDriverAvailability = async (isAvailable: boolean) => {
     try {
         const response = await api.put('/deliveries/driver/availability', { isAvailable });
@@ -1610,8 +1577,6 @@ export const updateDriverAvailability = async (isAvailable: boolean) => {
         throw new Error(error.userMessage || extractErrorMessage(error));
     }
 };
-
-
 export const submitDriverVerification = async (formData: FormData) => {
     try {
         const response = await api.post('/deliveries/verify', formData, {
@@ -1622,10 +1587,7 @@ export const submitDriverVerification = async (formData: FormData) => {
         throw new Error(error.userMessage || extractErrorMessage(error));
     }
 };
-
 // ─── Admin Driver Verifications ─────────────────────────────────────────────
-
-
 export const getPendingDriverVerifications = async () => {
   try {
     const response = await api.get('/admin/driver-verifications');
@@ -1635,7 +1597,6 @@ export const getPendingDriverVerifications = async () => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const getDriverVerificationDetails = async (id: string) => {
   try {
     const response = await api.get(`/admin/driver-verifications/${id}`);
@@ -1644,7 +1605,6 @@ export const getDriverVerificationDetails = async (id: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const approveDriverVerification = async (id: string) => {
   try {
     const response = await api.put(`/admin/driver-verifications/${id}/approve`);
@@ -1653,7 +1613,6 @@ export const approveDriverVerification = async (id: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const rejectDriverVerification = async (id: string, reason: string) => {
   try {
     const response = await api.put(`/admin/driver-verifications/${id}/reject`, { reason });
@@ -1662,9 +1621,7 @@ export const rejectDriverVerification = async (id: string, reason: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 // ─── Advertising / Banner Campaigns ──────────────────────────────────────────
-
 export const createBannerCampaign = async (formData: FormData) => {
   try {
     const response = await api.post('/advertising/banners', formData, {
@@ -1675,7 +1632,6 @@ export const createBannerCampaign = async (formData: FormData) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const getMyBannerCampaigns = async () => {
   try {
     const response = await api.get('/advertising/banners/my');
@@ -1684,7 +1640,6 @@ export const getMyBannerCampaigns = async () => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const getAllBannerCampaigns = async () => {
   try {
     const response = await api.get('/advertising/banners/all');
@@ -1693,7 +1648,6 @@ export const getAllBannerCampaigns = async () => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const updateBannerCampaignStatus = async (
   campaignId: string,
   status: 'Active' | 'Rejected' | 'Approved',
@@ -1709,7 +1663,6 @@ export const updateBannerCampaignStatus = async (
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const getActiveBanners = async () => {
   try {
     const response = await api.get('/advertising/banners/active');
@@ -1718,7 +1671,6 @@ export const getActiveBanners = async () => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
-
 export const initializeBannerPayment = async (payload: { campaignId: string; email: string }) => {
   try {
     const response = await api.post('/advertising/banners/pay-initialize', payload);

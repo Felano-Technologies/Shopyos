@@ -8,26 +8,19 @@ import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/context/CartContext';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-const { width } = Dimensions.get('window');
-
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-
   const { items: cartItems, removeFromCart, updateQuantity } = useCart();
-
   const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
-
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refQty = useRef<View>(null);
   const refCheckout = useRef<View>(null);
-
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -35,7 +28,6 @@ export default function CartScreen() {
       });
     }
   };
-
   useEffect(() => {
     if (cartItems.length > 0) {
       const timer = setTimeout(() => {
@@ -46,7 +38,6 @@ export default function CartScreen() {
       return () => clearTimeout(timer);
     }
   }, [cartItems.length, startTour]);
-
   const onboardingSteps = [
     {
       targetLayout: layouts.qty,
@@ -59,16 +50,12 @@ export default function CartScreen() {
       description: 'Proceed to checkout to choose your delivery and payment options.',
     },
   ].filter(s => !!s.targetLayout);
-
   const handleOnboardingComplete = () => {
     markCompleted('cart');
   };
-
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0C1559" />
-
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
           <View style={styles.headerRow}>
@@ -78,7 +65,6 @@ export default function CartScreen() {
           </View>
         </SafeAreaView>
       </LinearGradient>
-
       <FlatList
         data={cartItems}
         keyExtractor={item => item.id}
@@ -115,7 +101,6 @@ export default function CartScreen() {
           </View>
         }
       />
-
       {cartItems.length > 0 && (
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
@@ -135,7 +120,6 @@ export default function CartScreen() {
           </TouchableOpacity>
         </View>
       )}
-
       <SpotlightTour 
         visible={isTourActive && activeScreen === 'cart'} 
         steps={onboardingSteps}
@@ -144,7 +128,6 @@ export default function CartScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },

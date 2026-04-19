@@ -7,24 +7,18 @@ import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-
 import Swiper from 'react-native-swiper';
-
-
 const { width } = Dimensions.get('window');
-
 const RegisterScreen = () => {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [countryCode, setCountryCode] = useState('GH');
+  const [, setCountryCode] = useState('GH');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [callingCode, setCallingCode] = useState('233');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [loading, setLoading] = useState(false);
-  const isDarkMode = Appearance.getColorScheme() === 'dark';
-
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     // Remove leading plus from code if present to prevent ++
     const cleanCode = callingCode.replace('+', '');
@@ -32,8 +26,6 @@ const RegisterScreen = () => {
     const formattedNumber = phoneNumber.replace(/^0/, '');
     return `+${cleanCode}${formattedNumber}`;
   };
-
-
   const handleRegister = async () => {
     try {
       const fullPhoneNumber = formatPhoneNumber(callingCode, phoneNumber);
@@ -63,8 +55,6 @@ const RegisterScreen = () => {
       setLoading(false);
     }
   };
-
-
   return (
     <LinearGradient
       colors={['#EAF0FF', '#F4F6FF']}
@@ -77,7 +67,6 @@ const RegisterScreen = () => {
       >
         <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent}>
-
             {/* 🖼️ Top Banner Carousel */}
             <View style={styles.bannerContainer}>
               <Swiper
@@ -111,7 +100,6 @@ const RegisterScreen = () => {
                 </View>
               </Swiper>
             </View>
-
             {/* 🧾 Input fields */}
             <View style={styles.formContainer}>
               <View style={styles.inputContainer}>
@@ -125,7 +113,6 @@ const RegisterScreen = () => {
                   onChangeText={setName}
                 />
               </View>
-
               <View style={styles.inputContainer}>
                 <Ionicons name="mail" size={20} color="#1b1b1b" style={styles.inputIcon} />
                 <TextInput
@@ -139,7 +126,6 @@ const RegisterScreen = () => {
                   onChangeText={setEmail}
                 />
               </View>
-
               <View style={styles.inputContainer}>
                 <TouchableOpacity
                   style={styles.countryCodeButton}
@@ -162,13 +148,11 @@ const RegisterScreen = () => {
                   onSelect={(country) => {
                     // 1. Use 'code' instead of 'cca2'
                     setCountryCode(country.code);
-
                     // 2. Use 'dial_code' instead of 'callingCode[0]'
                     setCallingCode(country.dial_code);
                   }}
                 />
               </View>
-
               <View style={styles.inputContainer}>
                 <Ionicons name="lock-closed" size={20} color="#1b1b1b" style={styles.inputIcon} />
                 <TextInput
@@ -189,7 +173,6 @@ const RegisterScreen = () => {
                   />
                 </TouchableOpacity>
               </View>
-
               {/* Sign Up Button */}
               <TouchableOpacity style={styles.button} onPress={handleRegister}>
                 {loading ? (
@@ -198,9 +181,7 @@ const RegisterScreen = () => {
                   <Text style={styles.buttonText}>Sign Up</Text>
                 )}
               </TouchableOpacity>
-
               <Text style={styles.roleText}>Select your role to continue registration.</Text>
-
               {/* Register (outlined pill) */}
               <TouchableOpacity
                 style={styles.loginButton}
@@ -221,18 +202,14 @@ const RegisterScreen = () => {
     </LinearGradient>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#e9f0ff' },
   scrollContent: { flexGrow: 1, alignItems: 'center', paddingVertical: 30 },
-
   bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 30 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
-
   dot: { backgroundColor: '#ccc', width: 6, height: 6, borderRadius: 3, margin: 3 },
   activeDot: { backgroundColor: '#1b7c22', width: 6, height: 6, borderRadius: 3, margin: 3 },
-
   formContainer: { width: '100%', alignItems: 'center' },
   inputContainer: {
     flexDirection: 'row',
@@ -250,7 +227,6 @@ const styles = StyleSheet.create({
   inputIcon: { marginRight: 10 },
   passwordInput: { paddingRight: 35 },
   eyeIcon: { position: 'absolute', right: 16, padding: 4 },
-
   countryCodeButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -261,7 +237,6 @@ const styles = StyleSheet.create({
   },
   callingCode: { fontSize: 16, color: '#000', fontWeight: '500' },
   phoneInput: { marginLeft: 4 },
-
   button: {
     width: '90%',
     height: 50,
@@ -273,7 +248,6 @@ const styles = StyleSheet.create({
   },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   roleText: { marginTop: 20, fontSize: 14, color: '#000', textAlign: 'center', fontWeight: '500' },
-
   bottomLogos: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -289,7 +263,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: -30,
     marginBottom: -270,
-
   },
   brandLogo: {
     width: 90,
@@ -317,5 +290,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 });
-
 export default RegisterScreen;

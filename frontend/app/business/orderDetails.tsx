@@ -16,12 +16,10 @@ import { useChat } from '@/context/ChatContext';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
-
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
 const C = {
   bg:      '#F8FAFC',
   navy:    '#0C1559',
@@ -33,7 +31,6 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
-
 const STATUS_THEME: Record<string, { color: string; bg: string; bar: string; label: string }> = {
   pending:          { color: '#D97706', bg: '#FEF3C7', bar: '#F59E0B', label: 'Awaiting Payment' },
   paid:             { color: '#059669', bg: '#DCFCE7', bar: '#22c55e', label: 'Payment Received'  },
@@ -43,25 +40,20 @@ const STATUS_THEME: Record<string, { color: string; bg: string; bar: string; lab
   delivered:        { color: '#166534', bg: '#DCFCE7', bar: '#84cc16', label: 'Delivered'          },
   cancelled:        { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', label: 'Cancelled'         },
 };
-
 const getTheme = (s: string) =>
   STATUS_THEME[s.toLowerCase()] ?? { color: C.muted, bg: '#F1F5F9', bar: '#94A3B8', label: s };
-
 export default function OrderDetailsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id }  = useLocalSearchParams();
-
   // ── ALL HOOKS FIRST ────────────────────────────────────────────────────────
   const queryClient = useQueryClient();
   const { isChecking: isGuardChecking, isVerified: isGuardVerified } = useSellerGuard();
-  const { startCall } = useChat();
   const [order,         setOrder]         = useState<any>(null);
   const [loading,       setLoading]       = useState(true);
   const [chatLoading,   setChatLoading]   = useState(false);
   const [updating,      setUpdating]      = useState(false);
   const [currentStatus, setCurrentStatus] = useState('');
-
   const fetchOrder = useCallback(async () => {
     try {
       const data = await getOrderDetails(id as string);
@@ -117,7 +109,6 @@ export default function OrderDetailsScreen() {
       setLoading(false);
     }
   }, [id]);
-
   const handleChat = async (ownerId: string, name: string, avatar: string) => {
     if (chatLoading || !ownerId) return;
     try {
@@ -134,23 +125,20 @@ export default function OrderDetailsScreen() {
           }
         } as any);
       }
-    } catch (error: any) {
+    } catch {
       Alert.alert("Error", "Could not open chat.");
     } finally {
       setChatLoading(false);
     }
   };
-
   useEffect(() => { if (id) fetchOrder(); }, [fetchOrder, id]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
-
   // Safe early returns now
   if (isGuardChecking || !isGuardVerified) {
     return (
       <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
     );
   }
-
   if (loading || !order) {
     return (
       <View style={S.root}>
@@ -169,10 +157,8 @@ export default function OrderDetailsScreen() {
       </View>
     );
   }
-
   const theme = getTheme(currentStatus);
   const isPaid = currentStatus === 'paid' || order.payment.paymentStatus === 'success';
-
   const updateStatus = async (newStatus: string) => {
     try {
       setUpdating(true);
@@ -188,25 +174,21 @@ export default function OrderDetailsScreen() {
       setUpdating(false);
     }
   };
-
   const confirmAction = (label: string, newStatus: string) => {
     Alert.alert(`Mark as ${label}?`, 'This will update the order status for the customer.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Confirm', onPress: () => updateStatus(newStatus) },
     ]);
   };
-
   const dateStr = (() => {
     try { return format(new Date(order.date), 'MMM dd, yyyy'); } catch { return ''; }
   })();
   const timeStr = (() => {
     try { return format(new Date(order.date), 'hh:mm a'); } catch { return ''; }
   })();
-
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -218,7 +200,6 @@ export default function OrderDetailsScreen() {
             style={[S.header, { paddingTop: insets.top + rs(12) }]}
           >
             <View style={S.hdrGlow} pointerEvents="none" />
-
             <View style={S.hdrRow}>
               <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
                 <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -228,7 +209,6 @@ export default function OrderDetailsScreen() {
                 <Ionicons name="refresh" size={rs(18)} color="rgba(255,255,255,0.85)" />
               </TouchableOpacity>
             </View>
-
             <View style={S.hdrSummary}>
               <View style={{ flex: 1, marginRight: rs(12) }}>
                 <Text style={S.hdrLbl}>Order Number</Text>
@@ -239,10 +219,8 @@ export default function OrderDetailsScreen() {
                 <Text style={S.hdrTime}>{timeStr}</Text>
               </View>
             </View>
-
             <View style={S.hdrArc} />
           </LinearGradient>
-
           {/* ── Status card — floats over header ───────────────────────── */}
           <View style={S.statusCard}>
             <View style={[S.statusBar, { backgroundColor: theme.bar }]} />
@@ -259,7 +237,6 @@ export default function OrderDetailsScreen() {
               )}
             </View>
           </View>
-
           {/* ── Workflow actions ───────────────────────────────────────── */}
           {!['delivered', 'cancelled'].includes(currentStatus) && (
             <View style={S.section}>
@@ -307,7 +284,6 @@ export default function OrderDetailsScreen() {
               {updating && <ActivityIndicator size="small" color={C.navy} style={{ marginTop: rs(8) }} />}
             </View>
           )}
-
           {/* ── Customer & delivery ────────────────────────────────────── */}
           <View style={S.section}>
             <Text style={S.sectionLbl}>Delivery Information</Text>
@@ -340,9 +316,7 @@ export default function OrderDetailsScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-
               <View style={S.divider} />
-
               <View style={S.addressRow}>
                 <Ionicons name="location" size={rs(16)} color="#EF4444" />
                 <Text style={S.addressTitle}>Delivery Address</Text>
@@ -359,7 +333,6 @@ export default function OrderDetailsScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
           {/* ── Driver Info (if assigned) ──────────────────────────────── */}
           {order.driver && (
             <View style={S.section}>
@@ -396,7 +369,6 @@ export default function OrderDetailsScreen() {
                </View>
             </View>
           )}
-
           {/* ── Order items ────────────────────────────────────────────── */}
           <View style={S.section}>
             <Text style={S.sectionLbl}>Order Items ({order.items.length})</Text>
@@ -416,7 +388,6 @@ export default function OrderDetailsScreen() {
               ))}
             </View>
           </View>
-
           {/* ── Billing summary ────────────────────────────────────────── */}
           <View style={S.section}>
             <Text style={S.sectionLbl}>Billing Summary</Text>
@@ -425,26 +396,22 @@ export default function OrderDetailsScreen() {
                 <Text style={S.summaryLbl}>Subtotal</Text>
                 <Text style={S.summaryVal}>₵{order.payment.subtotal.toFixed(2)}</Text>
               </View>
-
               {order.payment.tax > 0 && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryLbl}>Taxes & Fees</Text>
                   <Text style={S.summaryVal}>₵{order.payment.tax.toFixed(2)}</Text>
                 </View>
               )}
-
               <View style={S.summaryRow}>
                 <Text style={S.summaryLbl}>Delivery fee</Text>
                 <Text style={S.summaryVal}>₵{order.payment.deliveryFee.toFixed(2)}</Text>
               </View>
-
               {order.payment.discount > 0 && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryLbl}>Discount</Text>
                   <Text style={[S.summaryVal, { color: '#16a34a' }]}>-₵{order.payment.discount.toFixed(2)}</Text>
                 </View>
               )}
-
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={S.totalLbl}>Total</Text>
@@ -456,18 +423,15 @@ export default function OrderDetailsScreen() {
               </View>
             </View>
           </View>
-
         </ScrollView>
       </SafeAreaView>
     </View>
   );
 }
-
 const S = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   scroll: { flexGrow: 1 },
-
   header: {
     paddingHorizontal: rs(20), paddingBottom: rs(28),
     position: 'relative', elevation: 10, shadowColor: C.navy,
@@ -495,7 +459,6 @@ const S = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
     backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
-
   // Status card
   statusCard: {
     backgroundColor: C.card, marginHorizontal: rs(16), marginTop: rs(8),
@@ -513,7 +476,6 @@ const S = StyleSheet.create({
     borderRadius: rs(12), borderWidth: 1, borderColor: '#86EFAC',
   },
   paidBadgeTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: '#059669' },
-
   // Sections
   section:    { marginTop: rs(20), paddingHorizontal: rs(16) },
   sectionLbl: {
@@ -526,7 +488,6 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
   divider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(14) },
-
   // Actions
   actionRow: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(10) },
   actionBtn: {
@@ -534,7 +495,6 @@ const S = StyleSheet.create({
     paddingVertical: rs(10), paddingHorizontal: rs(14), borderRadius: rs(14),
   },
   actionBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold' },
-
   // Customer
   customerRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12), marginBottom: rs(4) },
   avatar: {
@@ -561,14 +521,12 @@ const S = StyleSheet.create({
     paddingHorizontal: rs(12), paddingVertical: rs(6), borderRadius: rs(10),
   },
   mapBtnTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: C.navy },
-
   // Items
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
   itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
   itemName: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(3) },
   itemMeta: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
   itemTotal: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
-
   // Billing
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(10) },
   summaryLbl: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },

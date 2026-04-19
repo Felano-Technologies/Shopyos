@@ -21,9 +21,6 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useMyBusinesses, useUpdateBusiness } from '@/hooks/useBusiness';
-
-const { width } = Dimensions.get('window');
-
 const InputField = React.memo(function InputField({
   label,
   value,
@@ -53,11 +50,9 @@ const InputField = React.memo(function InputField({
     </View>
   );
 });
-
 const BusinessUpdateScreen = () => {
   const { data: bizData, isLoading: loadingData } = useMyBusinesses();
   const updateMutation = useUpdateBusiness();
-
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     businessName: '',
@@ -71,20 +66,16 @@ const BusinessUpdateScreen = () => {
     instagram: '',
     facebook: ''
   });
-
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [logoChanged, setLogoChanged] = useState(false);
   const [coverChanged, setCoverChanged] = useState(false);
-
-  const [uploadLoading, setUploadLoading] = useState(false);
-
+  const [uploadLoading, ] = useState(false);
   const categories = [
     'Fashion & Apparel', 'Electronics', 'Home & Living', 'Art & Crafts',
     'Beauty & Personal Care', 'Food & Beverages', 'Jewelry & Accessories',
     'Sports & Outdoors', 'Other'
   ];
-
   // --- Map Data to Form ---
   useEffect(() => {
     if (bizData?.success && bizData.businesses.length > 0) {
@@ -108,7 +99,6 @@ const BusinessUpdateScreen = () => {
       setCoverImage(biz.banner_url || biz.coverImage || null);
     }
   }, [bizData]);
-
   // --- Logic ---
   const pickImage = async (type: 'logo' | 'cover') => {
     try {
@@ -117,14 +107,12 @@ const BusinessUpdateScreen = () => {
         Alert.alert('Permission Required', 'We need camera roll permissions.');
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,
       });
-
       if (!result.canceled) {
         const uri = result.assets[0].uri;
         if (type === 'logo') {
@@ -135,25 +123,21 @@ const BusinessUpdateScreen = () => {
           setCoverChanged(true);
         }
       }
-    } catch (error) {
+    } catch {
       Alert.alert('Error', 'Failed to pick image');
     }
   };
-
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
-
   const handleUpdate = async () => {
     if (!formData.businessName.trim() || !formData.phone.trim()) {
       Alert.alert('Required Fields', 'Business Name and Phone are required.');
       return;
     }
-
     try {
       const logoInput = logoChanged ? logo : logo;
       const coverImageInput = coverChanged ? coverImage : coverImage;
-
       const updateData = {
         ...formData,
         store_name: formData.businessName, // Ensure compatibility with backend mapping
@@ -165,14 +149,11 @@ const BusinessUpdateScreen = () => {
           facebook: formData.facebook
         }
       };
-
       if (!businessId) throw new Error("Business ID missing");
-
       const response = await updateMutation.mutateAsync({
         id: businessId,
         data: updateData
       });
-
       if (response.success) {
         Alert.alert('Success', 'Business profile updated successfully!', [
           { text: 'OK', onPress: () => router.back() }
@@ -183,7 +164,6 @@ const BusinessUpdateScreen = () => {
       Alert.alert('Update Failed', error.message || 'Please try again.');
     }
   };
-
   if (loadingData) {
     return (
       <View style={styles.loadingContainer}>
@@ -191,7 +171,6 @@ const BusinessUpdateScreen = () => {
       </View>
     );
   }
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
@@ -205,7 +184,6 @@ const BusinessUpdateScreen = () => {
           />
         </View>
       </View>
-
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <KeyboardAvoidingView 
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
@@ -231,7 +209,6 @@ const BusinessUpdateScreen = () => {
                 <View style={{ width: 40 }} />
             </View>
           </LinearGradient>
-
           {/* --- Media Card (Cover + Logo) --- */}
           <View style={styles.mediaCard}>
              {/* Cover Image */}
@@ -248,7 +225,6 @@ const BusinessUpdateScreen = () => {
                     <Feather name="camera" size={14} color="#FFF" />
                 </View>
              </TouchableOpacity>
-
              {/* Logo */}
              <TouchableOpacity style={styles.logoWrapper} onPress={() => pickImage('logo')}>
                 {logo ? (
@@ -263,7 +239,6 @@ const BusinessUpdateScreen = () => {
                 </View>
              </TouchableOpacity>
           </View>
-
           {/* --- Form Section --- */}
           <View style={styles.formSection}>
             
@@ -277,7 +252,6 @@ const BusinessUpdateScreen = () => {
                 icon="briefcase"
               onChange={handleInputChange}
             />
-
             <InputField 
                 label="Description" 
                 value={formData.description} 
@@ -287,7 +261,6 @@ const BusinessUpdateScreen = () => {
                 icon="file-text"
                 onChange={handleInputChange}
             />
-
             {/* Categories */}
             <View style={styles.inputContainer}>
                 <Text style={styles.label}>Category</Text>
@@ -309,9 +282,7 @@ const BusinessUpdateScreen = () => {
                     ))}
                 </ScrollView>
             </View>
-
             <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Contact Information</Text>
-
             <InputField 
                 label="Phone Number" 
                 value={formData.phone} 
@@ -321,7 +292,6 @@ const BusinessUpdateScreen = () => {
                 icon="phone"
                 onChange={handleInputChange}
             />
-
             <View style={styles.row}>
                 <View style={{ flex: 1, marginRight: 10 }}>
                     <InputField label="City" value={formData.city} field="city" placeholder="Accra" icon="map-pin" onChange={handleInputChange} />
@@ -330,11 +300,8 @@ const BusinessUpdateScreen = () => {
                     <InputField label="Country" value={formData.country} field="country" placeholder="Ghana" icon="flag" onChange={handleInputChange} />
                 </View>
             </View>
-
                 <InputField label="Address" value={formData.address} field="address" placeholder="123 Independence Ave" icon="map" onChange={handleInputChange} />
-
             <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Social Media</Text>
-
             <InputField label="Website" value={formData.website} field="website" placeholder="https://..." icon="globe" keyboardType="url" onChange={handleInputChange} />
             
             <View style={styles.row}>
@@ -345,7 +312,6 @@ const BusinessUpdateScreen = () => {
                 <InputField label="Facebook" value={formData.facebook} field="facebook" placeholder="Page Name" icon="facebook" onChange={handleInputChange} />
                 </View>
             </View>
-
             {/* Save Button */}
             <TouchableOpacity
                 style={styles.saveButton}
@@ -368,16 +334,13 @@ const BusinessUpdateScreen = () => {
                     )}
                 </LinearGradient>
             </TouchableOpacity>
-
           </View>
-
         </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -408,7 +371,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     opacity: 0.08,
   },
-
   // Header
   headerContainer: {
     paddingTop: 50,
@@ -435,7 +397,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#FFF',
   },
-
   // Media Card (Floating)
   mediaCard: {
     backgroundColor: '#FFF',
@@ -534,7 +495,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFF',
   },
-
   // Form
   formSection: {
     paddingHorizontal: 20,
@@ -607,7 +567,6 @@ const styles = StyleSheet.create({
   categoryTextInactive: {
     color: '#64748B',
   },
-
   // Save Button
   saveButton: {
     marginTop: 20,
@@ -632,5 +591,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
   },
 });
-
 export default BusinessUpdateScreen;

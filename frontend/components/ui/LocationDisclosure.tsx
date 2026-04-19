@@ -7,7 +7,6 @@
  *  2. It does so even in the background
  *  3. How the data is used
  */
-
 import React, { useEffect, useRef } from 'react';
 import {
   View,
@@ -21,9 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width, height } = Dimensions.get('window');
-
+const { width } = Dimensions.get('window');
 interface LocationDisclosureProps {
   /** Whether the modal is visible */
   visible: boolean;
@@ -38,7 +35,6 @@ interface LocationDisclosureProps {
    */
   context?: 'driver' | 'general';
 }
-
 const C = {
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
@@ -49,7 +45,6 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
-
 export default function LocationDisclosure({
   visible,
   onAccept,
@@ -58,7 +53,6 @@ export default function LocationDisclosure({
 }: LocationDisclosureProps) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(60)).current;
-
   useEffect(() => {
     if (visible) {
       Animated.parallel([
@@ -70,9 +64,7 @@ export default function LocationDisclosure({
       slideAnim.setValue(60);
     }
   }, [fadeAnim, slideAnim, visible]);
-
   const isDriver = context === 'driver';
-
   const features = isDriver
     ? [
         {
@@ -114,7 +106,6 @@ export default function LocationDisclosure({
           desc: 'Updates are infrequent and pause when you are stationary to preserve battery life.',
         },
       ];
-
   return (
     <Modal
       visible={visible}
@@ -130,7 +121,6 @@ export default function LocationDisclosure({
             { opacity: fadeAnim },
           ]}
         />
-
         <Animated.View
           style={[
             styles.card,
@@ -147,19 +137,16 @@ export default function LocationDisclosure({
           >
             <Ionicons name="location" size={32} color="#fff" />
           </LinearGradient>
-
           <Text style={styles.title}>
             {isDriver
               ? 'Background Location Required'
               : 'Location Access'}
           </Text>
-
           <Text style={styles.subtitle}>
             {isDriver
               ? 'Shopyos needs access to your location even when the app is closed or not in use to provide real-time delivery tracking to customers.'
               : 'Shopyos uses your location in the background to show nearby stores and keep your area up to date.'}
           </Text>
-
           {/* Feature list */}
           <View style={styles.featureList}>
             {features.map((f, i) => (
@@ -182,7 +169,6 @@ export default function LocationDisclosure({
               </View>
             ))}
           </View>
-
           {/* Permission hint */}
           <View style={styles.permissionHint}>
             <Feather name="info" size={14} color={C.muted} />
@@ -192,7 +178,6 @@ export default function LocationDisclosure({
                 : 'On the next screen, please select "Always Allow" to enable background tracking.'}
             </Text>
           </View>
-
           {/* Buttons */}
           <TouchableOpacity style={styles.acceptBtn} onPress={onAccept} activeOpacity={0.85}>
             <LinearGradient
@@ -203,7 +188,6 @@ export default function LocationDisclosure({
               <Text style={styles.acceptText}>I Understand, Continue</Text>
             </LinearGradient>
           </TouchableOpacity>
-
           <TouchableOpacity style={styles.declineBtn} onPress={onDecline} activeOpacity={0.7}>
             <Text style={styles.declineText}>Maybe Later</Text>
           </TouchableOpacity>
@@ -212,7 +196,6 @@ export default function LocationDisclosure({
     </Modal>
   );
 }
-
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,

@@ -14,12 +14,10 @@ import { queryClient } from '@/lib/query/client';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useChat } from '@/context/ChatContext';
-
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
 const C = {
   bg: '#F8FAFC',
   navy: '#0C1559',
@@ -31,7 +29,6 @@ const C = {
   muted: '#64748B',
   subtle: '#94A3B8',
 };
-
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon: any; label: string }> = {
   pending: { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', icon: 'time-outline', label: 'Waiting for Store' },
@@ -46,7 +43,6 @@ const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon:
 };
 const getStatusCfg = (s: string) =>
   STATUS_CFG[s.toLowerCase()] ?? { color: C.muted, bg: '#F3F4F6', bar: '#9CA3AF', icon: 'help-circle-outline', label: s };
-
 // ─── Progress timeline steps ──────────────────────────────────────────────────
 const TIMELINE = [
   { id: 'pending', label: 'Ordered', icon: 'cart-outline' },
@@ -57,18 +53,15 @@ const TIMELINE = [
 ];
 // Status rank for progress comparison
 const STATUS_RANK = ['pending', 'paid', 'confirmed', 'processing', 'ready_for_pickup', 'picked_up', 'in_transit', 'delivered'];
-
 const OrderDetailsScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const { startCall } = useChat();
   const [isCancelling, setIsCancelling] = useState(false);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-
   const fetchOrder = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
@@ -81,13 +74,12 @@ const OrderDetailsScreen = () => {
           if (pollInterval.current) { clearInterval(pollInterval.current); pollInterval.current = null; }
         }
       }
-    } catch (e) {
+    } catch {
       if (showLoading) Alert.alert('Error', 'Failed to load order details');
     } finally {
       if (showLoading) setLoading(false);
     }
   }, [id]);
-
   useEffect(() => {
     if (id) {
       fetchOrder(true);
@@ -95,7 +87,6 @@ const OrderDetailsScreen = () => {
     }
     return () => { if (pollInterval.current) clearInterval(pollInterval.current); };
   }, [fetchOrder, id]);
-
   const handleCancelOrder = () => {
     Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
       { text: 'No', style: 'cancel' },
@@ -120,9 +111,7 @@ const OrderDetailsScreen = () => {
       },
     ]);
   };
-
   const [chatLoading, setChatLoading] = useState(false);
-
   const handleChat = async (ownerId: string, storeName: string, logoUrl: string) => {
     if (chatLoading || !ownerId) return;
     try {
@@ -139,13 +128,12 @@ const OrderDetailsScreen = () => {
           }
         } as any);
       }
-    } catch (error: any) {
+    } catch {
       Alert.alert("Error", "Could not open chat with the store.");
     } finally {
       setChatLoading(false);
     }
   };
-
   // ── Loading skeleton ────────────────────────────────────────────────────────
   if (loading) {
     return (
@@ -165,7 +153,6 @@ const OrderDetailsScreen = () => {
       </View>
     );
   }
-
   // ── Order not found ─────────────────────────────────────────────────────────
   if (!order) {
     return (
@@ -180,13 +167,11 @@ const OrderDetailsScreen = () => {
       </View>
     );
   }
-
   // ── Derived values ──────────────────────────────────────────────────────────
   const statusCfg = getStatusCfg(order.status);
   const delivery = order.deliveries?.[0];
   const driver = delivery?.driver;
   const currentRank = STATUS_RANK.indexOf(order.status.toLowerCase());
-
   // ── Grand total calculation ─────────────────────────────────────────────────
   // Priority: sum from order_items (most accurate) → total_amount field → payment amount
   const itemsSubtotal: number = (order.order_items ?? []).reduce(
@@ -195,27 +180,21 @@ const OrderDetailsScreen = () => {
   const deliveryFee: number = parseFloat(order.delivery_fee || 0);
   const taxAmount: number = parseFloat(order.tax || 0);
   const discount: number = parseFloat(order.discount || 0);
-
   // Use total_amount from backend if present, otherwise compute from items
   const grandTotal: number =
     order.total_amount
       ? parseFloat(order.total_amount)
       : itemsSubtotal + deliveryFee + taxAmount - discount;
-
   // Date string
   let dateStr = '';
   try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch { }
-
   const isLiveTrackable = ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
-
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
         <View style={S.hdrGlow} pointerEvents="none" />
-
         <View style={S.hdrRow}>
           <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
@@ -243,7 +222,6 @@ const OrderDetailsScreen = () => {
             <Feather name="map" size={rs(18)} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
         </View>
-
         {/* Order number + status pill */}
         <View style={S.hdrMeta}>
           <View style={{ flex: 1, marginRight: 15 }}>
@@ -255,15 +233,12 @@ const OrderDetailsScreen = () => {
             <Text style={[S.statusTxt, { color: statusCfg.color }]}>{statusCfg.label}</Text>
           </View>
         </View>
-
         <View style={S.hdrArc} />
       </LinearGradient>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[S.scrollContent, { paddingBottom: rs(40) + insets.bottom }]}
       >
-
         {/* ── Progress timeline ────────────────────────────────────────────── */}
         <View style={S.timelineWrap}>
           {TIMELINE.map((step, i) => {
@@ -272,8 +247,6 @@ const OrderDetailsScreen = () => {
             const isActive =
               order.status.toLowerCase() === step.id ||
               (step.id === 'in_transit' && order.status.toLowerCase() === 'picked_up');
-            const isLast = i === TIMELINE.length - 1;
-
             return (
               <View key={step.id} style={S.timelineStep}>
                 {/* Connector line — left of icon */}
@@ -299,7 +272,6 @@ const OrderDetailsScreen = () => {
             );
           })}
         </View>
-
         {/* ── Live tracking hint ───────────────────────────────────────────── */}
         {isLiveTrackable && (
           <TouchableOpacity
@@ -332,7 +304,6 @@ const OrderDetailsScreen = () => {
             <Feather name="arrow-up-right" size={rs(18)} color={C.muted} />
           </TouchableOpacity>
         )}
-
         {/* ── Driver ──────────────────────────────────────────────────────── */}
         {driver && (
           <View style={S.section}>
@@ -370,7 +341,6 @@ const OrderDetailsScreen = () => {
             </View>
           </View>
         )}
-
         {/* ── Store ───────────────────────────────────────────────────────── */}
         <View style={S.section}>
           <Text style={S.sectionLbl}>Store</Text>
@@ -413,7 +383,6 @@ const OrderDetailsScreen = () => {
             </TouchableOpacity>
           </View>
         </View>
-
         {/* ── Delivery info ────────────────────────────────────────────────── */}
         <View style={S.section}>
           <Text style={S.sectionLbl}>Delivery Information</Text>
@@ -443,7 +412,6 @@ const OrderDetailsScreen = () => {
             )}
           </View>
         </View>
-
         {/* ── Items ordered ────────────────────────────────────────────────── */}
         <View style={S.section}>
           <Text style={S.sectionLbl}>Items Ordered ({order.order_items?.length ?? 0})</Text>
@@ -471,46 +439,38 @@ const OrderDetailsScreen = () => {
             })}
           </View>
         </View>
-
         {/* ── Payment summary ──────────────────────────────────────────────── */}
         <View style={S.section}>
           <Text style={S.sectionLbl}>Payment Summary</Text>
           <View style={S.payCard}>
-
             <View style={S.priceRow}>
               <Text style={S.priceLbl}>Subtotal</Text>
               <Text style={S.priceVal}>₵{itemsSubtotal.toFixed(2)}</Text>
             </View>
-
             {deliveryFee > 0 && (
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Delivery fee</Text>
                 <Text style={S.priceVal}>₵{deliveryFee.toFixed(2)}</Text>
               </View>
             )}
-
             {taxAmount > 0 && (
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Taxes & fees (VAT, NHIL, GETFund)</Text>
                 <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
               </View>
             )}
-
             {discount > 0 && (
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Discount</Text>
                 <Text style={[S.priceVal, { color: '#16a34a' }]}>-₵{discount.toFixed(2)}</Text>
               </View>
             )}
-
             <View style={S.payDivider} />
-
             {/* Grand total — derived from backend total_amount or computed */}
             <View style={S.totalRow}>
               <Text style={S.totalLbl}>Grand Total</Text>
               <Text style={S.totalVal}>₵{grandTotal.toFixed(2)}</Text>
             </View>
-
             {/* Payment method */}
             <View style={S.methodRow}>
               <MaterialCommunityIcons name="credit-card-outline" size={rs(15)} color={C.muted} />
@@ -518,7 +478,6 @@ const OrderDetailsScreen = () => {
                 Paid via {order.payments?.[0]?.payment_method || 'MoMo'}
               </Text>
             </View>
-
             {/* Receipt link */}
             {order.status.toLowerCase() === 'paid' && (
               <TouchableOpacity
@@ -531,7 +490,6 @@ const OrderDetailsScreen = () => {
             )}
           </View>
         </View>
-
         {/* ── Actions ─────────────────────────────────────────────────────── */}
         {order.status.toLowerCase() === 'delivered' && (
           <TouchableOpacity
@@ -545,7 +503,6 @@ const OrderDetailsScreen = () => {
             </LinearGradient>
           </TouchableOpacity>
         )}
-
         {order.status.toLowerCase() === 'pending' && (
           <TouchableOpacity
             style={[S.cancelBtn, isCancelling && { opacity: 0.65 }]}
@@ -563,17 +520,14 @@ const OrderDetailsScreen = () => {
             )}
           </TouchableOpacity>
         )}
-
       </ScrollView>
     </View>
   );
 };
-
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
-
   emptyCircle: {
     width: rs(90), height: rs(90), borderRadius: rs(45),
     backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(14),
@@ -583,7 +537,6 @@ const S = StyleSheet.create({
     backgroundColor: C.navy, paddingVertical: rs(12), paddingHorizontal: rs(28), borderRadius: rs(14),
   },
   retryBtnTxt: { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(14) },
-
   // Header
   header: {
     paddingHorizontal: rs(20), paddingBottom: rs(26),
@@ -621,9 +574,7 @@ const S = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
     backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
-
   scrollContent: { paddingHorizontal: rs(16), paddingTop: rs(12) },
-
   // Timeline
   timelineWrap: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
@@ -648,7 +599,6 @@ const S = StyleSheet.create({
   stepLbl: { fontSize: rf(9), fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginTop: rs(6), textAlign: 'center' },
   stepLblDone: { color: C.limeText, fontFamily: 'Montserrat-Bold' },
   stepLblActive: { color: C.navy, fontFamily: 'Montserrat-Bold' },
-
   // Live tracking hint
   trackingHint: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
@@ -661,14 +611,12 @@ const S = StyleSheet.create({
   },
   trackingHintTitle: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.limeText },
   trackingHintSub: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: '#3f6212', marginTop: rs(2) },
-
   // Section label
   section: { marginBottom: rs(20) },
   sectionLbl: {
     fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.subtle,
     textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: rs(10),
   },
-
   // Shared card
   card: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
@@ -676,7 +624,6 @@ const S = StyleSheet.create({
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
   },
-
   // Driver
   driverAvatar: { width: rs(50), height: rs(50), borderRadius: rs(25), backgroundColor: '#F1F5F9' },
   driverInfo: { flex: 1 },
@@ -685,7 +632,6 @@ const S = StyleSheet.create({
   ratingTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
   actionBtns: { flexDirection: 'row', gap: rs(8) },
   actionBtn: { width: rs(38), height: rs(38), borderRadius: rs(19), justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9' },
-
   // Store
   storeIconWrap: { width: rs(44), height: rs(44), borderRadius: rs(14), justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   storeLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -696,7 +642,6 @@ const S = StyleSheet.create({
     width: rs(38), height: rs(38), borderRadius: rs(19),
     backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center',
   },
-
   // Info card
   infoCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
@@ -708,7 +653,6 @@ const S = StyleSheet.create({
   infoLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginBottom: rs(2) },
   infoVal: { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#334155' },
   infoDivider: { height: 0.5, backgroundColor: '#F1F5F9', marginVertical: rs(12) },
-
   // Items card
   itemsCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
@@ -722,7 +666,6 @@ const S = StyleSheet.create({
   itemQty: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(3) },
   itemPrice: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.navy },
   itemDivider: { height: 0.5, backgroundColor: '#F8FAFC', marginVertical: rs(12) },
-
   // Payment card
   payCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(16),
@@ -747,7 +690,6 @@ const S = StyleSheet.create({
     borderTopWidth: 0.5, borderTopColor: '#F1F5F9',
   },
   receiptTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
-
   // Actions
   reviewBtn: { borderRadius: rs(16), overflow: 'hidden', marginBottom: rs(12) },
   reviewBtnGrad: {
@@ -763,5 +705,4 @@ const S = StyleSheet.create({
   },
   cancelBtnTxt: { color: '#EF4444', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
 });
-
 export default OrderDetailsScreen;

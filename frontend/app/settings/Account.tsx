@@ -23,20 +23,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { getUserData, updateProfile, getPaymentMethods, uploadAvatar } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 // removed useCloudinaryUpload import
-
-const { width } = Dimensions.get('window');
-
 // --- 1. DATA CONSTANTS ---
 const AVATAR_SEEDS = [
   'Felix', 'Aneka', 'Zack', 'Molly', 'Garfield',
   'Bella', 'Jack', 'Oliver', 'Sophie', 'Leo',
   'Max', 'Charlie', 'Lily', 'Sam', 'Chloe'
 ];
-
 const AVATARS = AVATAR_SEEDS.map(seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}`
 );
-
 const LOCATION_DATA: Record<string, string[]> = {
   'Ghana': ['Ashanti', 'Greater Accra', 'Central', 'Western', 'Eastern', 'Northern', 'Volta', 'Brong-Ahafo', 'Upper East', 'Upper West', 'Bono', 'Bono East', 'Ahafo', 'Oti', 'Savannah', 'North East'],
   'Nigeria': ['Lagos', 'Abuja (FCT)', 'Rivers', 'Kano', 'Oyo', 'Edo', 'Kaduna', 'Ogun', 'Anambra', 'Delta', 'Enugu'],
@@ -48,9 +43,7 @@ const LOCATION_DATA: Record<string, string[]> = {
   'United States': ['California', 'Texas', 'Florida', 'New York', 'Illinois', 'Pennsylvania'],
   'Canada': ['Ontario', 'Quebec', 'British Columbia', 'Alberta', 'Manitoba'],
 };
-
 const COUNTRIES = Object.keys(LOCATION_DATA).sort();
-
 // --- 2. REUSABLE COMPONENT ---
 const ProfileField = ({
   icon,
@@ -69,19 +62,15 @@ const ProfileField = ({
     if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={18} color="#0C1559" />;
     return <Ionicons name={icon} size={22} color="#0C1559" />;
   };
-
   const isSelectable = isCountry || isDropdown;
-
   // Dynamically extract prefix if it's a phone field
   let displayValue = value;
   let detectedPrefix = "+233";
-
   if (isPhone && value && value.startsWith('+')) {
     // If starts with +1 (USA), length is 2, otherwise assume +233 or similar (4 digits)
     detectedPrefix = value.startsWith('+1') ? '+1' : value.substring(0, 4);
     displayValue = value.replace(detectedPrefix, '');
   }
-
   return (
     <TouchableOpacity
       style={styles.fieldRow}
@@ -90,7 +79,6 @@ const ProfileField = ({
     >
       <View style={styles.inputWrapper}>
         <View style={styles.iconArea}>{renderIcon()}</View>
-
         {isPhone && (
           <View style={styles.flagContainer}>
             <Image
@@ -105,7 +93,6 @@ const ProfileField = ({
             <View style={styles.verticalDivider} />
           </View>
         )}
-
         <TextInput
           style={[styles.input, { pointerEvents: isSelectable ? "none" : "auto" }]}
           value={displayValue}
@@ -120,7 +107,6 @@ const ProfileField = ({
           placeholder={loading ? "Loading..." : placeholder}
           editable={!isSelectable}
         />
-
         {isSelectable ? (
           <Ionicons name="chevron-down" size={20} color="#64748B" style={{ marginRight: 10 }} />
         ) : (
@@ -132,15 +118,12 @@ const ProfileField = ({
     </TouchableOpacity>
   );
 };
-
 export default function AccountScreen() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [methods, setMethods] = useState<any[]>([]);
-
+  const [, setMethods] = useState<any[]>([]);
   // --- 1. Fetch User Data ---
   const fetchMethods = useCallback(async () => {
     try {
@@ -152,20 +135,17 @@ export default function AccountScreen() {
       console.warn('Failed to fetch methods in Account:', err);
     }
   }, []);
-
   useFocusEffect(
     useCallback(() => {
       fetchMethods();
       fetchProfile();
     }, [fetchMethods])
   );
-
   // Modals
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false); // New Success Modal State
-
   const [userData, setUserData] = useState({
     name: '',
     email: '',
@@ -176,16 +156,13 @@ export default function AccountScreen() {
     createdAt: '',
     avatar: AVATARS[0],
   });
-
   const fetchProfile = async () => {
     try {
       const data = await getUserData();
       const user = data.user || data;
-
       const dateJoined = (user.created_at || user.createdAt)
         ? new Date(user.created_at || user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'N/A';
-
       setUserData({
         name: user.name || '',
         email: user.email || '',
@@ -202,7 +179,6 @@ export default function AccountScreen() {
       setLoading(false);
     }
   };
-
   const handleSave = async () => {
     try {
       if (!userData.name.trim() || !userData.phone.trim()) {
@@ -210,7 +186,6 @@ export default function AccountScreen() {
         return;
       }
       setSaving(true);
-
       const payload = {
         name: userData.name,
         phone: userData.phone,
@@ -219,9 +194,7 @@ export default function AccountScreen() {
         state_province: userData.region,
         address_line1: userData.address
       };
-
       await updateProfile(payload);
-
       setShowSuccessModal(true);
     } catch (error) {
       console.error('Failed to save profile:', error);
@@ -231,17 +204,14 @@ export default function AccountScreen() {
       setSaving(false);
     }
   };
-
   const selectCountry = (country: string) => {
     setUserData({ ...userData, country, region: '' });
     setShowCountryModal(false);
   };
-
   const selectRegion = (region: string) => {
     setUserData({ ...userData, region });
     setShowRegionModal(false);
   };
-
   // Reusable Selection Modal
   const SelectionModal = ({ visible, onClose, title, data, onSelect }: any) => (
     <Modal
@@ -278,7 +248,6 @@ export default function AccountScreen() {
       </View>
     </Modal>
   );
-
   const pickImage = async () => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -286,14 +255,12 @@ export default function AccountScreen() {
         alert('Sorry, we need camera roll permissions to make this work!');
         return;
       }
-
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
       });
-
       if (!result.canceled && result.assets[0].uri) {
         setShowAvatarModal(false);
         setUploading(true);
@@ -312,12 +279,10 @@ export default function AccountScreen() {
       setSaving(false);
     }
   };
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" backgroundColor="#0C1559" />
       <Stack.Screen options={{ headerShown: false }} />
-
       {/* --- Header Section --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
@@ -328,7 +293,6 @@ export default function AccountScreen() {
             <Text style={styles.headerTitle}>Edit Profile</Text>
             <View style={{ width: 40 }} />
           </View>
-
           <View style={styles.profileSection}>
             <View style={styles.imageWrapper}>
               <Image
@@ -344,7 +308,6 @@ export default function AccountScreen() {
                 <Ionicons name="camera" size={16} color="#0C1559" />
               </TouchableOpacity>
             </View>
-
             {loading ? (
               <ActivityIndicator color="#A3E635" style={{ marginTop: 10 }} />
             ) : (
@@ -358,7 +321,6 @@ export default function AccountScreen() {
           </View>
         </SafeAreaView>
       </View>
-
       {/* --- Content Area --- */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -377,7 +339,6 @@ export default function AccountScreen() {
               onChangeText={(t: string) => setUserData({ ...userData, name: t })}
               loading={loading}
             />
-
             <ProfileField
               icon="mail"
               value={userData.email}
@@ -385,7 +346,6 @@ export default function AccountScreen() {
               onChangeText={(t: string) => setUserData({ ...userData, email: t })}
               loading={loading}
             />
-
             <ProfileField
               icon="phone-alt"
               library="FontAwesome5"
@@ -395,7 +355,6 @@ export default function AccountScreen() {
               onChangeText={(t: string) => setUserData({ ...userData, phone: t })}
               loading={loading}
             />
-
             <ProfileField
               icon="map"
               value={userData.country}
@@ -404,7 +363,6 @@ export default function AccountScreen() {
               onPress={() => setShowCountryModal(true)}
               loading={loading}
             />
-
             <ProfileField
               icon="location-sharp"
               value={userData.region}
@@ -419,7 +377,6 @@ export default function AccountScreen() {
               }}
               loading={loading}
             />
-
             <ProfileField
               icon="home"
               value={userData.address}
@@ -427,19 +384,14 @@ export default function AccountScreen() {
               onChangeText={(t: string) => setUserData({ ...userData, address: t })}
               loading={loading}
             />
-
             <View style={{ height: 20 }} />
-
             <TouchableOpacity style={styles.saveButton} activeOpacity={0.8} onPress={handleSave} disabled={saving}>
               {saving ? <ActivityIndicator color="#A3E635" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
             </TouchableOpacity>
-
             <View style={{ height: 40 }} />
-
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
-
       {/* --- MODALS --- */}
       <SelectionModal
         visible={showCountryModal}
@@ -448,7 +400,6 @@ export default function AccountScreen() {
         data={COUNTRIES}
         onSelect={selectCountry}
       />
-
       <SelectionModal
         visible={showRegionModal}
         onClose={() => setShowRegionModal(false)}
@@ -456,7 +407,6 @@ export default function AccountScreen() {
         data={userData.country ? LOCATION_DATA[userData.country] : []}
         onSelect={selectRegion}
       />
-
       {/* Avatar Modal */}
       <Modal
         animationType="slide"
@@ -521,7 +471,6 @@ export default function AccountScreen() {
           </View>
         </View>
       </Modal>
-
       {/* --- CUSTOM SUCCESS MODAL --- */}
       <Modal
         animationType="fade"
@@ -547,14 +496,11 @@ export default function AccountScreen() {
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
-
   // Header
   header: {
     backgroundColor: '#0C1559',
@@ -578,7 +524,6 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 8 },
   headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-
   profileSection: { alignItems: 'center' },
   imageWrapper: { position: 'relative', marginBottom: 12 },
   profileImage: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#A3E635', backgroundColor: '#F1F5F9' },
@@ -591,11 +536,9 @@ const styles = StyleSheet.create({
   profileName: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold', marginBottom: 6 },
   dateBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   dateText: { color: '#CBD5E1', fontSize: 12, fontFamily: 'Montserrat-Medium' },
-
   // Content
   contentArea: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 100 },
-
   fieldRow: { marginBottom: 16 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF',
@@ -609,12 +552,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginLeft: 4,
   },
   input: { flex: 1, fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium', paddingHorizontal: 12, height: '100%' },
-
   flagContainer: { flexDirection: 'row', alignItems: 'center', marginLeft: 10 },
   flag: { width: 24, height: 16, borderRadius: 2 },
   phonePrefix: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-SemiBold', marginLeft: 6 },
   verticalDivider: { width: 1, height: 20, backgroundColor: '#CBD5E1', marginLeft: 10 },
-
   saveButton: {
     backgroundColor: '#0C1559', height: 56, borderRadius: 28,
     justifyContent: 'center', alignItems: 'center', marginTop: 10,
@@ -622,7 +563,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3, shadowRadius: 8, elevation: 5,
   },
   saveButtonText: { color: '#A3E635', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-
   // Selection Modal
   modalOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end',
@@ -641,7 +581,6 @@ const styles = StyleSheet.create({
   },
   optionText: { fontSize: 16, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
   emptyText: { textAlign: 'center', color: '#64748B', marginTop: 20, fontFamily: 'Montserrat-Medium' },
-
   // Avatar Grid
   avatarGrid: { alignItems: 'center', paddingBottom: 20 },
   avatarOption: {
@@ -655,7 +594,6 @@ const styles = StyleSheet.create({
     width: 20, height: 20, borderRadius: 10, justifyContent: 'center', alignItems: 'center',
     borderWidth: 2, borderColor: '#FFF',
   },
-
   // Success Modal Styles
   successOverlay: {
     flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 20
@@ -675,7 +613,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, width: '100%'
   },
   successButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', textAlign: 'center' },
-
   // Image Upload Styles
   uploadCta: { paddingHorizontal: 20, marginBottom: 15 },
   uploadBtn: {
