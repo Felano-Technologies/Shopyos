@@ -3,7 +3,7 @@ name: shopyos-ci-cd
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   ci:
@@ -39,7 +39,7 @@ jobs:
         run: npm test -- --watchAll=false
 
   docker-build-push:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -66,8 +66,17 @@ jobs:
           file: ./backend/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/shopyos-backend:latest
+            ghcr.io/${{ github.repository_owner }}/shopyos-backend:${{ github.ref_name }}
             ghcr.io/${{ github.repository_owner }}/shopyos-backend:${{ github.sha }}
+
+      - name: Tag backend latest (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/shopyos-backend:latest
 
       - name: Build and push socket image
         uses: docker/build-push-action@v6
@@ -76,5 +85,14 @@ jobs:
           file: ./socket/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/shopyos-socket:latest
+            ghcr.io/${{ github.repository_owner }}/shopyos-socket:${{ github.ref_name }}
             ghcr.io/${{ github.repository_owner }}/shopyos-socket:${{ github.sha }}
+
+      - name: Tag socket latest (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./socket
+          file: ./socket/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/shopyos-socket:latest
