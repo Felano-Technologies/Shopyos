@@ -264,13 +264,13 @@ export default function SettingsScreen() {
           {renderSettingItem({
             icon: 'help-circle',
             label: 'Help Center',
-            onPress: () => { }
+            onPress: () => router.push('/settings/helpCenter')
           })}
           <View style={styles.separator} />
           {renderSettingItem({
             icon: 'shield',
             label: 'Privacy & Security',
-            onPress: () => router.push('/security')
+            onPress: () => router.push('/settings/security')
           })}
           <View style={styles.separator} />
           {renderSettingItem({
