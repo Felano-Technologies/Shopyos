@@ -397,42 +397,41 @@ export default function SearchScreen() {
                 return (
                   <TouchableOpacity
                     key={cat.id || cat.name}
-                    style={styles.catTile}
+                    style={[styles.catTile, isOn && styles.catTileSelected]}
                     onPress={() => {
                       setCategory(isOn ? null : cat.name);
                       setQuery('');
                     }}
                   >
-                    {catImg ? (
-                      <View style={[
-                        styles.catTileInner,
-                        { backgroundColor: isOn ? C.navy : '#1E293B' }
-                      ]}>
+                    <View style={styles.catTileInner}>
+                      {catImg ? (
                         <Image
                           source={catImg}
-                          style={styles.catTileImg}
-                          resizeMode="contain"
+                          style={styles.catTileBgImg}
+                          resizeMode="cover"
                         />
-                        <View style={styles.catTileTextWrap}>
-                          <Text style={styles.catTileTxtLeft} numberOfLines={2}>
-                            {cat.name}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={[
-                        styles.catTileFallback,
-                        { backgroundColor: isOn ? C.navy : '#1E293B' }
-                      ]}>
-                        <Text style={[
-                          styles.catTileTxtLeft,
-                          { color: isOn ? '#fff' : '#E2E8F0' }
-                        ]}>
+                      ) : (
+                        <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' }]} />
+                      )}
+                      {/* Dark gradient scrim for text legibility */}
+                      <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
+                        style={styles.catTileScrim}
+                      />
+                      {/* Active overlay tint */}
+                      {isOn && <View style={styles.catTileActiveTint} />}
+                      {/* Text */}
+                      <View style={styles.catTileTextWrap}>
+                        {isOn && (
+                          <View style={styles.catTileCheckmark}>
+                            <Ionicons name="checkmark" size={9} color="#fff" />
+                          </View>
+                        )}
+                        <Text style={styles.catTileTxtLeft} numberOfLines={2}>
                           {cat.name}
                         </Text>
                       </View>
-                    )
-                    }
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -1192,53 +1191,76 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
-  catTile: {
-    width: (width - 50) / 2,
-    height: 96,
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  catTileInner: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  catTileImg: {
-    position: 'absolute',
-    right: -10,
-    bottom: -10,
-    width: '65%',
-    height: '90%',
-    opacity: 0.95,
-  },
-  catTileTextWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: '40%',
-    paddingTop: 16,
-    paddingLeft: 16,
-  },
-  catTileTxtLeft: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#fff',
-    lineHeight: 18,
-  },
-  catTileFallback: {
-    flex: 1,
-    paddingTop: 16,
-    paddingLeft: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
+catTile: {
+  width: (width - 50) / 2,
+  height: 100,
+  borderRadius: 18,
+  overflow: 'hidden',       // ← move overflow here so shadow still works
+  elevation: 5,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.2,
+  shadowRadius: 8,
+},
+catTileSelected: {
+  elevation: 8,
+  shadowOpacity: 0.32,
+},
+catTileInner: {
+  flex: 1,
+  borderRadius: 18,
+  overflow: 'hidden',
+  position: 'relative',
+},
+catTileBgImg: {
+  position: 'absolute',
+  top: 0, left: 0, right: 0, bottom: 0,
+  width: '100%',
+  height: '100%',
+},
+catTileScrim: {
+  position: 'absolute',
+  top: 0, left: 0, right: 0, bottom: 0,
+},
+catTileActiveTint: {
+  position: 'absolute',
+  top: 0, left: 0, right: 0, bottom: 0,
+  backgroundColor: 'rgba(12,21,89,0.45)',   // navy tint when selected
+},
+catTileTextWrap: {
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  paddingHorizontal: 12,
+  paddingBottom: 12,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 5,
+},
+catTileCheckmark: {
+  width: 16, height: 16,
+  borderRadius: 8,
+  backgroundColor: C2.lime,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+catTileTxtLeft: {
+  fontSize: 13,
+  fontFamily: 'Montserrat-Bold',
+  color: '#fff',
+  lineHeight: 17,
+  textShadowColor: 'rgba(0,0,0,0.6)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 4,
+  flex: 1,
+},
+catTileFallback: {   // keep for safety, though now unused
+  flex: 1,
+  paddingTop: 16,
+  paddingLeft: 16,
+  borderRadius: 18,
+},
   // ── Empty state ───────────────────────────────────────────────────────────
   emptyWrap: {
     alignItems: 'center',

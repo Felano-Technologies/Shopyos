@@ -17,7 +17,7 @@ import { useEffect, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { getUserData, getAllStores, storage } from '@/services/api';
 import { useActiveDeliveries } from './useDelivery';
 import {
@@ -45,6 +45,12 @@ function haversineMetres(lat1: number, lon1: number, lat2: number, lon2: number)
 
 const COOLDOWN_PREFIX = 'GEOFENCE_NOTIF_';
 const COOLDOWN_MS = 30 * 60 * 1000;
+const isExpoGo = Constants.appOwnership === 'expo';
+
+const getNotificationsModule = () => {
+  if (isExpoGo) return null;
+  return require('expo-notifications');
+};
 
 /**
  * Runs the same logic as TASK_LOCATION_GEOFENCE but in the foreground.
@@ -87,6 +93,11 @@ async function runForegroundGeofenceCheck() {
       const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
       const last = await storage.getItem(cooldownKey);
       if (last && now - parseInt(last, 10) < COOLDOWN_MS) continue;
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) {
+        continue;
+      }
 
       await Notifications.scheduleNotificationAsync({
         content: {
@@ -150,7 +161,7 @@ export const useBackgroundTasks = () => {
     cacheStores();
     const interval = setInterval(cacheStores, 30 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [userData, userData.id]);
+  }, [userData, userData?.id]);
 
   // ── Start / stop tasks whenever user state changes ───────────────────────
   useEffect(() => {
