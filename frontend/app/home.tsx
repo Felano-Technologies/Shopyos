@@ -584,15 +584,14 @@ export default function Home() {
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-      {/* Watermark */}
-      <View style={S.watermark}>
-        <Image source={require('../assets/images/splash-icon.png')} style={S.watermarkImg} />
-      </View>
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + 10 }]}>
           <View style={S.hdrGlow1} pointerEvents="none" />
           <View style={S.hdrGlow2} pointerEvents="none" />
+          <View style={S.headerWatermark} pointerEvents="none">
+            <Image source={require('../assets/images/splash-icon.png')} style={S.headerWatermarkImg} />
+          </View>
           <View style={S.headerInner} ref={refGreeting} onLayout={() => measureElement(refGreeting, 'greeting')}>
             <TouchableOpacity style={S.locationRow}>
               <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
@@ -837,14 +836,23 @@ export default function Home() {
 // ─── Styles ────────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
-  watermark: { position: 'absolute', bottom: -10, left: -40 },
-  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.1 },
   // Header
   header: {
-    position: 'relative', paddingBottom: 28, zIndex: 10,
+    position: 'relative', paddingBottom: 28, zIndex: 10, overflow: 'hidden',
     elevation: 10, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16,
   },
+  headerWatermark: {
+    position: 'absolute',
+    left: -30,
+    bottom: -10,
+    width: 132,
+    height: 132,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.1,
+  },
+  headerWatermarkImg: { width: 100, height: 100, resizeMode: 'contain' },
   hdrGlow1: {
     position: 'absolute', top: -30, right: -30,
     width: 150, height: 150, borderRadius: 75,
@@ -852,14 +860,14 @@ const S = StyleSheet.create({
   },
   hdrGlow2: {
     position: 'absolute', bottom: -20, left: -10,
-    width: 100, height: 100, borderRadius: 50,
+    width: 80, height: 100, borderRadius: 50,
     backgroundColor: 'rgba(30,58,138,0.5)',
   },
-  headerInner: { paddingHorizontal: 20 },
+  headerInner: { paddingHorizontal: 20, paddingBottom: 6 },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 10 },
   locationTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.55)', maxWidth: width * 0.55 },
   headerMainRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  greeting: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, marginRight: 8 },
+  greeting: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, marginRight: 8, lineHeight: 20 },
   headerActions: { flexDirection: 'row', gap: 8, marginBottom: 7 },
   headerBtn: {
     width: 38, height: 38, borderRadius: 12,

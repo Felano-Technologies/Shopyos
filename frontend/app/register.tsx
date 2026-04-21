@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
   callingCode: { fontSize: 16, color: '#000', fontWeight: '500' },
   phoneInput: { marginLeft: 4 },
   button: {
-    width: '90%',
+    width: '70%',
     height: 50,
     backgroundColor: '#7ACB22',
     borderRadius: 25,

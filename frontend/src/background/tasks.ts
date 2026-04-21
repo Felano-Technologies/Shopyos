@@ -5,11 +5,18 @@
 
 import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
-import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import axios from 'axios';
 import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE, PROXIMITY_RADIUS_METERS } from './taskNames';
 import { API_URL, updateDriverLocation, storage, secureStorage } from '../../services/api';
 import { enqueueLocation } from './queue';
+
+const isExpoGo = Constants.appOwnership === 'expo';
+
+const getNotificationsModule = () => {
+  if (isExpoGo) return null;
+  return require('expo-notifications');
+};
 
 // ─── Haversine distance helper (returns metres) ────────────────────────────────
 function haversineMetres(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -129,6 +136,11 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
       const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
       const lastStr = await storage.getItem(cooldownKey);
       if (lastStr && now - parseInt(lastStr, 10) < COOLDOWN_MS) continue;
+
+      const Notifications = getNotificationsModule();
+      if (!Notifications) {
+        continue;
+      }
 
       // Fire local notification
       await Notifications.scheduleNotificationAsync({

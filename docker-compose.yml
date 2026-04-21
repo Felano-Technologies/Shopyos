@@ -1,13 +1,91 @@
 services:
+  db:
+    image: postgres:16
+    container_name: shopyos-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - shopyos_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: shopyos-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    ports:
+      - "${REDIS_PORT:-6380}:6379"
+    volumes:
+      - shopyos_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  storage:
+    image: minio/minio
+    container_name: shopyos-storage
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - shopyos_storage_data:/data
+
+  storage-init:
+    image: minio/mc
+    container_name: shopyos-storage-init
+    depends_on:
+      - storage
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://storage:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD}; do
+        echo 'Waiting for MinIO...';
+        sleep 2;
+      done;
+      mc mb -p local/${STORAGE_BUCKET} || true;
+      mc anonymous set download local/${STORAGE_BUCKET} || true;
+      "
+    restart: "no"
+
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: shopyos-backend
     restart: unless-stopped
-    command: npm start
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      STORAGE_ENDPOINT: http://storage:9000
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-http://localhost:${MINIO_API_PORT:-9000}/${STORAGE_BUCKET}}
+    command: sh -c "npm run migrate:apply && npm run dev"
     ports:
       - "${BACKEND_PORT:-5000}:5000"
+    depends_on:
+      - db
+      - redis
+      - storage
+      - storage-init
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
 
   socket:
     build:
@@ -15,9 +93,20 @@ services:
       dockerfile: Dockerfile
     container_name: shopyos-socket
     restart: unless-stopped
-    command: npm start
+    env_file:
+      - ./socket/.env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+    command: npm run dev
     ports:
       - "${SOCKET_PORT:-5001}:5001"
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./socket:/app
+      - /app/node_modules
 
   notification-worker:
     build:
@@ -25,4 +114,23 @@ services:
       dockerfile: Dockerfile
     container_name: shopyos-notification-worker
     restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      STORAGE_ENDPOINT: http://storage:9000
+      STORAGE_PUBLIC_URL: ${STORAGE_PUBLIC_URL:-http://localhost:${MINIO_API_PORT:-9000}/${STORAGE_BUCKET}}
     command: npm run worker
+    depends_on:
+      - db
+      - redis
+      - backend
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+volumes:
+  shopyos_db_data:
+  shopyos_redis_data:
+  shopyos_storage_data:

@@ -12,25 +12,35 @@ export const useNotifications = () => {
   // Listen for real-time notification events via socket
   useEffect(() => {
     let mounted = true;
+    let socketRef: any = null;
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       // Invalidate both notifications list and unread count so they refetch
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.list() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     };
-    // Connect socket and listen for notification:new events
-    socketService.connect()
-      .then((socket) => {
-        socket.on('notification:new', handleNewNotification);
-      })
-      .catch((err) => {
-        console.warn('Failed to connect socket for notifications:', err.message);
-      });
+
+    const init = async () => {
+      const token = await ApiService.secureStorage.getItem('userToken') ||
+        await ApiService.secureStorage.getItem('businessToken');
+      if (!token) return;
+
+      socketService.connect()
+        .then((socket) => {
+          socketRef = socket;
+          socket.on('notification:new', handleNewNotification);
+        })
+        .catch((err) => {
+          console.warn('Failed to connect socket for notifications:', err.message);
+        });
+    };
+
+    init();
+
     return () => {
       mounted = false;
-      const socket = socketService.getSocket();
-      if (socket) {
-        socket.off('notification:new', handleNewNotification);
+      if (socketRef) {
+        socketRef.off('notification:new', handleNewNotification);
       }
     };
   }, [queryClient]);
@@ -57,6 +67,7 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
       return;
     }
     let mounted = true;
+    let socketRef: any = null;
     const handleNewNotification = (data: any) => {
       if (!mounted) return;
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
@@ -82,18 +93,27 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
         });
       }
     };
-    socketService.connect()
-      .then((socket) => {
-        socket.on('notification:new', handleNewNotification);
-      })
-      .catch((err) => {
-        console.warn('Failed to connect socket for unread count:', err.message);
-      });
+    const init = async () => {
+      const token = await ApiService.secureStorage.getItem('userToken') ||
+        await ApiService.secureStorage.getItem('businessToken');
+      if (!token) return;
+
+      socketService.connect()
+        .then((socket) => {
+          socketRef = socket;
+          socket.on('notification:new', handleNewNotification);
+        })
+        .catch((err) => {
+          console.warn('Failed to connect socket for unread count:', err.message);
+        });
+    };
+
+    init();
+
     return () => {
       mounted = false;
-      const socket = socketService.getSocket();
-      if (socket) {
-        socket.off('notification:new', handleNewNotification);
+      if (socketRef) {
+        socketRef.off('notification:new', handleNewNotification);
       }
     };
   }, [enableRealtime, pathname, queryClient]);
