@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, Dimensions, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 

@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-    Image, ActivityIndicator, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, 
+    Image, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, 
     Linking
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,9 +11,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminStores, adminVerifyStore } from '@/services/api';
-
+import Skeleton from '@/components/Skeleton';
 const { width, height } = Dimensions.get('window');
-
 export default function StoreVerificationDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -26,20 +25,17 @@ export default function StoreVerificationDetails() {
     const [viewingDoc, setViewingDoc] = useState<string | null>(null);
     const [rejectModal, setRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
-
-    useEffect(() => { fetchStoreDetails(); }, [id]);
-
-    const fetchStoreDetails = async () => {
+    const fetchStoreDetails = useCallback(async () => {
         try {
             setLoading(true);
             const res = await getAdminStores({ id }); 
             const data = res?.stores?.[0] || res?.data?.[0] || res?.[0];
             setStore(data);
-        } catch (err) {
+        } catch {
             CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load store details' });
         } finally { setLoading(false); }
-    };
-
+    }, [id]);
+    useEffect(() => { fetchStoreDetails(); }, [fetchStoreDetails]);
     const handleAction = async (status: 'verified' | 'rejected') => {
         try {
             setActionLoading(true);
@@ -55,13 +51,11 @@ export default function StoreVerificationDetails() {
             CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
         } finally { setActionLoading(false); }
     };
-
 const handleContactMerchant = (email: string) => {
         const subject = encodeURIComponent(`Regarding your Shopyos Store Verification: ${store.store_name}`);
         const body = encodeURIComponent(`Hello ${store.owner?.full_name},\n\nWe are currently reviewing your store application...`);
         Linking.openURL(`mailto:${email}?subject=${subject}&body=${body}`);
     };
-
     const handleOpenWebsite = (url: string) => {
         if (!url) return;
         const formattedUrl = url.startsWith('http') ? url : `https://${url}`;
@@ -69,7 +63,6 @@ const handleContactMerchant = (email: string) => {
             CustomInAppToast.show({ type: 'error', title: 'Invalid URL', message: 'Could not open the website.' });
         });
     };
-
     const DetailItem = ({ label, value, icon, isLink, onPress }: any) => (
         <TouchableOpacity 
             style={styles.detailRow} 
@@ -88,10 +81,7 @@ const handleContactMerchant = (email: string) => {
             {isLink && <Feather name="external-link" size={12} color="#3B82F6" />}
         </TouchableOpacity>
     );
-
     if (loading) {
-        // Need to require/import Skeleton component inline or ensure it's imported at top
-        const Skeleton = require('@/components/Skeleton').default;
         return (
             <View style={styles.container}>
                 <View style={[styles.header, { height: 120, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 }]} />
@@ -107,7 +97,6 @@ const handleContactMerchant = (email: string) => {
             </View>
         );
     }
-
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
@@ -139,7 +128,6 @@ const handleContactMerchant = (email: string) => {
                     </SafeAreaView>
                 </LinearGradient>
             )}
-
             
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.brandCard}>
@@ -150,7 +138,6 @@ const handleContactMerchant = (email: string) => {
                     <Text style={styles.storeName}>{store?.store_name}</Text>
                     <View style={styles.statusBadge}><Text style={styles.statusText}>{store?.verification_status?.toUpperCase()}</Text></View>
                 </View>
-
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Business Credentials</Text>
                     <View style={styles.infoCard}>
@@ -159,7 +146,6 @@ const handleContactMerchant = (email: string) => {
                         <DetailItem label="Tax TIN" value={store?.tax_id} icon="shield" />
                     </View>
                 </View>
-
                 <View style={styles.section}>
         <Text style={styles.sectionTitle}>Contact & Location</Text>
         <View style={styles.infoCard}>
@@ -184,8 +170,6 @@ const handleContactMerchant = (email: string) => {
             />
         </View>
     </View>
-
-
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Verification Assets</Text>
                     <View style={styles.docGrid}>
@@ -195,11 +179,9 @@ const handleContactMerchant = (email: string) => {
                                 { title: 'Business License', url: store?.business_license_url, type: 'license' },
                                 { title: 'Proof of Bank', url: store?.proof_of_bank_url, type: 'bank' }
                             ].filter(d => Boolean(d.url));
-
                             if (docs.length === 0) {
                                 return <Text style={{ fontSize: 13, color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No verification documents uploaded.</Text>;
                             }
-
                             return docs.map((doc, index) => (
                                 <TouchableOpacity key={index} style={styles.docCard} onPress={() => setViewingDoc(doc.url)}>
                                     <MaterialCommunityIcons 
@@ -215,7 +197,6 @@ const handleContactMerchant = (email: string) => {
                 </View>
                 <View style={{ height: 120 }} />
             </ScrollView>
-
             <View style={styles.actionFooter}>
                 <TouchableOpacity style={[styles.actionBtn, styles.rejectBtn]} onPress={() => setRejectModal(true)}>
                     <Text style={styles.rejectBtnText}>Reject</Text>
@@ -224,7 +205,6 @@ const handleContactMerchant = (email: string) => {
                     <Text style={styles.approveBtnText}>Approve Store</Text>
                 </TouchableOpacity>
             </View>
-
             {/* --- ZOOMABLE DOCUMENT VIEWER --- */}
             <Modal visible={!!viewingDoc} transparent animationType="slide">
                 <View style={styles.viewerOverlay}>
@@ -250,7 +230,6 @@ const handleContactMerchant = (email: string) => {
                     </ScrollView>
                 </View>
             </Modal>
-
             {/* --- REJECTION MODAL --- */}
             <Modal visible={rejectModal} transparent animationType="fade">
                 <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -266,7 +245,6 @@ const handleContactMerchant = (email: string) => {
                             value={rejectReason}
                             onChangeText={setRejectReason}
                         />
-
                         <View style={styles.modalBtns}>
                             <TouchableOpacity style={styles.modalCancel} onPress={() => setRejectModal(false)}>
                                 <Text style={styles.cancelText}>Cancel</Text>
@@ -285,7 +263,6 @@ const handleContactMerchant = (email: string) => {
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -319,7 +296,6 @@ const styles = StyleSheet.create({
     rejectBtn: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#EF4444' },
     approveBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
     rejectBtnText: { color: '#EF4444', fontFamily: 'Montserrat-Bold' },
-
     // Viewer
     viewerOverlay: { flex: 1, backgroundColor: '#000' },
     viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center', zIndex: 10 },
@@ -327,7 +303,6 @@ const styles = StyleSheet.create({
     closeViewer: { padding: 8 },
     zoomWrapper: { flexGrow: 1, justifyContent: 'center' },
     fullDocImage: { width: width, height: height * 0.7 },
-
     // Rejection Modal
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
     modalCard: { backgroundColor: '#FFF', borderRadius: 30, padding: 25 },

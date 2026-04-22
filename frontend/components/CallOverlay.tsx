@@ -11,10 +11,6 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { LinearGradient } from 'expo-linear-gradient';
-
-const { width, height } = Dimensions.get('window');
-
 interface CallOverlayProps {
   isVisible: boolean;
   status: 'incoming' | 'outgoing' | 'connected' | 'ended';
@@ -28,7 +24,6 @@ interface CallOverlayProps {
   onToggleMute: () => void;
   onToggleSpeaker: () => void;
 }
-
 export const CallOverlay: React.FC<CallOverlayProps> = ({
   isVisible,
   status,
@@ -43,7 +38,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
   onToggleSpeaker,
 }) => {
   const [timer, setTimer] = useState(0);
-
   useEffect(() => {
     let interval: any;
     if (status === 'connected') {
@@ -55,15 +49,12 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
     }
     return () => clearInterval(interval);
   }, [status]);
-
   const formatTimer = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
   if (!isVisible) return null;
-
   return (
     <Modal visible={isVisible} animationType="slide" transparent>
       <View style={styles.container}>
@@ -73,7 +64,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
           blurRadius={50}
         />
         <BlurView intensity={80} style={StyleSheet.absoluteFill} tint="dark" />
-
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.content}>
             <View style={styles.header}>
@@ -99,7 +89,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
                   : 'Call Ended'}
               </Text>
             </View>
-
             <View style={styles.footer}>
               {status === 'incoming' ? (
                 <View style={styles.actionButtons}>
@@ -157,7 +146,6 @@ export const CallOverlay: React.FC<CallOverlayProps> = ({
     </Modal>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

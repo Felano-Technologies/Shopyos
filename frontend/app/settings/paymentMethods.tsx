@@ -5,12 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  Image,
   Alert,
   ActivityIndicator,
   Modal,
   TextInput,
-  Platform,
   ScrollView,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
@@ -18,7 +16,6 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
 import { getPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod, addPaymentMethod } from '@/services/api';
-
 // --- Types ---
 interface PaymentMethod {
   id: string;
@@ -28,14 +25,12 @@ interface PaymentMethod {
   identifier: string; // e.g., "054 *** 2719" or "**** 4242"
   isDefault: boolean;
 }
-
 export default function PaymentMethodsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
-
   // New Method Form State
   const [newMethod, setNewMethod] = useState<{
     type: 'card' | 'momo',
@@ -48,11 +43,9 @@ export default function PaymentMethodsScreen() {
     title: '',
     identifier: ''
   });
-
   useEffect(() => {
     fetchPaymentMethods();
   }, []);
-
   const fetchPaymentMethods = async () => {
     try {
       const response = await getPaymentMethods();
@@ -73,7 +66,6 @@ export default function PaymentMethodsScreen() {
       setLoading(false);
     }
   };
-
   const handleDelete = (id: string) => {
     Alert.alert("Remove Method", "Are you sure you want to remove this payment method?", [
       { text: "Cancel", style: "cancel" },
@@ -84,14 +76,13 @@ export default function PaymentMethodsScreen() {
           try {
             await deletePaymentMethod(id);
             setMethods(prev => prev.filter(m => m.id !== id));
-          } catch (e) {
+          } catch {
             alert('Failed to delete payment method');
           }
         }
       }
     ]);
   };
-
   const handleSetDefault = async (id: string) => {
     try {
       await setDefaultPaymentMethod(id);
@@ -99,17 +90,15 @@ export default function PaymentMethodsScreen() {
         ...m,
         isDefault: m.id === id
       })));
-    } catch (e) {
+    } catch {
       alert('Failed to set default payment method');
     }
   };
-
   const handleAddMethod = async () => {
     if (!newMethod.identifier || !newMethod.title) {
       alert('Please fill in all fields');
       return;
     }
-
     try {
       setAdding(true);
       const response = await addPaymentMethod(newMethod);
@@ -125,7 +114,6 @@ export default function PaymentMethodsScreen() {
       setAdding(false);
     }
   };
-
   // Helper to get Icon based on provider
   const getProviderIcon = (provider: string) => {
     switch (provider) {
@@ -136,14 +124,12 @@ export default function PaymentMethodsScreen() {
       default: return <Ionicons name="wallet" size={24} color="#0C1559" />;
     }
   };
-
   const renderItem = ({ item }: { item: PaymentMethod }) => (
     <View style={[styles.card, item.isDefault && styles.activeCardBorder]}>
       {/* Icon Box */}
       <View style={styles.iconBox}>
         {getProviderIcon(item.provider)}
       </View>
-
       {/* Details */}
       <View style={styles.details}>
         <Text style={styles.methodTitle}>{item.title}</Text>
@@ -156,7 +142,6 @@ export default function PaymentMethodsScreen() {
           </View>
         )}
       </View>
-
       {/* Actions */}
       <View style={styles.actions}>
         {!item.isDefault && (
@@ -170,12 +155,10 @@ export default function PaymentMethodsScreen() {
       </View>
     </View>
   );
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0C1559" />
       <Stack.Screen options={{ headerShown: false }} />
-
       {/* --- Add Method Modal --- */}
       <Modal
         visible={showAddModal}
@@ -199,9 +182,7 @@ export default function PaymentMethodsScreen() {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
-
             <Text style={styles.modalTitle}>Add Payment Method</Text>
-
             <ScrollView showsVerticalScrollIndicator={false}>
               {/* Type Selector */}
               <View style={styles.typeSelector}>
@@ -216,7 +197,6 @@ export default function PaymentMethodsScreen() {
                   />
                   <Text style={[styles.typeText, newMethod.type === 'momo' && styles.typeTextActive]}>Mobile Money</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity 
                   style={[styles.typeBtn, newMethod.type === 'card' && styles.typeBtnActive]}
                   onPress={() => setNewMethod({ ...newMethod, type: 'card', provider: 'visa' })}
@@ -229,7 +209,6 @@ export default function PaymentMethodsScreen() {
                   <Text style={[styles.typeText, newMethod.type === 'card' && styles.typeTextActive]}>Card</Text>
                 </TouchableOpacity>
               </View>
-
               {/* Provider Selection */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Select Provider</Text>
@@ -261,7 +240,6 @@ export default function PaymentMethodsScreen() {
                   )}
                 </View>
               </View>
-
               {/* Title / Name */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{newMethod.type === 'card' ? 'Cardholder Name' : 'Account Name'}</Text>
@@ -272,7 +250,6 @@ export default function PaymentMethodsScreen() {
                   onChangeText={(text) => setNewMethod({ ...newMethod, title: text })}
                 />
               </View>
-
               {/* Identifier */}
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>{newMethod.type === 'card' ? 'Card Number' : 'Phone Number'}</Text>
@@ -284,7 +261,6 @@ export default function PaymentMethodsScreen() {
                   onChangeText={(text) => setNewMethod({ ...newMethod, identifier: text })}
                 />
               </View>
-
               {/* Submit */}
               <TouchableOpacity 
                 style={styles.submitBtn} 
@@ -302,7 +278,6 @@ export default function PaymentMethodsScreen() {
           </View>
         </View>
       </Modal>
-
       {/* --- Header --- */}
       <View style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.safeHeader}>
@@ -320,7 +295,6 @@ export default function PaymentMethodsScreen() {
           </View>
         </SafeAreaView>
       </View>
-
       {/* --- Content --- */}
       <View style={styles.contentContainer}>
         {loading ? (
@@ -353,13 +327,11 @@ export default function PaymentMethodsScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-
   // Header
   header: {
     backgroundColor: '#0C1559',
@@ -387,12 +359,10 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#FFF',
   },
-
   // List
   contentContainer: { flex: 1 },
   listContent: { padding: 20 },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
   // Modal
   modalOverlay: {
     flex: 1,
@@ -517,7 +487,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
   },
-
   // Add Button
   addBtn: {
     flexDirection: 'row',
@@ -544,7 +513,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#0C1559',
   },
-
   // Card Item
   card: {
     flexDirection: 'row',
@@ -601,7 +569,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#16A34A',
   },
-
   // Actions
   actions: {
     alignItems: 'flex-end',
@@ -611,7 +578,6 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   actionBtn: {
-
   },
   setDefaultText: {
     fontSize: 11,

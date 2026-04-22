@@ -93,7 +93,7 @@ export default function CategoryDetailsScreen() {
               </View>
               <Text style={styles.emptyTitle}>No items found</Text>
               <Text style={styles.emptySubtitle}>
-                We couldn't find any products in the "{categoryName}" category right now.
+                We couldn&apos;t find any products in the &quot;{categoryName}&quot; category right now.
               </Text>
               <TouchableOpacity style={styles.browseBtn} onPress={() => router.back()}>
                 <Text style={styles.browseText}>Browse other categories</Text>

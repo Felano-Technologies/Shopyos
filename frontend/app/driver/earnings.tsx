@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -94,7 +94,7 @@ export default function DriverEarnings() {
         {/* Weekly Chart Placeholder */}
         <View style={styles.chartCard}>
             <View style={styles.chartHeader}>
-                <Text style={styles.chartTitle}>Today's Snapshot</Text>
+              <Text style={styles.chartTitle}>Today&apos;s Snapshot</Text>
                 <Text style={[styles.chartTotal, stats.completed === 0 && { color: '#64748B' }]}>
                     {stats.completed} Orders Completed
                 </Text>

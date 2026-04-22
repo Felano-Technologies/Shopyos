@@ -106,13 +106,13 @@ const NotificationScreen = () => {
     } catch (e) { console.error('Mark all read failed', e); }
   };
 
-  const handleItemPress = async (id: string) => {
+  const handleItemPress = useCallback(async (id: string) => {
     setReadIds((prev) => new Set([...prev, id]));
     try { await markOneMutation.mutateAsync(id); }
     catch (e) { console.error('Mark one read failed', e); }
-  };
+  }, [markOneMutation]);
 
-  const isRead = (n: any) => n.is_read || readIds.has(n.id);
+  const isRead = useCallback((n: any) => n.is_read || readIds.has(n.id), [readIds]);
 
   // ── Render: REFINED NOTIFICATION CARD ───────────────────────────────────────
   const renderItem = useCallback(({ item }: { item: any }) => {
@@ -152,7 +152,7 @@ const NotificationScreen = () => {
         </View>
       </TouchableOpacity>
     );
-  }, [readIds, rawNotifications]);
+  }, [isRead, handleItemPress]);
 
   // ── Render: section header ─────────────────────────────────────────────────
   const renderSectionHeader = (title: string) => (
@@ -247,7 +247,7 @@ const NotificationScreen = () => {
             </View>
             <Text style={S.emptyTitle}>All caught up</Text>
             <Text style={S.emptySub}>
-              You'll get updates on your orders and account activity here.
+              You&apos;ll get updates on your orders and account activity here.
             </Text>
             <TouchableOpacity style={S.shopBtn} onPress={() => router.push('/')}>
               <Text style={S.shopBtnTxt}>Start Shopping</Text>

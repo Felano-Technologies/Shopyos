@@ -4,9 +4,9 @@
 // on every screen mount even when data was fresh, defeating Redis caching.
 // Each hook overrides this where fresh data is truly needed (e.g. orders).
 
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient , focusManager } from '@tanstack/react-query';
 import { AppState, AppStateStatus } from 'react-native';
-import { focusManager } from '@tanstack/react-query';
+
 
 export const queryClient = new QueryClient({
   defaultOptions: {

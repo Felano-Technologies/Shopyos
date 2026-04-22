@@ -6,7 +6,6 @@ import {
   FlatList, 
   TouchableOpacity, 
   StatusBar,
-  Image,
   ActivityIndicator
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';

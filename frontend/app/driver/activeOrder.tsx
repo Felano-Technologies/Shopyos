@@ -8,35 +8,29 @@ import {
   Image,
   ScrollView,
   ActivityIndicator
-} from 'react-native';
+, Linking, Platform } from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
-import { Linking, Platform } from 'react-native';
-import { getUserData, startConversation, CustomInAppToast } from '@/services/api';
+import {  startConversation, CustomInAppToast } from '@/services/api';
 import {
   startDriverLocationTracking,
   stopDriverLocationTracking,
   isTrackingLocation,
 } from '@/src/background/controller';
-
-const { width, height } = Dimensions.get('window');
-
+const { height } = Dimensions.get('window');
 const ORDER_STEPS = ['Go to Restaurant', 'Confirm Pickup', 'Go to Customer', 'Confirm Delivery'];
-
 export default function ActiveOrderScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
-
   // --- TanStack Query Hooks ---
-  const { data, isLoading, refetch } = useDeliveryDetails(deliveryId);
+  const { data, isLoading } = useDeliveryDetails(deliveryId);
   const delivery = data?.delivery;
   const updateStatusMutation = useUpdateDeliveryStatus();
-
   // Sync step with delivery status
   useEffect(() => {
     if (delivery) {
@@ -49,12 +43,10 @@ export default function ActiveOrderScreen() {
         setStep(0);
       }
     }
-  }, [delivery?.status]);
-
+  }, [delivery, delivery.status, router]);
   // Start background location tracking when this screen mounts
   useEffect(() => {
     if (!deliveryId) return;
-
     const startTracking = async () => {
       const alreadyTracking = await isTrackingLocation();
       if (!alreadyTracking) {
@@ -66,16 +58,13 @@ export default function ActiveOrderScreen() {
         }
       }
     };
-
     startTracking();
-
     // Cleanup: stop tracking only if navigating away without completing
     // (completion is handled separately in handleProgress)
     return () => {
       // Don't stop here — let the dashboard or delivery completion handle it
     };
   }, [deliveryId]);
-
   const handleCall = (phoneNumber: string) => {
     if (!phoneNumber) {
       CustomInAppToast.show({ type: 'error', title: 'No Phone Number', message: 'Could not find a valid phone number for this contact.' });
@@ -83,7 +72,6 @@ export default function ActiveOrderScreen() {
     }
     Linking.openURL(`tel:${phoneNumber}`);
   };
-
   const handleChat = async (participantId: string, name: string, avatar: string) => {
     if (!participantId) return;
     try {
@@ -99,11 +87,10 @@ export default function ActiveOrderScreen() {
           }
         });
       }
-    } catch (e) {
+    } catch {
       CustomInAppToast.show({ type: 'error', title: 'Chat Error', message: 'Could not open conversation at this time.' });
     }
   };
-
   const handleProgress = async () => {
     try {
       if (step === 0) {
@@ -134,7 +121,6 @@ export default function ActiveOrderScreen() {
       });
     }
   };
-
   const getButtonText = () => {
     switch (step) {
       case 0: return "Arrived at Restaurant";
@@ -144,7 +130,6 @@ export default function ActiveOrderScreen() {
       default: return "Complete";
     }
   };
-
   if (isLoading) {
     return (
       <View style={styles.centerContainer}>
@@ -152,7 +137,6 @@ export default function ActiveOrderScreen() {
       </View>
     );
   }
-
   if (!delivery) {
     return (
       <View style={styles.centerContainer}>
@@ -163,14 +147,11 @@ export default function ActiveOrderScreen() {
       </View>
     );
   }
-
   const buyerProfile = delivery.order?.buyer?.user_profiles;
   const storeDetails = delivery.order?.store;
-
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-
       {/* --- MAP PLACEHOLDER --- */}
       <View style={styles.mapContainer}>
         <Image
@@ -183,18 +164,14 @@ export default function ActiveOrderScreen() {
           </TouchableOpacity>
         </SafeAreaView>
       </View>
-
       {/* --- BOTTOM SHEET --- */}
       <View style={styles.bottomSheet}>
         <View style={styles.handleBar} />
-
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-
           <View style={styles.statusRow}>
             <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
             <Text style={styles.timeRemaining}>~ {delivery?.estimated_time || (step === 0 ? '5' : '15')} mins</Text>
           </View>
-
           {/* Address Info */}
           <View style={styles.locationCard}>
             <View style={styles.iconCircle}>
@@ -223,7 +200,6 @@ export default function ActiveOrderScreen() {
               <FontAwesome5 name="location-arrow" size={18} color="#FFF" />
             </TouchableOpacity>
           </View>
-
           {/* Contact Section - Showing both for convenience */}
           <Text style={styles.summaryTitle}>Contacts</Text>
           
@@ -254,7 +230,6 @@ export default function ActiveOrderScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
           {/* Customer Contact */}
           <View style={styles.contactRow}>
             <View style={styles.customerInfo}>
@@ -282,9 +257,7 @@ export default function ActiveOrderScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
           <View style={styles.divider} />
-
           {/* Order Items Summary */}
           <View style={styles.orderSummary}>
             <Text style={styles.summaryTitle}>Order Details #{delivery.order?.order_number}</Text>
@@ -303,9 +276,7 @@ export default function ActiveOrderScreen() {
                 <Text style={styles.totalValue}>₵{delivery.order?.total_amount?.toFixed(2) || '0.00'}</Text>
             </View>
           </View>
-
         </ScrollView>
-
         {/* --- MAIN ACTION BUTTON --- */}
         <View style={styles.footer}>
           <TouchableOpacity
@@ -330,28 +301,23 @@ export default function ActiveOrderScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
   // Map Section
   mapContainer: { height: height * 0.45, width: '100%', backgroundColor: '#E2E8F0' },
   mapImage: { width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.8 },
   safeMapOverlay: { position: 'absolute', top: 0, left: 20 },
   backBtn: { backgroundColor: '#FFF', padding: 10, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
-
   // Bottom Sheet
   bottomSheet: {
     flex: 1, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30,
     marginTop: -30, paddingHorizontal: 24, paddingTop: 10
   },
   handleBar: { width: 40, height: 4, backgroundColor: '#CBD5E1', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   statusTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   timeRemaining: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#16A34A', backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-
   // Location Card
   locationCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
@@ -362,7 +328,6 @@ const styles = StyleSheet.create({
   locationName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   locationAddress: { fontSize: 13, color: '#475569', fontFamily: 'Montserrat-Regular' },
   navBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
-
   // Contact Row
   contactRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   customerInfo: { flexDirection: 'row', alignItems: 'center' },
@@ -371,9 +336,7 @@ const styles = StyleSheet.create({
   customerRole: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Medium' },
   actionButtons: { flexDirection: 'row', gap: 12 },
   circleBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
-
   divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 20 },
-
   // Order Summary
   orderSummary: { marginBottom: 20 },
   summaryTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 15, textTransform: 'uppercase' },
@@ -382,11 +345,9 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#334155', flex: 1 },
   itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   noItems: { fontSize: 14, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   totalLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   totalValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-
   // Footer
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,

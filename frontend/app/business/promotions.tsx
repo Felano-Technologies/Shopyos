@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
   TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
   ActivityIndicator, Linking
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import {  useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -17,15 +17,11 @@ import {
   verifyBannerPayment 
 } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-
-const { width } = Dimensions.get('window');
-
 const PRICING = {
   'Home Top Banner': 50, // per day
   'Search Highlight': 30,
   'Category Featured': 20,
 };
-
 export default function PromotionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -33,17 +29,14 @@ export default function PromotionsScreen() {
   const [activeTab, setActiveTab] = useState<'campaigns' | 'create'>('campaigns');
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-
   // Create Ad Form State
   const [adTitle, setAdTitle] = useState('');
   const [placement, setPlacement] = useState<keyof typeof PRICING>('Home Top Banner');
   const [duration, setDuration] = useState(3);
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
   const { reference } = useLocalSearchParams();
-
-  const verifyPayment = async (paystackRef: string) => {
+  const verifyPayment = useCallback(async (paystackRef: string) => {
     try {
       setLoading(true);
       const res = await verifyBannerPayment(paystackRef);
@@ -66,14 +59,12 @@ export default function PromotionsScreen() {
       // Clean URL
       router.replace('/business/promotions');
     }
-  };
-
+  }, [router]);
   useEffect(() => {
     if (reference) {
       verifyPayment(reference as string);
     }
-  }, [reference]);
-
+  }, [reference, verifyPayment]);
   const fetchMyCampaigns = async () => {
     try {
       setLoading(true);
@@ -87,15 +78,12 @@ export default function PromotionsScreen() {
       setLoading(false);
     }
   };
-
   useEffect(() => {
     if (activeTab === 'campaigns') {
       fetchMyCampaigns();
     }
   }, [activeTab]);
-
   const totalCost = PRICING[placement] * duration;
-
   const handlePickImage = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -103,12 +91,10 @@ export default function PromotionsScreen() {
       aspect: [10.8, 4], // for 1080x400
       quality: 1,
     });
-
     if (!result.canceled) {
       setBannerUri(result.assets[0].uri);
     }
   };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Active': return { color: '#059669', bg: '#D1FAE5' };
@@ -118,7 +104,6 @@ export default function PromotionsScreen() {
       default: return { color: '#64748B', bg: '#F1F5F9' };
     }
   };
-
   const handleSubmit = async () => {
     if (!adTitle || !bannerUri) return;
     try {
@@ -138,7 +123,6 @@ export default function PromotionsScreen() {
         name: filename,
         type,
       } as any);
-
       const res = await createBannerCampaign(formData);
       if (res.success) {
         CustomInAppToast.show({
@@ -161,7 +145,6 @@ export default function PromotionsScreen() {
       setSubmitting(false);
     }
   };
-
   const handlePayAd = async (campaignId: string) => {
     try {
       setLoading(true);
@@ -169,7 +152,6 @@ export default function PromotionsScreen() {
         campaignId,
         email: 'merchant@shopyos.com',
       });
-
       if (res.success && res.data.authorization_url) {
         CustomInAppToast.show({
           type: 'success',
@@ -189,11 +171,9 @@ export default function PromotionsScreen() {
       setLoading(false);
     }
   };
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-
       {/* --- Premium Header --- */}
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <View style={styles.headerRow}>
@@ -202,10 +182,9 @@ export default function PromotionsScreen() {
           </TouchableOpacity>
           <View style={styles.headerTextWrap}>
             <Text style={styles.headerTitle}>Marketing & Ads</Text>
-            <Text style={styles.headerSub}>Boost your store's visibility</Text>
+            <Text style={styles.headerSub}>Boost your store visibility</Text>
           </View>
         </View>
-
         {/* Custom Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity 
@@ -222,7 +201,6 @@ export default function PromotionsScreen() {
           </TouchableOpacity>
         </View>
       </LinearGradient>
-
       {/* --- Tab Content --- */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -242,7 +220,6 @@ export default function PromotionsScreen() {
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>
-
               <Text style={styles.sectionTitle}>Campaign History</Text>
               {loading ? (
                 <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />
@@ -296,7 +273,6 @@ export default function PromotionsScreen() {
                   Submit your ad details for admin review. Once approved, you can pay to activate the campaign.
                 </Text>
               </View>
-
               <Text style={styles.inputLabel}>Campaign Name</Text>
               <TextInput
                 style={styles.input}
@@ -305,10 +281,9 @@ export default function PromotionsScreen() {
                 value={adTitle}
                 onChangeText={setAdTitle}
               />
-
               <Text style={styles.inputLabel}>Select Placement</Text>
               <View style={styles.placementGrid}>
-                {(Object.keys(PRICING) as Array<keyof typeof PRICING>).map((place) => (
+                {(Object.keys(PRICING) as (keyof typeof PRICING)[]).map((place) => (
                   <TouchableOpacity 
                     key={place} 
                     style={[styles.placeCard, placement === place && styles.placeCardActive]}
@@ -324,7 +299,6 @@ export default function PromotionsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
               <Text style={styles.inputLabel}>Duration (Days)</Text>
               <View style={styles.durationRow}>
                 {[3, 5, 7, 14, 30].map(days => (
@@ -337,7 +311,6 @@ export default function PromotionsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-
               <Text style={styles.inputLabel}>Upload Ad Banner</Text>
               <TouchableOpacity 
                 style={[styles.uploadBox, bannerUri && { borderColor: '#10B981', backgroundColor: '#F0FDF4' }]} 
@@ -352,7 +325,6 @@ export default function PromotionsScreen() {
                   </>
                 )}
               </TouchableOpacity>
-
               {/* Checkout Summary */}
               <View style={styles.checkoutBox}>
                 <View style={styles.checkoutRow}>
@@ -365,7 +337,6 @@ export default function PromotionsScreen() {
                   <Text style={styles.totalValue}>₵{totalCost}</Text>
                 </View>
               </View>
-
               <TouchableOpacity 
                 style={[styles.submitBtn, (!adTitle || !bannerUri || submitting) && styles.submitBtnDisabled]}
                 disabled={!adTitle || !bannerUri || submitting}
@@ -387,7 +358,6 @@ export default function PromotionsScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: { paddingHorizontal: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
@@ -402,9 +372,7 @@ const styles = StyleSheet.create({
   activeTab: { backgroundColor: '#FFF' },
   tabText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: 'rgba(255,255,255,0.7)' },
   activeTabText: { color: '#0C1559' },
-
   scrollContent: { padding: 20, paddingBottom: 60 },
-
   // --- Campaign Dashboard Styles ---
   statsRow: { flexDirection: 'row', gap: 15, marginBottom: 25 },
   statCard: { flex: 1, backgroundColor: '#FFF', padding: 15, borderRadius: 20, elevation: 2, shadowColor: '#0C1559', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.05, shadowRadius: 8 },
@@ -423,7 +391,6 @@ const styles = StyleSheet.create({
   campFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   campSpent: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
   campClicks: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#10B981' },
-
   // --- Create Form Styles ---
   formContainer: { paddingBottom: 20 },
   infoBanner: { flexDirection: 'row', backgroundColor: '#E0E7FF', padding: 15, borderRadius: 16, alignItems: 'center', gap: 10, marginBottom: 25 },
@@ -438,16 +405,13 @@ const styles = StyleSheet.create({
   placeTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#64748B', textAlign: 'center' },
   placeTitleActive: { color: '#0C1559' },
   placePrice: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-
   durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
   durationPill: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20 },
   durationPillActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
   durationText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   durationTextActive: { color: '#FFF' },
-
   uploadBox: { height: 120, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
   uploadText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 10 },
-
   checkoutBox: { backgroundColor: '#FFF', padding: 20, borderRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 25 },
   checkoutRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   checkoutLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
@@ -455,7 +419,6 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 15 },
   totalLabel: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   totalValue: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-
   submitBtn: { flexDirection: 'row', backgroundColor: '#0C1559', padding: 18, borderRadius: 16, justifyContent: 'center', alignItems: 'center', gap: 10 },
   submitBtnDisabled: { backgroundColor: '#94A3B8' },
   submitBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },

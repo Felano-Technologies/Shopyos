@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
-  TextInput, ScrollView, Platform, Image
+  TextInput, ScrollView, Image
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -148,7 +148,7 @@ const OrdersScreen = () => {
       startTour('orders');
     }, 1500);
     return () => clearTimeout(timer);
-  }, [filteredOrders.length]);
+  }, [filteredOrders.length, startTour]);
 
   const onboardingSteps = [
     {

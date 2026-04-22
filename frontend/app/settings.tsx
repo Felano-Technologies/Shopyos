@@ -13,31 +13,24 @@ import {
 } from 'react-native';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons';
+import {  Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
-import { LinearGradient } from 'expo-linear-gradient';
 import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser } from '@/services/api';
-
 export default function SettingsScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('User');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
-
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refProfile = useRef<View>(null);
   const refEdit = useRef<View>(null);
   const refAccount = useRef<View>(null);
-
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -45,7 +38,6 @@ export default function SettingsScreen() {
       });
     }
   };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       measureElement(refProfile, 'profile');
@@ -54,8 +46,7 @@ export default function SettingsScreen() {
       startTour('settings');
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
-
+  }, [startTour]);
   const onboardingSteps = [
     {
       targetLayout: layouts.profile,
@@ -73,14 +64,11 @@ export default function SettingsScreen() {
       description: 'Add payment methods and check your transaction history here.',
     },
   ].filter(s => !!s.targetLayout);
-
   const handleOnboardingComplete = () => {
     markCompleted('settings');
   };
-
   // Skeleton Animation Value
   const skeletonAnim = React.useRef(new Animated.Value(0.4)).current;
-
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
@@ -96,8 +84,7 @@ export default function SettingsScreen() {
         }),
       ])
     ).start();
-  }, []);
-
+  }, [skeletonAnim]);
   useFocusEffect(
     useCallback(() => {
       const fetchUserData = async () => {
@@ -109,7 +96,6 @@ export default function SettingsScreen() {
             setEmail(userData.email || '');
             setAvatarUrl(userData.avatar_url || null);
           }
-
           const prefs = await getNotificationPreferences();
           if (prefs && prefs.success) {
             setNotificationsEnabled(prefs.preferences.push_enabled);
@@ -123,7 +109,6 @@ export default function SettingsScreen() {
       fetchUserData();
     }, [])
   );
-
   const handleNotificationToggle = async (value: boolean) => {
     setNotificationsEnabled(value);
     try {
@@ -134,7 +119,6 @@ export default function SettingsScreen() {
       setNotificationsEnabled(!value);
     }
   };
-
   const handleLogout = async () => {
     Alert.alert('Log Out', 'Are you sure you want to log out?', [
       { text: 'Cancel', style: 'cancel' },
@@ -154,7 +138,6 @@ export default function SettingsScreen() {
       },
     ]);
   };
-
   const renderSettingItem = ({
     icon,
     label,
@@ -182,11 +165,9 @@ export default function SettingsScreen() {
       )}
     </TouchableOpacity>
   );
-
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
-
       {/* --- HEADER --- */}
       <View style={styles.headerContainer}>
         <Image
@@ -196,7 +177,6 @@ export default function SettingsScreen() {
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.headerContent}>
             <Text style={styles.screenTitle}>Settings</Text>
-
             {/* Profile Card */}
             {isLoading ? (
               <View style={styles.profileCard}>
@@ -227,14 +207,12 @@ export default function SettingsScreen() {
           </View>
         </SafeAreaView>
       </View>
-
       {/* --- CONTENT --- */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-
         {/* Section: Account */}
         <Text style={styles.sectionHeader}>Account</Text>
         <View style={styles.sectionCard} ref={refAccount} onLayout={() => measureElement(refAccount, 'account')}>
@@ -262,7 +240,6 @@ export default function SettingsScreen() {
             onPress: () => router.push('/settings/Transactions')
           })}
         </View>
-
         {/* Section: Preferences */}
         <Text style={styles.sectionHeader}>Preferences</Text>
         <View style={styles.sectionCard}>
@@ -281,20 +258,19 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
         </View>
-
         {/* Section: Support & Legal */}
         <Text style={styles.sectionHeader}>Support</Text>
         <View style={styles.sectionCard}>
           {renderSettingItem({
             icon: 'help-circle',
             label: 'Help Center',
-            onPress: () => { }
+            onPress: () => router.push('/settings/helpCenter')
           })}
           <View style={styles.separator} />
           {renderSettingItem({
             icon: 'shield',
             label: 'Privacy & Security',
-            onPress: () => router.push('/security')
+            onPress: () => router.push('/settings/security')
           })}
           <View style={styles.separator} />
           {renderSettingItem({
@@ -303,7 +279,6 @@ export default function SettingsScreen() {
             onPress: () => { }
           })}
         </View>
-
         {/* Logout */}
         <View style={styles.logoutContainer}>
           <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
@@ -312,12 +287,9 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           <Text style={styles.versionText}>Version 1.0.0</Text>
         </View>
-
         {/* Bottom Padding */}
         <View style={{ height: 40 }} />
-
       </ScrollView>
-
       <SpotlightTour 
         visible={isTourActive && activeScreen === 'settings'} 
         steps={onboardingSteps}
@@ -326,13 +298,11 @@ export default function SettingsScreen() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-
   // Header
   headerContainer: {
     backgroundColor: '#0C1559',
@@ -362,7 +332,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     marginBottom: 20,
   },
-
   // Profile Card
   profileCard: {
     flexDirection: 'row',
@@ -435,7 +404,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 12,
   },
-
   // Content
   scrollView: {
     flex: 1,
@@ -470,7 +438,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     marginLeft: 60, // Indent separator to align with text
   },
-
   // Setting Item
   settingItem: {
     flexDirection: 'row',
@@ -495,7 +462,6 @@ const styles = StyleSheet.create({
   destructiveLabel: {
     color: '#EF4444',
   },
-
   // Logout
   logoutContainer: {
     alignItems: 'center',

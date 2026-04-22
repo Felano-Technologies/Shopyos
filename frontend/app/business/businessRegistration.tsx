@@ -26,15 +26,11 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import MapView, { PROVIDER_GOOGLE } from '@/components/MapView';
-
-const { width, height } = Dimensions.get('window');
-
 // --- Mock City Data ---
 const CITIES = [
   'Kumasi', 'Accra', 'Tema', 'Tamale', 'Takoradi', 
   'Cape Coast', 'Sunyani', 'Koforidua', 'Ho', 'Wa', 'Bolgatanga'
 ];
-
 // --- REUSABLE FIELD COMPONENT ---
 const RegistrationField = ({ 
   icon, 
@@ -62,10 +58,8 @@ const RegistrationField = ({
     if (library === "Feather") return <Feather name={icon} size={size} color={color} />;
     return <Ionicons name={icon} size={size} color={color} />;
   };
-
   let displayValue = value;
   let textColor = '#0F172A';
-
   if (isUpload) {
       if (value) {
           displayValue = "Document Attached ✓";
@@ -81,7 +75,6 @@ const RegistrationField = ({
       displayValue = placeholder;
       textColor = "#94A3B8";
   }
-
   return (
     <View style={styles.inputContainer}>
       <View style={styles.inputIconBox}>{renderIcon()}</View>
@@ -111,7 +104,6 @@ const RegistrationField = ({
            />
         )}
       </View>
-
       {(isUpload || isAdd || isDropdown || isMap) && (
           <TouchableOpacity style={styles.actionBtn} onPress={onAction} disabled={loading}>
               {loading ? (
@@ -130,13 +122,11 @@ const RegistrationField = ({
     </View>
   );
 };
-
 export default function BusinessRegistrationScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const mapRef = React.useRef<MapView>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   // --- Form State ---
   const [formData, setFormData] = useState<any>({
     businessName: '',
@@ -164,7 +154,6 @@ export default function BusinessRegistrationScreen() {
     adminNotes: '',
     storePhotos: []
   });
-
   // --- Modal & Map State ---
   const [showCityModal, setShowCityModal] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
@@ -173,17 +162,14 @@ export default function BusinessRegistrationScreen() {
     latitude: 6.6745, // Default Kumasi
     longitude: -1.5716,
   });
-
   // --- Actions ---
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
-
   const handleCitySelect = (city: string) => {
     setFormData((prev: any) => ({ ...prev, city }));
     setShowCityModal(false);
   };
-
   const confirmMapSelection = () => {
     setFormData((prev: any) => ({
       ...prev,
@@ -193,7 +179,6 @@ export default function BusinessRegistrationScreen() {
     setMapVisible(false);
     Alert.alert("Location Pinned", "Your store location has been saved.");
   };
-
   // --- Simulated Search (Use Google Geocoding API in Production) ---
   const handleMapSearch = () => {
     if (!searchQuery.trim()) return;
@@ -210,18 +195,15 @@ export default function BusinessRegistrationScreen() {
         longitudeDelta: 0.005
     }, 1000);
   };
-
   const pickImage = async (field: string, isArray: boolean = false) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
-
     let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.5,
     });
-
     if (!result.canceled) {
         const uri = result.assets[0].uri;
         if (isArray) {
@@ -231,13 +213,11 @@ export default function BusinessRegistrationScreen() {
         }
     }
   };
-
   const removeStorePhoto = (index: number) => {
       const updated = [...formData.storePhotos];
       updated.splice(index, 1);
       setFormData((prev: any) => ({ ...prev, storePhotos: updated }));
   };
-
   const handleSubmit = async () => {
     if (!formData.businessName || !formData.latitude || !formData.businessEmail) {
       Alert.alert('Missing Information', 'Please ensure Store Name, Business Email, and Map Location are set.');
@@ -279,17 +259,14 @@ export default function BusinessRegistrationScreen() {
       setIsSubmitting(false);
     }
   };
-
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
           <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
-
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 60 }}>
@@ -308,7 +285,6 @@ export default function BusinessRegistrationScreen() {
                         </SafeAreaView>
                     </LinearGradient>
                 </View>
-
                 <View style={styles.contentContainer}>
                     <Text style={styles.sectionHeader}>Basic Information</Text>
                     <View style={styles.sectionCard}>
@@ -320,7 +296,6 @@ export default function BusinessRegistrationScreen() {
                         <View style={styles.divider} />
                         <RegistrationField icon="call-outline" value={formData.businessPhone} placeholder="Business Phone" isPhone={true} onChangeText={(t: string) => handleInputChange('businessPhone', t)} />
                     </View>
-
                     <Text style={styles.sectionHeader}>Map & Address</Text>
                     <View style={styles.sectionCard}>
                         <RegistrationField 
@@ -335,7 +310,6 @@ export default function BusinessRegistrationScreen() {
                         <View style={styles.divider} />
                         <RegistrationField icon="map-outline" value={formData.city} isDropdown={true} placeholder="Select City" onAction={() => setShowCityModal(true)} />
                     </View>
-
                     <Text style={styles.sectionHeader}>Verification & Finance</Text>
                     <View style={styles.sectionCard}>
                         <RegistrationField icon="document-text-outline" value={formData.businessCert} placeholder="Business Certificate" isUpload={true} onAction={() => pickImage('businessCert')} />
@@ -346,7 +320,6 @@ export default function BusinessRegistrationScreen() {
                         <View style={styles.divider} />
                         <RegistrationField icon="credit-card" library="Feather" value={formData.accountNumber} placeholder="Account Number" onChangeText={(t: string) => handleInputChange('accountNumber', t)} />
                     </View>
-
                     <Text style={styles.sectionHeader}>Store Gallery</Text>
                     {formData.storePhotos.length > 0 && (
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoList}>
@@ -363,7 +336,6 @@ export default function BusinessRegistrationScreen() {
                             <Feather name="image" size={24} color="#0C1559" /><Text style={styles.uploadBoxText}>Add Photo</Text>
                         </TouchableOpacity>
                     </View>
-
                     <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit} activeOpacity={0.8} disabled={isSubmitting}>
                         {isSubmitting ? (
                           <ActivityIndicator color="#FFF" size="small" />
@@ -376,7 +348,6 @@ export default function BusinessRegistrationScreen() {
             </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-
       {/* --- MANUAL MAP PICKER MODAL WITH SEARCH --- */}
       <Modal visible={mapVisible} animationType="slide">
         <View style={{ flex: 1 }}>
@@ -399,7 +370,6 @@ export default function BusinessRegistrationScreen() {
             <View style={styles.markerCircle}><MaterialCommunityIcons name="store" size={26} color="#FFF" /></View>
             <View style={styles.markerArrow} />
           </View>
-
           <SafeAreaView style={styles.mapOverlay} pointerEvents="box-none">
             <View style={styles.mapSearchContainer}>
                 <TouchableOpacity onPress={() => setMapVisible(false)} style={styles.mapSearchClose}>
@@ -433,7 +403,6 @@ export default function BusinessRegistrationScreen() {
           </SafeAreaView>
         </View>
       </Modal>
-
       {/* --- City Selection Modal --- */}
       <Modal visible={showCityModal} transparent={true} animationType="slide">
         <View style={styles.modalOverlay}>
@@ -455,11 +424,9 @@ export default function BusinessRegistrationScreen() {
             </View>
         </View>
       </Modal>
-
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   safeArea: { flex: 1 },
@@ -500,7 +467,6 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
   modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalItemText: { fontSize: 15, color: '#0F172A', fontFamily: 'Montserrat-Medium' },
-
   // --- Map Selection Styles ---
   mapMarkerFixed: { position: 'absolute', top: '50%', left: '50%', marginLeft: -24, marginTop: -48, alignItems: 'center', zIndex: 1 },
   markerCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center', borderWidth: 3, borderColor: '#FFF', elevation: 10 },

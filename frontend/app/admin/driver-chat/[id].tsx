@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Image, Dimensions, KeyboardAvoidingView,
+  TextInput, Dimensions, KeyboardAvoidingView,
   Platform, Animated, ActivityIndicator, Linking, Alert,
-} from 'react-native';
+ Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
+
+
 
 // ─── Responsive helpers ──────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
@@ -423,8 +425,6 @@ export default function AdminDriverChatThread() {
     </KeyboardAvoidingView>
   );
 }
-
-import { Keyboard } from 'react-native';
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Styles

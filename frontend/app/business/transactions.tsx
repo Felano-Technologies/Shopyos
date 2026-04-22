@@ -10,7 +10,7 @@ import {
   TextInput
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -52,7 +52,7 @@ export default function TransactionsScreen() {
     storage.getItem('currentBusinessVerificationStatus').then(status => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     loadData();

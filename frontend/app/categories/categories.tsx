@@ -21,10 +21,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useCategories } from '@/hooks/useCategories';
 import { searchProducts } from '@/services/api';
-import { queryClient } from '@/lib/query/client';
-
-const { width } = Dimensions.get('window');
-
 // Helper for fallback images
 const getFallbackImage = (index: number) => {
   const images = [
@@ -37,24 +33,19 @@ const getFallbackImage = (index: number) => {
   ];
   return images[index % images.length];
 };
-
-
 export default function CategoryScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-
   const { data: categoriesData, isLoading: loadingCats } = useCategories();
   const categories = categoriesData || [];
-
   // Search logic
   useEffect(() => {
     if (searchQuery.length < 2) {
       setSearchResults([]);
       return;
     }
-
     const delayDebounceFn = setTimeout(async () => {
       setIsSearching(true);
       try {
@@ -74,14 +65,11 @@ export default function CategoryScreen() {
         setIsSearching(false);
       }
     }, 500);
-
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
-
   const displayData = searchQuery.length < 2
     ? categories.map((c: any) => ({ ...c, title: c.name, type: 'category' }))
     : searchResults;
-
   const handlePress = (item: any) => {
     if (item.type === 'category') {
       router.push({
@@ -99,9 +87,7 @@ export default function CategoryScreen() {
       } as any);
     }
   };
-
   // --- Renderers ---
-
   const renderCategoryCard = (item: any, index: number) => {
     const displayImage = item.image_url ? { uri: item.image_url } : getFallbackImage(index);
     
@@ -125,8 +111,6 @@ export default function CategoryScreen() {
       </TouchableOpacity>
     );
   };
-
-
   const renderProductCard = (item: any) => (
     <TouchableOpacity
       style={styles.productCard}
@@ -143,13 +127,11 @@ export default function CategoryScreen() {
       </View>
     </TouchableOpacity>
   );
-
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.mainContainer}>
         <StatusBar style="dark" />
         <SafeAreaView style={styles.safeContainer} edges={['top', 'left', 'right']}>
-
           {/* 🟢 Header */}
           <View style={styles.headerContainer}>
             <Text style={styles.headerTitle}>Explore</Text>
@@ -157,7 +139,6 @@ export default function CategoryScreen() {
               {searchQuery.length > 0 ? `Searching for "${searchQuery}"` : 'Find items by category'}
             </Text>
           </View>
-
           {/* 🔍 Search Bar */}
           <View style={styles.searchWrapper}>
             <View style={styles.searchBar}>
@@ -176,7 +157,6 @@ export default function CategoryScreen() {
               )}
             </View>
           </View>
-
           {/* 📦 Grid List */}
           <FlatList
             data={displayData}
@@ -193,20 +173,17 @@ export default function CategoryScreen() {
               ) : (
                 <View style={styles.emptyState}>
                   <Ionicons name="search-outline" size={48} color="#CBD5E1" />
-                  <Text style={styles.emptyText}>No items found matching "{searchQuery}"</Text>
+                  <Text style={styles.emptyText}>No items found matching &quot;{searchQuery}&quot;</Text>
                 </View>
               )
             }
           />
-
-
         </SafeAreaView>
         <BottomNav />
       </View>
     </Pressable>
   );
 }
-
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -215,7 +192,6 @@ const styles = StyleSheet.create({
   safeContainer: {
     flex: 1,
   },
-
   // Header
   headerContainer: {
     paddingHorizontal: 20,
@@ -233,7 +209,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
   },
-
   // Search
   searchWrapper: {
     paddingHorizontal: 20,
@@ -261,13 +236,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     color: '#0F172A',
   },
-
   // Grid
   gridContent: {
     paddingHorizontal: 12,
     paddingBottom: 100,
   },
-
   // 1. Category Card Style
   cardContainer: {
     flex: 1,
@@ -308,7 +281,6 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 8,
   },
-
   // 2. Product Card Style
   productCard: {
     flex: 1,
@@ -360,7 +332,6 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontFamily: 'Montserrat-Medium',
   },
-
   // Empty State
   emptyState: {
     alignItems: 'center',

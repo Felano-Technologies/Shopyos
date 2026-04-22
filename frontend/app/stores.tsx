@@ -15,9 +15,7 @@ import { getAllStores } from '@/services/api';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-
 const { width } = Dimensions.get('window');
-
 const C = {
   pageBg:   '#E9F0FF',
   navy:     '#0C1559',
@@ -31,21 +29,15 @@ const C = {
   border:   'rgba(12,21,89,0.07)',
   borderMd: 'rgba(12,21,89,0.14)',
 };
-
 const CATEGORIES = ['All', 'Grocery', 'Electronics', 'Fashion', 'Home', 'Footwear', 'Art'];
-
 const SORT_OPTIONS: { label: string; value: 'rating' | 'newest' | 'name' }[] = [
   { label: 'Top rated', value: 'rating' },
   { label: 'Newest',    value: 'newest' },
   { label: 'A → Z',     value: 'name'   },
 ];
-
 const initials = (name: string) =>
   (name || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-
 export default function StoresScreen() {
-  const router = useRouter();
-
   const [searchQuery,    setSearchQuery]    = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [stores,         setStores]         = useState<any[]>([]);
@@ -55,10 +47,8 @@ export default function StoresScreen() {
   const [showFilter,     setShowFilter]     = useState(false);
   const [filterSort,     setFilterSort]     = useState<'rating' | 'newest' | 'name'>('rating');
   const [filterVerified, setFilterVerified] = useState(false);
-
   const fadeAnim   = useRef(new Animated.Value(1)).current;
   const isSearching = searchQuery.length > 0;
-
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -66,7 +56,6 @@ export default function StoresScreen() {
   const refFilter = useRef<View>(null);
   const refPopular = useRef<View>(null);
   const refMap = useRef<View>(null);
-
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -74,7 +63,6 @@ export default function StoresScreen() {
       });
     }
   };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       // Only start tour if user isn't actively searching
@@ -87,8 +75,7 @@ export default function StoresScreen() {
       }
     }, 1500);
     return () => clearTimeout(timer);
-  }, [searchQuery.length === 0]);
-
+  }, [searchQuery.length, startTour]);
   const onboardingSteps = [
     {
       targetLayout: layouts.search,
@@ -111,25 +98,21 @@ export default function StoresScreen() {
       description: 'Prefer to shop locally? See exactly where stores are located around you.',
     },
   ].filter(s => !!s.targetLayout);
-
   const handleOnboardingComplete = () => {
     markCompleted('stores');
   };
-
   const fetchStores = useCallback(async () => {
     try {
       // Only show full skeleton if we have no data yet
       const isInitial = stores.length === 0;
       if (isInitial) setLoading(true);
       else setIsRefreshing(true);
-
       const res = await getAllStores({
         search:   searchQuery || undefined,
         category: activeCategory !== 'All' ? activeCategory : undefined,
         sortBy:   filterSort,
         verified: filterVerified ? 'true' : undefined,
       });
-
       if (res.success) {
         const mapped = (res.businesses || []).map((b: any) => ({
           id:          b.id,
@@ -142,12 +125,10 @@ export default function StoresScreen() {
           verified:    b.verified    || false,
           isTrusted:   b.isTrusted   || false,
         }));
-
         Animated.sequence([
           Animated.timing(fadeAnim, { toValue: 0.5, duration: 120, useNativeDriver: true }),
           Animated.timing(fadeAnim, { toValue: 1,   duration: 300, useNativeDriver: true }),
         ]).start();
-
         setStores(mapped);
         if (searchQuery === '' && activeCategory === 'All') {
           setPopularStores(mapped.slice(0, 6));
@@ -159,14 +140,11 @@ export default function StoresScreen() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [searchQuery, activeCategory, filterSort, filterVerified]);
-
+  }, [stores.length, searchQuery, activeCategory, filterSort, filterVerified, fadeAnim]);
   useEffect(() => { fetchStores(); }, [fetchStores]);
-
   const handleVisitStore = (item: any) => {
     safePush('/stores/details', { id: item.id, name: item.name, category: item.category, logo: item.logo });
   };
-
   // ── Popular card — single logo image, verified badge overlaid on it ────────
   const renderPopularCard = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -188,13 +166,11 @@ export default function StoresScreen() {
             <Text style={styles.popularLogoInitials}>{initials(item.name)}</Text>
           </View>
         )}
-
         {/* Bottom gradient so name text below never fights the image */}
         <LinearGradient
           colors={['transparent', 'rgba(12,21,89,0.45)']}
           style={styles.popularImgGradient}
         />
-
         {/* Trusted badge — top right, on top of the image */}
         {item.isTrusted && (
           <View style={styles.verifiedBadge}>
@@ -203,7 +179,6 @@ export default function StoresScreen() {
           </View>
         )}
       </View>
-
       {/* Info below the image */}
       <View style={styles.popularInfo}>
         <Text style={styles.popularName} numberOfLines={1}>{item.name}</Text>
@@ -218,7 +193,6 @@ export default function StoresScreen() {
       </View>
     </TouchableOpacity>
   );
-
   // ── Store row ──────────────────────────────────────────────────────────────
   const renderStoreRow = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -232,7 +206,6 @@ export default function StoresScreen() {
             <Text style={styles.storeRowLogoTxt}>{initials(item.name)}</Text>
           </View>
       }
-
       <View style={styles.storeRowInfo}>
         <View style={styles.storeNameRow}>
           <Text style={styles.storeRowName} numberOfLines={1}>{item.name}</Text>
@@ -254,14 +227,12 @@ export default function StoresScreen() {
           </Text>
         </View>
       </View>
-
       <TouchableOpacity style={styles.visitBtn} onPress={() => handleVisitStore(item)}>
         <Text style={styles.visitTxt}>Visit</Text>
         <Ionicons name="chevron-forward" size={12} color={C.navy} />
       </TouchableOpacity>
     </TouchableOpacity>
   );
-
   const renderEmpty = () => (
     <View style={styles.emptyWrap}>
       <View style={styles.emptyCircle}>
@@ -275,7 +246,6 @@ export default function StoresScreen() {
       </Text>
     </View>
   );
-
   // Only show the full skeleton loader during initial boot with NO data
   if (loading && stores.length === 0) {
     return (
@@ -286,17 +256,13 @@ export default function StoresScreen() {
       </View>
     );
   }
-
   const headingEye = searchQuery.length > 0 ? 'Results for' : 'Explore';
-
   return (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <View style={styles.root}>
         <StatusBar style="light" />
-
         <LinearGradient colors={[C.navy, C.navyMid]} style={styles.hdrGradient}>
           <View style={styles.hdrGlow} pointerEvents="none" />
-
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.hdrInner}>
               <View style={styles.hdrTop}>
@@ -313,7 +279,6 @@ export default function StoresScreen() {
                   <Ionicons name="notifications-outline" size={17} color="rgba(255,255,255,0.8)" />
                 </TouchableOpacity>
               </View>
-
               <View style={styles.searchRow}>
                 <View style={[styles.searchPill, searchQuery.length > 0 && styles.searchPillActive]} ref={refSearch} onLayout={() => measureElement(refSearch, 'search')}>
                   <Feather name="search" size={14} color="rgba(255,255,255,0.5)" />
@@ -351,10 +316,8 @@ export default function StoresScreen() {
               </View>
             </View>
           </SafeAreaView>
-
           <View style={styles.hdrArc} />
         </LinearGradient>
-
         <Animated.View style={{ 
           flex: 1, 
           opacity: (loading || isRefreshing) ? 0.6 : fadeAnim 
@@ -387,7 +350,6 @@ export default function StoresScreen() {
                     );
                   }}
                 />
-
                 {!isSearching && popularStores.length > 0 && (
                   <>
                     <View style={styles.secHeader} ref={refPopular} onLayout={() => measureElement(refPopular, 'popular')}>
@@ -404,7 +366,6 @@ export default function StoresScreen() {
                     />
                   </>
                 )}
-
                 <View style={styles.secHeader}>
                   <Text style={styles.secTitle}>
                     {isSearching
@@ -419,7 +380,6 @@ export default function StoresScreen() {
             }
           />
         </Animated.View>
-
         <TouchableOpacity
           style={styles.mapFab}
           activeOpacity={0.88}
@@ -432,9 +392,7 @@ export default function StoresScreen() {
             <Text style={styles.mapFabTxt}>Find Stores</Text>
           </LinearGradient>
         </TouchableOpacity>
-
         <BottomNav />
-
         <Modal
           visible={showFilter}
           transparent
@@ -492,7 +450,6 @@ export default function StoresScreen() {
           </View>
         </Modal>
       </View>
-
       <SpotlightTour 
         visible={isTourActive && activeScreen === 'stores'} 
         steps={onboardingSteps}
@@ -501,10 +458,8 @@ export default function StoresScreen() {
     </Pressable>
   );
 }
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
-
   hdrGradient: {
     position: 'relative', paddingBottom: 28, zIndex: 20,
     elevation: 12, shadowColor: C.navy,
@@ -564,9 +519,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 28,
     backgroundColor: C.pageBg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
   },
-
   listContent: { paddingBottom: 120 },
-
   chipStrip: {
     paddingHorizontal: 16, paddingVertical: 14, gap: 8, flexDirection: 'row',
   },
@@ -581,14 +534,12 @@ const styles = StyleSheet.create({
   chipOn:    { backgroundColor: C.lime, borderColor: C.lime },
   chipTxt:   { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   chipTxtOn: { color: C.limeText },
-
   secHeader: {
     flexDirection: 'row', justifyContent: 'space-between',
     alignItems: 'center', paddingHorizontal: 16, marginBottom: 12,
   },
   secTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C.body },
   secMeta:  { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.subtle },
-
   // ── Popular card — single logo image ───────────────────────────────────────
   popularStrip: { paddingLeft: 16, paddingRight: 8, paddingBottom: 20 },
   popularCard: {
@@ -597,7 +548,6 @@ const styles = StyleSheet.create({
     elevation: 5, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.09, shadowRadius: 14,
   },
-
   // The image wrapper — logo fills this area entirely
   popularImgWrap: {
     width: '100%',
@@ -625,7 +575,6 @@ const styles = StyleSheet.create({
     height: 40,          // only covers the bottom portion
     borderRadius: 0,     // no radius — abuts the info section directly
   },
-
   // Verified badge — absolute, top-right, sitting on top of the image
   verifiedBadge: {
     position: 'absolute', top: 8, right: 8,
@@ -637,7 +586,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.15, shadowRadius: 3,
   },
   verifiedBadgeTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.limeText },
-
   popularInfo: { padding: 11 },   // no extra paddingTop — avatar overlap is gone
   popularName: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 2 },
   popularCat:  { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: 8 },
@@ -648,7 +596,6 @@ const styles = StyleSheet.create({
   },
   ratingPillTxt: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#92400E' },
   popularItems:  { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.lime },
-
   // Store row
   storeRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -680,7 +627,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#EEF2FF', paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12,
   },
   visitTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
-
   mapFab: {
     position: 'absolute', bottom: 86, alignSelf: 'center', marginBottom: 15,
     borderRadius: 30, elevation: 10, shadowColor: C.navy,
@@ -691,7 +637,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12, paddingHorizontal: 22, borderRadius: 30,
   },
   mapFabTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#fff' },
-
   emptyWrap: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
   emptyCircle: {
     width: 90, height: 90, borderRadius: 45, backgroundColor: '#EEF2FF',
@@ -703,7 +648,6 @@ const styles = StyleSheet.create({
   emptyBody: {
     fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', lineHeight: 20,
   },
-
   modalOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(12,21,89,0.4)' },
   modalBackdrop: { flex: 1 },
   modalSheet: {

@@ -8,7 +8,6 @@ import {
     TouchableOpacity,
     RefreshControl,
     Dimensions,
-    ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -16,9 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotifications';
 import { LinearGradient } from 'expo-linear-gradient';
-
 const { width } = Dimensions.get('window');
-
 type Notification = {
     id: string;
     type: string;
@@ -28,17 +25,14 @@ type Notification = {
     is_read: boolean;
     created_at: string;
 };
-
 export default function DriverNotificationsScreen() {
     const router = useRouter();
-    const { data, isLoading, refetch, isRefetching } = useNotifications();
+    const { data, refetch, isRefetching } = useNotifications();
     const markReadMutation = useMarkNotificationRead();
     const notifications = data?.notifications || [];
-
     const onRefresh = () => {
         refetch();
     };
-
     const handleNotificationPress = async (notification: Notification) => {
         // Mark as read
         if (!notification.is_read) {
@@ -48,7 +42,6 @@ export default function DriverNotificationsScreen() {
                 console.error("Failed to mark notification as read", error);
             }
         }
-
         // Navigate based on notification type
         if (notification.data?.deliveryId) {
             router.push({
@@ -57,7 +50,6 @@ export default function DriverNotificationsScreen() {
             });
         }
     };
-
     const getNotificationIcon = (type: string) => {
         switch (type) {
             case 'new_delivery_available':
@@ -72,7 +64,6 @@ export default function DriverNotificationsScreen() {
                 return { name: 'notifications', color: '#64748B' };
         }
     };
-
     const formatTime = (timestamp: string) => {
         const date = new Date(timestamp);
         const now = new Date();
@@ -80,17 +71,14 @@ export default function DriverNotificationsScreen() {
         const diffMins = Math.floor(diffMs / 60000);
         const diffHours = Math.floor(diffMins / 60);
         const diffDays = Math.floor(diffHours / 24);
-
         if (diffMins < 1) return 'Just now';
         if (diffMins < 60) return `${diffMins}m ago`;
         if (diffHours < 24) return `${diffHours}h ago`;
         if (diffDays < 7) return `${diffDays}d ago`;
         return date.toLocaleDateString();
     };
-
     const renderNotification = ({ item }: { item: Notification }) => {
         const icon = getNotificationIcon(item.type);
-
         return (
             <TouchableOpacity
                 style={[styles.notificationCard, !item.is_read && styles.unreadCard]}
@@ -100,7 +88,6 @@ export default function DriverNotificationsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: `${icon.color}15` }]}>
                     <MaterialIcons name={icon.name as any} size={24} color={icon.color} />
                 </View>
-
                 <View style={styles.contentContainer}>
                     <View style={styles.headerRow}>
                         <Text style={styles.title} numberOfLines={1}>
@@ -108,19 +95,15 @@ export default function DriverNotificationsScreen() {
                         </Text>
                         {!item.is_read && <View style={styles.unreadDot} />}
                     </View>
-
                     <Text style={styles.message} numberOfLines={2}>
                         {item.message}
                     </Text>
-
                     <Text style={styles.time}>{formatTime(item.created_at)}</Text>
                 </View>
-
                 <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
             </TouchableOpacity>
         );
     };
-
     const renderEmptyState = () => (
         <View style={styles.emptyContainer}>
             <View style={styles.emptyIconContainer}>
@@ -128,7 +111,7 @@ export default function DriverNotificationsScreen() {
             </View>
             <Text style={styles.emptyTitle}>No Notifications Yet</Text>
             <Text style={styles.emptySubtitle}>
-                You'll receive updates about new deliveries, messages, and earnings here.
+                You&apos;ll receive updates about new deliveries, messages, and earnings here.
             </Text>
             <TouchableOpacity
                 style={styles.goOnlineButton}
@@ -146,11 +129,9 @@ export default function DriverNotificationsScreen() {
             </TouchableOpacity>
         </View>
     );
-
     return (
         <View style={styles.container}>
             <StatusBar style="dark" />
-
             {/* Header */}
             <SafeAreaView edges={['top']} style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -159,7 +140,6 @@ export default function DriverNotificationsScreen() {
                 <Text style={styles.headerTitle}>Notifications</Text>
                 <View style={styles.placeholder} />
             </SafeAreaView>
-
             {/* Notifications List */}
             <FlatList
                 data={notifications}
@@ -183,13 +163,11 @@ export default function DriverNotificationsScreen() {
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC'
     },
-
     // Header
     header: {
         flexDirection: 'row',
@@ -217,7 +195,6 @@ const styles = StyleSheet.create({
     placeholder: {
         width: 40
     },
-
     // List
     listContent: {
         padding: 20
@@ -225,7 +202,6 @@ const styles = StyleSheet.create({
     emptyListContent: {
         flexGrow: 1
     },
-
     // Notification Card
     notificationCard: {
         flexDirection: 'row',
@@ -247,7 +223,6 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
         backgroundColor: '#F7FEE7'
     },
-
     iconContainer: {
         width: 48,
         height: 48,
@@ -256,7 +231,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginRight: 12
     },
-
     contentContainer: {
         flex: 1,
         marginRight: 8
@@ -291,7 +265,6 @@ const styles = StyleSheet.create({
         fontFamily: 'Montserrat-Medium',
         color: '#94A3B8'
     },
-
     // Empty State
     emptyContainer: {
         flex: 1,

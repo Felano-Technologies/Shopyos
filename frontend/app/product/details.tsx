@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -29,21 +29,16 @@ import {
     getReviewComments,
     createReviewComment
 } from '@/services/api';
-
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
-
-const { height, width } = Dimensions.get('window');
-
+const { height } = Dimensions.get('window');
 export default function ProductDetails() {
     const router = useRouter();
     const params = useLocalSearchParams();
     const { addToCart } = useCart();
-
     const [isLiked, setIsLiked] = useState(false);
     const [successModalVisible, setSuccessModalVisible] = useState(false);
-
     // --- Review States ---
     const [reviews, setReviews] = useState<any[]>([]);
     const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -51,7 +46,6 @@ export default function ProductDetails() {
     const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
     const [activeComments, setActiveComments] = useState<any[]>([]);
     const [commentSubmitting, setCommentSubmitting] = useState(false);
-
     const [product, setProduct] = useState({
         id: params.id as string,
         title: params.title as string,
@@ -69,16 +63,7 @@ export default function ProductDetails() {
         reviewsCount: 0,
         isTrusted: false
     });
-
-    useEffect(() => {
-        if (params.id) {
-            fetchProductDetails();
-            fetchReviews();
-            checkFavoriteStatus();
-        }
-    }, [params.id]);
-
-    const fetchProductDetails = async () => {
+    const fetchProductDetails = useCallback(async () => {
         try {
             const res = await getProductById(params.id as string);
             if (res.success) {
@@ -99,24 +84,28 @@ export default function ProductDetails() {
                 }));
             }
         } catch (err) { console.log("Error loading product details", err); }
-    };
-
-    const fetchReviews = async () => {
+    }, [params.id]);
+    const fetchReviews = useCallback(async () => {
         try {
             setReviewsLoading(true);
             const res = await getProductReviews(params.id as string);
             if (res.success) setReviews(res.reviews);
         } catch (err) { console.log("Error loading reviews", err); }
         finally { setReviewsLoading(false); }
-    };
-
-    const checkFavoriteStatus = async () => {
+    }, [params.id]);
+    const checkFavoriteStatus = useCallback(async () => {
         try {
             const res = await checkIsFavorite(params.id as string);
             if (res.isFavorite) setIsLiked(true);
         } catch (err) { console.log("Error checking favorite status", err); }
-    };
-
+    }, [params.id]);
+    useEffect(() => {
+        if (params.id) {
+            fetchProductDetails();
+            fetchReviews();
+            checkFavoriteStatus();
+        }
+    }, [checkFavoriteStatus, fetchProductDetails, fetchReviews, params.id]);
     // --- Review Handlers ---
     const handleLikeReview = async (reviewId: string) => {
         try {
@@ -124,7 +113,6 @@ export default function ProductDetails() {
             // Optional: Update local state to reflect like immediately
         } catch (err) { console.error(err); }
     };
-
     const handleOpenComments = async (reviewId: string) => {
         setSelectedReviewId(reviewId);
         setIsCommentsVisible(true);
@@ -134,7 +122,6 @@ export default function ProductDetails() {
             if (res.success) setActiveComments(res.comments);
         } catch (err) { console.error(err); }
     };
-
     const handleSendComment = async (text: string) => {
         if (!selectedReviewId) return;
         try {
@@ -148,7 +135,6 @@ export default function ProductDetails() {
         } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
         finally { setCommentSubmitting(false); }
     };
-
     const toggleFavorite = async () => {
         try {
             if (isLiked) {
@@ -160,7 +146,6 @@ export default function ProductDetails() {
             }
         } catch (error: any) { Alert.alert("Error", error.message || "Failed to update favorites"); }
     };
-
     const handleChat = async () => {
         try {
             if (!product.sellerId) {
@@ -181,7 +166,6 @@ export default function ProductDetails() {
             }
         } catch (error: any) { Alert.alert("Error", error.message || "Failed to start chat with seller"); }
     };
-
     const handleAddToCart = () => {
         addToCart({
             id: product.id,
@@ -192,21 +176,17 @@ export default function ProductDetails() {
         });
         setSuccessModalVisible(true);
     };
-
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
-
             {/* Background Watermark */}
             <View style={StyleSheet.absoluteFillObject}>
                 <View style={styles.bottomLogos}>
                     <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
             </View>
-
             <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
                 <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
                     {/* Header & Image Section */}
                     <View style={styles.imageHeaderContainer}>
                         {product.image && (
@@ -227,11 +207,9 @@ export default function ProductDetails() {
                             </TouchableOpacity>
                         </View>
                     </View>
-
                     {/* Details Card */}
                     <View style={styles.detailsCard}>
                         <View style={styles.handleBar} />
-
                         <View style={styles.metaRow}>
                             <View style={styles.categoryBadge}>
                                 <Text style={styles.categoryText}>{product.category || 'General'}</Text>
@@ -241,16 +219,13 @@ export default function ProductDetails() {
                                 <Text style={styles.ratingText}>{product.rating ? product.rating.toFixed(1) : '0.0'} ({product.reviewsCount} reviews)</Text>
                             </View>
                         </View>
-
                         <Text style={styles.title}>{product.title}</Text>
                         <View style={styles.priceRow}>
                             <Text style={styles.price}>₵{product.price.toFixed(2)}</Text>
                             {product.oldPrice && <Text style={styles.oldPrice}>₵{product.oldPrice.toFixed(2)}</Text>}
                         </View>
-
                         <Text style={styles.sectionTitle}>Description</Text>
                         <Text style={styles.description}>{product.description}</Text>
-
                         {/* Seller Info */}
                         <View style={styles.sellerContainer}>
                             <View style={styles.sellerInfo}>
@@ -269,7 +244,6 @@ export default function ProductDetails() {
                                 <Text style={styles.visitText}>Visit Store</Text>
                             </TouchableOpacity>
                         </View>
-
                         {/* --- REVIEWS SECTION --- */}
                         <View style={styles.reviewsSection}>
                             <View style={styles.sectionHeaderRow}>
@@ -278,7 +252,6 @@ export default function ProductDetails() {
                                     <Text style={styles.writeReviewText}>Write a Review</Text>
                                 </TouchableOpacity>
                             </View>
-
                             {reviewsLoading ? (
                                 <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />
                             ) : reviews.length > 0 ? (
@@ -300,14 +273,12 @@ export default function ProductDetails() {
                     </View>
                 </ScrollView>
             </SafeAreaView>
-
             {/* Bottom Action Bar */}
             <View style={styles.bottomBar}>
                 <TouchableOpacity style={styles.chatBtn} onPress={handleChat}>
                     <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0C1559" />
                     <Text style={styles.chatText}>Chat</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity style={styles.cartBtn} onPress={handleAddToCart}>
                     <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.cartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                         <Feather name="shopping-cart" size={20} color="#FFF" />
@@ -315,7 +286,6 @@ export default function ProductDetails() {
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
-
             {/* --- REPLIES BOTTOM SHEET --- */}
             <ReviewCommentsSheet
                 visible={isCommentsVisible}
@@ -325,7 +295,6 @@ export default function ProductDetails() {
                 onSendComment={handleSendComment}
                 isSubmitting={commentSubmitting}
             />
-
             {/* --- SUCCESS MODAL --- */}
             <Modal animationType="fade" transparent={true} visible={successModalVisible} onRequestClose={() => setSuccessModalVisible(false)}>
                 <View style={styles.modalOverlay}>
@@ -350,7 +319,6 @@ export default function ProductDetails() {
         </View>
     );
 }
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F0F4FC' },
     scrollContent: { paddingBottom: 150 },
@@ -378,14 +346,12 @@ const styles = StyleSheet.create({
     sellerName: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Bold' },
     visitBtn: { paddingHorizontal: 12, paddingVertical: 6, backgroundColor: '#F1F5F9', borderRadius: 8 },
     visitText: { fontSize: 12, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-
     // --- Reviews Styles ---
     reviewsSection: { marginTop: 10, marginBottom: 20 },
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
     writeReviewText: { color: '#84cc16', fontFamily: 'Montserrat-Bold', fontSize: 13 },
     emptyReviews: { alignItems: 'center', padding: 30, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
     emptyReviewsText: { textAlign: 'center', color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-Medium', marginTop: 10 },
-
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', flexDirection: 'row', paddingHorizontal: 20, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 30 : 20, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 10 },
     chatBtn: { width: 60, height: 50, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 14, marginRight: 16 },
     chatText: { fontSize: 10, color: '#0C1559', marginTop: 2, fontFamily: 'Montserrat-Bold' },

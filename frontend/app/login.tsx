@@ -1,31 +1,20 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { View, Text, Alert, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
+import React, {  useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, Image, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions , Appearance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import * as SecureStore from 'expo-secure-store';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
-import { Appearance } from 'react-native';
 import * as Location from 'expo-location';
-
-const { width } = Dimensions.get('window');
-
-
-
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const isDarkMode = Appearance.getColorScheme() === 'dark';
-
   // Handle Sign In
   const handleLogin = async () => {
     try {
       setLoading(true);
-
       // Get device location
       let latitude = 0;
       let longitude = 0;
@@ -36,22 +25,16 @@ const LoginScreen = () => {
           latitude = location.coords.latitude;
           longitude = location.coords.longitude;
         }
-      } catch (locationError) {
+      } catch {
         console.log('Location access denied or unavailable');
       }
-
       const response = await loginUser(email, password, latitude, longitude);
-
-
-
-      if (response.message == "Login successful") {
-
+      if (response.message === "Login successful") {
         CustomInAppToast.show({
           type: 'success',
           title: 'Login Successful 😊',
           message: 'Welcome back! 🎉',
         });
-
         // Check if user needs to select a role (using the needsRole flag from API)
         if (response.needsRole) {
           // User has no role assigned, redirect to role selection
@@ -59,7 +42,6 @@ const LoginScreen = () => {
         } else {
           // User has a role, proceed with normal navigation
           const userRole = response.role?.toLowerCase();
-
           if (userRole === 'customer' || userRole === 'buyer') {
             router.push("/home");
           } else if (userRole === 'seller') {
@@ -87,11 +69,9 @@ const LoginScreen = () => {
       setLoading(false);
     }
   };
-
   return (
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
-
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -103,13 +83,11 @@ const LoginScreen = () => {
               source={require('../assets/images/icondark.png')}
               style={styles.logo}
             />
-
             {/* Title */}
             <Text style={styles.title}>Sign into your account</Text>
             <Text style={styles.subtitle}>
               Welcome back, you’ve been missed!
             </Text>
-
             {/* Email Input */}
             <View style={styles.inputContainer}>
               <Ionicons name="mail" size={20} color="#333" />
@@ -123,7 +101,6 @@ const LoginScreen = () => {
                 onChangeText={setEmail}
               />
             </View>
-
             {/* Password Input */}
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed" size={20} color="#333" />
@@ -147,13 +124,10 @@ const LoginScreen = () => {
                 />
               </TouchableOpacity>
             </View>
-
             {/* Forgot Password */}
             <TouchableOpacity onPress={() => router.push('/forgotPassword')}>
               <Text style={styles.forgotPassword}>Forgot password?</Text>
             </TouchableOpacity>
-
-
             {/* Sign in (solid pill) */}
             <TouchableOpacity
               style={[styles.signInButton, loading && styles.disabledButton]}
@@ -166,7 +140,6 @@ const LoginScreen = () => {
                 <Text style={styles.signInText}>Sign in</Text>
               )}
             </TouchableOpacity>
-
             {/* Register (outlined pill) */}
             <TouchableOpacity
               style={styles.registerButton}
@@ -176,7 +149,6 @@ const LoginScreen = () => {
                 Not registered? <Text style={styles.registerBold}>Sign up now!</Text>
               </Text>
             </TouchableOpacity>
-
             {/* Bottom Logos */}
             <View style={styles.bottomLogos}>
               <Image
@@ -194,8 +166,6 @@ const LoginScreen = () => {
     </View>
   );
 };
-
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -277,7 +247,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
-
   },
   disabledButton: {
     opacity: 0.85,
@@ -321,7 +290,6 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: -50,
     marginBottom: -200,
-
   },
   brandLogo: {
     width: 90,
@@ -331,5 +299,4 @@ const styles = StyleSheet.create({
     marginBottom: -200,
   },
 });
-
 export default LoginScreen;

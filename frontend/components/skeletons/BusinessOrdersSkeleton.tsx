@@ -2,9 +2,6 @@ import React from 'react';
 import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '../Skeleton';
-
-const { width } = Dimensions.get('window');
-
 export const BusinessOrdersSkeleton = () => {
   return (
     <View style={styles.container}>
@@ -18,7 +15,6 @@ export const BusinessOrdersSkeleton = () => {
           <View style={styles.headerTop}>
             <Skeleton width={110} height={35} borderRadius={8} style={styles.skeletonWhite} />
           </View>
-
           {/* Revenue Card Skeleton */}
           <View style={styles.revenueCard}>
             <View>
@@ -28,7 +24,6 @@ export const BusinessOrdersSkeleton = () => {
             <Skeleton width={44} height={44} borderRadius={12} style={styles.skeletonWhite} />
           </View>
         </LinearGradient>
-
         {/* --- Stats Grid Skeleton --- */}
         <View style={styles.statsRow}>
           {[1, 2, 3].map((i) => (
@@ -39,7 +34,6 @@ export const BusinessOrdersSkeleton = () => {
             </View>
           ))}
         </View>
-
         {/* --- Filter Pills Skeleton --- */}
         <View style={styles.filterWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContainer}>
@@ -48,7 +42,6 @@ export const BusinessOrdersSkeleton = () => {
             ))}
           </ScrollView>
         </View>
-
         {/* --- Order Cards Skeleton --- */}
         <View style={styles.listContainer}>
           {[1, 2, 3].map((i) => (
@@ -61,7 +54,6 @@ export const BusinessOrdersSkeleton = () => {
                 </View>
                 <Skeleton width={70} height={22} borderRadius={20} />
               </View>
-
               {/* Card Body */}
               <View style={styles.cardBody}>
                 {[1, 2, 3].map((row) => (
@@ -71,7 +63,6 @@ export const BusinessOrdersSkeleton = () => {
                   </View>
                 ))}
               </View>
-
               {/* Card Footer */}
               <View style={styles.cardFooter}>
                 <View>
@@ -83,12 +74,10 @@ export const BusinessOrdersSkeleton = () => {
             </View>
           ))}
         </View>
-
       </ScrollView>
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   skeletonWhite: { backgroundColor: 'rgba(255,255,255,0.2)' },

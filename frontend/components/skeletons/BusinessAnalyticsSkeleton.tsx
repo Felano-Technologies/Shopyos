@@ -3,9 +3,6 @@ import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton';
-
-const { width } = Dimensions.get('window');
-
 export const BusinessAnalyticsSkeleton = () => {
   return (
     <View style={styles.container}>
@@ -21,14 +18,12 @@ export const BusinessAnalyticsSkeleton = () => {
               <Skeleton width={110} height={35} borderRadius={8} style={styles.skeletonWhite} />
               <Skeleton width={40} height={40} borderRadius={14} style={styles.skeletonWhite} />
             </View>
-
             <View style={{ marginTop: 5 }}>
               <Skeleton width={160} height={32} style={[styles.skeletonWhite, { marginBottom: 8 }]} />
               <Skeleton width={180} height={16} style={styles.skeletonWhite} />
             </View>
           </SafeAreaView>
         </LinearGradient>
-
         <View style={styles.bodyContainer}>
           {/* Timeframe Toggles */}
           <View style={styles.toggleContainer}>
@@ -36,13 +31,11 @@ export const BusinessAnalyticsSkeleton = () => {
               <Skeleton key={i} width={80} height={36} borderRadius={20} style={{ marginRight: 10 }} />
             ))}
           </View>
-
           {/* Revenue Trend Chart Card */}
           <Skeleton width={140} height={18} style={{ marginBottom: 12, marginTop: 15 }} />
           <View style={styles.card}>
             <Skeleton width="100%" height={220} borderRadius={16} />
           </View>
-
           {/* Quick Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
@@ -58,7 +51,6 @@ export const BusinessAnalyticsSkeleton = () => {
               <Skeleton width={60} height={12} />
             </View>
           </View>
-
           {/* Category Breakdown Placeholder */}
           <Skeleton width={160} height={18} style={{ marginBottom: 12, marginTop: 15 }} />
           <View style={styles.card}>
@@ -71,7 +63,6 @@ export const BusinessAnalyticsSkeleton = () => {
                 </View>
             </View>
           </View>
-
           {/* Top Products List */}
           <Skeleton width={130} height={18} style={{ marginBottom: 12, marginTop: 15 }} />
           {[1, 2, 3].map((i) => (
@@ -84,7 +75,6 @@ export const BusinessAnalyticsSkeleton = () => {
               <Skeleton width={60} height={16} />
             </View>
           ))}
-
           {/* Performance Score Banner */}
           <View style={styles.scoreBanner}>
             <View style={{ flex: 1 }}>
@@ -94,12 +84,10 @@ export const BusinessAnalyticsSkeleton = () => {
             <Skeleton width={50} height={50} circle style={styles.skeletonWhite} />
           </View>
         </View>
-
       </ScrollView>
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   skeletonWhite: { backgroundColor: 'rgba(255,255,255,0.2)' },

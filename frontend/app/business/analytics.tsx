@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
-  Dimensions, Image, ActivityIndicator, ScrollView,
+  Dimensions, Image, ActivityIndicator,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,7 +10,6 @@ import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { storage } from '@/services/api';
-import { router } from 'expo-router';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
@@ -103,7 +102,7 @@ const Analytics = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, isVerified, analytics.topProducts.length]);
+  }, [isLoading, isVerified, analytics.topProducts.length, startTour]);
 
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 

@@ -1,24 +1,18 @@
-import Reac, { useEffect, useRef} from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions, ImageBackground, Animated } from 'react-native';
+import  { useEffect, useRef} from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated , Appearance } from 'react-native';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Appearance } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 // import * as SecureStore from 'expo-secure-store'; // ⛔ temporarily disabled
-
-import { storage, getUserData, secureStorage } from '@/services/api';
-
+import {  getUserData, secureStorage } from '@/services/api';
 const { width, height } = Dimensions.get('window');
-
 const IndexScreen = () => {
   const colorScheme = Appearance.getColorScheme();
-  const isDarkMode = colorScheme === 'dark';
   const fadeAnim = useRef(new Animated.Value(0)).current; // animation value for logo opacity
   const fadeOutAnim = useRef(new Animated.Value(1)).current; // Screen fade-out overlay
   const bgScale = useRef(new Animated.Value(1)).current; // background zoom
   const bgTranslateY = useRef(new Animated.Value(0)).current; // background drift
-
   useEffect(() => {
     // Parallel fade + background zoom animations
     Animated.parallel([
@@ -38,33 +32,27 @@ const IndexScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-
     // Perform auth check concurrently with animation wait
     const authCheckPromise = async () => {
       try {
         const token = await secureStorage.getItem('userToken');
         if (!token) return '/getstarted';
-
         const user = await getUserData();
         const role = user.role?.toLowerCase();
-
         if (user.requiresRoleSelection || !role || role === 'none') return '/role';
         if (role === 'customer' || role === 'buyer') return '/home';
         if (role === 'seller') return '/business/dashboard';
         if (role === 'driver') return '/driver';
         if (role === 'admin') return '/admin/dashboard';
-
         return '/home';
       } catch (error) {
         console.warn('Startup Auth Check Failed:', error);
         return '/getstarted'; // Session invalid or network issue
       }
     };
-
     const runStartup = async () => {
       const minWaitPromise = new Promise((resolve) => setTimeout(resolve, 2000));
       const [nextRoute] = await Promise.all([authCheckPromise(), minWaitPromise]);
-
       Animated.timing(fadeOutAnim, {
         toValue: 0,
         duration: 1000, // smooth fade out
@@ -73,10 +61,8 @@ const IndexScreen = () => {
         router.replace(nextRoute as any);
       });
     };
-
     runStartup();
-  }, []);
-
+  }, [bgScale, bgTranslateY, fadeAnim, fadeOutAnim]);
   return (
     <View style={styles.container}>
       <Animated.View
@@ -92,9 +78,7 @@ const IndexScreen = () => {
       >
         <View style={styles.overlay} />
         <StatusBar style="light" translucent backgroundColor="transparent" />
-
         <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
-
           {/* Centered logo (responsive true center) */}
           <View style={styles.logoAbsoluteContainer}>
             <Animated.Image
@@ -103,7 +87,6 @@ const IndexScreen = () => {
               resizeMode="contain"
             />
           </View>
-
           {/* Hidden buttons (keep functionality for later) */}
           <View style={styles.footer}>
             <TouchableOpacity
@@ -120,7 +103,6 @@ const IndexScreen = () => {
                 <Text style={styles.createAccountText}>Create Account</Text>
               </LinearGradient>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={[styles.loginButton, { opacity: 0 }]}
               onPress={() => router.push('/login')}
@@ -132,7 +114,6 @@ const IndexScreen = () => {
         </SafeAreaView>
       </ImageBackground>
       </Animated.View>
-
       {/* Screen fade-out overlay */}
       <Animated.View
         style={[
@@ -149,7 +130,6 @@ const IndexScreen = () => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -191,7 +171,6 @@ const styles = StyleSheet.create({
       width: width * 0.55,
       height: height * 0.12,
     },
-
   footer: {
     paddingHorizontal: 30,
     paddingBottom: 40,
@@ -223,5 +202,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
-
 export default IndexScreen;

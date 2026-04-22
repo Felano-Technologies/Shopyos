@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,27 +8,22 @@ import {
   Dimensions,
   LayoutRectangle,
   Animated,
-  Platform,
 } from 'react-native';
 import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
 import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width, height } = Dimensions.get('window');
-
+const { height } = Dimensions.get('window');
 interface SpotlightStep {
   targetLayout: LayoutRectangle;
   title: string;
   description: string;
   lottieSource?: any; // e.g. require('../../assets/onboarding/pulse.json')
 }
-
 interface SpotlightTourProps {
   steps: SpotlightStep[];
   onComplete: () => void;
   visible: boolean;
 }
-
 export const SpotlightTour: React.FC<SpotlightTourProps> = ({
   steps,
   onComplete,
@@ -37,9 +32,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [fadeAnim] = useState(new Animated.Value(0));
   const [bounceAnim] = useState(new Animated.Value(0));
-
   const currentStep = steps[currentStepIndex];
-
   useEffect(() => {
     if (visible && currentStep) {
       Animated.timing(fadeAnim, {
@@ -47,7 +40,6 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
         duration: 400,
         useNativeDriver: true,
       }).start();
-
       Animated.loop(
         Animated.sequence([
           Animated.timing(bounceAnim, { toValue: 10, duration: 600, useNativeDriver: true }),
@@ -55,8 +47,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
         ])
       ).start();
     }
-  }, [visible, currentStepIndex]);
-
+  }, [visible, currentStepIndex, currentStep, fadeAnim, bounceAnim]);
   const handleNext = () => {
     if (currentStepIndex < steps.length - 1) {
       setCurrentStepIndex(prev => prev + 1);
@@ -70,18 +61,14 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
       });
     }
   };
-
   if (!visible || !currentStep) return null;
-
   const { x, y, width: w, height: h } = currentStep.targetLayout;
   const centerX = x + w / 2;
   const centerY = y + h / 2;
   const radius = Math.max(w, h) / 2 + 10;
-
   // Determine popover position (above or below)
   const isTargetInBottomHalf = y > height / 2;
   const popoverTop = isTargetInBottomHalf ? y - 180 : y + h + 20;
-
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={StyleSheet.absoluteFill}>
@@ -105,7 +92,6 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
             mask="url(#mask)"
           />
         </Svg>
-
         <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
           {/* Spotlight indicator (Lottie) */}
           <View style={[styles.indicatorContainer, { 
@@ -121,7 +107,6 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
               style={styles.lottie}
             />
           </View>
-
           {/* Tooltip Content */}
           <Animated.View style={[styles.popover, { 
             top: popoverTop,
@@ -151,7 +136,6 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
     </Modal>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,

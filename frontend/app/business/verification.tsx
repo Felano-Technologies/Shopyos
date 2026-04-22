@@ -8,8 +8,6 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
-  Keyboard,
   ActivityIndicator,
   Image,
   ScrollView,
@@ -19,14 +17,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons, Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { verifyBusinessDetails } from '@/services/api';
-
-const { width, height } = Dimensions.get('window');
-
 type BusinessDetails = {
   ownerName: string;
   businessType: string;
@@ -44,7 +39,6 @@ type BusinessDetails = {
   proofOfBank?: string;
   logo?: string;
 };
-
 // --- KEYBOARD FIX: Component defined outside main function ---
 const InputField = ({ label, icon, value, onChange, placeholder, required = false, multiline = false, keyboardType = "default" }: any) => (
   <View style={styles.inputWrapper}>
@@ -63,13 +57,11 @@ const InputField = ({ label, icon, value, onChange, placeholder, required = fals
     </View>
   </View>
 );
-
 const BusinessVerification = () => {
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [, setUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-
   const [details, setDetails] = useState<BusinessDetails>({
     ownerName: '',
     businessType: '',
@@ -83,7 +75,6 @@ const BusinessVerification = () => {
     website: '',
     description: '',
   });
-
   const handleUploadDocument = async (type: 'businessCert' | 'businessLicense' | 'proofOfBank') => {
     try {
       setUploading(true);
@@ -93,30 +84,23 @@ const BusinessVerification = () => {
       }
     } catch (e) { console.log(e); } finally { setUploading(false); }
   };
-
   const handleUploadLogo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
     if (!result.canceled) setDetails(prev => ({ ...prev, logo: result.assets[0].uri }));
   };
-
-
-
   const handleVerify = async () => {
     // Original Validation Logic
     if (!details.ownerName || !details.registrationNumber || !details.taxId) {
       CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill all required fields' });
       return;
     }
-
     if (!details.businessCert && !details.businessLicense) {
       CustomInAppToast.show({ type: 'error', title: 'Docs Required', message: 'Upload at least one verification document' });
       return;
     }
-
     try {
       setLoading(true);
       const response = await verifyBusinessDetails(businessId, details);
-
       if (response.success) {
         setShowSuccess(true);
       } else {
@@ -128,18 +112,15 @@ const BusinessVerification = () => {
       setLoading(false);
     }
   };
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-
       {/* Watermark Background */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.watermarkContainer}>
           <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
-
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
           <SafeAreaView edges={['top', 'left', 'right']}>
@@ -153,7 +134,6 @@ const BusinessVerification = () => {
             </View>
           </SafeAreaView>
         </LinearGradient>
-
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.logoSection}>
             <TouchableOpacity onPress={handleUploadLogo} style={styles.logoCircle}>
@@ -162,7 +142,6 @@ const BusinessVerification = () => {
             </TouchableOpacity>
             <Text style={styles.logoText}>Business Brand Logo</Text>
           </View>
-
           {/* SECTION 1: LEGAL INFO */}
           <View style={styles.formCard}>
             <Text style={styles.sectionHeader}>Legal Information</Text>
@@ -171,7 +150,6 @@ const BusinessVerification = () => {
             <InputField label="Tax ID (TIN)" icon="shield" required value={details.taxId} onChange={(t:string)=>setDetails({...details, taxId:t})} placeholder="Enter TIN" />
             <InputField label="Business Type" icon="briefcase" value={details.businessType} onChange={(t:string)=>setDetails({...details, businessType:t})} placeholder="e.g. Sole Proprietorship" />
           </View>
-
           {/* SECTION 2: CONTACT & LOCATION */}
           <View style={[styles.formCard, { marginTop: 20 }]}>
             <Text style={styles.sectionHeader}>Location & Reach</Text>
@@ -180,7 +158,6 @@ const BusinessVerification = () => {
             <InputField label="Website" icon="globe" value={details.website} onChange={(t:string)=>setDetails({...details, website:t})} placeholder="https://..." />
             <InputField label="Social Media" icon="at-sign" value={details.socialMedia} onChange={(t:string)=>setDetails({...details, socialMedia:t})} placeholder="@username" />
           </View>
-
           {/* SECTION 3: OPERATIONAL */}
           <View style={[styles.formCard, { marginTop: 20 }]}>
             <Text style={styles.sectionHeader}>Operations</Text>
@@ -188,7 +165,6 @@ const BusinessVerification = () => {
             <InputField label="Years in Operation" icon="calendar" keyboardType="numeric" value={details.yearsInOperation} onChange={(t:string)=>setDetails({...details, yearsInOperation:t})} placeholder="e.g. 5" />
             <InputField label="Description" icon="align-left" multiline value={details.description} onChange={(t:string)=>setDetails({...details, description:t})} placeholder="Briefly describe your store" />
           </View>
-
           {/* SECTION 4: DOCUMENTS */}
           <View style={styles.docCard}>
             <Text style={styles.sectionHeader}>Verification Documents <Text style={{color: '#EF4444'}}>*</Text></Text>
@@ -208,7 +184,6 @@ const BusinessVerification = () => {
                 <Feather name="upload" size={16} color="#94A3B8" />
               )}
             </TouchableOpacity>
-
             {/* Business License */}
             <TouchableOpacity 
               style={[styles.docItem, details.businessLicense && { borderColor: '#0C1559', borderWidth: 1 }]} 
@@ -224,7 +199,6 @@ const BusinessVerification = () => {
                 <Feather name="upload" size={16} color="#94A3B8" />
               )}
             </TouchableOpacity>
-
             {/* Proof of Bank */}
             <TouchableOpacity 
               style={[styles.docItem, details.proofOfBank && { borderColor: '#0C1559', borderWidth: 1 }]} 
@@ -241,7 +215,6 @@ const BusinessVerification = () => {
               )}
             </TouchableOpacity>
           </View>
-
           <TouchableOpacity style={styles.submitBtn} onPress={handleVerify} disabled={loading}>
             <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.submitGradient}>
               {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitText}>Submit for Review</Text>}
@@ -249,7 +222,6 @@ const BusinessVerification = () => {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-
       {/* --- SUCCESS MODAL --- */}
       <Modal visible={showSuccess} transparent animationType="fade">
         <View style={styles.modalOverlay}>
@@ -263,12 +235,9 @@ const BusinessVerification = () => {
             </View>
         </View>
       </Modal>
-
-
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.04 },
@@ -309,5 +278,4 @@ const styles = StyleSheet.create({
   modalBtn: { backgroundColor: '#0C1559', width: '100%', paddingVertical: 16, borderRadius: 15, alignItems: 'center' },
   modalBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' }
 });
-
 export default BusinessVerification;

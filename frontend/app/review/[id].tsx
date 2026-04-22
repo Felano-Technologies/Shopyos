@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,32 +12,25 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getOrderDetails, createProductReview, createStoreReview, createDriverReview } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
-
-const { width } = Dimensions.get('window');
-
 const ReviewScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-
     const [productRatings, setProductRatings] = useState<{ [key: string]: number }>({});
     const [productComments, setProductComments] = useState<{ [key: string]: string }>({});
-
     const [storeRating, setStoreRating] = useState(0);
     const [storeComment, setStoreComment] = useState('');
-
     const [driverRating, setDriverRating] = useState(0);
     const [driverComment, setDriverComment] = useState('');
-
-    const fetchOrderData = async () => {
+    const fetchOrderData = useCallback(async () => {
         try {
             const res = await getOrderDetails(id as string);
             const orderData = res.order || res;
@@ -60,21 +53,17 @@ const ReviewScreen = () => {
         } finally {
             setLoading(false);
         }
-    };
-
+    }, [id, router]);
     useEffect(() => {
         if (id) fetchOrderData();
-    }, [id]);
-
+    }, [fetchOrderData, id]);
     const handleSubmit = async () => {
         if (storeRating === 0) {
             Alert.alert('Required', 'Please rate the store');
             return;
         }
-
         try {
             setSubmitting(true);
-
             // 1. Submit store review
             await createStoreReview({
                 storeId: order.store_id,
@@ -82,7 +71,6 @@ const ReviewScreen = () => {
                 rating: storeRating,
                 reviewText: storeComment
             });
-
             // 2. Submit product reviews
             for (const item of order.order_items) {
                 await createProductReview({
@@ -92,7 +80,6 @@ const ReviewScreen = () => {
                     reviewText: productComments[item.product_id] || ''
                 });
             }
-
             // 3. Submit driver review if delivery exists
             const delivery = order.deliveries?.[0];
             if (delivery && delivery.driver_id && driverRating > 0) {
@@ -103,7 +90,6 @@ const ReviewScreen = () => {
                     reviewText: driverComment
                 });
             }
-
             Alert.alert('Thank You!', 'Your feedback helps us improve Shopyos.', [
                 { text: 'OK', onPress: () => router.push('/order') }
             ]);
@@ -114,7 +100,6 @@ const ReviewScreen = () => {
             setSubmitting(false);
         }
     };
-
     const StarRating = ({ rating, onRate, size = 32 }: { rating: number, onRate: (r: number) => void, size?: number }) => (
         <View style={styles.starRow}>
             {[1, 2, 3, 4, 5].map((s) => (
@@ -128,12 +113,9 @@ const ReviewScreen = () => {
             ))}
         </View>
     );
-
     if (loading) return <ReviewSkeleton />;
-
     const delivery = order?.deliveries?.[0];
     const driver = delivery?.driver;
-
     return (
         <View style={styles.mainContainer}>
             <StatusBar style="light" backgroundColor="#0C1559" />
@@ -148,9 +130,7 @@ const ReviewScreen = () => {
                     </View>
                 </SafeAreaView>
             </LinearGradient>
-
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-
                 {/* Driver Review Section */}
                 {driver && (
                     <View style={styles.section}>
@@ -177,7 +157,6 @@ const ReviewScreen = () => {
                         </View>
                     </View>
                 )}
-
                 {/* Store Review */}
                 {order?.store && (
                     <View style={styles.section}>
@@ -203,7 +182,6 @@ const ReviewScreen = () => {
                         </View>
                     </View>
                 )}
-
                 {/* Product Reviews */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Products in your order</Text>
@@ -233,7 +211,6 @@ const ReviewScreen = () => {
                         </View>
                     ))}
                 </View>
-
                 <TouchableOpacity
                     style={[styles.submitBtnContainer, submitting && { opacity: 0.7 }]}
                     onPress={handleSubmit}
@@ -247,12 +224,10 @@ const ReviewScreen = () => {
                         )}
                     </LinearGradient>
                 </TouchableOpacity>
-
             </ScrollView>
         </View>
     );
 };
-
 const styles = StyleSheet.create({
     mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
     centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -264,25 +239,20 @@ const styles = StyleSheet.create({
     section: { marginBottom: 30 },
     sectionTitle: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },
     card: { backgroundColor: '#FFF', padding: 20, borderRadius: 24, shadowColor: "#0C1559", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 5 },
-
     entityHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, gap: 15 },
     avatar: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: '#F1F5F9' },
     iconCircle: { width: 45, height: 45, borderRadius: 22.5, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
     headerInfo: { flex: 1 },
     entityName: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
     entitySub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-
     starRow: { flexDirection: 'row', justifyContent: 'center', marginBottom: 20 },
     commentInput: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 15, height: 100, textAlignVertical: 'top', fontFamily: 'Montserrat-Medium', fontSize: 14, color: '#334155', borderWidth: 1, borderColor: '#F1F5F9' },
-
     productHeader: { flexDirection: 'row', alignItems: 'center', gap: 15, marginBottom: 15 },
     productImageContainer: { padding: 5, backgroundColor: '#F8FAFC', borderRadius: 12 },
     productImage: { width: 45, height: 45, borderRadius: 8 },
     productTitle: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-
     submitBtnContainer: { marginTop: 10, borderRadius: 20, overflow: 'hidden' },
     submitBtn: { paddingVertical: 18, alignItems: 'center' },
     submitBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },
 });
-
 export default ReviewScreen;

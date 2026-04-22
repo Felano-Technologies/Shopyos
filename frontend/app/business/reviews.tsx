@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   useColorScheme,
   TextInput,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,30 +15,25 @@ import BusinessBottomNav from '../../components/BusinessBottomNav';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { getStoreReviews, storage } from '@/services/api';
 import { router } from 'expo-router';
-
 const ReviewsScreen = () => {
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
-
   const backgroundColor = isDarkMode ? '#121212' : '#F8F8F8';
   const cardBackground = isDarkMode ? '#1E1E1E' : '#FFFFFF';
   const primaryText = isDarkMode ? '#EDEDED' : '#222';
   const secondaryText = isDarkMode ? '#AAA' : '#555';
-
   const [sortBy, setSortBy] = useState<'Latest' | 'Highest'>('Latest');
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
+  const [, setLoading] = useState(true);
+  const [, setRefreshing] = useState(false);
   // Verification guard — redirect unverified businesses
   useEffect(() => {
     storage.getItem('currentBusinessVerificationStatus').then(status => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
   }, []);
-
   const fetchReviews = async () => {
     try {
       const businessId = await storage.getItem('currentBusinessId');
@@ -63,29 +57,24 @@ const ReviewsScreen = () => {
       setRefreshing(false);
     }
   };
-
   React.useEffect(() => {
     fetchReviews();
   }, []);
-
   const sortedReviews = [...reviews].sort((a, b) => {
     if (sortBy === 'Latest') return new Date(b.date).getTime() - new Date(a.date).getTime();
     if (sortBy === 'Highest') return b.rating - a.rating;
     return 0;
   });
-
   const handleReply = (id: string) => {
     if (!replyText.trim()) return;
     console.log(`Reply to ${id}: ${replyText}`);
     setReplyingTo(null);
     setReplyText('');
   };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor }}>
       <ScrollView contentContainerStyle={[styles.container, { backgroundColor }]}>
         <Text style={[styles.header, { color: primaryText }]}>Customer Reviews</Text>
-
         <View style={styles.sortRow}>
           {['Latest', 'Highest'].map(option => (
             <TouchableOpacity
@@ -97,7 +86,6 @@ const ReviewsScreen = () => {
             </TouchableOpacity>
           ))}
         </View>
-
         <View style={{ paddingHorizontal: 16 }}>
           {sortedReviews.map(item => (
             <Animated.View key={item.id} entering={FadeInUp.springify().damping(12)} style={[styles.reviewCard, { backgroundColor: cardBackground }]}>
@@ -133,12 +121,10 @@ const ReviewsScreen = () => {
           ))}
         </View>
       </ScrollView>
-
       <BusinessBottomNav />
     </SafeAreaView>
   );
 };
-
 const styles = StyleSheet.create({
   container: { paddingBottom: 70 }, // bottom padding for nav
   header: { fontSize: 22, fontWeight: '600', padding: 16 },
@@ -159,5 +145,4 @@ const styles = StyleSheet.create({
   sendBtn: { backgroundColor: '#2563EB', paddingVertical: 8, borderRadius: 6, alignItems: 'center' },
   sendBtnText: { color: '#fff', fontWeight: '600' },
 });
-
 export default ReviewsScreen;

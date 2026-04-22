@@ -39,7 +39,7 @@ export default function ChatInbox() {
     (sum: number, c: any) => sum + (c.unread || 0), 0
   );
 
-  useFocusEffect(useCallback(() => { refresh(); }, []));
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const filtered = buyerConversations.filter((chat: any) => {
     const q = searchQuery.toLowerCase();

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,8 +10,7 @@ import {
   Modal,
   Pressable,
   Animated,
-  TextInput,
-  ActivityIndicator
+  TextInput
 } from 'react-native';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';

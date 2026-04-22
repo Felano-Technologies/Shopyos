@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, FlatList,
+  View, Text, StyleSheet, TouchableOpacity,
   Dimensions, ActivityIndicator, Image, ScrollView,
 } from 'react-native';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -12,12 +12,10 @@ import BusinessBottomNav from '../../components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { storage } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
 const C = {
   bg:      '#F1F5F9',
   navy:    '#0C1559',
@@ -29,9 +27,7 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
-
 type Range = 'Week' | 'Month' | 'Quarter';
-
 const EARNINGS_DATA: Record<Range, number[]> = {
   Week:    [120, 140, 170, 130, 160, 180, 210],
   Month:   [520, 460, 490, 580],
@@ -42,35 +38,27 @@ const RANGE_LABELS: Record<Range, string[]> = {
   Month:   ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
   Quarter: ['Q1', 'Q2', 'Q3'],
 };
-
 const EARNING_ITEMS = [
   { id: 'e1', label: 'Orders', icon: 'cart-outline',      iconBg: '#DBEAFE', iconColor: '#1E40AF', amount: 30, value: 650.0,  trend: '+12%', up: true  },
   { id: 'e2', label: 'Tips',   icon: 'gift-outline',      iconBg: '#DCFCE7', iconColor: '#15803D', amount: 12, value: 180.5,  trend: '+5%',  up: true  },
   { id: 'e3', label: 'Refunds',icon: 'return-down-back',  iconBg: '#FEE2E2', iconColor: '#B91C1C', amount: 3,  value: -60.0,  trend: '-2%',  up: false },
 ];
-
 const EarningsScreen = () => {
   const insets = useSafeAreaInsets();
-
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [range, setRange] = useState<Range>('Week');
-
   useEffect(() => {
     storage.getItem('currentBusinessVerificationStatus').then((status) => {
       if (status && status !== 'verified') router.replace('/business/dashboard');
     });
   }, []);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
-
   if (isChecking || !isVerified) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
   }
-
   const totalEarnings = EARNING_ITEMS.reduce((s, i) => s + i.value, 0);
   const chartData     = EARNINGS_DATA[range];
-  const chartMax      = Math.max(...chartData);
-
   const chartConfig = {
     backgroundGradientFrom: '#fff',
     backgroundGradientTo:   '#fff',
@@ -81,15 +69,12 @@ const EarningsScreen = () => {
     propsForBackgroundLines: { strokeDasharray: '4', stroke: 'rgba(0,0,0,0.05)' },
     propsForLabels: { fontFamily: 'Montserrat-Medium', fontSize: 10 },
   };
-
   return (
     <View style={S.root}>
       <StatusBar style="light" />
-
       <View style={S.watermark}>
         <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
-
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -106,19 +91,15 @@ const EarningsScreen = () => {
             </View>
             <Text style={S.hdrTitle}>Earnings</Text>
             <Text style={S.hdrSub}>Your income at a glance</Text>
-
             {/* Total earnings pill inside header */}
             <View style={S.totalPill}>
               <Text style={S.totalPillLbl}>Net Earnings</Text>
               <Text style={S.totalPillVal}>₵{totalEarnings.toFixed(2)}</Text>
             </View>
-
             <View style={S.hdrArc} />
           </LinearGradient>
-
           {/* ── Body ───────────────────────────────────────────────────── */}
           <View style={S.body}>
-
             {/* Range toggle */}
             <View style={S.toggleRow}>
               {(['Week', 'Month', 'Quarter'] as Range[]).map((r) => {
@@ -134,7 +115,6 @@ const EarningsScreen = () => {
                 );
               })}
             </View>
-
             {/* Line chart */}
             <View style={S.card}>
               <LineChart
@@ -148,10 +128,8 @@ const EarningsScreen = () => {
                 yAxisLabel="₵" yAxisInterval={1}
               />
             </View>
-
             {/* Earning breakdown */}
             <Text style={S.secTitle}>Breakdown</Text>
-
             {EARNING_ITEMS.map((item) => (
               <View key={item.id} style={S.earnCard}>
                 <View style={[S.earnIcon, { backgroundColor: item.iconBg }]}>
@@ -178,23 +156,19 @@ const EarningsScreen = () => {
                 </View>
               </View>
             ))}
-
           </View>
         </ScrollView>
-
         <BusinessBottomNav />
       </SafeAreaView>
     </View>
   );
 };
-
 const S = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
   scroll: { flexGrow: 1 },
-
   header: {
     paddingHorizontal: rs(20), paddingBottom: rs(28), position: 'relative',
     elevation: 10, shadowColor: C.navy,
@@ -220,9 +194,7 @@ const S = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
     backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
-
   body: { paddingHorizontal: rs(16), paddingTop: rs(8) },
-
   toggleRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(16), marginTop: rs(4) },
   toggleBtn: {
     paddingVertical: rs(8), paddingHorizontal: rs(20), borderRadius: rs(20),
@@ -233,16 +205,13 @@ const S = StyleSheet.create({
   toggleBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
   toggleTxt:   { fontSize: rf(13), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   toggleTxtOn: { color: '#fff' },
-
   card: {
     backgroundColor: C.card, borderRadius: rs(18), padding: rs(14), marginBottom: rs(16),
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
     alignItems: 'center',
   },
-
   secTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.navy, marginBottom: rs(12) },
-
   earnCard: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
     backgroundColor: C.card, borderRadius: rs(18), padding: rs(14), marginBottom: rs(10),
@@ -256,5 +225,4 @@ const S = StyleSheet.create({
   trendRow:  { flexDirection: 'row', alignItems: 'center', gap: rs(3), marginTop: rs(3) },
   trendTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold' },
 });
-
 export default EarningsScreen;

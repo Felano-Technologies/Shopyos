@@ -11,18 +11,14 @@ import {
   ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-
 const { width } = Dimensions.get('window');
-
 const GetStartedScreen = () => {
-  const scrollX = useRef(new Animated.Value(0)).current;
   const carouselRef = useRef<ScrollView>(null);
   const carouselImages = [
     require('../assets/images/slide1.jpg'),
     require('../assets/images/slide2.jpg'),
     require('../assets/images/slide3.jpg'),
   ];
-
   useEffect(() => {
     let currentIndex = 0;
     const timer = setInterval(() => {
@@ -34,17 +30,14 @@ const GetStartedScreen = () => {
         });
       }
     }, 3000);
-
     return () => clearInterval(timer);
-  }, []);
-
+  }, [carouselImages.length]);
   return (
     
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       {/* Welcome Text */}
       <Text style={styles.title}>Welcome to Shopyos</Text>
-
       {/* Carousel Section */}
       <Animated.ScrollView
         ref={carouselRef}
@@ -58,20 +51,16 @@ const GetStartedScreen = () => {
           <Image key={index} source={img} style={styles.carouselImage} />
         ))}
       </Animated.ScrollView>
-
       {/* Indicator Dots */}
       <View style={styles.dotsContainer}>
         {carouselImages.map((_, i) => (
           <View key={i} style={[styles.dot]} />
         ))}
       </View>
-
-
       <Text style={styles.subtitle}>
         Browse and shop products from local artisans and businesses. {'\n'}
         Get started in just a few taps!
       </Text>
-
       {/* Buttons */}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
@@ -80,7 +69,6 @@ const GetStartedScreen = () => {
         >
           <Text style={styles.createText}>Create Account</Text>
         </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.loginLink}
           onPress={() => router.push('/login')}
@@ -88,7 +76,6 @@ const GetStartedScreen = () => {
           <Text style={styles.loginText}>Already have an account? Login</Text>
         </TouchableOpacity>
       </View>
-
       {/* Bottom Logo */}
       <View style={styles.bottomLogos}>
         <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
@@ -97,7 +84,6 @@ const GetStartedScreen = () => {
       </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -133,7 +119,6 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginTop: 90,
     textAlign: 'center',
-
   },
   subtitle: {
     fontSize: 15,
@@ -209,5 +194,4 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 });
-
 export default GetStartedScreen;

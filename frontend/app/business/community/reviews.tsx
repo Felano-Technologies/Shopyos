@@ -180,7 +180,9 @@ export default function ReviewsScreen() {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.originalComment}>"{selectedReview?.comment}"</Text>
+            <Text style={styles.originalComment}>
+              {'"'}{selectedReview?.comment}{'"'}
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="Write your reply..."

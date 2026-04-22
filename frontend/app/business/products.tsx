@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Animated, Image, Dimensions, ScrollView,
+  TextInput, Image, Dimensions, ScrollView,
   ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -85,7 +85,7 @@ const ProductsScreen = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isVerified, products.length]);
+  }, [isVerified, products.length, startTour]);
 
   const onboardingSteps = [
     {

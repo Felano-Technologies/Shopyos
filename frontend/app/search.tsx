@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
-  TouchableOpacity, Dimensions, Image, ImageBackground, Keyboard,
+  TouchableOpacity, Dimensions, Image, Keyboard,
   Pressable, ScrollView, ActivityIndicator, Animated,
-  Platform,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
@@ -20,12 +19,10 @@ import { useCart } from '@/context/CartContext';
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-
 const { width } = Dimensions.get('window');
 const CARD_W = (width - 52) / 2;
 const RECENT_KEY = 'SHOPYOS_RECENT_SEARCHES';
 const MAX_RECENT = 6;
-
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C = {
   bg: '#E9F0FF',
@@ -40,7 +37,6 @@ const C = {
   border: 'rgba(12,21,89,0.08)',
   borderMd: 'rgba(12,21,89,0.14)',
 };
-
 // Category tile accent colours — one per category slot
 const CAT_ACCENTS = [
   { bg: '#EEF2FF', text: '#0C1559' },
@@ -50,15 +46,12 @@ const CAT_ACCENTS = [
   { bg: '#FFF7ED', text: '#92400E' },
   { bg: '#F0F9FF', text: '#075985' },
 ];
-
 const SORT_OPTIONS = [
   { label: 'Newest', value: 'newest' },
   { label: 'Price ↑', value: 'price_asc' },
   { label: 'Price ↓', value: 'price_desc' },
   { label: 'Popular', value: 'popular' },
 ];
-
-
 const CATEGORY_IMAGES: Record<string, any> = {
   'Grocery': require('../assets/images/search/fooddrinks.png'),
   'Footwear': require('../assets/images/search/slipper1.png'),
@@ -76,14 +69,10 @@ const CATEGORY_IMAGES: Record<string, any> = {
   'Sneakers': require('../assets/images/search/slipper2.jpg'),
   'Books': require('../assets/images/search/pencil.png'),
 };
-
 type ViewMode = 'grid' | 'list';
-
 export default function SearchScreen() {
-  const router = useRouter();
   const { addToCart } = useCart();
   const params = useLocalSearchParams();
-
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(
     params.category ? String(params.category) : null
@@ -95,18 +84,15 @@ export default function SearchScreen() {
   const [sortOpen, setSortOpen] = useState(false);
   const [recentSearches, setRecent] = useState<string[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
-
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refSearchPill = useRef<View>(null);
   const refActions = useRef<View>(null);
   const refTrending = useRef<View>(null);
-
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -114,7 +100,6 @@ export default function SearchScreen() {
       });
     }
   };
-
   useEffect(() => {
     const timer = setTimeout(() => {
       measureElement(refSearchPill, 'search');
@@ -123,8 +108,7 @@ export default function SearchScreen() {
       startTour('search');
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
-
+  }, [startTour]);
   const onboardingSteps = [
     {
       targetLayout: layouts.search,
@@ -142,18 +126,15 @@ export default function SearchScreen() {
       description: 'Explore trending searches and top categories to see what’s hot right now.',
     },
   ].filter(s => !!s.targetLayout);
-
   const handleOnboardingComplete = () => {
     markCompleted('search');
   };
-
   // ── Recent searches ────────────────────────────────────────────────────────
   useEffect(() => {
     storage.getItem(RECENT_KEY).then(raw => {
       if (raw) setRecent(JSON.parse(raw));
     });
   }, []);
-
   const saveRecent = useCallback(async (term: string) => {
     if (!term.trim()) return;
     setRecent(prev => {
@@ -162,43 +143,35 @@ export default function SearchScreen() {
       return next;
     });
   }, []);
-
   const clearRecent = useCallback(async () => {
     setRecent([]);
     await storage.removeItem(RECENT_KEY);
   }, []);
-
   // ── Data ────────────────────────────────────────────────────────────────────
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
-
   const filters = {
     category: category ?? (params.category ? String(params.category) : undefined),
     sortBy: sortBy as any,
     minPrice: params.minPrice ? parseFloat(String(params.minPrice)) : undefined,
     maxPrice: params.maxPrice ? parseFloat(String(params.maxPrice)) : undefined,
   };
-
   const isActive = query.length >= 2;
   const { data: allData, isLoading: loadingAll } = useProducts(filters, 50);
   const { data: searchData, isLoading: loadingSearch } = useProductSearch(query, filters, 50);
-  const { data: storeSearchData, isLoading: loadingStores } = useStoreSearch(query, 10);
-
+  const { data: storeSearchData } = useStoreSearch(query, 10);
   const loading = isActive ? loadingSearch : loadingAll;
   const products = isActive
     ? (searchData?.success ? searchData.products : [])
     : (allData?.success ? allData.products : []);
-
   const stores = isActive && storeSearchData?.success ? storeSearchData.data : [];
-
   // Cross-fade on data / view change
   useEffect(() => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0.3, duration: 80, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 240, useNativeDriver: true }),
     ]).start();
-  }, [products.length, viewMode, category]);
-
+  }, [products.length, viewMode, category, fadeAnim]);
   // Slide-in sort dropdown
   useEffect(() => {
     Animated.timing(slideAnim, {
@@ -206,23 +179,19 @@ export default function SearchScreen() {
       duration: 180,
       useNativeDriver: true,
     }).start();
-  }, [sortOpen]);
-
+  }, [slideAnim, sortOpen]);
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleChangeText = (text: string) => {
     setQuery(text);
     if (category) setCategory(null);
   };
-
   const handleSubmit = () => {
     if (query.trim().length >= 2) saveRecent(query.trim());
     Keyboard.dismiss();
   };
-
   const handleProductPress = (item: any) => {
     safePush(`/product/${item._id}`, { name: item.name, price: item.price, image: item.images?.[0] || '' });
   };
-
   const handleAddToCart = async (item: any) => {
     setAddingId(item._id);
     try {
@@ -240,11 +209,8 @@ export default function SearchScreen() {
       setAddingId(null);
     }
   };
-
   // ── Header title ────────────────────────────────────────────────────────────
   const headingTop = isActive ? 'Results for' : 'Discover';
-  const headingBottom = isActive ? `"${query}"` : 'Find your match';
-
   // ── Render: stores ──────────────────────────────────────────────────────────
   const renderStores = () => {
     if (!stores || stores.length === 0) return null;
@@ -285,7 +251,6 @@ export default function SearchScreen() {
       </View>
     );
   };
-
   // ── Render: grid card ───────────────────────────────────────────────────────
   const renderGrid = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -326,7 +291,6 @@ export default function SearchScreen() {
       </View>
     </TouchableOpacity>
   );
-
   // ── Render: featured card (first result in list view) ──────────────────────
   const renderFeatured = (item: any) => (
     <TouchableOpacity
@@ -356,7 +320,6 @@ export default function SearchScreen() {
       </TouchableOpacity>
     </TouchableOpacity>
   );
-
   // ── Render: list card ───────────────────────────────────────────────────────
   const renderList = ({ item, index }: { item: any; index: number }) => {
     if (index === 0) return renderFeatured(item);
@@ -392,7 +355,6 @@ export default function SearchScreen() {
       </TouchableOpacity>
     );
   };
-
   // ── Render: discovery ───────────────────────────────────────────────────────
   const renderDiscovery = () => (
     <ScrollView
@@ -423,9 +385,6 @@ export default function SearchScreen() {
           ))}
         </View>
       )}
-
-
-
       {categories.length > 0 && (
         <>
           <View style={styles.discDivider} />
@@ -433,49 +392,46 @@ export default function SearchScreen() {
             <Text style={styles.discLabel}>Browse categories</Text>
             <View style={styles.catTileGrid}>
               {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map((cat: any, i: number) => {
-                const accent = CAT_ACCENTS[i % CAT_ACCENTS.length];
                 const isOn = category === cat.name;
                 const catImg = CATEGORY_IMAGES[cat.name];
-
                 return (
                   <TouchableOpacity
                     key={cat.id || cat.name}
-                    style={styles.catTile}
+                    style={[styles.catTile, isOn && styles.catTileSelected]}
                     onPress={() => {
                       setCategory(isOn ? null : cat.name);
                       setQuery('');
                     }}
                   >
-                    {catImg ? (
-                      <View style={[
-                        styles.catTileInner,
-                        { backgroundColor: isOn ? C.navy : '#1E293B' }
-                      ]}>
+                    <View style={styles.catTileInner}>
+                      {catImg ? (
                         <Image
                           source={catImg}
-                          style={styles.catTileImg}
-                          resizeMode="contain"
+                          style={styles.catTileBgImg}
+                          resizeMode="cover"
                         />
-                        <View style={styles.catTileTextWrap}>
-                          <Text style={styles.catTileTxtLeft} numberOfLines={2}>
-                            {cat.name}
-                          </Text>
-                        </View>
-                      </View>
-                    ) : (
-                      <View style={[
-                        styles.catTileFallback,
-                        { backgroundColor: isOn ? C.navy : '#1E293B' }
-                      ]}>
-                        <Text style={[
-                          styles.catTileTxtLeft,
-                          { color: isOn ? '#fff' : '#E2E8F0' }
-                        ]}>
+                      ) : (
+                        <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' }]} />
+                      )}
+                      {/* Dark gradient scrim for text legibility */}
+                      <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
+                        style={styles.catTileScrim}
+                      />
+                      {/* Active overlay tint */}
+                      {isOn && <View style={styles.catTileActiveTint} />}
+                      {/* Text */}
+                      <View style={styles.catTileTextWrap}>
+                        {isOn && (
+                          <View style={styles.catTileCheckmark}>
+                            <Ionicons name="checkmark" size={9} color="#fff" />
+                          </View>
+                        )}
+                        <Text style={styles.catTileTxtLeft} numberOfLines={2}>
                           {cat.name}
                         </Text>
                       </View>
-                    )
-                    }
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -485,7 +441,6 @@ export default function SearchScreen() {
       )}
     </ScrollView>
   );
-
   // ── Render: empty results ───────────────────────────────────────────────────
   const renderEmpty = () => (
     <View style={styles.emptyWrap}>
@@ -502,18 +457,15 @@ export default function SearchScreen() {
       </TouchableOpacity>
     </View>
   );
-
   // ── Root ────────────────────────────────────────────────────────────────────
   return (
     <Pressable onPress={() => { Keyboard.dismiss(); setSortOpen(false); }} style={{ flex: 1 }}>
       <View style={styles.root}>
         <StatusBar style="light" />
-
         {/* ── Premium header ──────────────────────────────────────────────── */}
         <LinearGradient colors={[C.navy, C.navyMid]} style={styles.hdrGradient}>
           {/* Radial lime glow — decorative */}
           <View style={styles.hdrGlow} pointerEvents="none" />
-
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.hdrInner}>
               {/* Top row */}
@@ -542,7 +494,6 @@ export default function SearchScreen() {
                   </TouchableOpacity>
                 </View>
               </View>
-
               {/* Search pill */}
               <View style={[styles.searchPill, query.length > 0 && styles.searchPillFocused]} ref={refSearchPill} onLayout={() => measureElement(refSearchPill, 'search')}>
                 <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
@@ -574,11 +525,9 @@ export default function SearchScreen() {
               </View>
             </View>
           </SafeAreaView>
-
           {/* White arc cutout — creates the premium curved bottom */}
           <View style={styles.hdrArc} />
         </LinearGradient>
-
         {/* ── Body ────────────────────────────────────────────────────────── */}
         {(loading && products.length === 0) ? (
           <View style={{ flex: 1 }}><SearchSkeleton /></View>
@@ -623,7 +572,6 @@ export default function SearchScreen() {
                     })}
                   </ScrollView>
                 )}
-
                 {/* Toolbar */}
                 <View style={styles.toolbar}>
                   <Text style={styles.resultCount}>
@@ -655,7 +603,6 @@ export default function SearchScreen() {
                         />
                       </TouchableOpacity>
                     </View>
-
                     {/* Sort */}
                     <TouchableOpacity
                       style={styles.sortBtn}
@@ -673,7 +620,6 @@ export default function SearchScreen() {
                     </TouchableOpacity>
                   </View>
                 </View>
-
                 {/* Sort dropdown */}
                 {sortOpen && (
                   <Animated.View
@@ -711,7 +657,6 @@ export default function SearchScreen() {
                     ))}
                   </Animated.View>
                 )}
-
                 {/* Product list */}
                 <Animated.View style={{
                   flex: 1,
@@ -749,10 +694,8 @@ export default function SearchScreen() {
             )}
           </View>
         )}
-
         <BottomNav />
       </View>
-
       <SpotlightTour
         visible={isTourActive && activeScreen === 'search'}
         steps={onboardingSteps}
@@ -761,7 +704,6 @@ export default function SearchScreen() {
     </Pressable>
   );
 }
-
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const C2 = {
   bg: '#FFFFFF',
@@ -776,10 +718,8 @@ const C2 = {
   border: 'rgba(12,21,89,0.08)',
   borderMd: 'rgba(12,21,89,0.14)',
 };
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C2.bg },
-
   // ── Header ─────────────────────────────────────────────────────────────────
   hdrGradient: {
     position: 'relative',
@@ -833,7 +773,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-
   // Search pill — embedded in header
   searchPill: {
     flexDirection: 'row',
@@ -876,7 +815,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: 'rgba(255,255,255,0.45)',
   },
-
   // White arc at bottom of header
   hdrArc: {
     position: 'absolute',
@@ -888,7 +826,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
   },
-
   // ── Category chips ─────────────────────────────────────────────────────────
   chipStrip: {
     paddingHorizontal: 16,
@@ -921,7 +858,6 @@ const styles = StyleSheet.create({
   },
   chipTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   chipTxtOn: { color: C2.limeText },
-
   // ── Toolbar ────────────────────────────────────────────────────────────────
   toolbar: {
     flexDirection: 'row',
@@ -973,7 +909,6 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   sortBtnTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C2.navy },
-
   // ── Sort dropdown ──────────────────────────────────────────────────────────
   sortDropdown: {
     position: 'absolute',
@@ -1001,7 +936,6 @@ const styles = StyleSheet.create({
   },
   sortOptionOn: { backgroundColor: 'rgba(132,204,22,0.07)' },
   sortOptionTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C2.body },
-
   // ── Grid ───────────────────────────────────────────────────────────────────
   gridContent: { paddingHorizontal: 14, paddingBottom: 110 },
   gridRow: { justifyContent: 'space-between', marginBottom: 14 },
@@ -1041,7 +975,6 @@ const styles = StyleSheet.create({
   },
   badgeNewTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: C2.limeText, letterSpacing: 0.4 },
   gridInfo: { padding: 11 },
-
   // ── Shared product text ────────────────────────────────────────────────────
   storeLbl: {
     fontSize: 9,
@@ -1076,7 +1009,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
-
   // Stores section
   storesSection: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.03)', marginBottom: 8 },
   storesHeader: {
@@ -1122,7 +1054,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
   },
-
   // ── Featured card (list top result) ───────────────────────────────────────
   featCard: {
     flexDirection: 'row',
@@ -1171,7 +1102,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 6,
   },
-
   // ── List card ──────────────────────────────────────────────────────────────
   listContent: { paddingHorizontal: 14, paddingBottom: 110 },
   listCard: {
@@ -1206,7 +1136,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
   },
-
   // ── Discovery ─────────────────────────────────────────────────────────────
   discoveryScroll: { paddingTop: 6, paddingBottom: 110 },
   discSection: { paddingHorizontal: 20, paddingVertical: 16 },
@@ -1262,54 +1191,76 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 10,
   },
-  catTile: {
-    width: (width - 50) / 2,
-    height: 96,
-    borderRadius: 16,
-    elevation: 4,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  catTileInner: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  catTileImg: {
-    position: 'absolute',
-    right: -10,
-    bottom: -10,
-    width: '65%',
-    height: '90%',
-    opacity: 0.95,
-  },
-  catTileTextWrap: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    right: '40%',
-    paddingTop: 16,
-    paddingLeft: 16,
-  },
-  catTileTxtLeft: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#fff',
-    lineHeight: 18,
-  },
-  catTileFallback: {
-    flex: 1,
-    paddingTop: 16,
-    paddingLeft: 16,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-
+catTile: {
+  width: (width - 50) / 2,
+  height: 100,
+  borderRadius: 18,
+  overflow: 'hidden',       // ← move overflow here so shadow still works
+  elevation: 5,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.2,
+  shadowRadius: 8,
+},
+catTileSelected: {
+  elevation: 8,
+  shadowOpacity: 0.32,
+},
+catTileInner: {
+  flex: 1,
+  borderRadius: 18,
+  overflow: 'hidden',
+  position: 'relative',
+},
+catTileBgImg: {
+  position: 'absolute',
+  top: 0, left: 0, right: 0, bottom: 0,
+  width: '100%',
+  height: '100%',
+},
+catTileScrim: {
+  position: 'absolute',
+  top: 0, left: 0, right: 0, bottom: 0,
+},
+catTileActiveTint: {
+  position: 'absolute',
+  top: 0, left: 0, right: 0, bottom: 0,
+  backgroundColor: 'rgba(12,21,89,0.45)',   // navy tint when selected
+},
+catTileTextWrap: {
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  paddingHorizontal: 12,
+  paddingBottom: 12,
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 5,
+},
+catTileCheckmark: {
+  width: 16, height: 16,
+  borderRadius: 8,
+  backgroundColor: C2.lime,
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+catTileTxtLeft: {
+  fontSize: 13,
+  fontFamily: 'Montserrat-Bold',
+  color: '#fff',
+  lineHeight: 17,
+  textShadowColor: 'rgba(0,0,0,0.6)',
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 4,
+  flex: 1,
+},
+catTileFallback: {   // keep for safety, though now unused
+  flex: 1,
+  paddingTop: 16,
+  paddingLeft: 16,
+  borderRadius: 18,
+},
   // ── Empty state ───────────────────────────────────────────────────────────
   emptyWrap: {
     alignItems: 'center',

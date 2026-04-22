@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAdminRevenue, getAdminDashboard } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -15,7 +15,8 @@ export default function AdminRevenue() {
 
     const loadData = async (isRefresh = false) => {
         try {
-            isRefresh ? setRefreshing(true) : setLoading(true);
+            if (isRefresh) setRefreshing(true);
+            else setLoading(true);
             const [dashRes, revRes] = await Promise.all([
                 getAdminDashboard(),
                 getAdminRevenue({ limit: 50 })

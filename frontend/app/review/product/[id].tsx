@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,15 +12,12 @@ import {
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getProductById, createProductReview, getReviewableProducts } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
-
-const { width } = Dimensions.get('window');
-
 const ProductReviewScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -28,11 +25,9 @@ const ProductReviewScreen = () => {
     const [matchingOrderId, setMatchingOrderId] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-
     const [rating, setRating] = useState(5);
     const [comment, setComment] = useState('');
-
-    const fetchData = async () => {
+    const fetchData = useCallback(async () => {
         try {
             // 1. Fetch product details
             const res = await getProductById(id as string);
@@ -58,18 +53,15 @@ const ProductReviewScreen = () => {
         } finally {
             setLoading(false);
         }
-    };
-
+    }, [id, router]);
     useEffect(() => {
         if (id) fetchData();
-    }, [id]);
-
+    }, [fetchData, id]);
     const handleSubmit = async () => {
         if (rating === 0) {
             Alert.alert('Required', 'Please give a star rating');
             return;
         }
-
         try {
             if (!matchingOrderId) {
                 Alert.alert(
@@ -78,7 +70,6 @@ const ProductReviewScreen = () => {
                 );
                 return;
             }
-
             setSubmitting(true);
             await createProductReview({
                 productId: product.id || product._id,
@@ -86,7 +77,6 @@ const ProductReviewScreen = () => {
                 rating: rating,
                 reviewText: comment
             });
-
             Alert.alert('Thank You!', 'Your review has been shared with the community.', [
                 { text: 'OK', onPress: () => router.back() }
             ]);
@@ -97,7 +87,6 @@ const ProductReviewScreen = () => {
             setSubmitting(false);
         }
     };
-
     const StarRating = ({ currentRating, onRate }: { currentRating: number, onRate: (r: number) => void }) => (
         <View style={styles.starRow}>
             {[1, 2, 3, 4, 5].map((s) => (
@@ -111,9 +100,7 @@ const ProductReviewScreen = () => {
             ))}
         </View>
     );
-
     if (loading) return <ReviewSkeleton />;
-
     return (
         <View style={styles.mainContainer}>
             <StatusBar style="light" backgroundColor="#0C1559" />
@@ -129,7 +116,6 @@ const ProductReviewScreen = () => {
                     </View>
                 </SafeAreaView>
             </LinearGradient>
-
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                 
                 {/* Product Detail Card */}
@@ -163,7 +149,6 @@ const ProductReviewScreen = () => {
                         />
                     </View>
                 </View>
-
                 <TouchableOpacity
                     style={[styles.submitBtnContainer, submitting && { opacity: 0.7 }]}
                     onPress={handleSubmit}
@@ -177,12 +162,10 @@ const ProductReviewScreen = () => {
                         )}
                     </LinearGradient>
                 </TouchableOpacity>
-
             </ScrollView>
         </View>
     );
 };
-
 const styles = StyleSheet.create({
     mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
     header: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
@@ -211,5 +194,4 @@ const styles = StyleSheet.create({
     submitBtn: { paddingVertical: 18, alignItems: 'center' },
     submitBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },
 });
-
 export default ProductReviewScreen;

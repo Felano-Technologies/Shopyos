@@ -134,7 +134,7 @@ const OrdersScreen = () => {
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [loading, isVerified, filtered.length]);
+  }, [loading, isVerified, filtered.length, startTour]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {

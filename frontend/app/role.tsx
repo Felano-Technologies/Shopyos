@@ -7,24 +7,20 @@ import {
   StyleSheet,
   Image,
   ScrollView,
-  Alert,
   ActivityIndicator,
   ImageSourcePropType,
-} from 'react-native';
+ Appearance } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import { Appearance } from 'react-native';
 import { updateUserRole } from '@/services/api';
-
 // 1. Define the Role Type
 type Role = {
   id: string;
   image: ImageSourcePropType;
   label: string;
 };
-
 // 2. Move RoleCard OUTSIDE the main component
 const RoleCard = ({ 
   role, 
@@ -51,18 +47,14 @@ const RoleCard = ({
     {isSelected && <View style={styles.selectedOverlay} />}
   </TouchableOpacity>
 );
-
 const RoleSelectionScreen = () => {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const isDarkMode = Appearance.getColorScheme() === 'dark';
-
   const roles: Role[] = [
     { id: 'customer', image: require('../assets/images/customer.jpg'), label: 'Customer' },
     { id: 'seller', image: require('../assets/images/seller.jpg'), label: 'Seller' },
     { id: 'driver', image: require('../assets/images/driver.jpg'), label: 'Driver' },
   ];
-
   const handleRoleSelection = async () => {
     if (!selectedRole) {
       CustomInAppToast.show({
@@ -72,19 +64,15 @@ const RoleSelectionScreen = () => {
       });
       return;
     }
-
     setLoading(true);
     try {
       const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
-      const response = await updateUserRole(backendRole);
       
-
       CustomInAppToast.show({
         type: 'success',
         title: 'Success! 🎉',
         message: `You are now a ${selectedRole}!`,
       });
-
       setTimeout(() => {
         if (selectedRole === 'customer') {
           router.replace('/home');
@@ -106,7 +94,6 @@ const RoleSelectionScreen = () => {
       setLoading(false);
     }
   };
-
   return (
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
@@ -120,7 +107,6 @@ const RoleSelectionScreen = () => {
             source={require('../assets/images/icondark.png')}
             style={styles.logo}
           />
-
           {/* Role Images */}
           <View style={styles.rolesContainer}>
             {roles.map((role) => (
@@ -132,12 +118,10 @@ const RoleSelectionScreen = () => {
               />
             ))}
           </View>
-
           {/* Instruction */}
           <Text style={styles.instructionText}>
             Select your role to continue registration
           </Text>
-
           {/* Continue Button */}
           <TouchableOpacity
             style={[
@@ -156,7 +140,6 @@ const RoleSelectionScreen = () => {
               <Text style={styles.continueText}>Continue</Text>
             )}
           </TouchableOpacity>
-
           {/* Bottom Logos */}
           <View style={styles.bottomLogos}>
             <Image
@@ -173,7 +156,6 @@ const RoleSelectionScreen = () => {
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -271,5 +253,4 @@ const styles = StyleSheet.create({
     marginBottom: -200,
   },
 });
-
 export default RoleSelectionScreen;

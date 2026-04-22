@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, {  useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Dimensions,
   Animated,
-  Easing,
   Linking,
   Image
 } from 'react-native';
@@ -15,35 +14,26 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-
-const { width, height } = Dimensions.get('window');
-
+const { height } = Dimensions.get('window');
 export default function OrderTrackingMap() {
   const router = useRouter();
   const params = useLocalSearchParams();
-
   // Real data from params (passed from order details screen)
-  const orderId = params.orderId as string;
   const deliveryAddress = (params.deliveryAddress as string) || 'Delivery Address';
   const orderNumber = (params.orderNumber as string) || '';
-
   // Driver params
   const driverName = params.driverName as string | undefined;
   const driverAvatar = params.driverAvatar as string | undefined;
   const driverPhone = params.driverPhone as string | undefined;
   const driverVehicle = params.driverVehicle as string | undefined;
   const driverPlate = params.driverPlate as string | undefined;
-
   // Store params
   const storeName = params.storeName as string | undefined;
   const storeLogo = params.storeLogo as string | undefined;
   const storeCategory = params.storeCategory as string | undefined;
-
   const hasDriver = !!driverName;
-
   // Animation Values
   const pulseAnim = useRef(new Animated.Value(1)).current;
-
   useEffect(() => {
     // Pulse Animation for User Location marker
     Animated.loop(
@@ -52,12 +42,10 @@ export default function OrderTrackingMap() {
         Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
       ])
     ).start();
-  }, []);
-
+  }, [pulseAnim]);
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-
       {/* --- Full Screen Map Background --- */}
       <View style={styles.mapContainer}>
         {/* Map placeholder — replace with <MapView> when ready */}
@@ -65,20 +53,17 @@ export default function OrderTrackingMap() {
           <MaterialCommunityIcons name="map-outline" size={64} color="#CBD5E1" />
           <Text style={styles.mapPlaceholderText}>Map view coming soon</Text>
         </View>
-
         {/* Map Overlay Gradient (Top) */}
         <LinearGradient
           colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
           style={styles.topGradient}
         />
-
         {/* Back Button */}
         <SafeAreaView style={styles.topSafeArea}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
         </SafeAreaView>
-
         {/* Destination Marker (always shown) */}
         <View style={styles.markersContainer}>
           <View style={styles.userMarkerContainer}>
@@ -92,11 +77,9 @@ export default function OrderTrackingMap() {
           </View>
         </View>
       </View>
-
       {/* --- Bottom Sheet --- */}
       <View style={[styles.bottomSheet, hasDriver ? { height: height * 0.45 } : { height: height * 0.35 }]}>
         <View style={styles.dragHandle} />
-
         {/* Status Header */}
         <View style={styles.statusHeader}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -118,9 +101,7 @@ export default function OrderTrackingMap() {
             <View style={[styles.progressFill, { width: hasDriver ? '55%' : '25%' }]} />
           </View>
         </View>
-
         <View style={styles.divider} />
-
         {/* Driver Card — real or empty state */}
         {hasDriver ? (
           <View style={styles.driverCard}>
@@ -163,12 +144,11 @@ export default function OrderTrackingMap() {
             <View style={{ flex: 1, marginLeft: 14 }}>
               <Text style={styles.noDriverTitle}>No driver assigned yet</Text>
               <Text style={styles.noDriverSub}>
-                We're finding the nearest driver for your order. This usually takes a few minutes.
+                We&apos;re finding the nearest driver for your order. This usually takes a few minutes.
               </Text>
             </View>
           </View>
         )}
-
         {/* Delivery Details */}
         <View style={styles.deliveryDetails}>
           <View style={styles.detailRow}>
@@ -188,10 +168,8 @@ export default function OrderTrackingMap() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-
   // Map Layer
   mapContainer: {
     ...StyleSheet.absoluteFillObject,
@@ -218,7 +196,6 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15, shadowRadius: 5, elevation: 5,
   },
-
   // Markers
   markersContainer: {
     position: 'absolute', top: '30%', left: '20%', width: '60%', height: '40%',
@@ -240,7 +217,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignItems: 'center',
   },
   markerText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
-
   // Bottom Sheet
   bottomSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF',
@@ -253,16 +229,13 @@ const styles = StyleSheet.create({
     width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2,
     alignSelf: 'center', marginBottom: 20,
   },
-
   // Status Section
   statusHeader: { marginBottom: 16 },
   statusTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
   statusSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 10 },
   progressBar: { height: 4, backgroundColor: '#F1F5F9', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#84cc16', borderRadius: 2 },
-
   divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 16 },
-
   // Real Driver Card
   driverCard: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   avatarPlaceholder: {
@@ -279,7 +252,6 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9',
     justifyContent: 'center', alignItems: 'center',
   },
-
   // No-driver empty state
   noDriverCard: {
     flexDirection: 'row', alignItems: 'center',
@@ -293,7 +265,6 @@ const styles = StyleSheet.create({
   },
   noDriverTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
   noDriverSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', lineHeight: 18 },
-
   // Delivery Details
   deliveryDetails: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 16 },
   detailRow: { flexDirection: 'row', alignItems: 'center' },
@@ -304,7 +275,6 @@ const styles = StyleSheet.create({
   addressBox: { flex: 1 },
   addressLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 2 },
   addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-
   // New Styles
   avatarContainer: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
   driverAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -312,5 +282,3 @@ const styles = StyleSheet.create({
   miniLogo: { width: '100%', height: '100%' },
   storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },
 });
-
-

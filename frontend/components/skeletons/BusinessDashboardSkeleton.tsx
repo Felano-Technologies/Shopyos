@@ -3,9 +3,6 @@ import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton'; // Assuming your Skeleton base component is here
-
-const { width } = Dimensions.get('window');
-
 export const BusinessDashboardSkeleton = () => {
   return (
     <View style={styles.container}>
@@ -25,7 +22,6 @@ export const BusinessDashboardSkeleton = () => {
                 <Skeleton width={40} height={40} borderRadius={12} style={styles.skeletonWhite} />
               </View>
             </View>
-
             {/* Profile Info */}
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 10 }}>
               <Skeleton width={56} height={56} borderRadius={20} style={styles.skeletonWhite} />
@@ -37,7 +33,6 @@ export const BusinessDashboardSkeleton = () => {
             </View>
           </SafeAreaView>
         </LinearGradient>
-
         {/* --- Floating Stats Skeleton --- */}
         <View style={styles.floatingStats}>
           {[1, 2, 3].map((i) => (
@@ -50,7 +45,6 @@ export const BusinessDashboardSkeleton = () => {
             </React.Fragment>
           ))}
         </View>
-
         {/* --- Quick Actions Skeleton --- */}
         <View style={styles.section}>
           <Skeleton width={120} height={18} style={{ marginBottom: 20 }} />
@@ -63,7 +57,6 @@ export const BusinessDashboardSkeleton = () => {
             ))}
           </View>
         </View>
-
         {/* --- Chart Skeleton --- */}
         <View style={styles.chartCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -75,7 +68,6 @@ export const BusinessDashboardSkeleton = () => {
           </View>
           <Skeleton width="100%" height={180} borderRadius={16} />
         </View>
-
         {/* --- Recent Orders Skeleton --- */}
         <View style={styles.section}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
@@ -95,12 +87,10 @@ export const BusinessDashboardSkeleton = () => {
             </View>
           ))}
         </View>
-
       </ScrollView>
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F1F5F9' },
   skeletonWhite: { backgroundColor: 'rgba(255,255,255,0.2)' },

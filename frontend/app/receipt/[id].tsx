@@ -10,7 +10,7 @@ import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import ViewShot, { captureRef } from 'react-native-view-shot';
+import  { captureRef } from 'react-native-view-shot';
 import { getOrderDetails } from '@/services/api';
 
 // ─────────────────────────────────────────────────────────────────────────────

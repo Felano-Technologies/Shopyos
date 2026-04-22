@@ -198,7 +198,7 @@ export default function VerificationStatus() {
                                     style={styles.modalBtn}
                                     onPress={() => setShowStatusModal(false)}
                                 >
-                                    <Text style={styles.modalBtnText}>I'll Wait</Text>
+                                    <Text style={styles.modalBtnText}>I will wait</Text>
                                 </TouchableOpacity>
                             </View>
                         )}
