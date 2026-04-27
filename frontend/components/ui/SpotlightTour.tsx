@@ -10,8 +10,8 @@ import {
   Animated,
 } from 'react-native';
 import Svg, { Defs, Mask, Rect, Circle } from 'react-native-svg';
-import LottieView from 'lottie-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import SpotlightIndicator from './SpotlightIndicator';
 const { height } = Dimensions.get('window');
 interface SpotlightStep {
   targetLayout: LayoutRectangle;
@@ -100,12 +100,7 @@ export const SpotlightTour: React.FC<SpotlightTourProps> = ({
             width: 80,
             height: 80,
           }]}>
-             <LottieView
-              source={currentStep.lottieSource || require('../../assets/pulse.json')}
-              autoPlay
-              loop
-              style={styles.lottie}
-            />
+            <SpotlightIndicator source={currentStep.lottieSource || require('../../assets/pulse.json')} />
           </View>
           {/* Tooltip Content */}
           <Animated.View style={[styles.popover, { 
@@ -143,10 +138,6 @@ const styles = StyleSheet.create({
   indicatorContainer: {
     position: 'absolute',
     pointerEvents: 'none',
-  },
-  lottie: {
-    width: '100%',
-    height: '100%',
   },
   popover: {
     position: 'absolute',

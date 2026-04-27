@@ -23,7 +23,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-import LottieView from 'lottie-react-native';
+import SpotlightIndicator from '../../components/ui/SpotlightIndicator';
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
@@ -256,12 +256,9 @@ const BusinessDashboard = () => {
             {/* --- FLOATING STATS --- */}
             <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
               {isTourActive && (
-                <LottieView 
-                  source={require('../../assets/pulse.json')}
-                  autoPlay 
-                  loop 
-                  style={styles.statsPulse}
-                />
+                <View style={styles.statsPulse}>
+                  <SpotlightIndicator source={require('../../assets/pulse.json')} />
+                </View>
               )}
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.totalProducts}</Text>
