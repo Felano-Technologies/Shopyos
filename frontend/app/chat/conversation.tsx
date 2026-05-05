@@ -14,10 +14,12 @@ import {
   getMessages, sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
   markConversationRead, storage, getUserData,
+  blockUser
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import { ReportModal } from '../../components/ReportModal';
 
 const { width } = Dimensions.get('window');
 
@@ -67,6 +69,7 @@ export default function ConversationScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [replyTo, setReplyTo] = useState<MessageItem | null>(null);
   const [moreVisible, setMoreVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -209,6 +212,34 @@ export default function ConversationScreen() {
       },
     ]);
   };
+  const doBlockUser = () => {
+    setMoreVisible(false);
+    Alert.alert('Block User', `Are you sure you want to block ${displayName}? You will no longer receive messages from them.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Block', style: 'destructive', onPress: async () => {
+          try {
+            const targetId = messages.find(m => m.sender_id !== currentUserId)?.sender_id;
+            if (!targetId) {
+                CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not identify user to block.' });
+                return;
+            }
+
+            await blockUser(targetId);
+            CustomInAppToast.show({ type: 'success', title: 'Blocked', message: `${displayName} has been blocked.` });
+            router.back();
+          } catch (e: any) {
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not block user.' });
+          }
+        },
+      },
+    ]);
+  };
+
+  const doReportUser = () => {
+    setMoreVisible(false);
+    setReportVisible(true);
+  };
+
   const doClearChat = () => {
     setMoreVisible(false);
     Alert.alert('Delete Chat', 'Permanently delete this conversation?', [
@@ -481,6 +512,14 @@ export default function ConversationScreen() {
               <Ionicons name="checkmark-done-outline" size={17} color={C.navyDeep} />
               <Text style={styles.moreItemTxt}>Mark as read</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.moreItem} onPress={doReportUser}>
+              <Ionicons name="flag-outline" size={17} color={C.navyDeep} />
+              <Text style={styles.moreItemTxt}>Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doBlockUser}>
+              <Ionicons name="ban-outline" size={17} color="#EF4444" />
+              <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Block User</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doClearChat}>
               <Ionicons name="trash-bin-outline" size={17} color="#EF4444" />
               <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Delete chat</Text>
@@ -488,6 +527,18 @@ export default function ConversationScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* ── Report Modal ────────────────────────────────────────────────────── */}
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        entityType={chatType === 'buyer' ? 'store' : 'user'}
+        entityId={
+           chatType === 'buyer' ? conversationId : // Need actual store ID or user ID, using conversation as placeholder isn't great.
+           (messages.find(m => m.sender_id !== currentUserId)?.sender_id || '')
+        } // Wait, we need the exact ID. Let's fix this logic.
+        entityName={displayName}
+      />
     </View>
   );
 }

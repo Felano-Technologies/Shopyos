@@ -68,11 +68,16 @@ const RoleSelectionScreen = () => {
     try {
       const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
       
+      // Call the API to save the role
+      await updateUserRole(backendRole);
+      
       CustomInAppToast.show({
         type: 'success',
         title: 'Success! 🎉',
         message: `You are now a ${selectedRole}!`,
       });
+      
+      // Use a slightly longer delay to ensure the backend has processed and the user sees the success toast
       setTimeout(() => {
         if (selectedRole === 'customer') {
           router.replace('/home');
@@ -81,7 +86,7 @@ const RoleSelectionScreen = () => {
         } else if (selectedRole === 'driver') {
           router.replace('/driver/dashboard');
         }
-      }, 500);
+      }, 1000);
       
     } catch (error: any) {
       console.error('Error saving role:', error);

@@ -37,15 +37,14 @@ import {
   createStoreReview
 } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import { useChat } from '@/context/ChatContext';
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
+import { ReportModal } from '../../components/ReportModal';
 const { width } = Dimensions.get('window');
 export default function StoreDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { startCall } = useChat();
   const [activeTab, setActiveTab] = useState('Catalogue');
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<any[]>([]);
@@ -62,6 +61,8 @@ export default function StoreDetailsScreen() {
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  // --- Report Store ---
+  const [reportVisible, setReportVisible] = useState(false);
   // --- Map Picker State ---
   const [mapPickerVisible, setMapPickerVisible] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -392,11 +393,16 @@ export default function StoreDetailsScreen() {
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
             <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-               <TouchableOpacity style={styles.iconBtn} onPress={() => startCall(store.id as string, store.name, store.logo?.uri || '')}>
-                 <Ionicons name="call-outline" size={22} color="#FFF" />
-               </TouchableOpacity>
+               {store.phone ? (
+                 <TouchableOpacity style={styles.iconBtn} onPress={() => Linking.openURL(`tel:${store.phone}`)}>
+                   <Ionicons name="call-outline" size={22} color="#FFF" />
+                 </TouchableOpacity>
+               ) : null}
                <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
                  <Ionicons name="share-social-outline" size={22} color="#FFF" />
+               </TouchableOpacity>
+               <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+                 <Ionicons name="flag-outline" size={22} color="#EF4444" />
                </TouchableOpacity>
             </View>
           </SafeAreaView>
@@ -428,15 +434,17 @@ export default function StoreDetailsScreen() {
           <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
             {chatLoading ? <ActivityIndicator size="small" color="#FFF" /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" /><Text style={styles.primaryActionText}>Chat</Text></>}
           </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.callActionButton} 
-            onPress={() => startCall(store.id as string, store.name, store.logo?.uri || '')}
-          >
-            <Ionicons name="call" size={22} color="#0C1559" />
-          </TouchableOpacity>
+          {store.phone ? (
+            <TouchableOpacity 
+              style={styles.callActionButton} 
+              onPress={() => Linking.openURL(`tel:${store.phone}`)}
+            >
+              <Ionicons name="call" size={22} color="#0C1559" />
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={[styles.secondaryActionBtn, isFollowing && styles.followingBtn]} onPress={handleFollow}>
             <Ionicons name={isFollowing ? "checkmark-circle" : "notifications-outline"} size={20} color={isFollowing ? "#FFF" : "#0C1559"} />
-            <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Follow' : 'Follow'}</Text>
+            <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Following' : 'Follow'}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.tabContainer}>
@@ -533,6 +541,13 @@ export default function StoreDetailsScreen() {
         </View>
       </Modal>
       <ReviewCommentsSheet visible={isCommentsVisible} onClose={() => setIsCommentsVisible(false)} reviewId={selectedReviewId} comments={activeComments} onSendComment={handleSendComment} isSubmitting={commentSubmitting} />
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        entityType="store"
+        entityId={store.id as string}
+        entityName={store.name}
+      />
     </View>
   );
 }

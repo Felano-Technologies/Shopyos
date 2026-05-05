@@ -281,6 +281,7 @@ const BusinessDashboard = () => {
               <View style={styles.servicesGrid}>
                 {[
                   { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
+                  { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
                   { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
                   { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
                   { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },

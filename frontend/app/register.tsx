@@ -9,6 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import Swiper from 'react-native-swiper';
 const { width } = Dimensions.get('window');
+
 const RegisterScreen = () => {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');

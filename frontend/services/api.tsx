@@ -1760,3 +1760,94 @@ export const initializeListingFee = async (payload: { storeId: string; email: st
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+// ─── User Actions (Block & Report) ──────────────────────────────────────────
+
+export const blockUser = async (blockedId: string) => {
+  try {
+    const response = await api.post('/user-actions/block', { blockedId });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const unblockUser = async (blockedId: string) => {
+  try {
+    const response = await api.delete(`/user-actions/block/${blockedId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getBlockedUsers = async () => {
+  try {
+    const response = await api.get('/user-actions/blocks');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const reportEntity = async (entityType: 'user' | 'store', entityId: string, reason: string, details?: string) => {
+  try {
+    const response = await api.post('/user-actions/report', { entityType, entityId, reason, details });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const uploadSnapImage = async (uri: string) => {
+  try {
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'snap.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+    formData.append('image', { uri, name: filename, type } as any);
+    const response = await api.post('/upload/single?folder=shopyos/snaps', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to upload snap image');
+    throw new Error(error.message || 'Network error during snap upload');
+  }
+};
+
+export const createSnap = async (media_url: string, caption: string, product_id?: string) => {
+  try {
+    const response = await api.post('/snaps', { media_url, caption, product_id });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getSnapFeed = async () => {
+  try {
+    const response = await api.get('/snaps/feed');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const viewSnap = async (id: string) => {
+  try {
+    const response = await api.post(`/snaps/${id}/view`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const deleteSnap = async (id: string) => {
+  try {
+    const response = await api.delete(`/snaps/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

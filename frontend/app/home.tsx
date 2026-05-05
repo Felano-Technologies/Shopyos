@@ -24,6 +24,7 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
+import { SnapsRow } from '@/components/SnapsRow';
 const { width } = Dimensions.get('window');
 // ─── Ad carousel constants ────────────────────────────────────────────────────
 // The slide occupies the full width minus horizontal padding (16px each side).
@@ -639,6 +640,9 @@ export default function Home() {
           )}
           scrollEventThrottle={16}
         >
+          {/* ── Quick Snaps ──────────────────────────────────────────────── */}
+          <SnapsRow />
+
           {/* ── Ad carousel — ScrollView + pagingEnabled (no overlap) ─── */}
           <View style={S.carouselWrap}>
             <ScrollView
