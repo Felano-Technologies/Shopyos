@@ -11,7 +11,8 @@ const {
   updateOrderStatus,
   cancelOrder,
   getOrderByNumber,
-  verifyPayment
+  verifyPayment,
+  confirmDelivery
 } = require('../controllers/orderController');
 const { protect, hasAnyRole } = require('../middleware/authMiddleware');
 const { validateCreateOrder } = require('../middleware/validators');
@@ -53,6 +54,11 @@ router.put('/:orderId/status', hasAnyRole('seller', 'admin'), updateOrderStatus)
 // @desc    Cancel order (buyer/seller/admin, only when status is pending)
 // @access  Private
 router.put('/:orderId/cancel', cancelOrder);
+
+// @route   PUT /api/orders/:orderId/confirm-delivery
+// @desc    Buyer confirms receipt of order
+// @access  Private
+router.put('/:orderId/confirm-delivery', confirmDelivery);
 
 // @route   POST /api/orders/:orderId/verify-payment
 // @desc    Verify payment

@@ -54,6 +54,23 @@ const createProduct = async (req, res, next) => {
       });
     }
 
+    // Check listing limits and tier
+    const { count: productCount } = await repositories.products.db
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+      .is('deleted_at', null);
+
+    if (productCount >= 100 && store.listing_tier !== 'paid') {
+      return res.status(402).json({
+        success: false,
+        error: 'Free listing limit reached.',
+        code: 'LISTING_FEE_REQUIRED',
+        message: 'Pay a one-time ₵50 platform fee to unlock unlimited listings.',
+        paymentUrl: '/api/v1/payments/listing-fee/initialize'
+      });
+    }
+
     // Create product
     const product = await repositories.products.create({
       store_id: storeId,

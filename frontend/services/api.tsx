@@ -564,6 +564,8 @@ export const createOrder = async (orderData: {
   deliveryNotes?: string;
   paymentMethod: string;
   paymentMethodId?: string | null;
+  buyerLat?: number;
+  buyerLng?: number;
 }) => {
   try {
     const response = await api.post('/orders/create', orderData);
@@ -572,6 +574,48 @@ export const createOrder = async (orderData: {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export const confirmDelivery = async (orderId: string) => {
+  try {
+    const response = await api.put(`/orders/${orderId}/confirm-delivery`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getDeliveryQuote = async (storeId: string, buyerLat: number, buyerLng: number) => {
+  try {
+    const response = await api.get('/delivery/quote', {
+      params: { storeId, buyerLat, buyerLng },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getDeliverySettings = async (storeId: string) => {
+  try {
+    const response = await api.get(`/business/${storeId}/delivery-settings`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateDeliverySettings = async (
+  storeId: string,
+  settings: { deliveryBaseFee?: number; deliveryPerKmFee?: number; deliveryMaxKm?: number | null }
+) => {
+  try {
+    const response = await api.put(`/business/${storeId}/delivery-settings`, settings);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
  
 export const getMyOrders = async (
   params: { status?: string; limit?: number; offset?: number } = {}
@@ -783,6 +827,9 @@ export const createProduct = async (productData: any) => {
     const response = await api.post('/products', productData);
     return response.data;
   } catch (error: any) {
+    if (error.response && error.response.data?.code === 'LISTING_FEE_REQUIRED') {
+      throw error.response.data; // Pass the whole object with paymentUrl
+    }
     if (error.response) throw new Error(error.response.data.error || 'Failed to create product');
     throw error;
   }
@@ -1698,6 +1745,15 @@ export const searchStores = async (params: {
   try {
     const response = await api.get('/business/all', { params });
     // Normalize response: getAllBusinesses returns { success: true, data: [...], pagination: {...} }
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const initializeListingFee = async (payload: { storeId: string; email: string; channel?: string }) => {
+  try {
+    const response = await api.post('/payments/listing-fee/initialize', payload);
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

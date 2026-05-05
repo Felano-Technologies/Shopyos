@@ -9,7 +9,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, cancelOrder, startConversation } from '@/services/api';
+import { getOrderDetails, cancelOrder, startConversation, confirmDelivery } from '@/services/api';
 import { queryClient } from '@/lib/query/client';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
@@ -61,6 +61,7 @@ const OrderDetailsScreen = () => {
   const [loading, setLoading] = useState(true);
   const { startCall } = useChat();
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchOrder = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -106,6 +107,32 @@ const OrderDetailsScreen = () => {
             Alert.alert('Error', e.message || 'Failed to cancel order');
           } finally {
             setIsCancelling(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleConfirmDelivery = () => {
+    Alert.alert('Confirm Delivery', 'Have you received your order? This will release payment to the seller.', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, I received it',
+        style: 'default',
+        onPress: async () => {
+          try {
+            setIsConfirming(true);
+            const res = await confirmDelivery(id as string);
+            if (res.success) {
+              await fetchOrder();
+              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
+              Alert.alert('Success', 'Delivery confirmed. Thank you!');
+            }
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to confirm delivery');
+          } finally {
+            setIsConfirming(false);
           }
         },
       },
@@ -520,6 +547,23 @@ const OrderDetailsScreen = () => {
             )}
           </TouchableOpacity>
         )}
+        {order.escrow_status === 'HELD' && (order.status.toLowerCase() === 'delivered' || order.status.toLowerCase() === 'paid') && (
+          <TouchableOpacity
+            style={[S.confirmBtn, isConfirming && { opacity: 0.65 }]}
+            onPress={handleConfirmDelivery}
+            disabled={isConfirming}
+            activeOpacity={0.82}
+          >
+            {isConfirming ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-done-circle-outline" size={rs(18)} color="#fff" />
+                <Text style={S.confirmBtnTxt}>Confirm Received Order</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </View>
   );
@@ -704,5 +748,12 @@ const S = StyleSheet.create({
     borderWidth: 0.5, borderColor: '#FECACA',
   },
   cancelBtnTxt: { color: '#EF4444', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  confirmBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: rs(8), backgroundColor: C.lime,
+    paddingVertical: rs(15), borderRadius: rs(16), marginTop: rs(8),
+    elevation: 2, shadowColor: C.lime, shadowOpacity: 0.2, shadowRadius: rs(6), shadowOffset: { width: 0, height: 2 },
+  },
+  confirmBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
 });
 export default OrderDetailsScreen;

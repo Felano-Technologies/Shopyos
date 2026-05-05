@@ -539,6 +539,126 @@ const getAllOrders = async (req, res, next) => {
 };
 
 /**
+ * Get all escrow funds
+ * @route   GET /api/admin/escrows
+ */
+const getAllEscrows = async (req, res, next) => {
+  try {
+    const { status, limit, offset } = req.query;
+    
+    let query = repositories.orders.db.from('orders')
+      .select('id, order_number, total_amount, platform_fee, seller_payout_amount, escrow_status, updated_at, buyer_id, store_id')
+      .neq('escrow_status', 'PENDING');
+
+    if (status) query = query.eq('escrow_status', status);
+
+    query = query
+      .order('updated_at', { ascending: false })
+      .range(parseInt(offset) || 0, (parseInt(offset) || 0) + (parseInt(limit) || 50) - 1);
+
+    const { data: escrows, error } = await query;
+    if (error) throw error;
+
+    res.status(200).json({ success: true, escrows });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Manually refund escrow to buyer
+ * @route   PUT /api/admin/escrows/:id/refund
+ */
+const refundEscrow = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const order = await repositories.orders.findById(id);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (order.escrow_status !== 'HELD' && order.escrow_status !== 'DISPUTED') {
+      return res.status(400).json({ success: false, error: 'Order is not in an escrow holding state' });
+    }
+
+    // In a real app, this would trigger Paystack refund API.
+    // For now, we update the status.
+    const now = new Date().toISOString();
+    const { data: updatedOrder, error } = await repositories.orders.db.from('orders')
+      .update({ escrow_status: 'REFUNDED', status: 'refunded', updated_at: now })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    // Create audit log
+    await repositories.auditLogs.createLog({
+      userId: req.user.id, action: 'refund_escrow', entityType: 'order', entityId: id,
+      changes: { status: 'refunded', reason }, ipAddress: req.ip, userAgent: req.headers['user-agent']
+    });
+
+    res.status(200).json({ success: true, message: 'Escrow refunded successfully', order: updatedOrder });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Manually release escrow to seller
+ * @route   PUT /api/admin/escrows/:id/release
+ */
+const releaseEscrow = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const order = await repositories.orders.findById(id);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (order.escrow_status !== 'HELD' && order.escrow_status !== 'DISPUTED') {
+      return res.status(400).json({ success: false, error: 'Order is not in an escrow holding state' });
+    }
+
+    const totalAmount = parseFloat(order.total_amount);
+    const platformFee = totalAmount * 0.10;
+    const sellerPayout = totalAmount - platformFee;
+    const now = new Date().toISOString();
+
+    const { data: updatedOrder, error } = await repositories.orders.db.from('orders')
+      .update({
+        escrow_status: 'RELEASED', status: 'completed',
+        platform_fee: platformFee, seller_payout_amount: sellerPayout,
+        payout_released_at: now, updated_at: now
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+
+    const store = await repositories.stores.findById(order.store_id);
+    if (store) {
+      const newBalance = parseFloat(store.current_balance || 0) + sellerPayout;
+      await repositories.stores.update(store.id, { current_balance: newBalance });
+
+      await repositories.orders.db.from('balance_logs').insert({
+        store_id: store.id, amount: sellerPayout, transaction_type: 'sale',
+        order_id: order.id, balance_after: newBalance
+      });
+    }
+
+    // Create audit log
+    await repositories.auditLogs.createLog({
+      userId: req.user.id, action: 'release_escrow', entityType: 'order', entityId: id,
+      changes: { status: 'completed', reason }, ipAddress: req.ip, userAgent: req.headers['user-agent']
+    });
+
+    res.status(200).json({ success: true, message: 'Escrow released successfully', order: updatedOrder });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Get revenue transactions
  * @route   GET /api/admin/revenue
  */
@@ -674,4 +794,7 @@ module.exports = {
   getDriverVerificationDetails,
   approveDriverVerification,
   rejectDriverVerification,
+  getAllEscrows,
+  refundEscrow,
+  releaseEscrow
 };

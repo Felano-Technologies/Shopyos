@@ -200,7 +200,6 @@ export default function BusinessSettingsScreen() {
                 </Text>
               </View>
             )}
-            {/* Business & Finance */}
             <Text style={S.groupLabel}>Business & Finance</Text>
             <SettingGroup>
               <SettingRow
@@ -208,6 +207,13 @@ export default function BusinessSettingsScreen() {
                 label="Business Registration"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/businessRegistration' as any)}
+              />
+              <Divider />
+              <SettingRow
+                icon="bicycle-outline" iconColor="#0891B2" iconBg="#E0F2FE"
+                label="Delivery Settings"
+                disabled={!isBusinessVerified}
+                onPress={() => router.push('/business/deliverySettings' as any)}
               />
               <Divider />
               <SettingRow

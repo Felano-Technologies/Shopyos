@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { logger } = require('../config/logger');
 const rabbitMQService = require('../services/rabbitmq');
 const notificationService = require('../services/notificationService');
+const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
 
 /**
  * Generate unique order number
@@ -31,7 +32,9 @@ const createOrder = async (req, res, next) => {
       deliveryCountry,
       deliveryPhone,
       deliveryNotes,
-      paymentMethod = 'paystack'
+      paymentMethod = 'paystack',
+      buyerLat,    // optional — used to calculate distance-based delivery fee
+      buyerLng
     } = req.body;
 
     // Validate delivery info
@@ -86,9 +89,28 @@ const createOrder = async (req, res, next) => {
       const getFundAmount = subtotal * 0.025;
       const vatAmount = subtotal * 0.15;
       const serviceCharge = 5.00;
-
       const tax = nhilAmount + getFundAmount + vatAmount + serviceCharge;
-      const deliveryFee = 15.00;
+
+      // Dynamic delivery fee based on store settings + buyer location
+      let deliveryFee = 0;
+      const store = await repositories.stores.findById(storeId);
+      if (store) {
+        if (
+          buyerLat !== undefined && buyerLng !== undefined &&
+          store.latitude !== null && store.longitude !== null
+        ) {
+          const distanceKm = haversineKm(
+            parseFloat(store.latitude), parseFloat(store.longitude),
+            parseFloat(buyerLat), parseFloat(buyerLng)
+          );
+          const { fee, withinRange } = calculateDeliveryFee(store, distanceKm);
+          deliveryFee = withinRange && fee !== null ? fee : parseFloat(store.delivery_base_fee) || 0;
+        } else {
+          // No buyer coordinates provided — use the base fee only
+          deliveryFee = parseFloat(store.delivery_base_fee) || 0;
+        }
+      }
+
       const totalAmount = subtotal + tax + deliveryFee;
 
       // Create order
@@ -131,7 +153,6 @@ const createOrder = async (req, res, next) => {
       });
 
       // Notify seller about new order via in-app
-      const store = await repositories.stores.findById(storeId);
       if (store && store.owner_id) {
         await notificationService.sendNotification({
           userId: store.owner_id,
@@ -619,6 +640,130 @@ const verifyPayment = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   PUT /api/orders/:orderId/confirm-delivery
+ * @desc    Buyer confirms receipt of order. Releases funds from escrow to seller.
+ * @access  Private
+ */
+const confirmDelivery = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    // Get order
+    const order = await repositories.orders.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    
+    if (order.buyer_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+    
+    if (order.escrow_status !== 'HELD') {
+       return res.status(400).json({ success: false, error: 'Funds are not currently held in escrow for this order' });
+    }
+
+    // Calculate payouts
+    const totalAmount = parseFloat(order.total_amount);
+    const platformFee = totalAmount * 0.10; // 10% platform fee including delivery
+    const sellerPayout = totalAmount - platformFee;
+    const now = new Date().toISOString();
+
+    // Update order
+    const { data: updatedOrder, error: updateError } = await repositories.orders.db.from('orders')
+        .update({
+            status: 'completed',
+            escrow_status: 'RELEASED',
+            platform_fee: platformFee,
+            seller_payout_amount: sellerPayout,
+            payout_released_at: now,
+            updated_at: now
+        })
+        .eq('id', orderId)
+        .select('*')
+        .single();
+
+    if (updateError) throw updateError;
+
+    // Update store balance
+    const store = await repositories.stores.findById(order.store_id);
+    if (store) {
+        const newBalance = parseFloat(store.current_balance || 0) + sellerPayout;
+        await repositories.stores.update(store.id, { current_balance: newBalance });
+
+        await repositories.orders.db.from('balance_logs').insert({
+            store_id: store.id,
+            amount: sellerPayout,
+            transaction_type: 'sale',
+            order_id: order.id,
+            balance_after: newBalance
+        });
+
+        // Notify seller
+        if (store.owner_id) {
+            await notificationService.sendNotification({
+                userId: store.owner_id,
+                type: 'payout_released',
+                title: 'Order Completed & Payout Released',
+                message: `Buyer confirmed delivery for order #${order.order_number}. ₵${sellerPayout.toFixed(2)} has been added to your balance.`,
+                relatedId: order.id,
+                relatedType: 'order',
+                data: { orderId: order.id, orderNumber: order.order_number, amount: sellerPayout }
+            }).catch(e => console.error('Notification failed', e));
+        }
+    }
+
+    // Process referral reward (first purchase completion)
+    try {
+        const { data: pendingReferral } = await repositories.orders.db.from('referrals')
+            .select('*')
+            .eq('referred_id', userId)
+            .eq('status', 'pending')
+            .single();
+
+        if (pendingReferral) {
+            // Update referral status
+            await repositories.orders.db.from('referrals')
+                .update({ status: 'completed', order_id: order.id, completed_at: now })
+                .eq('id', pendingReferral.id);
+
+            // Fetch referrer profile
+            const { data: referrerProfile } = await repositories.orders.db.from('user_profiles')
+                .select('id, wallet_balance')
+                .eq('user_id', pendingReferral.referrer_id)
+                .single();
+
+            if (referrerProfile) {
+                // Add reward to referrer's wallet
+                const newWalletBalance = parseFloat(referrerProfile.wallet_balance || 0) + parseFloat(pendingReferral.reward_amount);
+                await repositories.orders.db.from('user_profiles')
+                    .update({ wallet_balance: newWalletBalance })
+                    .eq('id', referrerProfile.id);
+
+                // Notify referrer
+                await notificationService.sendNotification({
+                    userId: pendingReferral.referrer_id,
+                    type: 'referral_reward',
+                    title: 'Referral Reward Earned!',
+                    message: `A user you referred completed their first purchase. ₵${pendingReferral.reward_amount} has been added to your wallet!`,
+                    relatedId: pendingReferral.id,
+                    relatedType: 'referral',
+                    data: { amount: pendingReferral.reward_amount }
+                }).catch(e => console.error('Referral notification failed', e));
+            }
+        }
+    } catch (refErr) {
+        console.error('Failed to process referral reward:', refErr);
+        // Don't fail the order confirmation if referral processing fails
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Delivery confirmed. Funds released to seller.',
+        order: updatedOrder
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -627,5 +772,6 @@ module.exports = {
   updateOrderStatus,
   cancelOrder,
   getOrderByNumber,
-  verifyPayment
+  verifyPayment,
+  confirmDelivery
 };

@@ -16,7 +16,9 @@ import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {
   getStoreProducts, createProduct, deleteProduct,
   uploadProductImages, updateProduct, getAllCategories, storage,
+  initializeListingFee
 } from '@/services/api';
+import * as WebBrowser from 'expo-web-browser';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 const { width: SW } = Dimensions.get('window');
@@ -212,7 +214,37 @@ const ProductsScreen = () => {
       await fetchProducts();
       resetForm();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Operation failed');
+      if (e.code === 'LISTING_FEE_REQUIRED') {
+        Alert.alert(
+          'Listing Limit Reached',
+          e.message,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Pay ₵50', 
+              onPress: async () => {
+                try {
+                  const businessId = await storage.getItem('currentBusinessId');
+                  const userProfileStr = await storage.getItem('userProfile');
+                  const userProfile = userProfileStr ? JSON.parse(userProfileStr) : null;
+                  const email = userProfile?.email || 'seller@shopyos.com';
+                  
+                  if (!businessId) return;
+                  
+                  const res = await initializeListingFee({ storeId: businessId, email });
+                  if (res.success && res.data?.authorization_url) {
+                    await WebBrowser.openBrowserAsync(res.data.authorization_url);
+                  }
+                } catch (payErr: any) {
+                  Alert.alert('Payment Error', payErr.message || 'Could not initialize payment');
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', e.message || 'Operation failed');
+      }
     } finally {
       setIsSubmitting(false);
     }

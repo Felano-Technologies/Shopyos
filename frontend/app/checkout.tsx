@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -8,12 +8,13 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
 import { useCart } from '@/context/CartContext';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
-  getUserData, getPaymentMethods,
+  getUserData, getPaymentMethods, getDeliveryQuote,
 } from '@/services/api';
 
 const C = {
@@ -42,6 +43,51 @@ export default function CheckoutScreen() {
   const [isOrdering, setIsOrdering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [prefilled, setPrefilled] = useState({ address: false, phone: false });
+
+  // Delivery fee state
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [isFetchingFee, setIsFetchingFee] = useState(false);
+  const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Get buyer location once on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setBuyerCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        }
+      } catch {
+        // Location unavailable — delivery fee will fall back to base fee
+      }
+    })();
+  }, []);
+
+  // Fetch delivery quote whenever buyer location is known
+  // Uses the first store in the cart (single-store checkout assumed for now)
+  useEffect(() => {
+    if (!buyerCoords || cartItems.length === 0) return;
+    const storeId = (cartItems[0] as any).storeId ?? (cartItems[0] as any).store_id;
+    if (!storeId) return;
+
+    (async () => {
+      setIsFetchingFee(true);
+      try {
+        const res = await getDeliveryQuote(storeId, buyerCoords.lat, buyerCoords.lng);
+        if (res?.success && res.quote?.deliveryFee !== null) {
+          setDeliveryFee(res.quote.deliveryFee);
+        }
+      } catch {
+        // Keep default 0 if quote fails
+      } finally {
+        setIsFetchingFee(false);
+      }
+    })();
+  }, [buyerCoords, cartItems]);
+
+  const tax = subtotal * (0.025 + 0.025 + 0.15) + 5.00; // NHIL + GETFund + VAT + service charge
+  const total = subtotal + tax + deliveryFee;
 
   useEffect(() => {
     (async () => {
@@ -96,6 +142,8 @@ export default function CheckoutScreen() {
         deliveryPhone,
         paymentMethod: paymentMethodType,
         paymentMethodId: selectedMethodId,
+        // Pass buyer coordinates so the backend recalculates the fee server-side
+        ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
       });
 
       if (res.success) {
@@ -110,6 +158,7 @@ export default function CheckoutScreen() {
       setIsOrdering(false);
     }
   };
+
 
   const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card'; icon: any; label: string; sub: string }) => {
     const isSelected = paymentMethodType === type;
@@ -198,8 +247,26 @@ export default function CheckoutScreen() {
               ))}
               <View style={S.divider} />
               <View style={S.summaryRow}>
+                <Text style={S.summaryItemName}>Subtotal</Text>
+                <Text style={S.summaryItemPrice}>₵{subtotal.toFixed(2)}</Text>
+              </View>
+              <View style={S.summaryRow}>
+                <Text style={S.summaryItemName}>Tax & Charges</Text>
+                <Text style={S.summaryItemPrice}>₵{tax.toFixed(2)}</Text>
+              </View>
+              <View style={S.summaryRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                  <Text style={S.summaryItemName}>Delivery Fee</Text>
+                  {isFetchingFee && <ActivityIndicator size="small" color={C.muted} />}
+                </View>
+                <Text style={S.summaryItemPrice}>
+                  {isFetchingFee ? '...' : `₵${deliveryFee.toFixed(2)}`}
+                </Text>
+              </View>
+              <View style={S.divider} />
+              <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
-                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{subtotal.toFixed(2)}</Text>
+                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{total.toFixed(2)}</Text>
               </View>
             </View>
 
@@ -280,7 +347,7 @@ export default function CheckoutScreen() {
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
                   ? <ActivityIndicator color="#FFF" />
-                  : <Text style={S.placeOrderTxt}>Place Order · ₵{subtotal.toFixed(2)}</Text>
+                  : <Text style={S.placeOrderTxt}>Place Order · ₵{total.toFixed(2)}</Text>
                 }
               </LinearGradient>
             </TouchableOpacity>
