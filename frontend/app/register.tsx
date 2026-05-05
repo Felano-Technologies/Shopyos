@@ -19,6 +19,7 @@ const RegisterScreen = () => {
   const [callingCode, setCallingCode] = useState('233');
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     // Remove leading plus from code if present to prevent ++
     const cleanCode = callingCode.replace('+', '');
@@ -30,7 +31,7 @@ const RegisterScreen = () => {
     try {
       const fullPhoneNumber = formatPhoneNumber(callingCode, phoneNumber);
       setLoading(true);
-      const data = await registerUser(name, email, password, fullPhoneNumber);
+      const data = await registerUser(name, email, password, fullPhoneNumber, referralCode);
       if (data.message === "User created successfully") {
         CustomInAppToast.show({
           type: 'success',
@@ -172,6 +173,18 @@ const RegisterScreen = () => {
                     color="#666"
                   />
                 </TouchableOpacity>
+              </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="gift" size={20} color="#1b1b1b" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Referral Code (Optional)"
+                  placeholderTextColor="#666"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  value={referralCode}
+                  onChangeText={setReferralCode}
+                />
               </View>
               {/* Sign Up Button */}
               <TouchableOpacity style={styles.button} onPress={handleRegister}>

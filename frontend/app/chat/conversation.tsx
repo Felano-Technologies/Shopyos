@@ -56,7 +56,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar } = params;
-  const { deleteConversation, startCall } = useChat();
+  const { deleteConversation } = useChat();
 
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -347,13 +347,6 @@ export default function ConversationScreen() {
                 {chatType === 'buyer' ? 'Official Store' : 'Customer'} · Online
               </Text>
             </View>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.moreBtn, { marginRight: 8 }]} 
-            onPress={() => startCall(conversationId, displayName, displayAvatar)}
-          >
-            <Ionicons name="call" size={18} color="rgba(255,255,255,0.85)" />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreVisible(true)}>

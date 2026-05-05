@@ -250,11 +250,12 @@ export const registerUser = async (
   name: string,
   email: string,
   password: string,
-  fullPhoneNumber: string
+  fullPhoneNumber: string,
+  referralCode?: string
 ) => {
   try {
     const response = await api.post('/auth/register', {
-      name, email, fullPhoneNumber, password,
+      name, email, fullPhoneNumber, password, referralCode
     });
     if (response.data.token) {
       await secureStorage.setItem('userToken', response.data.token);
