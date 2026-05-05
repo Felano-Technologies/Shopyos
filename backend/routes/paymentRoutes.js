@@ -2,15 +2,19 @@
 const express = require('express');
 const router = express.Router();
 const { initializePayment, verifyPayment, handleWebhook, chargeAuthorization } = require('../controllers/paymentController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, hasAnyRole } = require('../middleware/authMiddleware');
+const { validateInitializePayment } = require('../middleware/validators');
+const { paymentLimiter } = require('../middleware/rateLimiter');
 
 // Paystack webhook — must be public, raw JSON body for HMAC verification
 router.post('/webhook', handleWebhook);
 
 // Protected routes
 router.use(protect);
-router.post('/initialize', initializePayment);
+router.use(paymentLimiter);
+router.post('/initialize', validateInitializePayment, initializePayment);
 router.get('/verify/:reference', verifyPayment);
-router.post('/charge', chargeAuthorization);
+// Only buyers (or admins in exceptional cases) should trigger a card charge
+router.post('/charge', hasAnyRole('buyer', 'admin'), chargeAuthorization);
 
 module.exports = router;

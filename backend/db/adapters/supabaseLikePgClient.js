@@ -51,6 +51,19 @@ class QueryBuilder {
     return this;
   }
 
+  onConflict(columns) {
+    // Store conflict columns; paired with .ignore() for DO NOTHING
+    // or used automatically by upsert() for DO UPDATE SET
+    this._conflictColumns = Array.isArray(columns) ? columns : [columns];
+    return this;
+  }
+
+  ignore() {
+    // When called after insert().onConflict(), produces ON CONFLICT DO NOTHING
+    this._ignoreConflict = true;
+    return this;
+  }
+
   update(data) {
     this.operation = 'update';
     this.updateData = data;
@@ -224,6 +237,16 @@ class QueryBuilder {
         });
 
         let sql = `INSERT INTO ${this.tableName} (${keys.join(', ')}) VALUES ${rowPlaceholders.join(', ')}`;
+
+        if (this._ignoreConflict) {
+          // insert().onConflict([...]).ignore() => ON CONFLICT DO NOTHING
+          const conflictCols = this._conflictColumns?.length ? ` (${this._conflictColumns.join(', ')})` : '';
+          sql += ` ON CONFLICT${conflictCols} DO NOTHING`;
+          const result = await db.query(sql, values);
+          // If no rows were inserted (conflict occurred), return null data with no error
+          const inserted = result.rows[0] || null;
+          return { data: inserted, error: inserted ? null : null };
+        }
 
         if (this.operation === 'upsert' && this.upsertKeys && this.upsertKeys.length > 0) {
           const updatable = keys.filter((k) => !this.upsertKeys.includes(k));

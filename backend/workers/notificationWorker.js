@@ -33,6 +33,11 @@ const emailTransporter = nodemailer.createTransport({
 const ARKESEL_API_KEY = process.env.ARKESEL_API_KEY;
 const ARKESEL_SENDER_ID = process.env.ARKESEL_SENDER_ID || 'Shopyos';
 
+// Guard so SIGTERM / SIGINT don't trigger the reconnection loop
+let isShuttingDown = false;
+process.on('SIGTERM', () => { isShuttingDown = true; });
+process.on('SIGINT',  () => { isShuttingDown = true; });
+
 function extractErrorDetails(error) {
     return {
         message: error?.message || 'Unknown error',
@@ -60,34 +65,53 @@ function markNonRetryable(error, reason) {
  */
 async function checkOrLogIdempotency(eventType, target, referenceId) {
     try {
-        const { data: existing } = await repositories.users.db
+        const { data: existing, error: selectError } = await repositories.users.db
             .from('notification_logs')
             .select('id, status')
             .eq('event_type', eventType)
             .eq('target', target)
             .eq('reference_id', referenceId)
-            .single();
+            .maybeSingle(); // Returns null data (not an error) when no row exists
+
+        if (selectError) {
+            logger.error('Error querying notification_logs:', selectError.message || selectError);
+            return false; // Fallback: proceed
+        }
 
         if (existing) {
             if (existing.status === 'SENT') {
                 logger.info(`Message already sent to ${target} for ${eventType}`, { referenceId });
                 return true; // Stop processing, already done
             } else {
-                return false; // Failed before, try again
+                return false; // Failed/processing before, try again
             }
         }
 
-        // Attempt to insert processing state
-        await repositories.users.db.from('notification_logs').insert({
-            event_type: eventType,
-            target,
-            reference_id: referenceId,
-            status: 'PROCESSING'
-        });
+        // Attempt to insert processing state; ignore if another worker beat us to it.
+        // Known trade-off: if the worker crashes after this insert but before the send
+        // completes, the row stays as 'PROCESSING' and checkOrLogIdempotency returns false
+        // on the next attempt (correctly allowing a retry). This means a crash mid-send
+        // could result in a duplicate delivery on restart. Avoiding this entirely would
+        // require distributed locks, which is out of scope here.
+        const { error: insertError } = await repositories.users.db
+            .from('notification_logs')
+            .insert({
+                event_type: eventType,
+                target,
+                reference_id: referenceId,
+                status: 'PROCESSING'
+            })
+            .onConflict(['event_type', 'target', 'reference_id'])
+            .ignore();
+
+        if (insertError) {
+            logger.warn('Idempotency insert conflict — another worker processed this message first.');
+            return true; // Another worker got there first
+        }
 
         return false; // Proceed with sending
     } catch (error) {
-        logger.error('Error checking idempotency:', error.message);
+        logger.error('Error checking idempotency:', error?.message || error);
         return false; // Fallback: proceed
     }
 }
@@ -182,7 +206,7 @@ async function handleSMS(msg) {
     try {
         textMsg = getSmsTemplateByEvent(eventType, role, templateData);
 
-        if (!textMsg) {
+        if (!textMsg || typeof textMsg !== 'string' || textMsg.trim() === '') {
             logger.warn(`No SMS template found for event ${eventType} and role ${role}`);
             await updateLogStatus(eventType, target, refId, 'FAILED', 'No Template');
             return true; // Ack, missing template won't fix itself
@@ -197,7 +221,8 @@ async function handleSMS(msg) {
             headers: { 'api-key': ARKESEL_API_KEY }
         });
 
-        if (res.data?.status === 'success' || res.status === 200) {
+        // Arkesel always returns { status: 'success' } on success regardless of HTTP 200
+        if (res.data?.status === 'success') {
             logger.info(`SMS sent successfully to ${target}`);
             await updateLogStatus(eventType, target, refId, 'SENT');
             return true;
@@ -226,50 +251,68 @@ async function startWorker() {
             throw new Error('RABBITMQ_URL (or CLOUDAMQP_URL) is required for notification worker');
         }
         const conn = await amqp.connect(url);
-        const channel = await conn.createChannel();
 
-        await channel.assertExchange('notifications_exchange', 'direct', { durable: true });
+        // Reconnect on unexpected connection errors or closure.
+        // isShuttingDown prevents an infinite reconnect loop on SIGTERM/SIGINT.
+        conn.on('error', (err) => {
+            if (isShuttingDown) return;
+            logger.error('RabbitMQ connection error:', err.message);
+            setTimeout(startWorker, 5000);
+        });
+        conn.on('close', () => {
+            if (isShuttingDown) return;
+            logger.warn('RabbitMQ connection closed. Reconnecting in 5s...');
+            setTimeout(startWorker, 5000);
+        });
 
-        // Email Setup
-        await channel.assertQueue('email_queue', { durable: true });
-        await channel.bindQueue('email_queue', 'notifications_exchange', 'email');
-        channel.prefetch(10); // Process 10 concurrent emails
+        // Assert the exchange once on a short-lived setup channel, then close it.
+        // This ensures both emailChannel and smsChannel share the same exchange
+        // without either channel needing to redundantly assert it.
+        const setupChannel = await conn.createChannel();
+        await setupChannel.assertExchange('notifications_exchange', 'direct', { durable: true });
+        await setupChannel.close();
 
-        // SMS Setup
-        await channel.assertQueue('sms_queue', { durable: true });
-        await channel.bindQueue('sms_queue', 'notifications_exchange', 'sms');
-        channel.prefetch(5); // Process 5 concurrent SMS
+        // Use separate channels so prefetch limits are independent per queue
+        const emailChannel = await conn.createChannel();
+        const smsChannel = await conn.createChannel();
+
+        // Email Setup — allow up to 10 unacked messages at a time
+        await emailChannel.assertQueue('email_queue', { durable: true });
+        await emailChannel.bindQueue('email_queue', 'notifications_exchange', 'email');
+        emailChannel.prefetch(10);
+
+        // SMS Setup — allow up to 5 unacked messages at a time
+        await smsChannel.assertQueue('sms_queue', { durable: true });
+        await smsChannel.bindQueue('sms_queue', 'notifications_exchange', 'sms');
+        smsChannel.prefetch(5);
 
         logger.info('Notification Workers started. Waiting for messages...');
 
         // Consume Emails
-        channel.consume('email_queue', async (msg) => {
+        emailChannel.consume('email_queue', async (msg) => {
             if (msg !== null) {
                 try {
-                    // Process job
                     await handleEmail(msg);
-                    // Explicit acknowledgment
-                    channel.ack(msg);
+                    emailChannel.ack(msg);
                 } catch (error) {
                     if (error?.retryable === false) {
                         logger.error('Email job failed with non-retryable error. Discarding.', {
                             reason: error?.reason || error?.message,
-                            eventType: JSON.parse(msg.content.toString())?.eventType || null
+                            eventType: JSON.parse(msg.content.toString())?.eventType ?? null
                         });
-                        channel.reject(msg, false);
+                        emailChannel.reject(msg, false);
                         return;
                     }
-                    // Reject and requeue (simulating retry logic)
-                    // In production, we should handle retry max count via headers
                     const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
                     if (retryCount >= 3) {
-                        logger.error(`Max retries reached for email job. Discarding.`);
-                        channel.reject(msg, false); // Dead letter if DLQ configured
+                        logger.error('Max retries reached for email job. Discarding.');
+                        emailChannel.reject(msg, false); // Dead letter if DLQ configured
                     } else {
-                        logger.info(`Requeueing email job. Attempt ${retryCount + 1}`);
-                        // Resend to back of queue with incremented retry count
-                        channel.ack(msg); // Ack the original
-                        channel.publish('notifications_exchange', 'email', msg.content, {
+                        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                        logger.info(`Requeueing email job. Attempt ${retryCount + 1} (after ${delay}ms)`);
+                        await new Promise(res => setTimeout(res, delay));
+                        emailChannel.ack(msg);
+                        emailChannel.publish('notifications_exchange', 'email', msg.content, {
                             persistent: true,
                             headers: { 'x-retry-count': retryCount + 1 }
                         });
@@ -279,28 +322,30 @@ async function startWorker() {
         });
 
         // Consume SMS
-        channel.consume('sms_queue', async (msg) => {
+        smsChannel.consume('sms_queue', async (msg) => {
             if (msg !== null) {
                 try {
                     await handleSMS(msg);
-                    channel.ack(msg);
+                    smsChannel.ack(msg);
                 } catch (error) {
                     if (error?.retryable === false) {
                         logger.error('SMS job failed with non-retryable error. Discarding.', {
                             reason: error?.reason || error?.message,
-                            eventType: JSON.parse(msg.content.toString())?.eventType || null
+                            eventType: JSON.parse(msg.content.toString())?.eventType ?? null
                         });
-                        channel.reject(msg, false);
+                        smsChannel.reject(msg, false);
                         return;
                     }
                     const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
                     if (retryCount >= 3) {
-                        logger.error(`Max retries reached for SMS job. Discarding.`);
-                        channel.reject(msg, false);
+                        logger.error('Max retries reached for SMS job. Discarding.');
+                        smsChannel.reject(msg, false);
                     } else {
-                        logger.info(`Requeueing SMS job. Attempt ${retryCount + 1}`);
-                        channel.ack(msg);
-                        channel.publish('notifications_exchange', 'sms', msg.content, {
+                        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                        logger.info(`Requeueing SMS job. Attempt ${retryCount + 1} (after ${delay}ms)`);
+                        await new Promise(res => setTimeout(res, delay));
+                        smsChannel.ack(msg);
+                        smsChannel.publish('notifications_exchange', 'sms', msg.content, {
                             persistent: true,
                             headers: { 'x-retry-count': retryCount + 1 }
                         });
@@ -310,8 +355,8 @@ async function startWorker() {
         });
 
     } catch (error) {
-        logger.error('Worker failed to start:', error);
-        process.exit(1);
+        logger.error('Worker failed to start:', error.message);
+        setTimeout(startWorker, 5000); // Retry startup instead of hard-exiting
     }
 }
 

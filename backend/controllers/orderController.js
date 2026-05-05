@@ -270,10 +270,14 @@ const getStoreOrders = async (req, res, next) => {
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view these orders'
-      });
+      // Allow admins to view any store's orders
+      const isAdmin = req.user.roles?.includes('admin');
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to view these orders'
+        });
+      }
     }
 
     const limitNum = parseInt(limit);

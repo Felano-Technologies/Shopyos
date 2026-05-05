@@ -65,11 +65,34 @@ const validateAddToCart = [
     executeValidation
 ];
 
+const validateInitializePayment = [
+    body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
+    body('email').isEmail().withMessage('A valid email is required for payment').normalizeEmail(),
+    body('orderId').optional().isUUID().withMessage('Order ID must be a valid UUID'),
+    executeValidation
+];
+
+const validateStartConversation = [
+    body('participantId').isUUID().withMessage('Participant ID must be a valid UUID'),
+    executeValidation
+];
+
+const validateRequestPayout = [
+    body('storeId').isUUID().withMessage('Store ID must be a valid UUID'),
+    body('amount').isFloat({ gt: 0 }).withMessage('Payout amount must be a positive number'),
+    body('bankCode').notEmpty().withMessage('Bank code is required').trim(),
+    body('accountNumber').notEmpty().withMessage('Account number is required').trim(),
+    executeValidation
+];
+
 module.exports = {
     validateRegister,
     validateLogin,
     validateCreateProduct,
     validateCreateOrder,
     validateSearch,
-    validateAddToCart
+    validateAddToCart,
+    validateInitializePayment,
+    validateStartConversation,
+    validateRequestPayout
 };

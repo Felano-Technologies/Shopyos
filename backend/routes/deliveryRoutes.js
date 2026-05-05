@@ -104,12 +104,12 @@ router.get('/:deliveryId/latest-location', getLatestLocation);
 // @route   POST /api/deliveries/verify
 // @desc    Submit driver verification details
 // @access  Private (Driver)
-router.post('/verify', driverUploadFields, submitVerification);
+router.post('/verify', driver, driverUploadFields, submitVerification);
 
 // @route   GET /api/deliveries/driver/profile
 // @desc    Get driver profile
-// @access  Private (Driver/Auth)
-router.get('/driver/profile', getDriverProfile);
+// @access  Private (Driver)
+router.get('/driver/profile', driver, getDriverProfile);
 
 // @route   PUT /api/deliveries/driver/availability
 // @desc    Update driver availability
