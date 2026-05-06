@@ -50,7 +50,17 @@ exports.getSnapFeed = async (req, res) => {
       LIMIT 20
     `);
 
-    res.json({ success: true, feed: rows });
+    const { toPublicUrl } = require('../config/storage');
+    const feed = rows.map(row => ({
+      ...row,
+      store_logo: toPublicUrl(row.store_logo),
+      snaps: row.snaps.map(snap => ({
+        ...snap,
+        media_url: toPublicUrl(snap.media_url)
+      }))
+    }));
+
+    res.json({ success: true, feed });
   } catch (error) {
     console.error('Error fetching snap feed:', error);
     res.status(500).json({ success: false, error: 'Server Error' });

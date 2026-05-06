@@ -28,7 +28,8 @@ export default function CreateSnapScreen() {
 
   const uploadToBackend = async (uri: string) => {
     const res = await uploadSnapImage(uri);
-    return res.data.url;
+    // Use public_url for the full accessible URL
+    return res.data.public_url || res.data.url;
   };
 
   const handlePost = async () => {

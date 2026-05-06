@@ -1,4 +1,5 @@
 const repositories = require('../db/repositories');
+const { toPublicUrl } = require('../config/storage');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
@@ -363,8 +364,8 @@ const getBusinessById = async (req, res, next) => {
         instagram: store.social_instagram || '',
         facebook: store.social_facebook || ''
       },
-      logo: store.logo_url || '',
-      coverImage: store.banner_url || '',
+      logo: toPublicUrl(store.logo_url) || '',
+      coverImage: toPublicUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
