@@ -16,15 +16,19 @@ ALTER TABLE public.conversations
   ADD COLUMN IF NOT EXISTS is_support BOOLEAN DEFAULT FALSE;
 
 -- Create the dedicated support user if it doesn't exist
-INSERT INTO public.users (id, email, password_hash, role, is_active)
+INSERT INTO public.users (id, email, password_hash, is_active)
 VALUES (
     '00000000-0000-0000-0000-000000000001', 
     'support@shopyos.com', 
     'NOT_A_REAL_PASSWORD_DO_NOT_LOGIN', -- They authenticate via system or admin panel
-    'admin', 
     true
 )
 ON CONFLICT (id) DO NOTHING;
+
+-- Assign admin role to support user
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT '00000000-0000-0000-0000-000000000001', id FROM public.roles WHERE name = 'admin'
+ON CONFLICT DO NOTHING;
 
 -- Ensure a profile exists for the support user
 INSERT INTO public.user_profiles (user_id, full_name, phone)
@@ -48,4 +52,4 @@ CREATE TABLE IF NOT EXISTS public.snaps (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_snaps_active ON public.snaps(expires_at) WHERE expires_at > NOW();
+CREATE INDEX IF NOT EXISTS idx_snaps_active ON public.snaps(expires_at);

@@ -1,4 +1,5 @@
-const db = require('../db');
+const { getPool } = require('../config/postgres');
+const db = getPool();
 
 exports.createSnap = async (req, res) => {
   try {
@@ -29,7 +30,7 @@ exports.getSnapFeed = async (req, res) => {
       SELECT 
         s.id as store_id, 
         s.store_name, 
-        s.logo as store_logo,
+        s.logo_url as store_logo,
         json_agg(
           json_build_object(
             'id', sn.id,

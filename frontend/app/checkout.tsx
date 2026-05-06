@@ -242,17 +242,17 @@ export default function CheckoutScreen() {
                 <View key={item.id} style={S.summaryRow}>
                   <Text style={S.summaryItemName} numberOfLines={1}>{item.title}</Text>
                   <Text style={S.summaryItemQty}>x{item.quantity}</Text>
-                  <Text style={S.summaryItemPrice}>₵{(item.price * item.quantity).toFixed(2)}</Text>
+                  <Text style={S.summaryItemPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
                 </View>
               ))}
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Subtotal</Text>
-                <Text style={S.summaryItemPrice}>₵{subtotal.toFixed(2)}</Text>
+                <Text style={S.summaryItemPrice}>₵{Number(subtotal || 0).toFixed(2)}</Text>
               </View>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Tax & Charges</Text>
-                <Text style={S.summaryItemPrice}>₵{tax.toFixed(2)}</Text>
+                <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
               </View>
               <View style={S.summaryRow}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
@@ -260,13 +260,13 @@ export default function CheckoutScreen() {
                   {isFetchingFee && <ActivityIndicator size="small" color={C.muted} />}
                 </View>
                 <Text style={S.summaryItemPrice}>
-                  {isFetchingFee ? '...' : `₵${deliveryFee.toFixed(2)}`}
+                  {isFetchingFee ? '...' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
                 </Text>
               </View>
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
-                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{total.toFixed(2)}</Text>
+                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
               </View>
             </View>
 
@@ -347,7 +347,7 @@ export default function CheckoutScreen() {
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
                   ? <ActivityIndicator color="#FFF" />
-                  : <Text style={S.placeOrderTxt}>Place Order · ₵{total.toFixed(2)}</Text>
+                  : <Text style={S.placeOrderTxt}>Place Order · ₵{Number(total || 0).toFixed(2)}</Text>
                 }
               </LinearGradient>
             </TouchableOpacity>

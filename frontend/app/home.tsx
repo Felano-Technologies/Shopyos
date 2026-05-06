@@ -456,7 +456,7 @@ export default function Home() {
         <View style={S.productInfo}>
           <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={S.productPrice}>₵{item.price.toFixed(2)}</Text>
+          <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -472,7 +472,7 @@ export default function Home() {
         <View style={S.productInfo}>
           <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={S.productPrice}>₵{item.price.toFixed(2)}</Text>
+          <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -549,7 +549,7 @@ export default function Home() {
         </Text>
         <Text style={S.productLbl} numberOfLines={2}>{item.name}</Text>
         <View style={S.priceRow}>
-          <Text style={S.priceLbl}>₵{parseFloat(item.price).toFixed(2)}</Text>
+          <Text style={S.priceLbl}>₵{Number(item.price || 0).toFixed(2)}</Text>
           <TouchableOpacity
             style={S.addBtn}
             onPress={() => handleAddToCart(item)}

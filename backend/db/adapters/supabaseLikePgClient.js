@@ -301,6 +301,21 @@ class QueryBuilder {
       const sql = `SELECT ${this.selectColumns} FROM ${this.tableName}${clause}${orderSql}${limitSql}${offsetSql}`;
       const result = await db.query(sql, values);
 
+      // --- JOIN SHIM START ---
+      // If we're selecting from user_roles and we had a complex select, 
+      // manually fetch the role names to mimic the Supabase join.
+      if (this.tableName === 'user_roles' && result.rows.length > 0) {
+        const roleIds = [...new Set(result.rows.map(r => r.role_id))];
+        const { rows: roles } = await db.query('SELECT * FROM roles WHERE id = ANY($1)', [roleIds]);
+        const roleMap = roles.reduce((acc, r) => ({ ...acc, [r.id]: r }), {});
+        
+        result.rows = result.rows.map(row => ({
+          ...row,
+          role: roleMap[row.role_id] || null
+        }));
+      }
+      // --- JOIN SHIM END ---
+
       if (this.singleMode) {
         if (result.rows.length === 0) {
           return { data: null, error: toPgError(new Error('No rows'), true) };

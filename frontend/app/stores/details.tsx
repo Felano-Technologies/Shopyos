@@ -273,7 +273,7 @@ export default function StoreDetailsScreen() {
                   <Image source={item.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/icon.png')} style={styles.productImage} />
                   <View style={styles.productInfo}>
                     <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>
+                    <Text style={styles.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
                   </View>
                   <View style={styles.addBtn}><Ionicons name="add" size={20} color="#FFF" /></View>
                 </TouchableOpacity>
@@ -347,7 +347,7 @@ export default function StoreDetailsScreen() {
         return (
           <View style={styles.reviewsContainer}>
             <View style={styles.reviewSummary}>
-              <Text style={styles.bigRating}>{store.rating.toFixed(1)}</Text>
+              <Text style={styles.bigRating}>{Number(store.rating || 0).toFixed(1)}</Text>
               <View>
                 <View style={{ flexDirection: 'row' }}>
                   {[...Array(5)].map((_, i) => <FontAwesome key={i} name="star" size={16} color={i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0"} />)}
@@ -427,7 +427,7 @@ export default function StoreDetailsScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{store.rating.toFixed(1)} ({reviews.length} Reviews)</Text></View>
+            <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{Number(store.rating || 0).toFixed(1)} ({reviews.length} Reviews)</Text></View>
           </View>
         </View>
         <View style={styles.actionRow}>

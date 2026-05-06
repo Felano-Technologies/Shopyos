@@ -1,33 +1,19 @@
-const { body, query, param, validationResult } = require('express-validator');
+const { body, query, param } = require('express-validator');
+const { validateRequest } = require('./validateRequest');
 
-// Create a middleware that actually runs the validation result check
-const executeValidation = (req, res, next) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        // Generate an error that the errorHandler can catch
-        const err = new Error('Validation Error');
-        err.name = 'ValidationError';
-        // Match the shape expected by errorHandler.js: Object.values(err.errors).map(e => e.message)
-        err.errors = errors.array().reduce((acc, current, index) => {
-            acc[index] = { message: current.msg };
-            return acc;
-        }, {});
-        return next(err);
-    }
-    next();
-};
+// Local executeValidation is now replaced by centralized validateRequest
 
 const validateRegister = [
     body('email').isEmail().withMessage('Please provide a valid email').normalizeEmail(),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
     body('name').notEmpty().withMessage('Name is required').trim(),
-    executeValidation
+    validateRequest
 ];
 
 const validateLogin = [
     body('email').isEmail().withMessage('Please provide a valid email').normalizeEmail(),
     body('password').notEmpty().withMessage('Password is required'),
-    executeValidation
+    validateRequest
 ];
 
 const validateCreateProduct = [
@@ -41,14 +27,14 @@ const validateCreateProduct = [
         return true;
     }),
     body('price').isFloat({ gt: 0 }).withMessage('Price must be a positive number'),
-    executeValidation
+    validateRequest
 ];
 
 const validateCreateOrder = [
     body('deliveryAddress').notEmpty().withMessage('Delivery address is required').trim(),
     body('deliveryCity').notEmpty().withMessage('Delivery city is required').trim(),
     body('deliveryPhone').notEmpty().withMessage('Delivery phone is required').isMobilePhone('any').withMessage('Must be a valid phone number'),
-    executeValidation
+    validateRequest
 ];
 
 const validateSearch = [
@@ -56,25 +42,25 @@ const validateSearch = [
     query('offset').optional().isInt({ min: 0 }).withMessage('Offset must be a positive integer'),
     query('minPrice').optional().isFloat({ min: 0 }).withMessage('minPrice must be a positive number'),
     query('maxPrice').optional().isFloat({ min: 0 }).withMessage('maxPrice must be a positive number'),
-    executeValidation
+    validateRequest
 ];
 
 const validateAddToCart = [
     body('productId').isUUID().withMessage('Product ID must be a valid UUID'),
     body('quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be a positive integer'),
-    executeValidation
+    validateRequest
 ];
 
 const validateInitializePayment = [
     body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
     body('email').isEmail().withMessage('A valid email is required for payment').normalizeEmail(),
     body('orderId').optional().isUUID().withMessage('Order ID must be a valid UUID'),
-    executeValidation
+    validateRequest
 ];
 
 const validateStartConversation = [
     body('participantId').isUUID().withMessage('Participant ID must be a valid UUID'),
-    executeValidation
+    validateRequest
 ];
 
 const validateRequestPayout = [
@@ -82,7 +68,7 @@ const validateRequestPayout = [
     body('amount').isFloat({ gt: 0 }).withMessage('Payout amount must be a positive number'),
     body('bankCode').notEmpty().withMessage('Bank code is required').trim(),
     body('accountNumber').notEmpty().withMessage('Account number is required').trim(),
-    executeValidation
+    validateRequest
 ];
 
 module.exports = {
