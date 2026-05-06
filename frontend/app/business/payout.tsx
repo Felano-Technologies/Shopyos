@@ -15,40 +15,42 @@ import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/v
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getPayoutHistory, getMyBusinesses, storage } from '@/services/api';
+import { getPayoutHistory, storage } from '@/services/api';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useMyBusinesses } from '@/hooks/useBusiness';
 export default function PayoutScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
-  // Verification guard — redirect unverified businesses
+  const { isChecking, isVerified } = useSellerGuard();
+  const { data: businessesData, isLoading: isLoadingBusinesses } = useMyBusinesses();
+  
   useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then(status => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, [router]);
-  useEffect(() => {
-    loadData();
-  }, []);
-  const loadData = async () => {
+    if (businessesData?.businesses?.[0]) {
+      const store = businessesData.businesses[0];
+      setBalance(parseFloat(store.current_balance || 0));
+      setHasPayoutMethod(!!store.payout_method);
+      fetchHistory(store._id);
+    }
+  }, [businessesData]);
+
+  const fetchHistory = async (storeId: string) => {
     try {
-      setLoading(true);
-      const businessResp = await getMyBusinesses();
-      if (businessResp.success && businessResp.businesses.length > 0) {
-        const store = businessResp.businesses[0];
-        setBalance(parseFloat(store.current_balance || 0));
-        setHasPayoutMethod(!!store.payout_method);
-        const historyResp = await getPayoutHistory(store._id);
-        if (historyResp.success) {
-          setPayoutHistory(historyResp.data);
-        }
+      const historyResp = await getPayoutHistory(storeId);
+      if (historyResp.success) {
+        setPayoutHistory(historyResp.data);
       }
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
+  };
+
+  const loadData = async () => {
+    // legacy or manual refresh
   };
   // --- Render Item for History ---
   const renderHistoryItem = ({ item }: { item: any }) => (
@@ -63,7 +65,7 @@ export default function PayoutScreen() {
       <Text style={styles.historyAmount}>₵{parseFloat(item.amount).toFixed(2)}</Text>
     </View>
   );
-  if (loading) {
+  if (isChecking || isLoadingBusinesses || loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0C1559" />

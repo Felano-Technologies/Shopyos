@@ -48,11 +48,6 @@ const EarningsScreen = () => {
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [range, setRange] = useState<Range>('Week');
-  useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then((status) => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, []);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
   if (isChecking || !isVerified) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;

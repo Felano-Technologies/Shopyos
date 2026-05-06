@@ -10,7 +10,8 @@ const requireStore = async (req, res, next) => {
             return res.status(401).json({ success: false, error: 'Not authorized' });
         }
 
-        const store = await repositories.stores.findByOwnerId(req.user.id);
+        const result = await repositories.stores.findByOwnerId(req.user.id);
+        const store = result?.data?.[0];
         
         if (!store) {
             return res.status(403).json({ 
@@ -22,7 +23,7 @@ const requireStore = async (req, res, next) => {
         if (!store.is_active) {
             return res.status(403).json({ 
                 success: false, 
-                error: 'Your store is currently inactive.' 
+                error: 'Your store is currently inactive. Please contact support or wait for approval.' 
             });
         }
 

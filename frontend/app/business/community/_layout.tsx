@@ -55,8 +55,8 @@ export default function CommunityLayout() {
           },
         }}
       >
-        <MaterialTopTabs.Screen name="reviews" options={{ title: 'Reviews' }} />
         <MaterialTopTabs.Screen name="messages" options={{ title: 'Messages' }} />
+        <MaterialTopTabs.Screen name="reviews" options={{ title: 'Reviews' }} />
       </MaterialTopTabs>
 
       {/* Persistent Business Bottom Nav */}

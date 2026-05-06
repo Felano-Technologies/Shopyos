@@ -15,6 +15,8 @@ import BusinessBottomNav from '../../components/BusinessBottomNav';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { getStoreReviews, storage } from '@/services/api';
 import { router } from 'expo-router';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useMyBusinesses } from '@/hooks/useBusiness';
 const ReviewsScreen = () => {
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
@@ -28,15 +30,11 @@ const ReviewsScreen = () => {
   const [reviews, setReviews] = useState<any[]>([]);
   const [, setLoading] = useState(true);
   const [, setRefreshing] = useState(false);
-  // Verification guard — redirect unverified businesses
-  useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then(status => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, []);
+  const { isChecking, isVerified } = useSellerGuard();
+  const { data: businessesData } = useMyBusinesses();
+  const businessId = businessesData?.businesses?.[0]?._id;
   const fetchReviews = async () => {
     try {
-      const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getStoreReviews(businessId);
         if (data.success) {
@@ -58,8 +56,8 @@ const ReviewsScreen = () => {
     }
   };
   React.useEffect(() => {
-    fetchReviews();
-  }, []);
+    if (isVerified) fetchReviews();
+  }, [isVerified, businessId]);
   const sortedReviews = [...reviews].sort((a, b) => {
     if (sortBy === 'Latest') return new Date(b.date).getTime() - new Date(a.date).getTime();
     if (sortBy === 'Highest') return b.rating - a.rating;

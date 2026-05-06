@@ -13,7 +13,7 @@ import { storage } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';
-import { useBusinessAnalytics } from '@/hooks/useBusiness';
+import { useBusinessAnalytics, useMyBusinesses } from '@/hooks/useBusiness';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 
 const { width: SW } = Dimensions.get('window');
@@ -39,7 +39,7 @@ const EMPTY_ANALYTICS = {
     labels:   [] as string[],
     datasets: [{ data: [0] }] as { data: number[] }[],
   },
-  stats:                { revenue: 0, orders: 0, growth: 0 },
+  stats:                { revenue: 0, pending: 0, orders: 0, growth: 0 },
   topProducts:          [] as any[],
   categoryDistribution: [] as any[],
 };
@@ -50,12 +50,10 @@ const Analytics = () => {
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [timeframe,  setTimeframe]  = useState<'week' | 'month' | 'year'>('week');
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    storage.getItem('currentBusinessId').then(setBusinessId);
-  }, []);
+  const { data: businessesData } = useMyBusinesses();
+  const businessId = businessesData?.businesses?.[0]?._id;
 
   const { data, isLoading, refetch, isRefetching } =
     useBusinessAnalytics(businessId || '', timeframe);
@@ -84,6 +82,7 @@ const Analytics = () => {
     },
     stats: {
       revenue: data?.stats?.revenue   ?? 0,
+      pending: data?.stats?.pending   ?? 0,
       orders:  data?.stats?.orders    ?? 0,
       growth:  data?.stats?.growth    ?? 0,
     },
@@ -260,7 +259,7 @@ const Analytics = () => {
                 <View style={[S.iconBox, { backgroundColor: '#DCFCE7' }]}>
                   <Ionicons name="cash" size={rs(20)} color="#15803D" />
                 </View>
-                <Text style={S.statLbl}>Total Revenue</Text>
+                <Text style={S.statLbl}>Revenue</Text>
                 <Text style={S.statVal}>₵{analytics.stats.revenue.toLocaleString()}</Text>
                 <View style={S.growthRow}>
                   <Feather
@@ -275,12 +274,21 @@ const Analytics = () => {
               </View>
 
               <View style={S.statCard}>
+                <View style={[S.iconBox, { backgroundColor: '#FEF3C7' }]}>
+                  <MaterialCommunityIcons name="timer-sand" size={rs(20)} color="#B45309" />
+                </View>
+                <Text style={S.statLbl}>In Escrow</Text>
+                <Text style={S.statVal}>₵{analytics.stats.pending.toLocaleString()}</Text>
+                <Text style={S.statSubTxt}>Awaiting release</Text>
+              </View>
+
+              <View style={S.statCard}>
                 <View style={[S.iconBox, { backgroundColor: '#DBEAFE' }]}>
                   <Ionicons name="cart" size={rs(20)} color="#1E40AF" />
                 </View>
-                <Text style={S.statLbl}>Total Orders</Text>
+                <Text style={S.statLbl}>Orders</Text>
                 <Text style={S.statVal}>{analytics.stats.orders}</Text>
-                <Text style={S.statSubTxt}>Completed orders</Text>
+                <Text style={S.statSubTxt}>Total orders</Text>
               </View>
             </View>
 
@@ -452,8 +460,8 @@ const S = StyleSheet.create({
     justifyContent: 'center', alignItems: 'center', marginBottom: rs(10),
   },
   statLbl:    { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.muted },
-  statVal:    { fontSize: rf(20), fontFamily: 'Montserrat-Bold',   color: C.body, marginTop: rs(3) },
-  statSubTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Regular', color: C.subtle, marginTop: rs(3) },
+  statVal:    { fontSize: rf(16), fontFamily: 'Montserrat-Bold',   color: C.body, marginTop: rs(3) },
+  statSubTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Regular', color: C.subtle, marginTop: rs(3) },
   growthRow:  { flexDirection: 'row', alignItems: 'center', marginTop: rs(4), gap: rs(3) },
   growthTxt:  { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold' },
 

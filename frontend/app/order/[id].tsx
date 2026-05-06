@@ -470,18 +470,14 @@ const OrderDetailsScreen = () => {
               <Text style={S.priceLbl}>Subtotal</Text>
               <Text style={S.priceVal}>₵{itemsSubtotal.toFixed(2)}</Text>
             </View>
-            {deliveryFee > 0 && (
-              <View style={S.priceRow}>
-                <Text style={S.priceLbl}>Delivery fee</Text>
-                <Text style={S.priceVal}>₵{deliveryFee.toFixed(2)}</Text>
-              </View>
-            )}
-            {taxAmount > 0 && (
-              <View style={S.priceRow}>
-                <Text style={S.priceLbl}>Taxes & fees (VAT, NHIL, GETFund)</Text>
-                <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
-              </View>
-            )}
+            <View style={S.priceRow}>
+              <Text style={S.priceLbl}>Delivery fee</Text>
+              <Text style={S.priceVal}>{deliveryFee > 0 ? `₵${deliveryFee.toFixed(2)}` : 'Free'}</Text>
+            </View>
+            <View style={S.priceRow}>
+              <Text style={S.priceLbl}>Buyer Protection Fee</Text>
+              <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
+            </View>
             {discount > 0 && (
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Discount</Text>
@@ -496,9 +492,13 @@ const OrderDetailsScreen = () => {
             </View>
             {/* Payment method */}
             <View style={S.methodRow}>
-              <MaterialCommunityIcons name="credit-card-outline" size={rs(15)} color={C.muted} />
+              <MaterialCommunityIcons 
+                name={order.status.toLowerCase() === 'paid' ? 'check-decagram' : 'credit-card-outline'} 
+                size={rs(15)} 
+                color={order.status.toLowerCase() === 'paid' ? C.lime : C.muted} 
+              />
               <Text style={S.methodTxt}>
-                Paid via {order.payments?.[0]?.payment_method || 'MoMo'}
+                {order.status.toLowerCase() === 'paid' ? 'Paid via' : 'Payment Method:'} {order.payments?.[0]?.payment_method || 'MoMo'}
               </Text>
             </View>
             {/* Receipt link */}
@@ -527,21 +527,37 @@ const OrderDetailsScreen = () => {
           </TouchableOpacity>
         )}
         {order.status.toLowerCase() === 'pending' && (
-          <TouchableOpacity
-            style={[S.cancelBtn, isCancelling && { opacity: 0.65 }]}
-            onPress={handleCancelOrder}
-            disabled={isCancelling}
-            activeOpacity={0.82}
-          >
-            {isCancelling ? (
-              <ActivityIndicator color="#EF4444" />
-            ) : (
-              <>
-                <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
-                <Text style={S.cancelBtnTxt}>Cancel Order</Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={{ gap: rs(10) }}>
+            <TouchableOpacity
+              style={S.payNowBtn}
+              onPress={() => router.push({
+                pathname: `/payment/${order.id}`,
+                params: { method: order.payments?.[0]?.payment_method || 'momo' }
+              } as any)}
+              activeOpacity={0.88}
+            >
+              <LinearGradient colors={[C.lime, '#65a30d']} style={S.payNowBtnGrad}>
+                <Ionicons name="card-outline" size={rs(18)} color="#fff" />
+                <Text style={S.payNowBtnTxt}>Pay Now</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[S.cancelBtn, isCancelling && { opacity: 0.65 }]}
+              onPress={handleCancelOrder}
+              disabled={isCancelling}
+              activeOpacity={0.82}
+            >
+              {isCancelling ? (
+                <ActivityIndicator color="#EF4444" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
+                  <Text style={S.cancelBtnTxt}>Cancel Order</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
         {order.escrow_status === 'HELD' && (order.status.toLowerCase() === 'delivered' || order.status.toLowerCase() === 'paid') && (
           <TouchableOpacity
@@ -751,5 +767,11 @@ const S = StyleSheet.create({
     elevation: 2, shadowColor: C.lime, shadowOpacity: 0.2, shadowRadius: rs(6), shadowOffset: { width: 0, height: 2 },
   },
   confirmBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  payNowBtn: { borderRadius: rs(16), overflow: 'hidden', marginTop: rs(10) },
+  payNowBtnGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: rs(8), paddingVertical: rs(16),
+  },
+  payNowBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
 });
 export default OrderDetailsScreen;

@@ -52,7 +52,7 @@ class PromotedProductRepository extends BaseRepository {
         *,
         product:products!inner(
           id, title, description, price, product_images(image_url), category, 
-          stores:store_id(id, store_name, logo_url, is_verified)
+          stores:store_id(id, store_name, logo_url, is_verified, is_active)
         )
       `)
       .lte('start_date', now)
@@ -65,8 +65,11 @@ class PromotedProductRepository extends BaseRepository {
 
     // Filter by price if specified (client-side since we can't filter on joined table easily)
     let results = data || [];
-    // Only show promotions from verified stores
-    results = results.filter(p => p.product?.stores?.is_verified === true);
+    // Only show promotions from active and verified stores
+    results = results.filter(p => 
+      p.product?.stores?.is_verified === true && 
+      p.product?.stores?.is_active === true
+    );
     if (category) {
       results = results.filter(p => p.product?.category === category);
     }

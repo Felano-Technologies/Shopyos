@@ -160,7 +160,7 @@ export default function Home() {
   const isDragging = useRef(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   // --- Onboarding Refs & State ---
-  const { startTour, markCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
+  const { startTour, markCompleted, isCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refGreeting = useRef<View>(null);
   const refActions = useRef<View>(null);
@@ -185,9 +185,8 @@ export default function Home() {
       const shouldAutoStart = async () => {
         // 1. Wait for onboarding context to load
         if (onboardingLoading || !user) return;
-        // 2. Check if already completed
-        const state = await storage.getItem('HAS_SEEN_HOME_TOUR');
-        if (state === 'true') return;
+        // 2. Check if already completed (DB source of truth)
+        if (isCompleted('home')) return;
         // 3. LEGACY USER PROTECTION:
         // If account created before April 2026 (when tour was added), 
         // and they are a buyer, we don't force it.
@@ -232,18 +231,11 @@ export default function Home() {
   };
   // ── Load user name ──────────────────────────────────────────────────────────
   useEffect(() => {
-    (async () => {
-      try {
-        const cached = await storage.getItem('userName');
-        if (cached) { setUserName(cached); return; }
-        const user = await getUserData();
-        const name = user?.name || user?.user?.name || '';
-        const first = name.split(' ')[0];
-        setUserName(first);
-        if (first) await storage.setItem('userName', first);
-      } catch { }
-    })();
-  }, []);
+    if (user) {
+      const name = user.name || user.email || '';
+      setUserName(name.split(' ')[0]);
+    }
+  }, [user]);
   // ── Load promoted ads ───────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {

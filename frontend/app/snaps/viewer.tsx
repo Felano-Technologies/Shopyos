@@ -21,7 +21,7 @@ export default function SnapViewer() {
   const [storeIndex, setStoreIndex] = useState(initialIndex);
   const [snapIndex, setSnapIndex] = useState(0);
   const [progress, setProgress] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const currentStore = feedData[storeIndex];
   const currentSnap = currentStore?.snaps?.[snapIndex];

@@ -298,7 +298,13 @@ class QueryBuilder {
         return { data: null, count: countResult.rows[0]?.count || 0, error: null };
       }
 
-      const sql = `SELECT ${this.selectColumns} FROM ${this.tableName}${clause}${orderSql}${limitSql}${offsetSql}`;
+      // Sanitize select columns for Postgres
+      let finalSelect = this.selectColumns;
+      if (finalSelect.includes('(') || finalSelect.includes(':')) {
+        finalSelect = '*';
+      }
+
+      const sql = `SELECT ${finalSelect} FROM ${this.tableName}${clause}${orderSql}${limitSql}${offsetSql}`;
       const result = await db.query(sql, values);
 
       // --- JOIN SHIM START ---
@@ -311,7 +317,37 @@ class QueryBuilder {
         
         result.rows = result.rows.map(row => ({
           ...row,
-          role: roleMap[row.role_id] || null
+          role: roleMap[row.role_id] || null,
+          roles: roleMap[row.role_id] || null // Match both singular and plural
+        }));
+      }
+
+      // --- USERS JOIN SHIM (FOR ROLES) ---
+      if (this.tableName === 'users' && result.rows.length > 0) {
+        const userIds = result.rows.map(u => u.id);
+        
+        // Fetch all roles for these users
+        const { rows: userRoles } = await db.query(
+          `SELECT ur.*, r.name, r.display_name 
+           FROM user_roles ur 
+           JOIN roles r ON ur.role_id = r.id 
+           WHERE ur.user_id = ANY($1) AND ur.is_active = TRUE`,
+          [userIds]
+        );
+
+        // Group roles by user
+        const rolesByUser = userRoles.reduce((acc, ur) => {
+          if (!acc[ur.user_id]) acc[ur.user_id] = [];
+          acc[ur.user_id].push({
+            is_active: ur.is_active,
+            roles: { name: ur.name, display_name: ur.display_name }
+          });
+          return acc;
+        }, {});
+
+        result.rows = result.rows.map(user => ({
+          ...user,
+          user_roles: rolesByUser[user.id] || []
         }));
       }
 
@@ -377,6 +413,116 @@ class QueryBuilder {
         result.rows = result.rows.map(cart => ({
           ...cart,
           cart_items: cartItemsByCart[cart.id] || []
+        }));
+      }
+
+      // --- ORDERS JOIN SHIM ---
+      if (this.tableName === 'orders' && result.rows.length > 0) {
+        const orderIds = result.rows.map(o => o.id);
+
+        // 1. Fetch Order Items
+        const { rows: allOrderItems } = await db.query(
+          `SELECT DISTINCT ON (oi.id) oi.*, 
+                  p.id as p_id,
+                  pi.image_url as p_image
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           LEFT JOIN product_images pi ON p.id = pi.product_id
+           WHERE oi.order_id = ANY($1)
+           ORDER BY oi.id, pi.display_order ASC`,
+          [orderIds]
+        );
+
+        // 2. Fetch Payments
+        const { rows: allPayments } = await db.query(
+          `SELECT * FROM payments WHERE order_id = ANY($1)`,
+          [orderIds]
+        );
+
+        // 3. Fetch Deliveries + Driver Profiles
+        const { rows: allDeliveries } = await db.query(
+          `SELECT d.*, 
+                  up.full_name as driver_name, up.phone as driver_phone, up.avatar_url as driver_avatar,
+                  dp.vehicle_type, dp.license_plate
+           FROM deliveries d
+           LEFT JOIN driver_profiles dp ON d.driver_id = dp.user_id
+           LEFT JOIN user_profiles up ON dp.user_id = up.user_id
+           WHERE d.order_id = ANY($1)`,
+          [orderIds]
+        );
+
+        // 4. Fetch Stores
+        const storeIds = [...new Set(result.rows.map(o => o.store_id).filter(Boolean))];
+        let storeMap = {};
+        if (storeIds.length > 0) {
+          const { rows: stores } = await db.query(
+            `SELECT * FROM stores WHERE id = ANY($1)`,
+            [storeIds]
+          );
+          stores.forEach(s => { storeMap[s.id] = s; });
+        }
+
+        // 5. Fetch Buyers
+        const buyerIds = [...new Set(result.rows.map(o => o.buyer_id).filter(Boolean))];
+        let buyerMap = {};
+        if (buyerIds.length > 0) {
+          const { rows: buyers } = await db.query(
+            `SELECT u.id, u.email, up.full_name, up.phone 
+             FROM users u
+             LEFT JOIN user_profiles up ON u.id = up.user_id
+             WHERE u.id = ANY($1)`,
+            [buyerIds]
+          );
+          buyers.forEach(b => { 
+            buyerMap[b.id] = { 
+              id: b.id, email: b.email, 
+              user_profiles: { full_name: b.full_name, phone: b.phone } 
+            }; 
+          });
+        }
+
+        // Assemble everything
+        const itemsByOrder = allOrderItems.reduce((acc, oi) => {
+          if (!acc[oi.order_id]) acc[oi.order_id] = [];
+          acc[oi.order_id].push({
+            ...oi,
+            product: {
+              product_images: oi.p_image ? [{ image_url: oi.p_image }] : []
+            }
+          });
+          return acc;
+        }, {});
+
+        const paymentsByOrder = allPayments.reduce((acc, p) => {
+          if (!acc[p.order_id]) acc[p.order_id] = [];
+          acc[p.order_id].push(p);
+          return acc;
+        }, {});
+
+        const deliveriesByOrder = allDeliveries.reduce((acc, d) => {
+          if (!acc[d.order_id]) acc[d.order_id] = [];
+          acc[d.order_id].push({
+            ...d,
+            driver: d.driver_id ? {
+              user_profiles: { 
+                full_name: d.driver_name, 
+                phone: d.driver_phone, 
+                avatar_url: d.driver_avatar 
+              },
+              vehicle_type: d.vehicle_type,
+              plate_number: d.license_plate
+            } : null
+          });
+          return acc;
+        }, {});
+
+        result.rows = result.rows.map(order => ({
+          ...order,
+          buyer: buyerMap[order.buyer_id] || null,
+          store: storeMap[order.store_id] || null,
+          order_items: itemsByOrder[order.id] || [],
+          payments: paymentsByOrder[order.id] || [],
+          deliveries: deliveriesByOrder[order.id] || []
         }));
       }
 
@@ -477,6 +623,15 @@ const createPgClient = () => {
         return { data: null, error: toPgError(error) };
       }
     },
+    async query(sql, values = []) {
+      const db = getPool();
+      try {
+        const result = await db.query(sql, values);
+        return { data: result.rows, rows: result.rows, error: null };
+      } catch (error) {
+        return { data: null, rows: [], error: toPgError(error) };
+      }
+    }
   };
 };
 

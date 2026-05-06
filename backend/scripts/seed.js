@@ -247,13 +247,13 @@ async function seed() {
         (owner_id, store_name, slug, description, email, phone,
          address_line1, city, country, category,
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
-         listing_tier, verification_status)
+         listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'TechHub Accra', 'techhub-accra',
               'Your one-stop shop for all things electronics — phones, laptops, accessories, and more.',
               'info@techhub.gh', '+233302000010',
-              '15 Ring Road Central', 'Accra', 'Ghana', 'Electronics',
+              '15 Ring Road Central', 'Accra', 'Greater Accra', 'Ghana', 'Electronics',
               5.5916, -0.1969,
-              TRUE, TRUE, 4.5, 32, 'free', 'verified')
+              TRUE, TRUE, 4.5, 32, 'free', 'verified', 5.00, 2.00, 50.00)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [kofiId]);
@@ -263,13 +263,13 @@ async function seed() {
         (owner_id, store_name, slug, description, email, phone,
          address_line1, city, country, category,
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
-         listing_tier, verification_status)
+         listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'Abena Fashions', 'abena-fashions',
               'Trendy African prints, ready-to-wear, and bespoke fashion for every occasion.',
               'hello@abenafashions.gh', '+233322001010',
-              '42 Adum Market', 'Kumasi', 'Ghana', 'Fashion',
+              '42 Adum Market', 'Kumasi', 'Ashanti', 'Ghana', 'Fashion',
               6.6935, -1.6168,
-              TRUE, TRUE, 4.8, 58, 'free', 'verified')
+              TRUE, TRUE, 4.8, 58, 'free', 'verified', 10.00, 0.00, 100.00)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [abenaId]);
@@ -279,13 +279,13 @@ async function seed() {
         (owner_id, store_name, slug, description, email, phone,
          address_line1, city, country, category,
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
-         listing_tier, verification_status)
+         listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'Yaw Fresh Groceries', 'yaw-fresh-groceries',
               'Farm-fresh produce, pantry essentials, and everyday groceries delivered to your door.',
               'yaw@yawfresh.gh', '+233244000005',
-              '7 Tema Community 1', 'Tema', 'Ghana', 'Grocery',
+              '7 Tema Community 1', 'Tema', 'Greater Accra', 'Ghana', 'Grocery',
               5.6698, -0.0166,
-              TRUE, TRUE, 4.6, 21, 'free', 'verified')
+              TRUE, TRUE, 4.6, 21, 'free', 'verified', 3.00, 1.50, 20.00)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [yawId]);

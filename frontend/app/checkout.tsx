@@ -42,7 +42,8 @@ export default function CheckoutScreen() {
   const [saveAddress, setSaveAddress] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [prefilled, setPrefilled] = useState({ address: false, phone: false });
+  const [deliveryState, setDeliveryState] = useState('Greater Accra');
+  const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
 
   // Delivery fee state
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
@@ -86,7 +87,7 @@ export default function CheckoutScreen() {
     })();
   }, [buyerCoords, cartItems]);
 
-  const tax = subtotal * (0.025 + 0.025 + 0.15) + 5.00; // NHIL + GETFund + VAT + service charge
+  const tax = 1.00; // Flat Buyer Protection Fee
   const total = subtotal + tax + deliveryFee;
 
   useEffect(() => {
@@ -101,9 +102,11 @@ export default function CheckoutScreen() {
         if (profile) {
           const addr = profile.address_line1 || '';
           const phone = profile.fullPhoneNumber || profile.phone || '';
+          const region = profile.state_province || 'Greater Accra';
           setDeliveryAddress(addr);
           setDeliveryPhone(phone);
-          setPrefilled({ address: !!addr, phone: !!phone });
+          setDeliveryState(region);
+          setPrefilled({ address: !!addr, phone: !!phone, region: !!profile.state_province });
         }
 
         if (paymentResponse?.success) {
@@ -138,6 +141,7 @@ export default function CheckoutScreen() {
       const res = await createOrder({
         deliveryAddress,
         deliveryCity: 'Accra',
+        deliveryState,
         deliveryCountry: 'Ghana',
         deliveryPhone,
         paymentMethod: paymentMethodType,
@@ -251,7 +255,7 @@ export default function CheckoutScreen() {
                 <Text style={S.summaryItemPrice}>₵{Number(subtotal || 0).toFixed(2)}</Text>
               </View>
               <View style={S.summaryRow}>
-                <Text style={S.summaryItemName}>Tax & Charges</Text>
+                <Text style={S.summaryItemName}>Buyer Protection Fee</Text>
                 <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
               </View>
               <View style={S.summaryRow}>
@@ -315,6 +319,22 @@ export default function CheckoutScreen() {
                     keyboardType="phone-pad"
                   />
                 </View>
+              </View>
+              <View style={S.inputGroup}>
+                <View style={S.labelRow}>
+                  <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
+                  {['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Volta'].map((reg) => (
+                    <TouchableOpacity
+                      key={reg}
+                      style={[S.regionChip, deliveryState === reg && S.regionChipActive]}
+                      onPress={() => setDeliveryState(reg)}
+                    >
+                      <Text style={[S.regionChipTxt, deliveryState === reg && S.regionChipTxtActive]}>{reg}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
               {!prefilled.address && !deliveryAddress && (
                 <TouchableOpacity
@@ -409,4 +429,8 @@ const S = StyleSheet.create({
   placeOrderBtn: { borderRadius: 18, overflow: 'hidden', marginTop: 20 },
   placeOrderGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   placeOrderTxt: { color: '#FFF', fontSize: 17, fontFamily: 'Montserrat-Bold' },
+  regionChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F1F5F9', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  regionChipActive: { backgroundColor: C.navy, borderColor: C.navy },
+  regionChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  regionChipTxtActive: { color: '#FFF' },
 });

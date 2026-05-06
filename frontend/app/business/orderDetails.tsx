@@ -398,7 +398,7 @@ export default function OrderDetailsScreen() {
               </View>
               {order.payment.tax > 0 && (
                 <View style={S.summaryRow}>
-                  <Text style={S.summaryLbl}>Taxes & Fees</Text>
+                  <Text style={S.summaryLbl}>Buyer Protection Fee</Text>
                   <Text style={S.summaryVal}>₵{order.payment.tax.toFixed(2)}</Text>
                 </View>
               )}

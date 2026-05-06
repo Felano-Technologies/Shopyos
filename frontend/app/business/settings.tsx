@@ -163,7 +163,7 @@ export default function BusinessSettingsScreen() {
                       {businessData?.businessName || 'Your Business'}
                     </Text>
                     <Text style={S.businessEmail} numberOfLines={1}>
-                      {businessData?.owner?.email || 'No email connected'}
+                      {businessData?.email || 'No email connected'}
                     </Text>
                     <View style={[S.statusPill, { backgroundColor: statusInfo.bg }]}>
                       <Ionicons name={statusInfo.icon} size={rs(10)} color={statusInfo.color} />

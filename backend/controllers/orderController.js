@@ -85,13 +85,10 @@ const createOrder = async (req, res, next) => {
         };
       });
 
-      const nhilAmount = subtotal * 0.025;
-      const getFundAmount = subtotal * 0.025;
-      const vatAmount = subtotal * 0.15;
-      const serviceCharge = 5.00;
-      const tax = nhilAmount + getFundAmount + vatAmount + serviceCharge;
+      const tax = 1.00; // Flat Buyer Protection Fee
 
       // Dynamic delivery fee based on store settings + buyer location
+      const deliveryState = req.body.deliveryState || 'Greater Accra';
       let deliveryFee = 0;
       const store = await repositories.stores.findById(storeId);
       if (store) {
@@ -104,16 +101,25 @@ const createOrder = async (req, res, next) => {
             parseFloat(buyerLat), parseFloat(buyerLng)
           );
           const { fee, withinRange } = calculateDeliveryFee(store, distanceKm);
-          deliveryFee = withinRange && fee !== null ? fee : parseFloat(store.delivery_base_fee) || 0;
+          deliveryFee = (withinRange && fee !== null) ? fee : (parseFloat(store.delivery_base_fee) || 15);
         } else {
-          // No buyer coordinates provided — use the base fee only
-          deliveryFee = parseFloat(store.delivery_base_fee) || 0;
+          deliveryFee = parseFloat(store.delivery_base_fee) || 15;
+        }
+
+        // --- Regional Pricing Logic ---
+        const storeRegion = (store.state_province || 'Greater Accra').trim().toLowerCase();
+        const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
+
+        if (storeRegion === targetRegion) {
+          // Same Region: min 15, max 30
+          deliveryFee = Math.max(15, Math.min(deliveryFee, 30));
+        } else {
+          // Cross Region: min 40
+          deliveryFee = Math.max(deliveryFee, 40);
         }
       }
 
-      const totalAmount = subtotal + tax + deliveryFee;
-
-      // Create order
+      // Update order creation data to include delivery_state_province
       const orderData = {
         order_number: generateOrderNumber(),
         buyer_id: userId,
@@ -122,9 +128,10 @@ const createOrder = async (req, res, next) => {
         subtotal: subtotal,
         tax: tax,
         delivery_fee: deliveryFee,
-        total_amount: totalAmount,
+        total_amount: subtotal + tax + deliveryFee,
         delivery_address_line1: deliveryAddress,
-        delivery_city: deliveryCity,
+        delivery_city: req.body.deliveryCity || 'Accra',
+        delivery_state_province: deliveryState,
         delivery_country: deliveryCountry || 'Ghana',
         delivery_phone: deliveryPhone,
         delivery_notes: deliveryNotes || null

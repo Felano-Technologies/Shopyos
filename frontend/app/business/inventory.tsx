@@ -11,7 +11,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
 import { storage } from '@/services/api';
-import { useStoreProducts } from '@/hooks/useBusiness';
+import { useStoreProducts, useMyBusinesses } from '@/hooks/useBusiness';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 
 const { width: SW } = Dimensions.get('window');
@@ -48,17 +48,9 @@ const Inventory = () => {
   const [selectedCat, setSelectedCat] = useState('All');
   const [searchQuery,  setSearch]      = useState('');
   const [sortBy,       setSortBy]      = useState<'name' | 'stock' | 'price'>('name');
-  const [businessId,   setBusinessId]  = useState<string | null>(null);
 
-  useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then((status) => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, []);
-
-  useEffect(() => {
-    storage.getItem('currentBusinessId').then(setBusinessId);
-  }, []);
+  const { data: businessesData } = useMyBusinesses();
+  const businessId = businessesData?.businesses?.[0]?._id;
 
   const { data, isLoading, refetch, isRefetching } = useStoreProducts(businessId || '');
   // ── END OF HOOKS ──────────────────────────────────────────────────────────

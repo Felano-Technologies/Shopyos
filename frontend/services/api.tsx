@@ -1,12 +1,12 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { queryClient } from '@/lib/query/client';
-import { socketService } from './socket';
+import { storage, secureStorage } from './storage';
+export { storage, secureStorage };
 import { CustomInAppToast } from "@/components/InAppToastHost";
 export { CustomInAppToast };
+
 // API base URL sourced from Expo public environment.
 const getBaseURL = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -17,34 +17,6 @@ const getBaseURL = () => {
 };
 export const baseURL = getBaseURL();
 export const API_URL = `${baseURL}/api/v1/`;
-export const storage = {
-  async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') return localStorage.getItem(key);
-    return await AsyncStorage.getItem(key);
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.setItem(key, value);
-    else await AsyncStorage.setItem(key, value);
-  },
-  async removeItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.removeItem(key);
-    else await AsyncStorage.removeItem(key);
-  },
-};
-export const secureStorage = {
-  async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') return localStorage.getItem(key);
-    return await SecureStore.getItemAsync(key);
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.setItem(key, value);
-    else await SecureStore.setItemAsync(key, value);
-  },
-  async removeItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.removeItem(key);
-    else await SecureStore.deleteItemAsync(key);
-  },
-};
  
 // ─── Error message extractor ──────────────────────────────────────────────────
 export const extractErrorMessage = (error: any): string => {
@@ -133,7 +105,7 @@ api.interceptors.response.use(
   async (error) => {
     error.userMessage = extractErrorMessage(error);
  
-    const originalRequest = error.config;
+    const originalRequest = error.config as any;
  
     // ── FIX 2: Handle 429 rate limiting with exponential backoff ──────────────
     if (error.response?.status === 429) {
@@ -201,6 +173,7 @@ api.interceptors.response.use(
         // FIX 4: Also update the socket auth token so it doesn't stay stale
         // after a silent refresh. Socket will re-authenticate on next emit.
         try {
+          const { socketService } = require('./socket');
           const sock = socketService.getSocket();
           if (sock) {
             sock.auth = { token: newAccessToken };
@@ -319,7 +292,10 @@ export const logoutUser = async () => {
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
     ]);
-    socketService.disconnect();
+    try {
+      const { socketService } = require('./socket');
+      socketService.disconnect();
+    } catch {}
   }
 };
  
@@ -560,6 +536,7 @@ export const clearBackendCart = async () => {
 export const createOrder = async (orderData: {
   deliveryAddress: string;
   deliveryCity: string;
+  deliveryState: string;
   deliveryCountry: string;
   deliveryPhone: string;
   deliveryNotes?: string;

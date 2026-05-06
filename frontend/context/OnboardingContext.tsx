@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { getUserData, updateOnboardingState } from '../services/api';
+import { getUserData, updateOnboardingState, secureStorage } from '../services/api';
 
 interface OnboardingState {
   [key: string]: boolean;
@@ -15,6 +15,7 @@ interface OnboardingContextType {
   stopTour: () => void;
   markCompleted: (screen: string) => Promise<void>;
   isCompleted: (screen: string) => boolean;
+  refresh: () => Promise<void>;
 }
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
@@ -27,8 +28,24 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadOnboardingState();
+    const init = async () => {
+      const token = await secureStorage.getItem('userToken');
+      if (token) {
+        await loadOnboardingState();
+      } else {
+        setOnboardingState({});
+        setUser(null);
+        setIsLoading(false);
+      }
+    };
+    init();
   }, []);
+
+  // Listen for login/logout by checking storage or other auth signals
+  // For now, we can expose a refresh method and call it after login
+  const refresh = async () => {
+    await loadOnboardingState();
+  };
 
   const loadOnboardingState = async () => {
     setIsLoading(true);
@@ -96,6 +113,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         stopTour,
         markCompleted,
         isCompleted,
+        refresh,
       }}
     >
       {children}

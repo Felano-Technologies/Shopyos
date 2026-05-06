@@ -20,6 +20,7 @@ import {
 } from '@/services/api';
 import * as WebBrowser from 'expo-web-browser';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useMyBusinesses } from '@/hooks/useBusiness';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -59,6 +60,10 @@ const ProductsScreen = () => {
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearch] = useState('');
+
+  const { data: businessesData } = useMyBusinesses();
+  const businessId = businessesData?.businesses?.[0]?._id;
+  const user = businessesData?.user; // Assuming businessesData includes user info or we use useOnboarding
 
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
@@ -120,7 +125,6 @@ const ProductsScreen = () => {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const businessId = await storage.getItem('currentBusinessId');
       if (!businessId) return;
       const data = await getStoreProducts(businessId, { includeInactive: true });
       if (data.success) {
@@ -146,12 +150,14 @@ const ProductsScreen = () => {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-    storage.getItem('currentBusinessVerificationStatus').then((s) => {
-      setVerificationStatus(s || 'pending');
-    });
-  }, [fetchProducts, fetchCategories]);
+    if (businessId) {
+      fetchProducts();
+      fetchCategories();
+      // verificationStatus can be derived from the business object
+      const status = businessesData?.businesses?.[0]?.verificationStatus;
+      setVerificationStatus(status || 'pending');
+    }
+  }, [businessId, fetchProducts, fetchCategories, businessesData]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   // Safe early return
@@ -192,7 +198,6 @@ const ProductsScreen = () => {
     }
     setIsSubmitting(true);
     try {
-      const businessId = await storage.getItem('currentBusinessId');
       if (!businessId) { Alert.alert('Error', 'No active business found'); return; }
 
       const productData = {
@@ -224,10 +229,7 @@ const ProductsScreen = () => {
               text: 'Pay ₵50', 
               onPress: async () => {
                 try {
-                  const businessId = await storage.getItem('currentBusinessId');
-                  const userProfileStr = await storage.getItem('userProfile');
-                  const userProfile = userProfileStr ? JSON.parse(userProfileStr) : null;
-                  const email = userProfile?.email || 'seller@shopyos.com';
+                  const email = user?.email || 'seller@shopyos.com';
                   
                   if (!businessId) return;
                   

@@ -139,6 +139,20 @@ const createBusiness = async (req, res, next) => {
       is_active: true
     });
 
+    // Ensure user has the seller role
+    const hasSellerRole = await repositories.roles.userHasRole(userId, 'seller');
+    if (!hasSellerRole) {
+      const sellerRole = await repositories.roles.findByName('seller');
+      if (sellerRole) {
+        await repositories.roles.assignRoleToUser(userId, sellerRole.id);
+        // Import of auth middleware at top of file needed or just use repositories
+        // But invalidateUserAuthCache is in middleware. Let's use cacheDel directly if needed or just repositories.
+      }
+    }
+    // Clear auth cache so middleware picks up new role
+    const { cacheDel } = require('../config/redis');
+    await cacheDel(`shopyos:users:${userId}:auth`);
+
     // Notify admins
     const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank;
     if (hasVerificationDocs) {
@@ -779,7 +793,7 @@ const getBusinessDashboard = async (req, res, next) => {
     }
 
     // Fetch counts and recent orders in parallel
-    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders] = await Promise.all([
+    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders, revenueStats] = await Promise.all([
       repositories.products.count({ store_id: businessId, deleted_at: null }),
       repositories.orders.count({ store_id: businessId }),
       repositories.orders.count({ store_id: businessId, status: 'pending' }),
@@ -789,10 +803,11 @@ const getBusinessDashboard = async (req, res, next) => {
       repositories.orders.findAll({
         where: { store_id: businessId },
         select: '*, total_amount, status, created_at',
-        limit: 100, // Reasonable limit for chart data
+        limit: 200, // Reasonable limit for chart data
         orderBy: 'created_at',
-        ascending: true,
-      })
+        ascending: false,
+      }),
+      repositories.orders.getStoreRevenueStats(businessId)
     ]);
 
     // Extract the data array from the getStoreOrders result
@@ -818,23 +833,38 @@ const getBusinessDashboard = async (req, res, next) => {
       chartLabels.push(days[d.getDay()]);
     }
 
-    weeklyData.forEach(order => {
-      const orderDate = new Date(order.created_at);
-      // Find which day index (0-6) this corresponds to in our chartLabels
-      // This is a naive mapping, for simplicity let's just use day name matching if unique, 
-      // or better, map by date string.
+    const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'];
+    const completedStatuses = ['delivered', 'completed'];
+    
+    // 1. Calculate All-Time Revenue Breakdown from stats
+    let totalRevenue = 0;
+    let pendingRevenue = 0;
 
-      // Simpler approach:
+    (revenueStats || []).forEach(stat => {
+      const status = (stat.status || '').toLowerCase();
+      const amount = parseFloat(stat.total || 0);
+      
+      if (completedStatuses.includes(status)) {
+        totalRevenue += amount;
+      } else if (paidStatuses.includes(status)) {
+        pendingRevenue += amount;
+      } else if (status === 'refunded') {
+        totalRevenue -= amount;
+      }
+    });
+
+    const allOrders = weeklyOrders.data || [];
+
+    // 2. Process chart data (Weekly Sales)
+    allOrders.forEach(order => {
+      const orderDate = new Date(order.created_at);
       const dayIndex = 6 - Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+      
       if (dayIndex >= 0 && dayIndex <= 6) {
-        // Revenue should only be added when the user pays.
-        // Paid statuses representing successful payment:
-        const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
-        
-        if (paidStatuses.includes(order.status.toLowerCase())) {
+        const status = (order.status || '').toLowerCase();
+        if (paidStatuses.includes(status)) {
           chartData[dayIndex] += parseFloat(order.total_amount || 0);
-        } else if (order.status.toLowerCase() === 'refunded') {
-          // Subtract refunds from revenue if they happen within the chart window
+        } else if (status === 'refunded') {
           chartData[dayIndex] -= parseFloat(order.total_amount || 0);
         }
       }
@@ -845,7 +875,10 @@ const getBusinessDashboard = async (req, res, next) => {
         totalProducts,
         totalOrders,
         pendingOrders,
-        completedOrders
+        completedOrders,
+        totalRevenue,
+        pendingRevenue,
+        balance: parseFloat(store.current_balance || 0)
       },
       recentOrders: recentOrders.map(order => ({
         _id: order.id,
@@ -896,38 +929,46 @@ const getBusinessAnalytics = async (req, res, next) => {
 
     // Fetch Orders in Range
     // Note: In a real production app, use DB aggregation. For now, we fetch and aggregate in JS.
-    const ordersResult = await repositories.orders.findAll({
-      where: {
-        store_id: businessId,
-        // created_at: { gte: startDate.toISOString() } // BaseRepo might not support complex filtered queries directly without customQuery
-      },
-      select: '*, order_items(product_title, quantity, price), payments(amount)',
-      limit: 1000
-    });
+    const [ordersResult, revenueStats] = await Promise.all([
+      repositories.orders.findAll({
+        where: { store_id: businessId },
+        select: '*, order_items(product_title, quantity, price), payments(amount)',
+        limit: 1000
+      }),
+      repositories.orders.getStoreRevenueStats(businessId)
+    ]);
 
     const orders = ordersResult?.data || [];
     const filteredOrders = orders.filter(o => new Date(o.created_at) >= startDate);
 
-    // Aggregate Data
-    let totalRevenue = 0;
-    let totalOrders = 0;
-    const productSales = {};
-    const categorySales = {}; // Need product category, but order items only have title usually. 
+    // 2. Process chart data (Weekly Sales - only from recent orders)
     // Optimization: In a real app, join products table or store category in order_items. 
     // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
 
-    const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed'];
+    const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'];
     const completedStatuses = ['delivered', 'completed'];
 
-    filteredOrders.forEach(order => {
-      const status = order.status.toLowerCase();
-      
-      if (paidStatuses.includes(status)) {
-        totalRevenue += parseFloat(order.total_amount || 0);
-      } else if (status === 'refunded') {
-        totalRevenue -= parseFloat(order.total_amount || 0);
-      }
+    let totalRevenue = 0;
+    let pendingRevenue = 0;
+    let totalOrders = 0;
+    const productSales = {};
 
+    (revenueStats || []).forEach(stat => {
+      const status = (stat.status || '').toLowerCase();
+      const amount = parseFloat(stat.total || 0);
+      
+      if (completedStatuses.includes(status)) {
+        totalRevenue += amount;
+      } else if (paidStatuses.includes(status)) {
+        pendingRevenue += amount;
+      } else if (status === 'refunded') {
+        totalRevenue -= amount;
+      }
+    });
+
+    filteredOrders.forEach(order => {
+      const status = (order.status || '').toLowerCase();
+      
       if (completedStatuses.includes(status)) {
         totalOrders += 1;
       }
@@ -1014,6 +1055,7 @@ const getBusinessAnalytics = async (req, res, next) => {
       data: {
         stats: {
           revenue: totalRevenue,
+          pending: pendingRevenue || 0,
           orders: totalOrders,
           growth: 0 // calc vs previous period if needed
         },
