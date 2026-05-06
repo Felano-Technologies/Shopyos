@@ -52,9 +52,8 @@ const validateAddToCart = [
 ];
 
 const validateInitializePayment = [
-    body('amount').isFloat({ gt: 0 }).withMessage('Amount must be a positive number'),
-    body('email').isEmail().withMessage('A valid email is required for payment').normalizeEmail(),
-    body('orderId').optional().isUUID().withMessage('Order ID must be a valid UUID'),
+    body('orderId').isUUID().withMessage('Order ID must be a valid UUID'),
+    body('email').optional().isEmail().withMessage('Please provide a valid email address').normalizeEmail(),
     validateRequest
 ];
 

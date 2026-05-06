@@ -314,6 +314,113 @@ class QueryBuilder {
           role: roleMap[row.role_id] || null
         }));
       }
+
+      // --- CARTS JOIN SHIM ---
+      if (this.tableName === 'carts' && result.rows.length > 0) {
+        const cartIds = result.rows.map(c => c.id);
+        
+        // 1. Fetch cart_items
+        const { rows: allCartItems } = await db.query(
+          `SELECT ci.*, 
+                  p.id as p_id, p.title as p_title, p.description as p_description, p.price as p_price, p.store_id as p_store_id,
+                  s.store_name as s_name, s.logo_url as s_logo,
+                  i.quantity as i_qty
+           FROM cart_items ci
+           LEFT JOIN products p ON ci.product_id = p.id
+           LEFT JOIN stores s ON p.store_id = s.id
+           LEFT JOIN inventory i ON p.id = i.product_id
+           WHERE ci.cart_id = ANY($1)`,
+          [cartIds]
+        );
+
+        // 2. Fetch images for these products
+        const productIds = [...new Set(allCartItems.map(ci => ci.product_id).filter(Boolean))];
+        let imageMap = {};
+        if (productIds.length > 0) {
+          const { rows: images } = await db.query(
+            `SELECT * FROM product_images WHERE product_id = ANY($1)`,
+            [productIds]
+          );
+          images.forEach(img => {
+            if (!imageMap[img.product_id]) imageMap[img.product_id] = [];
+            imageMap[img.product_id].push(img);
+          });
+        }
+
+        // 3. Assemble the nested structure
+        const cartItemsByCart = allCartItems.reduce((acc, ci) => {
+          if (!acc[ci.cart_id]) acc[ci.cart_id] = [];
+          acc[ci.cart_id].push({
+            id: ci.id,
+            product_id: ci.product_id,
+            quantity: ci.quantity,
+            added_at: ci.added_at,
+            products: ci.p_id ? {
+              id: ci.p_id,
+              title: ci.p_title,
+              description: ci.p_description,
+              price: ci.p_price,
+              store_id: ci.p_store_id,
+              product_images: imageMap[ci.p_id] || [],
+              stores: {
+                store_name: ci.s_name,
+                logo_url: ci.s_logo
+              },
+              inventory: {
+                quantity: ci.i_qty
+              }
+            } : null
+          });
+          return acc;
+        }, {});
+
+        result.rows = result.rows.map(cart => ({
+          ...cart,
+          cart_items: cartItemsByCart[cart.id] || []
+        }));
+      }
+
+      // --- PRODUCTS JOIN SHIM ---
+      if (this.tableName === 'products' && result.rows.length > 0) {
+        const productIds = result.rows.map(p => p.id);
+        
+        // 1. Fetch stores
+        const storeIds = [...new Set(result.rows.map(p => p.store_id).filter(Boolean))];
+        let storeMap = {};
+        if (storeIds.length > 0) {
+          const { rows: stores } = await db.query(
+            `SELECT id, store_name, slug, average_rating, total_reviews, owner_id, logo_url, is_verified FROM stores WHERE id = ANY($1)`,
+            [storeIds]
+          );
+          stores.forEach(s => { storeMap[s.id] = s; });
+        }
+
+        // 2. Fetch images
+        let imageMap = {};
+        const { rows: images } = await db.query(
+          `SELECT * FROM product_images WHERE product_id = ANY($1) ORDER BY display_order ASC`,
+          [productIds]
+        );
+        images.forEach(img => {
+          if (!imageMap[img.product_id]) imageMap[img.product_id] = [];
+          imageMap[img.product_id].push(img);
+        });
+
+        // 3. Fetch inventory
+        let inventoryMap = {};
+        const { rows: inventory } = await db.query(
+          `SELECT * FROM inventory WHERE product_id = ANY($1)`,
+          [productIds]
+        );
+        inventory.forEach(inv => { inventoryMap[inv.product_id] = inv; });
+
+        result.rows = result.rows.map(product => ({
+          ...product,
+          stores: storeMap[product.store_id] || null,
+          product_images: imageMap[product.id] || [],
+          inventory: inventoryMap[product.id] || null
+        }));
+      }
       // --- JOIN SHIM END ---
 
       if (this.singleMode) {
@@ -350,11 +457,22 @@ const createPgClient = () => {
       const db = getPool();
       try {
         const keys = Object.keys(args);
-        const values = keys.map((k) => args[k]);
+        const values = keys.map((k) => {
+          const val = args[k];
+          // If it's an object or array, stringify it for Postgres JSONB/JSON params
+          if (val !== null && typeof val === 'object') {
+            return JSON.stringify(val);
+          }
+          return val;
+        });
         const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
         const sql = `SELECT * FROM ${fnName}(${placeholders})`;
         const result = await db.query(sql, values);
-        return { data: result.rows, error: null };
+        // Unwrap the result if it's a JSONB return
+        const data = result.rows.length === 1 && Object.keys(result.rows[0]).length === 1 && result.rows[0][fnName] 
+          ? result.rows[0][fnName] 
+          : result.rows;
+        return { data, error: null };
       } catch (error) {
         return { data: null, error: toPgError(error) };
       }

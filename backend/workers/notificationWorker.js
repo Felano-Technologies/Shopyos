@@ -156,7 +156,7 @@ async function handleEmail(msg) {
 
         logger.info(`Sending email to ${target} for ${eventType}`);
         const info = await emailTransporter.sendMail({
-            from: `Shopyos Notifications <${process.env.EMAIL_USER}>`,
+            from: `${process.env.EMAIL_FROM_NAME || 'Shopyos'} <${process.env.EMAIL_USER}>`,
             to: target,
             subject: template.subject,
             html: template.html
