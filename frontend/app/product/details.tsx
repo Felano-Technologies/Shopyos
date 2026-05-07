@@ -160,7 +160,9 @@ export default function ProductDetails() {
                         conversationId: res.conversation.id,
                         name: product.sellerName,
                         avatar: product.storeImage || 'https://api.dicebear.com/7.x/avataaars/png?seed=' + product.sellerName,
-                        chatType: 'buyer'
+                        chatType: 'buyer',
+                        entityId: product.storeId,
+                        participantId: product.sellerId
                     }
                 });
             }
@@ -216,13 +218,13 @@ export default function ProductDetails() {
                             </View>
                             <View style={styles.ratingRow}>
                                 <Ionicons name="star" size={16} color="#FACC15" />
-                                <Text style={styles.ratingText}>{product.rating ? product.rating.toFixed(1) : '0.0'} ({product.reviewsCount} reviews)</Text>
+                                <Text style={styles.ratingText}>{Number(product.rating || 0).toFixed(1)} ({product.reviewsCount} reviews)</Text>
                             </View>
                         </View>
                         <Text style={styles.title}>{product.title}</Text>
                         <View style={styles.priceRow}>
-                            <Text style={styles.price}>₵{product.price.toFixed(2)}</Text>
-                            {product.oldPrice && <Text style={styles.oldPrice}>₵{product.oldPrice.toFixed(2)}</Text>}
+                            <Text style={styles.price}>₵{Number(product.price || 0).toFixed(2)}</Text>
+                            {product.oldPrice && <Text style={styles.oldPrice}>₵{Number(product.oldPrice).toFixed(2)}</Text>}
                         </View>
                         <Text style={styles.sectionTitle}>Description</Text>
                         <Text style={styles.description}>{product.description}</Text>

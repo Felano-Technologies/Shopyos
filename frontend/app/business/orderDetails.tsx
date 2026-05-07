@@ -12,7 +12,6 @@ import { format } from 'date-fns';
 import { getOrderDetails, updateOrderStatus, startConversation } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useChat } from '@/context/ChatContext';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -60,7 +59,7 @@ export default function OrderDetailsScreen() {
       if (data && data.success !== false) {
         const o = data.order || data;
         const mappedItems = (o.order_items || []).map((i: any) => ({
-          id:       i.id,
+          id:       i._id || i.id,
           name:     i.product_title || 'Product',
           price:    parseFloat(i.price || 0),
           quantity: i.quantity,
@@ -69,12 +68,12 @@ export default function OrderDetailsScreen() {
             : require('../../assets/images/icon.png'),
         }));
         const mapped = {
-          id:          o.id,
+          id:          o._id || o.id,
           orderNumber: o.order_number,
           status:      o.status,
           date:        o.created_at,
           customer: {
-            id:      o.buyer?.id || o.buyer_id,
+            id:      o.buyer?._id || o.buyer?.id || o.buyer_id,
             name:    o.buyer?.user_profiles?.full_name || 'Guest Buyer',
             phone:   o.buyer?.user_profiles?.phone || 'N/A',
             email:   o.buyer?.email || 'N/A',
@@ -82,7 +81,7 @@ export default function OrderDetailsScreen() {
             address: o.delivery_address_line1 || o.delivery_address || o.deliveries?.[0]?.delivery_address || 'No address provided',
           },
           driver: o.deliveries?.[0]?.driver ? {
-            id:      o.deliveries[0].driver.id,
+            id:      o.deliveries[0].driver._id || o.deliveries[0].driver.id,
             name:    o.deliveries[0].driver.user_profiles?.full_name || 'Driver',
             phone:   o.deliveries[0].driver.user_profiles?.phone || '',
             avatar:  o.deliveries[0].driver.user_profiles?.avatar_url,
@@ -398,7 +397,7 @@ export default function OrderDetailsScreen() {
               </View>
               {order.payment.tax > 0 && (
                 <View style={S.summaryRow}>
-                  <Text style={S.summaryLbl}>Taxes & Fees</Text>
+                  <Text style={S.summaryLbl}>Buyer Protection Fee</Text>
                   <Text style={S.summaryVal}>₵{order.payment.tax.toFixed(2)}</Text>
                 </View>
               )}

@@ -6,7 +6,10 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
 import * as Location from 'expo-location';
+import { useOnboarding } from '@/context/OnboardingContext';
+
 const LoginScreen = () => {
+  const { refresh } = useOnboarding();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,6 +38,10 @@ const LoginScreen = () => {
           title: 'Login Successful 😊',
           message: 'Welcome back! 🎉',
         });
+        
+        // Refresh onboarding state for the newly logged-in user
+        await refresh();
+        
         // Check if user needs to select a role (using the needsRole flag from API)
         if (response.needsRole) {
           // User has no role assigned, redirect to role selection

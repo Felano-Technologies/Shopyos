@@ -24,6 +24,9 @@ const {
   approveDriverVerification,
   rejectDriverVerification,
   getReportDetails,
+  getAllEscrows,
+  refundEscrow,
+  releaseEscrow,
 } = require('../controllers/adminController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -125,6 +128,23 @@ router.get('/driver-verifications/:id', getDriverVerificationDetails);
 router.put('/driver-verifications/:id/approve', approveDriverVerification);
 
 // @route   PUT /api/admin/driver-verifications/:id/reject
+// @access  Admin
 router.put('/driver-verifications/:id/reject', rejectDriverVerification);
+
+// Escrow Management
+// @route   GET /api/admin/escrows
+// @desc    Get all held funds
+// @access  Admin
+router.get('/escrows', getAllEscrows);
+
+// @route   PUT /api/admin/escrows/:id/refund
+// @desc    Refund buyer from escrow
+// @access  Admin
+router.put('/escrows/:id/refund', refundEscrow);
+
+// @route   PUT /api/admin/escrows/:id/release
+// @desc    Release escrow funds to seller manually
+// @access  Admin
+router.put('/escrows/:id/release', releaseEscrow);
 
 module.exports = router;

@@ -1,12 +1,12 @@
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 import { queryClient } from '@/lib/query/client';
-import { socketService } from './socket';
+import { storage, secureStorage } from './storage';
+export { storage, secureStorage };
 import { CustomInAppToast } from "@/components/InAppToastHost";
 export { CustomInAppToast };
+
 // API base URL sourced from Expo public environment.
 const getBaseURL = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
@@ -17,34 +17,6 @@ const getBaseURL = () => {
 };
 export const baseURL = getBaseURL();
 export const API_URL = `${baseURL}/api/v1/`;
-export const storage = {
-  async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') return localStorage.getItem(key);
-    return await AsyncStorage.getItem(key);
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.setItem(key, value);
-    else await AsyncStorage.setItem(key, value);
-  },
-  async removeItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.removeItem(key);
-    else await AsyncStorage.removeItem(key);
-  },
-};
-export const secureStorage = {
-  async getItem(key: string): Promise<string | null> {
-    if (Platform.OS === 'web') return localStorage.getItem(key);
-    return await SecureStore.getItemAsync(key);
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.setItem(key, value);
-    else await SecureStore.setItemAsync(key, value);
-  },
-  async removeItem(key: string): Promise<void> {
-    if (Platform.OS === 'web') localStorage.removeItem(key);
-    else await SecureStore.deleteItemAsync(key);
-  },
-};
  
 // ─── Error message extractor ──────────────────────────────────────────────────
 export const extractErrorMessage = (error: any): string => {
@@ -125,6 +97,7 @@ const processQueue = (error: any, token: string | null = null) => {
   });
   failedQueue = [];
 };
+
  
 // ─── Response interceptor ─────────────────────────────────────────────────────
 api.interceptors.response.use(
@@ -132,7 +105,7 @@ api.interceptors.response.use(
   async (error) => {
     error.userMessage = extractErrorMessage(error);
  
-    const originalRequest = error.config;
+    const originalRequest = error.config as any;
  
     // ── FIX 2: Handle 429 rate limiting with exponential backoff ──────────────
     if (error.response?.status === 429) {
@@ -200,6 +173,7 @@ api.interceptors.response.use(
         // FIX 4: Also update the socket auth token so it doesn't stay stale
         // after a silent refresh. Socket will re-authenticate on next emit.
         try {
+          const { socketService } = require('./socket');
           const sock = socketService.getSocket();
           if (sock) {
             sock.auth = { token: newAccessToken };
@@ -249,11 +223,12 @@ export const registerUser = async (
   name: string,
   email: string,
   password: string,
-  fullPhoneNumber: string
+  fullPhoneNumber: string,
+  referralCode?: string
 ) => {
   try {
     const response = await api.post('/auth/register', {
-      name, email, fullPhoneNumber, password,
+      name, email, fullPhoneNumber, password, referralCode
     });
     if (response.data.token) {
       await secureStorage.setItem('userToken', response.data.token);
@@ -317,7 +292,10 @@ export const logoutUser = async () => {
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
     ]);
-    socketService.disconnect();
+    try {
+      const { socketService } = require('./socket');
+      socketService.disconnect();
+    } catch {}
   }
 };
  
@@ -558,11 +536,14 @@ export const clearBackendCart = async () => {
 export const createOrder = async (orderData: {
   deliveryAddress: string;
   deliveryCity: string;
+  deliveryState: string;
   deliveryCountry: string;
   deliveryPhone: string;
   deliveryNotes?: string;
   paymentMethod: string;
   paymentMethodId?: string | null;
+  buyerLat?: number;
+  buyerLng?: number;
 }) => {
   try {
     const response = await api.post('/orders/create', orderData);
@@ -571,6 +552,48 @@ export const createOrder = async (orderData: {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export const confirmDelivery = async (orderId: string) => {
+  try {
+    const response = await api.put(`/orders/${orderId}/confirm-delivery`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getDeliveryQuote = async (storeId: string, buyerLat: number, buyerLng: number) => {
+  try {
+    const response = await api.get('/delivery/quote', {
+      params: { storeId, buyerLat, buyerLng },
+    });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getDeliverySettings = async (storeId: string) => {
+  try {
+    const response = await api.get(`/business/${storeId}/delivery-settings`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateDeliverySettings = async (
+  storeId: string,
+  settings: { deliveryBaseFee?: number; deliveryPerKmFee?: number; deliveryMaxKm?: number | null }
+) => {
+  try {
+    const response = await api.put(`/business/${storeId}/delivery-settings`, settings);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
  
 export const getMyOrders = async (
   params: { status?: string; limit?: number; offset?: number } = {}
@@ -782,6 +805,12 @@ export const createProduct = async (productData: any) => {
     const response = await api.post('/products', productData);
     return response.data;
   } catch (error: any) {
+    if (error.response && error.response.data?.code === 'LISTING_FEE_REQUIRED') {
+      const err = new Error(error.response.data.message || 'Listing fee required');
+      (err as any).code = 'LISTING_FEE_REQUIRED';
+      (err as any).paymentUrl = error.response.data.paymentUrl;
+      throw err;
+    }
     if (error.response) throw new Error(error.response.data.error || 'Failed to create product');
     throw error;
   }
@@ -1697,6 +1726,106 @@ export const searchStores = async (params: {
   try {
     const response = await api.get('/business/all', { params });
     // Normalize response: getAllBusinesses returns { success: true, data: [...], pagination: {...} }
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const initializeListingFee = async (payload: { storeId: string; email: string; channel?: string }) => {
+  try {
+    const response = await api.post('/payments/listing-fee/initialize', payload);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+// ─── User Actions (Block & Report) ──────────────────────────────────────────
+
+export const blockUser = async (blockedId: string) => {
+  try {
+    const response = await api.post('/user-actions/block', { blockedId });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const unblockUser = async (blockedId: string) => {
+  try {
+    const response = await api.delete(`/user-actions/block/${blockedId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getBlockedUsers = async () => {
+  try {
+    const response = await api.get('/user-actions/blocks');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const reportEntity = async (entityType: 'user' | 'store', entityId: string, reason: string, details?: string) => {
+  try {
+    const response = await api.post('/user-actions/report', { entityType, entityId, reason, details });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const uploadSnapImage = async (uri: string) => {
+  try {
+    const formData = new FormData();
+    const filename = uri.split('/').pop() || 'snap.jpg';
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
+    formData.append('image', { uri, name: filename, type } as any);
+    const response = await api.post('/upload/single?folder=shopyos/snaps', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data.error || 'Failed to upload snap image');
+    throw new Error(error.message || 'Network error during snap upload');
+  }
+};
+
+export const createSnap = async (media_url: string, caption: string, product_id?: string) => {
+  try {
+    const response = await api.post('/snaps', { media_url, caption, product_id });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getSnapFeed = async () => {
+  try {
+    const response = await api.get('/snaps/feed');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const viewSnap = async (id: string) => {
+  try {
+    const response = await api.post(`/snaps/${id}/view`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const deleteSnap = async (id: string) => {
+  try {
+    const response = await api.delete(`/snaps/${id}`);
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

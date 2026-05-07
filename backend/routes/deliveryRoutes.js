@@ -15,7 +15,8 @@ const {
   getLocationUpdates,
   getLatestLocation,
   getDeliveryByOrder,
-  getDriverStats
+  getDriverStats,
+  verifyDeliveryPin
 } = require('../controllers/deliveryController');
 const {
   submitVerification,
@@ -81,6 +82,11 @@ router.put('/:deliveryId/assign', driver, assignDriver);
 // @access  Private (Driver)
 router.put('/:deliveryId/status', driver, updateDeliveryStatus);
 
+// @route   POST /api/deliveries/:deliveryId/verify-pin
+// @desc    Verify delivery PIN and release funds
+// @access  Private (Driver)
+router.post('/:deliveryId/verify-pin', driver, verifyDeliveryPin);
+
 // @route   POST /api/deliveries/:deliveryId/location
 // @desc    Add location update
 // @access  Private (Driver)
@@ -104,12 +110,12 @@ router.get('/:deliveryId/latest-location', getLatestLocation);
 // @route   POST /api/deliveries/verify
 // @desc    Submit driver verification details
 // @access  Private (Driver)
-router.post('/verify', driverUploadFields, submitVerification);
+router.post('/verify', driver, driverUploadFields, submitVerification);
 
 // @route   GET /api/deliveries/driver/profile
 // @desc    Get driver profile
-// @access  Private (Driver/Auth)
-router.get('/driver/profile', getDriverProfile);
+// @access  Private (Driver)
+router.get('/driver/profile', driver, getDriverProfile);
 
 // @route   PUT /api/deliveries/driver/availability
 // @desc    Update driver availability

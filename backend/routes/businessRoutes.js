@@ -10,6 +10,7 @@ const {
   getAllBusinesses, followBusiness, unfollowBusiness,
   getBusinessReviews
 } = require('../controllers/businessController');
+const { updateDeliverySettings, getDeliverySettings } = require('../controllers/deliveryFeeController');
 
 // Define cache keys for business routes
 const dashboardCacheKey = (id) => `shopyos:stores:dashboard:${id}`;
@@ -47,5 +48,9 @@ router.get('/:id/reviews', protect, getBusinessReviews);
 
 router.post('/:id/follow', protect, followBusiness);
 router.delete('/:id/follow', protect, unfollowBusiness);
+
+// Delivery fee configuration (seller/admin only)
+router.get('/:storeId/delivery-settings', protect, getDeliverySettings);
+router.put('/:storeId/delivery-settings', protect, updateDeliverySettings);
 
 module.exports = router;

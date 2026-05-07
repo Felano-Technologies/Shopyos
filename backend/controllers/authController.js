@@ -82,7 +82,7 @@ const sanitizePhone = (phone) => {
 };
 
 const register = async (req, res, next) => {
-  const { name, email, password, fullPhoneNumber } = req.body;
+  const { name, email, password, fullPhoneNumber, referralCode } = req.body;
 
   try {
     const existingUser = await repositories.users.findByEmail(email);
@@ -90,7 +90,40 @@ const register = async (req, res, next) => {
 
     const user = await repositories.users.createUser({ email, password });
     const cleanPhone = sanitizePhone(fullPhoneNumber);
-    await repositories.userProfiles.updateByUserId(user.id, { full_name: name, phone: cleanPhone });
+    
+    // Process referral code
+    let referredById = null;
+    if (referralCode) {
+      const { data: referrerProfile } = await repositories.users.db
+        .from('user_profiles')
+        .select('user_id')
+        .eq('referral_code', referralCode.toUpperCase())
+        .maybeSingle();
+        
+      if (referrerProfile) {
+        referredById = referrerProfile.user_id;
+      }
+    }
+
+    // Generate unique referral code for this new user
+    const newReferralCode = 'SHPY-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+
+    await repositories.userProfiles.updateByUserId(user.id, { 
+      full_name: name, 
+      phone: cleanPhone,
+      referral_code: newReferralCode,
+      referred_by_id: referredById
+    });
+
+    // If they were referred, log it in referrals table (pending)
+    if (referredById) {
+      await repositories.users.db.from('referrals').insert({
+        referrer_id: referredById,
+        referred_id: user.id,
+        status: 'pending',
+        reward_amount: 20.00
+      });
+    }
 
     const accessToken = generateAccessToken(user.id);
     const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
@@ -471,6 +504,8 @@ const getUserData = async (req, res, next) => {
         .filter(r => r?.role)
         .map(r => ({ name: r.role.name, displayName: r.role.display_name, assignedAt: r.assigned_at })),
       onboarding_state: profile?.onboarding_state || {},
+      referral_code: profile?.referral_code,
+      wallet_balance: profile?.wallet_balance || 0,
       email_verified: user.email_verified,
       is_active: user.is_active,
       last_login_at: user.last_login_at,

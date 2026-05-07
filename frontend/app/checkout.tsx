@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -8,12 +8,13 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
+import * as Location from 'expo-location';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
 import { useCart } from '@/context/CartContext';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
-  getUserData, getPaymentMethods,
+  getUserData, getPaymentMethods, getDeliveryQuote,
 } from '@/services/api';
 
 const C = {
@@ -41,7 +42,60 @@ export default function CheckoutScreen() {
   const [saveAddress, setSaveAddress] = useState(false);
   const [isOrdering, setIsOrdering] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [prefilled, setPrefilled] = useState({ address: false, phone: false });
+  const [deliveryState, setDeliveryState] = useState('Greater Accra');
+  const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
+
+  // Delivery fee state
+  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  const [isFetchingFee, setIsFetchingFee] = useState(false);
+  const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
+  const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Get buyer location once on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setBuyerCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        }
+      } catch {
+        // Location unavailable — delivery fee will fall back to base fee
+      }
+    })();
+  }, []);
+
+  // Fetch delivery quote whenever buyer location is known
+  // Uses the first store in the cart (single-store checkout assumed for now)
+  useEffect(() => {
+    if (!buyerCoords || cartItems.length === 0) return;
+    const storeId = (cartItems[0] as any).storeId ?? (cartItems[0] as any).store_id;
+    if (!storeId) return;
+
+    (async () => {
+      setIsFetchingFee(true);
+      try {
+        const res = await getDeliveryQuote(storeId, buyerCoords.lat, buyerCoords.lng);
+        if (res?.success) {
+          const { withinRange, deliveryFee: fee } = res.quote || {};
+          setIsWithinRange(withinRange);
+          if (withinRange && fee !== null) {
+            setDeliveryFee(fee);
+          } else {
+            setDeliveryFee(0);
+          }
+        }
+      } catch {
+        // Eligibility remains null (unknown) if quote fails
+      } finally {
+        setIsFetchingFee(false);
+      }
+    })();
+  }, [buyerCoords, cartItems]);
+
+  const tax = 1.00; // Flat Buyer Protection Fee
+  const total = subtotal + tax + deliveryFee;
 
   useEffect(() => {
     (async () => {
@@ -55,9 +109,11 @@ export default function CheckoutScreen() {
         if (profile) {
           const addr = profile.address_line1 || '';
           const phone = profile.fullPhoneNumber || profile.phone || '';
+          const region = profile.state_province || 'Greater Accra';
           setDeliveryAddress(addr);
           setDeliveryPhone(phone);
-          setPrefilled({ address: !!addr, phone: !!phone });
+          setDeliveryState(region);
+          setPrefilled({ address: !!addr, phone: !!phone, region: !!profile.state_province });
         }
 
         if (paymentResponse?.success) {
@@ -92,10 +148,13 @@ export default function CheckoutScreen() {
       const res = await createOrder({
         deliveryAddress,
         deliveryCity: 'Accra',
+        deliveryState,
         deliveryCountry: 'Ghana',
         deliveryPhone,
         paymentMethod: paymentMethodType,
         paymentMethodId: selectedMethodId,
+        // Pass buyer coordinates so the backend recalculates the fee server-side
+        ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
       });
 
       if (res.success) {
@@ -110,6 +169,7 @@ export default function CheckoutScreen() {
       setIsOrdering(false);
     }
   };
+
 
   const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card'; icon: any; label: string; sub: string }) => {
     const isSelected = paymentMethodType === type;
@@ -193,13 +253,37 @@ export default function CheckoutScreen() {
                 <View key={item.id} style={S.summaryRow}>
                   <Text style={S.summaryItemName} numberOfLines={1}>{item.title}</Text>
                   <Text style={S.summaryItemQty}>x{item.quantity}</Text>
-                  <Text style={S.summaryItemPrice}>₵{(item.price * item.quantity).toFixed(2)}</Text>
+                  <Text style={S.summaryItemPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
                 </View>
               ))}
               <View style={S.divider} />
               <View style={S.summaryRow}>
+                <Text style={S.summaryItemName}>Subtotal</Text>
+                <Text style={S.summaryItemPrice}>₵{Number(subtotal || 0).toFixed(2)}</Text>
+              </View>
+              <View style={S.summaryRow}>
+                <Text style={S.summaryItemName}>Buyer Protection Fee</Text>
+                <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
+              </View>
+              <View style={S.summaryRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                  <Text style={S.summaryItemName}>Delivery Fee</Text>
+                  {isFetchingFee && <ActivityIndicator size="small" color={C.muted} />}
+                </View>
+                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#EF4444' }]}>
+                  {isFetchingFee ? '...' : isWithinRange === false ? 'Out of Range' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
+                </Text>
+              </View>
+              {isWithinRange === false && (
+                <View style={S.errorBanner}>
+                  <Ionicons name="alert-circle" size={16} color="#B91C1C" />
+                  <Text style={S.errorText}>Your address is outside this store&apos;s delivery zone.</Text>
+                </View>
+              )}
+              <View style={S.divider} />
+              <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
-                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{subtotal.toFixed(2)}</Text>
+                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
               </View>
             </View>
 
@@ -249,6 +333,22 @@ export default function CheckoutScreen() {
                   />
                 </View>
               </View>
+              <View style={S.inputGroup}>
+                <View style={S.labelRow}>
+                  <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
+                  {['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Volta'].map((reg) => (
+                    <TouchableOpacity
+                      key={reg}
+                      style={[S.regionChip, deliveryState === reg && S.regionChipActive]}
+                      onPress={() => setDeliveryState(reg)}
+                    >
+                      <Text style={[S.regionChipTxt, deliveryState === reg && S.regionChipTxtActive]}>{reg}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
               {!prefilled.address && !deliveryAddress && (
                 <TouchableOpacity
                   style={S.profileNudge}
@@ -273,14 +373,14 @@ export default function CheckoutScreen() {
 
             {/* Place Order */}
             <TouchableOpacity
-              style={[S.placeOrderBtn, isOrdering && { opacity: 0.7 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering}
+              disabled={isOrdering || isWithinRange !== true}
             >
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
                   ? <ActivityIndicator color="#FFF" />
-                  : <Text style={S.placeOrderTxt}>Place Order · ₵{subtotal.toFixed(2)}</Text>
+                  : <Text style={S.placeOrderTxt}>Place Order · ₵{Number(total || 0).toFixed(2)}</Text>
                 }
               </LinearGradient>
             </TouchableOpacity>
@@ -342,4 +442,10 @@ const S = StyleSheet.create({
   placeOrderBtn: { borderRadius: 18, overflow: 'hidden', marginTop: 20 },
   placeOrderGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
   placeOrderTxt: { color: '#FFF', fontSize: 17, fontFamily: 'Montserrat-Bold' },
+  regionChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F1F5F9', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  regionChipActive: { backgroundColor: C.navy, borderColor: C.navy },
+  regionChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  regionChipTxtActive: { color: '#FFF' },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
+  errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', flex: 1 },
 });

@@ -46,11 +46,23 @@ const protect = async (req, res, next) => {
         is_active: user.is_active,
         roles: (userWithRoles?.user_roles || [])
           .filter(ur => ur.is_active)
-          .map(ur => ur.roles?.name)
+          .map(ur => {
+            // Support both singular and plural from different repository methods
+            const roleObj = ur.roles || ur.role;
+            return roleObj?.name;
+          })
           .filter(Boolean)
       };
 
+      logger.debug('Auth Middleware: Fetched user data from DB', { 
+        userId
+      });
+
       await cacheSet(cacheKey, userData, USER_CACHE_TTL);
+    } else {
+      logger.debug('Auth Middleware: Found user in cache', { 
+        userId
+      });
     }
 
     req.user = userData;
@@ -89,9 +101,26 @@ const seller = checkRole('seller');
 const driver = checkRole('driver');
 
 const hasAnyRole = (...roleNames) => (req, res, next) => {
-  if (!req.user) return res.status(401).json({ error: 'Not authorized' });
-  if (req.user.roles?.some(r => roleNames.includes(r))) return next();
-  res.status(403).json({ error: `Access denied. Required role: ${roleNames.join(' or ')}` });
+  if (!req.user) {
+    logger.warn('Role Check Failed: No user in request', { url: req.originalUrl });
+    return res.status(401).json({ error: 'Not authorized' });
+  }
+  
+  const userRoles = req.user.roles || [];
+  const flatRequiredRoles = roleNames.flat();
+  const hasRole = userRoles.some(r => flatRequiredRoles.includes(r));
+  
+  if (hasRole) return next();
+  
+  logger.warn('Role Check Failed: Access Denied', {
+    userId: req.user.id,
+    userEmail: req.user.email,
+    userRoles,
+    requiredRoles: flatRequiredRoles,
+    url: req.originalUrl
+  });
+  
+  res.status(403).json({ error: `Access denied. Required role: ${flatRequiredRoles.join(' or ')}` });
 };
 
 const invalidateUserAuthCache = async (userId) => {

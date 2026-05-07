@@ -14,10 +14,12 @@ import {
   getMessages, sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
   markConversationRead, storage, getUserData,
+  blockUser
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import { ReportModal } from '../../components/ReportModal';
 
 const { width } = Dimensions.get('window');
 
@@ -55,8 +57,8 @@ export default function ConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
-  const { conversationId, chatType = 'buyer', name, avatar } = params;
-  const { deleteConversation, startCall } = useChat();
+  const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
+  const { deleteConversation, buyerConversations, sellerConversations } = useChat();
 
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -67,6 +69,7 @@ export default function ConversationScreen() {
   const [menuVisible, setMenuVisible] = useState(false);
   const [replyTo, setReplyTo] = useState<MessageItem | null>(null);
   const [moreVisible, setMoreVisible] = useState(false);
+  const [reportVisible, setReportVisible] = useState(false);
 
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -209,6 +212,50 @@ export default function ConversationScreen() {
       },
     ]);
   };
+  const doBlockUser = () => {
+    setMoreVisible(false);
+    Alert.alert('Block User', `Are you sure you want to block ${displayName}? You will no longer receive messages from them.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Block', style: 'destructive', onPress: async () => {
+          try {
+            // Determine target user ID deterministically
+            let targetId = participantId;
+
+            if (!targetId) {
+              const allConvs = [...buyerConversations, ...sellerConversations];
+              const metadata = allConvs.find(c => c.id === conversationId);
+              targetId = metadata?.otherParticipant?.id;
+            }
+
+            if (!targetId) {
+              targetId = messages.find(m => m.sender_id !== currentUserId)?.sender_id;
+            }
+
+            if (!targetId && chatType === 'seller') {
+              targetId = entityId; // For sellers, entityId is the buyer userId
+            }
+
+            if (!targetId) {
+                CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not identify user to block.' });
+                return;
+            }
+
+            await blockUser(targetId);
+            CustomInAppToast.show({ type: 'success', title: 'Blocked', message: `${displayName} has been blocked.` });
+            router.back();
+          } catch (e: any) {
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not block user.' });
+          }
+        },
+      },
+    ]);
+  };
+
+  const doReportUser = () => {
+    setMoreVisible(false);
+    setReportVisible(true);
+  };
+
   const doClearChat = () => {
     setMoreVisible(false);
     Alert.alert('Delete Chat', 'Permanently delete this conversation?', [
@@ -349,13 +396,6 @@ export default function ConversationScreen() {
             </View>
           </TouchableOpacity>
 
-          <TouchableOpacity 
-            style={[styles.moreBtn, { marginRight: 8 }]} 
-            onPress={() => startCall(conversationId, displayName, displayAvatar)}
-          >
-            <Ionicons name="call" size={18} color="rgba(255,255,255,0.85)" />
-          </TouchableOpacity>
-
           <TouchableOpacity style={styles.moreBtn} onPress={() => setMoreVisible(true)}>
             <Feather name="more-horizontal" size={20} color="rgba(255,255,255,0.8)" />
           </TouchableOpacity>
@@ -488,6 +528,14 @@ export default function ConversationScreen() {
               <Ionicons name="checkmark-done-outline" size={17} color={C.navyDeep} />
               <Text style={styles.moreItemTxt}>Mark as read</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.moreItem} onPress={doReportUser}>
+              <Ionicons name="flag-outline" size={17} color={C.navyDeep} />
+              <Text style={styles.moreItemTxt}>Report</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doBlockUser}>
+              <Ionicons name="ban-outline" size={17} color="#EF4444" />
+              <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Block User</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doClearChat}>
               <Ionicons name="trash-bin-outline" size={17} color="#EF4444" />
               <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Delete chat</Text>
@@ -495,6 +543,15 @@ export default function ConversationScreen() {
           </View>
         </Pressable>
       </Modal>
+
+      {/* ── Report Modal ────────────────────────────────────────────────────── */}
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        entityType={chatType === 'buyer' ? 'store' : 'user'}
+        entityId={entityId || (messages.find(m => m.sender_id !== currentUserId)?.sender_id || '')}
+        entityName={displayName}
+      />
     </View>
   );
 }

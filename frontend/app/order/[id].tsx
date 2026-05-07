@@ -9,11 +9,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, cancelOrder, startConversation } from '@/services/api';
+import { getOrderDetails, cancelOrder, startConversation, confirmDelivery } from '@/services/api';
 import { queryClient } from '@/lib/query/client';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
-import { useChat } from '@/context/ChatContext';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -59,8 +58,8 @@ const OrderDetailsScreen = () => {
   const insets = useSafeAreaInsets();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { startCall } = useChat();
   const [isCancelling, setIsCancelling] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchOrder = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -111,8 +110,34 @@ const OrderDetailsScreen = () => {
       },
     ]);
   };
+
+  const handleConfirmDelivery = () => {
+    Alert.alert('Confirm Delivery', 'Have you received your order? This will release payment to the seller.', [
+      { text: 'No', style: 'cancel' },
+      {
+        text: 'Yes, I received it',
+        style: 'default',
+        onPress: async () => {
+          try {
+            setIsConfirming(true);
+            const res = await confirmDelivery(id as string);
+            if (res.success) {
+              await fetchOrder();
+              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
+              Alert.alert('Success', 'Delivery confirmed. Thank you!');
+            }
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to confirm delivery');
+          } finally {
+            setIsConfirming(false);
+          }
+        },
+      },
+    ]);
+  };
   const [chatLoading, setChatLoading] = useState(false);
-  const handleChat = async (ownerId: string, storeName: string, logoUrl: string) => {
+  const handleChat = async (ownerId: string, storeName: string, logoUrl: string, type: 'buyer' | 'seller' = 'buyer', entityId?: string) => {
     if (chatLoading || !ownerId) return;
     try {
       setChatLoading(true);
@@ -124,7 +149,9 @@ const OrderDetailsScreen = () => {
             conversationId: res.conversation.id,
             name: storeName,
             avatar: logoUrl,
-            chatType: 'buyer'
+            chatType: type,
+            entityId: entityId || ownerId,
+            participantId: ownerId
           }
         } as any);
       }
@@ -326,7 +353,8 @@ const OrderDetailsScreen = () => {
                   onPress={() => handleChat(
                     driver.id,
                     driver.user_profiles?.full_name || 'Driver',
-                    driver.user_profiles?.avatar_url || ''
+                    driver.user_profiles?.avatar_url || '',
+                    'seller' // Chatting with a person (driver), so treat as seller/user type for reporting
                   )}
                 >
                   <Ionicons name="chatbubble-ellipses" size={24} color="#0C1559" />
@@ -356,23 +384,23 @@ const OrderDetailsScreen = () => {
               <Text style={S.storeName}>{order.store?.store_name || 'Shopyos Store'}</Text>
               <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
             </View>
-            <TouchableOpacity
-              style={S.chatCircle}
-              onPress={() => startCall(
-                order.store?.id || order.store?._id,
-                order.store?.store_name || 'Store',
-                order.store?.logo || order.store?.logo_url || ''
-              )}
-            >
-              <Ionicons name="call-outline" size={rs(18)} color={C.navy} />
-            </TouchableOpacity>
+            {order.store?.phone || order.store?.store_phone ? (
+              <TouchableOpacity
+                style={S.chatCircle}
+                onPress={() => Linking.openURL(`tel:${order.store?.phone || order.store?.store_phone}`)}
+              >
+                <Ionicons name="call-outline" size={rs(18)} color={C.navy} />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={S.chatCircle}
               disabled={chatLoading}
               onPress={() => handleChat(
                 order.store?.owner_id || order.store?.owner?._id || order.store?.owner,
                 order.store?.store_name || 'Store',
-                order.store?.logo || order.store?.logo_url || ''
+                order.store?.logo || order.store?.logo_url || '',
+                'buyer',
+                order.store?.id || order.store?._id
               )}
             >
               {chatLoading ? (
@@ -447,18 +475,14 @@ const OrderDetailsScreen = () => {
               <Text style={S.priceLbl}>Subtotal</Text>
               <Text style={S.priceVal}>₵{itemsSubtotal.toFixed(2)}</Text>
             </View>
-            {deliveryFee > 0 && (
-              <View style={S.priceRow}>
-                <Text style={S.priceLbl}>Delivery fee</Text>
-                <Text style={S.priceVal}>₵{deliveryFee.toFixed(2)}</Text>
-              </View>
-            )}
-            {taxAmount > 0 && (
-              <View style={S.priceRow}>
-                <Text style={S.priceLbl}>Taxes & fees (VAT, NHIL, GETFund)</Text>
-                <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
-              </View>
-            )}
+            <View style={S.priceRow}>
+              <Text style={S.priceLbl}>Delivery fee</Text>
+              <Text style={S.priceVal}>{deliveryFee > 0 ? `₵${deliveryFee.toFixed(2)}` : 'Free'}</Text>
+            </View>
+            <View style={S.priceRow}>
+              <Text style={S.priceLbl}>Buyer Protection Fee</Text>
+              <Text style={S.priceVal}>₵{taxAmount.toFixed(2)}</Text>
+            </View>
             {discount > 0 && (
               <View style={S.priceRow}>
                 <Text style={S.priceLbl}>Discount</Text>
@@ -473,9 +497,13 @@ const OrderDetailsScreen = () => {
             </View>
             {/* Payment method */}
             <View style={S.methodRow}>
-              <MaterialCommunityIcons name="credit-card-outline" size={rs(15)} color={C.muted} />
+              <MaterialCommunityIcons 
+                name={order.status.toLowerCase() === 'paid' ? 'check-decagram' : 'credit-card-outline'} 
+                size={rs(15)} 
+                color={order.status.toLowerCase() === 'paid' ? C.lime : C.muted} 
+              />
               <Text style={S.methodTxt}>
-                Paid via {order.payments?.[0]?.payment_method || 'MoMo'}
+                {order.status.toLowerCase() === 'paid' ? 'Paid via' : 'Payment Method:'} {order.payments?.[0]?.payment_method || 'MoMo'}
               </Text>
             </View>
             {/* Receipt link */}
@@ -504,18 +532,51 @@ const OrderDetailsScreen = () => {
           </TouchableOpacity>
         )}
         {order.status.toLowerCase() === 'pending' && (
+          <View style={{ gap: rs(10) }}>
+            <TouchableOpacity
+              style={S.payNowBtn}
+              onPress={() => router.push({
+                pathname: `/payment/${order.id}`,
+                params: { method: order.payments?.[0]?.payment_method || 'momo' }
+              } as any)}
+              activeOpacity={0.88}
+            >
+              <LinearGradient colors={[C.lime, '#65a30d']} style={S.payNowBtnGrad}>
+                <Ionicons name="card-outline" size={rs(18)} color="#fff" />
+                <Text style={S.payNowBtnTxt}>Pay Now</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[S.cancelBtn, isCancelling && { opacity: 0.65 }]}
+              onPress={handleCancelOrder}
+              disabled={isCancelling}
+              activeOpacity={0.82}
+            >
+              {isCancelling ? (
+                <ActivityIndicator color="#EF4444" />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
+                  <Text style={S.cancelBtnTxt}>Cancel Order</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+        {order.escrow_status === 'HELD' && (order.status.toLowerCase() === 'delivered' || order.status.toLowerCase() === 'paid') && (
           <TouchableOpacity
-            style={[S.cancelBtn, isCancelling && { opacity: 0.65 }]}
-            onPress={handleCancelOrder}
-            disabled={isCancelling}
+            style={[S.confirmBtn, isConfirming && { opacity: 0.65 }]}
+            onPress={handleConfirmDelivery}
+            disabled={isConfirming}
             activeOpacity={0.82}
           >
-            {isCancelling ? (
-              <ActivityIndicator color="#EF4444" />
+            {isConfirming ? (
+              <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
-                <Text style={S.cancelBtnTxt}>Cancel Order</Text>
+                <Ionicons name="checkmark-done-circle-outline" size={rs(18)} color="#fff" />
+                <Text style={S.confirmBtnTxt}>Confirm Received Order</Text>
               </>
             )}
           </TouchableOpacity>
@@ -704,5 +765,18 @@ const S = StyleSheet.create({
     borderWidth: 0.5, borderColor: '#FECACA',
   },
   cancelBtnTxt: { color: '#EF4444', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  confirmBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: rs(8), backgroundColor: C.lime,
+    paddingVertical: rs(15), borderRadius: rs(16), marginTop: rs(8),
+    elevation: 2, shadowColor: C.lime, shadowOpacity: 0.2, shadowRadius: rs(6), shadowOffset: { width: 0, height: 2 },
+  },
+  confirmBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  payNowBtn: { borderRadius: rs(16), overflow: 'hidden', marginTop: rs(10) },
+  payNowBtnGrad: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: rs(8), paddingVertical: rs(16),
+  },
+  payNowBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
 });
 export default OrderDetailsScreen;

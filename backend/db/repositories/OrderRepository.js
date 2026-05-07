@@ -193,6 +193,24 @@ class OrderRepository extends BaseRepository {
   }
 
   /**
+   * Get total revenue breakdown by status for a store
+   * @param {string} storeId
+   * @returns {Promise<Array>}
+   */
+  async getStoreRevenueStats(storeId) {
+    const sql = `
+      SELECT 
+        status, 
+        SUM(CAST(total_amount AS NUMERIC)) as total
+      FROM orders 
+      WHERE store_id = $1 
+      GROUP BY status
+    `;
+    const result = await this.db.query(sql, [storeId]);
+    return result.rows || [];
+  }
+
+  /**
    * Create order with items in transaction
    * @param {Object} orderData - Order data
    * @param {Array} orderItems - Order items

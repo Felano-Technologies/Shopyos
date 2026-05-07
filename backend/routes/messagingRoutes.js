@@ -16,6 +16,7 @@ const {
   getUnreadCount
 } = require('../controllers/messagingController');
 const { protect } = require('../middleware/authMiddleware');
+const { validateStartConversation } = require('../middleware/validators');
 
 // All messaging routes require authentication
 router.use(protect);
@@ -23,7 +24,7 @@ router.use(protect);
 // @route   POST /api/messaging/conversations
 // @desc    Start a conversation
 // @access  Private
-router.post('/conversations', startConversation);
+router.post('/conversations', validateStartConversation, startConversation);
 
 // @route   GET /api/messaging/conversations
 // @desc    Get user's conversations

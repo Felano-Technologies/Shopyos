@@ -2,7 +2,7 @@
 // Socket.IO client singleton for real-time messaging
 
 import { io, Socket } from 'socket.io-client';
-import { api, secureStorage } from './api';
+import { secureStorage } from './storage';
 
 type SocketEventCallback = (data: any) => void;
 
@@ -81,7 +81,7 @@ class SocketService {
             try {
               // We make a lightweight request to trigger the axios silent-refresh interceptor
               // which is already configured in api.tsx to update storage and notify the socket.
-              // Note: we use this.importApi() to avoid circular dependencies if any
+              const { api } = require('./api');
               await api.get('/auth/me'); 
               
               // Now that token is likely refreshed in storage, 
@@ -294,61 +294,6 @@ class SocketService {
       } else {
         this.socket.off('message:new');
         this.eventHandlers.delete('message:new');
-      }
-    }
-  }
-
-  // === VOIP CALL SIGNALING ===
-
-  async initiateCall(conversationId: string, callerName: string, callerAvatar: string): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:initiate', { conversationId, callerName, callerAvatar });
-  }
-
-  async acceptCall(conversationId: string): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:accept', { conversationId });
-  }
-
-  async rejectCall(conversationId: string): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:reject', { conversationId });
-  }
-
-  async endCall(conversationId: string): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:end', { conversationId });
-  }
-
-  async sendOffer(conversationId: string, offer: any): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:offer', { conversationId, offer });
-  }
-
-  async sendAnswer(conversationId: string, answer: any): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:answer', { conversationId, answer });
-  }
-
-  async sendIceCandidate(conversationId: string, candidate: any): Promise<void> {
-    const socket = await this.connect();
-    socket.emit('call:ice-candidate', { conversationId, candidate });
-  }
-
-  async onCallEvent(event: 'call:incoming' | 'call:accepted' | 'call:rejected' | 'call:ended' | 'call:offer' | 'call:answer' | 'call:ice-candidate', callback: SocketEventCallback): Promise<void> {
-    const socket = await this.connect();
-    this.addEventHandler(event, callback);
-    socket.on(event, callback);
-  }
-
-  offCallEvent(event: 'call:incoming' | 'call:accepted' | 'call:rejected' | 'call:ended', callback?: SocketEventCallback): void {
-    if (this.socket) {
-      if (callback) {
-        this.socket.off(event, callback);
-        this.removeEventHandler(event, callback);
-      } else {
-        this.socket.off(event);
-        this.eventHandlers.delete(event);
       }
     }
   }

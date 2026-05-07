@@ -50,4 +50,10 @@ const messageLimiter = rateLimit({
   message: rateLimitError('Too many messages, please slow down')
 });
 
-module.exports = { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter };
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false,
+  store: createStore('payment'),
+  message: rateLimitError('Too many payment requests, please try again later')
+});
+
+module.exports = { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter, paymentLimiter };

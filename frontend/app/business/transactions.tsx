@@ -14,7 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { storage } from '@/services/api';
+import { useSellerGuard } from '@/hooks/useSellerGuard';
 
 // --- MOCK API ---
 const fetchTransactions = async () => {
@@ -47,12 +47,7 @@ export default function TransactionsScreen() {
   const [filter, setFilter] = useState('All');
   const [searchText, setSearchText] = useState('');
 
-  // Verification guard — redirect unverified businesses
-  useEffect(() => {
-    storage.getItem('currentBusinessVerificationStatus').then(status => {
-      if (status && status !== 'verified') router.replace('/business/dashboard');
-    });
-  }, [router]);
+  const { isChecking, isVerified } = useSellerGuard();
 
   useEffect(() => {
     loadData();
@@ -201,7 +196,7 @@ export default function TransactionsScreen() {
             </View>
 
             {/* List */}
-            {loading ? (
+            {isChecking || loading ? (
                 <View style={{ marginTop: 50 }}>
                     <ActivityIndicator size="large" color="#0C1559" />
                 </View>

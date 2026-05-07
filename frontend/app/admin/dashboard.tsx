@@ -1,530 +1,801 @@
-// app/admin/dashboard.tsx  — updated with 2 new control cards
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Image, Dimensions, ActivityIndicator, RefreshControl,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import {
-  getAdminDashboard,
-  getAdminAuditLogs,
-} from '@/services/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import AdminShell, { AdminPanel, AdminSectionHeader } from '@/components/admin/AdminShell';
+import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { getAdminAuditLogs, getAdminDashboard } from '@/services/api';
 
-const { width: SW } = Dimensions.get('window');
-const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
-const rs = (n: number) => Math.round(n * SCALE);
-const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
-
-const C = {
-  bg:      '#F8FAFC',
-  navy:    '#0C1559',
-  navyMid: '#1e3a8a',
-  lime:    '#84cc16',
-  limeText:'#1a2e00',
-  card:    '#FFFFFF',
-  body:    '#0F172A',
-  muted:   '#64748B',
-  subtle:  '#94A3B8',
+const ACTION_MAP: Record<string, { icon: any; bg: string; color: string }> = {
+  store_verified: { icon: 'shield-checkmark', bg: '#DBEAFE', color: '#1D4ED8' },
+  store_rejected: { icon: 'close-circle', bg: '#FEE2E2', color: '#DC2626' },
+  user_updated: { icon: 'person', bg: '#FEF3C7', color: '#D97706' },
+  payout_approved: { icon: 'cash', bg: '#DCFCE7', color: '#16A34A' },
+  payout_rejected: { icon: 'close', bg: '#FEE2E2', color: '#DC2626' },
+  order_status_changed: { icon: 'bag-handle', bg: '#EDE9FE', color: '#7C3AED' },
+  report_resolved: { icon: 'flag', bg: '#E0F2FE', color: '#0891B2' },
+  driver_approved: { icon: 'car-sport', bg: '#DCFCE7', color: '#16A34A' },
+  driver_rejected: { icon: 'car-sport', bg: '#FEE2E2', color: '#DC2626' },
 };
 
-// ─── Static chart data ────────────────────────────────────────────────────────
-const CHART = [
-  { month: 'Jan', value: 80  },
-  { month: 'Feb', value: 100 },
-  { month: 'Mar', value: 90  },
-  { month: 'Apr', value: 120 },
-  { month: 'May', value: 110 },
-  { month: 'Jun', value: 140 },
+const ACTION_GRADIENTS: [string, string][] = [
+  [adminColors.navy, adminColors.navyMid],
+  ['#7C3AED', '#4C1D95'],
+  ['#F59E0B', '#D97706'],
+  ['#10B981', '#047857'],
 ];
-const CHART_MAX = Math.max(...CHART.map((c) => c.value));
-const CHART_H   = rs(80);
 
-// ─── Activity icon map ────────────────────────────────────────────────────────
-const ACTION_MAP: Record<string, { icon: any; bg: string }> = {
-  store_verified:        { icon: 'shield-checkmark', bg: '#DBEAFE' },
-  store_rejected:        { icon: 'close-circle',     bg: '#FEE2E2' },
-  user_updated:          { icon: 'person',            bg: '#FEF3C7' },
-  payout_approved:       { icon: 'cash',              bg: '#DCFCE7' },
-  payout_rejected:       { icon: 'close',             bg: '#FEE2E2' },
-  order_status_changed:  { icon: 'cart',              bg: '#F3E8FF' },
-  report_resolved:       { icon: 'flag',              bg: '#E0F2FE' },
-  driver_approved:       { icon: 'car',               bg: '#DCFCE7' },
-  driver_rejected:       { icon: 'car',               bg: '#FEE2E2' },
-};
-const getAction = (action: string) =>
-  ACTION_MAP[action] ?? { icon: 'notifications', bg: '#F1F5F9' };
+const CARD_BACKGROUNDS = ['#FFF8E2', '#EEF4FF', '#F2EBFF', '#E6FAFB'];
 
-function timeAgo(ts: string): string {
-  const diff = Date.now() - new Date(ts).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
+const FALLBACK_TRANSACTIONS = [
+  { name: 'Surja Sen Das', date: '2026-04-20T08:00:00.000Z', type: 'withdrawal' },
+  { name: 'Washi Bin Majumder', date: '2026-04-21T14:00:00.000Z', type: 'transfer' },
+  { name: 'Ofspace LLC', date: '2026-04-23T18:30:00.000Z', type: 'advertising' },
+  { name: 'Jenny Wilson', date: '2026-04-25T11:10:00.000Z', type: 'commission' },
+];
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-
-  const [loading,    setLoading]    = useState(true);
+  const { isDesktop, isTablet } = useAdminBreakpoint();
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats,      setStats]      = useState({
-    totalUsers: 0, totalStores: 0, totalOrders: 0, totalRevenue: 0,
-    ordersGrowth: 0, storesGrowth: 0, usersGrowth: 0,
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalStores: 0,
+    totalOrders: 0,
+    totalRevenue: 0,
+    ordersGrowth: 0,
+    storesGrowth: 0,
+    usersGrowth: 0,
     pendingDriverVerifications: 0,
   });
   const [activityFeed, setActivityFeed] = useState<any[]>([]);
 
   const loadData = useCallback(async () => {
     try {
-      const [dashRes, actRes] = await Promise.all([
+      const [dashRes, auditRes] = await Promise.all([
         getAdminDashboard(),
-        getAdminAuditLogs({ limit: 8 }).catch(() => ({ logs: [], data: [] })),
+        getAdminAuditLogs({ limit: 8 }).catch(() => ({ logs: [] })),
       ]);
-      if (dashRes.success) setStats(dashRes.stats);
-      const logs =
-        Array.isArray(actRes?.logs)  ? actRes.logs  :
-        Array.isArray(actRes?.data)  ? actRes.data  :
-        Array.isArray(actRes)        ? actRes        : [];
+
+      if (dashRes?.success && dashRes.stats) {
+        setStats(dashRes.stats);
+      }
+
+      const logs = Array.isArray(auditRes?.logs)
+        ? auditRes.logs
+        : Array.isArray(auditRes?.data)
+          ? auditRes.data
+          : Array.isArray(auditRes)
+            ? auditRes
+            : [];
       setActivityFeed(logs);
-    } catch (e) {
-      console.error('Admin dashboard load error:', e);
+    } catch (error) {
+      console.error('Failed to load admin dashboard', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
-  const onRefresh = () => { setRefreshing(true); loadData(); };
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
+  };
+
+  const statCards = useMemo(
+    () => [
+      {
+        label: 'Users',
+        value: stats.totalUsers,
+        growth: stats.usersGrowth,
+        color: adminColors.blue,
+        route: '/admin/users',
+        icon: 'people-outline',
+      },
+      {
+        label: 'Stores',
+        value: stats.totalStores,
+        growth: stats.storesGrowth,
+        color: adminColors.violet,
+        route: '/admin/stores',
+        icon: 'storefront-outline',
+      },
+      {
+        label: 'Orders',
+        value: stats.totalOrders,
+        growth: stats.ordersGrowth,
+        color: adminColors.amber,
+        route: '/admin/orders',
+        icon: 'bag-handle-outline',
+      },
+      {
+        label: 'Revenue',
+        value: `₵${Number(stats.totalRevenue || 0).toLocaleString()}`,
+        growth: 24,
+        color: adminColors.green,
+        route: '/admin/revenue',
+        icon: 'wallet-outline',
+      },
+    ],
+    [stats],
+  );
+
+  const quickActions = [
+    {
+      label: 'Driver Verifications',
+      note: `${stats.pendingDriverVerifications ?? 0} pending reviews`,
+      icon: 'car-sport-outline',
+      route: '/admin/driverVerifications',
+    },
+    {
+      label: 'Categories',
+      note: 'Manage storefront taxonomy',
+      icon: 'grid-outline',
+      route: '/admin/categories',
+    },
+    {
+      label: 'Ads Approval',
+      note: 'Review active campaigns',
+      icon: 'megaphone-outline',
+      route: '/admin/ads',
+    },
+    {
+      label: 'Audit Logs',
+      note: 'Track admin activity',
+      icon: 'list-outline',
+      route: '/admin/audit-logs',
+    },
+  ];
+
+  const aside = (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
+      <AdminPanel>
+        <Text style={styles.asideMonth}>This week</Text>
+        <Text style={styles.asideHero}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
+        <Text style={styles.asideMeta}>Platform revenue across all completed payments.</Text>
+        <View style={styles.asideProgressTrack}>
+          <View style={[styles.asideProgressFill, { width: '74%' }]} />
+        </View>
+      </AdminPanel>
+
+      <AdminPanel>
+        <Text style={styles.rightTitle}>Quick KPIs</Text>
+        {statCards.map((item) => (
+          <TouchableOpacity
+            key={item.label}
+            style={styles.rightMetricRow}
+            onPress={() => router.push(item.route as any)}
+          >
+            <View style={[styles.rightMetricIcon, { backgroundColor: `${item.color}18` }]}>
+              <Ionicons name={item.icon as any} size={18} color={item.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rightMetricLabel}>{item.label}</Text>
+              <Text style={styles.rightMetricValue}>
+                {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </AdminPanel>
+
+      <AdminPanel>
+        <AdminSectionHeader
+          title="Activity Log"
+          action={
+            <TouchableOpacity onPress={() => router.push('/admin/audit-logs' as any)}>
+              <Text style={styles.linkText}>View all</Text>
+            </TouchableOpacity>
+          }
+        />
+        {activityFeed.slice(0, 4).map((item, index) => {
+          const actionConfig = ACTION_MAP[item.action] ?? {
+            icon: 'notifications',
+            bg: '#E2E8F0',
+            color: adminColors.navy,
+          };
+          const actorName = item.user?.full_name || item.user?.email || 'System';
+          return (
+            <View
+              key={item.id ?? index}
+              style={[styles.asideActivityRow, index === activityFeed.slice(0, 4).length - 1 && { borderBottomWidth: 0 }]}
+            >
+              <View style={[styles.asideActivityIcon, { backgroundColor: actionConfig.bg }]}>
+                <Ionicons name={actionConfig.icon} size={16} color={actionConfig.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={styles.asideActivityTitle}>{actorName}</Text>
+                <Text numberOfLines={1} style={styles.asideActivityMeta}>
+                  {(item.action || 'updated').replace(/_/g, ' ')}
+                </Text>
+              </View>
+              <Text style={styles.asideActivityTime}>{timeAgo(item.timestamp)}</Text>
+            </View>
+          );
+        })}
+      </AdminPanel>
+    </ScrollView>
+  );
 
   if (loading && !refreshing) {
     return (
-      <View style={S.centred}>
-        <ActivityIndicator size="large" color={C.navy} />
+      <View style={styles.loadingWrap}>
+        <ActivityIndicator size="large" color={adminColors.blue} />
       </View>
     );
   }
 
-  // ── Stat cards ──────────────────────────────────────────────────────────────
-  const STAT_CARDS = [
-    {
-      label: 'Orders', value: stats.totalOrders,
-      icon: 'shopping-bag', bg: '#DBEAFE', color: '#1E40AF',
-      delta: stats.ordersGrowth, route: '/admin/orders',
-    },
-    {
-      label: 'Stores', value: stats.totalStores,
-      icon: 'home', bg: '#F3E8FF', color: '#7C3AED',
-      delta: stats.storesGrowth, route: '/admin/stores',
-    },
-    {
-      label: 'Users', value: stats.totalUsers,
-      icon: 'users', bg: '#DCFCE7', color: '#15803D',
-      delta: stats.usersGrowth, route: '/admin/users',
-    },
-  ];
-
-  const pendingDrivers = stats.pendingDriverVerifications ?? 0;
-
-  const CONTROL_CARDS = [
-    {
-      label:   'Driver Verifications',
-      icon:    'car-sport',
-      route:   '/admin/driverVerifications',
-      bg:      '#FEF3C7',
-      iconColor:'#D97706',
-      badge:   pendingDrivers > 0 ? pendingDrivers : null,
-    },
-    {
-      label:   'Categories',
-      icon:    'grid',
-      route:   '/admin/categories',
-      bg:      '#EDE9FE',
-      iconColor:'#7C3AED',
-      badge:   null,
-    },
-    {
-      label:   'Store Verification',
-      icon:    'shield-checkmark',
-      route:   '/admin/stores',
-      bg:      '#DBEAFE',
-      iconColor:'#1E40AF',
-      badge:   null,
-    },
-    {
-      label:   'Ads Approval',
-      icon:    'megaphone',
-      route:   '/admin/ads',
-      bg:      '#FCE7F3',
-      iconColor:'#DB2777',
-      badge:   null,
-    },
-    {
-      label:   'Audit Logs',
-      icon:    'list',
-      route:   '/admin/audit-logs',
-      bg:      '#DCFCE7',
-      iconColor:'#15803D',
-      badge:   null,
-    },
-    {
-      label:   'Settings',
-      icon:    'settings-sharp',
-      route:   '/admin/settings',
-      bg:      '#F1F5F9',
-      iconColor:C.muted,
-      badge:   null,
-    },
-  ];
-
   return (
-    <View style={S.root}>
+    <>
       <StatusBar style="light" />
-
-      {/* Watermark */}
-      <View style={S.watermark} pointerEvents="none">
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
-      </View>
-
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <LinearGradient
-        colors={[C.navy, C.navyMid]}
-        style={[S.header, { paddingTop: insets.top + rs(12) }]}
+      <AdminShell
+        title="Homepage"
+        subtitle="A responsive command center for operations, revenue, and approvals."
+        onRefresh={onRefresh}
+        aside={aside}
+        scroll
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <View style={S.hdrGlow1} pointerEvents="none" />
-        <View style={S.hdrGlow2} pointerEvents="none" />
-
-        <SafeAreaView edges={['left', 'right']}>
-          <View style={S.hdrInner}>
-            {/* Title row */}
-            <View style={S.hdrTop}>
-              <View>
-                <Text style={S.hdrEye}>Administrator</Text>
-                <Text style={S.hdrTitle}>
-                  System <Text style={{ color: C.lime }}>Hub</Text>
-                </Text>
-              </View>
-              <View style={S.avatarWrap}>
-                <Text style={S.avatarLetter}>A</Text>
-              </View>
+        <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.heroPanel}>
+          <View style={[styles.heroRow, !isDesktop && styles.heroRowStack]}>
+            <View style={styles.heroIntro}>
+              <Text style={styles.heroEyebrow}>Marketplace overview</Text>
+              <Text style={styles.greeting}>Hello Admin, good morning</Text>
+              <Text style={styles.greetingSub}>
+                Let’s check marketplace health, clear approvals, and keep Shopyos moving smoothly.
+              </Text>
             </View>
 
-            {/* Revenue hero card */}
-            <TouchableOpacity
-              style={S.revenueHero}
-              activeOpacity={0.85}
-              onPress={() => router.push('/admin/revenue' as any)}
-            >
-              <View>
-                <Text style={S.heroLbl}>Platform Revenue</Text>
-                <Text style={S.heroVal}>
-                  ₵{(stats.totalRevenue ?? 0).toLocaleString()}
-                </Text>
-              </View>
-              <View style={S.heroRight}>
-                <View style={S.heroBadge}>
-                  <Feather name="trending-up" size={rs(11)} color={C.limeText} />
-                  <Text style={S.heroBadgeTxt}>+24%</Text>
-                </View>
-                <Text style={S.heroSub}>vs last month</Text>
+            <TouchableOpacity style={styles.heroRevenueCard} onPress={() => router.push('/admin/revenue' as any)}>
+              <Text style={styles.heroRevenueLabel}>Platform revenue</Text>
+              <Text style={styles.heroRevenueValue}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
+              <View style={styles.growthPill}>
+                <Feather name="trending-up" size={14} color={adminColors.lime} />
+                <Text style={styles.growthText}>+24% this month</Text>
               </View>
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
+        </LinearGradient>
 
-        <View style={S.hdrArc} />
-      </LinearGradient>
+        <AdminPanel style={styles.floatingStatsPanel}>
+          <View style={[styles.heroStatsRow, !isDesktop && styles.heroStatsWrap]}>
+            {statCards.slice(0, 3).map((item, index) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[
+                  styles.heroStat,
+                  !isDesktop && styles.heroStatMobile,
+                  index < 2 && isDesktop ? styles.heroStatBorder : null,
+                ]}
+                onPress={() => router.push(item.route as any)}
+              >
+                <View style={[styles.heroStatIcon, { backgroundColor: `${item.color}18` }]}>
+                  <Ionicons name={item.icon as any} size={18} color={item.color} />
+                </View>
+                <Text style={styles.heroStatLabel}>{item.label}</Text>
+                <Text style={styles.heroStatValue}>
+                  {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
+                </Text>
+                <Text style={[styles.heroStatChange, { color: item.growth >= 0 ? adminColors.green : adminColors.red }]}>
+                  {item.growth >= 0 ? '+' : '-'}
+                  {Math.abs(item.growth)}% this month
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </AdminPanel>
 
-      {/* ── Scroll body ──────────────────────────────────────────────────────── */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[S.scroll, { paddingBottom: rs(110) + insets.bottom }]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} colors={[C.navy]} />
-        }
-      >
-        {/* ── Stat cards ─────────────────────────────────────────────────────── */}
-        <View style={S.statGrid}>
-          {STAT_CARDS.map((s) => (
-            <TouchableOpacity
-              key={s.label}
-              style={S.statCard}
-              activeOpacity={0.82}
-              onPress={() => router.push(s.route as any)}
-            >
-              <View style={[S.statIconWrap, { backgroundColor: s.bg }]}>
-                <Feather name={s.icon as any} size={rs(18)} color={s.color} />
-              </View>
-              <Text style={S.statNum}>
-                {s.value >= 1000
-                  ? `${(s.value / 1000).toFixed(1)}k`
-                  : s.value}
-              </Text>
-              <Text style={S.statLbl}>{s.label}</Text>
-              {s.delta ? (
-                <View style={S.deltaRow}>
-                  <Ionicons
-                    name={s.delta >= 0 ? 'caret-up' : 'caret-down'}
-                    size={rs(9)}
-                    color={s.delta >= 0 ? '#16a34a' : '#EF4444'}
-                  />
-                  <Text style={[S.deltaTxt, { color: s.delta >= 0 ? '#16a34a' : '#EF4444' }]}>
-                    {Math.abs(s.delta)}%
+        <View style={[styles.mainGrid, !isDesktop && styles.mainGridStack]}>
+          <AdminPanel style={[styles.assetPanel, isDesktop ? styles.assetPanelWide : null]}>
+            <AdminSectionHeader title="My Asset" />
+            <Text style={styles.assetValue}>₵552,221</Text>
+            <Text style={styles.assetGrowth}>+235.21%</Text>
+            <View style={[styles.assetGrid, isTablet && styles.assetGridTablet]}>
+              {quickActions.map((action, index) => (
+                <TouchableOpacity
+                  key={action.label}
+                  style={[styles.assetCard, { backgroundColor: CARD_BACKGROUNDS[index % CARD_BACKGROUNDS.length] }]}
+                  onPress={() => router.push(action.route as any)}
+                >
+                  <LinearGradient colors={ACTION_GRADIENTS[index % ACTION_GRADIENTS.length]} style={styles.assetIcon}>
+                    <Ionicons name={action.icon as any} size={20} color="#FFFFFF" />
+                  </LinearGradient>
+                  <Text style={styles.assetCardLabel}>{action.label}</Text>
+                  <Text style={styles.assetCardNote}>{action.note}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </AdminPanel>
+
+          <AdminPanel style={styles.todoPanel}>
+            <AdminSectionHeader
+              title="To-do List"
+              action={
+                <TouchableOpacity onPress={() => router.push('/admin/driverVerifications' as any)}>
+                  <Text style={styles.linkText}>View all</Text>
+                </TouchableOpacity>
+              }
+            />
+            {quickActions.map((item, index) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[styles.todoRow, index === quickActions.length - 1 && { borderBottomWidth: 0 }]}
+                onPress={() => router.push(item.route as any)}
+              >
+                <View style={[styles.todoIcon, { backgroundColor: `${adminColors.blue}14` }]}>
+                  <Ionicons name={item.icon as any} size={18} color={adminColors.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.todoTitle}>{item.label}</Text>
+                  <Text style={styles.todoMeta}>{item.note}</Text>
+                </View>
+                <Text style={styles.todoPercent}>{[46, 61, 57, 27][index]}%</Text>
+              </TouchableOpacity>
+            ))}
+          </AdminPanel>
+        </View>
+
+        <AdminPanel style={styles.transactionsPanel}>
+          <AdminSectionHeader title="Transactions" />
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeadCell, styles.nameCell]}>Name</Text>
+            <Text style={styles.tableHeadCell}>Date</Text>
+            <Text style={styles.tableHeadCell}>Type</Text>
+            <Text style={styles.tableHeadCell}>Status</Text>
+          </View>
+
+          {(activityFeed.length ? activityFeed : FALLBACK_TRANSACTIONS).slice(0, 4).map((item, index) => (
+            <View key={item.id ?? index} style={[styles.tableRow, index === 3 && { borderBottomWidth: 0 }]}>
+              <View style={[styles.tableCell, styles.nameCell]}>
+                <View style={styles.tableAvatar}>
+                  <Text style={styles.tableAvatarText}>
+                    {((item.user?.full_name || item.user?.email || 'S')[0] || 'S').toUpperCase()}
                   </Text>
                 </View>
-              ) : null}
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* ── Revenue chart ───────────────────────────────────────────────────── */}
-        <Text style={S.secTitle}>Revenue Growth</Text>
-        <View style={S.card}>
-          {!loading && stats.totalRevenue === 0 ? (
-            <View style={[S.emptyActivity, { height: CHART_H + rs(40) }]}>
-              <Feather name="bar-chart-2" size={rs(30)} color={C.subtle} />
-              <Text style={S.emptyActivityTxt}>No revenue data yet</Text>
+                <Text numberOfLines={1} style={styles.tableName}>
+                  {item.user?.full_name || item.user?.email || FALLBACK_TRANSACTIONS[index].name}
+                </Text>
+              </View>
+              <Text style={styles.tableCellText}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>
+              <Text style={styles.tableCellText}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>{index === 1 ? 'Failed' : 'Success'}</Text>
+              </View>
             </View>
-          ) : (
-            <>
-              <View style={[S.chartBars, { height: CHART_H + rs(20) }]}>
-                {CHART.map((d, i) => {
-                  const barH   = Math.round((d.value / CHART_MAX) * CHART_H);
-                  const isLast = i === CHART.length - 1;
-                  const isPeak = d.value === Math.max(...CHART.filter((_, j) => j !== CHART.length - 1).map((c) => c.value));
-                  const barColor = isLast ? C.navy : isPeak ? C.lime : '#EEF2FF';
-                  return (
-                    <View key={d.month} style={S.barWrap}>
-                      <View style={[S.bar, { height: barH, backgroundColor: barColor }]} />
-                      <Text style={S.barLbl}>{d.month}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-              <View style={S.chartFoot}>
-                <Text style={S.chartGrowth}>+24% from last month</Text>
-                <Ionicons name="caret-up" size={rs(12)} color={C.lime} />
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* ── Live activity ────────────────────────────────────────────────────── */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(10) }}>
-          <Text style={[S.secTitle, { marginBottom: 0 }]}>Live Activity</Text>
-          {activityFeed.length > 0 && (
-            <TouchableOpacity onPress={() => router.push('/admin/audit-logs' as any)}>
-              <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#0C1559' }}>View All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        <View style={S.card}>
-          {activityFeed.length === 0 ? (
-            <View style={S.emptyActivity}>
-              <MaterialCommunityIcons name="history" size={rs(30)} color={C.subtle} />
-              <Text style={S.emptyActivityTxt}>No recent activity</Text>
-            </View>
-          ) : (
-            activityFeed.slice(0, 3).map((item, i) => {
-              const cfg       = getAction(item.action);
-              const actorName = item.user?.full_name || item.user?.email || 'System';
-              const isLast    = i === Math.min(activityFeed.length, 3) - 1;
-              const actionLabel = (item.action ?? '')
-                .replace(/_/g, ' ')
-                .replace(/\b\w/g, (c: string) => c.toUpperCase());
-              return (
-                <View key={item.id ?? i} style={[S.actRow, isLast && { borderBottomWidth: 0 }]}>
-                  <View style={[S.actIcon, { backgroundColor: cfg.bg }]}>
-                    <Ionicons name={cfg.icon} size={rs(16)} color={C.navy} />
-                  </View>
-                  <View style={S.actInfo}>
-                    <Text style={S.actTitle} numberOfLines={1}>{actionLabel}</Text>
-                    <Text style={S.actSub} numberOfLines={1}>
-                      {actorName} · {item.entity_type ?? ''}
-                    </Text>
-                  </View>
-                  <Text style={S.actTime}>{timeAgo(item.timestamp)}</Text>
-                </View>
-              );
-            })
-          )}
-        </View>
-
-        {/* ── Platform Management controls ─────────────────────────────────────── */}
-        <Text style={S.secTitle}>Platform Management</Text>
-
-        {/* 2-column grid */}
-        <View style={S.ctrlGrid}>
-          {CONTROL_CARDS.map((c) => (
-            <TouchableOpacity
-              key={c.label}
-              style={S.ctrlCard}
-              activeOpacity={0.82}
-              onPress={() => router.push(c.route as any)}
-            >
-              {/* Badge for pending count */}
-              {c.badge ? (
-                <View style={S.ctrlBadge}>
-                  <Text style={S.ctrlBadgeTxt}>{c.badge}</Text>
-                </View>
-              ) : null}
-              <View style={[S.ctrlIcon, { backgroundColor: c.bg }]}>
-                <Ionicons name={c.icon as any} size={rs(22)} color={c.iconColor} />
-              </View>
-              <Text style={S.ctrlLbl}>{c.label}</Text>
-            </TouchableOpacity>
           ))}
-        </View>
-
-      </ScrollView>
-    </View>
+        </AdminPanel>
+      </AdminShell>
+    </>
   );
 }
 
-// ─── Styles ────────────────────────────────────────────────────────────────────
-const CTRL_W = Math.floor((SW - rs(18) * 2 - rs(10)) / 2);
+function formatDate(value: string) {
+  try {
+    return new Date(value).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return value;
+  }
+}
 
-const S = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
-  watermark:    { position: 'absolute', bottom: -50, right: -50, opacity: 0.05 },
-  watermarkImg: { width: 300, height: 300, resizeMode: 'contain' },
+function formatAction(value: string) {
+  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
-  // Header
-  header: {
-    paddingBottom: rs(28), position: 'relative',
-    elevation: 12, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
+function timeAgo(value: string) {
+  if (!value) return 'Now';
+  const diff = Date.now() - new Date(value).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'now';
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+}
+
+const styles = StyleSheet.create({
+  loadingWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: adminColors.appBg,
   },
-  hdrGlow1: {
-    position: 'absolute', top: -rs(30), right: -rs(30),
-    width: rs(160), height: rs(160), borderRadius: rs(80),
+  heroPanel: {
+    borderRadius: 28,
+    padding: 22,
+    gap: 24,
+    marginTop: -8,
+  },
+  heroRow: {
+    flexDirection: 'row',
+    gap: 18,
+    alignItems: 'stretch',
+  },
+  heroRowStack: {
+    flexDirection: 'column',
+  },
+  heroIntro: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  heroEyebrow: {
+    color: 'rgba(255,255,255,0.72)',
+    fontSize: 11,
+    fontFamily: 'Montserrat-SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  greeting: {
+    fontSize: 28,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  greetingSub: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: 'rgba(255,255,255,0.78)',
+    fontFamily: 'Montserrat-Regular',
+  },
+  heroRevenueCard: {
+    minWidth: 260,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 24,
+    padding: 22,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  heroRevenueLabel: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.74)',
+    fontFamily: 'Montserrat-SemiBold',
+    marginBottom: 10,
+  },
+  heroRevenueValue: {
+    fontSize: 30,
+    color: '#FFFFFF',
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 16,
+  },
+  growthPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
     backgroundColor: 'rgba(132,204,22,0.14)',
   },
-  hdrGlow2: {
-    position: 'absolute', bottom: -rs(30), left: -rs(20),
-    width: rs(100), height: rs(100), borderRadius: rs(50),
-    backgroundColor: 'rgba(30,58,138,0.6)',
+  growthText: {
+    color: '#E5F7C6',
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
   },
-  hdrInner: { paddingHorizontal: rs(22) },
-  hdrTop: {
-    flexDirection: 'row', justifyContent: 'space-between',
-    alignItems: 'flex-start', marginBottom: rs(16),
+  floatingStatsPanel: {
+    marginTop: -18,
+    marginHorizontal: 6,
+    marginBottom: 2,
+    paddingVertical: 12,
   },
-  hdrEye: {
-    fontSize: rf(10), fontFamily: 'Montserrat-Bold',
-    color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2,
-    textTransform: 'uppercase', marginBottom: rs(3),
+  heroStatsRow: {
+    flexDirection: 'row',
   },
-  hdrTitle: { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: '#fff', letterSpacing: -0.4 },
-  avatarWrap: {
-    width: rs(42), height: rs(42), borderRadius: rs(14),
-    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center',
+  heroStatsWrap: {
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  avatarLetter: { fontSize: rf(18), fontFamily: 'Montserrat-Bold', color: C.lime },
-  revenueHero: {
-    backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: rs(20), padding: rs(16),
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', marginBottom: rs(20),
+  heroStat: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  heroLbl: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.55)', marginBottom: rs(4) },
-  heroVal: { fontSize: rf(28), fontFamily: 'Montserrat-Bold',   color: '#fff', letterSpacing: -0.5 },
-  heroRight: { alignItems: 'flex-end', gap: rs(4) },
-  heroBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: rs(4),
-    backgroundColor: 'rgba(132,204,22,0.2)', borderRadius: rs(20),
-    paddingHorizontal: rs(10), paddingVertical: rs(4),
+  heroStatMobile: {
+    minWidth: '48%',
+    backgroundColor: adminColors.surfaceSoft,
+    borderRadius: 18,
+    paddingVertical: 14,
   },
-  heroBadgeTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
-  heroSub:      { fontSize: rf(9),  fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.4)' },
-  hdrArc: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(26),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(28), borderTopRightRadius: rs(28),
+  heroStatBorder: {
+    borderRightWidth: 1,
+    borderRightColor: adminColors.border,
   },
-
-  scroll: { paddingHorizontal: rs(18), paddingTop: rs(10) },
-
-  // Stat cards
-  statGrid: { flexDirection: 'row', gap: rs(10), marginBottom: rs(22) },
-  statCard: {
-    flex: 1, backgroundColor: C.card, borderRadius: rs(20), padding: rs(13), alignItems: 'center',
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
+  heroStatIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
-  statIconWrap: {
-    width: rs(36), height: rs(36), borderRadius: rs(11),
-    justifyContent: 'center', alignItems: 'center', marginBottom: rs(8),
+  heroStatLabel: {
+    fontSize: 13,
+    color: adminColors.textMuted,
+    fontFamily: 'Montserrat-SemiBold',
+    marginBottom: 6,
   },
-  statNum:  { fontSize: rf(17), fontFamily: 'Montserrat-Bold',    color: C.body },
-  statLbl:  { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, textTransform: 'uppercase', marginTop: rs(2) },
-  deltaRow: { flexDirection: 'row', alignItems: 'center', gap: rs(2), marginTop: rs(4) },
-  deltaTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold' },
-
-  // Shared card
-  card: {
-    backgroundColor: C.card, borderRadius: rs(20), padding: rs(14), marginBottom: rs(20),
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+  heroStatValue: {
+    fontSize: 24,
+    color: adminColors.text,
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 6,
   },
-  secTitle: {
-    fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(10),
+  heroStatChange: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-SemiBold',
   },
-
-  // Chart
-  chartBars: { flexDirection: 'row', alignItems: 'flex-end', gap: rs(7), marginBottom: rs(10) },
-  barWrap:   { flex: 1, alignItems: 'center', gap: rs(5) },
-  bar:       { width: '100%', borderRadius: rs(6) },
-  barLbl:    { fontSize: rf(8), fontFamily: 'Montserrat-SemiBold', color: C.subtle },
-  chartFoot: { flexDirection: 'row', alignItems: 'center', gap: rs(4) },
-  chartGrowth: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
-
-  // Activity
-  emptyActivity:   { alignItems: 'center', paddingVertical: rs(24), gap: rs(8) },
-  emptyActivityTxt:{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle },
-  actRow: {
-    flexDirection: 'row', alignItems: 'center', gap: rs(12),
-    paddingVertical: rs(10),
-    borderBottomWidth: 0.5, borderBottomColor: '#F8FAFC',
+  mainGrid: {
+    flexDirection: 'row',
+    gap: 18,
   },
-  actIcon: { width: rs(36), height: rs(36), borderRadius: rs(11), justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
-  actInfo: { flex: 1 },
-  actTitle:{ fontSize: rf(12), fontFamily: 'Montserrat-Bold',   color: C.body },
-  actSub:  { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(2) },
-  actTime: { fontSize: rf(9),  fontFamily: 'Montserrat-Medium', color: C.subtle, flexShrink: 0 },
-
-  // Controls — 2-column flexible grid
-  ctrlGrid: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: rs(10), marginBottom: rs(20),
+  mainGridStack: {
+    flexDirection: 'column',
   },
-  ctrlCard: {
-    width: CTRL_W, backgroundColor: C.card, borderRadius: rs(20),
-    paddingVertical: rs(18), alignItems: 'center',
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
-    position: 'relative',
+  assetPanel: {
+    flex: 1.2,
   },
-  ctrlIcon: {
-    width: rs(48), height: rs(48), borderRadius: rs(15),
-    justifyContent: 'center', alignItems: 'center', marginBottom: rs(10),
+  assetPanelWide: {
+    minHeight: 420,
   },
-  ctrlLbl: {
-    fontSize: rf(11), fontFamily: 'Montserrat-Bold',
-    color: C.navy, textAlign: 'center', paddingHorizontal: rs(8),
+  assetValue: {
+    fontSize: 36,
+    color: adminColors.navy,
+    fontFamily: 'Montserrat-Bold',
   },
-  ctrlBadge: {
-    position: 'absolute', top: rs(10), right: rs(10),
-    minWidth: rs(20), height: rs(20), borderRadius: rs(10),
-    backgroundColor: '#EF4444', justifyContent: 'center', alignItems: 'center',
-    paddingHorizontal: rs(4),
+  assetGrowth: {
+    marginTop: 4,
+    marginBottom: 18,
+    color: adminColors.green,
+    fontSize: 16,
+    fontFamily: 'Montserrat-SemiBold',
   },
-  ctrlBadgeTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold', color: '#fff' },
+  assetGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  assetGridTablet: {
+    gap: 12,
+  },
+  assetCard: {
+    width: '48%',
+    minHeight: 140,
+    borderRadius: 22,
+    padding: 18,
+    justifyContent: 'space-between',
+  },
+  assetIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  assetCardLabel: {
+    color: adminColors.navy,
+    fontSize: 17,
+    fontFamily: 'Montserrat-Bold',
+  },
+  assetCardNote: {
+    color: adminColors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'Montserrat-Regular',
+  },
+  todoPanel: {
+    flex: 0.9,
+  },
+  todoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: adminColors.border,
+  },
+  todoIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todoTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: adminColors.text,
+    marginBottom: 4,
+  },
+  todoMeta: {
+    fontSize: 13,
+    color: adminColors.textMuted,
+    fontFamily: 'Montserrat-Regular',
+  },
+  todoPercent: {
+    color: adminColors.navy,
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+  },
+  linkText: {
+    color: adminColors.blue,
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  transactionsPanel: {
+    marginBottom: 10,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: adminColors.border,
+    paddingBottom: 14,
+  },
+  tableHeadCell: {
+    flex: 1,
+    color: adminColors.textSoft,
+    fontSize: 13,
+    fontFamily: 'Montserrat-SemiBold',
+    textTransform: 'uppercase',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: adminColors.border,
+  },
+  tableCell: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  nameCell: {
+    flex: 1.25,
+  },
+  tableAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#DBEAFE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tableAvatarText: {
+    color: adminColors.blue,
+    fontFamily: 'Montserrat-Bold',
+  },
+  tableName: {
+    flex: 1,
+    color: adminColors.text,
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  tableCellText: {
+    flex: 1,
+    color: adminColors.textMuted,
+    fontSize: 13,
+    fontFamily: 'Montserrat-Regular',
+  },
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: '#DCFCE7',
+  },
+  statusPillText: {
+    color: '#047857',
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  asideMonth: {
+    color: adminColors.textSoft,
+    fontSize: 13,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  asideHero: {
+    color: adminColors.navy,
+    fontSize: 30,
+    fontFamily: 'Montserrat-Bold',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  asideMeta: {
+    color: adminColors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    fontFamily: 'Montserrat-Regular',
+    marginBottom: 16,
+  },
+  asideProgressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: '#E2E8F0',
+    overflow: 'hidden',
+  },
+  asideProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: adminColors.blue,
+  },
+  rightTitle: {
+    color: adminColors.text,
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 12,
+  },
+  rightMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  rightMetricIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightMetricLabel: {
+    color: adminColors.textMuted,
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  rightMetricValue: {
+    color: adminColors.text,
+    fontSize: 20,
+    fontFamily: 'Montserrat-Bold',
+    marginTop: 2,
+  },
+  asideActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: adminColors.border,
+  },
+  asideActivityIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  asideActivityTitle: {
+    color: adminColors.text,
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  asideActivityMeta: {
+    color: adminColors.textMuted,
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
+  asideActivityTime: {
+    color: adminColors.textSoft,
+    fontSize: 11,
+    fontFamily: 'Montserrat-SemiBold',
+  },
 });

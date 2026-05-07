@@ -156,6 +156,17 @@ function ScoreBanner({ score }: { score: number }) {
   );
 }
 
+const TOGGLE_KEYS: ToggleKey[] = [
+  'twoFactorEnabled',
+  'biometricEnabled',
+  'loginAlerts',
+  'activityTracking',
+  'personalizedAds',
+  'dataSharingPartners',
+  'locationTracking',
+  'marketingEmails',
+];
+
 // ─── Main Screen ──────────────────────────────────────────────────────
 export default function SecurityPrivacySettings() {
   const router = useRouter();
@@ -183,9 +194,8 @@ export default function SecurityPrivacySettings() {
   useEffect(() => {
     (async () => {
       try {
-        const keys = Object.keys(toggles) as ToggleKey[];
         const updates: Partial<TogglesState> = {};
-        for (const key of keys) {
+        for (const key of TOGGLE_KEYS) {
           const val = await storage.getItem(key);
           if (val !== null) updates[key] = JSON.parse(val);
         }

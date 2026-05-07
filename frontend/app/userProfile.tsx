@@ -19,6 +19,8 @@ import { getUserData, logoutUser, storage } from '../services/api';
 interface User {
   name: string;
   email: string;
+  wallet_balance?: number;
+  referral_code?: string;
 }
 
 export default function UserProfile() {
@@ -65,6 +67,8 @@ export default function UserProfile() {
         setUser({
           name: response.name,
           email: response.email,
+          wallet_balance: response.wallet_balance,
+          referral_code: response.referral_code
         });
       } catch (error) {
         console.warn('Failed to fetch user details:', error);
@@ -117,6 +121,18 @@ export default function UserProfile() {
         <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
           <Text style={[styles.userName, { color: primaryText }]}>{user.name}</Text>
           <Text style={[styles.userEmail, { color: secondaryText }]}>{user.email}</Text>
+          
+          <View style={{ marginTop: 16, alignItems: 'center' }}>
+            <Text style={{ fontSize: 12, color: secondaryText, fontWeight: 'bold' }}>Wallet Balance</Text>
+            <Text style={{ fontSize: 22, color: '#16a34a', fontWeight: 'bold' }}>₵{user.wallet_balance?.toFixed(2) || '0.00'}</Text>
+          </View>
+          
+          {user.referral_code && (
+            <View style={{ marginTop: 16, alignItems: 'center', backgroundColor: isDark ? '#2D2D2D' : '#F1F5F9', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
+              <Text style={{ fontSize: 12, color: secondaryText }}>Your Referral Code</Text>
+              <Text style={{ fontSize: 16, color: primaryText, fontWeight: 'bold', letterSpacing: 1 }}>{user.referral_code}</Text>
+            </View>
+          )}
         </View>
 
         {/* Profile Options */}

@@ -78,7 +78,7 @@ export default function CartScreen() {
               </View>
               <Text style={styles.itemCategory}>{item.category}</Text>
               <View style={styles.priceControlRow}>
-                <Text style={styles.itemPrice}>₵{item.price.toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
                 <View 
                   style={styles.qtyContainer}
                   ref={index === 0 ? refQty : undefined}
@@ -105,7 +105,7 @@ export default function CartScreen() {
         <View style={styles.summaryContainer}>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>Order Total</Text>
-            <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
+            <Text style={styles.totalValue}>₵{Number(total || 0).toFixed(2)}</Text>
           </View>
           <TouchableOpacity 
             style={styles.checkoutBtn} 

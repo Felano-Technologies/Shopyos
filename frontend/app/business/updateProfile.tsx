@@ -53,7 +53,7 @@ const InputField = React.memo(function InputField({
 const BusinessUpdateScreen = () => {
   const { data: bizData, isLoading: loadingData } = useMyBusinesses();
   const updateMutation = useUpdateBusiness();
-  const [businessId, setBusinessId] = useState<string | null>(null);
+  const businessId = bizData?.businesses?.[0]?._id;
   const [formData, setFormData] = useState({
     businessName: '',
     description: '',
@@ -80,7 +80,6 @@ const BusinessUpdateScreen = () => {
   useEffect(() => {
     if (bizData?.success && bizData.businesses.length > 0) {
       const biz = bizData.businesses[0];
-      setBusinessId(biz.id || biz._id); // Handle both naming conventions
       
       setFormData({
         businessName: biz.store_name || biz.businessName || '',

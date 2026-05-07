@@ -32,7 +32,7 @@ class StoreRepository extends BaseRepository {
    */
   async findByOwnerId(ownerId) {
     return this.findAll({
-      where: { owner_id: ownerId, is_active: true },
+      where: { owner_id: ownerId },
       orderBy: 'created_at',
       ascending: false
     });

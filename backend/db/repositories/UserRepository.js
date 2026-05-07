@@ -343,42 +343,50 @@ class UserRepository extends BaseRepository {
    * @returns {Promise<boolean>}
    */
   async hasRole(userId, roleName) {
-    const { data, error } = await this.db
+    // Standard query compatible with our PG Shim
+    const { data: userWithRoles } = await this.db
       .from('user_roles')
-      .select(`
-        id,
-        roles!inner(name)
-      `)
+      .select('*, roles(*)')
       .eq('user_id', userId)
-      .eq('roles.name', roleName.toLowerCase())
-      .eq('is_active', true)
-      .single();
+      .eq('is_active', true);
 
-    if (error) {
-      if (error.code === 'PGRST116') return false;
-      throw error;
-    }
+    if (!userWithRoles || !Array.isArray(userWithRoles)) return false;
 
-    return !!data;
+    // Check if any active role matches the required name
+    return userWithRoles.some(ur => {
+       const role = ur.roles || ur.role;
+       return role && role.name && role.name.toLowerCase() === roleName.toLowerCase();
+    });
   }
   /**
    * Get all admin users
    * @returns {Promise<Array<Object>>}
    */
   async getAdmins() {
-    const { data, error } = await this.db
+    // 1. Get all active admin user IDs
+    const { data: adminRoles } = await this.db
+      .from('user_roles')
+      .select('user_id, roles(*)')
+      .eq('is_active', true);
+
+    const adminIds = (adminRoles || [])
+      .filter(ur => {
+        const role = ur.roles || ur.role;
+        return role && role.name && role.name.toLowerCase() === 'admin';
+      })
+      .map(ur => ur.user_id);
+
+    if (adminIds.length === 0) return [];
+
+    // 2. Fetch the user details for those IDs
+    const { data: admins, error } = await this.db
       .from(this.tableName)
-      .select(`
-        id,
-        email,
-        user_roles!inner(is_active, roles!inner(name))
-      `)
-      .eq('user_roles.roles.name', 'admin')
-      .eq('user_roles.is_active', true)
+      .select('id, email')
+      .in('id', adminIds)
       .is('deleted_at', null);
 
     if (error) throw error;
-    return data;
+    return admins;
   }
 }
 

@@ -6,7 +6,6 @@ import {
     TouchableOpacity, 
     ScrollView, 
     Image, 
-    useColorScheme, 
     RefreshControl, 
     Dimensions, 
     Modal, 
@@ -23,7 +22,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashboardSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
-import LottieView from 'lottie-react-native';
+import SpotlightIndicator from '../../components/ui/SpotlightIndicator';
 import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
@@ -41,7 +40,7 @@ const C = {
 };
 // --- Interfaces ---
 interface Order {
-  _id: string;
+  id: string;
   orderNumber: string;
   totalAmount: number;
   status: string;
@@ -223,7 +222,7 @@ const BusinessDashboard = () => {
       </View>
     );
   }
-  const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0 };
+  const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0, totalRevenue: 0, pendingRevenue: 0, balance: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
     // Show a blank loading screen while the guard checks storage.
@@ -256,26 +255,28 @@ const BusinessDashboard = () => {
             {/* --- FLOATING STATS --- */}
             <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
               {isTourActive && (
-                <LottieView 
-                  source={require('../../assets/pulse.json')}
-                  autoPlay 
-                  loop 
-                  style={styles.statsPulse}
-                />
+                <View style={styles.statsPulse}>
+                  <SpotlightIndicator source={require('../../assets/pulse.json')} />
+                </View>
               )}
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.totalProducts}</Text>
-                <Text style={styles.statLabel}>Products</Text>
+                <Text style={styles.statNumber}>₵{Number(stats.balance || 0).toLocaleString()}</Text>
+                <Text style={styles.statLabel}>Balance</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>{stats.totalOrders}</Text>
-                <Text style={styles.statLabel}>Total Orders</Text>
+                <Text style={styles.statLabel}>Orders</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.pendingOrders}</Text>
-                <Text style={styles.statLabel}>Pending</Text>
+                <Text style={styles.statNumber}>₵{Number(stats.pendingRevenue || 0).toLocaleString()}</Text>
+                <Text style={styles.statLabel}>In Escrow</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+                <Text style={styles.statLabel}>Products</Text>
               </View>
             </View>
             {/* --- QUICK ACTIONS --- */}
@@ -284,11 +285,12 @@ const BusinessDashboard = () => {
               <View style={styles.servicesGrid}>
                 {[
                   { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
+                  { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
                   { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
                   { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
                   { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
-                ].map((item, index) => (
-                  <TouchableOpacity key={index} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
+                ].map((item) => (
+                  <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
                     <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
                       {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
                     </LinearGradient>
@@ -335,20 +337,27 @@ const BusinessDashboard = () => {
                 <Text style={styles.sectionTitle}>Recent Orders</Text>
                 <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
               </View>
-              {recentOrders.map((order: Order) => (
-                <View key={order._id} style={styles.orderCard}>
-                  <View style={styles.orderLeft}>
-                    <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
-                        <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
+              {recentOrders.length > 0 ? (
+                recentOrders.map((order: Order, idx: number) => (
+                  <View key={order.id || `order-${idx}`} style={styles.orderCard}>
+                    <View style={styles.orderLeft}>
+                      <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
+                          <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
+                      </View>
+                      <View>
+                          <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
+                          <Text style={styles.orderStatus}>{order.status}</Text>
+                      </View>
                     </View>
-                    <View>
-                        <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                        <Text style={styles.orderStatus}>{order.status}</Text>
-                    </View>
+                    <Text style={styles.orderAmount}>₵{Number(order.totalAmount || 0).toFixed(2)}</Text>
                   </View>
-                  <Text style={styles.orderAmount}>₵{order.totalAmount.toFixed(2)}</Text>
+                ))
+              ) : (
+                <View style={styles.emptyOrdersCard}>
+                  <Feather name="shopping-cart" size={24} color={C.subtle} />
+                  <Text style={styles.emptyOrdersText}>No recent orders yet</Text>
                 </View>
-              ))}
+              )}
             </View>
             {/* --- PRO TIP --- */}
             <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
@@ -448,8 +457,8 @@ const styles = StyleSheet.create({
   floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
   statsPulse: { position: 'absolute', top: -15, left: -15, width: 80, height: 80, opacity: 0.15 },
   statItem: { alignItems: 'center', flex: 1, zIndex: 1 },
-  statNumber: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  statLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
+  statNumber: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  statLabel: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
   statDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
   sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
   sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
@@ -498,6 +507,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#64748B',
   },
-  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' }
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  emptyOrdersCard: { backgroundColor: '#FFF', padding: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
+  emptyOrdersText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
 });
 export default BusinessDashboard;

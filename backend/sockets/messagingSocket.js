@@ -200,49 +200,6 @@ function registerMessagingHandlers(io) {
       }
     });
 
-    /**
-     * VOIP Call Signaling
-     */
-    socket.on('call:initiate', async ({ conversationId, callerName, callerAvatar }) => {
-      try {
-        const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
-        if (!isParticipant) return;
-        
-        socket.to(`conversation:${conversationId}`).emit('call:incoming', {
-          conversationId,
-          callerId: userId,
-          callerName,
-          callerAvatar
-        });
-      } catch (error) {
-        logger.error(`Error initiating call: ${error.message}`);
-      }
-    });
-
-    socket.on('call:accept', ({ conversationId }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:accepted', { conversationId });
-    });
-
-    socket.on('call:reject', ({ conversationId }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:rejected', { conversationId });
-    });
-
-    socket.on('call:end', ({ conversationId }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:ended', { conversationId });
-    });
-
-    // FIX: Forward conversationId so the callee can identify which peer connection to use
-    socket.on('call:offer', ({ conversationId, offer }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:offer', { conversationId, offer });
-    });
-
-    socket.on('call:answer', ({ conversationId, answer }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:answer', { answer });
-    });
-
-    socket.on('call:ice-candidate', ({ conversationId, candidate }) => {
-      socket.to(`conversation:${conversationId}`).emit('call:ice-candidate', { candidate });
-    });
   });
 
   logger.info('Messaging socket handlers registered');

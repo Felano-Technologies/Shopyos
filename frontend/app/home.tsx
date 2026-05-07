@@ -24,6 +24,7 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
+import { SnapsRow } from '@/components/SnapsRow';
 const { width } = Dimensions.get('window');
 // ─── Ad carousel constants ────────────────────────────────────────────────────
 // The slide occupies the full width minus horizontal padding (16px each side).
@@ -159,7 +160,7 @@ export default function Home() {
   const isDragging = useRef(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   // --- Onboarding Refs & State ---
-  const { startTour, markCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
+  const { startTour, markCompleted, isCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refGreeting = useRef<View>(null);
   const refActions = useRef<View>(null);
@@ -184,9 +185,8 @@ export default function Home() {
       const shouldAutoStart = async () => {
         // 1. Wait for onboarding context to load
         if (onboardingLoading || !user) return;
-        // 2. Check if already completed
-        const state = await storage.getItem('HAS_SEEN_HOME_TOUR');
-        if (state === 'true') return;
+        // 2. Check if already completed (DB source of truth)
+        if (isCompleted('home')) return;
         // 3. LEGACY USER PROTECTION:
         // If account created before April 2026 (when tour was added), 
         // and they are a buyer, we don't force it.
@@ -203,7 +203,7 @@ export default function Home() {
       shouldAutoStart();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [markCompleted, onboardingLoading, startTour, user]);
+  }, [markCompleted, onboardingLoading, startTour, user, isCompleted]);
   const onboardingSteps = [
     {
       targetLayout: layouts.greeting,
@@ -231,18 +231,11 @@ export default function Home() {
   };
   // ── Load user name ──────────────────────────────────────────────────────────
   useEffect(() => {
-    (async () => {
-      try {
-        const cached = await storage.getItem('userName');
-        if (cached) { setUserName(cached); return; }
-        const user = await getUserData();
-        const name = user?.name || user?.user?.name || '';
-        const first = name.split(' ')[0];
-        setUserName(first);
-        if (first) await storage.setItem('userName', first);
-      } catch { }
-    })();
-  }, []);
+    if (user) {
+      const name = user.name || user.email || '';
+      setUserName(name.split(' ')[0]);
+    }
+  }, [user]);
   // ── Load promoted ads ───────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
@@ -455,7 +448,7 @@ export default function Home() {
         <View style={S.productInfo}>
           <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={S.productPrice}>₵{item.price.toFixed(2)}</Text>
+          <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -471,7 +464,7 @@ export default function Home() {
         <View style={S.productInfo}>
           <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
-          <Text style={S.productPrice}>₵{item.price.toFixed(2)}</Text>
+          <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
       </TouchableOpacity>
     </View>
@@ -548,7 +541,7 @@ export default function Home() {
         </Text>
         <Text style={S.productLbl} numberOfLines={2}>{item.name}</Text>
         <View style={S.priceRow}>
-          <Text style={S.priceLbl}>₵{parseFloat(item.price).toFixed(2)}</Text>
+          <Text style={S.priceLbl}>₵{Number(item.price || 0).toFixed(2)}</Text>
           <TouchableOpacity
             style={S.addBtn}
             onPress={() => handleAddToCart(item)}
@@ -639,6 +632,9 @@ export default function Home() {
           )}
           scrollEventThrottle={16}
         >
+          {/* ── Quick Snaps ──────────────────────────────────────────────── */}
+          <SnapsRow />
+
           {/* ── Ad carousel — ScrollView + pagingEnabled (no overlap) ─── */}
           <View style={S.carouselWrap}>
             <ScrollView

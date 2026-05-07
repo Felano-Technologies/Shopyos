@@ -37,7 +37,11 @@ const buildObjectKey = (folder = 'uploads', filename = 'file') => {
   return `${normalizedFolder}/${safeBase}-${now}-${random}${ext}`;
 };
 
-const toPublicUrl = (key) => `${publicBaseUrl}/${key}`;
+const toPublicUrl = (key) => {
+  if (!key) return null;
+  if (key.startsWith('http://') || key.startsWith('https://')) return key;
+  return `${publicBaseUrl}/${key.replace(/^\/+/, '')}`;
+};
 
 const parseInputToBuffer = (input) => {
   if (Buffer.isBuffer(input)) {

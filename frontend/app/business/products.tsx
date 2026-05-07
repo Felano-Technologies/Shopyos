@@ -15,9 +15,12 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {
   getStoreProducts, createProduct, deleteProduct,
-  uploadProductImages, updateProduct, getAllCategories, storage,
+  uploadProductImages, updateProduct, getAllCategories,
+  initializeListingFee
 } from '@/services/api';
+import * as WebBrowser from 'expo-web-browser';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useMyBusinesses } from '@/hooks/useBusiness';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -58,8 +61,12 @@ const ProductsScreen = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearch] = useState('');
 
+  const { data: businessesData } = useMyBusinesses();
+  const businessId = businessesData?.businesses?.[0]?._id;
+  
   // --- Onboarding ---
-  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const { startTour, markCompleted, isTourActive, activeScreen, user } = useOnboarding();
+  const businessEmail = businessesData?.businesses?.[0]?.email || user?.email;
   const [layouts, setLayouts] = useState<any>({});
   const refForm = useRef<View>(null);
   const refPhoto = useRef<View>(null);
@@ -118,7 +125,6 @@ const ProductsScreen = () => {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const businessId = await storage.getItem('currentBusinessId');
       if (!businessId) return;
       const data = await getStoreProducts(businessId, { includeInactive: true });
       if (data.success) {
@@ -134,7 +140,7 @@ const ProductsScreen = () => {
         })));
       }
     } catch (e) { console.error('Failed to fetch products', e); }
-  }, []);
+  }, [businessId]);
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -144,12 +150,14 @@ const ProductsScreen = () => {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-    storage.getItem('currentBusinessVerificationStatus').then((s) => {
-      setVerificationStatus(s || 'pending');
-    });
-  }, [fetchProducts, fetchCategories]);
+    if (businessId) {
+      fetchProducts();
+      fetchCategories();
+      // verificationStatus can be derived from the business object
+      const status = businessesData?.businesses?.[0]?.verificationStatus;
+      setVerificationStatus(status || 'pending');
+    }
+  }, [businessId, fetchProducts, fetchCategories, businessesData]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   // Safe early return
@@ -190,7 +198,6 @@ const ProductsScreen = () => {
     }
     setIsSubmitting(true);
     try {
-      const businessId = await storage.getItem('currentBusinessId');
       if (!businessId) { Alert.alert('Error', 'No active business found'); return; }
 
       const productData = {
@@ -212,7 +219,38 @@ const ProductsScreen = () => {
       await fetchProducts();
       resetForm();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Operation failed');
+      if (e.code === 'LISTING_FEE_REQUIRED') {
+        Alert.alert(
+          'Listing Limit Reached',
+          e.message,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Pay ₵50', 
+              onPress: async () => {
+                try {
+                  const email = businessEmail;
+                  if (!email) {
+                    Alert.alert('Error', 'No email address found for payment. Please update your profile.');
+                    return;
+                  }
+                  
+                  if (!businessId) return;
+                  
+                  const res = await initializeListingFee({ storeId: businessId, email });
+                  if (res.success && res.data?.authorization_url) {
+                    await WebBrowser.openBrowserAsync(res.data.authorization_url);
+                  }
+                } catch (payErr: any) {
+                  Alert.alert('Payment Error', payErr.message || 'Could not initialize payment');
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', e.message || 'Operation failed');
+      }
     } finally {
       setIsSubmitting(false);
     }

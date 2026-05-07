@@ -5,17 +5,18 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { getStoreOrders, storage } from '@/services/api';
+import { getStoreOrders } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { useMyBusinesses } from '@/hooks/useBusiness';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -34,7 +35,7 @@ const C = {
   subtle:  '#94A3B8',
 };
 
-type FilterType = 'All' | 'Pending' | 'Processing' | 'Delivered' | 'Cancelled';
+type FilterType = 'All' | 'Awaiting Payment' | 'Processing' | 'Delivered' | 'Cancelled';
 
 interface Order {
   id: string;
@@ -42,20 +43,25 @@ interface Order {
   itemsCount: number;
   totalAmount: number;
   date: string;
-  status: 'Pending' | 'Processing' | 'Delivered' | 'Cancelled';
+  status: string;
+  displayStatus: FilterType;
   orderNumber: string;
 }
 
-const STATUS_CFG: Record<string, { color: string; bg: string; bar: string; icon: any }> = {
-  Pending:    { color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B', icon: 'time-outline'            },
-  Processing: { color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6', icon: 'sync-outline'            },
-  Delivered:  { color: '#15803D', bg: '#DCFCE7', bar: '#84cc16', icon: 'checkmark-circle-outline'},
-  Cancelled:  { color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444', icon: 'close-circle-outline'    },
+const MAP_STATUS = (s: string): { label: FilterType; color: string; bg: string; bar: string } => {
+  const status = (s || '').toLowerCase();
+  if (['pending'].includes(status)) 
+    return { label: 'Awaiting Payment', color: '#B45309', bg: '#FEF3C7', bar: '#F59E0B' };
+  if (['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'].includes(status)) 
+    return { label: 'Processing', color: '#1D4ED8', bg: '#DBEAFE', bar: '#3B82F6' };
+  if (['delivered', 'completed'].includes(status)) 
+    return { label: 'Delivered', color: '#15803D', bg: '#DCFCE7', bar: '#84cc16' };
+  if (['cancelled', 'refunded'].includes(status)) 
+    return { label: 'Cancelled', color: '#B91C1C', bg: '#FEE2E2', bar: '#EF4444' };
+  return { label: 'All', color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF' };
 };
-const getStatus = (s: string) =>
-  STATUS_CFG[s] ?? { color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF', icon: 'help-circle-outline' };
 
-const FILTERS: FilterType[] = ['All', 'Pending', 'Processing', 'Delivered', 'Cancelled'];
+const FILTERS: FilterType[] = ['All', 'Awaiting Payment', 'Processing', 'Delivered', 'Cancelled'];
 
 const OrdersScreen = () => {
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
@@ -67,22 +73,25 @@ const OrdersScreen = () => {
   const [loading,    setLoading]    = useState(true);
   const [orders,     setOrders]     = useState<Order[]>([]);
 
+  const { data: businessesData } = useMyBusinesses();
+  const businessId = businessesData?.businesses?.[0]?._id;
+
 
   const fetchOrders = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
     try {
-      const businessId = await storage.getItem('currentBusinessId');
       if (businessId) {
         const data = await getStoreOrders(businessId);
         if (data.success) {
           const mapped: Order[] = data.orders.map((o: any) => ({
-            id:           o.id,
+            id:           o._id || o.id,
             orderNumber:  o.order_number,
             customerName: o.buyer?.user_profiles?.full_name || 'Guest',
             itemsCount:   o.order_items?.length || 0,
             totalAmount:  parseFloat(o.total_amount || 0),
             date:         o.created_at,
-            status:       (o.status.charAt(0).toUpperCase() + o.status.slice(1)) as any,
+            status:       o.status,
+            displayStatus: MAP_STATUS(o.status).label,
           }));
           setOrders(mapped);
         }
@@ -92,12 +101,12 @@ const OrdersScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [businessId]);
 
 
   useEffect(() => {
     fetchOrders(true);
-  }, [fetchOrders]);
+  }, [fetchOrders, businessId]);
 
   // --- Onboarding & Refs ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
@@ -121,7 +130,7 @@ const OrdersScreen = () => {
     setRefreshing(false);
   };
 
-  const filtered = filter === 'All' ? orders : orders.filter((o) => o.status === filter);
+  const filtered = filter === 'All' ? orders : orders.filter((o) => o.displayStatus === filter);
 
   useEffect(() => {
     if (!loading && isVerified) {
@@ -173,15 +182,30 @@ const OrdersScreen = () => {
   };
 
   // Stats
-  const totalRevenue    = orders.reduce((s, o) => s + o.totalAmount, 0);
+  const paidStatuses    = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'];
+  const completedStatuses = ['delivered', 'completed'];
+  
+  const earnedRevenue   = orders.reduce((s, o) => {
+    const st = (o.status || '').toLowerCase();
+    if (completedStatuses.includes(st)) return s + o.totalAmount;
+    if (st === 'refunded') return s - o.totalAmount;
+    return s;
+  }, 0);
+
+  const pendingRevenue  = orders.reduce((s, o) => {
+    const st = (o.status || '').toLowerCase();
+    if (paidStatuses.includes(st)) return s + o.totalAmount;
+    return s;
+  }, 0);
   const totalOrders     = orders.length;
-  const pendingCount    = orders.filter((o) => o.status === 'Pending').length;
-  const deliveredCount  = orders.filter((o) => o.status === 'Delivered').length;
-  const cancelledCount  = orders.filter((o) => o.status === 'Cancelled').length;
+  const pendingCount    = orders.filter((o) => o.displayStatus === 'Awaiting Payment').length;
+  const processingCount = orders.filter((o) => o.displayStatus === 'Processing').length;
+  const deliveredCount  = orders.filter((o) => o.displayStatus === 'Delivered').length;
+  const cancelledCount  = orders.filter((o) => o.displayStatus === 'Cancelled').length;
 
   // ── Order card ──────────────────────────────────────────────────────────────
   const renderOrder = ({ item }: { item: Order }) => {
-    const cfg = getStatus(item.status);
+    const cfg = MAP_STATUS(item.status);
     let dateStr = '';
     try { dateStr = format(new Date(item.date), 'MMM dd, yyyy · hh:mm a'); } catch {}
 
@@ -207,7 +231,7 @@ const OrdersScreen = () => {
             </View>
             <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
               <View style={[S.statusDot, { backgroundColor: cfg.color }]} />
-              <Text style={[S.statusTxt, { color: cfg.color }]}>{item.status}</Text>
+              <Text style={[S.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
             </View>
           </View>
 
@@ -283,14 +307,19 @@ const OrdersScreen = () => {
                 </View>
               </View>
 
-              {/* Revenue card */}
-              <View style={S.revenueCard} ref={refRevenue} onLayout={() => measureElement(refRevenue, 'revenue')}>
-                <View>
-                  <Text style={S.revLbl}>Total Revenue</Text>
-                  <Text style={S.revAmt}>GH₵ {totalRevenue.toFixed(2)}</Text>
+              {/* Revenue cards */}
+              <View style={S.revenueRow}>
+                <View style={[S.revenueCard, { flex: 1 }]}>
+                  <View>
+                    <Text style={S.revLbl}>Earned</Text>
+                    <Text style={[S.revAmt, { fontSize: rf(18) }]}>₵{earnedRevenue.toFixed(2)}</Text>
+                  </View>
                 </View>
-                <View style={S.revIcon}>
-                  <MaterialCommunityIcons name="finance" size={rs(26)} color={C.lime} />
+                <View style={[S.revenueCard, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                  <View>
+                    <Text style={S.revLbl}>In Escrow</Text>
+                    <Text style={[S.revAmt, { fontSize: rf(18), color: C.lime }]}>₵{pendingRevenue.toFixed(2)}</Text>
+                  </View>
                 </View>
               </View>
 
@@ -300,8 +329,8 @@ const OrdersScreen = () => {
             {/* ── Stat pills ────────────────────────────────────────────── */}
             <View style={S.statRow} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
               {[
-                { label: 'Total',     value: totalOrders,    color: C.navy    },
-                { label: 'Pending',   value: pendingCount,   color: '#F59E0B' },
+                { label: 'Awaiting',   value: pendingCount,   color: '#F59E0B' },
+                { label: 'Processing', value: processingCount, color: '#3B82F6' },
                 { label: 'Delivered', value: deliveredCount, color: '#84cc16' },
                 { label: 'Cancelled', value: cancelledCount, color: '#EF4444' },
               ].map((s) => (
@@ -415,11 +444,12 @@ const S = StyleSheet.create({
   },
   hdrBadgeTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: 'rgba(255,255,255,0.85)' },
 
+  revenueRow: { flexDirection: 'row', gap: rs(10) },
   revenueCard: {
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: rs(16), padding: rs(16),
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderRadius: rs(16), padding: rs(12),
+    justifyContent: 'center',
   },
   revLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginBottom: rs(4) },
   revAmt: { fontSize: rf(26), fontFamily: 'Montserrat-Bold', color: '#fff' },

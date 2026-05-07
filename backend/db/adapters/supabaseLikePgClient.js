@@ -51,6 +51,19 @@ class QueryBuilder {
     return this;
   }
 
+  onConflict(columns) {
+    // Store conflict columns; paired with .ignore() for DO NOTHING
+    // or used automatically by upsert() for DO UPDATE SET
+    this._conflictColumns = Array.isArray(columns) ? columns : [columns];
+    return this;
+  }
+
+  ignore() {
+    // When called after insert().onConflict(), produces ON CONFLICT DO NOTHING
+    this._ignoreConflict = true;
+    return this;
+  }
+
   update(data) {
     this.operation = 'update';
     this.updateData = data;
@@ -225,6 +238,24 @@ class QueryBuilder {
 
         let sql = `INSERT INTO ${this.tableName} (${keys.join(', ')}) VALUES ${rowPlaceholders.join(', ')}`;
 
+        if (this._ignoreConflict) {
+          // insert().onConflict([...]).ignore() => ON CONFLICT DO NOTHING
+          const conflictCols = this._conflictColumns?.length ? ` (${this._conflictColumns.join(', ')})` : '';
+          sql += ` ON CONFLICT${conflictCols} DO NOTHING RETURNING *`;
+          const result = await db.query(sql, values);
+          
+          const rowCount = typeof result.rowCount === 'number' ? result.rowCount : result.rows.length;
+          const inserted = result.rows[0] || null;
+          const conflictIgnored = rowCount === 0;
+
+          return { 
+            data: inserted, 
+            error: null, 
+            rowCount, 
+            conflictIgnored 
+          };
+        }
+
         if (this.operation === 'upsert' && this.upsertKeys && this.upsertKeys.length > 0) {
           const updatable = keys.filter((k) => !this.upsertKeys.includes(k));
           const updates = updatable.map((k) => `${k} = EXCLUDED.${k}`).join(', ');
@@ -275,8 +306,276 @@ class QueryBuilder {
         return { data: null, count: countResult.rows[0]?.count || 0, error: null };
       }
 
-      const sql = `SELECT ${this.selectColumns} FROM ${this.tableName}${clause}${orderSql}${limitSql}${offsetSql}`;
+      // Sanitize select columns for Postgres
+      let finalSelect = this.selectColumns;
+      if (finalSelect.includes('(') || finalSelect.includes(':')) {
+        finalSelect = '*';
+      }
+
+      const sql = `SELECT ${finalSelect} FROM ${this.tableName}${clause}${orderSql}${limitSql}${offsetSql}`;
       const result = await db.query(sql, values);
+
+      // --- JOIN SHIM START ---
+      // If we're selecting from user_roles and we had a complex select, 
+      // manually fetch the role names to mimic the Supabase join.
+      if (this.tableName === 'user_roles' && result.rows.length > 0) {
+        const roleIds = [...new Set(result.rows.map(r => r.role_id))];
+        const { rows: roles } = await db.query('SELECT * FROM roles WHERE id = ANY($1)', [roleIds]);
+        const roleMap = roles.reduce((acc, r) => ({ ...acc, [r.id]: r }), {});
+        
+        result.rows = result.rows.map(row => ({
+          ...row,
+          role: roleMap[row.role_id] || null,
+          roles: roleMap[row.role_id] || null // Match both singular and plural
+        }));
+      }
+
+      // --- USERS JOIN SHIM (FOR ROLES) ---
+      if (this.tableName === 'users' && result.rows.length > 0) {
+        const userIds = result.rows.map(u => u.id);
+        
+        // Fetch all roles for these users
+        const { rows: userRoles } = await db.query(
+          `SELECT ur.*, r.name, r.display_name 
+           FROM user_roles ur 
+           JOIN roles r ON ur.role_id = r.id 
+           WHERE ur.user_id = ANY($1) AND ur.is_active = TRUE`,
+          [userIds]
+        );
+
+        // Group roles by user
+        const rolesByUser = userRoles.reduce((acc, ur) => {
+          if (!acc[ur.user_id]) acc[ur.user_id] = [];
+          acc[ur.user_id].push({
+            is_active: ur.is_active,
+            roles: { name: ur.name, display_name: ur.display_name }
+          });
+          return acc;
+        }, {});
+
+        result.rows = result.rows.map(user => ({
+          ...user,
+          user_roles: rolesByUser[user.id] || []
+        }));
+      }
+
+      // --- CARTS JOIN SHIM ---
+      if (this.tableName === 'carts' && result.rows.length > 0) {
+        const cartIds = result.rows.map(c => c.id);
+        
+        // 1. Fetch cart_items
+        const { rows: allCartItems } = await db.query(
+          `SELECT ci.*, 
+                  p.id as p_id, p.title as p_title, p.description as p_description, p.price as p_price, p.store_id as p_store_id,
+                  s.store_name as s_name, s.logo_url as s_logo,
+                  i.quantity as i_qty
+           FROM cart_items ci
+           LEFT JOIN products p ON ci.product_id = p.id
+           LEFT JOIN stores s ON p.store_id = s.id
+           LEFT JOIN inventory i ON p.id = i.product_id
+           WHERE ci.cart_id = ANY($1)`,
+          [cartIds]
+        );
+
+        // 2. Fetch images for these products
+        const productIds = [...new Set(allCartItems.map(ci => ci.product_id).filter(Boolean))];
+        let imageMap = {};
+        if (productIds.length > 0) {
+          const { rows: images } = await db.query(
+            `SELECT * FROM product_images WHERE product_id = ANY($1)`,
+            [productIds]
+          );
+          images.forEach(img => {
+            if (!imageMap[img.product_id]) imageMap[img.product_id] = [];
+            imageMap[img.product_id].push(img);
+          });
+        }
+
+        // 3. Assemble the nested structure
+        const cartItemsByCart = allCartItems.reduce((acc, ci) => {
+          if (!acc[ci.cart_id]) acc[ci.cart_id] = [];
+          acc[ci.cart_id].push({
+            id: ci.id,
+            product_id: ci.product_id,
+            quantity: ci.quantity,
+            added_at: ci.added_at,
+            products: ci.p_id ? {
+              id: ci.p_id,
+              title: ci.p_title,
+              description: ci.p_description,
+              price: ci.p_price,
+              store_id: ci.p_store_id,
+              product_images: imageMap[ci.p_id] || [],
+              stores: {
+                store_name: ci.s_name,
+                logo_url: ci.s_logo
+              },
+              inventory: {
+                quantity: ci.i_qty
+              }
+            } : null
+          });
+          return acc;
+        }, {});
+
+        result.rows = result.rows.map(cart => ({
+          ...cart,
+          cart_items: cartItemsByCart[cart.id] || []
+        }));
+      }
+
+      // --- ORDERS JOIN SHIM ---
+      if (this.tableName === 'orders' && result.rows.length > 0) {
+        const orderIds = result.rows.map(o => o.id);
+
+        // 1. Fetch Order Items
+        const { rows: allOrderItems } = await db.query(
+          `SELECT DISTINCT ON (oi.id) oi.*, 
+                  p.id as p_id,
+                  pi.image_url as p_image
+           FROM order_items oi
+           LEFT JOIN products p ON oi.product_id = p.id
+           LEFT JOIN product_images pi ON p.id = pi.product_id
+           WHERE oi.order_id = ANY($1)
+           ORDER BY oi.id, pi.display_order ASC`,
+          [orderIds]
+        );
+
+        // 2. Fetch Payments
+        const { rows: allPayments } = await db.query(
+          `SELECT * FROM payments WHERE order_id = ANY($1)`,
+          [orderIds]
+        );
+
+        // 3. Fetch Deliveries + Driver Profiles
+        const { rows: allDeliveries } = await db.query(
+          `SELECT d.*, 
+                  up.full_name as driver_name, up.phone as driver_phone, up.avatar_url as driver_avatar,
+                  dp.vehicle_type, dp.license_plate
+           FROM deliveries d
+           LEFT JOIN driver_profiles dp ON d.driver_id = dp.user_id
+           LEFT JOIN user_profiles up ON dp.user_id = up.user_id
+           WHERE d.order_id = ANY($1)`,
+          [orderIds]
+        );
+
+        // 4. Fetch Stores
+        const storeIds = [...new Set(result.rows.map(o => o.store_id).filter(Boolean))];
+        let storeMap = {};
+        if (storeIds.length > 0) {
+          const { rows: stores } = await db.query(
+            `SELECT * FROM stores WHERE id = ANY($1)`,
+            [storeIds]
+          );
+          stores.forEach(s => { storeMap[s.id] = s; });
+        }
+
+        // 5. Fetch Buyers
+        const buyerIds = [...new Set(result.rows.map(o => o.buyer_id).filter(Boolean))];
+        let buyerMap = {};
+        if (buyerIds.length > 0) {
+          const { rows: buyers } = await db.query(
+            `SELECT u.id, u.email, up.full_name, up.phone 
+             FROM users u
+             LEFT JOIN user_profiles up ON u.id = up.user_id
+             WHERE u.id = ANY($1)`,
+            [buyerIds]
+          );
+          buyers.forEach(b => { 
+            buyerMap[b.id] = { 
+              id: b.id, email: b.email, 
+              user_profiles: { full_name: b.full_name, phone: b.phone } 
+            }; 
+          });
+        }
+
+        // Assemble everything
+        const itemsByOrder = allOrderItems.reduce((acc, oi) => {
+          if (!acc[oi.order_id]) acc[oi.order_id] = [];
+          acc[oi.order_id].push({
+            ...oi,
+            product: {
+              product_images: oi.p_image ? [{ image_url: oi.p_image }] : []
+            }
+          });
+          return acc;
+        }, {});
+
+        const paymentsByOrder = allPayments.reduce((acc, p) => {
+          if (!acc[p.order_id]) acc[p.order_id] = [];
+          acc[p.order_id].push(p);
+          return acc;
+        }, {});
+
+        const deliveriesByOrder = allDeliveries.reduce((acc, d) => {
+          if (!acc[d.order_id]) acc[d.order_id] = [];
+          acc[d.order_id].push({
+            ...d,
+            driver: d.driver_id ? {
+              user_profiles: { 
+                full_name: d.driver_name, 
+                phone: d.driver_phone, 
+                avatar_url: d.driver_avatar 
+              },
+              vehicle_type: d.vehicle_type,
+              plate_number: d.license_plate
+            } : null
+          });
+          return acc;
+        }, {});
+
+        result.rows = result.rows.map(order => ({
+          ...order,
+          buyer: buyerMap[order.buyer_id] || null,
+          store: storeMap[order.store_id] || null,
+          order_items: itemsByOrder[order.id] || [],
+          payments: paymentsByOrder[order.id] || [],
+          deliveries: deliveriesByOrder[order.id] || []
+        }));
+      }
+
+      // --- PRODUCTS JOIN SHIM ---
+      if (this.tableName === 'products' && result.rows.length > 0) {
+        const productIds = result.rows.map(p => p.id);
+        
+        // 1. Fetch stores
+        const storeIds = [...new Set(result.rows.map(p => p.store_id).filter(Boolean))];
+        let storeMap = {};
+        if (storeIds.length > 0) {
+          const { rows: stores } = await db.query(
+            `SELECT id, store_name, slug, average_rating, total_reviews, owner_id, logo_url, is_verified FROM stores WHERE id = ANY($1)`,
+            [storeIds]
+          );
+          stores.forEach(s => { storeMap[s.id] = s; });
+        }
+
+        // 2. Fetch images
+        let imageMap = {};
+        const { rows: images } = await db.query(
+          `SELECT * FROM product_images WHERE product_id = ANY($1) ORDER BY display_order ASC`,
+          [productIds]
+        );
+        images.forEach(img => {
+          if (!imageMap[img.product_id]) imageMap[img.product_id] = [];
+          imageMap[img.product_id].push(img);
+        });
+
+        // 3. Fetch inventory
+        let inventoryMap = {};
+        const { rows: inventory } = await db.query(
+          `SELECT * FROM inventory WHERE product_id = ANY($1)`,
+          [productIds]
+        );
+        inventory.forEach(inv => { inventoryMap[inv.product_id] = inv; });
+
+        result.rows = result.rows.map(product => ({
+          ...product,
+          stores: storeMap[product.store_id] || null,
+          product_images: imageMap[product.id] || [],
+          inventory: inventoryMap[product.id] || null
+        }));
+      }
+      // --- JOIN SHIM END ---
 
       if (this.singleMode) {
         if (result.rows.length === 0) {
@@ -312,15 +611,35 @@ const createPgClient = () => {
       const db = getPool();
       try {
         const keys = Object.keys(args);
-        const values = keys.map((k) => args[k]);
+        const values = keys.map((k) => {
+          const val = args[k];
+          // If it's an object or array, stringify it for Postgres JSONB/JSON params
+          if (val !== null && typeof val === 'object') {
+            return JSON.stringify(val);
+          }
+          return val;
+        });
         const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
         const sql = `SELECT * FROM ${fnName}(${placeholders})`;
         const result = await db.query(sql, values);
-        return { data: result.rows, error: null };
+        // Unwrap the result if it's a JSONB return
+        const data = result.rows.length === 1 && Object.keys(result.rows[0]).length === 1 && result.rows[0][fnName] 
+          ? result.rows[0][fnName] 
+          : result.rows;
+        return { data, error: null };
       } catch (error) {
         return { data: null, error: toPgError(error) };
       }
     },
+    async query(sql, values = []) {
+      const db = getPool();
+      try {
+        const result = await db.query(sql, values);
+        return { data: result.rows, rows: result.rows, error: null };
+      } catch (error) {
+        return { data: null, rows: [], error: toPgError(error) };
+      }
+    }
   };
 };
 

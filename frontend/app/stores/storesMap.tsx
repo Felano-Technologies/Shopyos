@@ -5,7 +5,7 @@ import {
   ScrollView, Animated,
 } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/MapView';
-import { Circle } from 'react-native-maps';
+import Circle from '@/components/MapCircle';
 import * as Location from 'expo-location';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

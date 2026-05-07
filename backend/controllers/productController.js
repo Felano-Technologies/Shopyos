@@ -1,4 +1,5 @@
 const repositories = require('../db/repositories');
+const { toPublicUrl } = require('../config/storage');
 const {
   uploadFileToCloudinary,
   uploadMultipleFilesToCloudinary,
@@ -51,6 +52,23 @@ const createProduct = async (req, res, next) => {
       return res.status(403).json({
         success: false,
         error: 'Not authorized to add products to this store'
+      });
+    }
+
+    // Check listing limits and tier
+    const { count: productCount } = await repositories.products.db
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('store_id', storeId)
+      .is('deleted_at', null);
+
+    if (productCount >= 100 && store.listing_tier !== 'paid') {
+      return res.status(402).json({
+        success: false,
+        error: 'Free listing limit reached.',
+        code: 'LISTING_FEE_REQUIRED',
+        message: 'Pay a one-time ₵50 platform fee to unlock unlimited listings.',
+        paymentUrl: '/api/v1/payments/listing-fee/initialize'
       });
     }
 
@@ -137,7 +155,7 @@ const getStoreProducts = async (req, res, next) => {
       name: p.title,
       description: p.description,
       price: p.price,
-      images: p.product_images ? p.product_images.map(img => img.image_url) : [],
+      images: p.product_images ? p.product_images.map(img => toPublicUrl(img.image_url)) : [],
       category: p.category,
       sku: p.sku,
       stockQuantity: Array.isArray(p.inventory) ? p.inventory[0]?.quantity : (p.inventory?.quantity || 0),
@@ -216,7 +234,7 @@ const getProductById = async (req, res, next) => {
       name: product.title,
       description: product.description,
       price: product.price,
-      images: product.product_images?.map(img => img.image_url) || [],
+      images: product.product_images?.map(img => toPublicUrl(img.image_url)) || [],
       category: product.category,
       brand: product.brand,
       sku: product.sku,
@@ -230,7 +248,7 @@ const getProductById = async (req, res, next) => {
         name: product.stores.store_name,
         rating: product.stores.average_rating,
         ownerId: product.stores.owner_id,
-        logo: product.stores.logo_url
+        logo: toPublicUrl(product.stores.logo_url)
       } : null,
       createdAt: product.created_at,
       updatedAt: product.updated_at
@@ -646,7 +664,7 @@ const searchProducts = async (req, res, next) => {
       name: p.title,
       description: p.description,
       price: p.price,
-      images: p.product_images?.map(img => img.image_url) || [],
+      images: p.product_images?.map(img => toPublicUrl(img.image_url)) || [],
       category: p.category,
       salesCount: p.total_sales || p.sales_count || 0,
       averageRating: p.avg_rating || 0,

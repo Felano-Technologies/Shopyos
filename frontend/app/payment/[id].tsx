@@ -131,7 +131,14 @@ export default function PaymentProcessingScreen() {
         }
     };
 
-    // Listen for app returning to foreground (user completed MoMo USSD/STK push)
+    // Initialize once on mount
+    useEffect(() => {
+        if (id) {
+            handleInitialize();
+        }
+    }, [id, handleInitialize]);
+
+    // Listen for app returning to foreground
     useEffect(() => {
         const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
             if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
@@ -142,12 +149,10 @@ export default function PaymentProcessingScreen() {
             appState.current = nextAppState;
         });
 
-        handleInitialize();
-
         return () => {
             subscription.remove();
         };
-    }, [handleInitialize, paymentRef, status]);
+    }, [paymentRef, status]);
 
     const getProcessingText = () => {
         switch (status) {

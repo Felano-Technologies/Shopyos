@@ -14,10 +14,6 @@ const paystackHeaders = () => ({
     'Content-Type': 'application/json',
 });
 
-/**
- * Idempotent helper – marks a payment as completed and updates order + store balance.
- * Returns true if work was done, false if already completed.
- */
 const fulfillPayment = async (orderId, paystackData) => {
     // Check current status first (idempotency)
     const { data: existing } = await repositories.orders.db
@@ -45,29 +41,16 @@ const fulfillPayment = async (orderId, paystackData) => {
         })
         .eq('order_id', orderId);
 
-    // Update order status to paid
+    // Update order status to paid, and mark escrow as HELD
     await repositories.orders.db
         .from('orders')
-        .update({ status: 'paid', updated_at: now })
+        .update({ status: 'paid', escrow_status: 'HELD', updated_at: now })
         .eq('id', orderId);
 
-    // Credit store balance
-    const order = await repositories.orders.findById(orderId);
-    if (order && order.store_id) {
-        const store = await repositories.stores.findById(order.store_id);
-        if (store) {
-            const newBalance = parseFloat(store.current_balance || 0) + amountPaid;
-            await repositories.stores.update(store.id, { current_balance: newBalance });
+    // Note: We DO NOT credit the store balance here anymore.
+    // Funds are held in escrow until the buyer confirms delivery.
 
-            await repositories.orders.db.from('balance_logs').insert({
-                store_id: store.id,
-                amount: amountPaid,
-                transaction_type: 'sale',
-                order_id: order.id,
-                balance_after: newBalance
-            });
-        }
-    }
+    const order = await repositories.orders.findById(orderId);
 
     // Notify buyer
     if (order) {
@@ -80,7 +63,7 @@ const fulfillPayment = async (orderId, paystackData) => {
         }).catch(err => logger.error('Notification failed', { error: err.message }));
     }
 
-    logger.info('Payment fulfilled', { orderId, amount: amountPaid, channel });
+    logger.info('Payment fulfilled, funds held in escrow', { orderId, amount: amountPaid, channel });
     return true;
 };
 
@@ -305,14 +288,33 @@ const handleWebhook = async (req, res) => {
         logger.info('Paystack webhook received', { event: event.event, reference: event.data?.reference });
 
         if (event.event === 'charge.success') {
-            const orderId = event.data.metadata?.orderId;
+            const metadataType = event.data.metadata?.type;
+            
+            if (metadataType === 'listing_fee') {
+                const storeId = event.data.metadata?.storeId;
+                if (!storeId) {
+                    logger.error('Webhook charge.success missing storeId for listing_fee', { reference: event.data.reference });
+                    return res.status(200).send('OK');
+                }
+                
+                // Update store listing tier
+                await repositories.stores.update(storeId, {
+                    listing_tier: 'paid',
+                    listing_fee_paid_at: new Date().toISOString(),
+                    listing_fee_reference: event.data.reference
+                });
+                
+                logger.info('Listing fee fulfilled', { storeId, reference: event.data.reference });
+            } else {
+                const orderId = event.data.metadata?.orderId;
 
-            if (!orderId) {
-                logger.error('Webhook charge.success missing orderId', { reference: event.data.reference });
-                return res.status(200).send('OK'); // Respond 200 so Paystack doesn't retry
+                if (!orderId) {
+                    logger.error('Webhook charge.success missing orderId', { reference: event.data.reference });
+                    return res.status(200).send('OK'); // Respond 200 so Paystack doesn't retry
+                }
+
+                await fulfillPayment(orderId, event.data);
             }
-
-            await fulfillPayment(orderId, event.data);
         }
 
         // Always respond 200 so Paystack knows we received it
@@ -391,9 +393,82 @@ const chargeAuthorization = async (req, res, next) => {
     }
 };
 
+/**
+ * @route   POST /api/v1/payments/listing-fee/initialize
+ * @access  Private
+ * @body    { storeId, email, channel, momoPhone, momoProvider }
+ */
+const initializeListingFee = async (req, res, next) => {
+    try {
+        const { storeId, email, channel, momoPhone, momoProvider } = req.body;
+
+        if (!storeId || !email) {
+            return res.status(400).json({ success: false, error: 'storeId and email are required' });
+        }
+
+        const store = await repositories.stores.findById(storeId);
+        if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
+        if (store.owner_id !== req.user.id) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+        if (store.listing_tier === 'paid') {
+            return res.status(400).json({ success: false, error: 'Listing fee already paid for this store' });
+        }
+
+        const amountInPesewas = 50 * 100; // ₵50
+
+        const payload = {
+            email,
+            amount: amountInPesewas,
+            currency: 'GHS',
+            metadata: {
+                type: 'listing_fee',
+                storeId,
+                userId: req.user.id
+            }
+        };
+
+        if (channel === 'mobile_money') {
+            payload.channels = ['mobile_money'];
+            if (momoPhone && momoProvider) {
+                payload.mobile_money = { phone: momoPhone, provider: momoProvider };
+            }
+        } else if (channel === 'card') {
+            payload.channels = ['card'];
+        }
+
+        const response = await axios.post(
+            `${PAYSTACK_BASE_URL}/transaction/initialize`,
+            payload,
+            { headers: paystackHeaders() }
+        );
+
+        if (!response.data.status) {
+            return res.status(400).json({ success: false, error: response.data.message || 'Failed to initialize payment' });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: {
+                authorization_url: response.data.data.authorization_url,
+                access_code: response.data.data.access_code,
+                reference: response.data.data.reference
+            }
+        });
+    } catch (error) {
+        if (error.response) {
+            return res.status(error.response.status).json({
+                success: false,
+                error: error.response.data?.message || 'Payment provider error'
+            });
+        }
+        next(error);
+    }
+};
+
 module.exports = {
     initializePayment,
     verifyPayment,
     handleWebhook,
-    chargeAuthorization
+    chargeAuthorization,
+    initializeListingFee
 };

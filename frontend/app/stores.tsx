@@ -118,7 +118,7 @@ export default function StoresScreen() {
           id:          b.id,
           name:        b.name        || 'Unknown Store',
           category:    b.category    || 'General',
-          rating:      b.rating      || 0,
+          rating:      Number(b.rating || 0),
           reviewCount: b.reviewCount || 0,
           logo:        b.logo        || null,
           catalogues:  b.catalogues  || 0,
@@ -186,7 +186,7 @@ export default function StoresScreen() {
         <View style={styles.popularFooter}>
           <View style={styles.ratingPill}>
             <Ionicons name="star" size={9} color="#F59E0B" />
-            <Text style={styles.ratingPillTxt}>{item.rating.toFixed(1)}</Text>
+            <Text style={styles.ratingPillTxt}>{(item.rating || 0).toFixed(1)}</Text>
           </View>
           <Text style={styles.popularItems}>{item.catalogues} items</Text>
         </View>
@@ -223,7 +223,7 @@ export default function StoresScreen() {
         <View style={styles.storeRatingRow}>
           <Ionicons name="star" size={10} color="#F59E0B" />
           <Text style={styles.storeRatingTxt}>
-            {item.rating.toFixed(1)} · {item.reviewCount} reviews
+            {(item.rating || 0).toFixed(1)} · {item.reviewCount} reviews
           </Text>
         </View>
       </View>

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const { logger } = require('../config/logger');
 const rabbitMQService = require('../services/rabbitmq');
 const notificationService = require('../services/notificationService');
+const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
 
 /**
  * Generate unique order number
@@ -31,7 +32,9 @@ const createOrder = async (req, res, next) => {
       deliveryCountry,
       deliveryPhone,
       deliveryNotes,
-      paymentMethod = 'paystack'
+      paymentMethod = 'paystack',
+      buyerLat,    // optional — used to calculate distance-based delivery fee
+      buyerLng
     } = req.body;
 
     // Validate delivery info
@@ -65,6 +68,25 @@ const createOrder = async (req, res, next) => {
     // Create separate order for each store
     const createdOrders = [];
 
+    // ── Validation Pass ──────────────────────────────────────────────────────────
+    // Ensure ALL stores are within range before creating ANY orders to avoid partial checkout success.
+    for (const [storeId] of Object.entries(itemsByStore)) {
+      const store = await repositories.stores.findById(storeId);
+      if (store && buyerLat !== undefined && buyerLng !== undefined && store.latitude !== null && store.longitude !== null) {
+        const distanceKm = haversineKm(
+          parseFloat(store.latitude), parseFloat(store.longitude),
+          parseFloat(buyerLat), parseFloat(buyerLng)
+        );
+        const { withinRange } = calculateDeliveryFee(store, distanceKm);
+        if (!withinRange) {
+          return res.status(400).json({
+            success: false,
+            error: `Delivery address is outside the delivery radius for ${store.store_name || 'one of the stores'}`
+          });
+        }
+      }
+    }
+
     for (const [storeId, items] of Object.entries(itemsByStore)) {
       // Calculate order total (following frontend logic)
       let subtotal = 0;
@@ -82,16 +104,51 @@ const createOrder = async (req, res, next) => {
         };
       });
 
-      const nhilAmount = subtotal * 0.025;
-      const getFundAmount = subtotal * 0.025;
-      const vatAmount = subtotal * 0.15;
-      const serviceCharge = 5.00;
+      const tax = 1.00; // Flat Buyer Protection Fee
 
-      const tax = nhilAmount + getFundAmount + vatAmount + serviceCharge;
-      const deliveryFee = 15.00;
+      // Dynamic delivery fee based on store settings + buyer location
+      const deliveryState = req.body.deliveryState || 'Greater Accra';
+      let deliveryFee = 0;
+      const store = await repositories.stores.findById(storeId);
+      if (store) {
+        if (
+          buyerLat !== undefined && buyerLng !== undefined &&
+          store.latitude !== null && store.longitude !== null
+        ) {
+          const distanceKm = haversineKm(
+            parseFloat(store.latitude), parseFloat(store.longitude),
+            parseFloat(buyerLat), parseFloat(buyerLng)
+          );
+          const { fee, withinRange } = calculateDeliveryFee(store, distanceKm);
+          
+          if (!withinRange) {
+            return res.status(400).json({
+              success: false,
+              error: `Delivery address is outside the delivery radius for ${store.store_name || 'one of the stores'}`
+            });
+          }
+          
+          deliveryFee = fee !== null ? fee : (parseFloat(store.delivery_base_fee) || 15);
+        } else {
+          deliveryFee = parseFloat(store.delivery_base_fee) || 15;
+        }
+
+        // --- Regional Pricing Logic ---
+        const storeRegion = (store.state_province || 'Greater Accra').trim().toLowerCase();
+        const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
+
+        if (storeRegion === targetRegion) {
+          // Same Region: min 15, max 30
+          deliveryFee = Math.max(15, Math.min(deliveryFee, 30));
+        } else {
+          // Cross Region: min 40
+          deliveryFee = Math.max(deliveryFee, 40);
+        }
+      }
+
       const totalAmount = subtotal + tax + deliveryFee;
 
-      // Create order
+      // Update order creation data to include delivery_state_province
       const orderData = {
         order_number: generateOrderNumber(),
         buyer_id: userId,
@@ -102,7 +159,8 @@ const createOrder = async (req, res, next) => {
         delivery_fee: deliveryFee,
         total_amount: totalAmount,
         delivery_address_line1: deliveryAddress,
-        delivery_city: deliveryCity,
+        delivery_city: req.body.deliveryCity || 'Accra',
+        delivery_state_province: deliveryState,
         delivery_country: deliveryCountry || 'Ghana',
         delivery_phone: deliveryPhone,
         delivery_notes: deliveryNotes || null
@@ -131,7 +189,6 @@ const createOrder = async (req, res, next) => {
       });
 
       // Notify seller about new order via in-app
-      const store = await repositories.stores.findById(storeId);
       if (store && store.owner_id) {
         await notificationService.sendNotification({
           userId: store.owner_id,
@@ -270,10 +327,14 @@ const getStoreOrders = async (req, res, next) => {
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view these orders'
-      });
+      // Allow admins to view any store's orders
+      const isAdmin = req.user.roles?.includes('admin');
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to view these orders'
+        });
+      }
     }
 
     const limitNum = parseInt(limit);
@@ -615,6 +676,65 @@ const verifyPayment = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   PUT /api/orders/:orderId/confirm-delivery
+ * @desc    Buyer confirms receipt of order. Releases funds from escrow to seller.
+ * @access  Private
+ */
+const confirmDelivery = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    // Get order
+    const order = await repositories.orders.findById(orderId);
+    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    
+    if (order.buyer_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+    
+    if (order.escrow_status !== 'HELD') {
+       return res.status(400).json({ success: false, error: 'Funds are not currently held in escrow for this order' });
+    }
+
+    // Atomic delivery confirmation via RPC
+    const { data: rpcResult, error: rpcError } = await repositories.orders.db.rpc('confirm_delivery_atomic', {
+      p_order_id: orderId,
+      p_user_id: userId,
+      p_is_admin: req.user.roles?.includes('admin') || false
+    });
+
+    if (rpcError) throw rpcError;
+    if (!rpcResult.success) {
+      return res.status(400).json(rpcResult);
+    }
+
+    // Fetch updated order for response and notifications
+    const updatedOrder = await repositories.orders.getOrderDetails(orderId);
+    
+    // Notify seller
+    if (updatedOrder && updatedOrder.store?.owner_id) {
+        const sellerPayout = rpcResult.seller_payout;
+        await notificationService.sendNotification({
+            userId: updatedOrder.store.owner_id,
+            type: 'payout_released',
+            title: 'Order Completed & Payout Released',
+            message: `Buyer confirmed delivery for order #${updatedOrder.order_number}. ₵${sellerPayout.toFixed(2)} has been added to your balance.`,
+            relatedId: updatedOrder.id,
+            relatedType: 'order',
+            data: { orderId: updatedOrder.id, orderNumber: updatedOrder.order_number, amount: sellerPayout }
+        }).catch(e => logger.error('Seller payout notification failed', e));
+    }
+
+    res.status(200).json({
+        success: true,
+        message: 'Delivery confirmed. Funds released to seller and driver.',
+        order: updatedOrder
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createOrder,
   getMyOrders,
@@ -623,5 +743,6 @@ module.exports = {
   updateOrderStatus,
   cancelOrder,
   getOrderByNumber,
-  verifyPayment
+  verifyPayment,
+  confirmDelivery
 };
