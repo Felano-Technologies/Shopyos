@@ -16,7 +16,7 @@
 // This lets the seed run from the host against the Docker Postgres on localhost.
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });       // root .env (docker vars)
-require('dotenv').config({ path: path.resolve(__dirname, '../.env'), override: true }); // backend .env (overrides)
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // backend .env (fills unset vars)
 
 // When running from the host machine, the Docker DB is on localhost:5432.
 // Inside Docker, DATABASE_URL would use "db" as host — but we're running locally.
@@ -245,7 +245,7 @@ async function seed() {
     const { rows: [store1] } = await db.query(`
       INSERT INTO stores
         (owner_id, store_name, slug, description, email, phone,
-         address_line1, city, country, category,
+         address_line1, city, state_province, country, category,
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
          listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'TechHub Accra', 'techhub-accra',
@@ -261,7 +261,7 @@ async function seed() {
     const { rows: [store2] } = await db.query(`
       INSERT INTO stores
         (owner_id, store_name, slug, description, email, phone,
-         address_line1, city, country, category,
+         address_line1, city, state_province, country, category,
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
          listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'Abena Fashions', 'abena-fashions',
@@ -277,7 +277,7 @@ async function seed() {
     const { rows: [store3] } = await db.query(`
       INSERT INTO stores
         (owner_id, store_name, slug, description, email, phone,
-         address_line1, city, country, category,
+         address_line1, city, state_province, country, category,
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
          listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'Yaw Fresh Groceries', 'yaw-fresh-groceries',

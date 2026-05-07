@@ -188,28 +188,33 @@ export default function ProductDetails() {
                 </View>
             </View>
             <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    {/* Header & Image Section */}
-                    <View style={styles.imageHeaderContainer}>
-                        {product.image && (
-                            <Image
-                                source={typeof product.image === 'string' && (product.image.startsWith('http') || product.image.startsWith('file'))
-                                    ? { uri: product.image }
-                                    : (typeof product.image === 'number' ? product.image : { uri: product.image })}
-                                style={styles.productImage}
-                                resizeMode="cover"
-                            />
-                        )}
-                        <View style={styles.headerOverlay}>
-                            <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
-                                <Ionicons name="arrow-back" size={24} color="#0C1559" />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={toggleFavorite} style={styles.iconBtn}>
-                                <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
-                            </TouchableOpacity>
-                        </View>
+                {/* Header & Image Section (fixed) */}
+                <View style={styles.imageHeaderContainer}>
+                    {product.image && (
+                        <Image
+                            source={typeof product.image === 'string' && (product.image.startsWith('http') || product.image.startsWith('file'))
+                                ? { uri: product.image }
+                                : (typeof product.image === 'number' ? product.image : { uri: product.image })}
+                            style={styles.productImage}
+                            resizeMode="cover"
+                        />
+                    )}
+                    <View style={styles.headerOverlay}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+                            <Ionicons name="arrow-back" size={24} color="#0C1559" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={toggleFavorite} style={styles.iconBtn}>
+                            <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
+                        </TouchableOpacity>
                     </View>
-                    {/* Details Card */}
+                </View>
+
+                {/* Details (scrollable) */}
+                <ScrollView
+                    style={styles.detailsScroll}
+                    contentContainerStyle={styles.detailsScrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
                     <View style={styles.detailsCard}>
                         <View style={styles.handleBar} />
                         <View style={styles.metaRow}>
@@ -323,12 +328,13 @@ export default function ProductDetails() {
 }
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F0F4FC' },
-    scrollContent: { paddingBottom: 150 },
+    detailsScroll: { flex: 1, marginTop: -30 },
+    detailsScrollContent: { paddingBottom: 150 },
     imageHeaderContainer: { height: height * 0.45, width: '100%', position: 'relative' },
     productImage: { width: '100%', height: '100%' },
     headerOverlay: { position: 'absolute', top: 50, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between' },
     iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-    detailsCard: { marginTop: -30, backgroundColor: '#F0F4FC', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.6 },
+    detailsCard: { backgroundColor: '#F0F4FC', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.6 },
     handleBar: { width: 40, height: 4, backgroundColor: '#CBD5E1', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
     metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     categoryBadge: { backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },

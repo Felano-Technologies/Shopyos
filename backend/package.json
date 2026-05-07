@@ -5,7 +5,8 @@
     "migrate": "node scripts/migrate.js",
     "migrate:apply": "node scripts/applyMigrations.js",
     "worker": "node workers/notificationWorker.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "seed:docker": "docker exec shopyos-backend npm run seed"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",

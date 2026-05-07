@@ -27,6 +27,11 @@ type StoreItem = {
   distanceKm: number;
 };
 
+function toNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 const CATEGORIES = ['All', 'Fashion', 'Electronics', 'Grocery', 'Art', 'Home', 'Footwear'];
 
 export default function StoresMapWeb() {
@@ -61,9 +66,9 @@ export default function StoresMapWeb() {
               id: store.id,
               name: store.name || 'Unknown Store',
               category: store.category || 'General',
-              rating: store.rating || 0,
-              reviewCount: store.reviewCount || 0,
-              catalogues: store.catalogues || 0,
+              rating: toNumber(store.rating, 0),
+              reviewCount: toNumber(store.reviewCount, 0),
+              catalogues: toNumber(store.catalogues, 0),
               verified: store.verified || false,
               latitude: lat,
               longitude: lng,
@@ -214,7 +219,7 @@ export default function StoresMapWeb() {
                 </View>
                 <View style={styles.pill}>
                   <Ionicons name="star" size={11} color="#F59E0B" />
-                  <Text style={styles.pillText}>{item.rating.toFixed(1)}</Text>
+                  <Text style={styles.pillText}>{toNumber(item.rating, 0).toFixed(1)}</Text>
                 </View>
                 <Text style={styles.catalogueText}>{item.catalogues} items</Text>
               </View>

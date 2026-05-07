@@ -389,7 +389,9 @@ export default function StoresScreen() {
         >
           <LinearGradient colors={[C.navy, C.navyMid]} style={styles.mapFabInner}>
             <MaterialCommunityIcons name="map-marker-radius" size={18} color="#fff" />
-            <Text style={styles.mapFabTxt}>Find Stores</Text>
+
+            {/* <Text style={styles.mapFabTxt}>Find Stores</Text> */}
+
           </LinearGradient>
         </TouchableOpacity>
         <BottomNav />
@@ -628,8 +630,8 @@ const styles = StyleSheet.create({
   },
   visitTxt: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.navy },
   mapFab: {
-    position: 'absolute', bottom: 86, alignSelf: 'center', marginBottom: 15,
-    borderRadius: 30, elevation: 10, shadowColor: C.navy,
+    position: 'absolute', bottom: 100, alignSelf: 'center', marginBottom: 10,
+    borderRadius: 30, elevation: 10, shadowColor: C.navy, marginLeft: 280,
     shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.28, shadowRadius: 14, zIndex: 50,
   },
   mapFabInner: {
