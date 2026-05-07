@@ -203,7 +203,7 @@ export default function Home() {
       shouldAutoStart();
     }, 1500);
     return () => clearTimeout(timer);
-  }, [markCompleted, onboardingLoading, startTour, user]);
+  }, [markCompleted, onboardingLoading, startTour, user, isCompleted]);
   const onboardingSteps = [
     {
       targetLayout: layouts.greeting,

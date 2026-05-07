@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Dimensions,
   ActivityIndicator,
   FlatList
 } from 'react-native';
@@ -15,7 +14,7 @@ import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/v
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getPayoutHistory, storage } from '@/services/api';
+import { getPayoutHistory } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useMyBusinesses } from '@/hooks/useBusiness';
 export default function PayoutScreen() {
@@ -24,7 +23,7 @@ export default function PayoutScreen() {
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
-  const { isChecking, isVerified } = useSellerGuard();
+  const { isChecking } = useSellerGuard();
   const { data: businessesData, isLoading: isLoadingBusinesses } = useMyBusinesses();
   
   useEffect(() => {
@@ -49,9 +48,7 @@ export default function PayoutScreen() {
     }
   };
 
-  const loadData = async () => {
-    // legacy or manual refresh
-  };
+
   // --- Render Item for History ---
   const renderHistoryItem = ({ item }: { item: any }) => (
     <View style={styles.historyItem}>

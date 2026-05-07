@@ -139,7 +139,7 @@ export default function DeliverySettingsScreen() {
                 <Text style={S.infoTitle}>How delivery fees work</Text>
                 <Text style={S.infoDesc}>
                   Delivery fee = Base Fee + (Distance in km × Per KM Fee).
-                  If you don't have store coordinates set, buyers will only be charged the Base Fee.
+                  If you don&apos;t have store coordinates set, buyers will only be charged the Base Fee.
                 </Text>
               </View>
             </View>

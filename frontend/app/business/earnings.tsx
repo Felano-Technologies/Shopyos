@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Dimensions, ActivityIndicator, Image, ScrollView,
@@ -9,8 +9,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
-import { router } from 'expo-router';
-import { storage } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);

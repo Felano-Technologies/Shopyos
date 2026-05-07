@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Animated, RefreshControl, Image,
@@ -10,7 +10,6 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { storage } from '@/services/api';
 import { useStoreProducts, useMyBusinesses } from '@/hooks/useBusiness';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 

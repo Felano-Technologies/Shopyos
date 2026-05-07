@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   View,
@@ -13,8 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import { getStoreReviews, storage } from '@/services/api';
-import { router } from 'expo-router';
+import { getStoreReviews } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useMyBusinesses } from '@/hooks/useBusiness';
 const ReviewsScreen = () => {
@@ -30,10 +29,10 @@ const ReviewsScreen = () => {
   const [reviews, setReviews] = useState<any[]>([]);
   const [, setLoading] = useState(true);
   const [, setRefreshing] = useState(false);
-  const { isChecking, isVerified } = useSellerGuard();
+  const { isVerified } = useSellerGuard();
   const { data: businessesData } = useMyBusinesses();
   const businessId = businessesData?.businesses?.[0]?._id;
-  const fetchReviews = async () => {
+  const fetchReviews = React.useCallback(async () => {
     try {
       if (businessId) {
         const data = await getStoreReviews(businessId);
@@ -54,10 +53,10 @@ const ReviewsScreen = () => {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [businessId]);
   React.useEffect(() => {
     if (isVerified) fetchReviews();
-  }, [isVerified, businessId]);
+  }, [isVerified, fetchReviews]);
   const sortedReviews = [...reviews].sort((a, b) => {
     if (sortBy === 'Latest') return new Date(b.date).getTime() - new Date(a.date).getTime();
     if (sortBy === 'Highest') return b.rating - a.rating;

@@ -5,13 +5,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { format } from 'date-fns';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { getStoreOrders, storage } from '@/services/api';
+import { getStoreOrders } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
@@ -101,7 +101,7 @@ const OrdersScreen = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [businessId]);
 
 
   useEffect(() => {

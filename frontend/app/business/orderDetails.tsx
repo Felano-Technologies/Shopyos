@@ -12,7 +12,6 @@ import { format } from 'date-fns';
 import { getOrderDetails, updateOrderStatus, startConversation } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useChat } from '@/context/ChatContext';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';

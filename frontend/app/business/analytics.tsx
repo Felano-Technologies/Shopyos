@@ -9,7 +9,6 @@ import { StatusBar } from 'expo-status-bar';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
-import { storage } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyticsSkeleton';

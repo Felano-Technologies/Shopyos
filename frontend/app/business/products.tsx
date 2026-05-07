@@ -15,7 +15,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {
   getStoreProducts, createProduct, deleteProduct,
-  uploadProductImages, updateProduct, getAllCategories, storage,
+  uploadProductImages, updateProduct, getAllCategories,
   initializeListingFee
 } from '@/services/api';
 import * as WebBrowser from 'expo-web-browser';
@@ -140,7 +140,7 @@ const ProductsScreen = () => {
         })));
       }
     } catch (e) { console.error('Failed to fetch products', e); }
-  }, []);
+  }, [businessId]);
 
   const fetchCategories = useCallback(async () => {
     try {

@@ -6,7 +6,6 @@ import {
     TouchableOpacity, 
     ScrollView, 
     Image, 
-    useColorScheme, 
     RefreshControl, 
     Dimensions, 
     Modal, 

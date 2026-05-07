@@ -7,7 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { viewSnap } from '@/services/api';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 const SNAP_DURATION = 5000; // 5 seconds per snap
 
 export default function SnapViewer() {
@@ -18,7 +18,7 @@ export default function SnapViewer() {
   const feedData = React.useMemo(() => {
     try {
       return params.feedData ? JSON.parse(params.feedData as string) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   }, [params.feedData]);
@@ -39,6 +39,50 @@ export default function SnapViewer() {
     setStoreIndex(initialIndex);
   }, [initialIndex]);
 
+  const stopTimer = React.useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+  }, []);
+
+  const goToNext = React.useCallback(() => {
+    if (snapIndex < currentStore.snaps.length - 1) {
+      setSnapIndex(snapIndex + 1);
+    } else if (storeIndex < feedData.length - 1) {
+      setStoreIndex(storeIndex + 1);
+      setSnapIndex(0);
+    } else {
+      router.back();
+    }
+  }, [snapIndex, storeIndex, feedData, currentStore, router]);
+
+  const goToPrev = React.useCallback(() => {
+    if (snapIndex > 0) {
+      setSnapIndex(snapIndex - 1);
+    } else if (storeIndex > 0) {
+      setStoreIndex(storeIndex - 1);
+      setSnapIndex(feedData[storeIndex - 1].snaps.length - 1);
+    } else {
+      setProgress(0); // Restart first snap
+    }
+  }, [snapIndex, storeIndex, feedData]);
+
+  const startTimer = React.useCallback(() => {
+    stopTimer();
+    setProgress(0);
+    const interval = 50; // Update progress every 50ms
+    const step = (interval / SNAP_DURATION) * 100;
+
+    timerRef.current = setInterval(() => {
+      setProgress((prev) => {
+        if (prev + step >= 100) {
+          stopTimer();
+          goToNext();
+          return 100;
+        }
+        return prev + step;
+      });
+    }, interval);
+  }, [stopTimer, goToNext]);
+
   useEffect(() => {
     if (!feedData || feedData.length === 0) {
       return;
@@ -55,51 +99,8 @@ export default function SnapViewer() {
 
     startTimer();
     return () => stopTimer();
-  }, [storeIndex, snapIndex, feedData]);
+  }, [storeIndex, snapIndex, feedData, currentSnap, currentStore, router, startTimer, stopTimer]);
 
-  const startTimer = () => {
-    stopTimer();
-    setProgress(0);
-    const interval = 50; // Update progress every 50ms
-    const step = (interval / SNAP_DURATION) * 100;
-
-    timerRef.current = setInterval(() => {
-      setProgress((prev) => {
-        if (prev + step >= 100) {
-          stopTimer();
-          goToNext();
-          return 100;
-        }
-        return prev + step;
-      });
-    }, interval);
-  };
-
-  const stopTimer = () => {
-    if (timerRef.current) clearInterval(timerRef.current);
-  };
-
-  const goToNext = () => {
-    if (snapIndex < currentStore.snaps.length - 1) {
-      setSnapIndex(snapIndex + 1);
-    } else if (storeIndex < feedData.length - 1) {
-      setStoreIndex(storeIndex + 1);
-      setSnapIndex(0);
-    } else {
-      router.back();
-    }
-  };
-
-  const goToPrev = () => {
-    if (snapIndex > 0) {
-      setSnapIndex(snapIndex - 1);
-    } else if (storeIndex > 0) {
-      setStoreIndex(storeIndex - 1);
-      setSnapIndex(feedData[storeIndex - 1].snaps.length - 1);
-    } else {
-      setProgress(0); // Restart first snap
-    }
-  };
 
   const handlePress = (e: any) => {
     const x = e.nativeEvent.locationX;

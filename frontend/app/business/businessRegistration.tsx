@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Dimensions,
   Platform,
   KeyboardAvoidingView,
   Alert,

@@ -7,6 +7,7 @@ import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import Constants from 'expo-constants';
 import axios from 'axios';
+import * as Notifications from 'expo-notifications';
 import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE, PROXIMITY_RADIUS_METERS } from './taskNames';
 import { API_URL, updateDriverLocation, storage, secureStorage } from '../../services/api';
 import { enqueueLocation } from './queue';
@@ -15,7 +16,7 @@ const isExpoGo = Constants.appOwnership === 'expo';
 
 const getNotificationsModule = () => {
   if (isExpoGo) return null;
-  return require('expo-notifications');
+  return Notifications;
 };
 
 // ─── Haversine distance helper (returns metres) ────────────────────────────────
