@@ -217,7 +217,8 @@ export default function StoreDetailsScreen() {
             conversationId: res.conversation.id,
             name: store.name,
             avatar: store.logo?.uri || 'https://api.dicebear.com/7.x/initials/png?seed=' + store.name,
-            chatType: 'buyer'
+            chatType: 'buyer',
+            entityId: store.id
           }
         });
       }

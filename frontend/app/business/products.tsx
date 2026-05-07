@@ -63,7 +63,7 @@ const ProductsScreen = () => {
 
   const { data: businessesData } = useMyBusinesses();
   const businessId = businessesData?.businesses?.[0]?._id;
-  const user = businessesData?.user; // Assuming businessesData includes user info or we use useOnboarding
+  const businessEmail = businessesData?.businesses?.[0]?.email;
 
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
@@ -229,7 +229,7 @@ const ProductsScreen = () => {
               text: 'Pay ₵50', 
               onPress: async () => {
                 try {
-                  const email = user?.email || 'seller@shopyos.com';
+                  const email = businessEmail || 'seller@shopyos.com';
                   
                   if (!businessId) return;
                   

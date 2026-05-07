@@ -160,7 +160,8 @@ export default function ProductDetails() {
                         conversationId: res.conversation.id,
                         name: product.sellerName,
                         avatar: product.storeImage || 'https://api.dicebear.com/7.x/avataaars/png?seed=' + product.sellerName,
-                        chatType: 'buyer'
+                        chatType: 'buyer',
+                        entityId: product.storeId
                     }
                 });
             }

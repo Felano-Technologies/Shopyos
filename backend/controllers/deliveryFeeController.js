@@ -105,14 +105,14 @@ const updateDeliverySettings = async (req, res, next) => {
         const { deliveryBaseFee, deliveryPerKmFee, deliveryMaxKm } = req.body;
 
         // Validate inputs
-        if (deliveryBaseFee !== undefined && (isNaN(deliveryBaseFee) || parseFloat(deliveryBaseFee) < 0)) {
-            return res.status(400).json({ success: false, error: 'deliveryBaseFee must be a non-negative number' });
+        if (deliveryBaseFee !== undefined && (!Number.isFinite(Number(deliveryBaseFee)) || parseFloat(deliveryBaseFee) < 0)) {
+            return res.status(400).json({ success: false, error: 'deliveryBaseFee must be a valid non-negative number' });
         }
-        if (deliveryPerKmFee !== undefined && (isNaN(deliveryPerKmFee) || parseFloat(deliveryPerKmFee) < 0)) {
-            return res.status(400).json({ success: false, error: 'deliveryPerKmFee must be a non-negative number' });
+        if (deliveryPerKmFee !== undefined && (!Number.isFinite(Number(deliveryPerKmFee)) || parseFloat(deliveryPerKmFee) < 0)) {
+            return res.status(400).json({ success: false, error: 'deliveryPerKmFee must be a valid non-negative number' });
         }
-        if (deliveryMaxKm !== undefined && deliveryMaxKm !== null && (isNaN(deliveryMaxKm) || parseFloat(deliveryMaxKm) <= 0)) {
-            return res.status(400).json({ success: false, error: 'deliveryMaxKm must be a positive number or null' });
+        if (deliveryMaxKm !== undefined && deliveryMaxKm !== null && (!Number.isFinite(Number(deliveryMaxKm)) || parseFloat(deliveryMaxKm) <= 0)) {
+            return res.status(400).json({ success: false, error: 'deliveryMaxKm must be a valid positive number or null' });
         }
 
         // Verify ownership

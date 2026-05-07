@@ -57,7 +57,7 @@ export default function ConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
-  const { conversationId, chatType = 'buyer', name, avatar } = params;
+  const { conversationId, chatType = 'buyer', name, avatar, entityId } = params;
   const { deleteConversation } = useChat();
 
   const [text, setText] = useState('');
@@ -533,10 +533,7 @@ export default function ConversationScreen() {
         visible={reportVisible}
         onClose={() => setReportVisible(false)}
         entityType={chatType === 'buyer' ? 'store' : 'user'}
-        entityId={
-           chatType === 'buyer' ? conversationId : // Need actual store ID or user ID, using conversation as placeholder isn't great.
-           (messages.find(m => m.sender_id !== currentUserId)?.sender_id || '')
-        } // Wait, we need the exact ID. Let's fix this logic.
+        entityId={entityId || (messages.find(m => m.sender_id !== currentUserId)?.sender_id || '')}
         entityName={displayName}
       />
     </View>

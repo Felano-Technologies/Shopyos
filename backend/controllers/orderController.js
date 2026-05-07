@@ -68,6 +68,25 @@ const createOrder = async (req, res, next) => {
     // Create separate order for each store
     const createdOrders = [];
 
+    // ── Validation Pass ──────────────────────────────────────────────────────────
+    // Ensure ALL stores are within range before creating ANY orders to avoid partial checkout success.
+    for (const [storeId] of Object.entries(itemsByStore)) {
+      const store = await repositories.stores.findById(storeId);
+      if (store && buyerLat !== undefined && buyerLng !== undefined && store.latitude !== null && store.longitude !== null) {
+        const distanceKm = haversineKm(
+          parseFloat(store.latitude), parseFloat(store.longitude),
+          parseFloat(buyerLat), parseFloat(buyerLng)
+        );
+        const { withinRange } = calculateDeliveryFee(store, distanceKm);
+        if (!withinRange) {
+          return res.status(400).json({
+            success: false,
+            error: `Delivery address is outside the delivery radius for ${store.store_name || 'one of the stores'}`
+          });
+        }
+      }
+    }
+
     for (const [storeId, items] of Object.entries(itemsByStore)) {
       // Calculate order total (following frontend logic)
       let subtotal = 0;
@@ -101,7 +120,15 @@ const createOrder = async (req, res, next) => {
             parseFloat(buyerLat), parseFloat(buyerLng)
           );
           const { fee, withinRange } = calculateDeliveryFee(store, distanceKm);
-          deliveryFee = (withinRange && fee !== null) ? fee : (parseFloat(store.delivery_base_fee) || 15);
+          
+          if (!withinRange) {
+            return res.status(400).json({
+              success: false,
+              error: `Delivery address is outside the delivery radius for ${store.store_name || 'one of the stores'}`
+            });
+          }
+          
+          deliveryFee = fee !== null ? fee : (parseFloat(store.delivery_base_fee) || 15);
         } else {
           deliveryFee = parseFloat(store.delivery_base_fee) || 15;
         }
@@ -119,6 +146,8 @@ const createOrder = async (req, res, next) => {
         }
       }
 
+      const totalAmount = subtotal + tax + deliveryFee;
+
       // Update order creation data to include delivery_state_province
       const orderData = {
         order_number: generateOrderNumber(),
@@ -128,7 +157,7 @@ const createOrder = async (req, res, next) => {
         subtotal: subtotal,
         tax: tax,
         delivery_fee: deliveryFee,
-        total_amount: subtotal + tax + deliveryFee,
+        total_amount: totalAmount,
         delivery_address_line1: deliveryAddress,
         delivery_city: req.body.deliveryCity || 'Accra',
         delivery_state_province: deliveryState,

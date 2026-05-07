@@ -72,7 +72,7 @@ export default function ActiveOrderScreen() {
     }
     Linking.openURL(`tel:${phoneNumber}`);
   };
-  const handleChat = async (participantId: string, name: string, avatar: string) => {
+  const handleChat = async (participantId: string, name: string, avatar: string, type: 'buyer' | 'seller' = 'seller', entityId?: string) => {
     if (!participantId) return;
     try {
       const res = await startConversation(participantId);
@@ -83,7 +83,8 @@ export default function ActiveOrderScreen() {
             conversationId: res.conversation.id,
             name: name,
             avatar: avatar,
-            chatType: 'seller' // Defaulting to seller/neutral for driver chats
+            chatType: type,
+            entityId: entityId || participantId
           }
         });
       }
@@ -218,7 +219,13 @@ export default function ActiveOrderScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.circleBtn}
-                onPress={() => handleChat(storeDetails?.owner_id, storeDetails?.store_name, storeDetails?.logo_url)}
+                onPress={() => handleChat(
+                  storeDetails?.owner_id, 
+                  storeDetails?.store_name, 
+                  storeDetails?.logo_url,
+                  'buyer', // Driver chatting with store -> reporting should be 'store'
+                  storeDetails?._id || storeDetails?.id
+                )}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
               </TouchableOpacity>
@@ -245,7 +252,12 @@ export default function ActiveOrderScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity
                 style={styles.circleBtn}
-                onPress={() => handleChat(delivery.order?.buyer_id, buyerProfile?.full_name, buyerProfile?.avatar_url)}
+                onPress={() => handleChat(
+                  delivery.order?.buyer_id, 
+                  buyerProfile?.full_name, 
+                  buyerProfile?.avatar_url,
+                  'seller' // Driver chatting with customer -> reporting should be 'user'
+                )}
               >
                 <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
               </TouchableOpacity>

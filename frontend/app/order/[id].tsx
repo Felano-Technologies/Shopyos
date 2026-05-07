@@ -137,7 +137,7 @@ const OrderDetailsScreen = () => {
     ]);
   };
   const [chatLoading, setChatLoading] = useState(false);
-  const handleChat = async (ownerId: string, storeName: string, logoUrl: string) => {
+  const handleChat = async (ownerId: string, storeName: string, logoUrl: string, type: 'buyer' | 'seller' = 'buyer', entityId?: string) => {
     if (chatLoading || !ownerId) return;
     try {
       setChatLoading(true);
@@ -149,7 +149,8 @@ const OrderDetailsScreen = () => {
             conversationId: res.conversation.id,
             name: storeName,
             avatar: logoUrl,
-            chatType: 'buyer'
+            chatType: type,
+            entityId: entityId || ownerId
           }
         } as any);
       }
@@ -351,7 +352,8 @@ const OrderDetailsScreen = () => {
                   onPress={() => handleChat(
                     driver.id,
                     driver.user_profiles?.full_name || 'Driver',
-                    driver.user_profiles?.avatar_url || ''
+                    driver.user_profiles?.avatar_url || '',
+                    'seller' // Chatting with a person (driver), so treat as seller/user type for reporting
                   )}
                 >
                   <Ionicons name="chatbubble-ellipses" size={24} color="#0C1559" />
@@ -395,7 +397,9 @@ const OrderDetailsScreen = () => {
               onPress={() => handleChat(
                 order.store?.owner_id || order.store?.owner?._id || order.store?.owner,
                 order.store?.store_name || 'Store',
-                order.store?.logo || order.store?.logo_url || ''
+                order.store?.logo || order.store?.logo_url || '',
+                'buyer',
+                order.store?.id || order.store?._id
               )}
             >
               {chatLoading ? (

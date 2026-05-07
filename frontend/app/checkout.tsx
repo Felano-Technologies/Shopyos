@@ -48,6 +48,7 @@ export default function CheckoutScreen() {
   // Delivery fee state
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [isFetchingFee, setIsFetchingFee] = useState(false);
+  const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Get buyer location once on mount
@@ -76,11 +77,17 @@ export default function CheckoutScreen() {
       setIsFetchingFee(true);
       try {
         const res = await getDeliveryQuote(storeId, buyerCoords.lat, buyerCoords.lng);
-        if (res?.success && res.quote?.deliveryFee !== null) {
-          setDeliveryFee(res.quote.deliveryFee);
+        if (res?.success) {
+          const { withinRange, deliveryFee: fee } = res.quote || {};
+          setIsWithinRange(withinRange);
+          if (withinRange && fee !== null) {
+            setDeliveryFee(fee);
+          } else {
+            setDeliveryFee(0);
+          }
         }
       } catch {
-        // Keep default 0 if quote fails
+        setIsWithinRange(true); // Fallback to true if quote fails? Or keep null?
       } finally {
         setIsFetchingFee(false);
       }
@@ -263,10 +270,16 @@ export default function CheckoutScreen() {
                   <Text style={S.summaryItemName}>Delivery Fee</Text>
                   {isFetchingFee && <ActivityIndicator size="small" color={C.muted} />}
                 </View>
-                <Text style={S.summaryItemPrice}>
-                  {isFetchingFee ? '...' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
+                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#EF4444' }]}>
+                  {isFetchingFee ? '...' : isWithinRange === false ? 'Out of Range' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
                 </Text>
               </View>
+              {isWithinRange === false && (
+                <View style={S.errorBanner}>
+                  <Ionicons name="alert-circle" size={16} color="#B91C1C" />
+                  <Text style={S.errorText}>Your address is outside this store's delivery zone.</Text>
+                </View>
+              )}
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
@@ -360,9 +373,9 @@ export default function CheckoutScreen() {
 
             {/* Place Order */}
             <TouchableOpacity
-              style={[S.placeOrderBtn, isOrdering && { opacity: 0.7 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange === false) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering}
+              disabled={isOrdering || isWithinRange === false}
             >
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
@@ -433,4 +446,6 @@ const S = StyleSheet.create({
   regionChipActive: { backgroundColor: C.navy, borderColor: C.navy },
   regionChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   regionChipTxtActive: { color: '#FFF' },
+  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
+  errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', flex: 1 },
 });

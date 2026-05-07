@@ -241,11 +241,19 @@ class QueryBuilder {
         if (this._ignoreConflict) {
           // insert().onConflict([...]).ignore() => ON CONFLICT DO NOTHING
           const conflictCols = this._conflictColumns?.length ? ` (${this._conflictColumns.join(', ')})` : '';
-          sql += ` ON CONFLICT${conflictCols} DO NOTHING`;
+          sql += ` ON CONFLICT${conflictCols} DO NOTHING RETURNING *`;
           const result = await db.query(sql, values);
-          // If no rows were inserted (conflict occurred), return null data with no error
+          
+          const rowCount = typeof result.rowCount === 'number' ? result.rowCount : result.rows.length;
           const inserted = result.rows[0] || null;
-          return { data: inserted, error: inserted ? null : null };
+          const conflictIgnored = rowCount === 0;
+
+          return { 
+            data: inserted, 
+            error: null, 
+            rowCount, 
+            conflictIgnored 
+          };
         }
 
         if (this.operation === 'upsert' && this.upsertKeys && this.upsertKeys.length > 0) {

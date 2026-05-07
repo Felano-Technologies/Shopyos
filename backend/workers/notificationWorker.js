@@ -93,7 +93,7 @@ async function checkOrLogIdempotency(eventType, target, referenceId) {
         // on the next attempt (correctly allowing a retry). This means a crash mid-send
         // could result in a duplicate delivery on restart. Avoiding this entirely would
         // require distributed locks, which is out of scope here.
-        const { error: insertError } = await repositories.users.db
+        const { error: insertError, conflictIgnored } = await repositories.users.db
             .from('notification_logs')
             .insert({
                 event_type: eventType,
@@ -105,6 +105,11 @@ async function checkOrLogIdempotency(eventType, target, referenceId) {
             .ignore();
 
         if (insertError) {
+            logger.error('Error recording idempotency log:', insertError.message || insertError);
+            return false; // Fallback: proceed
+        }
+
+        if (conflictIgnored) {
             logger.warn('Idempotency insert conflict — another worker processed this message first.');
             return true; // Another worker got there first
         }

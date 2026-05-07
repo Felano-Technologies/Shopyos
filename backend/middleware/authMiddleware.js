@@ -54,17 +54,14 @@ const protect = async (req, res, next) => {
           .filter(Boolean)
       };
 
-      logger.info('Auth Middleware: Fetched user data from DB', { 
-        userId, 
-        email: userData.email, 
-        roles: userData.roles 
+      logger.debug('Auth Middleware: Fetched user data from DB', { 
+        userId
       });
 
       await cacheSet(cacheKey, userData, USER_CACHE_TTL);
     } else {
-      logger.info('Auth Middleware: Found user in cache', { 
-        userId, 
-        roles: userData.roles 
+      logger.debug('Auth Middleware: Found user in cache', { 
+        userId
       });
     }
 

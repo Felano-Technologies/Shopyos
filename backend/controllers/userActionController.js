@@ -63,19 +63,37 @@ const unblockUser = async (req, res, next) => {
 const getBlockedUsers = async (req, res, next) => {
     try {
         const blockerId = req.user.id;
+        const pool = repositories.users.getPool();
 
-        const { data, error } = await repositories.users.db.from('user_blocks')
-            .select(`
-                blocked_id,
-                created_at,
-                blocked_user:users!user_blocks_blocked_id_fkey(
-                    id,
-                    user_profiles(full_name, avatar_url)
-                )
-            `)
-            .eq('blocker_id', blockerId);
+        // Using raw SQL JOIN because the supabaseLikePgClient adapter has limited support for complex nested joins
+        const { rows } = await pool.query(
+            `
+                SELECT 
+                    ub.blocked_id,
+                    ub.created_at,
+                    u.id AS user_id,
+                    up.full_name,
+                    up.avatar_url
+                FROM user_blocks ub
+                LEFT JOIN users u ON u.id = ub.blocked_id
+                LEFT JOIN user_profiles up ON up.user_id = u.id
+                WHERE ub.blocker_id = $1
+                ORDER BY ub.created_at DESC
+            `,
+            [blockerId]
+        );
 
-        if (error) throw error;
+        const data = rows.map((row) => ({
+            blocked_id: row.blocked_id,
+            created_at: row.created_at,
+            blocked_user: {
+                id: row.user_id,
+                user_profiles: {
+                    full_name: row.full_name,
+                    avatar_url: row.avatar_url
+                }
+            }
+        }));
 
         res.status(200).json({ success: true, blockedUsers: data });
     } catch (error) {

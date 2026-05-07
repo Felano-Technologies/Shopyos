@@ -57,7 +57,13 @@ export default function ChatInbox() {
     if (item.unread > 0) markAsRead(item.id, 'buyer');
     router.push({
       pathname: '/chat/conversation',
-      params: { conversationId: item.id, name: item.name, avatar: item.avatar, chatType: 'buyer' },
+      params: { 
+        conversationId: item.id, 
+        name: item.name, 
+        avatar: item.avatar, 
+        chatType: 'buyer',
+        entityId: item.otherParticipant?.store?.id || item.otherParticipant?.id
+      },
     });
   };
 

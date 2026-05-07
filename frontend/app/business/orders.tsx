@@ -84,7 +84,7 @@ const OrdersScreen = () => {
         const data = await getStoreOrders(businessId);
         if (data.success) {
           const mapped: Order[] = data.orders.map((o: any) => ({
-            id:           o.id,
+            id:           o._id || o.id,
             orderNumber:  o.order_number,
             customerName: o.buyer?.user_profiles?.full_name || 'Guest',
             itemsCount:   o.order_items?.length || 0,

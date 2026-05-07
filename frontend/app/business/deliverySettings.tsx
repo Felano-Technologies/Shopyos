@@ -26,7 +26,7 @@ const C = {
 export default function DeliverySettingsScreen() {
   const router = useRouter();
   const { data: businessesData } = useMyBusinesses();
-  const storeId = businessesData?.businesses?.[0]?.id;
+  const storeId = businessesData?.businesses?.[0]?._id;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
