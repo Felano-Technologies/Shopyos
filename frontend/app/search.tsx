@@ -150,6 +150,10 @@ export default function SearchScreen() {
   // ── Data ────────────────────────────────────────────────────────────────────
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
+  const visibleCategories = categories.filter((cat: any) => {
+    const name = String(cat?.name || '').trim().toLowerCase();
+    return name !== 'automotive' && name !== 'toys';
+  });
   const filters = {
     category: category ?? (params.category ? String(params.category) : undefined),
     sortBy: sortBy as any,
@@ -385,13 +389,13 @@ export default function SearchScreen() {
           ))}
         </View>
       )}
-      {categories.length > 0 && (
+      {visibleCategories.length > 0 && (
         <>
           <View style={styles.discDivider} />
           <View style={styles.discSection}>
             <Text style={styles.discLabel}>Browse categories</Text>
             <View style={styles.catTileGrid}>
-              {[...categories].sort((a, b) => a.name.localeCompare(b.name)).map((cat: any, i: number) => {
+              {[...visibleCategories].sort((a, b) => a.name.localeCompare(b.name)).map((cat: any, i: number) => {
                 const isOn = category === cat.name;
                 const catImg = CATEGORY_IMAGES[cat.name];
                 return (
@@ -556,7 +560,7 @@ export default function SearchScreen() {
                     >
                       <Text style={[styles.chipTxt, !category && styles.chipTxtOn]}>All</Text>
                     </TouchableOpacity>
-                    {categories.map((cat: any) => {
+                    {visibleCategories.map((cat: any) => {
                       const on = category === cat.name;
                       return (
                         <TouchableOpacity
