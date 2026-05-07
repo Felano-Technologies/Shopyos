@@ -218,7 +218,8 @@ export default function StoreDetailsScreen() {
             name: store.name,
             avatar: store.logo?.uri || 'https://api.dicebear.com/7.x/initials/png?seed=' + store.name,
             chatType: 'buyer',
-            entityId: store.id
+            entityId: store.id,
+            participantId: ownerId
           }
         });
       }

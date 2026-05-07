@@ -15,7 +15,8 @@ const {
   getLocationUpdates,
   getLatestLocation,
   getDeliveryByOrder,
-  getDriverStats
+  getDriverStats,
+  verifyDeliveryPin
 } = require('../controllers/deliveryController');
 const {
   submitVerification,
@@ -80,6 +81,11 @@ router.put('/:deliveryId/assign', driver, assignDriver);
 // @desc    Update delivery status
 // @access  Private (Driver)
 router.put('/:deliveryId/status', driver, updateDeliveryStatus);
+
+// @route   POST /api/deliveries/:deliveryId/verify-pin
+// @desc    Verify delivery PIN and release funds
+// @access  Private (Driver)
+router.post('/:deliveryId/verify-pin', driver, verifyDeliveryPin);
 
 // @route   POST /api/deliveries/:deliveryId/location
 // @desc    Add location update

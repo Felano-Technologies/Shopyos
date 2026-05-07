@@ -30,7 +30,7 @@ function haversineKm(lat1, lon1, lat2, lon2) {
  * Calculate the delivery fee for an order based on store settings and distance.
  * @param {Object} store - Store record with delivery_base_fee, delivery_per_km_fee, delivery_max_km
  * @param {number} distanceKm
- * @returns {{ fee: number, withinRange: boolean, distanceKm: number }}
+ * @returns {{ fee: number|null, withinRange: boolean, distanceKm: number }}
  */
 function calculateDeliveryFee(store, distanceKm) {
     const baseFee = parseFloat(store.delivery_base_fee) || 0;

@@ -44,10 +44,13 @@ export default function SpotlightIndicator({ source }: { source?: any }) {
     return () => animation.stop();
   }, [opacity, scale]);
 
+  const offset = React.useRef(new Animated.Value(-0.08)).current;
+  const innerScale = Animated.add(scale, offset);
+
   return (
     <View style={styles.container}>
       <Animated.View style={[styles.ringOuter, { opacity, transform: [{ scale }] }]} />
-      <Animated.View style={[styles.ringInner, { transform: [{ scale: Animated.add(scale, new Animated.Value(-0.08)) }] }]} />
+      <Animated.View style={[styles.ringInner, { transform: [{ scale: innerScale }] }]} />
       <View style={styles.dot} />
     </View>
   );

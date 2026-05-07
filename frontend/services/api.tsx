@@ -806,7 +806,10 @@ export const createProduct = async (productData: any) => {
     return response.data;
   } catch (error: any) {
     if (error.response && error.response.data?.code === 'LISTING_FEE_REQUIRED') {
-      throw error.response.data; // Pass the whole object with paymentUrl
+      const err = new Error(error.response.data.message || 'Listing fee required');
+      (err as any).code = 'LISTING_FEE_REQUIRED';
+      (err as any).paymentUrl = error.response.data.paymentUrl;
+      throw err;
     }
     if (error.response) throw new Error(error.response.data.error || 'Failed to create product');
     throw error;

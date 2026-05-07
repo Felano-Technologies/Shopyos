@@ -12,7 +12,7 @@ CREATE INDEX IF NOT EXISTS idx_user_blocks_blocker_id ON public.user_blocks(bloc
 -- Create user_reports table
 CREATE TABLE IF NOT EXISTS public.user_reports (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
-    reporter_id UUID NOT NULL REFERENCES public.users(id) ON DELETE SET NULL,
+    reporter_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
     reported_user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
     reported_store_id UUID REFERENCES public.stores(id) ON DELETE CASCADE,
     entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('user', 'store')),

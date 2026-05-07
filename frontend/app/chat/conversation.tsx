@@ -57,8 +57,8 @@ export default function ConversationScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
-  const { conversationId, chatType = 'buyer', name, avatar, entityId } = params;
-  const { deleteConversation } = useChat();
+  const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
+  const { deleteConversation, buyerConversations, sellerConversations } = useChat();
 
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -218,7 +218,23 @@ export default function ConversationScreen() {
       { text: 'Cancel', style: 'cancel' },
       { text: 'Block', style: 'destructive', onPress: async () => {
           try {
-            const targetId = messages.find(m => m.sender_id !== currentUserId)?.sender_id;
+            // Determine target user ID deterministically
+            let targetId = participantId;
+
+            if (!targetId) {
+              const allConvs = [...buyerConversations, ...sellerConversations];
+              const metadata = allConvs.find(c => c.id === conversationId);
+              targetId = metadata?.otherParticipant?.id;
+            }
+
+            if (!targetId) {
+              targetId = messages.find(m => m.sender_id !== currentUserId)?.sender_id;
+            }
+
+            if (!targetId && chatType === 'seller') {
+              targetId = entityId; // For sellers, entityId is the buyer userId
+            }
+
             if (!targetId) {
                 CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not identify user to block.' });
                 return;

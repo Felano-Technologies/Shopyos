@@ -84,7 +84,8 @@ export default function ActiveOrderScreen() {
             name: name,
             avatar: avatar,
             chatType: type,
-            entityId: entityId || participantId
+            entityId: entityId || participantId,
+            participantId: participantId
           }
         });
       }

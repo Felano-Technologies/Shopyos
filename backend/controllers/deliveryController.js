@@ -1,6 +1,7 @@
 // controllers/deliveryController.js
 // Delivery tracking and management controller
 
+const crypto = require('crypto');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
@@ -297,11 +298,48 @@ const updateDeliveryStatus = async (req, res, next) => {
 
     // Update order status based on delivery status
     if (status === 'picked_up') {
-      await repositories.orders.updateStatus(updatedDelivery.order_id, 'in_transit');
+      // Generate 6-digit verification PIN
+      const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Update order status and save PIN
+      await repositories.orders.db.from('orders')
+        .update({ 
+          status: 'in_transit', 
+          verification_pin: verificationPin,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', updatedDelivery.order_id);
 
-      // Notify customer that order has been picked up (if driver is not the buyer)
+      // Notify customer that order has been picked up and provide PIN
       if (order && order.buyer_id !== driverId) {
-        await notificationService.sendOrderNotification(order.buyer_id, order, 'picked_up');
+        await notificationService.sendNotification({
+          userId: order.buyer_id,
+          type: 'order_status',
+          title: 'Order Picked Up',
+          message: `Your order #${order.order_number} has been picked up. Give this PIN to the driver upon delivery: ${verificationPin}`,
+          relatedId: order.id,
+          relatedType: 'order',
+          data: { 
+            orderId: order.id, 
+            status: 'in_transit',
+            verificationPin
+          },
+          push: { data: { screen: 'order', orderId: order.id } }
+        });
+
+        // Also send via Email/SMS queue
+        const buyer = await repositories.users.findById(order.buyer_id);
+        if (buyer?.email) {
+          rabbitMQService.publishMessage('email', {
+            eventType: 'ORDER_PICKED_UP',
+            userId: order.buyer_id,
+            email: buyer.email,
+            templateData: {
+              orderNumber: order.order_number,
+              verificationPin
+            }
+          });
+        }
       }
     } else if (status === 'in_transit') {
       // Notify customer that driver is on the way (if driver is not the buyer)
@@ -584,6 +622,50 @@ const getDriverStats = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   POST /api/deliveries/:deliveryId/verify-pin
+ * @desc    Verify delivery PIN and release funds (Atomic)
+ * @access  Private (Driver)
+ */
+const verifyDeliveryPin = async (req, res, next) => {
+  try {
+    const { deliveryId } = req.params;
+    const { pin } = req.body;
+    const driverId = req.user.id;
+
+    if (!pin) {
+      return res.status(400).json({ success: false, error: 'Verification PIN is required' });
+    }
+
+    const delivery = await repositories.deliveries.findById(deliveryId);
+    if (!delivery) {
+      return res.status(404).json({ success: false, error: 'Delivery not found' });
+    }
+
+    // Call atomic verification RPC
+    const { data: result, error: rpcError } = await repositories.orders.db.rpc('verify_delivery_pin', {
+      p_order_id: delivery.order_id,
+      p_driver_id: driverId,
+      p_pin: pin
+    });
+
+    if (rpcError) throw rpcError;
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    // Notify customer
+    const order = await repositories.orders.findById(delivery.order_id);
+    if (order) {
+      await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createDelivery,
   getAvailableDeliveries,
@@ -596,5 +678,6 @@ module.exports = {
   getLocationUpdates,
   getLatestLocation,
   getDeliveryByOrder,
-  getDriverStats
+  getDriverStats,
+  verifyDeliveryPin
 };

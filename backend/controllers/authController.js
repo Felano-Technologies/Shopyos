@@ -98,7 +98,7 @@ const register = async (req, res, next) => {
         .from('user_profiles')
         .select('user_id')
         .eq('referral_code', referralCode.toUpperCase())
-        .single();
+        .maybeSingle();
         
       if (referrerProfile) {
         referredById = referrerProfile.user_id;

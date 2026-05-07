@@ -54,7 +54,8 @@ export default function MessagesScreen() {
         name: item.name,
         avatar: item.avatar,
         chatType: 'seller', // Important: Tells conversation screen this is a business chat
-        entityId: item.otherParticipant?.id
+        entityId: item.otherParticipant?.id,
+        participantId: item.otherParticipant?.id
       }
     });
   };

@@ -87,7 +87,7 @@ export default function CheckoutScreen() {
           }
         }
       } catch {
-        setIsWithinRange(true); // Fallback to true if quote fails? Or keep null?
+        // Eligibility remains null (unknown) if quote fails
       } finally {
         setIsFetchingFee(false);
       }
@@ -277,7 +277,7 @@ export default function CheckoutScreen() {
               {isWithinRange === false && (
                 <View style={S.errorBanner}>
                   <Ionicons name="alert-circle" size={16} color="#B91C1C" />
-                  <Text style={S.errorText}>Your address is outside this store's delivery zone.</Text>
+                  <Text style={S.errorText}>Your address is outside this store&apos;s delivery zone.</Text>
                 </View>
               )}
               <View style={S.divider} />
@@ -373,9 +373,9 @@ export default function CheckoutScreen() {
 
             {/* Place Order */}
             <TouchableOpacity
-              style={[S.placeOrderBtn, (isOrdering || isWithinRange === false) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || isWithinRange === false}
+              disabled={isOrdering || isWithinRange !== true}
             >
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering

@@ -150,7 +150,8 @@ const OrderDetailsScreen = () => {
             name: storeName,
             avatar: logoUrl,
             chatType: type,
-            entityId: entityId || ownerId
+            entityId: entityId || ownerId,
+            participantId: ownerId
           }
         } as any);
       }

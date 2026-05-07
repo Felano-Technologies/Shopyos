@@ -161,7 +161,8 @@ export default function ProductDetails() {
                         name: product.sellerName,
                         avatar: product.storeImage || 'https://api.dicebear.com/7.x/avataaars/png?seed=' + product.sellerName,
                         chatType: 'buyer',
-                        entityId: product.storeId
+                        entityId: product.storeId,
+                        participantId: product.sellerId
                     }
                 });
             }

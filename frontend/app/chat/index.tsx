@@ -62,7 +62,8 @@ export default function ChatInbox() {
         name: item.name, 
         avatar: item.avatar, 
         chatType: 'buyer',
-        entityId: item.otherParticipant?.store?.id || item.otherParticipant?.id
+        entityId: item.otherParticipant?.store?.id || item.otherParticipant?.id,
+        participantId: item.otherParticipant?.id
       },
     });
   };

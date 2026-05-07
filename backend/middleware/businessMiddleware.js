@@ -11,14 +11,17 @@ const requireStore = async (req, res, next) => {
         }
 
         const result = await repositories.stores.findByOwnerId(req.user.id);
-        const store = result?.data?.[0];
+        const stores = result?.data || [];
         
-        if (!store) {
+        if (stores.length === 0) {
             return res.status(403).json({ 
                 success: false, 
                 error: 'Store not found. You must create a store first.' 
             });
         }
+
+        // Find the first active store, otherwise fall back to the most recent one to show the inactive message
+        const store = stores.find(s => s.is_active) || stores[0];
 
         if (!store.is_active) {
             return res.status(403).json({ 

@@ -63,10 +63,10 @@ const ProductsScreen = () => {
 
   const { data: businessesData } = useMyBusinesses();
   const businessId = businessesData?.businesses?.[0]?._id;
-  const businessEmail = businessesData?.businesses?.[0]?.email;
-
+  
   // --- Onboarding ---
-  const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
+  const { startTour, markCompleted, isTourActive, activeScreen, user } = useOnboarding();
+  const businessEmail = businessesData?.businesses?.[0]?.email || user?.email;
   const [layouts, setLayouts] = useState<any>({});
   const refForm = useRef<View>(null);
   const refPhoto = useRef<View>(null);
@@ -229,7 +229,11 @@ const ProductsScreen = () => {
               text: 'Pay ₵50', 
               onPress: async () => {
                 try {
-                  const email = businessEmail || 'seller@shopyos.com';
+                  const email = businessEmail;
+                  if (!email) {
+                    Alert.alert('Error', 'No email address found for payment. Please update your profile.');
+                    return;
+                  }
                   
                   if (!businessId) return;
                   
