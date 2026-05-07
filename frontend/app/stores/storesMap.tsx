@@ -77,6 +77,12 @@ interface StoreItem {
   distanceKm: number;
   colorIdx: number;
 }
+
+function toNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export default function StoresMap() {
   const router  = useRouter();
   const insets  = useSafeAreaInsets();
@@ -127,10 +133,10 @@ export default function StoresMap() {
               id:          b.id,
               name:        b.name        || 'Unknown Store',
               category:    b.category    || 'General',
-              rating:      b.rating      || 0,
-              reviewCount: b.reviewCount || 0,
+              rating:      toNumber(b.rating, 0),
+              reviewCount: toNumber(b.reviewCount, 0),
               logo:        b.logo        || null,
-              catalogues:  b.catalogues  || 0,
+              catalogues:  toNumber(b.catalogues, 0),
               verified:    b.verified    || false,
               latitude:    lat,
               longitude:   lng,
@@ -479,7 +485,7 @@ export default function StoresMap() {
                       </View>
                       <View style={S.ratingPill}>
                         <Ionicons name="star" size={9} color="#F59E0B" />
-                        <Text style={S.ratingPillTxt}>{item.rating.toFixed(1)}</Text>
+                        <Text style={S.ratingPillTxt}>{toNumber(item.rating, 0).toFixed(1)}</Text>
                       </View>
                       <Text style={S.cataloguesTxt}>{item.catalogues} items</Text>
                     </View>

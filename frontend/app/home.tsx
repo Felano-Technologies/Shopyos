@@ -750,7 +750,7 @@ export default function Home() {
                 {dealsProducts.length > 0 ? (
                   dealsProducts.map(renderGridCard)
                 ) : (
-                  <View style={[S.emptyH, { width: '100%' }]}>
+                  <View style={S.emptyGridFull}>
                     <View style={[S.emptyCircle, { backgroundColor: '#f0fdf4' }]}>
                       <MaterialCommunityIcons name="tag-outline" size={26} color="#16a34a" />
                     </View>
@@ -778,7 +778,7 @@ export default function Home() {
                 {exploreProducts.length > 0 ? (
                   exploreProducts.map(renderGridCard)
                 ) : (
-                  <View style={[S.emptyH, { width: '100%' }]}>
+                  <View style={S.emptyGridFull}>
                     <View style={S.emptyCircle}>
                       <Feather name="grid" size={26} color={C.navyMid} />
                     </View>
@@ -1034,6 +1034,20 @@ const S = StyleSheet.create({
     paddingVertical: 28, paddingHorizontal: 20, alignItems: 'center',
     elevation: 2, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8,
+  },
+  emptyGridFull: {
+    width: '100%',
+    marginLeft: 0,
+    backgroundColor: C.card,
+    borderRadius: 20,
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
   },
   emptyCircle: {
     width: 60, height: 60, borderRadius: 30,

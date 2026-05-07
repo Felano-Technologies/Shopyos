@@ -4,3 +4,8 @@ npm-debug.log
 .gitignore
 .env
 coverage
+dist
+*.log
+uploads
+tmp
+.DS_Store
