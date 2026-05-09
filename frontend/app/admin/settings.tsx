@@ -1,14 +1,11 @@
 import React, { useState } from 'react';
 import {
   Alert,
-  Modal,
-  Pressable,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -60,17 +57,12 @@ export default function AdminSettings() {
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [autoApproveSellers, setAutoApproveSellers] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      router.replace('/login');
-    } finally {
-      setIsLoggingOut(false);
-      setShowLogoutModal(false);
-    }
+  const handleLogout = () => {
+    Alert.alert('Sign Out', 'Are you sure you want to log out of the admin portal?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Logout', style: 'destructive', onPress: () => router.replace('/login') },
+    ]);
   };
 
   return (
@@ -163,30 +155,10 @@ export default function AdminSettings() {
             </View>
           </AdminPanel>
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={() => setShowLogoutModal(true)}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
             <Feather name="log-out" size={20} color={adminColors.red} />
             <Text style={styles.logoutText}>Logout Admin Portal</Text>
           </TouchableOpacity>
-
-          <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => !isLoggingOut && setShowLogoutModal(false)}>
-            <Pressable style={styles.logoutModalOverlay} onPress={() => !isLoggingOut && setShowLogoutModal(false)}>
-              <Pressable style={styles.logoutModalCard} onPress={(e) => e.stopPropagation()}>
-                <View style={styles.logoutModalIcon}>
-                  <Feather name="log-out" size={22} color={adminColors.red} />
-                </View>
-                <Text style={styles.logoutModalTitle}>Sign Out of Admin Portal?</Text>
-                <Text style={styles.logoutModalText}>This will end your admin session on this device.</Text>
-                <View style={styles.logoutModalActions}>
-                  <TouchableOpacity style={styles.logoutModalCancelBtn} onPress={() => setShowLogoutModal(false)} disabled={isLoggingOut}>
-                    <Text style={styles.logoutModalCancelTxt}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={[styles.logoutModalConfirmBtn, isLoggingOut && { opacity: 0.7 }]} onPress={handleLogout} disabled={isLoggingOut}>
-                    {isLoggingOut ? <ActivityIndicator color="#FFF" /> : <Text style={styles.logoutModalConfirmTxt}>Sign Out</Text>}
-                  </TouchableOpacity>
-                </View>
-              </Pressable>
-            </Pressable>
-          </Modal>
         </View>
       </AdminShell>
     </>
@@ -332,74 +304,5 @@ const styles = StyleSheet.create({
     color: adminColors.red,
     fontFamily: 'Montserrat-Bold',
     fontSize: 15,
-  },
-  logoutModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2,6,23,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  logoutModalCard: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: adminColors.border,
-    padding: 20,
-  },
-  logoutModalIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  logoutModalTitle: {
-    textAlign: 'center',
-    color: adminColors.text,
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-  },
-  logoutModalText: {
-    marginTop: 8,
-    textAlign: 'center',
-    color: adminColors.textMuted,
-    fontSize: 13,
-    fontFamily: 'Montserrat-Medium',
-  },
-  logoutModalActions: {
-    marginTop: 18,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  logoutModalCancelBtn: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    alignItems: 'center',
-    paddingVertical: 12,
-  },
-  logoutModalCancelTxt: {
-    color: '#475569',
-    fontSize: 13,
-    fontFamily: 'Montserrat-Bold',
-  },
-  logoutModalConfirmBtn: {
-    flex: 1,
-    backgroundColor: adminColors.red,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  logoutModalConfirmTxt: {
-    color: '#FFF',
-    fontSize: 13,
-    fontFamily: 'Montserrat-Bold',
   },
 });

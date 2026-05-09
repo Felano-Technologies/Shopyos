@@ -10,9 +10,6 @@ import {
   Alert,
   StatusBar,
   Animated,
-  Modal,
-  Pressable,
-  ActivityIndicator,
 } from 'react-native';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
@@ -28,8 +25,6 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -125,17 +120,23 @@ export default function SettingsScreen() {
     }
   };
   const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await logoutUser();
-      router.replace('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      router.replace('/login');
-    } finally {
-      setIsLoggingOut(false);
-      setShowLogoutModal(false);
-    }
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await logoutUser();
+            router.replace('/login');
+          } catch (error) {
+            console.error('Logout error:', error);
+            // Even if API fails, we should clear local and redirect
+            router.replace('/login');
+          }
+        }
+      },
+    ]);
   };
   const renderSettingItem = ({
     icon,
@@ -280,7 +281,7 @@ export default function SettingsScreen() {
         </View>
         {/* Logout */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={() => setShowLogoutModal(true)}>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
             <Feather name="log-out" size={20} color="#EF4444" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
@@ -294,26 +295,6 @@ export default function SettingsScreen() {
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />
-
-      <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => !isLoggingOut && setShowLogoutModal(false)}>
-        <Pressable style={styles.logoutModalOverlay} onPress={() => !isLoggingOut && setShowLogoutModal(false)}>
-          <Pressable style={styles.logoutModalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.logoutModalIcon}>
-              <Feather name="log-out" size={24} color="#EF4444" />
-            </View>
-            <Text style={styles.logoutModalTitle}>Log Out of Shopyos?</Text>
-            <Text style={styles.logoutModalText}>You can sign back in anytime. We&apos;ll keep your account data safe.</Text>
-            <View style={styles.logoutModalActions}>
-              <TouchableOpacity style={styles.logoutModalCancelBtn} onPress={() => setShowLogoutModal(false)} disabled={isLoggingOut}>
-                <Text style={styles.logoutModalCancelTxt}>Stay Logged In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.logoutModalConfirmBtn, isLoggingOut && { opacity: 0.7 }]} onPress={handleLogout} disabled={isLoggingOut}>
-                {isLoggingOut ? <ActivityIndicator color="#FFF" /> : <Text style={styles.logoutModalConfirmTxt}>Yes, Log Out</Text>}
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -509,74 +490,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Montserrat-Medium',
     color: '#94A3B8',
-  },
-  logoutModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2,6,23,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 22,
-  },
-  logoutModalCard: {
-    width: '100%',
-    backgroundColor: '#FFF',
-    borderRadius: 24,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  logoutModalIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: 12,
-  },
-  logoutModalTitle: {
-    textAlign: 'center',
-    fontSize: 19,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-  },
-  logoutModalText: {
-    marginTop: 8,
-    textAlign: 'center',
-    fontSize: 13,
-    lineHeight: 20,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-  },
-  logoutModalActions: {
-    marginTop: 18,
-    flexDirection: 'row',
-    gap: 10,
-  },
-  logoutModalCancelBtn: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  logoutModalCancelTxt: {
-    color: '#475569',
-    fontSize: 13,
-    fontFamily: 'Montserrat-Bold',
-  },
-  logoutModalConfirmBtn: {
-    flex: 1.2,
-    backgroundColor: '#EF4444',
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutModalConfirmTxt: {
-    color: '#FFF',
-    fontSize: 13,
-    fontFamily: 'Montserrat-Bold',
   },
 });

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Switch, ActivityIndicator, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Switch, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,8 +22,6 @@ export default function DriverSettings() {
   const [, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   // Load profile and preferences on mount
   useEffect(() => {
     loadData();
@@ -212,32 +210,12 @@ export default function DriverSettings() {
           <SettingRow icon="map" label="Navigation App" value="Google Maps" />
           <SettingRow icon="bell" label="Sound & Notification" value="On" />
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => setShowLogoutModal(true)}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => router.replace('/login')}>
           <Text style={styles.logoutText}>Stop Driving (Logout)</Text>
         </TouchableOpacity>
         {/* Extra Space at bottom for safe scrolling */}
         <View style={{ height: 40 }} />
       </ScrollView>
-
-      <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => !isLoggingOut && setShowLogoutModal(false)}>
-        <Pressable style={styles.logoutModalOverlay} onPress={() => !isLoggingOut && setShowLogoutModal(false)}>
-          <Pressable style={styles.logoutModalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={styles.logoutModalIcon}>
-              <Feather name="log-out" size={22} color="#DC2626" />
-            </View>
-            <Text style={styles.logoutModalTitle}>Stop Driving for Now?</Text>
-            <Text style={styles.logoutModalText}>You will be logged out of the driver app on this device.</Text>
-            <View style={styles.logoutModalActions}>
-              <TouchableOpacity style={styles.logoutModalCancelBtn} onPress={() => setShowLogoutModal(false)} disabled={isLoggingOut}>
-                <Text style={styles.logoutModalCancelTxt}>Stay Online</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.logoutModalConfirmBtn, isLoggingOut && { opacity: 0.7 }]} onPress={handleLogout} disabled={isLoggingOut}>
-                {isLoggingOut ? <ActivityIndicator color="#FFF" /> : <Text style={styles.logoutModalConfirmTxt}>Log Out</Text>}
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -279,56 +257,4 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 14, color: '#64748B', marginRight: 8, fontFamily: 'Montserrat-Regular' },
   logoutBtn: { backgroundColor: '#FEE2E2', padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 20, marginBottom: 10 },
   logoutText: { color: '#DC2626', fontFamily: 'Montserrat-Bold', fontSize: 16 },
-  logoutModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2,6,23,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  logoutModalCard: {
-    width: '100%',
-    backgroundColor: '#FFF',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: 20,
-  },
-  logoutModalIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#FEF2F2',
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  logoutModalTitle: {
-    textAlign: 'center',
-    color: '#0F172A',
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 18,
-  },
-  logoutModalText: {
-    marginTop: 8,
-    textAlign: 'center',
-    color: '#64748B',
-    fontFamily: 'Montserrat-Medium',
-    fontSize: 13,
-  },
-  logoutModalActions: { marginTop: 18, flexDirection: 'row', gap: 10 },
-  logoutModalCancelBtn: { flex: 1, backgroundColor: '#F1F5F9', borderRadius: 12, alignItems: 'center', paddingVertical: 12 },
-  logoutModalCancelTxt: { color: '#475569', fontFamily: 'Montserrat-Bold', fontSize: 13 },
-  logoutModalConfirmBtn: { flex: 1, backgroundColor: '#DC2626', borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
-  logoutModalConfirmTxt: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 13 },
 });
-  const handleLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      router.replace('/login');
-    } finally {
-      setIsLoggingOut(false);
-      setShowLogoutModal(false);
-    }
-  };

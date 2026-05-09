@@ -1,7 +1,7 @@
 import React, {  useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Image, Dimensions, Switch, ActivityIndicator, Modal, Pressable,
+  Alert, Image, Dimensions, Switch, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -39,8 +39,6 @@ export default function BusinessSettingsScreen() {
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [notificationsOn, setNotificationsOn] = useState(true);
-  const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const { data: businessesData, isLoading: profileLoading } = useMyBusinesses();
   const businessData = businessesData?.businesses?.[0] || null;
   const isBusinessVerified = businessData?.verificationStatus === 'verified';
@@ -56,15 +54,14 @@ export default function BusinessSettingsScreen() {
   }
   const statusInfo   = getStatus(businessData?.verificationStatus);
   const initials     = (businessData?.businessName ?? 'B').charAt(0).toUpperCase();
-  const confirmLogout = async () => {
-    try {
-      setIsLoggingOut(true);
-      await logoutUser();
-      router.replace('/login');
-    } finally {
-      setIsLoggingOut(false);
-      setShowLogoutModal(false);
-    }
+  const confirmLogout = () => {
+    Alert.alert('Log Out', 'Are you sure you want to log out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Log Out', style: 'destructive',
+        onPress: async () => { await logoutUser(); router.replace('/login'); },
+      },
+    ]);
   };
   // ── Reusable setting row ───────────────────────────────────────────────────
   const SettingRow = ({
@@ -268,7 +265,7 @@ export default function BusinessSettingsScreen() {
               />
             </SettingGroup>
             {/* Log out */}
-            <TouchableOpacity style={S.logoutBtn} onPress={() => setShowLogoutModal(true)} activeOpacity={0.82}>
+            <TouchableOpacity style={S.logoutBtn} onPress={confirmLogout} activeOpacity={0.82}>
               <Feather name="log-out" size={rs(18)} color="#EF4444" />
               <Text style={S.logoutTxt}>Log Out</Text>
             </TouchableOpacity>
@@ -276,26 +273,6 @@ export default function BusinessSettingsScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
-
-      <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => !isLoggingOut && setShowLogoutModal(false)}>
-        <Pressable style={S.logoutModalOverlay} onPress={() => !isLoggingOut && setShowLogoutModal(false)}>
-          <Pressable style={S.logoutModalCard} onPress={(e) => e.stopPropagation()}>
-            <View style={S.logoutModalIcon}>
-              <Feather name="log-out" size={rs(22)} color="#EF4444" />
-            </View>
-            <Text style={S.logoutModalTitle}>Log Out of Business Portal?</Text>
-            <Text style={S.logoutModalText}>You can sign in again anytime to continue managing your store.</Text>
-            <View style={S.logoutModalActions}>
-              <TouchableOpacity style={S.logoutModalCancelBtn} onPress={() => setShowLogoutModal(false)} disabled={isLoggingOut}>
-                <Text style={S.logoutModalCancelTxt}>Stay Logged In</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[S.logoutModalConfirmBtn, isLoggingOut && { opacity: 0.7 }]} onPress={confirmLogout} disabled={isLoggingOut}>
-                {isLoggingOut ? <ActivityIndicator color="#FFF" /> : <Text style={S.logoutModalConfirmTxt}>Yes, Log Out</Text>}
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
     </View>
   );
 }
@@ -440,48 +417,4 @@ const S = StyleSheet.create({
   },
   logoutTxt: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: '#EF4444' },
   version:   { textAlign: 'center', color: C.subtle, fontSize: rf(12), fontFamily: 'Montserrat-Regular', marginBottom: rs(10) },
-  logoutModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(2,6,23,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: rs(18),
-  },
-  logoutModalCard: {
-    width: '100%',
-    backgroundColor: '#FFF',
-    borderRadius: rs(24),
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: rs(20),
-  },
-  logoutModalIcon: {
-    width: rs(52),
-    height: rs(52),
-    borderRadius: rs(26),
-    backgroundColor: '#FEF2F2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: rs(12),
-  },
-  logoutModalTitle: {
-    textAlign: 'center',
-    color: C.body,
-    fontSize: rf(17),
-    fontFamily: 'Montserrat-Bold',
-  },
-  logoutModalText: {
-    marginTop: rs(8),
-    textAlign: 'center',
-    color: C.muted,
-    fontSize: rf(12),
-    fontFamily: 'Montserrat-Medium',
-    lineHeight: rs(18),
-  },
-  logoutModalActions: { flexDirection: 'row', gap: rs(10), marginTop: rs(18) },
-  logoutModalCancelBtn: { flex: 1, backgroundColor: '#F1F5F9', borderRadius: rs(14), paddingVertical: rs(12), alignItems: 'center' },
-  logoutModalCancelTxt: { color: '#475569', fontSize: rf(12), fontFamily: 'Montserrat-Bold' },
-  logoutModalConfirmBtn: { flex: 1.2, backgroundColor: '#EF4444', borderRadius: rs(14), paddingVertical: rs(12), alignItems: 'center', justifyContent: 'center' },
-  logoutModalConfirmTxt: { color: '#FFF', fontSize: rf(12), fontFamily: 'Montserrat-Bold' },
 });
