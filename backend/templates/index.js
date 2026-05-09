@@ -2,6 +2,12 @@
 // Centralized templates for Email and SMS notifications
 
 const safe = (v, fallback = '') => (v === undefined || v === null ? fallback : String(v));
+const BRAND = {
+    name: process.env.APP_NAME || 'Shopyos',
+    logoUrl: process.env.APP_LOGO_URL || 'https://shopyos.com/logo.png',
+    website: process.env.APP_WEBSITE_URL || 'https://shopyos.com',
+    supportEmail: process.env.SUPPORT_EMAIL || 'support@shopyos.com',
+};
 
 // ─── Shared HTML shell ────────────────────────────────────────────────────────
 const wrapHtml = (title, bodyHtml, ctaHref = null, ctaLabel = null) => `
@@ -12,29 +18,35 @@ const wrapHtml = (title, bodyHtml, ctaHref = null, ctaLabel = null) => `
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:'Helvetica Neue',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9;padding:40px 0;">
+<body style="margin:0;padding:0;background-color:#eef2ff;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#eef2ff;padding:34px 0;">
     <tr>
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
 
           <!-- Header -->
           <tr>
-            <td style="background:linear-gradient(135deg,#0C1559 0%,#1a47b8 100%);border-radius:16px 16px 0 0;padding:32px 40px;text-align:center;">
-              <p style="margin:0 0 6px;font-size:13px;letter-spacing:3px;color:rgba(255,255,255,0.6);text-transform:uppercase;font-weight:600;">Shopyos</p>
-              <h1 style="margin:0;font-size:26px;font-weight:700;color:#ffffff;letter-spacing:-0.5px;">${title}</h1>
+            <td style="background:linear-gradient(135deg,#0C1559 0%,#1a47b8 100%);border-radius:20px 20px 0 0;padding:26px 34px;text-align:center;">
+              <img
+                src="${BRAND.logoUrl}"
+                alt="${BRAND.name} logo"
+                width="120"
+                style="display:block;margin:0 auto 14px;max-width:120px;height:auto;border:0;outline:none;text-decoration:none;"
+              />
+              <p style="margin:0 0 7px;font-size:11px;letter-spacing:2.5px;color:rgba(255,255,255,0.72);text-transform:uppercase;font-weight:700;">${BRAND.name}</p>
+              <h1 style="margin:0;font-size:25px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">${title}</h1>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="background:#ffffff;padding:40px 40px 32px;border-left:1px solid #e2e8f0;border-right:1px solid #e2e8f0;">
+            <td style="background:#ffffff;padding:34px 34px 26px;border-left:1px solid #dbe2ff;border-right:1px solid #dbe2ff;">
               <div style="font-size:15px;line-height:1.7;color:#334155;">
                 ${bodyHtml}
               </div>
               ${ctaHref && ctaLabel ? `
-              <div style="text-align:center;margin:32px 0 8px;">
-                <a href="${ctaHref}" style="display:inline-block;background:linear-gradient(135deg,#0C1559,#1a47b8);color:#ffffff;text-decoration:none;font-size:15px;font-weight:600;padding:14px 36px;border-radius:50px;letter-spacing:0.3px;">${ctaLabel}</a>
+              <div style="text-align:center;margin:30px 0 8px;">
+                <a href="${ctaHref}" style="display:inline-block;background:linear-gradient(135deg,#0C1559,#1a47b8);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 34px;border-radius:999px;letter-spacing:0.2px;">${ctaLabel}</a>
               </div>
               ` : ''}
             </td>
@@ -42,9 +54,10 @@ const wrapHtml = (title, bodyHtml, ctaHref = null, ctaLabel = null) => `
 
           <!-- Footer -->
           <tr>
-            <td style="background:#f8fafc;border:1px solid #e2e8f0;border-top:0;border-radius:0 0 16px 16px;padding:20px 40px;text-align:center;">
-              <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;">This is an automated message — please do not reply to this email.</p>
-              <p style="margin:0;font-size:12px;color:#94a3b8;">&copy; ${new Date().getFullYear()} Shopyos. All rights reserved.</p>
+            <td style="background:#f8faff;border:1px solid #dbe2ff;border-top:0;border-radius:0 0 20px 20px;padding:18px 34px;text-align:center;">
+              <p style="margin:0 0 6px;font-size:12px;color:#64748b;">Need help? Contact us at <a href="mailto:${BRAND.supportEmail}" style="color:#1d4ed8;text-decoration:none;font-weight:600;">${BRAND.supportEmail}</a></p>
+              <p style="margin:0 0 6px;font-size:12px;color:#94a3b8;">This is an automated message. Please do not reply directly to this email.</p>
+              <p style="margin:0;font-size:12px;color:#94a3b8;">&copy; ${new Date().getFullYear()} ${BRAND.name}. All rights reserved.</p>
             </td>
           </tr>
 
@@ -497,3 +510,4 @@ module.exports = {
     getEmailTemplateByEvent,
     getSmsTemplateByEvent
 };
+

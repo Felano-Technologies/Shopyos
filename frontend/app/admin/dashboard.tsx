@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Dimensions,
   ScrollView,
   StyleSheet,
   Text,
@@ -46,6 +47,9 @@ const FALLBACK_TRANSACTIONS = [
 export default function AdminDashboard() {
   const router = useRouter();
   const { isDesktop, isTablet } = useAdminBreakpoint();
+  const screenWidth = Dimensions.get('window').width;
+  const isPhone = !isTablet && !isDesktop;
+  const isNarrowPhone = screenWidth < 380;
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -250,19 +254,19 @@ export default function AdminDashboard() {
         scroll
         contentContainerStyle={{ paddingBottom: 120 }}
       >
-        <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.heroPanel}>
+        <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={[styles.heroPanel, isPhone && styles.heroPanelMobile]}>
           <View style={[styles.heroRow, !isDesktop && styles.heroRowStack]}>
             <View style={styles.heroIntro}>
               <Text style={styles.heroEyebrow}>Marketplace overview</Text>
-              <Text style={styles.greeting}>Hello Admin, good morning</Text>
-              <Text style={styles.greetingSub}>
+              <Text style={[styles.greeting, isPhone && styles.greetingMobile]}>Hello Admin, good morning</Text>
+              <Text style={[styles.greetingSub, isPhone && styles.greetingSubMobile]}>
                 Let’s check marketplace health, clear approvals, and keep Shopyos moving smoothly.
               </Text>
             </View>
 
-            <TouchableOpacity style={styles.heroRevenueCard} onPress={() => router.push('/admin/revenue' as any)}>
+            <TouchableOpacity style={[styles.heroRevenueCard, isPhone && styles.heroRevenueCardMobile]} onPress={() => router.push('/admin/revenue' as any)}>
               <Text style={styles.heroRevenueLabel}>Platform revenue</Text>
-              <Text style={styles.heroRevenueValue}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
+              <Text style={[styles.heroRevenueValue, isPhone && styles.heroRevenueValueMobile]}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
               <View style={styles.growthPill}>
                 <Feather name="trending-up" size={14} color={adminColors.lime} />
                 <Text style={styles.growthText}>+24% this month</Text>
@@ -271,7 +275,7 @@ export default function AdminDashboard() {
           </View>
         </LinearGradient>
 
-        <AdminPanel style={styles.floatingStatsPanel}>
+        <AdminPanel style={[styles.floatingStatsPanel, isPhone && styles.floatingStatsPanelMobile]}>
           <View style={[styles.heroStatsRow, !isDesktop && styles.heroStatsWrap]}>
             {statCards.slice(0, 3).map((item, index) => (
               <TouchableOpacity
@@ -279,6 +283,7 @@ export default function AdminDashboard() {
                 style={[
                   styles.heroStat,
                   !isDesktop && styles.heroStatMobile,
+                  isNarrowPhone && styles.heroStatNarrow,
                   index < 2 && isDesktop ? styles.heroStatBorder : null,
                 ]}
                 onPress={() => router.push(item.route as any)}
@@ -287,7 +292,7 @@ export default function AdminDashboard() {
                   <Ionicons name={item.icon as any} size={18} color={item.color} />
                 </View>
                 <Text style={styles.heroStatLabel}>{item.label}</Text>
-                <Text style={styles.heroStatValue}>
+                <Text style={[styles.heroStatValue, isPhone && styles.heroStatValueMobile]}>
                   {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
                 </Text>
                 <Text style={[styles.heroStatChange, { color: item.growth >= 0 ? adminColors.green : adminColors.red }]}>
@@ -302,13 +307,13 @@ export default function AdminDashboard() {
         <View style={[styles.mainGrid, !isDesktop && styles.mainGridStack]}>
           <AdminPanel style={[styles.assetPanel, isDesktop ? styles.assetPanelWide : null]}>
             <AdminSectionHeader title="My Asset" />
-            <Text style={styles.assetValue}>₵552,221</Text>
+            <Text style={[styles.assetValue, isPhone && styles.assetValueMobile]}>₵552,221</Text>
             <Text style={styles.assetGrowth}>+235.21%</Text>
             <View style={[styles.assetGrid, isTablet && styles.assetGridTablet]}>
               {quickActions.map((action, index) => (
                 <TouchableOpacity
                   key={action.label}
-                  style={[styles.assetCard, { backgroundColor: CARD_BACKGROUNDS[index % CARD_BACKGROUNDS.length] }]}
+                  style={[styles.assetCard, isPhone && styles.assetCardMobile, { backgroundColor: CARD_BACKGROUNDS[index % CARD_BACKGROUNDS.length] }]}
                   onPress={() => router.push(action.route as any)}
                 >
                   <LinearGradient colors={ACTION_GRADIENTS[index % ACTION_GRADIENTS.length]} style={styles.assetIcon}>
@@ -351,32 +356,59 @@ export default function AdminDashboard() {
 
         <AdminPanel style={styles.transactionsPanel}>
           <AdminSectionHeader title="Transactions" />
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeadCell, styles.nameCell]}>Name</Text>
-            <Text style={styles.tableHeadCell}>Date</Text>
-            <Text style={styles.tableHeadCell}>Type</Text>
-            <Text style={styles.tableHeadCell}>Status</Text>
-          </View>
-
-          {(activityFeed.length ? activityFeed : FALLBACK_TRANSACTIONS).slice(0, 4).map((item, index) => (
-            <View key={item.id ?? index} style={[styles.tableRow, index === 3 && { borderBottomWidth: 0 }]}>
-              <View style={[styles.tableCell, styles.nameCell]}>
-                <View style={styles.tableAvatar}>
-                  <Text style={styles.tableAvatarText}>
-                    {((item.user?.full_name || item.user?.email || 'S')[0] || 'S').toUpperCase()}
-                  </Text>
+          {isPhone ? (
+            <View style={styles.mobileTxList}>
+              {(activityFeed.length ? activityFeed : FALLBACK_TRANSACTIONS).slice(0, 4).map((item, index) => (
+                <View key={item.id ?? index} style={styles.mobileTxCard}>
+                  <View style={styles.mobileTxTop}>
+                    <View style={styles.tableAvatar}>
+                      <Text style={styles.tableAvatarText}>
+                        {((item.user?.full_name || item.user?.email || 'S')[0] || 'S').toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text numberOfLines={1} style={styles.tableName}>
+                        {item.user?.full_name || item.user?.email || FALLBACK_TRANSACTIONS[index].name}
+                      </Text>
+                      <Text style={styles.mobileTxMeta}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>
+                    </View>
+                    <View style={styles.statusPill}>
+                      <Text style={styles.statusPillText}>{index === 1 ? 'Failed' : 'Success'}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.mobileTxType}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>
                 </View>
-                <Text numberOfLines={1} style={styles.tableName}>
-                  {item.user?.full_name || item.user?.email || FALLBACK_TRANSACTIONS[index].name}
-                </Text>
-              </View>
-              <Text style={styles.tableCellText}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>
-              <Text style={styles.tableCellText}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{index === 1 ? 'Failed' : 'Success'}</Text>
-              </View>
+              ))}
             </View>
-          ))}
+          ) : (
+            <>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeadCell, styles.nameCell]}>Name</Text>
+                <Text style={styles.tableHeadCell}>Date</Text>
+                <Text style={styles.tableHeadCell}>Type</Text>
+                <Text style={styles.tableHeadCell}>Status</Text>
+              </View>
+              {(activityFeed.length ? activityFeed : FALLBACK_TRANSACTIONS).slice(0, 4).map((item, index) => (
+                <View key={item.id ?? index} style={[styles.tableRow, index === 3 && { borderBottomWidth: 0 }]}>
+                  <View style={[styles.tableCell, styles.nameCell]}>
+                    <View style={styles.tableAvatar}>
+                      <Text style={styles.tableAvatarText}>
+                        {((item.user?.full_name || item.user?.email || 'S')[0] || 'S').toUpperCase()}
+                      </Text>
+                    </View>
+                    <Text numberOfLines={1} style={styles.tableName}>
+                      {item.user?.full_name || item.user?.email || FALLBACK_TRANSACTIONS[index].name}
+                    </Text>
+                  </View>
+                  <Text style={styles.tableCellText}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>
+                  <Text style={styles.tableCellText}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>
+                  <View style={styles.statusPill}>
+                    <Text style={styles.statusPillText}>{index === 1 ? 'Failed' : 'Success'}</Text>
+                  </View>
+                </View>
+              ))}
+            </>
+          )}
         </AdminPanel>
       </AdminShell>
     </>
@@ -423,6 +455,11 @@ const styles = StyleSheet.create({
     gap: 24,
     marginTop: -8,
   },
+  heroPanelMobile: {
+    borderRadius: 22,
+    padding: 16,
+    gap: 16,
+  },
   heroRow: {
     flexDirection: 'row',
     gap: 18,
@@ -449,11 +486,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 8,
   },
+  greetingMobile: {
+    fontSize: 22,
+    lineHeight: 30,
+  },
   greetingSub: {
     fontSize: 16,
     lineHeight: 24,
     color: 'rgba(255,255,255,0.78)',
     fontFamily: 'Montserrat-Regular',
+  },
+  greetingSubMobile: {
+    fontSize: 14,
+    lineHeight: 20,
   },
   heroRevenueCard: {
     minWidth: 260,
@@ -463,6 +508,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+  },
+  heroRevenueCardMobile: {
+    minWidth: '100%',
+    padding: 16,
   },
   heroRevenueLabel: {
     fontSize: 13,
@@ -475,6 +524,9 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: 'Montserrat-Bold',
     marginBottom: 16,
+  },
+  heroRevenueValueMobile: {
+    fontSize: 24,
   },
   growthPill: {
     alignSelf: 'flex-start',
@@ -497,6 +549,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
     paddingVertical: 12,
   },
+  floatingStatsPanelMobile: {
+    marginHorizontal: 0,
+    marginTop: -10,
+    paddingVertical: 10,
+  },
   heroStatsRow: {
     flexDirection: 'row',
   },
@@ -514,6 +571,9 @@ const styles = StyleSheet.create({
     backgroundColor: adminColors.surfaceSoft,
     borderRadius: 18,
     paddingVertical: 14,
+  },
+  heroStatNarrow: {
+    minWidth: '100%',
   },
   heroStatBorder: {
     borderRightWidth: 1,
@@ -539,6 +599,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     marginBottom: 6,
   },
+  heroStatValueMobile: {
+    fontSize: 20,
+  },
   heroStatChange: {
     fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
@@ -561,6 +624,9 @@ const styles = StyleSheet.create({
     color: adminColors.navy,
     fontFamily: 'Montserrat-Bold',
   },
+  assetValueMobile: {
+    fontSize: 28,
+  },
   assetGrowth: {
     marginTop: 4,
     marginBottom: 18,
@@ -582,6 +648,12 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     padding: 18,
     justifyContent: 'space-between',
+  },
+  assetCardMobile: {
+    width: '100%',
+    minHeight: 124,
+    borderRadius: 18,
+    padding: 14,
   },
   assetIcon: {
     width: 46,
@@ -706,6 +778,34 @@ const styles = StyleSheet.create({
     color: '#047857',
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
+  },
+  mobileTxList: {
+    gap: 10,
+  },
+  mobileTxCard: {
+    backgroundColor: adminColors.surfaceSoft,
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: adminColors.border,
+  },
+  mobileTxTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  mobileTxMeta: {
+    marginTop: 2,
+    color: adminColors.textMuted,
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+  },
+  mobileTxType: {
+    marginTop: 10,
+    color: adminColors.textSoft,
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    textTransform: 'capitalize',
   },
   asideMonth: {
     color: adminColors.textSoft,

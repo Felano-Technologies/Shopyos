@@ -9,6 +9,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -36,23 +38,18 @@ export default function UserProfile() {
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logoutUser();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    try {
+      setIsLoggingOut(true);
+      await logoutUser();
+      router.replace('/login');
+    } finally {
+      setIsLoggingOut(false);
+      setShowLogoutModal(false);
+    }
   };
 
   useEffect(() => {
@@ -188,7 +185,7 @@ export default function UserProfile() {
 
         {/* Logout Button */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]} onPress={handleLogout}>
+          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]} onPress={() => setShowLogoutModal(true)}>
             <Ionicons
               name="log-out-outline"
               size={20}
@@ -199,6 +196,26 @@ export default function UserProfile() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal visible={showLogoutModal} transparent animationType="fade" onRequestClose={() => !isLoggingOut && setShowLogoutModal(false)}>
+        <Pressable style={styles.logoutModalOverlay} onPress={() => !isLoggingOut && setShowLogoutModal(false)}>
+          <Pressable style={[styles.logoutModalCard, { backgroundColor: cardBg }]} onPress={(e) => e.stopPropagation()}>
+            <View style={[styles.logoutModalIcon, { backgroundColor: isDark ? '#3B1A22' : '#FEF2F2' }]}>
+              <Ionicons name="log-out-outline" size={24} color="#E11D48" />
+            </View>
+            <Text style={[styles.logoutModalTitle, { color: primaryText }]}>Log Out?</Text>
+            <Text style={[styles.logoutModalText, { color: secondaryText }]}>You can always sign back in anytime.</Text>
+            <View style={styles.logoutModalActions}>
+              <TouchableOpacity style={[styles.logoutModalCancelBtn, { backgroundColor: isDark ? '#2A2A2A' : '#F1F5F9' }]} onPress={() => setShowLogoutModal(false)} disabled={isLoggingOut}>
+                <Text style={[styles.logoutModalCancelTxt, { color: primaryText }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.logoutModalConfirmBtn, isLoggingOut && { opacity: 0.7 }]} onPress={handleLogout} disabled={isLoggingOut}>
+                {isLoggingOut ? <ActivityIndicator color="#FFF" /> : <Text style={styles.logoutModalConfirmTxt}>Log Out</Text>}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -254,4 +271,65 @@ const styles = StyleSheet.create({
   },
   logoutIcon: { marginRight: 8 },
   logoutLabel: { fontSize: 16, fontWeight: '500' },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2,6,23,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+  },
+  logoutModalCard: {
+    width: '100%',
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#33415533',
+  },
+  logoutModalIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  logoutModalTitle: {
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  logoutModalText: {
+    marginTop: 8,
+    textAlign: 'center',
+    fontSize: 14,
+  },
+  logoutModalActions: {
+    marginTop: 18,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logoutModalCancelBtn: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  logoutModalCancelTxt: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  logoutModalConfirmBtn: {
+    flex: 1,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#E11D48',
+  },
+  logoutModalConfirmTxt: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
 });

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { initializePayment, verifyPayment } from '@/services/api';
 
 const { width } = Dimensions.get('window');
@@ -177,9 +178,35 @@ export default function PaymentProcessingScreen() {
         outputRange: ['0%', '100%'],
     });
 
+    const methodLabel = method === 'momo' ? 'Mobile Money' : 'Card Payment';
+    const stepText = status === 'initializing'
+        ? 'Step 1 of 3'
+        : status === 'waiting'
+            ? 'Step 2 of 3'
+            : status === 'verifying'
+                ? 'Step 3 of 3'
+                : 'Completed';
+
     return (
         <View style={styles.container}>
-            <StatusBar style="dark" />
+            <StatusBar style="light" />
+
+            <LinearGradient colors={['#0B122D', '#192E73']} style={styles.hero}>
+                <View style={styles.heroTopRow}>
+                    <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+                        <Ionicons name="chevron-back" size={20} color="#FFF" />
+                    </TouchableOpacity>
+                    <Text style={styles.heroTitle}>Secure Checkout</Text>
+                    <View style={styles.backBtnGhost} />
+                </View>
+                <View style={styles.heroMetaRow}>
+                    <View style={styles.methodPill}>
+                        <MaterialCommunityIcons name={method === 'momo' ? 'cellphone-nfc' : 'credit-card-check-outline'} size={16} color="#DBEAFE" />
+                        <Text style={styles.methodPillText}>{methodLabel}</Text>
+                    </View>
+                    <Text style={styles.stepText}>{stepText}</Text>
+                </View>
+            </LinearGradient>
 
             <View style={styles.card}>
                 {status === 'success' ? (
@@ -199,7 +226,7 @@ export default function PaymentProcessingScreen() {
                     </View>
                 ) : status === 'failed' ? (
                     <View style={styles.center}>
-                        <View style={[styles.successCircle, { backgroundColor: '#EF4444' }]}>
+                        <View style={[styles.successCircle, styles.failCircle]}>
                             <Ionicons name="close" size={60} color="#FFF" />
                         </View>
                         <Text style={styles.title}>Payment Failed</Text>
@@ -208,14 +235,14 @@ export default function PaymentProcessingScreen() {
                         </Text>
 
                         <TouchableOpacity
-                            style={[styles.doneBtn, { backgroundColor: '#0C1559', marginBottom: 12 }]}
+                            style={[styles.doneBtn, styles.retryPrimary]}
                             onPress={() => handleInitialize()}
                         >
                             <Text style={styles.doneBtnText}>Try Again</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                            style={[styles.doneBtn, { backgroundColor: '#64748B' }]}
+                            style={[styles.doneBtn, styles.retrySecondary]}
                             onPress={() => router.back()}
                         >
                             <Text style={styles.doneBtnText}>Return to Cart</Text>
@@ -251,20 +278,52 @@ export default function PaymentProcessingScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
-    card: { width: width * 0.85, backgroundColor: '#FFF', borderRadius: 30, padding: 30, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+    container: { flex: 1, backgroundColor: '#EFF3FF' },
+    hero: {
+        paddingTop: 56,
+        paddingBottom: 110,
+        paddingHorizontal: 18,
+        borderBottomLeftRadius: 28,
+        borderBottomRightRadius: 28,
+    },
+    heroTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+    backBtnGhost: { width: 38, height: 38 },
+    heroTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+    heroMetaRow: { marginTop: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    methodPill: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 12 },
+    methodPillText: { color: '#E5EDFF', fontSize: 12, fontFamily: 'Montserrat-SemiBold' },
+    stepText: { color: '#C7D2FE', fontSize: 12, fontFamily: 'Montserrat-SemiBold' },
+    card: {
+        width: width - 28,
+        alignSelf: 'center',
+        marginTop: -82,
+        backgroundColor: '#FFF',
+        borderRadius: 30,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: '#DDE6FF',
+        shadowColor: '#0C1559',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 20,
+        elevation: 10,
+    },
     center: { alignItems: 'center' },
-    iconContainer: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
-    statusText: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559', textAlign: 'center', marginBottom: 30 },
-    progressBarBg: { width: '100%', height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, overflow: 'hidden', marginBottom: 20 },
-    progressBarFill: { height: '100%', backgroundColor: '#0C1559' },
-    info: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8', textAlign: 'center' },
+    iconContainer: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#DBE4FF', justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
+    statusText: { fontSize: 19, fontFamily: 'Montserrat-Bold', color: '#102A6B', textAlign: 'center', marginBottom: 30, lineHeight: 27 },
+    progressBarBg: { width: '100%', height: 10, backgroundColor: '#E5EAF8', borderRadius: 999, overflow: 'hidden', marginBottom: 20 },
+    progressBarFill: { height: '100%', backgroundColor: '#1D4ED8' },
+    info: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center' },
 
-    successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#84cc16', justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
-    title: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 10 },
-    subtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginBottom: 30, lineHeight: 20 },
-    doneBtn: { backgroundColor: '#84cc16', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 20, width: '100%', alignItems: 'center' },
+    successCircle: { width: 108, height: 108, borderRadius: 54, backgroundColor: '#22C55E', justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
+    failCircle: { backgroundColor: '#EF4444' },
+    title: { fontSize: 24, fontFamily: 'Montserrat-Bold', color: '#102A6B', marginBottom: 10 },
+    subtitle: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#64748B', textAlign: 'center', marginBottom: 30, lineHeight: 22 },
+    doneBtn: { backgroundColor: '#22C55E', paddingVertical: 16, paddingHorizontal: 40, borderRadius: 16, width: '100%', alignItems: 'center' },
     doneBtnText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-    retryBtn: { marginTop: 10, paddingVertical: 10, paddingHorizontal: 20, backgroundColor: '#F1F5F9', borderRadius: 10, marginBottom: 20 },
-    retryText: { color: '#0C1559', fontSize: 13, fontFamily: 'Montserrat-Bold' }
+    retryBtn: { marginTop: 10, paddingVertical: 11, paddingHorizontal: 20, backgroundColor: '#EEF2FF', borderRadius: 12, marginBottom: 20, borderWidth: 1, borderColor: '#D6E0FF' },
+    retryText: { color: '#1E3A8A', fontSize: 13, fontFamily: 'Montserrat-Bold' },
+    retryPrimary: { backgroundColor: '#1E3A8A', marginBottom: 12 },
+    retrySecondary: { backgroundColor: '#64748B' },
 });

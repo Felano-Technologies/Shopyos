@@ -384,12 +384,32 @@ const resetPassword = async (req, res, next) => {
       from: process.env.EMAIL_FROM,
       subject: 'Shopyos - Password Reset Request',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset Request</h2>
-          <p>You requested a password reset for your Shopyos account.</p>
-          <p>Click the button below to open the app and reset your password (link expires in 1 hour):</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0C1559; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">Reset Password in App</a>
-          <p style="margin-top: 30px; color: #999; font-size: 12px;">If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
+        <div style="margin:0;padding:22px;background:#eef2ff;font-family:'Helvetica Neue',Arial,sans-serif;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:600px;margin:0 auto;">
+            <tr>
+              <td style="background:linear-gradient(135deg,#0C1559 0%,#1a47b8 100%);border-radius:20px 20px 0 0;padding:24px 30px;text-align:center;">
+                <img src="${process.env.APP_LOGO_URL || 'https://shopyos.com/logo.png'}" alt="Shopyos logo" width="120" style="display:block;margin:0 auto 12px;max-width:120px;height:auto;" />
+                <p style="margin:0;color:#dbeafe;font-size:11px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">Shopyos</p>
+                <h2 style="margin:8px 0 0;color:#ffffff;font-size:24px;">Password Reset Request</h2>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#ffffff;border-left:1px solid #dbe2ff;border-right:1px solid #dbe2ff;padding:30px;">
+                <p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.7;">You requested a password reset for your Shopyos account.</p>
+                <p style="margin:0 0 14px;color:#334155;font-size:15px;line-height:1.7;">Tap the button below to open the app and reset your password. This link expires in <strong>1 hour</strong>.</p>
+                <div style="text-align:center;margin:26px 0 12px;">
+                  <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#0C1559,#1a47b8);color:#ffffff;text-decoration:none;font-size:15px;font-weight:700;padding:14px 28px;border-radius:999px;">Reset Password in App</a>
+                </div>
+                <p style="margin:16px 0 0;color:#64748b;font-size:13px;line-height:1.6;">If you did not request this reset, you can safely ignore this email. Your password will remain unchanged.</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="background:#f8faff;border:1px solid #dbe2ff;border-top:0;border-radius:0 0 20px 20px;padding:16px 30px;text-align:center;">
+                <p style="margin:0 0 6px;font-size:12px;color:#64748b;">Need help? Contact support@shopyos.com</p>
+                <p style="margin:0;font-size:12px;color:#94a3b8;">This is an automated security message.</p>
+              </td>
+            </tr>
+          </table>
         </div>
       `,
       text: `You requested a password reset.\n\nOpen this link in your mobile device to reset your password: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`

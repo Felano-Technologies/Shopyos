@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Image, Dimensions, ActivityIndicator, Alert, Linking,
+  Image, Dimensions, ActivityIndicator, Alert, Linking, Modal, Pressable,
 } from 'react-native';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -60,6 +60,10 @@ const OrderDetailsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [actionModal, setActionModal] = useState<{ visible: boolean; type: 'cancel' | 'confirm' | null }>({
+    visible: false,
+    type: null,
+  });
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const fetchOrder = useCallback(async (showLoading = false) => {
     if (showLoading) setLoading(true);
@@ -86,56 +90,42 @@ const OrderDetailsScreen = () => {
     }
     return () => { if (pollInterval.current) clearInterval(pollInterval.current); };
   }, [fetchOrder, id]);
-  const handleCancelOrder = () => {
-    Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, Cancel', style: 'destructive',
-        onPress: async () => {
-          try {
-            setIsCancelling(true);
-            const res = await cancelOrder(id as string);
-            if (res.success) {
-              await fetchOrder();
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
-              Alert.alert('Success', 'Order cancelled successfully');
-            }
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to cancel order');
-          } finally {
-            setIsCancelling(false);
-          }
-        },
-      },
-    ]);
+  const runCancelOrder = async () => {
+    try {
+      setIsCancelling(true);
+      const res = await cancelOrder(id as string);
+      if (res.success) {
+        await fetchOrder();
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
+        Alert.alert('Success', 'Order cancelled successfully');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to cancel order');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
-  const handleConfirmDelivery = () => {
-    Alert.alert('Confirm Delivery', 'Have you received your order? This will release payment to the seller.', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, I received it',
-        style: 'default',
-        onPress: async () => {
-          try {
-            setIsConfirming(true);
-            const res = await confirmDelivery(id as string);
-            if (res.success) {
-              await fetchOrder();
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
-              Alert.alert('Success', 'Delivery confirmed. Thank you!');
-            }
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to confirm delivery');
-          } finally {
-            setIsConfirming(false);
-          }
-        },
-      },
-    ]);
+  const runConfirmDelivery = async () => {
+    try {
+      setIsConfirming(true);
+      const res = await confirmDelivery(id as string);
+      if (res.success) {
+        await fetchOrder();
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
+        Alert.alert('Success', 'Delivery confirmed. Thank you!');
+      }
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'Failed to confirm delivery');
+    } finally {
+      setIsConfirming(false);
+    }
   };
+
+  const handleCancelOrder = () => setActionModal({ visible: true, type: 'cancel' });
+  const handleConfirmDelivery = () => setActionModal({ visible: true, type: 'confirm' });
   const [chatLoading, setChatLoading] = useState(false);
   const handleChat = async (ownerId: string, storeName: string, logoUrl: string, type: 'buyer' | 'seller' = 'buyer', entityId?: string) => {
     if (chatLoading || !ownerId) return;
@@ -216,6 +206,15 @@ const OrderDetailsScreen = () => {
   let dateStr = '';
   try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch { }
   const isLiveTrackable = ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
+  const isActionBusy = isCancelling || isConfirming;
+  const isCancelModal = actionModal.type === 'cancel';
+  const modalTitle = isCancelModal ? 'Cancel This Order?' : 'Confirm Items Received?';
+  const modalBody = isCancelModal
+    ? 'This will stop processing for this order. You may need to place a new order to buy these items again.'
+    : 'Confirming receipt releases payment to the seller and marks this order as completed.';
+  const modalConfirmText = isCancelModal ? 'Yes, Cancel Order' : 'Yes, I Received It';
+  const modalIcon = isCancelModal ? 'close-circle-outline' : 'checkmark-done-circle-outline';
+  const modalAccent = isCancelModal ? '#EF4444' : '#16A34A';
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -582,6 +581,55 @@ const OrderDetailsScreen = () => {
           </TouchableOpacity>
         )}
       </ScrollView>
+
+      <Modal
+        visible={actionModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isActionBusy && setActionModal({ visible: false, type: null })}
+      >
+        <Pressable
+          style={S.actionModalOverlay}
+          onPress={() => !isActionBusy && setActionModal({ visible: false, type: null })}
+        >
+          <Pressable style={S.actionModalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={[S.actionModalIconWrap, { backgroundColor: `${modalAccent}1A` }]}>
+              <Ionicons name={modalIcon as any} size={rs(28)} color={modalAccent} />
+            </View>
+            <Text style={S.actionModalTitle}>{modalTitle}</Text>
+            <Text style={S.actionModalDesc}>{modalBody}</Text>
+            <View style={S.actionModalBtns}>
+              <TouchableOpacity
+                style={S.actionModalBtnSecondary}
+                onPress={() => setActionModal({ visible: false, type: null })}
+                disabled={isActionBusy}
+                activeOpacity={0.85}
+              >
+                <Text style={S.actionModalBtnSecondaryTxt}>Not Now</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[S.actionModalBtnPrimary, { backgroundColor: modalAccent }, isActionBusy && { opacity: 0.7 }]}
+                onPress={async () => {
+                  if (isCancelModal) {
+                    await runCancelOrder();
+                  } else {
+                    await runConfirmDelivery();
+                  }
+                  setActionModal({ visible: false, type: null });
+                }}
+                disabled={isActionBusy}
+                activeOpacity={0.9}
+              >
+                {isActionBusy ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={S.actionModalBtnPrimaryTxt}>{modalConfirmText}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -778,5 +826,80 @@ const S = StyleSheet.create({
     gap: rs(8), paddingVertical: rs(16),
   },
   payNowBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  // Action modal
+  actionModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2,6,23,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: rs(20),
+  },
+  actionModalCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: rs(24),
+    paddingHorizontal: rs(20),
+    paddingTop: rs(22),
+    paddingBottom: rs(18),
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: rs(10) },
+    shadowOpacity: 0.18,
+    shadowRadius: rs(18),
+    elevation: 12,
+  },
+  actionModalIconWrap: {
+    width: rs(54),
+    height: rs(54),
+    borderRadius: rs(27),
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: rs(12),
+  },
+  actionModalTitle: {
+    fontSize: rf(18),
+    fontFamily: 'Montserrat-Bold',
+    color: C.body,
+    textAlign: 'center',
+  },
+  actionModalDesc: {
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-Medium',
+    color: C.muted,
+    textAlign: 'center',
+    marginTop: rs(8),
+    lineHeight: rs(20),
+  },
+  actionModalBtns: {
+    flexDirection: 'row',
+    gap: rs(10),
+    marginTop: rs(18),
+  },
+  actionModalBtnSecondary: {
+    flex: 1,
+    backgroundColor: '#F1F5F9',
+    borderRadius: rs(14),
+    paddingVertical: rs(13),
+    alignItems: 'center',
+  },
+  actionModalBtnSecondaryTxt: {
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-Bold',
+    color: '#475569',
+  },
+  actionModalBtnPrimary: {
+    flex: 1.4,
+    borderRadius: rs(14),
+    paddingVertical: rs(13),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionModalBtnPrimaryTxt: {
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFFFFF',
+  },
 });
 export default OrderDetailsScreen;

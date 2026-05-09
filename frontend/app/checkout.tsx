@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
-import { CustomInAppToast } from "@/components/InAppToastHost";
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 import { useCart } from '@/context/CartContext';
 import {
@@ -17,17 +18,62 @@ import {
   getUserData, getPaymentMethods, getDeliveryQuote,
 } from '@/services/api';
 
+const WalletImage = require('@/assets/images/momo.png');
+const CardBrandImage = require('@/assets/images/mcvisa.png');
+
+// ─── Palette ────────────────────────────────────────────────────────────────
 const C = {
-  navy: '#0C1559',
+  navy:    '#0C1559',
   navyMid: '#1e3a8a',
-  lime: '#84cc16',
-  bg: '#F8FAFC',
-  card: '#FFFFFF',
-  muted: '#64748B',
-  subtle: '#94A3B8',
-  body: '#0F172A',
+  lime:    '#84cc16',
+  bg:      '#F8FAFC',
+  card:    '#FFFFFF',
+  receipt: '#FFFEF5',
+  receiptBorder: '#E0DDC7',
+  receiptMuted:  '#888',
+  receiptDivider:'#CCCCCC',
+  muted:   '#64748B',
+  subtle:  '#94A3B8',
+  body:    '#0F172A',
+  error:   '#B91C1C',
+  errorBg: '#FEF2F2',
+  inkBlue: '#0A2463',
+  cardSoft: '#F6F8FC',
+  cream: '#FBF7E9',
+  creamEdge: '#E6DDC5',
 };
 
+
+
+// ─── Perforated edge ─────────────────────────────────────────────────────────
+const PerforatedEdge = ({ flip = false }: { flip?: boolean }) => {
+  const dots = Array.from({ length: 15 });
+  return (
+    <View style={[S.perforated, flip && S.perforatedBottom]}>
+      {dots.map((_, i) => (
+        <View key={i} style={[S.perfDot, flip && S.perfDotBottom]} />
+      ))}
+    </View>
+  );
+};
+
+// ─── Barcode ─────────────────────────────────────────────────────────────────
+const Barcode = () => {
+  const bars = [3,1,2,1,3,2,1,1,3,1,2,3,1,2,1,3,1,2,1,1,3,2,1,3,2,1,1,2,3,1];
+  const heights = [28,20,32,24,28,18,30,22,28,20,26,32,18,28,24,30,20,28,22,26,30,18,28,24,20,32,18,26,28,22];
+  return (
+    <View style={S.barcodeWrap}>
+      <View style={S.barcodeLines}>
+        {bars.map((w, i) => (
+          <View key={i} style={{ width: w, height: heights[i % heights.length], backgroundColor: '#1a1a1a', borderRadius: 1 }} />
+        ))}
+      </View>
+      <Text style={S.barcodeText}>*** THANK YOU FOR SHOPPING ***</Text>
+    </View>
+  );
+};
+
+// ─── Main Screen ─────────────────────────────────────────────────────────────
 export default function CheckoutScreen() {
   const router = useRouter();
   const { items: cartItems, clearCart } = useCart();
@@ -35,21 +81,23 @@ export default function CheckoutScreen() {
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [paymentMethodType, setPaymentMethodType] = useState<'momo' | 'card'>('momo');
-  const [selectedMethodId, setSelectedMethodId] = useState<string | null>(null);
-  const [savedMethods, setSavedMethods] = useState<any[]>([]);
-  const [deliveryAddress, setDeliveryAddress] = useState('');
-  const [deliveryPhone, setDeliveryPhone] = useState('');
-  const [saveAddress, setSaveAddress] = useState(false);
-  const [isOrdering, setIsOrdering] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [deliveryState, setDeliveryState] = useState('Greater Accra');
-  const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
+  const [selectedMethodId, setSelectedMethodId]   = useState<string | null>(null);
+  const [savedMethods, setSavedMethods]           = useState<any[]>([]);
+  const [deliveryAddress, setDeliveryAddress]     = useState('');
+  const [deliveryPhone, setDeliveryPhone]         = useState('');
+  const [saveAddress, setSaveAddress]             = useState(false);
+  const [isOrdering, setIsOrdering]               = useState(false);
+  const [isLoading, setIsLoading]                 = useState(true);
+  const [deliveryState, setDeliveryState]         = useState('Greater Accra');
+  const [prefilled, setPrefilled]                 = useState({ address: false, phone: false, region: false });
 
-  // Delivery fee state
-  const [deliveryFee, setDeliveryFee] = useState<number>(0);
-  const [isFetchingFee, setIsFetchingFee] = useState(false);
-  const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
-  const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [deliveryFee, setDeliveryFee]             = useState<number>(0);
+  const [isFetchingFee, setIsFetchingFee]         = useState(false);
+  const [isWithinRange, setIsWithinRange]         = useState<boolean | null>(null);
+  const [buyerCoords, setBuyerCoords]             = useState<{ lat: number; lng: number } | null>(null);
+
+  const tax   = 1.00;
+  const total = subtotal + tax + deliveryFee;
 
   // Get buyer location once on mount
   useEffect(() => {
@@ -60,14 +108,11 @@ export default function CheckoutScreen() {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
           setBuyerCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
         }
-      } catch {
-        // Location unavailable — delivery fee will fall back to base fee
-      }
+      } catch { /* fallback to base fee */ }
     })();
   }, []);
 
-  // Fetch delivery quote whenever buyer location is known
-  // Uses the first store in the cart (single-store checkout assumed for now)
+  // Fetch delivery quote when buyer location is known
   useEffect(() => {
     if (!buyerCoords || cartItems.length === 0) return;
     const storeId = (cartItems[0] as any).storeId ?? (cartItems[0] as any).store_id;
@@ -80,23 +125,14 @@ export default function CheckoutScreen() {
         if (res?.success) {
           const { withinRange, deliveryFee: fee } = res.quote || {};
           setIsWithinRange(withinRange);
-          if (withinRange && fee !== null) {
-            setDeliveryFee(fee);
-          } else {
-            setDeliveryFee(0);
-          }
+          setDeliveryFee(withinRange && fee !== null ? fee : 0);
         }
-      } catch {
-        // Eligibility remains null (unknown) if quote fails
-      } finally {
-        setIsFetchingFee(false);
-      }
+      } catch { /* eligibility remains null */ }
+      finally { setIsFetchingFee(false); }
     })();
   }, [buyerCoords, cartItems]);
 
-  const tax = 1.00; // Flat Buyer Protection Fee
-  const total = subtotal + tax + deliveryFee;
-
+  // Load profile + payment methods
   useEffect(() => {
     (async () => {
       try {
@@ -104,31 +140,23 @@ export default function CheckoutScreen() {
           getUserData(),
           getPaymentMethods(),
         ]);
-
         const profile = profileResponse.user || profileResponse;
         if (profile) {
-          const addr = profile.address_line1 || '';
-          const phone = profile.fullPhoneNumber || profile.phone || '';
+          const addr   = profile.address_line1 || '';
+          const phone  = profile.fullPhoneNumber || profile.phone || '';
           const region = profile.state_province || 'Greater Accra';
           setDeliveryAddress(addr);
           setDeliveryPhone(phone);
           setDeliveryState(region);
           setPrefilled({ address: !!addr, phone: !!phone, region: !!profile.state_province });
         }
-
         if (paymentResponse?.success) {
           setSavedMethods(paymentResponse.data);
-          const defaultMethod = paymentResponse.data.find((m: any) => m.is_default);
-          if (defaultMethod) {
-            setPaymentMethodType(defaultMethod.type);
-            setSelectedMethodId(defaultMethod.id);
-          }
+          const def = paymentResponse.data.find((m: any) => m.is_default);
+          if (def) { setPaymentMethodType(def.type); setSelectedMethodId(def.id); }
         }
-      } catch (e) {
-        console.log('Error loading checkout info:', e);
-      } finally {
-        setIsLoading(false);
-      }
+      } catch (e) { console.log('Error loading checkout info:', e); }
+      finally { setIsLoading(false); }
     })();
   }, []);
 
@@ -137,26 +165,16 @@ export default function CheckoutScreen() {
       CustomInAppToast.show({ type: 'error', title: 'Required Info', message: 'Please provide address and phone number.' });
       return;
     }
-
     try {
       setIsOrdering(true);
       await clearBackendCart().catch(() => {});
-      for (const item of cartItems) {
-        await apiAddToCart(item.id, item.quantity);
-      }
-
+      for (const item of cartItems) await apiAddToCart(item.id, item.quantity);
       const res = await createOrder({
-        deliveryAddress,
-        deliveryCity: 'Accra',
-        deliveryState,
-        deliveryCountry: 'Ghana',
-        deliveryPhone,
-        paymentMethod: paymentMethodType,
-        paymentMethodId: selectedMethodId,
-        // Pass buyer coordinates so the backend recalculates the fee server-side
+        deliveryAddress, deliveryCity: 'Accra', deliveryState,
+        deliveryCountry: 'Ghana', deliveryPhone,
+        paymentMethod: paymentMethodType, paymentMethodId: selectedMethodId,
         ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
       });
-
       if (res.success) {
         clearCart();
         await clearBackendCart().catch(() => {});
@@ -165,39 +183,47 @@ export default function CheckoutScreen() {
       }
     } catch (e: any) {
       CustomInAppToast.show({ type: 'error', title: 'Order Failed', message: e.message || 'Please try again.' });
-    } finally {
-      setIsOrdering(false);
-    }
+    } finally { setIsOrdering(false); }
   };
 
-
-  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card'; icon: any; label: string; sub: string }) => {
-    const isSelected = paymentMethodType === type;
+  // ─── Payment Option ─────────────────────────────────────────────────────────
+  const PaymentOption = ({ type, label, sub }: { type: 'momo' | 'card'; label: string; sub: string }) => {
+    const active        = paymentMethodType === type;
     const filteredSaved = savedMethods.filter((m) => m.type === type);
 
     return (
-      <View style={{ marginBottom: 12 }}>
+      <View style={S.payWrap}>
         <TouchableOpacity
-          style={[S.paymentOption, isSelected && S.paymentOptionSelected]}
+          style={[S.payCard, active && S.payCardActive]}
           onPress={() => {
             setPaymentMethodType(type);
             const def = filteredSaved.find((m) => m.is_default) || filteredSaved[0];
             setSelectedMethodId(def?.id ?? null);
           }}
+          activeOpacity={0.85}
         >
-          <View style={[S.optionIcon, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <MaterialCommunityIcons name={icon} size={22} color={isSelected ? '#FFF' : C.navy} />
+          {/* Hero image */}
+          <View style={[S.payHeroWrap, active && S.payHeroWrapActive]}>
+            {type === 'momo'
+              ? <Image source={WalletImage} style={S.payHeroImage} resizeMode="contain" />
+              : <Image source={CardBrandImage} style={S.payHeroImage} resizeMode="contain" />
+            }
           </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={[S.optionLabel, isSelected && { color: '#FFF' }]}>{label}</Text>
-            <Text style={[S.optionSub, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
+
+          {/* Info */}
+          <View style={S.payInfo}>
+            <Text style={[S.payTitle, active && S.payTitleActive]}>{label}</Text>
+            <Text style={[S.paySub, active && S.paySubActive]}>{sub}</Text>
           </View>
-          <View style={[S.radioOuter, isSelected && { borderColor: '#FFF' }]}>
-            {isSelected && <View style={S.radioInner} />}
+
+          {/* Radio */}
+          <View style={[S.radioOuter, active && S.radioOuterActive]}>
+            {active && <View style={S.radioInner} />}
           </View>
         </TouchableOpacity>
 
-        {isSelected && filteredSaved.length > 0 && (
+        {/* Saved methods */}
+        {active && filteredSaved.length > 0 && (
           <View style={S.savedBox}>
             {filteredSaved.map((m) => (
               <TouchableOpacity
@@ -208,7 +234,7 @@ export default function CheckoutScreen() {
                 <Ionicons
                   name={selectedMethodId === m.id ? 'checkmark-circle' : 'ellipse-outline'}
                   size={18}
-                  color={selectedMethodId === m.id ? '#A3E635' : C.muted}
+                  color={selectedMethodId === m.id ? C.lime : C.muted}
                 />
                 <Text style={[S.savedTxt, selectedMethodId === m.id && S.savedTxtActive]}>
                   {m.title} ({m.type === 'card' ? `**** ${m.identifier.slice(-4)}` : m.identifier})
@@ -221,6 +247,7 @@ export default function CheckoutScreen() {
     );
   };
 
+  // ─── Render ─────────────────────────────────────────────────────────────────
   return (
     <View style={S.container}>
       <StatusBar style="light" />
@@ -246,53 +273,80 @@ export default function CheckoutScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
 
-            {/* Order Summary */}
+            {/* ── Order Summary (Receipt) ─────────────────────────────── */}
             <Text style={S.sectionTitle}>Order Summary</Text>
-            <View style={S.card}>
-              {cartItems.map((item) => (
-                <View key={item.id} style={S.summaryRow}>
-                  <Text style={S.summaryItemName} numberOfLines={1}>{item.title}</Text>
-                  <Text style={S.summaryItemQty}>x{item.quantity}</Text>
-                  <Text style={S.summaryItemPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
-                </View>
-              ))}
-              <View style={S.divider} />
-              <View style={S.summaryRow}>
-                <Text style={S.summaryItemName}>Subtotal</Text>
-                <Text style={S.summaryItemPrice}>₵{Number(subtotal || 0).toFixed(2)}</Text>
-              </View>
-              <View style={S.summaryRow}>
-                <Text style={S.summaryItemName}>Buyer Protection Fee</Text>
-                <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
-              </View>
-              <View style={S.summaryRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
-                  <Text style={S.summaryItemName}>Delivery Fee</Text>
-                  {isFetchingFee && <ActivityIndicator size="small" color={C.muted} />}
-                </View>
-                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#EF4444' }]}>
-                  {isFetchingFee ? '...' : isWithinRange === false ? 'Out of Range' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
+            <View style={S.receiptOuter}>
+              <PerforatedEdge />
+              <View style={S.receiptInner}>
+
+                {/* Store header */}
+                <Text style={S.receiptStoreName}>
+                  {(cartItems[0] as any)?.storeName ?? 'Your Order'}
                 </Text>
-              </View>
-              {isWithinRange === false && (
-                <View style={S.errorBanner}>
-                  <Ionicons name="alert-circle" size={16} color="#B91C1C" />
-                  <Text style={S.errorText}>Your address is outside this store&apos;s delivery zone.</Text>
+                <Text style={S.receiptDate}>
+                  {new Date().toDateString()} · Receipt
+                </Text>
+                <View style={S.receiptDivider} />
+
+                {/* Line items */}
+                {cartItems.map((item) => (
+                  <View key={item.id} style={S.rRow}>
+                    <Text style={S.rName} numberOfLines={1}>{item.title}</Text>
+                    <Text style={S.rQty}>x{item.quantity}</Text>
+                    <Text style={S.rPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
+                  </View>
+                ))}
+
+                <View style={S.receiptDivider} />
+
+                {/* Subtotals */}
+                <View style={S.rRow}>
+                  <Text style={[S.rName, S.rMuted]}>Subtotal</Text>
+                  <Text style={[S.rPrice, S.rMuted]}>₵{Number(subtotal || 0).toFixed(2)}</Text>
                 </View>
-              )}
-              <View style={S.divider} />
-              <View style={S.summaryRow}>
-                <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
-                <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
+                <View style={S.rRow}>
+                  <Text style={[S.rName, S.rMuted]}>Buyer Protection Fee</Text>
+                  <Text style={[S.rPrice, S.rMuted]}>₵{Number(tax || 0).toFixed(2)}</Text>
+                </View>
+                <View style={S.rRow}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
+                    <Text style={[S.rName, S.rMuted]}>Delivery Fee</Text>
+                    {isFetchingFee && <ActivityIndicator size="small" color={C.receiptMuted} />}
+                  </View>
+                  <Text style={[S.rPrice, S.rMuted, isWithinRange === false && { color: C.error }]}>
+                    {isFetchingFee ? '...' : isWithinRange === false ? 'Out of Range' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
+                  </Text>
+                </View>
+
+                {isWithinRange === false && (
+                  <View style={S.errorBanner}>
+                    <Ionicons name="alert-circle" size={15} color={C.error} />
+                    <Text style={S.errorText}>Your address is outside this store's delivery zone.</Text>
+                  </View>
+                )}
+
+                {/* Total */}
+                <View style={S.receiptTotalDivider} />
+                <View style={S.rRow}>
+                  <Text style={S.rTotalLabel}>TOTAL PAYABLE</Text>
+                  <Text style={S.rTotalPrice}>₵{Number(total || 0).toFixed(2)}</Text>
+                </View>
+
+                <Barcode />
               </View>
+              <PerforatedEdge flip />
             </View>
 
-            {/* Delivery Info */}
+            {/* ── Delivery Info ────────────────────────────────────────── */}
             <Text style={S.sectionTitle}>Delivery Information</Text>
             <View style={S.card}>
+
+              {/* Address */}
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Delivery Address <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                  <Text style={S.inputLabel}>
+                    Delivery Address <Text style={{ color: '#ef4444' }}>*</Text>
+                  </Text>
                   {prefilled.address && (
                     <View style={S.profileBadge}>
                       <Ionicons name="person-circle-outline" size={11} color={C.lime} />
@@ -311,9 +365,13 @@ export default function CheckoutScreen() {
                   />
                 </View>
               </View>
+
+              {/* Phone */}
               <View style={S.inputGroup}>
                 <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Phone Number <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                  <Text style={S.inputLabel}>
+                    Phone Number <Text style={{ color: '#ef4444' }}>*</Text>
+                  </Text>
                   {prefilled.phone && (
                     <View style={S.profileBadge}>
                       <Ionicons name="person-circle-outline" size={11} color={C.lime} />
@@ -333,11 +391,11 @@ export default function CheckoutScreen() {
                   />
                 </View>
               </View>
+
+              {/* Region chips */}
               <View style={S.inputGroup}>
-                <View style={S.labelRow}>
-                  <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
-                </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
+                <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   {['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Volta'].map((reg) => (
                     <TouchableOpacity
                       key={reg}
@@ -349,15 +407,16 @@ export default function CheckoutScreen() {
                   ))}
                 </ScrollView>
               </View>
+
+              {/* Profile nudge */}
               {!prefilled.address && !deliveryAddress && (
-                <TouchableOpacity
-                  style={S.profileNudge}
-                  onPress={() => router.push('/settings/Account' as any)}
-                >
+                <TouchableOpacity style={S.profileNudge} onPress={() => router.push('/settings/Account' as any)}>
                   <Ionicons name="information-circle-outline" size={15} color={C.navy} />
                   <Text style={S.profileNudgeText}>Add address & phone in your profile to auto-fill next time</Text>
                 </TouchableOpacity>
               )}
+
+              {/* Save address checkbox */}
               <TouchableOpacity style={S.checkboxRow} onPress={() => setSaveAddress(!saveAddress)}>
                 <View style={[S.checkbox, saveAddress && S.checkboxChecked]}>
                   {saveAddress && <Ionicons name="checkmark" size={13} color="#FFF" />}
@@ -366,21 +425,27 @@ export default function CheckoutScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Payment Method */}
+            {/* ── Payment Method ────────────────────────────────────────── */}
             <Text style={S.sectionTitle}>Payment Method</Text>
-            <PaymentOption type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money" />
-            <PaymentOption type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX" />
+            <PaymentOption type="momo" label="Mobile Money" sub="MTN · Telecel · AT Money" />
+            <PaymentOption type="card" label="Bank Card"    sub="Visa · Mastercard · AMEX" />
 
-            {/* Place Order */}
+            {/* ── Place Order ───────────────────────────────────────────── */}
             <TouchableOpacity
-              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange === false) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || isWithinRange !== true}
+              disabled={isOrdering || isWithinRange === false}
+              activeOpacity={0.85}
             >
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
                   ? <ActivityIndicator color="#FFF" />
-                  : <Text style={S.placeOrderTxt}>Place Order · ₵{Number(total || 0).toFixed(2)}</Text>
+                  : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <Ionicons name="bag-check-outline" size={20} color="#FFF" />
+                      <Text style={S.placeOrderTxt}>Place Order · ₵{Number(total || 0).toFixed(2)}</Text>
+                    </View>
+                  )
                 }
               </LinearGradient>
             </TouchableOpacity>
@@ -393,59 +458,120 @@ export default function CheckoutScreen() {
   );
 }
 
+// ─── Styles ──────────────────────────────────────────────────────────────────
 const S = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  centred: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centred:   { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  header: { paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
+  // Header
+  header:      { paddingBottom: 20, borderBottomLeftRadius: 24, borderBottomRightRadius: 24 },
+  headerRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
+  backBtn:     { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
 
-  scroll: { padding: 16 },
-  sectionTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.muted, textTransform: 'uppercase', marginTop: 16, marginBottom: 10 },
-  card: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginBottom: 4, elevation: 2 },
+  scroll:       { padding: 16, backgroundColor: '#EEF2FF' },
+  sectionTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: C.muted, textTransform: 'uppercase', letterSpacing: 1, marginTop: 18, marginBottom: 10 },
 
-  summaryRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  summaryItemName: { flex: 1, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
-  summaryItemQty: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, marginHorizontal: 8 },
-  summaryItemPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.navy },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
+  // Receipt
+  receiptOuter: {
+    backgroundColor: C.cream,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: C.creamEdge,
+    overflow: 'hidden',
+    marginBottom: 4,
+    // subtle shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  receiptInner:    { paddingHorizontal: 18, paddingVertical: 16, backgroundColor: C.receipt },
+  receiptStoreName:{ fontFamily: 'Courier New', fontSize: 14, fontWeight: '700', color: '#1a1a1a', textAlign: 'center', letterSpacing: 2, textTransform: 'uppercase' },
+  receiptDate:     { fontFamily: 'Courier New', fontSize: 10, color: C.receiptMuted, textAlign: 'center', marginTop: 3 },
+  receiptDivider:  { borderTopWidth: 1, borderStyle: 'dashed', borderColor: C.receiptDivider, marginVertical: 10 },
+  receiptTotalDivider: { borderTopWidth: 1.5, borderColor: '#1a1a1a', marginVertical: 10 },
 
-  inputGroup: { marginBottom: 16 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  inputLabel: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.muted },
-  profileBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F7FEE7', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
-  profileBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#65A30D' },
-  profileNudge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 14 },
-  profileNudgeText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy },
+  // Perforated
+  perforated:       { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', paddingHorizontal: 4, height: 10, borderBottomWidth: 0.5, borderStyle: 'dashed', borderColor: C.receiptDivider, backgroundColor: C.cream },
+  perforatedBottom: { borderBottomWidth: 0, borderTopWidth: 0.5, alignItems: 'flex-start' },
+  perfDot:          { width: 10, height: 10, borderRadius: 5, backgroundColor: '#EEF2FF', marginBottom: -5 },
+  perfDotBottom:    { marginBottom: 0, marginTop: -5 },
+
+  // Receipt rows
+  rRow:       { flexDirection: 'row', alignItems: 'baseline', marginBottom: 6 },
+  rName:      { flex: 1, fontFamily: 'Courier New', fontSize: 12, color: '#333' },
+  rQty:       { fontFamily: 'Courier New', fontSize: 11, color: C.receiptMuted, marginHorizontal: 8 },
+  rPrice:     { fontFamily: 'Courier New', fontSize: 12, color: '#1a1a1a' },
+  rMuted:     { color: C.receiptMuted },
+  rTotalLabel:{ flex: 1, fontFamily: 'Courier New', fontSize: 13, fontWeight: '700', color: C.inkBlue },
+  rTotalPrice:{ fontFamily: 'Courier New', fontSize: 15, fontWeight: '700', color: '#1F7A1F' },
+
+  // Barcode
+  barcodeWrap:  { alignItems: 'center', marginTop: 14, gap: 6 },
+  barcodeLines: { flexDirection: 'row', gap: 2, alignItems: 'flex-end' },
+  barcodeText:  { fontFamily: 'Courier New', fontSize: 9, color: '#aaa', letterSpacing: 1 },
+
+  // Card (delivery)
+  card: { backgroundColor: C.card, borderRadius: 18, padding: 16, marginBottom: 4, borderWidth: 1, borderColor: '#DCE3F6', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 4 },
+
+  // Input
+  inputGroup:   { marginBottom: 16 },
+  labelRow:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  inputLabel:   { fontSize: 12, fontFamily: 'Montserrat-Bold', color: C.muted },
   inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14 },
-  input: { flex: 1, paddingVertical: 13, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center' },
-  checkbox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.navy, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
-  checkboxChecked: { backgroundColor: C.navy },
-  checkboxLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
+  input:        { flex: 1, paddingVertical: 13, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
 
-  paymentOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', elevation: 1 },
-  paymentOptionSelected: { backgroundColor: C.navy, borderColor: C.navy },
-  optionIcon: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.navy },
-  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF' },
-  savedBox: { backgroundColor: '#FFF', borderRadius: 14, borderWidth: 1, borderTopWidth: 0, borderColor: '#F1F5F9', padding: 8, marginTop: -4, marginBottom: 4 },
-  savedItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, gap: 8 },
-  savedItemActive: { backgroundColor: '#F7FEE7' },
-  savedTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
-  savedTxtActive: { color: C.navy, fontFamily: 'Montserrat-SemiBold' },
+  // Profile badge / nudge
+  profileBadge:     { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#F7FEE7', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 20 },
+  profileBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#65A30D' },
+  profileNudge:     { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 14 },
+  profileNudgeText: { flex: 1, fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.navy },
 
-  placeOrderBtn: { borderRadius: 18, overflow: 'hidden', marginTop: 20 },
-  placeOrderGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
-  placeOrderTxt: { color: '#FFF', fontSize: 17, fontFamily: 'Montserrat-Bold' },
-  regionChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F1F5F9', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  // Checkbox
+  checkboxRow:    { flexDirection: 'row', alignItems: 'center' },
+  checkbox:       { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: C.navy, justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  checkboxChecked:{ backgroundColor: C.navy },
+  checkboxLabel:  { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
+
+  // Region chips
+  regionChip:       { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10, backgroundColor: '#F1F5F9', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
   regionChipActive: { backgroundColor: C.navy, borderColor: C.navy },
-  regionChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  regionChipTxt:    { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
   regionChipTxtActive: { color: '#FFF' },
-  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
-  errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', flex: 1 },
+
+  // Payment cards
+  payWrap:        { marginBottom: 12 },
+  payCard:        { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardSoft, borderRadius: 20, padding: 14, borderWidth: 1.5, borderColor: '#DBE4FF', elevation: 1, gap: 14 },
+  payCardActive:  { backgroundColor: C.inkBlue, borderColor: C.inkBlue },
+  payHeroWrap:    { width: 64, height: 64, borderRadius: 14, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#E5EAF8' },
+  payHeroWrapActive:{ borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'rgba(255,255,255,0.94)' },
+  payHeroImage:   { width: '90%', height: '90%' },
+  payInfo:        { flex: 1 },
+  payTitle:       { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.inkBlue },
+  payTitleActive: { color: '#FFF' },
+  paySub:         { fontSize: 11, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
+  paySubActive:   { color: 'rgba(255,255,255,0.7)' },
+
+  // Radio
+  radioOuter:       { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
+  radioOuterActive: { borderColor: '#FFF' },
+  radioInner:       { width: 10, height: 10, borderRadius: 5, backgroundColor: '#FFF' },
+
+  // Saved methods
+  savedBox:      { backgroundColor: '#FFF', borderRadius: 14, borderWidth: 1, borderTopWidth: 0, borderColor: '#DBE4FF', padding: 8, marginTop: -6, paddingTop: 12 },
+  savedItem:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, gap: 8 },
+  savedItemActive:{ backgroundColor: '#F7FEE7' },
+  savedTxt:      { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted },
+  savedTxtActive:{ color: C.navy, fontFamily: 'Montserrat-SemiBold' },
+
+  // Place order
+  placeOrderBtn:      { borderRadius: 18, overflow: 'hidden', marginTop: 20 },
+  placeOrderGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
+  placeOrderTxt:      { color: '#FFF', fontSize: 17, fontFamily: 'Montserrat-Bold' },
+
+  // Error
+  errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.errorBg, padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
+  errorText:   { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.error, flex: 1 },
 });
