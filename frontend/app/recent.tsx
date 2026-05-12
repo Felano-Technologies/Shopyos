@@ -31,6 +31,7 @@ interface RecentProduct {
   oldPrice: number | null;
   image: any;
   timestamp: string;
+  storeId?: string;
 }
 
 export default function RecentScreen() {
@@ -58,7 +59,8 @@ export default function RecentScreen() {
     price: parseFloat(p.price) || 0,
     oldPrice: null,
     image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
-    timestamp: 'Just now'
+    timestamp: 'Just now',
+    storeId: p.store_id || p.business_id || p.store?._id || p.store?.id || p.businessId
   })) || [];
 
   // Filter products based on search query
@@ -106,6 +108,7 @@ export default function RecentScreen() {
       category: item.category,
       price: item.price,
       image: item.image,
+      storeId: item.storeId
     });
     showToast(`${item.title} added to cart!`);
   };

@@ -14,7 +14,7 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { useCart } from '@/context/CartContext';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
-  getUserData, getPaymentMethods, getDeliveryQuote,
+  getUserData, getPaymentMethods, getDeliveryQuote, getProductById,
 } from '@/services/api';
 
 const C = {
@@ -49,6 +49,7 @@ export default function CheckoutScreen() {
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [isFetchingFee, setIsFetchingFee] = useState(false);
   const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
+  const [deliveryNote, setDeliveryNote] = useState<string | null>(null);
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Get buyer location once on mount
@@ -58,7 +59,8 @@ export default function CheckoutScreen() {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          setBuyerCoords({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+          const coords = { lat: loc.coords.latitude, lng: loc.coords.longitude };
+          setBuyerCoords(coords);
         }
       } catch {
         // Location unavailable — delivery fee will fall back to base fee
@@ -67,32 +69,44 @@ export default function CheckoutScreen() {
   }, []);
 
   // Fetch delivery quote whenever buyer location is known
-  // Uses the first store in the cart (single-store checkout assumed for now)
   useEffect(() => {
-    if (!buyerCoords || cartItems.length === 0) return;
-    const storeId = (cartItems[0] as any).storeId ?? (cartItems[0] as any).store_id;
-    if (!storeId) return;
+    if (cartItems.length === 0) return;
 
     (async () => {
+      let storeId = (cartItems[0] as any).storeId ?? (cartItems[0] as any).store_id ?? (cartItems[0] as any).business_id;
+      
+      // Fallback for legacy cart items
+      if (!storeId && cartItems[0].id) {
+        try {
+          const prodRes = await getProductById(cartItems[0].id);
+          if (prodRes.success) {
+            storeId = prodRes.product.store_id || prodRes.product.store?._id || prodRes.product.store?.id || prodRes.product.businessId || prodRes.product.business_id;
+          }
+        } catch { /* Fail silently */ }
+      }
+
+      if (!storeId) return;
+
       setIsFetchingFee(true);
       try {
-        const res = await getDeliveryQuote(storeId, buyerCoords.lat, buyerCoords.lng);
+        const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
         if (res?.success) {
-          const { withinRange, deliveryFee: fee } = res.quote || {};
+          const { withinRange, deliveryFee: fee, note } = res.quote || {};
           setIsWithinRange(withinRange);
+          setDeliveryNote(note || null);
           if (withinRange && fee !== null) {
             setDeliveryFee(fee);
           } else {
             setDeliveryFee(0);
           }
         }
-      } catch {
+      } catch (err: any) {
         // Eligibility remains null (unknown) if quote fails
       } finally {
         setIsFetchingFee(false);
       }
     })();
-  }, [buyerCoords, cartItems]);
+  }, [buyerCoords, cartItems[0]?.id, deliveryState]);
 
   const tax = 1.00; // Flat Buyer Protection Fee
   const total = subtotal + tax + deliveryFee;
@@ -114,6 +128,11 @@ export default function CheckoutScreen() {
           setDeliveryPhone(phone);
           setDeliveryState(region);
           setPrefilled({ address: !!addr, phone: !!phone, region: !!profile.state_province });
+          
+          // Use saved coordinates as initial buyerCoords
+          if (profile.latitude && profile.longitude) {
+            setBuyerCoords({ lat: Number(profile.latitude), lng: Number(profile.longitude) });
+          }
         }
 
         if (paymentResponse?.success) {
@@ -266,12 +285,9 @@ export default function CheckoutScreen() {
                 <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
               </View>
               <View style={S.summaryRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 6 }}>
-                  <Text style={S.summaryItemName}>Delivery Fee</Text>
-                  {isFetchingFee && <ActivityIndicator size="small" color={C.muted} />}
-                </View>
-                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#EF4444' }]}>
-                  {isFetchingFee ? '...' : isWithinRange === false ? 'Out of Range' : `₵${Number(deliveryFee || 0).toFixed(2)}`}
+                <Text style={S.summaryItemName}>Delivery Fee</Text>
+                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#B91C1C' }]}>
+                  {isFetchingFee ? '...' : (isWithinRange === false ? 'Unavailable' : `₵${deliveryFee.toFixed(2)}`)}
                 </Text>
               </View>
               {isWithinRange === false && (
@@ -370,6 +386,30 @@ export default function CheckoutScreen() {
             <Text style={S.sectionTitle}>Payment Method</Text>
             <PaymentOption type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money" />
             <PaymentOption type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX" />
+
+            {/* Status Messages for User */}
+            {!isFetchingFee && isWithinRange === false && (
+              <View style={[S.errorBanner, { marginTop: 20, marginBottom: -10 }]}>
+                <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+                <Text style={S.errorText}>{deliveryNote || "Delivery unavailable: Outside store's radius."}</Text>
+              </View>
+            )}
+            {isFetchingFee && (
+              <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10, backgroundColor: '#EFF6FF' }]}>
+                <ActivityIndicator size="small" color="#1E40AF" style={{ marginRight: 8 }} />
+                <Text style={[S.profileNudgeText, { color: '#1E40AF' }]}>Calculating delivery fee...</Text>
+              </View>
+            )}
+            {!isFetchingFee && isWithinRange === null && (
+              <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10, backgroundColor: '#FFF7ED' }]}>
+                <Ionicons name="location-outline" size={18} color="#C2410C" />
+                <Text style={[S.profileNudgeText, { color: '#C2410C' }]}>
+                  {!buyerCoords 
+                    ? "Waiting for GPS location..." 
+                    : "Identifying store for delivery calculation..."}
+                </Text>
+              </View>
+            )}
 
             {/* Place Order */}
             <TouchableOpacity

@@ -9,69 +9,59 @@ const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
  * @route   GET /api/delivery/quote
  * @desc    Calculate delivery fee for a store before checkout
  * @access  Private
- * @query   storeId, buyerLat, buyerLng
+ * @query   storeId, buyerLat, buyerLng, deliveryState
  */
 const getDeliveryQuote = async (req, res, next) => {
     try {
-        const { storeId, buyerLat, buyerLng } = req.query;
+        const { storeId, buyerLat, buyerLng, deliveryState } = req.query;
 
-        if (!storeId || buyerLat === undefined || buyerLng === undefined) {
+        if (!storeId) {
             return res.status(400).json({
                 success: false,
-                error: 'storeId, buyerLat, and buyerLng are required'
-            });
-        }
-
-        const lat = parseFloat(buyerLat);
-        const lng = parseFloat(buyerLng);
-
-        if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid coordinates'
+                error: 'storeId is required'
             });
         }
 
         const store = await repositories.stores.findById(storeId);
-        if (!store) {
-            return res.status(404).json({ success: false, error: 'Store not found' });
+        if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
+
+        let deliveryFee = 5;
+        let distanceKm = null;
+        let withinRange = true;
+        let note = '';
+
+        // 1. Coordinate-based calculation
+        if (buyerLat !== undefined && buyerLng !== undefined && store.latitude !== null && store.longitude !== null) {
+            const lat = parseFloat(buyerLat);
+            const lng = parseFloat(buyerLng);
+            
+            if (!isNaN(lat) && !isNaN(lng)) {
+                distanceKm = haversineKm(parseFloat(store.latitude), parseFloat(store.longitude), lat, lng);
+                const calc = calculateDeliveryFee(store, distanceKm);
+                withinRange = calc.withinRange;
+                deliveryFee = calc.fee !== null ? calc.fee : (parseFloat(store.delivery_base_fee) || 5);
+                
+                if (!withinRange) {
+                    note = `This store only delivers within ${store.delivery_max_km} km. You are ${distanceKm.toFixed(2)} km away.`;
+                }
+            } else {
+                deliveryFee = parseFloat(store.delivery_base_fee) || 5;
+            }
+        } else {
+            deliveryFee = parseFloat(store.delivery_base_fee) || 5;
+            note = 'Location not provided — using base fee';
         }
 
-        // Store must have coordinates to calculate distance
-        if (store.latitude === null || store.longitude === null) {
-            // Fall back to base fee only when store has no location set
-            return res.status(200).json({
-                success: true,
-                quote: {
-                    storeId,
-                    distanceKm: null,
-                    deliveryFee: parseFloat(store.delivery_base_fee) || 0,
-                    withinRange: true,
-                    note: 'Store location not set — flat base fee applied'
-                }
-            });
-        }
+        // 2. Regional pricing logic (Sync with orderController.js)
+        const storeRegion = (store.state_province || 'Greater Accra').trim().toLowerCase();
+        const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
 
-        const distanceKm = haversineKm(
-            parseFloat(store.latitude),
-            parseFloat(store.longitude),
-            lat,
-            lng
-        );
-
-        const { fee, withinRange } = calculateDeliveryFee(store, distanceKm);
-
-        if (!withinRange) {
-            return res.status(200).json({
-                success: true,
-                quote: {
-                    storeId,
-                    distanceKm,
-                    deliveryFee: null,
-                    withinRange: false,
-                    note: `This store only delivers within ${store.delivery_max_km} km. You are ${distanceKm} km away.`
-                }
-            });
+        if (storeRegion === targetRegion) {
+            // Same Region: min 15, max 30
+            deliveryFee = Math.max(15, Math.min(deliveryFee, 30));
+        } else {
+            // Cross Region: min 40
+            deliveryFee = Math.max(deliveryFee, 40);
         }
 
         res.status(200).json({
@@ -79,17 +69,13 @@ const getDeliveryQuote = async (req, res, next) => {
             quote: {
                 storeId,
                 distanceKm,
-                deliveryFee: fee,
-                withinRange: true,
-                breakdown: {
-                    baseFee: parseFloat(store.delivery_base_fee) || 0,
-                    perKmFee: parseFloat(store.delivery_per_km_fee) || 0,
-                    distanceKm
-                }
+                deliveryFee: withinRange ? deliveryFee : null,
+                withinRange,
+                note
             }
         });
-    } catch (error) {
-        next(error);
+    } catch (err) {
+        next(err);
     }
 };
 

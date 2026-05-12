@@ -38,7 +38,8 @@ function calculateDeliveryFee(store, distanceKm) {
     const maxKm = store.delivery_max_km ? parseFloat(store.delivery_max_km) : null;
 
     const withinRange = maxKm === null || distanceKm <= maxKm;
-    const fee = withinRange ? Math.round((baseFee + distanceKm * perKmFee) * 100) / 100 : null;
+    const rawFee = Math.round((baseFee + distanceKm * perKmFee) * 100) / 100;
+    const fee = withinRange ? Math.max(5, rawFee) : null;
 
     return { fee, withinRange, distanceKm };
 }
