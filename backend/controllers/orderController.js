@@ -108,7 +108,7 @@ const createOrder = async (req, res, next) => {
 
       // Dynamic delivery fee based on store settings + buyer location
       const deliveryState = req.body.deliveryState || 'Greater Accra';
-      let deliveryFee = 0;
+      let deliveryFee = 5; // Default minimum delivery fee
       const store = await repositories.stores.findById(storeId);
       if (store) {
         if (
@@ -128,9 +128,9 @@ const createOrder = async (req, res, next) => {
             });
           }
           
-          deliveryFee = fee !== null ? fee : (parseFloat(store.delivery_base_fee) || 15);
+          deliveryFee = fee !== null ? fee : (parseFloat(store.delivery_base_fee) || 5);
         } else {
-          deliveryFee = parseFloat(store.delivery_base_fee) || 15;
+          deliveryFee = parseFloat(store.delivery_base_fee) || 5;
         }
 
         // --- Regional Pricing Logic ---

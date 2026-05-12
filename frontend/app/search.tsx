@@ -204,7 +204,8 @@ export default function SearchScreen() {
         title: item.name,
         category: item.category || 'General',
         price: parseFloat(item.price) || 0,
-        image: item.images?.[0] || 'https://via.placeholder.com/300'
+        image: item.images?.[0] || 'https://via.placeholder.com/300',
+        storeId: item.store_id || item.business_id || item.store?._id || item.store?.id
       });
       CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
     } catch {

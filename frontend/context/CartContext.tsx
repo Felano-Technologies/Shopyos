@@ -7,6 +7,7 @@ type Product = {
   category: string;
   price: number;
   image: any;
+  storeId?: string; // ID of the store this product belongs to
 };
 
 type CartItem = Product & { quantity: number };

@@ -142,6 +142,6 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error('❌ Migration runner failed:', error.message);
+  console.error('❌ Migration runner failed:', error.message || error);
   process.exit(1);
 });

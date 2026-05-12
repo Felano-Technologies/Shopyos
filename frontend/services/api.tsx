@@ -562,10 +562,10 @@ export const confirmDelivery = async (orderId: string) => {
   }
 };
 
-export const getDeliveryQuote = async (storeId: string, buyerLat: number, buyerLng: number) => {
+export const getDeliveryQuote = async (storeId: string, buyerLat?: number, buyerLng?: number, deliveryState?: string) => {
   try {
     const response = await api.get('/delivery/quote', {
-      params: { storeId, buyerLat, buyerLng },
+      params: { storeId, buyerLat, buyerLng, deliveryState },
     });
     return response.data;
   } catch (error: any) {

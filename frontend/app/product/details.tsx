@@ -174,7 +174,8 @@ export default function ProductDetails() {
             title: product.title,
             price: product.price,
             image: product.image,
-            category: product.category
+            category: product.category,
+            storeId: product.storeId
         });
         setSuccessModalVisible(true);
     };
