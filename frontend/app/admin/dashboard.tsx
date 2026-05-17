@@ -45,7 +45,7 @@ const FALLBACK_TRANSACTIONS = [
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { isDesktop, isTablet } = useAdminBreakpoint();
+  const { isDesktop, isTablet, isMobile } = useAdminBreakpoint();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
@@ -254,15 +254,15 @@ export default function AdminDashboard() {
           <View style={[styles.heroRow, !isDesktop && styles.heroRowStack]}>
             <View style={styles.heroIntro}>
               <Text style={styles.heroEyebrow}>Marketplace overview</Text>
-              <Text style={styles.greeting}>Hello Admin, good morning</Text>
+              <Text style={[styles.greeting, isMobile && { fontSize: 20 }]}>Hello Admin, good morning</Text>
               <Text style={styles.greetingSub}>
-                Let’s check marketplace health, clear approvals, and keep Shopyos moving smoothly.
+                Let's check marketplace health, clear approvals, and keep Shopyos moving smoothly.
               </Text>
             </View>
 
             <TouchableOpacity style={styles.heroRevenueCard} onPress={() => router.push('/admin/revenue' as any)}>
               <Text style={styles.heroRevenueLabel}>Platform revenue</Text>
-              <Text style={styles.heroRevenueValue}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
+              <Text style={[styles.heroRevenueValue, isMobile && { fontSize: 24 }]}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
               <View style={styles.growthPill}>
                 <Feather name="trending-up" size={14} color={adminColors.lime} />
                 <Text style={styles.growthText}>+24% this month</Text>
@@ -273,7 +273,7 @@ export default function AdminDashboard() {
 
         <AdminPanel style={styles.floatingStatsPanel}>
           <View style={[styles.heroStatsRow, !isDesktop && styles.heroStatsWrap]}>
-            {statCards.slice(0, 3).map((item, index) => (
+            {statCards.slice(0, isDesktop ? 3 : 4).map((item, index) => (
               <TouchableOpacity
                 key={item.label}
                 style={[
@@ -299,12 +299,12 @@ export default function AdminDashboard() {
           </View>
         </AdminPanel>
 
-        <View style={[styles.mainGrid, !isDesktop && styles.mainGridStack]}>
-          <AdminPanel style={[styles.assetPanel, isDesktop ? styles.assetPanelWide : null]}>
+        <View style={[styles.mainGrid, (!isDesktop || isMobile) && styles.mainGridStack]}>
+          <AdminPanel style={[styles.assetPanel, isDesktop && !isMobile ? styles.assetPanelWide : null]}>
             <AdminSectionHeader title="My Asset" />
             <Text style={styles.assetValue}>₵552,221</Text>
             <Text style={styles.assetGrowth}>+235.21%</Text>
-            <View style={[styles.assetGrid, isTablet && styles.assetGridTablet]}>
+            <View style={[styles.assetGrid, (isTablet || isMobile) && styles.assetGridTablet]}>
               {quickActions.map((action, index) => (
                 <TouchableOpacity
                   key={action.label}
@@ -353,8 +353,8 @@ export default function AdminDashboard() {
           <AdminSectionHeader title="Transactions" />
           <View style={styles.tableHeader}>
             <Text style={[styles.tableHeadCell, styles.nameCell]}>Name</Text>
-            <Text style={styles.tableHeadCell}>Date</Text>
-            <Text style={styles.tableHeadCell}>Type</Text>
+            {!isMobile && <Text style={styles.tableHeadCell}>Date</Text>}
+            {!isMobile && <Text style={styles.tableHeadCell}>Type</Text>}
             <Text style={styles.tableHeadCell}>Status</Text>
           </View>
 
@@ -370,8 +370,8 @@ export default function AdminDashboard() {
                   {item.user?.full_name || item.user?.email || FALLBACK_TRANSACTIONS[index].name}
                 </Text>
               </View>
-              <Text style={styles.tableCellText}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>
-              <Text style={styles.tableCellText}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>
+              {!isMobile && <Text style={styles.tableCellText}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>}
+              {!isMobile && <Text style={styles.tableCellText}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>}
               <View style={styles.statusPill}>
                 <Text style={styles.statusPillText}>{index === 1 ? 'Failed' : 'Success'}</Text>
               </View>
@@ -418,14 +418,13 @@ const styles = StyleSheet.create({
     backgroundColor: adminColors.appBg,
   },
   heroPanel: {
-    borderRadius: 28,
-    padding: 22,
-    gap: 24,
-    marginTop: -8,
+    borderRadius: 22,
+    padding: 18,
+    gap: 18,
   },
   heroRow: {
     flexDirection: 'row',
-    gap: 18,
+    gap: 14,
     alignItems: 'stretch',
   },
   heroRowStack: {
@@ -437,29 +436,29 @@ const styles = StyleSheet.create({
   },
   heroEyebrow: {
     color: 'rgba(255,255,255,0.72)',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
     textTransform: 'uppercase',
     letterSpacing: 1,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   greeting: {
     fontSize: 28,
     fontFamily: 'Montserrat-Bold',
     color: '#FFFFFF',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   greetingSub: {
-    fontSize: 16,
-    lineHeight: 24,
+    fontSize: 14,
+    lineHeight: 20,
     color: 'rgba(255,255,255,0.78)',
     fontFamily: 'Montserrat-Regular',
   },
   heroRevenueCard: {
-    minWidth: 260,
+    // No fixed minWidth — let it fill naturally in stacked mode
     backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 24,
-    padding: 22,
+    borderRadius: 20,
+    padding: 18,
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
@@ -468,21 +467,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: 'rgba(255,255,255,0.74)',
     fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   heroRevenueValue: {
     fontSize: 30,
     color: '#FFFFFF',
     fontFamily: 'Montserrat-Bold',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   growthPill: {
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     borderRadius: 999,
     backgroundColor: 'rgba(132,204,22,0.14)',
   },
@@ -492,28 +491,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
   },
   floatingStatsPanel: {
-    marginTop: -18,
-    marginHorizontal: 6,
+    marginTop: -14,
+    marginHorizontal: 4,
     marginBottom: 2,
-    paddingVertical: 12,
+    paddingVertical: 10,
   },
   heroStatsRow: {
     flexDirection: 'row',
   },
   heroStatsWrap: {
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
   },
   heroStat: {
     flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   heroStatMobile: {
-    minWidth: '48%',
+    // ~47% so two cards fit side by side on any phone ≥ 320px
+    flexBasis: '47%',
+    flexGrow: 0,
     backgroundColor: adminColors.surfaceSoft,
-    borderRadius: 18,
-    paddingVertical: 14,
+    borderRadius: 16,
+    paddingVertical: 12,
   },
   heroStatBorder: {
     borderRightWidth: 1,
@@ -571,16 +572,18 @@ const styles = StyleSheet.create({
   assetGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
-  },
-  assetGridTablet: {
     gap: 12,
   },
+  assetGridTablet: {
+    gap: 10,
+  },
   assetCard: {
-    width: '48%',
-    minHeight: 140,
-    borderRadius: 22,
-    padding: 18,
+    // Use flexBasis so cards are always 2-per-row on any screen
+    flexBasis: '47%',
+    flexGrow: 1,
+    minHeight: 130,
+    borderRadius: 20,
+    padding: 16,
     justifyContent: 'space-between',
   },
   assetIcon: {

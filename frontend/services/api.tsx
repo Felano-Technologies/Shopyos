@@ -1406,6 +1406,16 @@ export const getAdminUsers = async (params = {}) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export const getAdminUserStats = async () => {
+  try {
+    const response = await api.get('/admin/users/stats');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
  
 export const getAdminStores = async (params = {}) => {
   try {

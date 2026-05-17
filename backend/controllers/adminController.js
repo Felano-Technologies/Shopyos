@@ -13,24 +13,31 @@ const rabbitMQService = require('../services/rabbitmq');
  */
 const getDashboard = async (req, res, next) => {
   try {
-    const [userCount, storeCount, orderCount, revenueRes] = await Promise.all([
-      repositories.users.count(),
-      repositories.stores.count(),
-      repositories.orders.count(),
-      repositories.orders.customQuery(q => q.select('payments(amount)'))
-    ]);
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
 
-    const totalRevenue = revenueRes?.reduce((sum, order) => sum + parseFloat(order.payments?.[0]?.amount || 0), 0) || 0;
+    const { rows } = await db.query(`
+      SELECT
+        (SELECT COUNT(*)::int FROM users WHERE deleted_at IS NULL)           AS total_users,
+        (SELECT COUNT(*)::int FROM stores)                                    AS total_stores,
+        (SELECT COUNT(*)::int FROM orders)                                    AS total_orders,
+        (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed') AS total_revenue,
+        (SELECT COUNT(*)::int FROM driver_profiles WHERE is_verified = FALSE
+          AND rejection_reason IS NULL)                                       AS pending_driver_verifications
+    `);
+
+    const s = rows[0] || {};
 
     res.status(200).json({
       success: true,
       stats: {
-        totalUsers: userCount,
-        totalStores: storeCount,
-        totalOrders: orderCount,
-        totalRevenue: totalRevenue,
-        pendingPayouts: 0, // In a real app, count from payouts repo
-        activePromotions: 0
+        totalUsers:                s.total_users                || 0,
+        totalStores:               s.total_stores               || 0,
+        totalOrders:               s.total_orders               || 0,
+        totalRevenue:              parseFloat(s.total_revenue)  || 0,
+        pendingPayouts:            0,
+        activePromotions:          0,
+        pendingDriverVerifications: s.pending_driver_verifications || 0,
       }
     });
   } catch (error) {
@@ -63,6 +70,20 @@ const getAllUsers = async (req, res, next) => {
         offset: parseInt(offset) || 0
       }
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get user statistics (platform-wide counts)
+ * @route   GET /api/admin/users/stats
+ * @access  Admin
+ */
+const getUserStats = async (req, res, next) => {
+  try {
+    const stats = await repositories.admin.getUserStats();
+    res.status(200).json({ success: true, stats });
   } catch (error) {
     next(error);
   }
@@ -772,6 +793,7 @@ const rejectDriverVerification = async (req, res, next) => {
 module.exports = {
   getDashboard,
   getAllUsers,
+  getUserStats,
   updateUserStatus,
   updateUserRole,
   getAllStores,

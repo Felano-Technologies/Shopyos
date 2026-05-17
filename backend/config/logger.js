@@ -1,7 +1,7 @@
 const winston = require('winston');
 
 const { combine, timestamp, printf, colorize, json, errors } = winston.format;
-const LOG_LEVEL = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
+const LOG_LEVEL = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'http' : 'debug');
 
 const devFormat = combine(
     colorize(),
@@ -20,7 +20,14 @@ const devFormat = combine(
 const prodFormat = combine(
     timestamp({ format: 'ISO' }),
     errors({ stack: true }),
-    json()
+    printf(({ level, message, timestamp, requestId, ...meta }) => {
+        const reqId = requestId ? ` [${requestId.substring(0, 8)}]` : '';
+        const metaStr = Object.keys(meta).length > 0 && !meta.stack
+            ? ` ${JSON.stringify(meta)}`
+            : '';
+        const stack = meta.stack ? `\n${meta.stack}` : '';
+        return `${timestamp} [${level.toUpperCase()}]${reqId}: ${message}${metaStr}${stack}`;
+    })
 );
 
 const logger = winston.createLogger({

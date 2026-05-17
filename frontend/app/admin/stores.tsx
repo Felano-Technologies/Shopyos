@@ -187,63 +187,66 @@ export default function AdminStores() {
     ];
   }, [pendingCount, stores]);
 
+  const listHeader = (
+    <View style={styles.listHeaderWrap}>
+      <View style={styles.summaryRow}>
+        {summary.map((item) => (
+          <AdminPanel key={item.label} style={styles.summaryCard}>
+            <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
+              <Ionicons name={item.icon as any} size={16} color={item.color} />
+            </View>
+            <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
+            <Text style={styles.summaryLabel}>{item.label}</Text>
+          </AdminPanel>
+        ))}
+      </View>
+      <View style={styles.filterRow}>
+        {FILTER_TABS.map((tab) => {
+          const active = filter === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setFilter(tab.key)}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   return (
     <>
       <StatusBar style="dark" />
       <AdminShell
         title="Stores"
-        subtitle="Review documentation, approve storefronts, and manage verification outcomes."
+        subtitle="Approve storefronts and manage verification."
         searchValue={search}
         onSearchChange={setSearch}
         onSearchSubmit={() => loadStores()}
         searchPlaceholder="Search stores by name or owner..."
         onRefresh={() => loadStores(true)}
       >
-        <View style={styles.page}>
-          <View style={styles.summaryRow}>
-            {summary.map((item) => (
-              <AdminPanel key={item.label} style={styles.summaryCard}>
-                <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
-                </View>
-                <Text style={styles.summaryLabel}>{item.label}</Text>
-                <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
-              </AdminPanel>
-            ))}
+        {loading && !refreshing ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={adminColors.blue} />
           </View>
-
-          <View style={styles.filterRow}>
-            {FILTER_TABS.map((tab) => {
-              const active = filter === tab.key;
-              return (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => setFilter(tab.key)}
-                >
-                  <Text style={[styles.filterText, active && styles.filterTextActive]}>{tab.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={adminColors.blue} />
-            </View>
-          ) : (
-            <FlatList
-              data={stores}
-              keyExtractor={(item, index) => item.id || item._id || index.toString()}
-              numColumns={isDesktop ? 2 : 1}
-              key={isDesktop ? 'desktop' : 'mobile'}
-              columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => loadStores(true)} tintColor={adminColors.blue} />
-              }
-              renderItem={({ item }) => {
+        ) : (
+          <FlatList
+            data={stores}
+            keyExtractor={(item, index) => item.id || item._id || index.toString()}
+            numColumns={isDesktop ? 2 : 1}
+            key={isDesktop ? 'desktop' : 'mobile'}
+            columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadStores(true)} tintColor={adminColors.blue} />
+            }
+            ListHeaderComponent={listHeader}
+            renderItem={({ item }) => {
                 const actualId = item.id || item._id;
                 const status = STATUS_CONFIG[item.verification_status] || STATUS_CONFIG.pending;
                 const isActioning = actionLoading === actualId;
@@ -376,7 +379,6 @@ export default function AdminStores() {
               }
             />
           )}
-        </View>
 
         <Modal visible={rejectModal} animationType="fade" transparent onRequestClose={() => setRejectModal(false)}>
           <View style={styles.modalOverlay}>
@@ -413,39 +415,45 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
   },
+  listHeaderWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+  },
   summaryRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 10,
   },
   summaryCard: {
-    minWidth: 160,
     flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    alignItems: 'flex-start',
   },
   summaryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 6,
   },
   summaryLabel: {
     color: adminColors.textMuted,
-    fontSize: 13,
+    fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 4,
+    marginTop: 2,
   },
   summaryValue: {
     color: adminColors.text,
-    fontSize: 26,
+    fontSize: 20,
     fontFamily: 'Montserrat-Bold',
+    lineHeight: 24,
   },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
     marginBottom: 10,
   },
   filterChip: {

@@ -14,7 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
 import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
+import { adminUpdateUserStatus, getAdminUserStats, getAdminUsers } from '@/services/api';
 
 const ROLE_FILTERS = ['All', 'buyer', 'seller', 'driver', 'admin'];
 
@@ -39,6 +39,7 @@ export default function AdminUsers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [globalStats, setGlobalStats] = useState({ total: 0, active: 0, sellers: 0, drivers: 0 });
 
   const loadUsers = useCallback(async (isRefresh = false) => {
     try {
@@ -48,9 +49,13 @@ export default function AdminUsers() {
       if (roleFilter !== 'All') params.role = roleFilter;
       if (searchQuery.trim()) params.search = searchQuery.trim();
 
-      const res = await getAdminUsers(params);
+      const [res, statsRes] = await Promise.all([
+        getAdminUsers(params),
+        getAdminUserStats().catch(() => null),
+      ]);
       const data = Array.isArray(res?.users) ? res.users : Array.isArray(res) ? res : [];
       setUsers(data);
+      if (statsRes?.stats) setGlobalStats(statsRes.stats);
     } catch (error: any) {
       CustomInAppToast.show({
         type: 'error',
@@ -67,17 +72,12 @@ export default function AdminUsers() {
     loadUsers();
   }, [loadUsers]);
 
-  const summary = useMemo(() => {
-    const active = users.filter((user) => (user.account_status || 'active') === 'active').length;
-    const sellers = users.filter((user) => user.role === 'seller').length;
-    const drivers = users.filter((user) => user.role === 'driver').length;
-    return [
-      { label: 'Total Users', value: users.length, color: adminColors.blue, icon: 'people-outline' },
-      { label: 'Active', value: active, color: adminColors.green, icon: 'checkmark-circle-outline' },
-      { label: 'Sellers', value: sellers, color: adminColors.violet, icon: 'storefront-outline' },
-      { label: 'Drivers', value: drivers, color: adminColors.amber, icon: 'car-outline' },
-    ];
-  }, [users]);
+  const summary = useMemo(() => [
+    { label: 'Total Users', value: globalStats.total || users.length, color: adminColors.blue, icon: 'people-outline' },
+    { label: 'Active',      value: globalStats.active,                 color: adminColors.green,  icon: 'checkmark-circle-outline' },
+    { label: 'Sellers',    value: globalStats.sellers,                color: adminColors.violet, icon: 'storefront-outline' },
+    { label: 'Drivers',    value: globalStats.drivers,                color: adminColors.amber,  icon: 'car-outline' },
+  ], [users.length, globalStats]);
 
   const handleStatusChange = (user: any) => {
     const isActive = (user.account_status || 'active') === 'active';
@@ -185,77 +185,82 @@ export default function AdminUsers() {
     );
   };
 
+  const listHeader = (
+    <View style={styles.listHeaderWrap}>
+      {/* Compact summary cards — 4-across horizontal strip */}
+      <View style={styles.summaryRow}>
+        {summary.map((item) => (
+          <AdminPanel key={item.label} style={styles.summaryCard}>
+            <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
+              <Ionicons name={item.icon as any} size={16} color={item.color} />
+            </View>
+            <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
+            <Text style={styles.summaryLabel}>{item.label}</Text>
+          </AdminPanel>
+        ))}
+      </View>
+
+      {/* Role filter chips */}
+      <View style={styles.filterRow}>
+        {ROLE_FILTERS.map((filter) => {
+          const active = roleFilter === filter;
+          return (
+            <TouchableOpacity
+              key={filter}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setRoleFilter(filter)}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   return (
     <>
       <StatusBar style="dark" />
       <AdminShell
         title="Users"
-        subtitle="Search, filter, and manage account access from one responsive workspace."
+        subtitle="Manage accounts and access from one workspace."
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         onSearchSubmit={() => loadUsers()}
         searchPlaceholder="Search users by name or email..."
         onRefresh={() => loadUsers(true)}
       >
-        <View style={[styles.page, isDesktop && styles.desktopPage]}>
-          <View style={styles.summaryRow}>
-            {summary.map((item) => (
-              <AdminPanel key={item.label} style={styles.summaryCard}>
-                <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
+        {loading && !refreshing ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={adminColors.blue} />
+          </View>
+        ) : (
+          <FlatList
+            data={users}
+            keyExtractor={(item, index) => item.id || index.toString()}
+            numColumns={isDesktop ? 2 : 1}
+            key={isDesktop ? 'desktop' : 'mobile'}
+            showsVerticalScrollIndicator={false}
+            columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadUsers(true)} tintColor={adminColors.blue} />
+            }
+            ListHeaderComponent={listHeader}
+            renderItem={renderUser}
+            ListEmptyComponent={
+              <AdminPanel style={styles.emptyState}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="people-outline" size={36} color={adminColors.textSoft} />
                 </View>
-                <Text style={styles.summaryLabel}>{item.label}</Text>
-                <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
+                <Text style={styles.emptyTitle}>No users found</Text>
+                <Text style={styles.emptySubtitle}>Try a different filter or search term.</Text>
               </AdminPanel>
-            ))}
-          </View>
-
-          <View style={styles.filterRow}>
-            {ROLE_FILTERS.map((filter) => {
-              const active = roleFilter === filter;
-              return (
-                <TouchableOpacity
-                  key={filter}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => setRoleFilter(filter)}
-                >
-                  <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={adminColors.blue} />
-            </View>
-          ) : (
-            <FlatList
-              data={users}
-              keyExtractor={(item, index) => item.id || index.toString()}
-              numColumns={isDesktop ? 2 : 1}
-              key={isDesktop ? 'desktop' : 'mobile'}
-              showsVerticalScrollIndicator={false}
-              columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => loadUsers(true)} tintColor={adminColors.blue} />
-              }
-              renderItem={renderUser}
-              ListEmptyComponent={
-                <AdminPanel style={styles.emptyState}>
-                  <View style={styles.emptyIconCircle}>
-                    <Ionicons name="people-outline" size={36} color={adminColors.textSoft} />
-                  </View>
-                  <Text style={styles.emptyTitle}>No users found</Text>
-                  <Text style={styles.emptySubtitle}>Try a different filter or search term.</Text>
-                </AdminPanel>
-              }
-            />
-          )}
-        </View>
+            }
+          />
+        )}
       </AdminShell>
     </>
   );
@@ -277,42 +282,45 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
   },
-  desktopPage: {
-    gap: 18,
+  listHeaderWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
   },
   summaryRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 10,
   },
   summaryCard: {
-    minWidth: 160,
     flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    alignItems: 'flex-start',
   },
   summaryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 6,
   },
   summaryLabel: {
     color: adminColors.textMuted,
-    fontSize: 13,
+    fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 4,
+    marginTop: 2,
   },
   summaryValue: {
     color: adminColors.text,
-    fontSize: 26,
+    fontSize: 20,
     fontFamily: 'Montserrat-Bold',
+    lineHeight: 24,
   },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
     marginBottom: 10,
   },
   filterChip: {
