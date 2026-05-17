@@ -256,7 +256,7 @@ export default function AdminDashboard() {
               <Text style={styles.heroEyebrow}>Marketplace overview</Text>
               <Text style={[styles.greeting, isMobile && { fontSize: 20 }]}>Hello Admin, good morning</Text>
               <Text style={styles.greetingSub}>
-                Let's check marketplace health, clear approvals, and keep Shopyos moving smoothly.
+                Let&apos;s check marketplace health, clear approvals, and keep Shopyos moving smoothly.
               </Text>
             </View>
 
