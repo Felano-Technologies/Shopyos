@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
@@ -100,13 +100,13 @@ export default function CheckoutScreen() {
             setDeliveryFee(0);
           }
         }
-      } catch (err: any) {
+      } catch {
         // Eligibility remains null (unknown) if quote fails
       } finally {
         setIsFetchingFee(false);
       }
     })();
-  }, [buyerCoords, cartItems[0]?.id, deliveryState]);
+  }, [buyerCoords, cartItems, deliveryState]);
 
   const tax = 1.00; // Flat Buyer Protection Fee
   const total = subtotal + tax + deliveryFee;

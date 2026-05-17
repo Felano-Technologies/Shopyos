@@ -30,6 +30,17 @@ const prodFormat = combine(
     })
 );
 
+// Keep the last 200 logs in memory for debugging
+const memoryLogs = [];
+const memoryTransport = new winston.transports.Stream({
+    stream: {
+        write: (message) => {
+            memoryLogs.push(message.toString().trim());
+            if (memoryLogs.length > 200) memoryLogs.shift();
+        }
+    }
+});
+
 const logger = winston.createLogger({
     level: LOG_LEVEL,
     defaultMeta: { service: 'shopyos-backend' },
@@ -38,10 +49,13 @@ const logger = winston.createLogger({
         new winston.transports.Console({
             handleExceptions: false,
             handleRejections: false
-        })
+        }),
+        memoryTransport
     ],
     exitOnError: false
 });
+
+logger.getMemoryLogs = () => memoryLogs;
 
 logger.withContext = (context) => logger.child(context);
 
