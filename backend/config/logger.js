@@ -32,14 +32,21 @@ const prodFormat = combine(
 
 // Keep the last 200 logs in memory for debugging
 const memoryLogs = [];
-const memoryTransport = new winston.transports.Stream({
-    stream: {
-        write: (message) => {
-            memoryLogs.push(message.toString().trim());
-            if (memoryLogs.length > 200) memoryLogs.shift();
-        }
+class MemoryTransport extends winston.Transport {
+    log(info, callback) {
+        setImmediate(() => { this.emit('logged', info); });
+        
+        const reqId = info.requestId ? ` [${info.requestId.substring(0, 8)}]` : '';
+        const stack = info.stack ? `\n${info.stack}` : '';
+        const msg = `${info.timestamp || new Date().toISOString()} [${info.level.toUpperCase()}]${reqId}: ${info.message}${stack}`;
+        
+        memoryLogs.push(msg);
+        if (memoryLogs.length > 200) memoryLogs.shift();
+        
+        callback();
     }
-});
+}
+const memoryTransport = new MemoryTransport();
 
 const logger = winston.createLogger({
     level: LOG_LEVEL,
