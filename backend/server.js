@@ -163,6 +163,18 @@ app.get('/metrics', async (req, res) => {
   });
 });
 
+app.get('/api/v1/system/logs', (req, res) => {
+  // Simple protection so not just anyone can read logs
+  if (req.query.secret !== 'debug123') {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  res.status(200).json({
+    success: true,
+    count: logger.getMemoryLogs().length,
+    logs: logger.getMemoryLogs()
+  });
+});
+
 app.get('/api', (req, res) => {
   res.status(200).json({
     success: true, message: 'Shopyos API', version: '1.0.0',
