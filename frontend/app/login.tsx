@@ -24,9 +24,15 @@ const LoginScreen = () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const location = await Location.getCurrentPositionAsync({});
-          latitude = location.coords.latitude;
-          longitude = location.coords.longitude;
+          // Add a 3-second timeout to prevent the app from hanging forever if GPS is slow
+          const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3000));
+          
+          const location: any = await Promise.race([locationPromise, timeoutPromise]);
+          if (location && location.coords) {
+            latitude = location.coords.latitude;
+            longitude = location.coords.longitude;
+          }
         }
       } catch {
         console.log('Location access denied or unavailable');

@@ -238,7 +238,9 @@ export const registerUser = async (
     }
     return response.data;
   } catch (error: any) {
-    if (error.response) throw new Error(error.response.data.error || 'Registration failed');
+    if (error.response) {
+      throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
+    }
     throw new Error(error.message || 'Network error during registration');
   }
 };
@@ -339,7 +341,9 @@ export const loginUser = async (
  
     return { ...response.data, needsRole };
   } catch (error: any) {
-    if (error.response) throw new Error(error.response.data.error || 'Login failed');
+    if (error.response) {
+      throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
+    }
     throw new Error(error.message || 'Network error during login');
   }
 };

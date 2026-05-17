@@ -35,10 +35,12 @@ const memoryLogs = [];
 class MemoryTransport extends winston.Transport {
     log(info, callback) {
         setImmediate(() => { this.emit('logged', info); });
-        
         const reqId = info.requestId ? ` [${info.requestId.substring(0, 8)}]` : '';
+        const metaStr = Object.keys(info).filter(k => !['level', 'message', 'timestamp', 'requestId', 'stack'].includes(k)).length > 0
+            ? ` ${JSON.stringify(info, (key, value) => ['level', 'message', 'timestamp', 'requestId', 'stack'].includes(key) ? undefined : value)}`
+            : '';
         const stack = info.stack ? `\n${info.stack}` : '';
-        const msg = `${info.timestamp || new Date().toISOString()} [${info.level.toUpperCase()}]${reqId}: ${info.message}${stack}`;
+        const msg = `${info.timestamp || new Date().toISOString()} [${info.level.toUpperCase()}]${reqId}: ${info.message}${metaStr}${stack}`;
         
         memoryLogs.push(msg);
         if (memoryLogs.length > 200) memoryLogs.shift();
