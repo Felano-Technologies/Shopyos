@@ -70,7 +70,9 @@ export default function AdminSettings() {
       <StatusBar style="dark" />
       <AdminShell
         title="Settings"
-        subtitle="Adjust platform controls, admin notifications, and account-level security preferences."
+        subtitle="Platform controls, notifications, and account security."
+        scroll
+        contentContainerStyle={{ paddingBottom: 120 }}
       >
         <View style={styles.page}>
           <AdminPanel style={styles.profileCard}>
@@ -298,7 +300,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#FEE2E2',
-    marginBottom: 120,
   },
   logoutText: {
     color: adminColors.red,

@@ -1,7 +1,9 @@
 // db/repositories/AdminRepository.js
-// Repository for admin operations - user management, store verification, analytics
+// Repository for admin operations - uses raw SQL for joined queries
+// (the PostgREST-style query builder strips complex selects to bare *)
 
 const BaseRepository = require('./BaseRepository');
+const { getPool } = require('../../config/postgres');
 
 class AdminRepository extends BaseRepository {
   constructor(supabase) {
@@ -15,59 +17,61 @@ class AdminRepository extends BaseRepository {
    */
   async getAllUsers(options = {}) {
     const { limit = 50, offset = 0, role, accountStatus, search } = options;
+    const db = getPool();
+    const params = [];
 
-    let query = this.db
-      .from('user_profiles')
-      .select(`
-        id,
-        user_id,
-        full_name,
-        phone,
-        created_at,
-        users!user_id!inner(
-          email,
-          is_active,
-          user_roles(
-            roles(name)
-          )
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    let sql = `
+      SELECT
+        up.id,
+        up.user_id,
+        up.full_name,
+        up.phone,
+        up.created_at,
+        u.email,
+        u.is_active,
+        r.name AS role
+      FROM user_profiles up
+      JOIN users u ON u.id = up.user_id
+      LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = TRUE
+      LEFT JOIN roles r ON r.id = ur.role_id
+      WHERE u.deleted_at IS NULL
+    `;
 
     if (role) {
-      // PostgREST filtering on joined tables
-      query = query.eq('users.user_roles.roles.name', role);
+      params.push(role);
+      sql += ` AND r.name = $${params.length}`;
     }
 
     if (accountStatus) {
-      const isActive = accountStatus === 'active';
-      query = query.eq('users.is_active', isActive);
+      params.push(accountStatus === 'active');
+      sql += ` AND u.is_active = $${params.length}`;
     }
 
     if (search) {
-      query = query.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%`);
+      params.push(`%${search}%`);
+      sql += ` AND (up.full_name ILIKE $${params.length} OR u.email ILIKE $${params.length} OR up.phone ILIKE $${params.length})`;
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    
-    // Normalize data for frontend
-    return (data || []).map(u => {
-      const roles = u.users?.user_roles || [];
-      const roleName = roles.length > 0 ? roles[0].roles?.name : 'buyer';
-      
-      return {
-        id: u.id,
-        user_id: u.user_id,
-        full_name: u.full_name,
-        phone: u.phone,
-        email: u.users?.email || '—',
-        role: roleName,
-        account_status: u.users?.is_active ? 'active' : 'suspended',
-        created_at: u.created_at
-      };
-    });
+    sql += ` ORDER BY up.created_at DESC`;
+
+    params.push(limit);
+    sql += ` LIMIT $${params.length}`;
+
+    params.push(offset);
+    sql += ` OFFSET $${params.length}`;
+
+    const { rows } = await db.query(sql, params);
+
+    return rows.map(u => ({
+      id: u.id,
+      user_id: u.user_id,
+      full_name: u.full_name,
+      phone: u.phone,
+      email: u.email || '—',
+      role: u.role || 'buyer',
+      account_status: u.is_active ? 'active' : 'suspended',
+      created_at: u.created_at,
+    }));
   }
 
   /**
@@ -75,335 +79,300 @@ class AdminRepository extends BaseRepository {
    * @returns {Promise<Object>} User stats
    */
   async getUserStats() {
-    // We use RPC or multiple queries. For simplicity and accuracy with joins:
-    const { count: total, error: totalErr } = await this.db
-      .from('user_profiles')
-      .select('id', { count: 'exact', head: true });
+    const db = getPool();
 
-    const { count: active, error: activeErr } = await this.db
-      .from('users')
-      .select('id', { count: 'exact', head: true })
-      .eq('is_active', true);
+    const { rows } = await db.query(`
+      SELECT
+        COUNT(DISTINCT up.id)::int                                                        AS total,
+        COUNT(DISTINCT u.id) FILTER (WHERE u.is_active = TRUE)::int                      AS active,
+        COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name = 'seller')::int                 AS sellers,
+        COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name = 'driver')::int                 AS drivers
+      FROM user_profiles up
+      JOIN users u ON u.id = up.user_id
+      LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = TRUE
+      LEFT JOIN roles r ON r.id = ur.role_id
+      WHERE u.deleted_at IS NULL
+    `);
 
-    const { count: sellers, error: sellerErr } = await this.db
-      .from('user_roles')
-      .select('id, roles!inner(name)', { count: 'exact', head: true })
-      .eq('roles.name', 'seller');
-
-    const { count: drivers, error: driverErr } = await this.db
-      .from('user_roles')
-      .select('id, roles!inner(name)', { count: 'exact', head: true })
-      .eq('roles.name', 'driver');
-
-    if (totalErr || activeErr || sellerErr || driverErr) {
-      throw totalErr || activeErr || sellerErr || driverErr;
-    }
-
+    const s = rows[0] || {};
     return {
-      total: total || 0,
-      active: active || 0,
-      suspended: (total || 0) - (active || 0),
-      sellers: sellers || 0,
-      drivers: drivers || 0,
-      buyers: (total || 0) - (sellers || 0) - (drivers || 0)
+      total:     s.total     || 0,
+      active:    s.active    || 0,
+      suspended: (s.total || 0) - (s.active || 0),
+      sellers:   s.sellers   || 0,
+      drivers:   s.drivers   || 0,
+      buyers:    (s.total || 0) - (s.sellers || 0) - (s.drivers || 0),
     };
   }
 
   /**
    * Update user account status
-   * @param {string} userId - User ID
-   * @param {string} status - New status (active, suspended, banned)
-   * @param {string} reason - Reason for status change
-   * @returns {Promise<Object>} Updated user
    */
   async updateUserStatus(profileId, status, reason = null) {
-    // 1. Get the actual user_id from profileId
-    const { data: profile } = await this.db
-      .from('user_profiles')
-      .select('user_id')
-      .eq('id', profileId)
-      .single();
+    const db = getPool();
 
-    if (!profile) throw new Error('User profile not found');
+    // 1. Resolve user_id from profile id
+    const { rows: profileRows } = await db.query(
+      'SELECT user_id FROM user_profiles WHERE id = $1',
+      [profileId]
+    );
+    if (!profileRows.length) throw new Error('User profile not found');
 
-    // 2. Update users table (is_active)
-    const { data, error } = await this.db
-      .from('users')
-      .update({
-        is_active: status === 'active',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', profile.user_id)
-      .select()
-      .single();
+    const userId = profileRows[0].user_id;
 
-    if (error) throw error;
-    return data;
-  }
-
-  /**
-   * Update user role by user UUID
-   * @param {string} userId - User UUID
-   * @param {string} roleName - New role (buyer, seller, driver, admin)
-   * @returns {Promise<Object>} Updated user_role record
-   */
-  async setUserRoleByUserId(userId, roleName) {
-    // 1. Get role ID
-    const { data: roleData } = await this.db
-      .from('roles')
-      .select('id')
-      .eq('name', roleName)
-      .single();
-
-    if (!roleData) throw new Error(`Role ${roleName} not found`);
-
-    // 2. Clear existing roles (driver/seller/buyer are usually mutually exclusive for the primary role)
-    await this.db.from('user_roles').delete().eq('user_id', userId);
-
-    // 3. Set new role
-    const { data, error } = await this.db
-      .from('user_roles')
-      .insert({
-        user_id: userId,
-        role_id: roleData.id,
-        is_active: true
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    // 2. Update users table
+    const { rows } = await db.query(
+      `UPDATE users SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status === 'active', userId]
+    );
+    return rows[0] || null;
   }
 
   /**
    * Update user role by profile primary key ID
-   * @param {string} profileId - User profile ID
-   * @param {string} roleName - New role name
    */
   async updateUserRole(profileId, roleName) {
-    // 1. Get user_id from profileId
-    const { data: profile } = await this.db
-      .from('user_profiles')
-      .select('user_id')
-      .eq('id', profileId)
-      .single();
+    const db = getPool();
+    const { rows: profileRows } = await db.query(
+      'SELECT user_id FROM user_profiles WHERE id = $1',
+      [profileId]
+    );
+    if (!profileRows.length) throw new Error('User profile not found');
+    return this.setUserRoleByUserId(profileRows[0].user_id, roleName);
+  }
 
-    if (!profile) throw new Error('User profile not found');
-    
-    return this.setUserRoleByUserId(profile.user_id, roleName);
+  /**
+   * Set user role by user UUID
+   */
+  async setUserRoleByUserId(userId, roleName) {
+    const db = getPool();
+
+    const { rows: roleRows } = await db.query(
+      'SELECT id FROM roles WHERE name = $1',
+      [roleName]
+    );
+    if (!roleRows.length) throw new Error(`Role ${roleName} not found`);
+    const roleId = roleRows[0].id;
+
+    // Clear existing roles then assign new
+    await db.query('DELETE FROM user_roles WHERE user_id = $1', [userId]);
+
+    const { rows } = await db.query(
+      `INSERT INTO user_roles (user_id, role_id, is_active) VALUES ($1, $2, TRUE) RETURNING *`,
+      [userId, roleId]
+    );
+    return rows[0] || null;
   }
 
   /**
    * Get all stores with verification status
-   * @param {Object} options - { limit, offset, verificationStatus, search }
-   * @returns {Promise<Array>} List of stores
    */
   async getAllStores(options = {}) {
     const { limit = 50, offset = 0, verificationStatus, search, id } = options;
+    const db = getPool();
+    const params = [];
 
-    let query = this.db
-      .from('stores')
-      .select(`
-        *,
-        owner:users!owner_id(id, email, user_profiles(full_name)),
-        products:products(count)
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    let sql = `
+      SELECT
+        s.*,
+        u.id          AS owner_user_id,
+        u.email       AS owner_email,
+        up.full_name  AS owner_full_name,
+        COUNT(p.id)::int AS product_count
+      FROM stores s
+      LEFT JOIN users u         ON u.id = s.owner_id
+      LEFT JOIN user_profiles up ON up.user_id = s.owner_id
+      LEFT JOIN products p       ON p.store_id = s.id AND p.deleted_at IS NULL
+      WHERE 1=1
+    `;
 
     if (id) {
-      query = query.eq('id', id);
+      params.push(id);
+      sql += ` AND s.id = $${params.length}`;
     }
 
     if (verificationStatus) {
-      query = query.eq('verification_status', verificationStatus);
+      params.push(verificationStatus);
+      sql += ` AND s.verification_status = $${params.length}`;
     }
 
     if (search) {
-      query = query.or(`store_name.ilike.%${search}%,business_name.ilike.%${search}%`);
+      params.push(`%${search}%`);
+      sql += ` AND (s.store_name ILIKE $${params.length} OR s.business_name ILIKE $${params.length})`;
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
+    sql += ` GROUP BY s.id, u.id, u.email, up.full_name ORDER BY s.created_at DESC`;
 
-    // Flatten nested user_profiles into owner.full_name
-    return (data || []).map(store => ({
+    params.push(limit);
+    sql += ` LIMIT $${params.length}`;
+    params.push(offset);
+    sql += ` OFFSET $${params.length}`;
+
+    const { rows } = await db.query(sql, params);
+
+    return rows.map(store => ({
       ...store,
-      owner: store.owner ? {
-        id: store.owner.id,
-        email: store.owner.email,
-        full_name: Array.isArray(store.owner.user_profiles)
-          ? store.owner.user_profiles[0]?.full_name || null
-          : store.owner.user_profiles?.full_name || null,
-      } : null,
+      owner: {
+        id:        store.owner_user_id,
+        email:     store.owner_email,
+        full_name: store.owner_full_name,
+      },
+      products: [{ count: store.product_count }],
     }));
   }
 
   /**
    * Get store statistics
-   * @returns {Promise<Object>} Store stats
    */
   async getStoreStats() {
-    const { data: totalStores, error: totalError } = await this.db
-      .from('stores')
-      .select('id', { count: 'exact', head: true });
-
-    const { data: verified, error: verifiedError } = await this.db
-      .from('stores')
-      .select('id', { count: 'exact', head: true })
-      .eq('verification_status', 'verified');
-
-    const { data: pending, error: pendingError } = await this.db
-      .from('stores')
-      .select('id', { count: 'exact', head: true })
-      .eq('verification_status', 'pending');
-
-    const { data: active, error: activeError } = await this.db
-      .from('stores')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'active');
-
-    if (totalError || verifiedError || pendingError || activeError) {
-      throw totalError || verifiedError || pendingError || activeError;
-    }
-
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT
+        COUNT(*)::int                                                            AS total,
+        COUNT(*) FILTER (WHERE verification_status = 'verified')::int           AS verified,
+        COUNT(*) FILTER (WHERE verification_status = 'pending')::int            AS pending,
+        COUNT(*) FILTER (WHERE status = 'active')::int                          AS active
+      FROM stores
+    `);
+    const s = rows[0] || {};
     return {
-      total: totalStores,
-      verified: verified,
-      pending: pending,
-      rejected: totalStores - verified - pending,
-      active: active,
-      inactive: totalStores - active
+      total:    s.total    || 0,
+      verified: s.verified || 0,
+      pending:  s.pending  || 0,
+      rejected: (s.total || 0) - (s.verified || 0) - (s.pending || 0),
+      active:   s.active   || 0,
+      inactive: (s.total || 0) - (s.active || 0),
     };
   }
 
   /**
    * Update store verification status
-   * @param {string} storeId - Store ID
-   * @param {string} status - New status (pending, verified, rejected)
-   * @param {string} reason - Reason for status change
-   * @returns {Promise<Object>} Updated store
    */
   async updateStoreVerification(storeId, status, reason = null) {
-    const updateData = {
-      verification_status: status,
-      updated_at: new Date().toISOString()
-    };
-
-    if (status === 'verified') {
-      updateData.verified_at = new Date().toISOString();
-    }
-
-    if (reason) {
-      updateData.rejection_reason = reason;
-    }
-
-    const { data, error } = await this.db
-      .from('stores')
-      .update(updateData)
-      .eq('id', storeId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    const db = getPool();
+    const params = [status, storeId];
+    let sql = `UPDATE stores SET verification_status = $1, updated_at = NOW()`;
+    if (status === 'verified') sql += `, verified_at = NOW()`;
+    if (reason) { params.push(reason); sql += `, rejection_reason = $${params.length}`; }
+    sql += ` WHERE id = $2 RETURNING *`;
+    const { rows } = await db.query(sql, params);
+    if (!rows.length) throw new Error('Store not found');
+    return rows[0];
   }
 
   /**
    * Update store status
-   * @param {string} storeId - Store ID
-   * @param {string} status - New status (active, inactive, suspended)
-   * @returns {Promise<Object>} Updated store
    */
   async updateStoreStatus(storeId, status) {
-    const { data, error } = await this.db
-      .from('stores')
-      .update({
-        status: status,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', storeId)
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
+    const db = getPool();
+    const { rows } = await db.query(
+      `UPDATE stores SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status, storeId]
+    );
+    if (!rows.length) throw new Error('Store not found');
+    return rows[0];
   }
 
   /**
-   * Get platform analytics
-   * @returns {Promise<Object>} Platform statistics
+   * Get platform analytics via RPCs
    */
   async getPlatformAnalytics() {
-    // Get stats from optimized RPC endpoints concurrently
     const [
-      { data: orderStats, error: orderError },
+      { data: orderStats,   error: orderError   },
       { data: productStats, error: productError },
-      { data: reviewStats, error: reviewError }
+      { data: reviewStats,  error: reviewError  },
     ] = await Promise.all([
       this.db.rpc('get_admin_order_stats'),
       this.db.rpc('get_admin_product_stats'),
-      this.db.rpc('get_admin_review_stats')
+      this.db.rpc('get_admin_review_stats'),
     ]);
 
-    if (orderError) throw orderError;
+    if (orderError)   throw orderError;
     if (productError) throw productError;
-    if (reviewError) throw reviewError;
+    if (reviewError)  throw reviewError;
 
     return {
       orders: {
-        total: orderStats?.total_orders || 0,
-        completed: orderStats?.completed_orders || 0,
-        pending: orderStats?.pending_orders || 0,
-        cancelled: orderStats?.cancelled_orders || 0,
-        totalRevenue: orderStats?.total_revenue || 0
+        total:       orderStats?.total_orders     || 0,
+        completed:   orderStats?.completed_orders || 0,
+        pending:     orderStats?.pending_orders   || 0,
+        cancelled:   orderStats?.cancelled_orders || 0,
+        totalRevenue: orderStats?.total_revenue   || 0,
       },
       products: {
-        total: productStats?.total_products || 0,
-        active: productStats?.active_products || 0,
-        outOfStock: productStats?.out_of_stock_products || 0
+        total:      productStats?.total_products       || 0,
+        active:     productStats?.active_products      || 0,
+        outOfStock: productStats?.out_of_stock_products || 0,
       },
       reviews: {
-        total: reviewStats?.total_reviews || 0,
-        averageRating: reviewStats?.average_rating || 0
-      }
+        total:         reviewStats?.total_reviews  || 0,
+        averageRating: reviewStats?.average_rating || 0,
+      },
     };
   }
 
   /**
    * Get all orders (admin view)
-   * @param {Object} options
    */
   async getAllOrders(options = {}) {
     const { limit = 50, offset = 0, status, search } = options;
+    const db = getPool();
+    const params = [];
 
-    let query = this.db
-      .from('orders')
-      .select(`
-        id, order_number, status, total_amount, created_at,
-        store:stores(id, store_name),
-        buyer:users!buyer_id(id, email, user_profiles(full_name)),
-        order_items(count)
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+    let sql = `
+      SELECT
+        o.id,
+        o.order_number,
+        o.status,
+        o.total_amount,
+        o.created_at,
+        s.id          AS store_id,
+        s.store_name,
+        u.id          AS buyer_user_id,
+        u.email       AS buyer_email,
+        up.full_name  AS buyer_full_name,
+        COUNT(oi.id)::int AS items_count
+      FROM orders o
+      LEFT JOIN stores s         ON s.id = o.store_id
+      LEFT JOIN users u          ON u.id = o.buyer_id
+      LEFT JOIN user_profiles up ON up.user_id = o.buyer_id
+      LEFT JOIN order_items oi   ON oi.order_id = o.id
+      WHERE 1=1
+    `;
 
     if (status && status !== 'all') {
-      query = query.eq('status', status);
+      params.push(status);
+      sql += ` AND o.status = $${params.length}`;
     }
 
     if (search) {
-      query = query.or(`order_number.ilike.%${search}%`);
+      params.push(`%${search}%`);
+      sql += ` AND o.order_number ILIKE $${params.length}`;
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map(o => ({
-      ...o,
-      buyer_name: Array.isArray(o.buyer?.user_profiles)
-        ? o.buyer.user_profiles[0]?.full_name || o.buyer?.email || 'Unknown'
-        : o.buyer?.user_profiles?.full_name || o.buyer?.email || 'Unknown',
-      items_count: o.order_items?.[0]?.count ?? 0,
+    sql += ` GROUP BY o.id, s.id, s.store_name, u.id, u.email, up.full_name ORDER BY o.created_at DESC`;
+
+    params.push(limit);
+    sql += ` LIMIT $${params.length}`;
+    params.push(offset);
+    sql += ` OFFSET $${params.length}`;
+
+    const { rows } = await db.query(sql, params);
+
+    return rows.map(o => ({
+      id:           o.id,
+      order_number: o.order_number,
+      status:       o.status,
+      total_amount: o.total_amount,
+      created_at:   o.created_at,
+      store: { id: o.store_id, store_name: o.store_name },
+      buyer: {
+        id:    o.buyer_user_id,
+        email: o.buyer_email,
+        user_profiles: { full_name: o.buyer_full_name },
+      },
+      buyer_name:  o.buyer_full_name || o.buyer_email || 'Unknown',
+      items_count: o.items_count || 0,
     }));
   }
 
@@ -412,44 +381,62 @@ class AdminRepository extends BaseRepository {
    */
   async getRevenueTransactions(options = {}) {
     const { limit = 50, offset = 0 } = options;
-    const { data, error } = await this.db
-      .from('payments')
-      .select(`
-        id, amount, status, created_at,
-        order:orders(id, order_number, store:stores(store_name))
-      `)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    if (error) throw error;
-    return data || [];
+    const db = getPool();
+
+    const { rows } = await db.query(
+      `SELECT
+         p.id, p.amount, p.status, p.created_at,
+         o.id AS order_id, o.order_number,
+         s.store_name
+       FROM payments p
+       LEFT JOIN orders o ON o.id = p.order_id
+       LEFT JOIN stores s ON s.id = o.store_id
+       WHERE p.status = 'completed'
+       ORDER BY p.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    return rows.map(t => ({
+      id:         t.id,
+      amount:     t.amount,
+      status:     t.status,
+      created_at: t.created_at,
+      order: {
+        id:           t.order_id,
+        order_number: t.order_number,
+        store:        { store_name: t.store_name },
+      },
+    }));
   }
 
   /**
-   * Get recent activity
-   * @param {number} limit - Number of activities to fetch
-   * @returns {Promise<Array>} Recent activities
+   * Get recent activity from audit_logs
    */
   async getRecentActivity(limit = 20) {
-    const { data, error } = await this.db
-      .from('audit_logs')
-      .select(`
-        *,
-        user:users!user_id(id, email, user_profiles(full_name))
-      `)
-      .order('timestamp', { ascending: false })
-      .limit(limit);
+    const db = getPool();
 
-    if (error) throw error;
-    return (data || []).map(log => ({
+    const { rows } = await db.query(
+      `SELECT
+         al.*,
+         u.id    AS user_id_val,
+         u.email AS user_email,
+         up.full_name AS user_full_name
+       FROM audit_logs al
+       LEFT JOIN users u          ON u.id = al.user_id
+       LEFT JOIN user_profiles up ON up.user_id = al.user_id
+       ORDER BY al.timestamp DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    return rows.map(log => ({
       ...log,
-      user: log.user ? {
-        id: log.user.id,
-        email: log.user.email,
-        full_name: Array.isArray(log.user.user_profiles)
-          ? log.user.user_profiles[0]?.full_name || null
-          : log.user.user_profiles?.full_name || null,
-      } : null,
+      user: {
+        id:        log.user_id_val,
+        email:     log.user_email,
+        full_name: log.user_full_name,
+      },
     }));
   }
 
@@ -457,64 +444,84 @@ class AdminRepository extends BaseRepository {
    * Get driver verifications list
    */
   async getDriverVerifications() {
-    const { data, error } = await this.db
-      .from('driver_profiles')
-      .select(`
-        *,
-        user:users!user_id(id, email, user_profiles(*))
-      `)
-      .order('created_at', { ascending: false });
+    const db = getPool();
 
-    if (error) throw error;
+    const { rows } = await db.query(`
+      SELECT
+        dp.*,
+        u.id    AS user_id_val,
+        u.email,
+        up.full_name,
+        up.phone,
+        up.avatar_url
+      FROM driver_profiles dp
+      LEFT JOIN users u          ON u.id = dp.user_id
+      LEFT JOIN user_profiles up ON up.user_id = dp.user_id
+      ORDER BY dp.created_at DESC
+    `);
 
-    return data.map(d => {
-      const up = Array.isArray(d.user?.user_profiles) ? d.user.user_profiles[0] : d.user?.user_profiles;
-      return {
-        ...d,
-        full_name: up?.full_name || 'Unknown',
-        email: d.user?.email || 'Unknown',
-        phone: up?.phone || 'Unknown',
-        avatar_url: up?.avatar_url,
-        status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-        verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-        license_image: d.license_image_url,
-        insurance_image: d.insurance_doc_url,
-        id_image: d.national_id_url,
-        vehicle_reg_image: d.vehicle_reg_url,
-        roadworthy_image: d.roadworthy_url,
-        vehicle_plate: d.license_plate,
-      };
-    });
+    return rows.map(d => ({
+      ...d,
+      full_name:          d.full_name   || 'Unknown',
+      email:              d.email       || 'Unknown',
+      phone:              d.phone       || 'Unknown',
+      avatar_url:         d.avatar_url,
+      status:             d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
+      verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
+      license_image:      d.license_image_url,
+      insurance_image:    d.insurance_doc_url,
+      id_image:           d.national_id_url,
+      vehicle_reg_image:  d.vehicle_reg_url,
+      roadworthy_image:   d.roadworthy_url,
+      vehicle_plate:      d.license_plate,
+    }));
   }
 
   /**
    * Get single driver verification details
    */
   async getDriverVerificationDetails(id) {
-    const { data, error } = await this.db
-      .from('driver_profiles')
-      .select(`
-        *,
-        user:users!user_id(id, email, user_profiles(*))
-      `)
-      .eq('id', id)
-      .single();
+    const db = getPool();
 
-    if (error) throw error;
+    const { rows } = await db.query(`
+      SELECT
+        dp.*,
+        u.id    AS user_id_val,
+        u.email,
+        up.full_name,
+        up.phone,
+        up.avatar_url,
+        up.address_line1,
+        up.city,
+        up.country
+      FROM driver_profiles dp
+      LEFT JOIN users u          ON u.id = dp.user_id
+      LEFT JOIN user_profiles up ON up.user_id = dp.user_id
+      WHERE dp.id = $1
+    `, [id]);
 
-    const up = Array.isArray(data.user?.user_profiles) ? data.user.user_profiles[0] : data.user?.user_profiles;
+    if (!rows.length) return null;
+    const d = rows[0];
+
     return {
-      ...data,
-      user_profiles: up || {},
-      status: data.is_verified ? 'verified' : (data.rejection_reason ? 'rejected' : 'pending'),
-      verification_status: data.is_verified ? 'verified' : (data.rejection_reason ? 'rejected' : 'pending'),
-      email: data.user?.email,
-      license_image: data.license_image_url,
-      insurance_image: data.insurance_doc_url,
-      id_image: data.national_id_url,
-      vehicle_reg_image: data.vehicle_reg_url,
-      roadworthy_image: data.roadworthy_url,
-      vehicle_plate: data.license_plate,
+      ...d,
+      user_profiles: {
+        full_name:    d.full_name,
+        phone:        d.phone,
+        avatar_url:   d.avatar_url,
+        address_line1: d.address_line1,
+        city:         d.city,
+        country:      d.country,
+      },
+      email:              d.email,
+      status:             d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
+      verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
+      license_image:      d.license_image_url,
+      insurance_image:    d.insurance_doc_url,
+      id_image:           d.national_id_url,
+      vehicle_reg_image:  d.vehicle_reg_url,
+      roadworthy_image:   d.roadworthy_url,
+      vehicle_plate:      d.license_plate,
     };
   }
 
@@ -522,31 +529,29 @@ class AdminRepository extends BaseRepository {
    * Approve driver verification
    */
   async approveDriver(id) {
-    const { data, error } = await this.db
-      .from('driver_profiles')
-      .update({ is_verified: true, rejection_reason: null, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    
-    // Also update their user role to 'driver'
-    await this.setUserRoleByUserId(data.user_id, 'driver');
-    return data;
+    const db = getPool();
+    const { rows } = await db.query(
+      `UPDATE driver_profiles SET is_verified = TRUE, rejection_reason = NULL, updated_at = NOW()
+       WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    if (!rows.length) throw new Error('Driver not found');
+    await this.setUserRoleByUserId(rows[0].user_id, 'driver');
+    return rows[0];
   }
 
   /**
    * Reject driver verification
    */
   async rejectDriver(id, reason) {
-    const { data, error } = await this.db
-      .from('driver_profiles')
-      .update({ is_verified: false, rejection_reason: reason, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    const db = getPool();
+    const { rows } = await db.query(
+      `UPDATE driver_profiles SET is_verified = FALSE, rejection_reason = $1, updated_at = NOW()
+       WHERE id = $2 RETURNING *`,
+      [reason, id]
+    );
+    if (!rows.length) throw new Error('Driver not found');
+    return rows[0];
   }
 }
 

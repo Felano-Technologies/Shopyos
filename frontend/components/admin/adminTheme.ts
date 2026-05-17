@@ -23,13 +23,19 @@ export const adminColors = {
 };
 
 export function useAdminBreakpoint() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
-  const isTablet = width >= 768 && width < 1180;
-  const isDesktop = width >= 1180;
+  const { width, height } = useWindowDimensions();
+
+  // Breakpoints aligned with common device ranges:
+  // < 600  → mobile (phones in portrait)
+  // 600–1023 → tablet (large phones landscape + small tablets)
+  // ≥ 1024 → desktop (tablets landscape, web)
+  const isMobile = width < 600;
+  const isTablet = width >= 600 && width < 1024;
+  const isDesktop = width >= 1024;
 
   return {
     width,
+    height,
     isMobile,
     isTablet,
     isDesktop,

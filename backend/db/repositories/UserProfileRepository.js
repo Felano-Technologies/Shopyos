@@ -35,7 +35,7 @@ class UserProfileRepository extends BaseRepository {
    * @returns {Promise<Object>}
    */
   async updateByUserId(userId, updates) {
-    const { data, error } = await this.db
+    let { data, error } = await this.db
       .from(this.tableName)
       .update({
         ...updates,
@@ -45,7 +45,24 @@ class UserProfileRepository extends BaseRepository {
       .select()
       .single();
 
-    if (error) throw error;
+    // If no row exists (PGRST116), the DB trigger might not have run. Gracefully insert it.
+    if (error && error.code === 'PGRST116') {
+      const { data: insertedData, error: insertError } = await this.db
+        .from(this.tableName)
+        .insert({
+          user_id: userId,
+          ...updates,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+      return insertedData;
+    } else if (error) {
+      throw error;
+    }
+
     return data;
   }
 

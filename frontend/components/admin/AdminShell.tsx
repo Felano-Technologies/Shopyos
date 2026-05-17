@@ -81,7 +81,10 @@ export default function AdminShell({
 }: AdminShellProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isMobile, isDesktop } = useAdminBreakpoint();
+  const { isMobile, isTablet, isDesktop, width } = useAdminBreakpoint();
+
+  // Adaptive title size: shrink on small phones
+  const titleFontSize = width < 400 ? 22 : width < 600 ? 26 : 32;
 
   const content = scroll ? (
     <ScrollView
@@ -94,19 +97,26 @@ export default function AdminShell({
     <View style={[styles.contentFill, contentContainerStyle]}>{children}</View>
   );
 
+  // ─── Render ────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={styles.appBg} />
       <View style={styles.watermarkWrap} pointerEvents="none">
         <Image source={require('../../assets/images/splash-icon.png')} style={styles.watermark} />
       </View>
 
-      <View style={[styles.frame, isDesktop ? styles.frameDesktop : styles.frameMobile]}>
-        {isDesktop ? (
+      {/* Desktop: row layout with sidebar */}
+      {isDesktop ? (
+        <View style={styles.frameDesktop}>
+          {/* Sidebar */}
           <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.sidebar}>
             <View>
               <View style={styles.logoTile}>
-                <Image source={require('../../assets/images/iconwhite.png')} style={styles.logoImage} resizeMode="contain" />
+                <Image
+                  source={require('../../assets/images/iconwhite.png')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
               </View>
               <View style={styles.navStack}>
                 {NAV_ITEMS.map((item) => {
@@ -118,7 +128,10 @@ export default function AdminShell({
                       style={[styles.navButton, active && styles.navButtonActive]}
                     >
                       {active ? (
-                        <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={StyleSheet.absoluteFillObject} />
+                        <LinearGradient
+                          colors={[adminColors.navy, adminColors.navyMid]}
+                          style={StyleSheet.absoluteFillObject}
+                        />
                       ) : null}
                       <Feather name={item.icon} size={20} color={active ? '#FFFFFF' : '#D7E3FF'} />
                     </Pressable>
@@ -136,85 +149,143 @@ export default function AdminShell({
               </View>
             </View>
           </LinearGradient>
-        ) : null}
 
-        <View style={styles.mainShell}>
-          <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.topbar}>
-            <View style={styles.topbarRow}>
-              <View style={styles.topbarTitleWrap}>
-                <Text style={styles.eyebrow}>{eyebrow}</Text>
-                <Text style={styles.pageTitle}>{title}</Text>
-                {subtitle ? <Text style={styles.pageSubtitle}>{subtitle}</Text> : null}
-              </View>
-
-              <View style={styles.topbarControls}>
-                {onRefresh ? (
-                  <TouchableOpacity style={styles.iconButtonGhost} onPress={onRefresh}>
-                    <Feather name="refresh-cw" size={18} color="#FFFFFF" />
-                  </TouchableOpacity>
-                ) : null}
-                <View style={styles.iconButtonGhost}>
-                  <Feather name="mail" size={18} color="#FFFFFF" />
-                </View>
-                <View style={styles.iconButtonGhost}>
-                  <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
-                </View>
-                {actions}
-                <View style={styles.profilePill}>
-                  <View style={styles.profileAvatar}>
-                    <Text style={styles.profileLetter}>A</Text>
-                  </View>
-                  {!isMobile ? <Text style={styles.profileName}>Admin Team</Text> : null}
-                </View>
-              </View>
+          {/* Main content */}
+          <View style={styles.mainShell}>
+            <TopBar
+              eyebrow={eyebrow}
+              title={title}
+              titleFontSize={titleFontSize}
+              subtitle={subtitle}
+              isMobile={false}
+              isTablet={isTablet}
+              onRefresh={onRefresh}
+              actions={actions}
+              searchValue={searchValue}
+              onSearchChange={onSearchChange}
+              onSearchSubmit={onSearchSubmit}
+              searchPlaceholder={searchPlaceholder}
+            />
+            <View style={styles.bodyRow}>
+              <View style={styles.contentColumn}>{content}</View>
+              {aside ? <View style={styles.aside}>{aside}</View> : null}
             </View>
+          </View>
+        </View>
+      ) : (
+        /* Mobile/Tablet: column layout, tab bar handled by _layout.tsx */
+        <View style={styles.frameMobile}>
+          <View style={styles.mainShell}>
+            <TopBar
+              eyebrow={eyebrow}
+              title={title}
+              titleFontSize={titleFontSize}
+              subtitle={subtitle}
+              isMobile={isMobile}
+              isTablet={isTablet}
+              onRefresh={onRefresh}
+              actions={actions}
+              searchValue={searchValue}
+              onSearchChange={onSearchChange}
+              onSearchSubmit={onSearchSubmit}
+              searchPlaceholder={searchPlaceholder}
+            />
+            <View style={styles.bodyRow}>
+              <View style={styles.contentColumn}>{content}</View>
+            </View>
+          </View>
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
 
-            {onSearchChange ? (
-              <View style={styles.searchBar}>
-                <Feather name="search" size={18} color="rgba(255,255,255,0.72)" />
-                <TextInput
-                  value={searchValue}
-                  onChangeText={onSearchChange}
-                  onSubmitEditing={onSearchSubmit}
-                  placeholder={searchPlaceholder}
-                  placeholderTextColor="rgba(255,255,255,0.58)"
-                  style={styles.searchInput}
-                  returnKeyType="search"
-                />
-              </View>
-            ) : null}
+/** Extracted TopBar so we avoid repetition */
+function TopBar({
+  eyebrow,
+  title,
+  titleFontSize,
+  subtitle,
+  isMobile,
+  isTablet,
+  onRefresh,
+  actions,
+  searchValue,
+  onSearchChange,
+  onSearchSubmit,
+  searchPlaceholder,
+}: {
+  eyebrow: string;
+  title: string;
+  titleFontSize: number;
+  subtitle?: string;
+  isMobile: boolean;
+  isTablet: boolean;
+  onRefresh?: () => void;
+  actions?: React.ReactNode;
+  searchValue?: string;
+  onSearchChange?: (v: string) => void;
+  onSearchSubmit?: () => void;
+  searchPlaceholder: string;
+}) {
+  return (
+    <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.topbar}>
+      {/* Title row */}
+      <View style={styles.topbarRow}>
+        <View style={styles.topbarTitleWrap}>
+          <Text style={styles.eyebrow}>{eyebrow}</Text>
+          <Text style={[styles.pageTitle, { fontSize: titleFontSize }]} numberOfLines={1} adjustsFontSizeToFit>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={styles.pageSubtitle} numberOfLines={isMobile ? 2 : 1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
 
-            <View style={styles.headerArc} />
-          </LinearGradient>
-
-          <View style={styles.bodyRow}>
-            <View style={styles.contentColumn}>{content}</View>
-            {isDesktop && aside ? <View style={styles.aside}>{aside}</View> : null}
+        <View style={styles.topbarControls}>
+          {onRefresh ? (
+            <TouchableOpacity style={styles.iconButtonGhost} onPress={onRefresh}>
+              <Feather name="refresh-cw" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          ) : null}
+          {!isMobile && (
+            <View style={styles.iconButtonGhost}>
+              <Feather name="mail" size={18} color="#FFFFFF" />
+            </View>
+          )}
+          <View style={styles.iconButtonGhost}>
+            <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
+          </View>
+          {actions}
+          <View style={styles.profilePill}>
+            <View style={styles.profileAvatar}>
+              <Text style={styles.profileLetter}>A</Text>
+            </View>
+            {!isMobile ? <Text style={styles.profileName}>Admin Team</Text> : null}
           </View>
         </View>
       </View>
 
-      {isMobile ? (
-        <View style={styles.mobileTabbar}>
-          {NAV_ITEMS.map((item) => {
-            const active = pathname.startsWith(item.route);
-            return (
-              <TouchableOpacity
-                key={item.route}
-                onPress={() => router.push(item.route as any)}
-                style={[styles.mobileTab, active && styles.mobileTabActive]}
-              >
-                {active ? (
-                  <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={StyleSheet.absoluteFillObject} />
-                ) : null}
-                <Feather name={item.icon} size={18} color={active ? '#FFFFFF' : adminColors.textSoft} />
-                <Text style={[styles.mobileTabLabel, active && styles.mobileTabLabelActive]}>{item.label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+      {/* Search bar — full width below title on mobile */}
+      {onSearchChange ? (
+        <View style={[styles.searchBar, isMobile && styles.searchBarMobile]}>
+          <Feather name="search" size={18} color="rgba(255,255,255,0.72)" />
+          <TextInput
+            value={searchValue}
+            onChangeText={onSearchChange}
+            onSubmitEditing={onSearchSubmit}
+            placeholder={searchPlaceholder}
+            placeholderTextColor="rgba(255,255,255,0.58)"
+            style={styles.searchInput}
+            returnKeyType="search"
+          />
         </View>
       ) : null}
-    </SafeAreaView>
+
+      <View style={styles.headerArc} />
+    </LinearGradient>
   );
 }
 
@@ -232,22 +303,20 @@ const styles = StyleSheet.create({
     bottom: -20,
     left: -20,
     opacity: 0.06,
+    zIndex: 0,
   },
   watermark: {
     width: 180,
     height: 180,
     resizeMode: 'contain',
   },
-  frame: {
-    flex: 1,
-    padding: 12,
-  },
+
+  // ── Desktop layout ──────────────────────────────────────────────────────────
   frameDesktop: {
+    flex: 1,
     flexDirection: 'row',
     gap: 12,
-  },
-  frameMobile: {
-    paddingBottom: 88,
+    padding: 12,
   },
   sidebar: {
     width: 92,
@@ -291,75 +360,89 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'center',
   },
+
+  // ── Mobile/Tablet layout ─────────────────────────────────────────────────
+  frameMobile: {
+    flex: 1,
+    padding: 8,
+  },
+
+  // ── Shared shell container ────────────────────────────────────────────────
   mainShell: {
     flex: 1,
     backgroundColor: adminColors.appBg,
-    borderRadius: 32,
+    borderRadius: 28,
     overflow: 'hidden',
   },
+
+  // ── Topbar ────────────────────────────────────────────────────────────────
   topbar: {
-    paddingHorizontal: 22,
-    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingTop: 16,
     paddingBottom: 26,
-    gap: 16,
+    gap: 12,
     position: 'relative',
   },
   topbarRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 16,
+    gap: 10,
     alignItems: 'flex-start',
   },
   topbarTitleWrap: {
-    gap: 4,
+    gap: 3,
     flex: 1,
+    minWidth: 0,
   },
   eyebrow: {
     color: 'rgba(255,255,255,0.68)',
-    fontSize: 11,
+    fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
     textTransform: 'uppercase',
     letterSpacing: 1.2,
   },
   pageTitle: {
     color: '#FFFFFF',
-    fontSize: 32,
     fontFamily: 'Montserrat-Bold',
   },
   pageSubtitle: {
     color: 'rgba(255,255,255,0.76)',
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Montserrat-Regular',
+    lineHeight: 18,
   },
   topbarControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
+    gap: 8,
+    flexShrink: 0,
   },
   searchBar: {
-    minWidth: 240,
-    maxWidth: 520,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 16,
-    height: 50,
-    borderRadius: 15,
+    height: 48,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
+    maxWidth: 520,
+  },
+  searchBarMobile: {
+    maxWidth: undefined,
   },
   searchInput: {
     flex: 1,
     color: '#FFFFFF',
     fontFamily: 'Montserrat-Regular',
     fontSize: 14,
+    paddingVertical: 0,
   },
   iconButtonGhost: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
@@ -369,18 +452,18 @@ const styles = StyleSheet.create({
   profilePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    minHeight: 52,
-    paddingHorizontal: 12,
-    borderRadius: 18,
+    gap: 8,
+    height: 42,
+    paddingHorizontal: 10,
+    borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.14)',
   },
   profileAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -388,6 +471,7 @@ const styles = StyleSheet.create({
   profileLetter: {
     color: adminColors.navy,
     fontFamily: 'Montserrat-Bold',
+    fontSize: 13,
   },
   profileName: {
     color: '#FFFFFF',
@@ -399,11 +483,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 22,
+    height: 20,
     backgroundColor: adminColors.appBg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
   },
+
+  // ── Body ──────────────────────────────────────────────────────────────────
   bodyRow: {
     flex: 1,
     flexDirection: 'row',
@@ -413,25 +499,27 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   contentScroll: {
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
     paddingTop: 0,
-    paddingBottom: 24,
-    gap: 18,
+    paddingBottom: 32,
+    gap: 14,
   },
   contentFill: {
     flex: 1,
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
     paddingTop: 0,
     paddingBottom: 24,
   },
   aside: {
-    width: 320,
-    padding: 12,
+    width: 300,
+    padding: 10,
   },
+
+  // ── Panel / Section ───────────────────────────────────────────────────────
   panel: {
     backgroundColor: adminColors.surface,
     borderRadius: 20,
-    padding: 18,
+    padding: 16,
     ...adminShadow,
   },
   sectionHeader: {
@@ -443,30 +531,32 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: adminColors.text,
-    fontSize: 22,
+    fontSize: 20,
     fontFamily: 'Montserrat-Bold',
   },
+
+  // ── Mobile bottom tab bar ─────────────────────────────────────────────────
   mobileTabbar: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 16 : 12,
-    left: 16,
-    right: 16,
+    bottom: Platform.OS === 'ios' ? 20 : 12,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderRadius: 30,
-    padding: 6,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 28,
+    padding: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.5)',
+    borderColor: 'rgba(215,227,255,0.7)',
     overflow: 'hidden',
     ...adminShadow,
   },
   mobileTab: {
     flex: 1,
-    minHeight: 48,
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    borderRadius: 24,
+    gap: 3,
+    borderRadius: 22,
     overflow: 'hidden',
   },
   mobileTabActive: {
@@ -475,9 +565,34 @@ const styles = StyleSheet.create({
   mobileTabLabel: {
     color: adminColors.textSoft,
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 11,
+    fontSize: 10,
   },
   mobileTabLabelActive: {
     color: '#FFFFFF',
+  },
+
+  // ── Tablet tab bar (horizontal, slightly bigger) ──────────────────────────
+  tabletTabbar: {
+    position: 'absolute',
+    bottom: Platform.OS === 'ios' ? 20 : 12,
+    left: 24,
+    right: 24,
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderRadius: 32,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(215,227,255,0.7)',
+    overflow: 'hidden',
+    ...adminShadow,
+  },
+  tabletTab: {
+    flex: 1,
+    minHeight: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    borderRadius: 26,
+    overflow: 'hidden',
   },
 });

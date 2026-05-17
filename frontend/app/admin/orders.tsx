@@ -74,137 +74,141 @@ export default function AdminOrders() {
     ];
   }, [orders]);
 
+  const listHeader = (
+    <View style={styles.listHeaderWrap}>
+      <View style={styles.summaryRow}>
+        {summary.map((item) => (
+          <AdminPanel key={item.label} style={styles.summaryCard}>
+            <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
+              <Ionicons name={item.icon as any} size={16} color={item.color} />
+            </View>
+            <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
+            <Text style={styles.summaryLabel}>{item.label}</Text>
+          </AdminPanel>
+        ))}
+      </View>
+      <View style={styles.filterRow}>
+        {STATUS_FILTERS.map((filter) => {
+          const active = activeStatus === filter;
+          return (
+            <TouchableOpacity
+              key={filter}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              onPress={() => setActiveStatus(filter)}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {filter.charAt(0).toUpperCase() + filter.slice(1)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
+
   return (
     <>
       <StatusBar style="dark" />
       <AdminShell
         title="Orders"
-        subtitle="Review order health, filter statuses, and jump into specific order details."
+        subtitle="Filter statuses and jump into order details."
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         onSearchSubmit={() => loadOrders()}
         searchPlaceholder="Search by order number..."
         onRefresh={() => loadOrders(true)}
       >
-        <View style={styles.page}>
-          <View style={styles.summaryRow}>
-            {summary.map((item) => (
-              <AdminPanel key={item.label} style={styles.summaryCard}>
-                <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
-                </View>
-                <Text style={styles.summaryLabel}>{item.label}</Text>
-                <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
-              </AdminPanel>
-            ))}
+        {loading && !refreshing ? (
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={adminColors.blue} />
           </View>
+        ) : (
+          <FlatList
+            data={orders}
+            keyExtractor={(item) => item.id}
+            numColumns={isDesktop ? 2 : 1}
+            key={isDesktop ? 'desktop' : 'mobile'}
+            columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor={adminColors.blue} />
+            }
+            ListHeaderComponent={listHeader}
+            renderItem={({ item }) => {
+              const status = (item.status || 'pending').toLowerCase();
+              const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
+              const storeName = item.store?.store_name || 'Unknown Store';
+              const itemsCount = item.items_count ?? item.order_items?.[0]?.count ?? 0;
 
-          <View style={styles.filterRow}>
-            {STATUS_FILTERS.map((filter) => {
-              const active = activeStatus === filter;
               return (
                 <TouchableOpacity
-                  key={filter}
-                  style={[styles.filterChip, active && styles.filterChipActive]}
-                  onPress={() => setActiveStatus(filter)}
+                  style={styles.cardOuter}
+                  onPress={() => router.push(`/order/${item.id}` as any)}
                 >
-                  <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                    {filter.charAt(0).toUpperCase() + filter.slice(1)}
-                  </Text>
+                  <AdminPanel style={styles.orderCard}>
+                    <View style={styles.cardHeader}>
+                      <View>
+                        <Text style={styles.orderIdText}>
+                          {item.order_number
+                            ? `#${item.order_number}`
+                            : `#${item.id.slice(0, 8).toUpperCase()}`}
+                        </Text>
+                        <Text style={styles.timeText}>{formatTime(item.created_at)}</Text>
+                      </View>
+                      <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
+                        <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
+                        <Text style={[styles.statusText, { color: cfg.color }]}>
+                          {status.toUpperCase()}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardBody}>
+                      <View style={styles.storeRow}>
+                        <View style={styles.storeIconBg}>
+                          <MaterialCommunityIcons
+                            name="storefront-outline"
+                            size={18}
+                            color={adminColors.navy}
+                          />
+                        </View>
+                        <View style={styles.storeInfo}>
+                          <Text style={styles.storeName}>{storeName}</Text>
+                          <Text style={styles.itemCount}>
+                            {itemsCount} {itemsCount === 1 ? 'item' : 'items'} in package
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.amountBlock}>
+                        <Text style={styles.amountLabel}>Total Amount</Text>
+                        <Text style={styles.amountValue}>₵{parseFloat(item.total_amount || 0).toFixed(2)}</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.cardFooter}>
+                      <Text style={styles.viewDetailsText}>View full details</Text>
+                      <Feather name="chevron-right" size={16} color={adminColors.navy} />
+                    </View>
+                  </AdminPanel>
                 </TouchableOpacity>
               );
-            })}
-          </View>
-
-          {loading ? (
-            <View style={styles.center}>
-              <ActivityIndicator size="large" color={adminColors.blue} />
-            </View>
-          ) : (
-            <FlatList
-              data={orders}
-              keyExtractor={(item) => item.id}
-              numColumns={isDesktop ? 2 : 1}
-              key={isDesktop ? 'desktop' : 'mobile'}
-              columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.listContent}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor={adminColors.blue} />
-              }
-              renderItem={({ item }) => {
-                const status = (item.status || 'pending').toLowerCase();
-                const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
-                const storeName = item.store?.store_name || 'Unknown Store';
-                const itemsCount = item.items_count ?? item.order_items?.[0]?.count ?? 0;
-
-                return (
-                  <TouchableOpacity
-                    style={styles.cardOuter}
-                    onPress={() => router.push(`/order/${item.id}` as any)}
-                  >
-                    <AdminPanel style={styles.orderCard}>
-                      <View style={styles.cardHeader}>
-                        <View>
-                          <Text style={styles.orderIdText}>
-                            {item.order_number
-                              ? `#${item.order_number}`
-                              : `#${item.id.slice(0, 8).toUpperCase()}`}
-                          </Text>
-                          <Text style={styles.timeText}>{formatTime(item.created_at)}</Text>
-                        </View>
-                        <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
-                          <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
-                          <Text style={[styles.statusText, { color: cfg.color }]}>
-                            {status.toUpperCase()}
-                          </Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.cardBody}>
-                        <View style={styles.storeRow}>
-                          <View style={styles.storeIconBg}>
-                            <MaterialCommunityIcons
-                              name="storefront-outline"
-                              size={18}
-                              color={adminColors.navy}
-                            />
-                          </View>
-                          <View style={styles.storeInfo}>
-                            <Text style={styles.storeName}>{storeName}</Text>
-                            <Text style={styles.itemCount}>
-                              {itemsCount} {itemsCount === 1 ? 'item' : 'items'} in package
-                            </Text>
-                          </View>
-                        </View>
-                        <View style={styles.amountBlock}>
-                          <Text style={styles.amountLabel}>Total Amount</Text>
-                          <Text style={styles.amountValue}>₵{parseFloat(item.total_amount || 0).toFixed(2)}</Text>
-                        </View>
-                      </View>
-
-                      <View style={styles.cardFooter}>
-                        <Text style={styles.viewDetailsText}>View full details</Text>
-                        <Feather name="chevron-right" size={16} color={adminColors.navy} />
-                      </View>
-                    </AdminPanel>
-                  </TouchableOpacity>
-                );
-              }}
-              ListEmptyComponent={
-                <AdminPanel style={styles.emptyState}>
-                  <MaterialCommunityIcons name="cart-off" size={54} color="#CBD5E1" />
-                  <Text style={styles.emptyTitle}>No orders found</Text>
-                  <Text style={styles.emptySubtitle}>Try a different search or status filter.</Text>
-                </AdminPanel>
-              }
-            />
-          )}
-        </View>
+            }}
+            ListEmptyComponent={
+              <AdminPanel style={styles.emptyState}>
+                <MaterialCommunityIcons name="cart-off" size={54} color="#CBD5E1" />
+                <Text style={styles.emptyTitle}>No orders found</Text>
+                <Text style={styles.emptySubtitle}>Try a different search or status filter.</Text>
+              </AdminPanel>
+            }
+          />
+        )}
       </AdminShell>
     </>
   );
 }
+
+
 
 function formatTime(ts: string) {
   const diff = Date.now() - new Date(ts).getTime();
@@ -220,39 +224,45 @@ const styles = StyleSheet.create({
   page: {
     flex: 1,
   },
+  listHeaderWrap: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+  },
   summaryRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 14,
-    marginBottom: 16,
+    gap: 8,
+    marginBottom: 10,
   },
   summaryCard: {
-    minWidth: 160,
     flex: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    alignItems: 'flex-start',
   },
   summaryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 6,
   },
   summaryLabel: {
     color: adminColors.textMuted,
-    fontSize: 13,
+    fontSize: 10,
     fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 4,
+    marginTop: 2,
   },
   summaryValue: {
     color: adminColors.text,
-    fontSize: 26,
+    fontSize: 20,
     fontFamily: 'Montserrat-Bold',
+    lineHeight: 24,
   },
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
     marginBottom: 10,
   },
   filterChip: {

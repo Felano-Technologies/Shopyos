@@ -39,39 +39,41 @@ class AuditLogRepository extends BaseRepository {
    */
   async getAuditLogs(options = {}) {
     const { userId, action, entityType, startDate, endDate, limit = 100, offset = 0 } = options;
+    const { getPool } = require('../../config/postgres');
+    const db = getPool();
+    const params = [];
 
-    let query = this.db
-      .from(this.tableName)
-      .select(`
-        *,
-        user:users!user_id(id, email, user_profiles(full_name))
-      `)
-      .order('timestamp', { ascending: false })
-      .range(offset, offset + limit - 1);
+    let sql = `
+      SELECT
+        al.*,
+        u.id    AS actor_id,
+        u.email AS actor_email,
+        up.full_name AS actor_full_name
+      FROM audit_logs al
+      LEFT JOIN users u          ON u.id = al.user_id
+      LEFT JOIN user_profiles up ON up.user_id = al.user_id
+      WHERE 1=1
+    `;
 
-    if (userId) {
-      query = query.eq('user_id', userId);
-    }
+    if (userId)     { params.push(userId);     sql += ` AND al.user_id = $${params.length}`; }
+    if (action)     { params.push(action);     sql += ` AND al.action = $${params.length}`; }
+    if (entityType) { params.push(entityType); sql += ` AND al.entity_type = $${params.length}`; }
+    if (startDate)  { params.push(startDate);  sql += ` AND al.timestamp >= $${params.length}`; }
+    if (endDate)    { params.push(endDate);    sql += ` AND al.timestamp <= $${params.length}`; }
 
-    if (action) {
-      query = query.eq('action', action);
-    }
+    sql += ` ORDER BY al.timestamp DESC`;
+    params.push(limit);  sql += ` LIMIT $${params.length}`;
+    params.push(offset); sql += ` OFFSET $${params.length}`;
 
-    if (entityType) {
-      query = query.eq('entity_type', entityType);
-    }
-
-    if (startDate) {
-      query = query.gte('timestamp', startDate);
-    }
-
-    if (endDate) {
-      query = query.lte('timestamp', endDate);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    const { rows } = await db.query(sql, params);
+    return rows.map(log => ({
+      ...log,
+      user: {
+        id:        log.actor_id,
+        email:     log.actor_email,
+        full_name: log.actor_full_name,
+      },
+    }));
   }
 
   /**
@@ -81,18 +83,30 @@ class AuditLogRepository extends BaseRepository {
    * @returns {Promise<Array>} Entity audit trail
    */
   async getEntityHistory(entityId, entityType) {
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select(`
-        *,
-        user:users!user_id(id, email, user_profiles(full_name))
-      `)
-      .eq('entity_id', entityId)
-      .eq('entity_type', entityType)
-      .order('timestamp', { ascending: false });
+    const { getPool } = require('../../config/postgres');
+    const db = getPool();
 
-    if (error) throw error;
-    return data;
+    const { rows } = await db.query(`
+      SELECT
+        al.*,
+        u.id    AS actor_id,
+        u.email AS actor_email,
+        up.full_name AS actor_full_name
+      FROM audit_logs al
+      LEFT JOIN users u          ON u.id = al.user_id
+      LEFT JOIN user_profiles up ON up.user_id = al.user_id
+      WHERE al.entity_id = $1 AND al.entity_type = $2
+      ORDER BY al.timestamp DESC
+    `, [entityId, entityType]);
+
+    return rows.map(log => ({
+      ...log,
+      user: {
+        id:        log.actor_id,
+        email:     log.actor_email,
+        full_name: log.actor_full_name,
+      },
+    }));
   }
 
   /**
