@@ -27,7 +27,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string }>
 
 export default function AdminOrders() {
   const router = useRouter();
-  const { isDesktop } = useAdminBreakpoint();
+  const { isDesktop, isMobile } = useAdminBreakpoint();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeStatus, setActiveStatus] = useState('All');
   const [orders, setOrders] = useState<any[]>([]);
@@ -130,7 +130,7 @@ export default function AdminOrders() {
             key={isDesktop ? 'desktop' : 'mobile'}
             columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, isMobile && styles.listContentMobile]}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => loadOrders(true)} tintColor={adminColors.blue} />
             }
@@ -225,16 +225,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listHeaderWrap: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: 6,
+    paddingTop: 8,
   },
   summaryRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   summaryCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
     paddingHorizontal: 10,
     paddingVertical: 10,
     alignItems: 'flex-start',
@@ -263,7 +265,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   filterChip: {
     paddingHorizontal: 18,
@@ -293,6 +295,10 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 120,
+    paddingHorizontal: 6,
+  },
+  listContentMobile: {
+    paddingBottom: 140,
   },
   columnWrap: {
     gap: 14,

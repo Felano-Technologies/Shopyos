@@ -243,8 +243,8 @@ export default function AdminDashboard() {
     <>
       <StatusBar style="light" />
       <AdminShell
-        title="Homepage"
-        subtitle="A responsive command center for operations, revenue, and approvals."
+        title="Dashboard"
+        subtitle="A responsive command center for operations. "
         onRefresh={onRefresh}
         aside={aside}
         scroll
@@ -802,3 +802,4 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-SemiBold',
   },
 });
+
