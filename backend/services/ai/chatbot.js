@@ -20,45 +20,58 @@ exports.generateBotReply = async (userId, newMessage, history = []) => {
     };
   }
 
-  try {
-    const model = ai.getGenerativeModel({
-      model: 'gemini-3-flash-preview',
-      systemInstruction: SYSTEM_INSTRUCTIONS
-    });
+  const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
+  const modelsToTry = [
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite'
+  ];
 
-    // Format history for Gemini (roles must be 'user' or 'model')
-    // We treat the Shopyos Bot's past replies as 'model', and the user's as 'user'.
-    const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
-    
-    const formattedHistory = history.map(msg => ({
-      role: msg.sender_id === SUPPORT_BOT_ID ? 'model' : 'user',
-      parts: [{ text: msg.content }]
-    }));
+  let lastError = null;
 
-    const chat = model.startChat({
-      history: formattedHistory,
-      generationConfig: {
-        maxOutputTokens: 1000, // Allow detailed and comprehensive replies
-      }
-    });
+  for (const modelName of modelsToTry) {
+    try {
+      logger.info(`[Shopyos Bot] Attempting reply generation using model: ${modelName}`);
+      const model = ai.getGenerativeModel({
+        model: modelName,
+        systemInstruction: SYSTEM_INSTRUCTIONS
+      });
 
-    const result = await chat.sendMessage([{ text: newMessage }]);
-    let rawReply = result.response.text().trim();
-    
-    const isEscalation = rawReply.includes('[ESCALATE]');
-    // Strip the escalation tag before showing it to the user
-    const finalReply = rawReply.replace(/\[ESCALATE\]/g, '').trim();
+      // Format history for Gemini (roles must be 'user' or 'model')
+      const formattedHistory = history.map(msg => ({
+        role: msg.sender_id === SUPPORT_BOT_ID ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      }));
 
-    return {
-      reply: finalReply,
-      isEscalation
-    };
+      const chat = model.startChat({
+        history: formattedHistory,
+        generationConfig: {
+          maxOutputTokens: 1000, // Allow detailed and comprehensive replies
+          thinkingConfig: {
+            thinkingLevel: 'low'
+          }
+        }
+      });
 
-  } catch (err) {
-    logger.error('[Shopyos Bot] Error generating reply:', err);
-    return {
-      reply: "I'm having a bit of trouble connecting right now. Let me pass you to a human agent. [ESCALATE]",
-      isEscalation: true
-    };
+      const result = await chat.sendMessage([{ text: newMessage }]);
+      let rawReply = result.response.text().trim();
+      
+      const isEscalation = rawReply.includes('[ESCALATE]');
+      // Strip the escalation tag before showing it to the user
+      const finalReply = rawReply.replace(/\[ESCALATE\]/g, '').trim();
+
+      logger.info(`[Shopyos Bot] Successfully generated reply using model: ${modelName}`);
+      return {
+        reply: finalReply,
+        isEscalation
+      };
+    } catch (err) {
+      logger.warn(`[Shopyos Bot] Model ${modelName} failed or quota exceeded: ${err.message}`);
+      lastError = err;
+    }
   }
+
+  // If we reach here, all tried models failed. Throw the error so the controller can send a graceful escalation response.
+  logger.error('[Shopyos Bot] All Gemini models in fallback loop failed.', lastError);
+  throw lastError || new Error('All Gemini models failed to generate a response');
 };

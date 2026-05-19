@@ -51,6 +51,17 @@ type MessageItem = {
   is_read?: boolean;
   pending?: boolean;
   failed?: boolean;
+  reply_to_message?: {
+    id: string;
+    content: string;
+    sender_id: string;
+    sender?: {
+      id: string;
+      user_profiles?: {
+        full_name?: string;
+      } | null;
+    } | null;
+  } | null;
 };
 
 export default function ConversationScreen() {
@@ -150,6 +161,11 @@ export default function ConversationScreen() {
           sock.on('connect', () => {
             if (alive) { fetchMessages(false); socketService.joinConversation(conversationId); }
           });
+          sock.on('bot:stop_typing', ({ conversationId: cid }: any) => {
+            if (cid === conversationId && alive) {
+              setIsBotTyping(false);
+            }
+          });
         }
       } catch {}
     })();
@@ -157,6 +173,10 @@ export default function ConversationScreen() {
       alive = false;
       socketService.leaveConversation(conversationId).catch(() => {});
       socketService.offNewMessage();
+      const sock = socketService.getSocket();
+      if (sock) {
+        sock.off('bot:stop_typing');
+      }
     };
   }, [conversationId, currentUserId, fetchMessages]);
 
@@ -170,6 +190,7 @@ export default function ConversationScreen() {
   const handleSend = async () => {
     if (!text.trim() || !conversationId || sending) return;
     const msgText = text.trim();
+    const replyId = replyTo?.id;
     setText(''); setSending(true);
     const tempId = `temp_${Date.now()}`;
     setMessages((prev) => [...prev, {
@@ -180,12 +201,12 @@ export default function ConversationScreen() {
     const isBot = participantId === '00000000-0000-0000-0000-000000000001' || displayName === 'Shopyos Bot';
     if (isBot) {
       setIsBotTyping(true);
-      // Auto-clear typing indicator after 8 seconds as safety fallback
-      setTimeout(() => setIsBotTyping(false), 8000);
+      // Auto-clear typing indicator after 35 seconds as safety fallback
+      setTimeout(() => setIsBotTyping(false), 35000);
     }
     try {
       let sent;
-      const res = await apiSendMessage(conversationId, msgText);
+      const res = await apiSendMessage(conversationId, msgText, replyId);
       sent = res.message;
       
       setMessages((prev) => {
@@ -306,6 +327,42 @@ export default function ConversationScreen() {
   }, [messages]);
 
   // ─── Message bubble ────────────────────────────────────────────────────────
+  const renderReplyPreview = (msgItem: MessageItem, isMe: boolean) => {
+    if (!msgItem.reply_to_message) return null;
+    const parentMsg = msgItem.reply_to_message;
+    const isParentMe = parentMsg.sender_id === currentUserId;
+    const profile = Array.isArray(parentMsg.sender?.user_profiles)
+      ? parentMsg.sender?.user_profiles[0]
+      : parentMsg.sender?.user_profiles;
+    const parentSenderName = isParentMe ? 'You' : (profile?.full_name || displayName);
+
+    return (
+      <View style={[
+        styles.bubbleReplyPreview,
+        isMe ? styles.bubbleReplyMe : styles.bubbleReplyThem
+      ]}>
+        <View style={[
+          styles.bubbleReplyAccent,
+          isMe ? styles.bubbleReplyAccentMe : styles.bubbleReplyAccentThem
+        ]} />
+        <View style={styles.bubbleReplyBody}>
+          <Text style={[
+            styles.bubbleReplyLabel,
+            isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem
+          ]} numberOfLines={1}>
+            {parentSenderName}
+          </Text>
+          <Text style={[
+            styles.bubbleReplyText,
+            isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem
+          ]} numberOfLines={2}>
+            {parentMsg.content}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
     return (
@@ -346,6 +403,7 @@ export default function ConversationScreen() {
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                 style={styles.bubbleMeGrad}
               >
+                {renderReplyPreview(item, true)}
                 <Text style={styles.bubbleTxtMe}>{item.content}</Text>
                 <View style={styles.metaRow}>
                   <Text style={styles.metaTimeMe}>{fmtTime(item.created_at)}</Text>
@@ -369,6 +427,7 @@ export default function ConversationScreen() {
             ) : (
               /* Incoming: plain white card */
               <>
+                {renderReplyPreview(item, false)}
                 <Text style={styles.bubbleTxtThem}>{item.content}</Text>
                 <View style={styles.metaRow}>
                   <Text style={styles.metaTimeThem}>{fmtTime(item.created_at)}</Text>
@@ -705,6 +764,57 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08, shadowRadius: 6,
     borderWidth: 0.5, borderColor: C.borderCard,
+  },
+  bubbleReplyPreview: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 6,
+    maxWidth: '100%',
+  },
+  bubbleReplyMe: {
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  bubbleReplyThem: {
+    backgroundColor: '#F1F5F9',
+    borderWidth: 0.5,
+    borderColor: '#E2E8F0',
+  },
+  bubbleReplyAccent: {
+    width: 3.5,
+  },
+  bubbleReplyAccentMe: {
+    backgroundColor: '#fff',
+  },
+  bubbleReplyAccentThem: {
+    backgroundColor: C.navyDeep,
+  },
+  bubbleReplyBody: {
+    flex: 1,
+    paddingVertical: 5,
+    paddingHorizontal: 8,
+  },
+  bubbleReplyLabel: {
+    fontSize: 11,
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 2,
+  },
+  bubbleReplyLabelMe: {
+    color: '#fff',
+  },
+  bubbleReplyLabelThem: {
+    color: C.navyDeep,
+  },
+  bubbleReplyText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    lineHeight: 16,
+  },
+  bubbleReplyTextMe: {
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  bubbleReplyTextThem: {
+    color: C.mutedText,
   },
   bubblePending: { opacity: 0.55 },
   bubbleFailed: {

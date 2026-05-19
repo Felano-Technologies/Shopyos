@@ -975,11 +975,11 @@ export const getMessages = async (conversationId: string) => {
   }
 };
  
-export const sendMessage = async (conversationId: string, content: string) => {
+export const sendMessage = async (conversationId: string, content: string, replyToMessageId?: string) => {
   try {
     const response = await api.post(
       `/messaging/conversations/${conversationId}/messages`,
-      { content }
+      { content, replyToMessageId }
     );
     return response.data;
   } catch (error: any) {

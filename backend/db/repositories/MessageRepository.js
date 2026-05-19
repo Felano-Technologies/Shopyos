@@ -21,9 +21,25 @@ class MessageRepository extends BaseRepository {
         sender_id: messageData.senderId,
         content: messageData.content,
         message_type: messageData.messageType || 'text',
-        attachment_url: messageData.attachmentUrl || null
+        attachment_url: messageData.attachmentUrl || null,
+        reply_to_message_id: messageData.replyToMessageId || null
       })
-      .select()
+      .select(`
+        *,
+        sender:sender_id (
+          id,
+          user_profiles (full_name, avatar_url)
+        ),
+        reply_to_message:reply_to_message_id (
+          id,
+          content,
+          sender_id,
+          sender:sender_id (
+            id,
+            user_profiles (full_name)
+          )
+        )
+      `)
       .single();
 
     if (error) throw error;
@@ -46,6 +62,15 @@ class MessageRepository extends BaseRepository {
         sender:sender_id (
           id,
           user_profiles (full_name, avatar_url)
+        ),
+        reply_to_message:reply_to_message_id (
+          id,
+          content,
+          sender_id,
+          sender:sender_id (
+            id,
+            user_profiles (full_name)
+          )
         )
       `)
       .eq('conversation_id', conversationId)
