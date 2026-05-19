@@ -1,6 +1,7 @@
 // controllers/favoriteController.js
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const { toPublicUrl } = require('../config/storage');
 
 // @desc    Add product to favorites
 // @route   POST /api/favorites
@@ -103,12 +104,12 @@ const getUserFavorites = async (req, res, next) => {
                 description: fav.product.description,
                 category: fav.product.category,
                 images: fav.product.product_images 
-                  ? fav.product.product_images.map(img => img.image_url)
+                  ? fav.product.product_images.map(img => toPublicUrl(img.image_url))
                   : [],
                 store: fav.product.store ? {
                     id: fav.product.store_id,
                     name: fav.product.store.store_name,
-                    logo: fav.product.store.logo_url
+                    logo: toPublicUrl(fav.product.store.logo_url)
                 } : null
             } : null
         }));

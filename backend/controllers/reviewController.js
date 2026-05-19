@@ -4,6 +4,7 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { invalidateReviews } = require('../config/cacheInvalidation');
+const { toPublicUrl } = require('../config/storage');
 
 /**
  * @route   POST /api/reviews/product
@@ -638,7 +639,7 @@ const getReviewComments = async (req, res, next) => {
       createdAt: c.created_at,
       user: c.profiles ? {
         name: c.profiles.full_name,
-        avatar: c.profiles.avatar_url
+        avatar: toPublicUrl(c.profiles.avatar_url)
       } : { name: 'Unknown User' }
     }));
 

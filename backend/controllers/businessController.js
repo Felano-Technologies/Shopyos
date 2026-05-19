@@ -216,10 +216,10 @@ const createBusiness = async (req, res, next) => {
         instagram: store.social_instagram || '',
         facebook: store.social_facebook || ''
       },
-      logo: store.logo_url || '',
-      logo_url: store.logo_url || '',
-      coverImage: store.banner_url || '',
-      banner_url: store.banner_url || '',
+      logo: toPublicUrl(store.logo_url) || '',
+      logo_url: toPublicUrl(store.logo_url) || '',
+      coverImage: toPublicUrl(store.banner_url) || '',
+      banner_url: toPublicUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       isActive: store.is_active,
       rating: store.avg_rating || 0,
@@ -279,10 +279,10 @@ const getMyBusinesses = async (req, res, next) => {
         instagram: store.social_instagram || '',
         facebook: store.social_facebook || ''
       },
-      logo: store.logo_url || '',
-      logo_url: store.logo_url || '',
-      coverImage: store.banner_url || '',
-      banner_url: store.banner_url || '',
+      logo: toPublicUrl(store.logo_url) || '',
+      logo_url: toPublicUrl(store.logo_url) || '',
+      coverImage: toPublicUrl(store.banner_url) || '',
+      banner_url: toPublicUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
@@ -565,8 +565,8 @@ const updateBusiness = async (req, res, next) => {
         instagram: updatedStore.social_instagram || '',
         facebook: updatedStore.social_facebook || ''
       },
-      logo: updatedStore.logo_url || '',
-      coverImage: updatedStore.banner_url || '',
+      logo: toPublicUrl(updatedStore.logo_url) || '',
+      coverImage: toPublicUrl(updatedStore.banner_url) || '',
       verificationStatus: updatedStore.verification_status,
       rejectionReason: updatedStore.rejection_reason || '',
       isActive: updatedStore.is_active,
@@ -705,7 +705,7 @@ const uploadLogo = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Logo uploaded successfully',
-      logo: result.url
+      logo: toPublicUrl(result.url)
     });
 
   } catch (error) {
@@ -768,7 +768,7 @@ const uploadBanner = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Banner uploaded successfully',
-      banner: result.url
+      banner: toPublicUrl(result.url)
     });
 
   } catch (error) {
@@ -1154,7 +1154,7 @@ const getAllBusinesses = async (req, res, next) => {
       id: s.id,
       name: s.store_name,
       category: s.category,
-      logo: s.logo_url,
+      logo: toPublicUrl(s.logo_url),
       rating: s.average_rating || 0,
       verified: s.is_verified || false,
       isTrusted: s.is_trusted || false,
@@ -1272,7 +1272,7 @@ const getBusinessReviews = async (req, res, next) => {
       const profile = Array.isArray(profiles) ? profiles[0] : profiles;
       return {
         name: profile?.full_name || 'Anonymous',
-        avatar: profile?.avatar_url || null
+        avatar: toPublicUrl(profile?.avatar_url) || null
       };
     };
 
