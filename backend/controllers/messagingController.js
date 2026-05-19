@@ -6,8 +6,28 @@ const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const { emitToConversation } = require('../config/socket');
 const aiService = require('../services/aiService');
+const { toPublicUrl } = require('../config/storage');
 
 const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
+
+const formatAvatars = (obj) => {
+  if (!obj) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(formatAvatars);
+  }
+  if (typeof obj === 'object') {
+    const formatted = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if ((key === 'avatar_url' || key === 'avatar') && typeof value === 'string' && value) {
+        formatted[key] = toPublicUrl(value);
+      } else {
+        formatted[key] = formatAvatars(value);
+      }
+    }
+    return formatted;
+  }
+  return obj;
+};
 
 /**
  * @route   POST /api/messaging/conversations
@@ -55,7 +75,7 @@ const startConversation = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      conversation: details
+      conversation: formatAvatars(details)
     });
   } catch (error) {
     next(error);
@@ -79,7 +99,7 @@ const getConversations = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      conversations,
+      conversations: formatAvatars(conversations),
       count: conversations.length
     });
   } catch (error) {
@@ -117,7 +137,7 @@ const getConversationDetails = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      conversation
+      conversation: formatAvatars(conversation)
     });
   } catch (error) {
     next(error);
@@ -191,14 +211,14 @@ const sendMessage = async (req, res, next) => {
 
     // Emit real-time event immediately
     emitToConversation(conversationId, 'message:new', {
-      message: fullMessage,
+      message: formatAvatars(fullMessage),
       conversationId
     });
 
     // Send response immediately — don't wait for notifications
     res.status(201).json({
       success: true,
-      message: fullMessage
+      message: formatAvatars(fullMessage)
     });
 
     // Fire-and-forget: send notification to recipient after responding
@@ -239,7 +259,7 @@ const sendMessage = async (req, res, next) => {
             ]);
 
             emitToConversation(conversationId, 'message:new', {
-              message: botMessageWithSender || botMessage,
+              message: formatAvatars(botMessageWithSender || botMessage),
               conversationId
             });
 
@@ -297,7 +317,7 @@ const sendMessage = async (req, res, next) => {
               ]);
 
               emitToConversation(conversationId, 'message:new', {
-                message: botMessageWithSender || botMessage,
+                message: formatAvatars(botMessageWithSender || botMessage),
                 conversationId
               });
 
@@ -376,7 +396,7 @@ const getMessages = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      messages,
+      messages: formatAvatars(messages),
       count: messages.length
     });
   } catch (error) {

@@ -1,6 +1,26 @@
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
+const { toPublicUrl } = require('../config/storage');
+
+const formatBanners = (obj) => {
+  if (!obj) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(formatBanners);
+  }
+  if (typeof obj === 'object') {
+    const formatted = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === 'banner_url' && typeof value === 'string' && value) {
+        formatted[key] = toPublicUrl(value);
+      } else {
+        formatted[key] = formatBanners(value);
+      }
+    }
+    return formatted;
+  }
+  return obj;
+};
 
 const PRICING = {
   'Home Top Banner': 50,
@@ -47,7 +67,7 @@ exports.createCampaign = async (req, res, next) => {
       banner_url: uploadResult.url
     });
 
-    res.status(201).json({ success: true, campaign });
+    res.status(201).json({ success: true, campaign: formatBanners(campaign) });
   } catch (error) {
     next(error);
   }
@@ -65,7 +85,7 @@ exports.getMyCampaigns = async (req, res, next) => {
 
     const store_id = store.id;
     const campaigns = await repositories.bannerCampaigns.getMyCampaigns(store_id);
-    res.status(200).json({ success: true, campaigns });
+    res.status(200).json({ success: true, campaigns: formatBanners(campaigns) });
   } catch (error) {
     next(error);
   }
@@ -74,7 +94,7 @@ exports.getMyCampaigns = async (req, res, next) => {
 exports.getAllCampaigns = async (req, res, next) => {
   try {
     const campaigns = await repositories.bannerCampaigns.getAllCampaigns();
-    res.status(200).json({ success: true, campaigns });
+    res.status(200).json({ success: true, campaigns: formatBanners(campaigns) });
   } catch (error) {
     next(error);
   }
@@ -94,7 +114,7 @@ exports.updateCampaignStatus = async (req, res, next) => {
 
     const updated = await repositories.bannerCampaigns.updateCampaign(id, updateData);
 
-    res.status(200).json({ success: true, campaign: updated });
+    res.status(200).json({ success: true, campaign: formatBanners(updated) });
   } catch (error) {
     next(error);
   }
@@ -103,7 +123,7 @@ exports.updateCampaignStatus = async (req, res, next) => {
 exports.getActiveBanners = async (req, res, next) => {
   try {
     const activeAds = await repositories.bannerCampaigns.getActiveBanners();
-    res.status(200).json({ success: true, banners: activeAds });
+    res.status(200).json({ success: true, banners: formatBanners(activeAds) });
   } catch (error) {
     next(error);
   }

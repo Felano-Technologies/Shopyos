@@ -1,8 +1,25 @@
-// controllers/advertisingController.js
-// Controller for promoted products and advertising campaigns
-
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const { toPublicUrl } = require('../config/storage');
+
+const formatPromotions = (obj) => {
+  if (!obj) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(formatPromotions);
+  }
+  if (typeof obj === 'object') {
+    const formatted = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if ((key === 'image_url' || key === 'logo_url' || key === 'url') && typeof value === 'string' && value) {
+        formatted[key] = toPublicUrl(value);
+      } else {
+        formatted[key] = formatPromotions(value);
+      }
+    }
+    return formatted;
+  }
+  return obj;
+};
 
 /**
  * Create advertising campaign
@@ -60,7 +77,7 @@ const createCampaign = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Campaign created successfully',
-      campaign
+      campaign: formatPromotions(campaign)
     });
   } catch (error) {
     next(error);
@@ -85,7 +102,7 @@ const getPromotedProducts = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      promotedProducts
+      promotedProducts: formatPromotions(promotedProducts)
     });
   } catch (error) {
     next(error);
@@ -125,7 +142,7 @@ const getMyCampaigns = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      campaigns
+      campaigns: formatPromotions(campaigns)
     });
   } catch (error) {
     next(error);
@@ -163,10 +180,10 @@ const getCampaignDetails = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      campaign: {
+      campaign: formatPromotions({
         ...campaign,
         metrics
-      }
+      })
     });
   } catch (error) {
     next(error);
@@ -212,7 +229,7 @@ const updateCampaignStatus = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Campaign status updated successfully',
-      campaign: updatedCampaign
+      campaign: formatPromotions(updatedCampaign)
     });
   } catch (error) {
     next(error);
@@ -258,7 +275,7 @@ const updateCampaignBudget = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Campaign budget updated successfully',
-      campaign: updatedCampaign
+      campaign: formatPromotions(updatedCampaign)
     });
   } catch (error) {
     next(error);

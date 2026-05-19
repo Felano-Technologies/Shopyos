@@ -1,6 +1,7 @@
 // controllers/userActionController.js
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const { toPublicUrl } = require('../config/storage');
 
 // BLOCK USER
 const blockUser = async (req, res, next) => {
@@ -90,7 +91,7 @@ const getBlockedUsers = async (req, res, next) => {
                 id: row.user_id,
                 user_profiles: {
                     full_name: row.full_name,
-                    avatar_url: row.avatar_url
+                    avatar_url: toPublicUrl(row.avatar_url)
                 }
             }
         }));

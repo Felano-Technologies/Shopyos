@@ -1272,7 +1272,7 @@ const getBusinessReviews = async (req, res, next) => {
       const profile = Array.isArray(profiles) ? profiles[0] : profiles;
       return {
         name: profile?.full_name || 'Anonymous',
-        avatar: profile?.avatar_url || null
+        avatar: toPublicUrl(profile?.avatar_url) || null
       };
     };
 

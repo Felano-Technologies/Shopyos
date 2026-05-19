@@ -1,4 +1,5 @@
 const repositories = require('../db/repositories');
+const { toPublicUrl } = require('../config/storage');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
@@ -490,7 +491,7 @@ const getUserData = async (req, res, next) => {
       email: user.email,
       name: profile?.full_name || user.email,
       fullPhoneNumber: profile?.phone,
-      avatar_url: profile?.avatar_url,
+      avatar_url: toPublicUrl(profile?.avatar_url),
       address_line1: profile?.address_line1,
       address_line2: profile?.address_line2,
       city: profile?.city,

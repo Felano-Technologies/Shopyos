@@ -16,7 +16,13 @@ exports.createSnap = async (req, res) => {
       [storeId, media_url, caption, product_id || null]
     );
 
-    res.status(201).json({ success: true, snap: rows[0] });
+    const { toPublicUrl } = require('../config/storage');
+    const snap = rows[0];
+    if (snap) {
+      snap.media_url = toPublicUrl(snap.media_url);
+    }
+
+    res.status(201).json({ success: true, snap });
   } catch (error) {
     console.error('Error creating snap:', error);
     res.status(500).json({ success: false, error: 'Server Error' });

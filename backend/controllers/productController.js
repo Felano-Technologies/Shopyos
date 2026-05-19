@@ -530,7 +530,7 @@ const uploadProductImages = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: `${uploadResults.length} images uploaded successfully`,
-      images: uploadResults.map(r => r.url)
+      images: uploadResults.map(r => toPublicUrl(r.url))
     });
 
   } catch (error) {
