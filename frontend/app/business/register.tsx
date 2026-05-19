@@ -25,6 +25,7 @@ import { businessRegister, getAllCategories, CustomInAppToast } from '@/services
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
+import { useProfile } from '@/hooks/useProfile';
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
@@ -333,6 +334,7 @@ const BusinessSetupScreen = () => {
     taxId: '', bankName: '', accountName: '', accountNumber: '',
     registrationNumber: '', ownerName: '', payoutMethod: 'bank'
   });
+  const { data: userProfile } = useProfile();
   const [categories, setCategories] = useState<any[]>([]);
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -340,6 +342,20 @@ const BusinessSetupScreen = () => {
   const [businessLicense, setBusinessLicense] = useState<string | null>(null);
   const [proofOfBank, setProofOfBank] = useState<string | null>(null);
   const { loading: uploadLoading } = useCloudinaryUpload();
+
+  useEffect(() => {
+    if (userProfile) {
+      setFormData(prev => ({
+        ...prev,
+        phone: prev.phone || userProfile.fullPhoneNumber || '',
+        ownerName: prev.ownerName || userProfile.name || '',
+        city: prev.city || userProfile.city || '',
+        country: prev.country || userProfile.country || '',
+        address: prev.address || userProfile.address_line1 || '',
+      }));
+    }
+  }, [userProfile]);
+
   useEffect(() => {
     const fetchCats = async () => {
       try {

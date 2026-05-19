@@ -1,6 +1,7 @@
-import  { useEffect, useRef} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated , Appearance } from 'react-native';
 import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,11 +10,60 @@ import {  getUserData, secureStorage } from '@/services/api';
 const { width, height } = Dimensions.get('window');
 const IndexScreen = () => {
   const colorScheme = Appearance.getColorScheme();
+  const [isUpdating, setIsUpdating] = useState(Updates.isEmbeddedLaunch);
+  const pulseAnim = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current; // animation value for logo opacity
   const fadeOutAnim = useRef(new Animated.Value(1)).current; // Screen fade-out overlay
   const bgScale = useRef(new Animated.Value(1)).current; // background zoom
   const bgTranslateY = useRef(new Animated.Value(0)).current; // background drift
+
+  // OTA Update Check Effect
   useEffect(() => {
+    const runUpdateCheck = async () => {
+      if (!Updates.isEmbeddedLaunch) {
+        return;
+      }
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        } else {
+          setIsUpdating(false);
+        }
+      } catch (error) {
+        console.warn('OTA Update Check failed:', error);
+        setIsUpdating(false);
+      }
+    };
+    runUpdateCheck();
+  }, []);
+
+  // Breathing Logo Animation Effect
+  useEffect(() => {
+    if (isUpdating) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.12,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.96,
+            duration: 1500,
+            useNativeDriver: true,
+          }),
+        ])
+      ).start();
+    } else {
+      pulseAnim.setValue(1);
+    }
+  }, [isUpdating]);
+
+  useEffect(() => {
+    if (isUpdating) return; // Wait until updates complete or skip
+
     // Parallel fade + background zoom animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -62,7 +112,26 @@ const IndexScreen = () => {
       });
     };
     runStartup();
-  }, [bgScale, bgTranslateY, fadeAnim, fadeOutAnim]);
+  }, [bgScale, bgTranslateY, fadeAnim, fadeOutAnim, isUpdating]);
+
+  if (isUpdating) {
+    return (
+      <View style={styles.updateContainer}>
+        <StatusBar style="dark" translucent backgroundColor="transparent" />
+        <Animated.Image
+          source={require('../assets/images/logo - blue.png')}
+          style={[
+            styles.updateLogo,
+            {
+              transform: [{ scale: pulseAnim }],
+            },
+          ]}
+          resizeMode="contain"
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Animated.View
@@ -200,6 +269,16 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 16,
     fontWeight: '500',
+  },
+  updateContainer: {
+    flex: 1,
+    backgroundColor: '#f2f2f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  updateLogo: {
+    width: width * 0.6,
+    height: height * 0.15,
   },
 });
 export default IndexScreen;
