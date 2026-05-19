@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { businessRegister } from '@/services/api';
 import { queryKeys } from '@/lib/query/keys';
+import { useProfile } from '@/hooks/useProfile';
 import {
   View,
   Text,
@@ -126,6 +127,8 @@ export default function BusinessRegistrationScreen() {
   const queryClient = useQueryClient();
   const mapRef = React.useRef<MapView>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: userProfile } = useProfile();
+
   // --- Form State ---
   const [formData, setFormData] = useState<any>({
     businessName: '',
@@ -153,6 +156,22 @@ export default function BusinessRegistrationScreen() {
     adminNotes: '',
     storePhotos: []
   });
+
+  useEffect(() => {
+    if (userProfile) {
+      setFormData((prev: any) => ({
+        ...prev,
+        ownerPhone: prev.ownerPhone || userProfile.fullPhoneNumber || '',
+        businessPhone: prev.businessPhone || userProfile.fullPhoneNumber || '',
+        ownerName: prev.ownerName || userProfile.name || '',
+        ownerEmail: prev.ownerEmail || userProfile.email || '',
+        businessEmail: prev.businessEmail || userProfile.email || '',
+        city: prev.city || userProfile.city || '',
+        country: prev.country || userProfile.country || 'Ghana',
+        address: prev.address || userProfile.address_line1 || '',
+      }));
+    }
+  }, [userProfile]);
   // --- Modal & Map State ---
   const [showCityModal, setShowCityModal] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
