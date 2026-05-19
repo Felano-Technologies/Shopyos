@@ -51,7 +51,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     pathnameRef.current = pathname;
     conversationIdRef.current = searchParams?.conversationId;
   }, [pathname, searchParams?.conversationId]);
-  const fetchChats = async () => {
+  const fetchChats = useCallback(async () => {
     try {
       const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
       if (!token) return;
@@ -99,18 +99,34 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
             otherParticipant: p,
           };
         });
-        setBuyerChats(formatted.filter(c => c.otherParticipant?.store?.id));
-        setSellerChats(formatted.filter(c => !c.otherParticipant?.store?.id));
+        setBuyerChats(formatted.filter(c => c.otherParticipant?.store?.id || c.otherParticipant?.id === '00000000-0000-0000-0000-000000000001'));
+        setSellerChats(formatted.filter(c => !c.otherParticipant?.store?.id && c.otherParticipant?.id !== '00000000-0000-0000-0000-000000000001'));
       }
     } catch (error: any) {
       if (error.response?.status !== 401) console.error('Failed to load chats', error);
     }
-  };
+  }, []);
   useEffect(() => {
     let isMounted = true;
     const handleNewMessage = (data: any) => {
       const { message, conversationId } = data;
       const isMe = currentUserId && message.sender_id === currentUserId;
+
+      // Show in-app notification if the user is not currently looking at this conversation
+      if (!isMe) {
+        const isViewing =
+          pathnameRef.current === '/chat/conversation' &&
+          conversationIdRef.current === conversationId;
+        if (!isViewing) {
+          const isBot = message.sender_id === '00000000-0000-0000-0000-000000000001';
+          CustomInAppToast.show({
+            type: 'info',
+            title: isBot ? 'Shopyos Bot' : 'New Message',
+            message: message.content,
+          });
+        }
+      }
+
       const updateList = (prev: Conversation[]) => {
         if (!prev.some(c => c.id === conversationId)) {
           fetchChats();

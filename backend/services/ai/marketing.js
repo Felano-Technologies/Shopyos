@@ -16,7 +16,7 @@ exports.generateNotificationText = async (promptType, ctx = {}) => {
   const prompt = buildPrompt(promptType, ctx);
 
   try {
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview' });
     const result = await model.generateContent(prompt);
     const raw = result.response.text().trim();
 
@@ -39,15 +39,15 @@ exports.generateNotificationText = async (promptType, ctx = {}) => {
 function buildPrompt(type, ctx) {
   if (type === 'holiday') {
     return `
-You are a creative marketing manager for "Shopyos", a fast-growing on-demand food, grocery,
-and product delivery app serving customers across Ghana.
+You are a creative marketing manager for "Shopyos", an innovative E-Commerce Hub
+connecting buyers and sellers of fashion, electronics, gadgets, and everyday essentials in Ghana.
 
 Today is a public holiday in Ghana: "${ctx.holidayName || 'Public Holiday'}".
 
 Write a warm, celebratory push notification / SMS for this holiday.
 Requirements:
 - Feel genuine and culturally Ghanaian (use local warmth, not generic phrases)
-- Include relevant emojis in the title
+- Include relevant celebratory or shopping emojis in the title
 - The message body must be under 130 characters
 - Do NOT mention specific prices or promotions — keep it celebratory
 - Return ONLY valid JSON in this exact shape:
@@ -57,15 +57,15 @@ Requirements:
 
   // 'engagement'
   return `
-You are a retention marketing specialist for "Shopyos", an on-demand delivery app in Ghana.
+You are a retention marketing specialist for "Shopyos", a premier E-Commerce Hub in Ghana.
 
-Write a friendly, energetic morning push notification to re-engage customers and encourage them
-to open the app and place an order today.
+Write a friendly, energetic ${ctx.timeOfDay || 'morning'} push notification to re-engage customers and encourage them
+to open the app to discover new products, fashion, gadgets, or daily deals from local sellers.
 Requirements:
 - High energy, personal feel — like a message from a friend
-- Include food/shopping emojis in the title
+- Include shopping/lifestyle emojis in the title (🛍️, 📱, ✨, 👟)
 - Message body must be under 120 characters
-- Subtle call-to-action (e.g., "Check today's deals", "Order breakfast now")
+- Subtle call-to-action (e.g., "Check today's deals", "Discover new arrivals", "Shop local sellers")
 - Return ONLY valid JSON in this exact shape:
 {"title": "<short catchy title>", "message": "<body text>"}
 `.trim();
@@ -81,12 +81,15 @@ function fallback(type, ctx) {
       message: `Shopyos wishes you a joyful ${name}. Relax — we've got your deliveries covered today!`
     };
   }
-  const hooks = [
-    { title: 'Good morning! ☀️', message: 'Start your day right — browse fresh deals on Shopyos and order with one tap!' },
-    { title: 'Hungry? 🍽️',      message: 'Your favourite stores are open. Order now and get it delivered fast with Shopyos.' },
-    { title: 'Deals waiting! 🛍️', message: 'Exclusive daily offers are live on Shopyos. Don\'t miss out — shop now!' },
-    { title: 'It\'s deal o\'clock ⚡', message: 'Flash offers just dropped on Shopyos. Tap to grab yours before they\'re gone!' },
-    { title: 'Rise & order! 🌅', message: 'Morning sorted. Shopyos delivers breakfast, groceries & more right to your door.' }
+  const isMorning = ctx.timeOfDay !== 'evening';
+  const hooks = isMorning ? [
+    { title: 'Good morning! ☀️', message: 'Start your day right — browse fresh deals on Shopyos and shop with one tap!' },
+    { title: 'New Arrivals 🛍️',      message: 'Your favourite stores just restocked. Discover fashion, gadgets & more on Shopyos.' },
+    { title: 'Deals waiting! 🎁', message: 'Exclusive daily offers are live on the Shopyos hub. Don\'t miss out — shop now!' }
+  ] : [
+    { title: 'Evening scrolling? 🌙', message: 'Relax and discover amazing products from trusted Ghanaian sellers tonight on Shopyos.' },
+    { title: 'Midnight cravings? 🛒', message: 'Shop late-night flash deals and get them delivered tomorrow!' },
+    { title: 'Treat yourself 🍷', message: 'You worked hard today. Explore new fashion and gadgets on Shopyos.' }
   ];
   return hooks[new Date().getDay() % hooks.length];
 }

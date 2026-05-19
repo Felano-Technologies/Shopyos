@@ -255,7 +255,7 @@ async function startWorker() {
         if (!url) {
             throw new Error('RABBITMQ_URL (or CLOUDAMQP_URL) is required for notification worker');
         }
-        const conn = await amqp.connect(url);
+        const conn = await amqp.connect(url, { heartbeat: 30 });
 
         // Reconnect on unexpected connection errors or closure.
         // isShuttingDown prevents an infinite reconnect loop on SIGTERM/SIGINT.

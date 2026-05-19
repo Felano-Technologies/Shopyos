@@ -58,7 +58,13 @@ const validateInitializePayment = [
 ];
 
 const validateStartConversation = [
-    body('participantId').isUUID().withMessage('Participant ID must be a valid UUID'),
+    body('participantId').custom((val) => {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      if (!isUuid) {
+        throw new Error('Participant ID must be a valid UUID');
+      }
+      return true;
+    }),
     validateRequest
 ];
 

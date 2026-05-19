@@ -15,7 +15,7 @@ class RabbitMQService {
                 logger.error('RabbitMQ URL missing. Set RABBITMQ_URL or CLOUDAMQP_URL');
                 return;
             }
-            this.connection = await amqp.connect(url);
+            this.connection = await amqp.connect(url, { heartbeat: 30 });
 
             this.connection.on('error', (err) => {
                 logger.error('RabbitMQ connection error:', err);

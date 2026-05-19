@@ -25,7 +25,7 @@ async function publishToQueue(routingKey, payload) {
   }
   let conn;
   try {
-    conn = await amqp.connect(url);
+    conn = await amqp.connect(url, { heartbeat: 30 });
     const ch = await conn.createChannel();
     await ch.assertExchange('notifications_exchange', 'direct', { durable: true });
     ch.publish(
@@ -267,8 +267,10 @@ async function executeDailyMarketingSweep() {
 
   } else {
     // ── Daily customer engagement: Expo Push ONLY ─────────────────────────
-    logger.info('[Scheduler] No holiday — sending daily engagement push to customers…');
-    const copy = await aiService.generateNotificationText('engagement');
+    const hour = new Date().getHours();
+    const timeOfDay = hour < 12 ? 'morning' : 'evening';
+    logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement push to customers…`);
+    const copy = await aiService.generateNotificationText('engagement', { timeOfDay });
 
     let campaign;
     try {
@@ -339,14 +341,14 @@ function initScheduler() {
     );
   });
 
-  // Every morning at 08:00 AM server time
-  cron.schedule('0 8 * * *', () => {
+  // Every morning at 08:00 AM and evening at 08:00 PM (20:00) server time
+  cron.schedule('0 8,20 * * *', () => {
     executeDailyMarketingSweep().catch(err =>
       logger.error('[Scheduler] Uncaught error in daily sweep:', err.message)
     );
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (08:00 AM)');
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (08:00 AM & 08:00 PM)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts };

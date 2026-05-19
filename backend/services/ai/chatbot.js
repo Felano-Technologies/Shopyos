@@ -22,7 +22,7 @@ exports.generateBotReply = async (userId, newMessage, history = []) => {
 
   try {
     const model = ai.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       systemInstruction: SYSTEM_INSTRUCTIONS
     });
 
@@ -38,7 +38,7 @@ exports.generateBotReply = async (userId, newMessage, history = []) => {
     const chat = model.startChat({
       history: formattedHistory,
       generationConfig: {
-        maxOutputTokens: 250, // Keep replies concise
+        maxOutputTokens: 1000, // Allow detailed and comprehensive replies
       }
     });
 

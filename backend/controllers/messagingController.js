@@ -233,6 +233,29 @@ const sendMessage = async (req, res, next) => {
               conversationId
             });
 
+            // Send push and in-app notification for the bot's reply
+            await notificationService.sendNotification({
+              userId: userId,
+              type: 'new_message',
+              title: 'Shopyos Bot',
+              message: reply.substring(0, 100),
+              relatedId: conversationId,
+              relatedType: 'conversation',
+              data: {
+                conversationId,
+                messageId: botMessage.id
+              },
+              push: {
+                data: {
+                  screen: 'messages',
+                  conversationId,
+                  messageId: botMessage.id
+                }
+              }
+            }).catch(notifErr => {
+              logger.error('Failed to notify user of support bot message:', notifErr);
+            });
+
             if (isEscalation) {
               logger.info(`[Shopyos Bot] Escalation triggered for conversation ${conversationId}`);
               // Emit special event or notify admins

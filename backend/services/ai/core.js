@@ -8,10 +8,10 @@ const getGenAI = () => {
   const key = process.env.GEMINI_API_KEY;
   if (!key) return null;
   try {
-    const { GoogleGenAI } = require('@google/generative-ai');
-    genAI = new GoogleGenAI({ apiKey: key });
+    const { GoogleGenerativeAI } = require('@google/generative-ai');
+    genAI = new GoogleGenerativeAI(key);
   } catch (e) {
-    logger.warn('Failed to initialize GoogleGenAI SDK — is @google/generative-ai installed?', e.message);
+    logger.warn('Failed to initialize GoogleGenerativeAI SDK — is @google/generative-ai installed?', e.message);
   }
   return genAI;
 };

@@ -15,21 +15,19 @@ class ConversationRepository extends BaseRepository {
    * @returns {Promise<Object|null>}
    */
   async findByParticipants(participant1Id, participant2Id) {
-    const { data, error } = await this.db
-      .from(this.tableName)
-      .select('*')
-      .or(
-        `and(participant1_id.eq.${participant1Id},participant2_id.eq.${participant2Id}),` +
-        `and(participant1_id.eq.${participant2Id},participant2_id.eq.${participant1Id})`
-      )
-      .single();
+    const { data, error } = await this.db.query(
+      `SELECT * FROM ${this.tableName} 
+       WHERE (participant1_id = $1 AND participant2_id = $2) 
+          OR (participant1_id = $2 AND participant2_id = $1)
+       LIMIT 1`,
+      [participant1Id, participant2Id]
+    );
 
     if (error) {
-      if (error.code === 'PGRST116') return null;
       throw error;
     }
 
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   }
 
   /**

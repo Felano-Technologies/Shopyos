@@ -1103,6 +1103,7 @@ const getAllBusinesses = async (req, res, next) => {
         average_rating,
         is_verified,
         is_trusted,
+        owner_id,
         products:products(count)
       `)
       .eq('is_active', true);
@@ -1157,6 +1158,7 @@ const getAllBusinesses = async (req, res, next) => {
       rating: s.average_rating || 0,
       verified: s.is_verified || false,
       isTrusted: s.is_trusted || false,
+      ownerId: s.owner_id,
       catalogues: s.products?.[0]?.count || 0
     }));
 
