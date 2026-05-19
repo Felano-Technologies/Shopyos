@@ -32,7 +32,7 @@ const ROLE_CONFIG: Record<string, { color: string; bg: string }> = {
 };
 
 export default function AdminUsers() {
-  const { isDesktop } = useAdminBreakpoint();
+  const { isDesktop, isMobile } = useAdminBreakpoint();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   const [users, setUsers] = useState<any[]>([]);
@@ -244,7 +244,7 @@ export default function AdminUsers() {
             key={isDesktop ? 'desktop' : 'mobile'}
             showsVerticalScrollIndicator={false}
             columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={[styles.listContent, isMobile && styles.listContentMobile]}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => loadUsers(true)} tintColor={adminColors.blue} />
             }
@@ -283,16 +283,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listHeaderWrap: {
-    paddingHorizontal: 14,
-    paddingTop: 10,
+    paddingHorizontal: 6,
+    paddingTop: 8,
   },
   summaryRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   summaryCard: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '47%',
     paddingHorizontal: 10,
     paddingVertical: 10,
     alignItems: 'flex-start',
@@ -351,7 +353,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 120,
+    paddingHorizontal: 6,
     gap: 14,
+  },
+  listContentMobile: {
+    paddingBottom: 140,
   },
   columnWrap: {
     gap: 14,
