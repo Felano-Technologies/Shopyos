@@ -388,6 +388,42 @@ class UserRepository extends BaseRepository {
     if (error) throw error;
     return admins;
   }
+
+  /**
+   * Get users by role name
+   * @param {string} roleName
+   * @param {number} limit
+   */
+  async getUsersByRoleName(roleName, limit = 20000) {
+    const { data: roleData } = await this.db
+      .from('roles')
+      .select('id')
+      .eq('name', roleName.toLowerCase())
+      .single();
+
+    if (!roleData) return { data: [], count: 0 };
+
+    const { data: userRoles } = await this.db
+      .from('user_roles')
+      .select('user_id')
+      .eq('role_id', roleData.id)
+      .eq('is_active', true)
+      .limit(limit);
+
+    if (!userRoles || userRoles.length === 0) return { data: [], count: 0 };
+
+    const userIds = userRoles.map(ur => ur.user_id);
+
+    const { data: users, error } = await this.db
+      .from(this.tableName)
+      .select('*')
+      .in('id', userIds)
+      .is('deleted_at', null);
+
+    if (error) throw error;
+
+    return { data: users || [], count: users?.length || 0 };
+  }
 }
 
 

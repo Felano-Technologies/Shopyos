@@ -38,11 +38,12 @@ type AdminPanelProps = {
 };
 
 const NAV_ITEMS = [
-  { label: 'Home', route: '/admin/dashboard', icon: 'grid' as const },
-  { label: 'Orders', route: '/admin/orders', icon: 'shopping-bag' as const },
-  { label: 'Stores', route: '/admin/stores', icon: 'shopping-cart' as const },
-  { label: 'Users', route: '/admin/users', icon: 'users' as const },
-  { label: 'Settings', route: '/admin/settings', icon: 'settings' as const },
+  { label: 'Home',       route: '/admin/dashboard',     icon: 'grid'          as const },
+  { label: 'Orders',     route: '/admin/orders',        icon: 'shopping-bag'  as const },
+  { label: 'Stores',     route: '/admin/stores',        icon: 'shopping-cart' as const },
+  { label: 'Users',      route: '/admin/users',         icon: 'users'         as const },
+  { label: 'Broadcasts', route: '/admin/notifications', icon: 'bell'          as const },
+  { label: 'Settings',   route: '/admin/settings',      icon: 'settings'      as const },
 ];
 
 export function AdminPanel({ children, style }: AdminPanelProps) {

@@ -29,6 +29,13 @@ const {
   refundEscrow,
   releaseEscrow,
 } = require('../controllers/adminController');
+const {
+  getScheduledNotifications,
+  createScheduledNotification,
+  cancelScheduledNotification,
+  previewHolidayCampaign,
+  triggerMarketingSweep
+} = require('../controllers/adminNotificationController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // All admin routes require authentication and admin role
@@ -115,5 +122,14 @@ router.put('/escrows/:id/refund', refundEscrow);
 
 // @route   PUT /api/admin/escrows/:id/release
 router.put('/escrows/:id/release', releaseEscrow);
+
+// ─── Scheduled Broadcast Notifications ───────────────────────────────────────
+// Sub-paths BEFORE /:id to prevent shadowing
+router.get('/scheduled-notifications/holiday-preview', previewHolidayCampaign);
+router.post('/scheduled-notifications/trigger-sweep', triggerMarketingSweep);
+// CRUD
+router.get('/scheduled-notifications', getScheduledNotifications);
+router.post('/scheduled-notifications', createScheduledNotification);
+router.delete('/scheduled-notifications/:id', cancelScheduledNotification);
 
 module.exports = router;

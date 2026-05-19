@@ -6,6 +6,7 @@ import {
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import { startConversation } from '@/services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -42,6 +43,9 @@ export default function ChatInbox() {
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const filtered = buyerConversations.filter((chat: any) => {
+    // Hide the real Shopyos bot conversation if it exists so we don't duplicate it
+    if (chat.otherParticipant?.id === '00000000-0000-0000-0000-000000000001') return false;
+    
     const q = searchQuery.toLowerCase();
     const matchSearch =
       (chat.name || '').toLowerCase().includes(q) ||
@@ -53,12 +57,48 @@ export default function ChatInbox() {
     return matchSearch && matchFilter;
   });
 
-  const openChat = (item: any) => {
-    if (item.unread > 0) markAsRead(item.id, 'buyer');
+  // ── Pinned Shopyos Bot ──────────────────────────────────────────────────
+  const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
+  const existingBotChat = buyerConversations.find((c: any) => c.otherParticipant?.id === SUPPORT_BOT_ID);
+  
+  const botChat = {
+    id: existingBotChat?.id || 'pinned-bot',
+    name: 'Shopyos Bot',
+    avatar: 'https://api.dicebear.com/7.x/bottts/png?seed=shopyos&backgroundColor=0C1559',
+    lastMessage: existingBotChat?.lastMessage || 'Hi there! How can I help you today?',
+    time: existingBotChat?.time || '',
+    unread: existingBotChat?.unread || 0,
+    online: true,
+    isPinnedBot: true,
+    otherParticipant: { id: SUPPORT_BOT_ID }
+  };
+
+  const displayList = [botChat, ...filtered];
+
+  const openChat = async (item: any) => {
+    if (item.unread > 0 && item.id !== 'pinned-bot') markAsRead(item.id, 'buyer');
+    
+    let targetConversationId = item.id;
+    
+    // If it's the bot and they haven't talked to it yet
+    if (item.id === 'pinned-bot') {
+      try {
+        const res = await startConversation(SUPPORT_BOT_ID);
+        if (res.success && res.conversation) {
+          targetConversationId = res.conversation.id;
+        } else {
+          throw new Error('Failed to start');
+        }
+      } catch (err) {
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not connect to Shopyos Bot' });
+        return;
+      }
+    }
+
     router.push({
       pathname: '/chat/conversation',
       params: { 
-        conversationId: item.id, 
+        conversationId: targetConversationId, 
         name: item.name, 
         avatar: item.avatar, 
         chatType: 'buyer',
@@ -223,10 +263,10 @@ export default function ChatInbox() {
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       <FlatList
-        data={filtered}
+        data={displayList}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, filtered.length === 0 && { flex: 1 }]}
+        contentContainerStyle={[styles.list, displayList.length === 0 && { flex: 1 }]}
         ListEmptyComponent={renderEmpty}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
