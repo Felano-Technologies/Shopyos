@@ -73,7 +73,7 @@ export default function AdminShell({
   searchValue,
   onSearchChange,
   onSearchSubmit,
-  searchPlaceholder = 'Quick search...',
+  searchPlaceholder = 'Quick search…',
   onRefresh,
   actions,
   aside,
@@ -229,8 +229,6 @@ function TopBar({
   onSearchSubmit?: () => void;
   searchPlaceholder: string;
 }) {
-  const router = useRouter();
-
   return (
     <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.topbar}>
       {/* Title row */}
@@ -258,24 +256,16 @@ function TopBar({
               <Feather name="mail" size={18} color="#FFFFFF" />
             </View>
           )}
-          <TouchableOpacity
-            style={styles.iconButtonGhost}
-            onPress={() => router.push('/admin/notifications' as any)}
-            activeOpacity={0.8}
-          >
+          <View style={styles.iconButtonGhost}>
             <Ionicons name="notifications-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          </View>
           {actions}
-          <TouchableOpacity
-            style={styles.profilePill}
-            onPress={() => router.push('/admin/settings' as any)}
-            activeOpacity={0.8}
-          >
+          <View style={styles.profilePill}>
             <View style={styles.profileAvatar}>
               <Text style={styles.profileLetter}>A</Text>
             </View>
             {!isMobile ? <Text style={styles.profileName}>Admin Team</Text> : null}
-          </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -607,5 +597,3 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
 });
-
-

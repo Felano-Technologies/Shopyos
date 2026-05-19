@@ -88,7 +88,6 @@ export default function AdminLayout() {
         {/* Sub-pages: hide from tab bar but keep under /admin layout */}
         <Tabs.Screen name="revenue"             options={{ href: null }} />
         <Tabs.Screen name="audit-logs"          options={{ href: null }} />
-        <Tabs.Screen name="notifications"       options={{ href: null }} />
         <Tabs.Screen name="categories"          options={{ href: null }} />
         <Tabs.Screen name="ads"                 options={{ href: null }} />
         <Tabs.Screen name="driverVerifications" options={{ href: null }} />

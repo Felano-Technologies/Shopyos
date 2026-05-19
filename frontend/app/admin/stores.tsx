@@ -52,7 +52,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
 
 export default function AdminStores() {
   const router = useRouter();
-  const { isDesktop, isMobile } = useAdminBreakpoint();
+  const { isDesktop } = useAdminBreakpoint();
   const [filter, setFilter] = useState<FilterType>('pending');
   const [search, setSearch] = useState('');
   const [stores, setStores] = useState<Store[]>([]);
@@ -241,7 +241,7 @@ export default function AdminStores() {
             key={isDesktop ? 'desktop' : 'mobile'}
             columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.listContent, isMobile && styles.listContentMobile]}
+            contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => loadStores(true)} tintColor={adminColors.blue} />
             }
@@ -416,18 +416,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listHeaderWrap: {
-    paddingHorizontal: 6,
-    paddingTop: 8,
+    paddingHorizontal: 14,
+    paddingTop: 10,
   },
   summaryRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   summaryCard: {
-    flexGrow: 1,
-    flexBasis: '47%',
+    flex: 1,
     paddingHorizontal: 10,
     paddingVertical: 10,
     alignItems: 'flex-start',
@@ -486,10 +484,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 120,
-    paddingHorizontal: 6,
-  },
-  listContentMobile: {
-    paddingBottom: 140,
   },
   columnWrap: {
     gap: 14,

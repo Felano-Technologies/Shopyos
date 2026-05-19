@@ -11,7 +11,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { adminColors } from '@/components/admin/adminTheme';
 
 function SettingItem({
   icon,
@@ -54,7 +54,6 @@ function SettingItem({
 
 export default function AdminSettings() {
   const router = useRouter();
-  const { isMobile } = useAdminBreakpoint();
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [autoApproveSellers, setAutoApproveSellers] = useState(false);
@@ -76,7 +75,7 @@ export default function AdminSettings() {
         contentContainerStyle={{ paddingBottom: 120 }}
       >
         <View style={styles.page}>
-          <AdminPanel style={[styles.profileCard, isMobile && styles.profileCardMobile]}>
+          <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
               <View style={styles.profileAvatar}>
                 <Text style={styles.profileInitial}>A</Text>
@@ -87,13 +86,13 @@ export default function AdminSettings() {
               <Text style={styles.profileName}>Admin</Text>
               <Text style={styles.profileRole}>Super Administrator</Text>
             </View>
-            <View style={[styles.profileBadge, isMobile && styles.profileBadgeMobile]}>
+            <View style={styles.profileBadge}>
               <Ionicons name="shield-checkmark-outline" size={16} color={adminColors.blue} />
               <Text style={styles.profileBadgeText}>Protected</Text>
             </View>
           </AdminPanel>
 
-          <View style={[styles.grid, isMobile && styles.gridMobile]}>
+          <View style={styles.grid}>
             <AdminPanel style={styles.column}>
               <Text style={styles.sectionTitle}>Platform control</Text>
               <SettingItem
@@ -178,9 +177,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  profileCardMobile: {
-    flexWrap: 'wrap',
-  },
   profileAvatarWrap: {
     position: 'relative',
   },
@@ -228,10 +224,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: '#EFF6FF',
   },
-  profileBadgeMobile: {
-    width: '100%',
-    justifyContent: 'center',
-  },
   profileBadgeText: {
     color: adminColors.blue,
     fontFamily: 'Montserrat-SemiBold',
@@ -241,9 +233,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
-  },
-  gridMobile: {
-    gap: 12,
   },
   column: {
     flex: 1,
