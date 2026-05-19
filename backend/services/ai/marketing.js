@@ -14,24 +14,45 @@ exports.generateNotificationText = async (promptType, ctx = {}) => {
   }
 
   const prompt = buildPrompt(promptType, ctx);
+  const modelsToTry = [
+    'gemini-3.1-flash-lite-preview',
+    'gemini-3-flash-preview',
+    'gemini-3.1-flash-lite'
+  ];
 
-  try {
-    const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview' });
-    const result = await model.generateContent(prompt);
-    const raw = result.response.text().trim();
+  let lastError = null;
 
-    // Extract the first JSON object from the response
-    const match = raw.match(/\{[\s\S]*?\}/);
-    if (!match) throw new Error('No JSON object found in Gemini response');
+  for (const modelName of modelsToTry) {
+    try {
+      logger.info(`[Shopyos Marketing] Attempting content generation using model: ${modelName}`);
+      const model = ai.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent({
+        contents: prompt,
+        generationConfig: {
+          thinkingConfig: {
+            thinkingLevel: 'low'
+          }
+        }
+      });
+      const raw = result.response.text().trim();
 
-    const parsed = JSON.parse(match[0]);
-    if (!parsed.title || !parsed.message) throw new Error('Incomplete JSON from Gemini');
+      // Extract the first JSON object from the response
+      const match = raw.match(/\{[\s\S]*?\}/);
+      if (!match) throw new Error('No JSON object found in Gemini response');
 
-    return { title: String(parsed.title), message: String(parsed.message) };
-  } catch (err) {
-    logger.error('Gemini AI generation error — using fallback:', err.message);
-    return fallback(promptType, ctx);
+      const parsed = JSON.parse(match[0]);
+      if (!parsed.title || !parsed.message) throw new Error('Incomplete JSON from Gemini');
+
+      logger.info(`[Shopyos Marketing] Successfully generated notification using model: ${modelName}`);
+      return { title: String(parsed.title), message: String(parsed.message) };
+    } catch (err) {
+      logger.warn(`[Shopyos Marketing] Model ${modelName} failed or quota exceeded: ${err.message}`);
+      lastError = err;
+    }
   }
+
+  logger.error('[Shopyos Marketing] All Gemini models in fallback loop failed, calling static template fallback.', lastError);
+  return fallback(promptType, ctx);
 };
 
 // ─── Prompt builder ─────────────────────────────────────────────────────────

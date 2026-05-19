@@ -132,7 +132,7 @@ const getConversationDetails = async (req, res, next) => {
 const sendMessage = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
-    const { content, messageType = 'text', attachmentUrl } = req.body;
+    const { content, messageType = 'text', attachmentUrl, replyToMessageId } = req.body;
     const userId = req.user.id;
 
     // Validate input
@@ -158,7 +158,8 @@ const sendMessage = async (req, res, next) => {
       senderId: userId,
       content: content.trim(),
       messageType,
-      attachmentUrl
+      attachmentUrl,
+      replyToMessageId
     });
 
     // Run updateLastActivity and sender-info query in parallel (they're independent)
@@ -171,6 +172,15 @@ const sendMessage = async (req, res, next) => {
           sender:sender_id (
             id,
             user_profiles (full_name, avatar_url)
+          ),
+          reply_to_message:reply_to_message_id (
+            id,
+            content,
+            sender_id,
+            sender:sender_id (
+              id,
+              user_profiles (full_name)
+            )
           )
         `)
         .eq('id', message.id)
@@ -263,6 +273,38 @@ const sendMessage = async (req, res, next) => {
             }
           } catch (botErr) {
             logger.error('[Shopyos Bot] Error replying:', botErr);
+            
+            // Emit stop typing immediately
+            emitToConversation(conversationId, 'bot:stop_typing', { conversationId });
+
+            // Gracefully send fallback escalation reply to the user so they are not left hanging
+            try {
+              const fallbackText = "I'm having a bit of trouble connecting right now. Let me pass you to a human agent. [ESCALATE]";
+              const botMessage = await repositories.messages.sendMessage({
+                conversationId,
+                senderId: SUPPORT_BOT_ID,
+                content: fallbackText,
+                messageType: 'text'
+              });
+
+              const [, { data: botMessageWithSender }] = await Promise.all([
+                repositories.conversations.updateLastActivity(conversationId),
+                repositories.messages.db
+                  .from('messages')
+                  .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
+                  .eq('id', botMessage.id)
+                  .single()
+              ]);
+
+              emitToConversation(conversationId, 'message:new', {
+                message: botMessageWithSender || botMessage,
+                conversationId
+              });
+
+              logger.info(`[Shopyos Bot] Graceful fallback escalation triggered for conversation ${conversationId}`);
+            } catch (fallbackErr) {
+              logger.error('[Shopyos Bot] Error sending graceful fallback message:', fallbackErr);
+            }
           }
           return; // Skip standard push notification to the bot
         }

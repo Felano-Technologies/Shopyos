@@ -575,6 +575,144 @@ class QueryBuilder {
           inventory: inventoryMap[product.id] || null
         }));
       }
+
+      // --- MESSAGES JOIN SHIM ---
+      if (this.tableName === 'messages' && result.rows.length > 0) {
+        const senderIds = [...new Set(result.rows.map(m => m.sender_id).filter(Boolean))];
+        const replyToIds = [...new Set(result.rows.map(m => m.reply_to_message_id).filter(Boolean))];
+
+        // 1. Fetch senders' user profiles
+        let senderMap = {};
+        if (senderIds.length > 0) {
+          const { rows: senders } = await db.query(
+            `SELECT u.id, up.full_name, up.avatar_url 
+             FROM users u
+             LEFT JOIN user_profiles up ON u.id = up.user_id
+             WHERE u.id = ANY($1)`,
+            [senderIds]
+          );
+          senders.forEach(s => {
+            senderMap[s.id] = {
+              id: s.id,
+              user_profiles: { full_name: s.full_name, avatar_url: s.avatar_url }
+            };
+          });
+        }
+
+        // 2. Fetch parent messages for replies
+        let replyMap = {};
+        if (replyToIds.length > 0) {
+          const { rows: parentMessages } = await db.query(
+            `SELECT * FROM messages WHERE id = ANY($1)`,
+            [replyToIds]
+          );
+
+          // Get parent senders
+          const parentSenderIds = [...new Set(parentMessages.map(pm => pm.sender_id).filter(Boolean))];
+          let parentSenderMap = {};
+          if (parentSenderIds.length > 0) {
+            const { rows: parentSenders } = await db.query(
+              `SELECT u.id, up.full_name 
+               FROM users u
+               LEFT JOIN user_profiles up ON u.id = up.user_id
+               WHERE u.id = ANY($1)`,
+              [parentSenderIds]
+            );
+            parentSenders.forEach(ps => {
+              parentSenderMap[ps.id] = {
+                id: ps.id,
+                user_profiles: { full_name: ps.full_name }
+              };
+            });
+          }
+
+          parentMessages.forEach(pm => {
+            replyMap[pm.id] = {
+              id: pm.id,
+              content: pm.content,
+              sender_id: pm.sender_id,
+              sender: parentSenderMap[pm.sender_id] || null
+            };
+          });
+        }
+
+        // 3. Hydrate messages
+        result.rows = result.rows.map(m => ({
+          ...m,
+          sender: senderMap[m.sender_id] || null,
+          reply_to_message: replyMap[m.reply_to_message_id] || null
+        }));
+      }
+
+      // --- CONVERSATIONS JOIN SHIM ---
+      if (this.tableName === 'conversations' && result.rows.length > 0) {
+        const conversationIds = result.rows.map(c => c.id);
+        const participantIds = [
+          ...new Set([
+            ...result.rows.map(c => c.participant1_id),
+            ...result.rows.map(c => c.participant2_id)
+          ])
+        ].filter(Boolean);
+
+        // 1. Fetch participants (users + profiles + stores)
+        let participantMap = {};
+        if (participantIds.length > 0) {
+          const { rows: participants } = await db.query(
+            `SELECT u.id, u.email,
+                    up.full_name, up.avatar_url, up.phone,
+                    s.id AS store_id, s.store_name, s.logo_url
+             FROM users u
+             LEFT JOIN user_profiles up ON u.id = up.user_id
+             LEFT JOIN stores s ON u.id = s.owner_id
+             WHERE u.id = ANY($1)`,
+            [participantIds]
+          );
+
+          participants.forEach(p => {
+            participantMap[p.id] = {
+              id: p.id,
+              email: p.email,
+              user_profiles: p.full_name ? [{
+                full_name: p.full_name,
+                avatar_url: p.avatar_url,
+                phone: p.phone
+              }] : [],
+              stores: p.store_id ? [{
+                id: p.store_id,
+                store_name: p.store_name,
+                logo_url: p.logo_url
+              }] : []
+            };
+          });
+        }
+
+        // 2. Fetch all messages for these conversations
+        let messagesMap = {};
+        if (conversationIds.length > 0) {
+          const { rows: messages } = await db.query(
+            `SELECT id, conversation_id, content, created_at, is_read, sender_id 
+             FROM messages 
+             WHERE conversation_id = ANY($1)
+             ORDER BY created_at DESC`,
+            [conversationIds]
+          );
+
+          messages.forEach(m => {
+            if (!messagesMap[m.conversation_id]) {
+              messagesMap[m.conversation_id] = [];
+            }
+            messagesMap[m.conversation_id].push(m);
+          });
+        }
+
+        // 3. Assemble conversations
+        result.rows = result.rows.map(c => ({
+          ...c,
+          participant1: participantMap[c.participant1_id] || null,
+          participant2: participantMap[c.participant2_id] || null,
+          messages: messagesMap[c.id] || []
+        }));
+      }
       // --- JOIN SHIM END ---
 
       if (this.singleMode) {
