@@ -258,6 +258,14 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] | Redis: ${redis ? 'enabled' : 'disabled'}`);
+
+  // Start background broadcast scheduler (manual polls + daily engagement/holiday)
+  try {
+    const { initScheduler } = require('./workers/scheduler');
+    initScheduler();
+  } catch (err) {
+    logger.error('Failed to start broadcast scheduler:', err.message);
+  }
 });
 
 const gracefulShutdown = async (signal) => {

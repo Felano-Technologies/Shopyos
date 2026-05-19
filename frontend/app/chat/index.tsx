@@ -1,11 +1,12 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, TouchableOpacity,
-  Image, Text, Alert, TextInput,
+  Image, Text, Alert, TextInput, Modal, ActivityIndicator, Pressable,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import { startConversation, getAllStores } from '@/services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -35,6 +36,12 @@ export default function ChatInbox() {
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', 'Unread', 'Read'];
 
+  // New Chat / Choose Merchant Modal State
+  const [sellerModalVisible, setSellerModalVisible] = useState(false);
+  const [sellers, setSellers] = useState<any[]>([]);
+  const [sellersLoading, setSellersLoading] = useState(false);
+  const [sellerSearchQuery, setSellerSearchQuery] = useState('');
+
   const totalUnread = buyerConversations.reduce(
     (sum: number, c: any) => sum + (c.unread || 0), 0
   );
@@ -42,6 +49,9 @@ export default function ChatInbox() {
   useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   const filtered = buyerConversations.filter((chat: any) => {
+    // Hide the real Shopyos bot conversation if it exists so we don't duplicate it
+    if (chat.otherParticipant?.id === '00000000-0000-0000-0000-000000000001') return false;
+    
     const q = searchQuery.toLowerCase();
     const matchSearch =
       (chat.name || '').toLowerCase().includes(q) ||
@@ -53,12 +63,103 @@ export default function ChatInbox() {
     return matchSearch && matchFilter;
   });
 
-  const openChat = (item: any) => {
-    if (item.unread > 0) markAsRead(item.id, 'buyer');
+  // ── Pinned Shopyos Bot ──────────────────────────────────────────────────
+  const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
+  const existingBotChat = buyerConversations.find((c: any) => c.otherParticipant?.id === SUPPORT_BOT_ID);
+  
+  const botChat = {
+    id: existingBotChat?.id || 'pinned-bot',
+    name: 'Shopyos Bot',
+    avatar: 'https://api.dicebear.com/7.x/bottts/png?seed=shopyos&backgroundColor=0C1559',
+    lastMessage: existingBotChat?.lastMessage || 'Hi there! How can I help you today?',
+    time: existingBotChat?.time || '',
+    unread: existingBotChat?.unread || 0,
+    online: true,
+    isPinnedBot: true,
+    otherParticipant: { id: SUPPORT_BOT_ID }
+  };
+
+  const displayList = [botChat, ...filtered];
+
+  const filteredSellers = sellers.filter((s: any) =>
+    (s.name || '').toLowerCase().includes(sellerSearchQuery.toLowerCase()) ||
+    (s.category || '').toLowerCase().includes(sellerSearchQuery.toLowerCase())
+  );
+
+  const startChatWithSeller = async (seller: any) => {
+    const ownerId = seller.ownerId;
+    if (!ownerId) {
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Cannot Chat', 
+        message: 'This seller is currently unavailable.' 
+      });
+      return;
+    }
+    setSellerModalVisible(false);
+    try {
+      const res = await startConversation(ownerId);
+      if (res.success && res.conversation) {
+        router.push({
+          pathname: '/chat/conversation',
+          params: {
+            conversationId: res.conversation.id,
+            name: seller.name,
+            avatar: seller.logo || 'https://api.dicebear.com/7.x/initials/png?seed=' + seller.name,
+            chatType: 'buyer',
+            entityId: seller.id,
+            participantId: ownerId
+          }
+        });
+      }
+    } catch {
+      CustomInAppToast.show({ 
+        type: 'error', 
+        title: 'Error', 
+        message: 'Could not start conversation.' 
+      });
+    }
+  };
+
+  const openNewChat = async () => {
+    setSellerModalVisible(true);
+    setSellersLoading(true);
+    try {
+      const res = await getAllStores({ limit: 100 });
+      if (res.success) {
+        setSellers(res.businesses || []);
+      }
+    } catch (err) {
+      console.error('Error fetching sellers for chat', err);
+    } finally {
+      setSellersLoading(false);
+    }
+  };
+
+  const openChat = async (item: any) => {
+    if (item.unread > 0 && item.id !== 'pinned-bot') markAsRead(item.id, 'buyer');
+    
+    let targetConversationId = item.id;
+    
+    // If it's the bot and they haven't talked to it yet
+    if (item.id === 'pinned-bot') {
+      try {
+        const res = await startConversation(SUPPORT_BOT_ID);
+        if (res.success && res.conversation) {
+          targetConversationId = res.conversation.id;
+        } else {
+          throw new Error('Failed to start');
+        }
+      } catch (err) {
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not connect to Shopyos Bot' });
+        return;
+      }
+    }
+
     router.push({
       pathname: '/chat/conversation',
       params: { 
-        conversationId: item.id, 
+        conversationId: targetConversationId, 
         name: item.name, 
         avatar: item.avatar, 
         chatType: 'buyer',
@@ -181,7 +282,7 @@ export default function ChatInbox() {
                 </View>
               )}
             </View>
-            <TouchableOpacity style={styles.iconBtn}>
+            <TouchableOpacity style={styles.iconBtn} onPress={openNewChat}>
               <Feather name="edit-2" size={15} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </View>
@@ -223,14 +324,118 @@ export default function ChatInbox() {
 
       {/* ── List ─────────────────────────────────────────────────────────────── */}
       <FlatList
-        data={filtered}
+        data={displayList}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
-        contentContainerStyle={[styles.list, filtered.length === 0 && { flex: 1 }]}
+        contentContainerStyle={[styles.list, displayList.length === 0 && { flex: 1 }]}
         ListEmptyComponent={renderEmpty}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
       />
+
+      {/* Floating Action Button (FAB) for Choose Merchant */}
+      <TouchableOpacity
+        style={styles.chatFab}
+        activeOpacity={0.88}
+        onPress={openNewChat}
+      >
+        <LinearGradient
+          colors={[C.navyDeep, C.navyMid]}
+          style={styles.chatFabInner}
+        >
+          <Ionicons name="chatbubbles" size={20} color={C.lime} />
+          <Text style={styles.chatFabTxt}>New Chat</Text>
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* ── New Chat Select Seller Modal ── */}
+      <Modal
+        visible={sellerModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSellerModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setSellerModalVisible(false)} />
+          <View style={styles.modalSheet}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Choose a Merchant</Text>
+              <TouchableOpacity style={styles.modalClose} onPress={() => setSellerModalVisible(false)}>
+                <Ionicons name="close" size={16} color={C.navyDeep} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal search bar */}
+            <View style={styles.modalSearch}>
+              <Feather name="search" size={14} color={C.mutedText} />
+              <TextInput
+                style={styles.modalSearchInput}
+                placeholder="Search sellers or categories..."
+                placeholderTextColor={C.mutedText}
+                value={sellerSearchQuery}
+                onChangeText={setSellerSearchQuery}
+              />
+              {sellerSearchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSellerSearchQuery('')}>
+                  <Feather name="x" size={14} color={C.mutedText} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {sellersLoading ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="large" color={C.navyDeep} />
+                <Text style={styles.modalLoadingTxt}>Finding active merchants...</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={filteredSellers}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={styles.modalList}
+                showsVerticalScrollIndicator={false}
+                ItemSeparatorComponent={() => <View style={styles.modalSep} />}
+                ListEmptyComponent={() => (
+                  <View style={styles.modalEmpty}>
+                    <Ionicons name="storefront-outline" size={32} color={C.mutedText} />
+                    <Text style={styles.modalEmptyTitle}>No sellers found</Text>
+                    <Text style={styles.modalEmptyDesc}>Try checking your search keyword.</Text>
+                  </View>
+                )}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.modalRow}
+                    onPress={() => startChatWithSeller(item)}
+                    activeOpacity={0.7}
+                  >
+                    {item.logo ? (
+                      <Image source={{ uri: item.logo }} style={styles.modalAvatar} />
+                    ) : (
+                      <View style={styles.modalAvatarFallback}>
+                        <Text style={styles.modalAvatarLetters}>{initials(item.name)}</Text>
+                      </View>
+                    )}
+                    <View style={styles.modalRowBody}>
+                      <View style={styles.modalRowTop}>
+                        <Text style={styles.modalSellerName} numberOfLines={1}>{item.name}</Text>
+                        {item.isTrusted && (
+                          <View style={styles.modalVerifiedBadge}>
+                            <Ionicons name="checkmark" size={8} color="#fff" />
+                          </View>
+                        )}
+                      </View>
+                      <Text style={styles.modalSellerCat}>{item.category}</Text>
+                    </View>
+                    <View style={styles.chatActionBtn}>
+                      <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.navyDeep} />
+                    </View>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -375,4 +580,196 @@ const styles = StyleSheet.create({
   },
   browseBtn: { backgroundColor: C.navyMid, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 20 },
   browseBtnText: { color: '#fff', fontSize: 13, fontFamily: 'Montserrat-Bold' },
+
+  // ── New Chat Modal Styles ──
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(12,21,89,0.35)',
+  },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  modalSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    height: '75%',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 24,
+    elevation: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+  },
+  sheetHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E2E8F0',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    color: C.navyDeep,
+  },
+  modalClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSearch: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    marginBottom: 16,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: '#0F172A',
+  },
+  modalLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalLoadingTxt: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: C.mutedText,
+  },
+  modalList: {
+    paddingBottom: 24,
+  },
+  modalSep: {
+    height: 1,
+    backgroundColor: 'rgba(12,21,89,0.05)',
+  },
+  modalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  modalAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#dbeafe',
+  },
+  modalAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: C.navyDeep,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalAvatarLetters: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: C.lime,
+  },
+  modalRowBody: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  modalRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  modalSellerName: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  modalVerifiedBadge: {
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: C.lime,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalSellerCat: {
+    fontSize: 11,
+    fontFamily: 'Montserrat-Medium',
+    color: C.mutedText,
+  },
+  chatActionBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(12,21,89,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalEmpty: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    gap: 8,
+  },
+  modalEmptyTitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  modalEmptyDesc: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    color: C.mutedText,
+    textAlign: 'center',
+  },
+  chatFab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    borderRadius: 24,
+    elevation: 8,
+    shadowColor: C.navyDeep,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    zIndex: 50,
+  },
+  chatFabInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 24,
+  },
+  chatFabTxt: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Bold',
+    color: '#fff',
+  },
 });

@@ -70,6 +70,7 @@ export default function ConversationScreen() {
   const [replyTo, setReplyTo] = useState<MessageItem | null>(null);
   const [moreVisible, setMoreVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
+  const [isBotTyping, setIsBotTyping] = useState(false);
 
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
@@ -92,6 +93,16 @@ export default function ConversationScreen() {
       setCurrentUserId(uid);
     })();
   }, []);
+
+  // ─── Active Conversation Tracking for Push Suppression ─────────────────────
+  useEffect(() => {
+    if (conversationId) {
+      (global as any).activeConversationId = conversationId;
+    }
+    return () => {
+      (global as any).activeConversationId = null;
+    };
+  }, [conversationId]);
 
   // ─── Fetch ────────────────────────────────────────────────────────────────
   const fetchMessages = useCallback(async (showLoader: boolean) => {
@@ -123,7 +134,11 @@ export default function ConversationScreen() {
         await socketService.connect();
         await socketService.joinConversation(conversationId);
         socketService.onNewMessage(({ message, conversationId: cid }: any) => {
-          if (cid !== conversationId || !alive || message.sender_id === currentUserId) return;
+          if (cid !== conversationId || !alive) return;
+          if (message.sender_id === '00000000-0000-0000-0000-000000000001') {
+            setIsBotTyping(false);
+          }
+          if (message.sender_id === currentUserId) return;
           setMessages((prev) => {
             if (prev.some((m) => m.id === message.id)) return prev;
             return [...prev, message];
@@ -162,14 +177,17 @@ export default function ConversationScreen() {
       created_at: new Date().toISOString(),
       sender_id: currentUserId || '', pending: true,
     }]);
+    const isBot = participantId === '00000000-0000-0000-0000-000000000001' || displayName === 'Shopyos Bot';
+    if (isBot) {
+      setIsBotTyping(true);
+      // Auto-clear typing indicator after 8 seconds as safety fallback
+      setTimeout(() => setIsBotTyping(false), 8000);
+    }
     try {
       let sent;
-      if (socketService.isConnected()) {
-        sent = await socketService.sendMessage(conversationId, msgText);
-      } else {
-        const res = await apiSendMessage(conversationId, msgText);
-        sent = res.message;
-      }
+      const res = await apiSendMessage(conversationId, msgText);
+      sent = res.message;
+      
       setMessages((prev) => {
         const f = prev.filter((m) => m.id !== tempId);
         if (f.some((m) => m.id === sent.id)) return f;
@@ -427,6 +445,7 @@ export default function ConversationScreen() {
           <FlatList
             ref={listRef}
             data={messages}
+            style={{ flex: 1 }}
             keyExtractor={(item) => item.id}
             renderItem={renderMsg}
             contentContainerStyle={styles.listContent}
@@ -437,6 +456,21 @@ export default function ConversationScreen() {
             maxToRenderPerBatch={10}
             windowSize={10}
             removeClippedSubviews={Platform.OS === 'android'}
+            ListFooterComponent={isBotTyping ? (
+              <View style={styles.typingRow}>
+                {displayAvatar ? (
+                  <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+                ) : (
+                  <View style={[styles.msgAvatarFallback, { backgroundColor: C.navyDeep }]}>
+                    <Text style={[styles.msgAvatarTxt, { color: '#fff' }]}>{initials(displayName)}</Text>
+                  </View>
+                )}
+                <View style={[styles.bubble, styles.bubbleThem, styles.typingBubble]}>
+                  <Text style={styles.typingText}>Shopyos Bot is typing...</Text>
+                  <ActivityIndicator size="small" color={C.navyMid} style={{ marginLeft: 6 }} />
+                </View>
+              </View>
+            ) : null}
           />
         )}
 
@@ -684,6 +718,10 @@ const styles = StyleSheet.create({
 
   bubbleTxtMe:   { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
   bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, lineHeight: 21 },
+
+  typingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8, paddingLeft: 2 },
+  typingBubble: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 16 },
+  typingText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText },
   bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 21 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 4 },

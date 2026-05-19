@@ -85,8 +85,8 @@ async function query(sql, params = []) {
   return pool.query(sql, params);
 }
 
-async function insertUser(db, { email, name, phone, city, lat, lng, country = 'Ghana' }) {
-  const pw = await hash(PASSWORD);
+async function insertUser(db, { email, name, phone, city, lat, lng, country = 'Ghana', password = null }) {
+  const pw = await hash(password || PASSWORD);
   const { rows } = await db.query(
     `INSERT INTO users (email, password_hash, email_verified, is_active)
      VALUES ($1, $2, TRUE, TRUE) 
@@ -133,25 +133,29 @@ async function seed() {
     const roleMap = Object.fromEntries(roleRows.map(r => [r.name, r.id]));
     console.log('   ✅ Roles ready\n');
 
-    // ── 2. Support system user ────────────────────────────────────────────────
-    console.log('📌 Creating support user...');
+    // ── 2. Support system user (Shopyos Bot) ──────────────────────────────────
+    console.log('📌 Creating Shopyos Bot...');
     const pw = await hash('NOT_A_LOGIN_PASSWORD_DO_NOT_USE');
     await db.query(`
       INSERT INTO users (id, email, password_hash, email_verified, is_active)
-      VALUES ($1, 'support@shopyos.com', $2, TRUE, TRUE)
+      VALUES ($1, 'bot@shopyos.com', $2, TRUE, TRUE)
       ON CONFLICT (id) DO NOTHING
     `, [SUPPORT_USER_ID, pw]);
     await db.query(`
       UPDATE user_profiles SET full_name = $2, phone = $3, city = $4, country = $5
       WHERE user_id = $1
-    `, [SUPPORT_USER_ID, 'Shopyos Support', '+233000000000', 'Accra', 'Ghana']);
+    `, [SUPPORT_USER_ID, 'Shopyos Bot', '+233000000000', 'Accra', 'Ghana']);
     await assignRole(db, SUPPORT_USER_ID, roleMap.admin);
-    console.log('   ✅ Support user ready\n');
+    console.log('   ✅ Shopyos Bot ready\n');
 
     // ── 3. Admin user ─────────────────────────────────────────────────────────
     console.log('📌 Creating admin...');
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@shopyos.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || PASSWORD;
+    
     const adminId = await insertUser(db, {
-      email: 'admin@shopyos.com',
+      email: adminEmail,
+      password: adminPassword,
       name: 'Shopyos Admin',
       phone: '+233201000001',
       city: 'Accra',
@@ -671,7 +675,7 @@ async function seed() {
     console.log('');
     console.log('   Role     Email                      Password');
     console.log('   ──────   ──────────────────────     ─────────────');
-    console.log('   Admin    admin@shopyos.com           Password123!');
+    console.log(`   Admin    ${adminEmail.padEnd(26)} ${adminPassword}`);
     console.log('   Buyer    kwame@test.com              Password123!');
     console.log('   Buyer    ama@test.com                Password123!');
     console.log('   Seller   kofi.sells@test.com         Password123!');

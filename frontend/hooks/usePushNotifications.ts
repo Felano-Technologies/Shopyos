@@ -20,13 +20,27 @@ const ensureNotificationHandler = () => {
     if (!Notifications) return;
 
     Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-            shouldShowAlert: true,
-            shouldPlaySound: true,
-            shouldSetBadge: false,
-            shouldShowBanner: true,
-            shouldShowList: true,
-        }),
+        handleNotification: async (notification) => {
+            const data = notification?.request?.content?.data;
+            const activeId = (global as any).activeConversationId;
+
+            // Suppress foreground notification alert/banner if user is already inside this specific chat!
+            if (data?.screen === 'messages' && data?.conversationId && data?.conversationId === activeId) {
+                return {
+                    shouldShowAlert: false,
+                    shouldPlaySound: false,
+                    shouldSetBadge: false,
+                };
+            }
+
+            return {
+                shouldShowAlert: true,
+                shouldPlaySound: true,
+                shouldSetBadge: false,
+                shouldShowBanner: true,
+                shouldShowList: true,
+            };
+        },
     });
 
     notificationHandlerConfigured = true;

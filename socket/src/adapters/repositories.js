@@ -27,7 +27,7 @@ const findConversation = async (conversationId) => {
 const updateConversationLastActivity = async (conversationId) => {
   const db = getPool();
   await db.query(
-    'UPDATE conversations SET last_activity_at = NOW(), updated_at = NOW() WHERE id = $1',
+    'UPDATE conversations SET updated_at = NOW() WHERE id = $1',
     [conversationId]
   );
 };
@@ -72,7 +72,7 @@ const markConversationRead = async (conversationId, readerId) => {
   const db = getPool();
   const { rows } = await db.query(
     `UPDATE messages
-     SET is_read = TRUE, read_at = NOW()
+     SET is_read = TRUE
      WHERE conversation_id = $1
        AND sender_id != $2
        AND is_read = FALSE

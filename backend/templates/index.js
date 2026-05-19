@@ -445,6 +445,39 @@ const getOrderDeliveredTemplates = (data = {}) => {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+//  ADMIN BROADCAST (manual scheduled) & HOLIDAY CELEBRATION
+// ─────────────────────────────────────────────────────────────────────────────
+const getAdminBroadcastTemplate = (data = {}) => {
+    const subject = safe(data.subject, 'A message from Shopyos');
+    const html    = safe(data.html, `<p>${safe(data.textMsg, '')}</p>`);
+    const text    = safe(data.textMsg, subject);
+
+    return {
+        email: {
+            subject,
+            html: wrapHtml(subject, html)
+        },
+        sms: text
+    };
+};
+
+const getHolidayCelebrationTemplate = (data = {}) => {
+    const subject  = safe(data.subject, 'Happy Holidays from Shopyos! 🎉');
+    const bodyHtml = safe(data.html,
+        `<p style="font-size:18px;text-align:center;">${safe(data.textMsg, subject)}</p>`);
+    const text     = safe(data.textMsg, subject);
+
+    return {
+        email: {
+            subject,
+            html: wrapHtml(subject, bodyHtml)
+        },
+        sms: text
+    };
+};
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 //  ROUTER FUNCTIONS
 // ─────────────────────────────────────────────────────────────────────────────
 const getEmailTemplateByEvent = (eventType, role, templateData = {}) => {
@@ -465,6 +498,10 @@ const getEmailTemplateByEvent = (eventType, role, templateData = {}) => {
             return getDriverVerificationResultTemplates(templateData).email;
         case 'ORDER_DELIVERED':
             return getOrderDeliveredTemplates(templateData).email;
+        case 'admin_broadcast':
+            return getAdminBroadcastTemplate(templateData).email;
+        case 'holiday_celebration':
+            return getHolidayCelebrationTemplate(templateData).email;
         default:
             return null;
     }
@@ -480,6 +517,10 @@ const getSmsTemplateByEvent = (eventType, role, templateData = {}) => {
             return getOrderCreatedTemplates(role, templateData)?.sms;
         case 'ORDER_DELIVERED':
             return getOrderDeliveredTemplates(templateData).sms;
+        case 'admin_broadcast':
+            return getAdminBroadcastTemplate(templateData).sms;
+        case 'holiday_celebration':
+            return getHolidayCelebrationTemplate(templateData).sms;
         default:
             return null;
     }
@@ -494,6 +535,8 @@ module.exports = {
     getDriverVerificationSubmittedTemplates,
     getDriverVerificationResultTemplates,
     getOrderDeliveredTemplates,
+    getAdminBroadcastTemplate,
+    getHolidayCelebrationTemplate,
     getEmailTemplateByEvent,
     getSmsTemplateByEvent
 };

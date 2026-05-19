@@ -5,6 +5,9 @@ const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const { emitToConversation } = require('../config/socket');
+const aiService = require('../services/aiService');
+
+const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
 /**
  * @route   POST /api/messaging/conversations
@@ -197,6 +200,73 @@ const sendMessage = async (req, res, next) => {
         const recipientId = conversation.participant1_id === userId
           ? conversation.participant2_id
           : conversation.participant1_id;
+
+        // ─── AI CHATBOT INTERCEPTOR ──────────────────────────────────────────
+        if (recipientId === SUPPORT_BOT_ID) {
+          try {
+            // Fetch recent history (e.g. last 10 messages)
+            const history = await repositories.messages.getConversationMessages(conversationId, { limit: 10 });
+            // Reverse so oldest is first
+            history.reverse();
+            
+            const { reply, isEscalation } = await aiService.generateBotReply(userId, content.trim(), history);
+            
+            // Save bot reply
+            const botMessage = await repositories.messages.sendMessage({
+              conversationId,
+              senderId: SUPPORT_BOT_ID,
+              content: reply,
+              messageType: 'text'
+            });
+
+            const [, { data: botMessageWithSender }] = await Promise.all([
+              repositories.conversations.updateLastActivity(conversationId),
+              repositories.messages.db
+                .from('messages')
+                .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
+                .eq('id', botMessage.id)
+                .single()
+            ]);
+
+            emitToConversation(conversationId, 'message:new', {
+              message: botMessageWithSender || botMessage,
+              conversationId
+            });
+
+            // Send push and in-app notification for the bot's reply
+            await notificationService.sendNotification({
+              userId: userId,
+              type: 'new_message',
+              title: 'Shopyos Bot',
+              message: reply.substring(0, 100),
+              relatedId: conversationId,
+              relatedType: 'conversation',
+              data: {
+                conversationId,
+                messageId: botMessage.id
+              },
+              push: {
+                data: {
+                  screen: 'messages',
+                  conversationId,
+                  messageId: botMessage.id
+                }
+              }
+            }).catch(notifErr => {
+              logger.error('Failed to notify user of support bot message:', notifErr);
+            });
+
+            if (isEscalation) {
+              logger.info(`[Shopyos Bot] Escalation triggered for conversation ${conversationId}`);
+              // Emit special event or notify admins
+              emitToConversation(conversationId, 'conversation:escalated', { conversationId });
+            }
+          } catch (botErr) {
+            logger.error('[Shopyos Bot] Error replying:', botErr);
+          }
+          return; // Skip standard push notification to the bot
+        }
+        // ─────────────────────────────────────────────────────────────────────
 
         let senderName = 'Someone';
         if (messageWithSender?.sender?.user_profiles) {
