@@ -16,7 +16,33 @@ import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {  Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser } from '@/services/api';
+import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage } from '@/services/api';
+import { baseURL } from '@/services/api';
+
+const LOCAL_AVATAR_CACHE_KEY = 'lastUploadedAvatarUri';
+const toDisplayAvatarUrl = (raw?: string | null) => {
+  if (!raw) return null;
+  const value = String(raw).trim();
+  if (!value) return null;
+
+  if (/^https?:\/\//i.test(value)) {
+    // Uploaded media may come back as http; prefer https for remote hosts.
+    if (value.startsWith('http://') && !/http:\/\/(localhost|127\.0\.0\.1|10\.)/i.test(value)) {
+      return value.replace(/^http:\/\//i, 'https://');
+    }
+    return value;
+  }
+
+  // Absolute app-hosted path
+  if (value.startsWith('/')) return `${baseURL}${value}`;
+
+  // Opaque storage keys (e.g. "shopyos/avatars/...") should be left untouched
+  // if the API already returns full public URLs. Returning null avoids broken image fetches.
+  return null;
+};
+const isLocalhostLikeUrl = (value?: string | null) =>
+  !!value && /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(value);
+
 export default function SettingsScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('User');
@@ -92,9 +118,15 @@ export default function SettingsScreen() {
         try {
           const userData = await getUserData();
           if (userData) {
-            setUsername(userData.name || 'User');
-            setEmail(userData.email || '');
-            setAvatarUrl(userData.avatar_url || null);
+            const profile = userData.user || userData;
+            let resolvedAvatar = toDisplayAvatarUrl(profile.avatar_url || profile.avatar || null);
+            if (isLocalhostLikeUrl(resolvedAvatar)) {
+              const cachedLocalAvatar = await storage.getItem(LOCAL_AVATAR_CACHE_KEY);
+              if (cachedLocalAvatar) resolvedAvatar = cachedLocalAvatar;
+            }
+            setUsername(profile.name || 'User');
+            setEmail(profile.email || '');
+            setAvatarUrl(resolvedAvatar);
           }
           const prefs = await getNotificationPreferences();
           if (prefs && prefs.success) {
@@ -177,7 +209,7 @@ export default function SettingsScreen() {
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={styles.headerContent}>
             <Text style={styles.screenTitle}>Settings</Text>
-            {/* Profile Card */}
+            {/* Profile Header (WhatsApp-style) */}
             {isLoading ? (
               <View style={styles.profileCard}>
                 <Animated.View style={[styles.avatarSkeleton, { opacity: skeletonAnim }]} />
@@ -187,22 +219,32 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <View style={styles.profileCard} ref={refProfile} onLayout={() => measureElement(refProfile, 'profile')}>
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={styles.profileCard}
+                onPress={() => router.push('/settings/Account')}
+                ref={refProfile}
+                onLayout={() => measureElement(refProfile, 'profile')}
+              >
                 <View style={styles.avatarContainer}>
                   {avatarUrl ? (
-                    <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
+                    <Image
+                      source={{ uri: avatarUrl }}
+                      style={styles.avatarImage}
+                      onError={() => setAvatarUrl(null)}
+                    />
                   ) : (
                     <Text style={styles.avatarText}>{username.charAt(0)}</Text>
                   )}
                 </View>
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>{username}</Text>
-                  <Text style={styles.profileEmail}>{email}</Text>
+                  <Text style={styles.profileEmail}>{email || 'View and edit profile'}</Text>
                 </View>
-                <TouchableOpacity style={styles.editBtn} onPress={() => router.push('/settings/Account')} ref={refEdit} onLayout={() => measureElement(refEdit, 'edit')}>
-                  <Feather name="edit-2" size={16} color="#FFF" />
-                </TouchableOpacity>
-              </View>
+                <View style={styles.profileAction} ref={refEdit} onLayout={() => measureElement(refEdit, 'edit')}>
+                  <Feather name="chevron-right" size={20} color="#E2E8F0" />
+                </View>
+              </TouchableOpacity>
             )}
           </View>
         </SafeAreaView>
@@ -338,18 +380,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: 20,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
   },
   avatarContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: '#84cc16', // Lime Green
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: '#FFF',
     overflow: 'hidden',
   },
@@ -359,16 +402,16 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   avatarText: {
-    fontSize: 24,
+    fontSize: 28,
     fontFamily: 'Montserrat-Bold',
     color: '#0C1559',
   },
   
   // Skeleton Styles
   avatarSkeleton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   nameSkeleton: {
@@ -389,20 +432,24 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   profileName: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Montserrat-Bold',
     color: '#FFF',
   },
   profileEmail: {
-    fontSize: 12,
+    fontSize: 13,
     fontFamily: 'Montserrat-Medium',
     color: '#CBD5E1',
-    marginTop: 2,
+    marginTop: 3,
   },
-  editBtn: {
-    padding: 8,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
+  profileAction: {
+    marginLeft: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   // Content
   scrollView: {

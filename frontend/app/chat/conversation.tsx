@@ -46,6 +46,9 @@ type MessageItem = {
   id: string;
   content: string;
   created_at: string;
+  timestamp?: string;
+  createdAt?: string;
+  sent_at?: string;
   sender_id: string;
   message_type?: string;
   is_read?: boolean;
@@ -309,12 +312,26 @@ export default function ConversationScreen() {
   };
 
   // ─── Helpers ───────────────────────────────────────────────────────────────
-  const fmtTime = (d: string) => {
-    try { return new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
-    catch { return ''; }
+  const getMessageTimestamp = (msg?: Partial<MessageItem> | null) =>
+    msg?.created_at || msg?.timestamp || msg?.createdAt || msg?.sent_at || null;
+
+  const parseSafeDate = (value?: string | number | null) => {
+    if (value === undefined || value === null) return null;
+    if (typeof value === 'string' && (!value.trim() || value.trim().toLowerCase() === 'invalid date')) return null;
+    const date =
+      typeof value === 'number'
+        ? new Date(value < 1e12 ? value * 1000 : value)
+        : new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
   };
-  const fmtDate = (d: string) => {
-    const date = new Date(d);
+  const fmtTime = (msg: MessageItem) => {
+    const date = parseSafeDate(getMessageTimestamp(msg));
+    const safeDate = date || new Date();
+    return safeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  const fmtDate = (msg: MessageItem) => {
+    const date = parseSafeDate(getMessageTimestamp(msg));
+    if (!date) return 'Today';
     const today = new Date(); const yday = new Date(today); yday.setDate(yday.getDate() - 1);
     if (date.toDateString() === today.toDateString()) return 'Today';
     if (date.toDateString() === yday.toDateString()) return 'Yesterday';
@@ -322,8 +339,10 @@ export default function ConversationScreen() {
   };
   const showDate = useCallback((i: number) => {
     if (i === 0) return true;
-    return new Date(messages[i].created_at).toDateString() !==
-           new Date(messages[i - 1].created_at).toDateString();
+    const current = parseSafeDate(getMessageTimestamp(messages[i]));
+    const prev = parseSafeDate(getMessageTimestamp(messages[i - 1]));
+    if (!current || !prev) return i === 0;
+    return current.toDateString() !== prev.toDateString();
   }, [messages]);
 
   // ─── Message bubble ────────────────────────────────────────────────────────
@@ -370,7 +389,7 @@ export default function ConversationScreen() {
         {showDate(index) && (
           <View style={styles.dateSep}>
             <View style={styles.datePill}>
-              <Text style={styles.dateText}>{fmtDate(item.created_at)}</Text>
+              <Text style={styles.dateText}>{fmtDate(item)}</Text>
             </View>
           </View>
         )}
@@ -406,7 +425,7 @@ export default function ConversationScreen() {
                 {renderReplyPreview(item, true)}
                 <Text style={styles.bubbleTxtMe}>{item.content}</Text>
                 <View style={styles.metaRow}>
-                  <Text style={styles.metaTimeMe}>{fmtTime(item.created_at)}</Text>
+                  <Text style={styles.metaTimeMe}>{fmtTime(item)}</Text>
                   {!item.failed && (
                     <Ionicons
                       name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
@@ -430,7 +449,7 @@ export default function ConversationScreen() {
                 {renderReplyPreview(item, false)}
                 <Text style={styles.bubbleTxtThem}>{item.content}</Text>
                 <View style={styles.metaRow}>
-                  <Text style={styles.metaTimeThem}>{fmtTime(item.created_at)}</Text>
+                  <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
                 </View>
               </>
             )}

@@ -395,17 +395,53 @@ export const updateOnboardingState = async (screen: string, completed: boolean =
   }
 };
 // ─── Uploads ───────────────────────────────────────────────────────────────────
-export const uploadAvatar = async (uri: string) => {
+export const uploadAvatar = async (
+  uri: string,
+  options?: { fileName?: string; mimeType?: string }
+) => {
   try {
     const formData = new FormData();
-    const filename = uri.split('/').pop() || 'avatar.jpg';
-    const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : `image/jpeg`;
-    formData.append('avatar', { uri, name: filename, type } as any);
-    const response = await api.post('/upload/avatar', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+    // RN fetch expects the native URI scheme (file://, content://, ph://) intact.
+    // Stripping file:// can cause "Network request failed" during multipart upload.
+    const safeUri = uri;
+    const filename = options?.fileName || uri.split('/').pop() || `avatar_${Date.now()}.jpg`;
+    const ext = (filename.split('.').pop() || '').toLowerCase();
+    const inferredType =
+      ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
+      ext === 'png' ? 'image/png' :
+      ext === 'webp' ? 'image/webp' :
+      ext === 'heic' ? 'image/heic' :
+      'image/jpeg';
+    const type = options?.mimeType || inferredType;
+
+    formData.append('avatar', { uri: safeUri, name: filename, type } as any);
+
+    const token =
+      await secureStorage.getItem('userToken') ||
+      await secureStorage.getItem('businessToken');
+
+    const response = await fetch(`${API_URL}upload/avatar`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
     });
-    return response.data;
+
+    const raw = await response.text();
+    let parsed: any = null;
+    try { parsed = raw ? JSON.parse(raw) : null; } catch {}
+
+    if (!response.ok) {
+      const msg =
+        parsed?.error ||
+        (Array.isArray(parsed?.errors) ? parsed.errors.join(', ') : null) ||
+        `Failed to upload avatar (${response.status})`;
+      throw new Error(msg);
+    }
+
+    return parsed;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to upload avatar');
     throw new Error(error.message || 'Network error during avatar upload');

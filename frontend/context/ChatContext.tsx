@@ -51,6 +51,26 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
     pathnameRef.current = pathname;
     conversationIdRef.current = searchParams?.conversationId;
   }, [pathname, searchParams?.conversationId]);
+  const parseSafeDate = (value?: string | null) => {
+    if (!value) return null;
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  const formatSafeTime = (value?: string | null) => {
+    const d = parseSafeDate(value);
+    if (!d) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const resolveConversationTimestamp = (c: any) =>
+    c?.updatedAt ||
+    c?.updated_at ||
+    c?.lastMessage?.created_at ||
+    c?.lastMessage?.timestamp ||
+    c?.lastMessage?.createdAt ||
+    null;
+
   const fetchChats = useCallback(async () => {
     try {
       const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
@@ -86,7 +106,7 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
           }
           const lastMsgSenderId = c.lastMessage?.sender_id;
           const isMe = activeUserId && lastMsgSenderId === activeUserId;
-          const time = c.updatedAt ? new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+          const time = formatSafeTime(resolveConversationTimestamp(c));
           return {
             id: c.id,
             name,
@@ -141,10 +161,12 @@ export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
               ? {
                   ...c,
                   lastMessage: message.content,
-                  time: new Date(message.created_at).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  }),
+                  time: formatSafeTime(
+                    message?.created_at ||
+                    message?.timestamp ||
+                    message?.createdAt ||
+                    message?.sent_at
+                  ),
                   unread: isMe || isViewing ? c.unread : c.unread + 1
                 }
               : c

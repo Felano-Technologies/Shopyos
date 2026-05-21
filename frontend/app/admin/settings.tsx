@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   StyleSheet,
   Switch,
   Text,
@@ -12,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
 import { adminColors } from '@/components/admin/adminTheme';
+import { getUserData } from '@/services/api';
 
 function SettingItem({
   icon,
@@ -57,6 +59,36 @@ export default function AdminSettings() {
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [autoApproveSellers, setAutoApproveSellers] = useState(false);
+  const [profileName, setProfileName] = useState('Admin');
+  const [profileRole, setProfileRole] = useState('Super Administrator');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const data = await getUserData();
+        const user = data?.user || data || {};
+        if (!mounted) return;
+        const name = user?.name || user?.full_name || 'Admin';
+        const role = user?.role || user?.account_type || 'Super Administrator';
+        const avatar = user?.avatar_url || user?.avatar || null;
+        setProfileName(name);
+        setProfileRole(String(role).replace(/_/g, ' ').replace(/\b\w/g, (m: string) => m.toUpperCase()));
+        setProfileImage(avatar);
+      } catch {
+        // Keep defaults if profile fetch fails.
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const profileInitial = useMemo(
+    () => (profileName || 'A').trim().charAt(0).toUpperCase(),
+    [profileName]
+  );
 
   const handleLogout = () => {
     Alert.alert('Sign Out', 'Are you sure you want to log out of the admin portal?', [
@@ -77,14 +109,18 @@ export default function AdminSettings() {
         <View style={styles.page}>
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
-              <View style={styles.profileAvatar}>
-                <Text style={styles.profileInitial}>A</Text>
-              </View>
+              {profileImage ? (
+                <Image source={{ uri: profileImage }} style={styles.profileAvatarImage} />
+              ) : (
+                <View style={styles.profileAvatar}>
+                  <Text style={styles.profileInitial}>{profileInitial}</Text>
+                </View>
+              )}
               <View style={styles.onlineDot} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>Admin</Text>
-              <Text style={styles.profileRole}>Super Administrator</Text>
+              <Text style={styles.profileName}>{profileName}</Text>
+              <Text style={styles.profileRole}>{profileRole}</Text>
             </View>
             <View style={styles.profileBadge}>
               <Ionicons name="shield-checkmark-outline" size={16} color={adminColors.blue} />
@@ -187,6 +223,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#DBEAFE',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  profileAvatarImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 22,
+    backgroundColor: '#DBEAFE',
   },
   profileInitial: {
     color: adminColors.blue,
