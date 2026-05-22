@@ -7,6 +7,7 @@ const notificationService = require('../services/notificationService');
 const { emitToConversation } = require('../config/socket');
 const aiService = require('../services/aiService');
 const { toPublicUrl } = require('../config/storage');
+const { moderateText } = require('../services/moderationService');
 
 const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -172,11 +173,17 @@ const sendMessage = async (req, res, next) => {
       });
     }
 
+    // Moderate content before sending
+    const moderationResult = moderateText(content.trim());
+    const finalContent = moderationResult.content;
+    const isModerated = moderationResult.isModerated;
+
     // Send message
     const message = await repositories.messages.sendMessage({
       conversationId,
       senderId: userId,
-      content: content.trim(),
+      content: finalContent,
+      isModerated,
       messageType,
       attachmentUrl,
       replyToMessageId
@@ -233,13 +240,17 @@ const sendMessage = async (req, res, next) => {
 
         // ─── AI CHATBOT INTERCEPTOR ──────────────────────────────────────────
         if (recipientId === SUPPORT_BOT_ID) {
+          if (isModerated) {
+            logger.info(`[Shopyos Bot] Skipping bot response for moderated REST message.`);
+            return;
+          }
           try {
             // Fetch recent history (e.g. last 10 messages)
             const history = await repositories.messages.getConversationMessages(conversationId, { limit: 10 });
             // Reverse so oldest is first
             history.reverse();
             
-            const { reply, isEscalation } = await aiService.generateBotReply(userId, content.trim(), history);
+            const { reply, isEscalation } = await aiService.generateBotReply(userId, finalContent, history);
             
             // Save bot reply
             const botMessage = await repositories.messages.sendMessage({

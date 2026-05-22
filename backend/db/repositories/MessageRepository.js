@@ -20,6 +20,7 @@ class MessageRepository extends BaseRepository {
         conversation_id: messageData.conversationId,
         sender_id: messageData.senderId,
         content: messageData.content,
+        is_moderated: messageData.isModerated || false,
         message_type: messageData.messageType || 'text',
         attachment_url: messageData.attachmentUrl || null,
         reply_to_message_id: messageData.replyToMessageId || null

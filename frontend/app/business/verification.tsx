@@ -21,6 +21,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { verifyBusinessDetails } from '@/services/api';
 type BusinessDetails = {
   ownerName: string;
@@ -84,9 +85,10 @@ const BusinessVerification = () => {
       }
     } catch (e) { console.log(e); } finally { setUploading(false); }
   };
+  const showImagePicker = useImagePickerSheet();
   const handleUploadLogo = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-    if (!result.canceled) setDetails(prev => ({ ...prev, logo: result.assets[0].uri }));
+    const uri = await showImagePicker({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+    if (uri) setDetails(prev => ({ ...prev, logo: uri }));
   };
   const handleVerify = async () => {
     // Original Validation Logic

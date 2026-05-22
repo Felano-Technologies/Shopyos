@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { Ionicons } from '@expo/vector-icons';
 import { createSnap, uploadSnapImage } from '@/services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -12,18 +12,10 @@ export default function CreateSnapScreen() {
   const [caption, setCaption] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [9, 16],
-      quality: 0.8,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0].uri) {
-      setImageUri(result.assets[0].uri);
-    }
+    const uri = await showImagePicker({ allowsEditing: true, aspect: [9, 16], quality: 0.8 });
+    if (uri) setImageUri(uri);
   };
 
   const uploadToBackend = async (uri: string) => {

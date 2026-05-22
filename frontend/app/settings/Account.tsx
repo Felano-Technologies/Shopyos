@@ -20,8 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { getUserData, updateProfile, getPaymentMethods, uploadAvatar, storage } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import TappableAvatar from '@/components/TappableAvatar';
 // removed useCloudinaryUpload import
 // --- 1. DATA CONSTANTS ---
 const AVATAR_SEEDS = [
@@ -146,7 +148,6 @@ export default function AccountScreen() {
   );
   // Modals
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [showImagePreview, setShowImagePreview] = useState(false);
   const [showCountryModal, setShowCountryModal] = useState(false);
   const [showRegionModal, setShowRegionModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false); // New Success Modal State
@@ -259,46 +260,32 @@ export default function AccountScreen() {
       </View>
     </Modal>
   );
+  const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
+      const uri = await showImagePicker({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      if (!uri) return;
+      const asset = { uri, fileSize: undefined as number | undefined, mimeType: undefined as string | undefined };
+      const maxAvatarSize = 2 * 1024 * 1024;
+      const mime = (asset.mimeType || '').toLowerCase();
+      const unsupported = mime && !mime.startsWith('image/');
+      if ((asset.fileSize || 0) > maxAvatarSize) {
+        alert('Image is too large. Please choose one under 2MB.');
         return;
       }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets[0].uri) {
-        const asset = result.assets[0];
-        const maxAvatarSize = 2 * 1024 * 1024;
-        const mime = (asset.mimeType || '').toLowerCase();
-        const unsupported = mime && !mime.startsWith('image/');
-        if ((asset.fileSize || 0) > maxAvatarSize) {
-          alert('Image is too large. Please choose one under 2MB.');
-          return;
-        }
-        if (unsupported) {
-          alert('Unsupported image type. Please choose JPG, PNG, or WEBP.');
-          return;
-        }
-        setShowAvatarModal(false);
-        setUploading(true);
-        const res = await uploadAvatar(asset.uri, {
-          fileName: asset.fileName || undefined,
-          mimeType: asset.mimeType || undefined,
-        });
-        if (res && res.success) {
-          // Profile is already updated on the backend by /upload/avatar
-          const uploadedAvatar = res?.data?.public_url || res?.data?.url || userData.avatar;
-          const safeAvatarToShow = isLocalhostLikeUrl(uploadedAvatar) ? asset.uri : uploadedAvatar;
-          setUserData({ ...userData, avatar: safeAvatarToShow });
-          await storage.setItem(LOCAL_AVATAR_CACHE_KEY, asset.uri);
-          CustomInAppToast.show({ type: 'success', title: 'Image Uploaded', message: 'Profile photo updated successfully!' });
-        }
+      if (unsupported) {
+        alert('Unsupported image type. Please choose JPG, PNG, or WEBP.');
+        return;
+      }
+      setShowAvatarModal(false);
+      setUploading(true);
+      const res = await uploadAvatar(uri);
+      if (res && res.success) {
+        const uploadedAvatar = res?.data?.public_url || res?.data?.url || userData.avatar;
+        const safeAvatarToShow = isLocalhostLikeUrl(uploadedAvatar) ? uri : uploadedAvatar;
+        setUserData({ ...userData, avatar: safeAvatarToShow });
+        await storage.setItem(LOCAL_AVATAR_CACHE_KEY, uri);
+        CustomInAppToast.show({ type: 'success', title: 'Image Uploaded', message: 'Profile photo updated successfully!' });
       }
     } catch (error: any) {
       console.error('Failed to pick/upload image:', error);
@@ -324,30 +311,17 @@ export default function AccountScreen() {
             <View style={{ width: 40 }} />
           </View>
           <View style={styles.profileSection}>
-            <View style={styles.imageWrapper}>
-              <TouchableOpacity
-                activeOpacity={0.9}
-                disabled={loading || !userData.avatar}
-                onPress={() => setShowImagePreview(true)}
-              >
-                {loading ? (
-                  <View style={styles.profileImageSkeleton} />
-                ) : (
-                  <Image
-                    key={userData.avatar}
-                    source={{ uri: userData.avatar }}
-                    style={styles.profileImage}
-                    defaultSource={require('../../assets/images/icon.png')}
-                  />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.cameraBadge}
-                onPress={() => setShowAvatarModal(true)}
-              >
-                <Ionicons name="camera" size={16} color="#0C1559" />
-              </TouchableOpacity>
-            </View>
+            {loading ? (
+              <View style={[styles.profileImageSkeleton, { marginBottom: 12 }]} />
+            ) : (
+              <TappableAvatar
+                uri={userData.avatar}
+                size={100}
+                label={userData.name}
+                onEditPress={() => setShowAvatarModal(true)}
+                style={{ marginBottom: 12 }}
+              />
+            )}
             {loading ? (
               <>
                 <View style={styles.nameSkeleton} />
@@ -556,28 +530,7 @@ export default function AccountScreen() {
         </View>
       </Modal>
 
-      {/* --- PROFILE IMAGE PREVIEW MODAL --- */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showImagePreview}
-        onRequestClose={() => setShowImagePreview(false)}
-      >
-        <View style={styles.previewOverlay}>
-          <TouchableOpacity
-            style={styles.previewCloseBtn}
-            onPress={() => setShowImagePreview(false)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="close" size={26} color="#FFF" />
-          </TouchableOpacity>
-          <Image
-            source={{ uri: userData.avatar }}
-            style={styles.previewImage}
-            resizeMode="contain"
-          />
-        </View>
-      </Modal>
+
     </View>
   );
 }

@@ -14,11 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getUserData, logoutUser, storage } from '../services/api';
-
+import TappableAvatar from '@/components/TappableAvatar';
 
 interface User {
   name: string;
   email: string;
+  avatar_url?: string | null;
   wallet_balance?: number;
   referral_code?: string;
 }
@@ -67,6 +68,7 @@ export default function UserProfile() {
         setUser({
           name: response.name,
           email: response.email,
+          avatar_url: response.avatar_url || response.avatar || null,
           wallet_balance: response.wallet_balance,
           referral_code: response.referral_code
         });
@@ -119,6 +121,12 @@ export default function UserProfile() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Basic Info Card */}
         <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
+          <TappableAvatar
+            uri={user.avatar_url}
+            size={80}
+            label={user.name}
+            style={{ marginBottom: 12 }}
+          />
           <Text style={[styles.userName, { color: primaryText }]}>{user.name}</Text>
           <Text style={[styles.userEmail, { color: secondaryText }]}>{user.email}</Text>
           

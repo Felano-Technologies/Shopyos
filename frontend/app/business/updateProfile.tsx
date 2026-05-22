@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useMyBusinesses, useUpdateBusiness } from '@/hooks/useBusiness';
 const InputField = React.memo(function InputField({
   label,
@@ -99,28 +100,17 @@ const BusinessUpdateScreen = () => {
     }
   }, [bizData]);
   // --- Logic ---
+  const showImagePicker = useImagePickerSheet();
   const pickImage = async (type: 'logo' | 'cover') => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Required', 'We need camera roll permissions.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      const uri = await showImagePicker({
         allowsEditing: true,
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,
       });
-      if (!result.canceled) {
-        const uri = result.assets[0].uri;
-        if (type === 'logo') {
-          setLogo(uri);
-          setLogoChanged(true);
-        } else {
-          setCoverImage(uri);
-          setCoverChanged(true);
-        }
+      if (uri) {
+        if (type === 'logo') { setLogo(uri); setLogoChanged(true); }
+        else { setCoverImage(uri); setCoverChanged(true); }
       }
     } catch {
       Alert.alert('Error', 'Failed to pick image');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, SectionList,
   Image, Dimensions, ActivityIndicator,
@@ -31,12 +31,24 @@ const C = {
 };
 
 const ICON_CFG: Record<string, { name: any; color: string; bg: string; bar: string }> = {
-  order:   { name: 'shopping-bag',  color: '#2563EB', bg: '#EFF6FF', bar: '#2563EB' },
-  alert:   { name: 'alert-triangle',color: '#D97706', bg: '#FFFBEB', bar: '#F59E0B' },
-  success: { name: 'check-circle',  color: '#059669', bg: '#ECFDF5', bar: '#84cc16' },
-  info:    { name: 'info',          color: C.muted,   bg: '#F1F5F9', bar: C.navy    },
+  order:     { name: 'shopping-bag',   color: '#2563EB', bg: '#EFF6FF', bar: '#2563EB' },
+  message:   { name: 'mail',           color: '#8B5CF6', bg: '#F5F3FF', bar: '#8B5CF6' },
+  payment:   { name: 'credit-card',    color: '#10B981', bg: '#ECFDF5', bar: '#10B981' },
+  alert:     { name: 'alert-triangle', color: '#D97706', bg: '#FFFBEB', bar: '#F59E0B' },
+  success:   { name: 'check-circle',   color: '#059669', bg: '#ECFDF5', bar: '#84cc16' },
+  info:      { name: 'info',           color: C.muted,   bg: '#F1F5F9', bar: C.navy    },
 };
-const getIcon = (type: string) => ICON_CFG[type] ?? ICON_CFG.info;
+
+const getIcon = (type: string) => {
+  const t = type?.toLowerCase() || '';
+  if (t.startsWith('order') || t.includes('purchase') || t === 'new_order') return ICON_CFG.order;
+  if (t.startsWith('message') || t.includes('chat') || t.startsWith('new_message')) return ICON_CFG.message;
+  if (t.startsWith('payment') || t.includes('payout') || t.includes('escrow') || t === 'payout_released') return ICON_CFG.payment;
+  if (t.startsWith('low_stock') || t.includes('alert') || t.includes('warning')) return ICON_CFG.alert;
+  if (t.includes('success') || t.includes('approved') || t.includes('verification')) return ICON_CFG.success;
+  
+  return ICON_CFG[t] ?? ICON_CFG.info;
+};
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -48,15 +60,18 @@ export default function NotificationsScreen() {
   const markAllMutation  = useMarkAllNotificationsRead();
   const markOneMutation  = useMarkNotificationRead();
 
-  const [sections, setSections] = useState<any[]>([]);
+  // Optimistic local read state
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
 
-  // Group raw notifications into Today / Yesterday / Earlier sections
-  useEffect(() => {
-    if (!data?.notifications) return;
+  const isRead = useCallback((n: any) => n.is_read || readIds.has(n.id), [readIds]);
 
+  // Derived sections and counts directly from query data
+  const rawNotifications: any[] = useMemo(() => data?.notifications ?? [], [data?.notifications]);
+
+  const sections = useMemo(() => {
     const today: any[] = [], yesterday: any[] = [], earlier: any[] = [];
 
-    data.notifications.forEach((n: any) => {
+    rawNotifications.forEach((n: any) => {
       const date = new Date(n.created_at);
       const item = {
         id:       n.id,
@@ -64,8 +79,8 @@ export default function NotificationsScreen() {
         title:    n.title,
         message:  n.message,
         time:     format(date, 'h:mm a'),
-        read:     n.read,
         fullDate: date,
+        raw:      n
       };
 
       if (isToday(date))     today.push(item);
@@ -78,49 +93,43 @@ export default function NotificationsScreen() {
     if (yesterday.length) grouped.push({ title: 'Yesterday', data: yesterday });
     if (earlier.length)   grouped.push({ title: 'Earlier',   data: earlier   });
 
-    setSections(grouped);
-  }, [data]);
+    return grouped;
+  }, [rawNotifications]);
+
+  const unreadCount = useMemo(() => {
+    return rawNotifications.filter((n) => !isRead(n)).length;
+  }, [rawNotifications, isRead]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
-  if (isChecking || !isVerified) {
-    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
-  }
-
   // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleMarkAll = async () => {
+  const handleMarkAll = useCallback(async () => {
     try {
+      const allIds = rawNotifications.map((n) => n.id);
+      setReadIds(new Set(allIds));
       await markAllMutation.mutateAsync();
       await refetch();
     } catch (e) { console.error('Mark all read failed', e); }
-  };
+  }, [rawNotifications, markAllMutation, refetch]);
 
-  const handleItemPress = async (id: string) => {
-    // Optimistic — mark locally immediately
-    setSections((prev) =>
-      prev.map((sec) => ({
-        ...sec,
-        data: sec.data.map((item: any) =>
-          item.id === id ? { ...item, read: true } : item
-        ),
-      }))
-    );
+  const handleItemPress = useCallback(async (id: string) => {
+    setReadIds((prev) => new Set([...prev, id]));
     try { await markOneMutation.mutateAsync(id); }
     catch (e) { console.error('Mark one read failed', e); }
-  };
+  }, [markOneMutation]);
 
   // ── Renders ───────────────────────────────────────────────────────────────
-  const renderSectionHeader = ({ section: { title } }: any) => (
+  const renderSectionHeader = useCallback(({ section: { title } }: any) => (
     <View style={S.sectionHeaderWrap}>
       <View style={S.sectionPill}>
         <Text style={S.sectionPillTxt}>{title}</Text>
       </View>
     </View>
-  );
+  ), []);
 
-  const renderItem = ({ item, index, section }: any) => {
+  const renderItem = useCallback(({ item, index, section }: any) => {
     const cfg        = getIcon(item.type);
     const isLast     = index === section.data.length - 1;
-    const isUnread   = !item.read;
+    const isUnread   = !isRead(item.raw);
 
     return (
       <TouchableOpacity
@@ -161,7 +170,11 @@ export default function NotificationsScreen() {
         {isUnread && <View style={S.unreadDot} />}
       </TouchableOpacity>
     );
-  };
+  }, [isRead, handleItemPress]);
+
+  if (isChecking || !isVerified) {
+    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
+  }
 
   return (
     <View style={S.root}>
@@ -190,11 +203,9 @@ export default function NotificationsScreen() {
               <Text style={S.hdrEye}>Your</Text>
               <Text style={S.hdrTitle}>
                 Notifications{' '}
-                {sections.reduce((s, sec) => s + sec.data.filter((i: any) => !i.read).length, 0) > 0
-                  ? <Text style={{ color: C.lime }}>
-                      {`(${sections.reduce((s, sec) => s + sec.data.filter((i: any) => !i.read).length, 0)})`}
-                    </Text>
-                  : null}
+                {unreadCount > 0 ? (
+                  <Text style={{ color: C.lime }}>{` (${unreadCount})`}</Text>
+                ) : null}
               </Text>
             </View>
 

@@ -10,6 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { 
   getMyBannerCampaigns, 
   createBannerCampaign, 
@@ -84,16 +85,10 @@ export default function PromotionsScreen() {
     }
   }, [activeTab]);
   const totalCost = PRICING[placement] * duration;
+  const showImagePicker = useImagePickerSheet();
   const handlePickImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [10.8, 4], // for 1080x400
-      quality: 1,
-    });
-    if (!result.canceled) {
-      setBannerUri(result.assets[0].uri);
-    }
+    const uri = await showImagePicker({ allowsEditing: true, aspect: [10.8, 4], quality: 1 });
+    if (uri) setBannerUri(uri);
   };
   const getStatusColor = (status: string) => {
     switch (status) {

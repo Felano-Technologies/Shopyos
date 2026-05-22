@@ -1101,15 +1101,16 @@ const getAllBusinesses = async (req, res, next) => {
         category,
         logo_url,
         average_rating,
+        total_reviews,
         is_verified,
         is_trusted,
         owner_id,
         products:products(count)
       `)
-      .eq('is_active', true);
-
-    // Always show only verified stores to customers
-    dataQuery = dataQuery.eq('is_verified', true);
+      .eq('is_active', true)
+      // Use the authoritative status column — the is_verified boolean may lag
+      // if the sync step in verifyStore() ever fails.
+      .eq('verification_status', 'verified');
 
     // DB-level search (replaces old in-memory filter)
     if (search) {
@@ -1130,10 +1131,8 @@ const getAllBusinesses = async (req, res, next) => {
     let countQuery = repositories.stores.db
       .from('stores')
       .select('id', { count: 'exact', head: true })
-      .eq('is_active', true);
-
-    // Always count only verified stores
-    countQuery = countQuery.eq('is_verified', true);
+      .eq('is_active', true)
+      .eq('verification_status', 'verified');
 
     if (search) {
       countQuery = countQuery.ilike('store_name', `%${search}%`);
@@ -1156,6 +1155,7 @@ const getAllBusinesses = async (req, res, next) => {
       category: s.category,
       logo: toPublicUrl(s.logo_url),
       rating: s.average_rating || 0,
+      reviewCount: s.total_reviews || 0,
       verified: s.is_verified || false,
       isTrusted: s.is_trusted || false,
       ownerId: s.owner_id,

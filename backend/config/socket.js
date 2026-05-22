@@ -103,6 +103,207 @@ function initializeSocket(httpServer) {
       logger.debug(`User ${socket.userId} left room ${room}`);
     });
 
+    // High-level conversation joining (matches frontend socketService)
+    socket.on('conversation:join', ({ conversationId }, callback) => {
+      const room = `conversation:${conversationId}`;
+      socket.join(room);
+      logger.info(`User ${socket.userId} joined conversation room ${room} via high-level event`);
+      if (typeof callback === 'function') {
+        callback({ success: true });
+      }
+    });
+
+    socket.on('conversation:leave', ({ conversationId }, callback) => {
+      const room = `conversation:${conversationId}`;
+      socket.leave(room);
+      logger.info(`User ${socket.userId} left conversation room ${room} via high-level event`);
+      if (typeof callback === 'function') {
+        callback({ success: true });
+      }
+    });
+
+    socket.on('conversation:read', async ({ conversationId }, callback) => {
+      try {
+        const repositories = require('../db/repositories');
+        await repositories.messages.markConversationAsRead(conversationId, socket.userId);
+        logger.info(`User ${socket.userId} marked conversation ${conversationId} as read via socket`);
+        if (typeof callback === 'function') {
+          callback({ success: true });
+        }
+      } catch (err) {
+        logger.error(`Error marking conversation ${conversationId} as read via socket: ${err.message}`);
+        if (typeof callback === 'function') {
+          callback({ success: false, error: err.message });
+        }
+      }
+    });
+
+    socket.on('message:send', async ({ conversationId, content, messageType = 'text', attachmentUrl }, callback) => {
+      try {
+        const repositories = require('../db/repositories');
+        const notificationService = require('../services/notificationService');
+        const aiService = require('../services/aiService');
+        const { toPublicUrl } = require('../config/storage');
+        const { moderateText } = require('../services/moderationService');
+        const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
+
+        const formatAvatars = (obj) => {
+          if (!obj) return obj;
+          if (Array.isArray(obj)) return obj.map(formatAvatars);
+          if (typeof obj === 'object') {
+            const formatted = {};
+            for (const [key, value] of Object.entries(obj)) {
+              if ((key === 'avatar_url' || key === 'avatar') && typeof value === 'string' && value) {
+                formatted[key] = toPublicUrl(value);
+              } else {
+                formatted[key] = formatAvatars(value);
+              }
+            }
+            return formatted;
+          }
+          return obj;
+        };
+
+        const moderationResult = moderateText(content.trim());
+        const finalContent = moderationResult.content;
+        const isModerated = moderationResult.isModerated;
+
+        const message = await repositories.messages.sendMessage({
+          conversationId,
+          senderId: socket.userId,
+          content: finalContent,
+          isModerated,
+          messageType,
+          attachmentUrl
+        });
+
+        const [, { data: messageWithSender }] = await Promise.all([
+          repositories.conversations.updateLastActivity(conversationId),
+          repositories.messages.db
+            .from('messages')
+            .select(`
+              *,
+              sender:sender_id (
+                id,
+                user_profiles (full_name, avatar_url)
+              )
+            `)
+            .eq('id', message.id)
+            .single()
+        ]);
+
+        const fullMessage = messageWithSender || message;
+        const formattedMsg = formatAvatars(fullMessage);
+
+        // Broadcast to all sockets in conversation room (including sender)
+        emitToConversation(conversationId, 'message:new', {
+          message: formattedMsg,
+          conversationId
+        });
+
+        // Trigger callback to sender acknowledging success
+        if (typeof callback === 'function') {
+          callback({ success: true, message: formattedMsg });
+        }
+
+        // Trigger AI bot or notifications in background
+        (async () => {
+          try {
+            const conversation = await repositories.conversations.findById(conversationId);
+            if (!conversation) return;
+
+            const recipientId = conversation.participant1_id === socket.userId
+              ? conversation.participant2_id
+              : conversation.participant1_id;
+
+            if (recipientId === SUPPORT_BOT_ID) {
+              if (isModerated) {
+                logger.info(`[Shopyos Bot] User message was moderated. Skipping bot response.`);
+                return;
+              }
+
+              const history = await repositories.messages.getConversationMessages(conversationId, { limit: 10 });
+              history.reverse();
+
+              const { reply, isEscalation } = await aiService.generateBotReply(socket.userId, finalContent, history);
+
+              const botMessage = await repositories.messages.sendMessage({
+                conversationId,
+                senderId: SUPPORT_BOT_ID,
+                content: reply,
+                messageType: 'text'
+              });
+
+              const [, { data: botMessageWithSender }] = await Promise.all([
+                repositories.conversations.updateLastActivity(conversationId),
+                repositories.messages.db
+                  .from('messages')
+                  .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
+                  .eq('id', botMessage.id)
+                  .single()
+              ]);
+
+              emitToConversation(conversationId, 'message:new', {
+                message: formatAvatars(botMessageWithSender || botMessage),
+                conversationId
+              });
+
+              await notificationService.sendNotification({
+                userId: socket.userId,
+                type: 'new_message',
+                title: 'Shopyos Bot',
+                message: reply.substring(0, 100),
+                relatedId: conversationId,
+                relatedType: 'conversation',
+                data: { conversationId, messageId: botMessage.id },
+                push: {
+                  data: { screen: 'messages', conversationId, messageId: botMessage.id }
+                }
+              }).catch(notifErr => {
+                logger.error('Failed to notify user of support bot message:', notifErr);
+              });
+
+              if (isEscalation) {
+                emitToConversation(conversationId, 'conversation:escalated', { conversationId });
+              }
+            } else {
+              // Send standard notification to recipient
+              let senderName = 'Someone';
+              if (messageWithSender?.sender?.user_profiles) {
+                const profile = Array.isArray(messageWithSender.sender.user_profiles)
+                  ? messageWithSender.sender.user_profiles[0]
+                  : messageWithSender.sender.user_profiles;
+                if (profile) senderName = profile.full_name || senderName;
+              }
+
+              const notificationContent = messageType === 'text' ? content.substring(0, 50) : `Sent an ${messageType}`;
+
+              await notificationService.sendNotification({
+                userId: recipientId,
+                type: 'new_message',
+                title: `New message from ${senderName}`,
+                message: notificationContent,
+                relatedId: conversationId,
+                relatedType: 'conversation',
+                data: { conversationId, messageId: message.id },
+                push: {
+                  data: { screen: 'messages', conversationId, messageId: message.id }
+                }
+              });
+            }
+          } catch (bgErr) {
+            logger.error('Error in socket background task:', bgErr.message);
+          }
+        })();
+
+      } catch (err) {
+        logger.error(`Error sending message via socket: ${err.message}`);
+        if (typeof callback === 'function') {
+          callback({ success: false, error: err.message });
+        }
+      }
+    });
+
     socket.on('disconnect', (reason) => {
       logger.info(`Client disconnected: user=${socket.userId}, socket=${socket.id}, reason=${reason}`);
     });

@@ -5,6 +5,7 @@ import {
   ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -159,6 +160,7 @@ const ProductsScreen = () => {
     }
   }, [businessId, fetchProducts, fetchCategories, businessesData]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
+  const showImagePicker = useImagePickerSheet();
 
   // Safe early return
   if (isChecking || !isVerified) {
@@ -178,11 +180,8 @@ const ProductsScreen = () => {
   };
 
   const pickImage = async () => {
-    const res = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, quality: 0.8,
-    });
-    if (!res.canceled) setImage(res.assets[0].uri);
+    const uri = await showImagePicker({ allowsEditing: true, quality: 0.8 });
+    if (uri) setImage(uri);
   };
 
   const handleEditPress = (item: any) => {

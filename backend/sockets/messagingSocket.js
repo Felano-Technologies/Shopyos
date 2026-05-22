@@ -5,6 +5,7 @@ const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { emitToConversation } = require('../config/socket');
 const notificationService = require('../services/notificationService');
+const { moderateText } = require('../services/moderationService');
 
 /**
  * Register messaging socket handlers
@@ -90,11 +91,17 @@ function registerMessagingHandlers(io) {
           return callback?.({ success: false, error: 'Not authorized to send messages in this conversation' });
         }
 
+        // Moderate content before sending
+        const moderationResult = moderateText(content.trim());
+        const finalContent = moderationResult.content;
+        const isModerated = moderationResult.isModerated;
+
         // Insert message
         const message = await repositories.messages.sendMessage({
           conversationId,
           senderId: userId,
-          content: content.trim(),
+          content: finalContent,
+          isModerated,
           messageType,
           attachmentUrl
         });

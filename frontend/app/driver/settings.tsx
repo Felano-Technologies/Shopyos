@@ -12,6 +12,8 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar } from '@/services/api';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
+import TappableAvatar from '@/components/TappableAvatar';
 // removed useCloudinaryUpload import
 export default function DriverSettings() {
   const router = useRouter();
@@ -43,27 +45,17 @@ export default function DriverSettings() {
       setLoading(false);
     }
   };
+  const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets[0].uri) {
-        setUploading(true);
-        const res = await uploadAvatar(result.assets[0].uri);
-        if (res && res.success) {
-          setUser({ ...user, avatar_url: res.data.url });
-          CustomInAppToast.show({ type: 'success', title: 'Profile Updated', message: 'Profile photo updated successfully!' });
-          queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
-        }
+      const uri = await showImagePicker({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      if (!uri) return;
+      setUploading(true);
+      const res = await uploadAvatar(uri);
+      if (res && res.success) {
+        setUser({ ...user, avatar_url: res.data.url });
+        CustomInAppToast.show({ type: 'success', title: 'Profile Updated', message: 'Profile photo updated successfully!' });
+        queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
       }
     } catch (error) {
       console.error('Failed to pick/upload image:', error);
@@ -158,24 +150,19 @@ export default function DriverSettings() {
             <View style={{ width: 24 }} />
           </View>
           <View style={styles.profileCard}>
-            <TouchableOpacity
-              style={styles.avatarWrapper}
-              onPress={pickImage}
-              disabled={saving || uploading}
-            >
-              <Image
-                key={user?.avatar_url}
-                source={{ uri: user?.avatar_url || `https://api.dicebear.com/9.x/fun-emoji/png?seed=${user?.name || 'Driver'}` }}
-                style={styles.avatar}
-              />
-              <View style={styles.cameraBadge}>
-                {saving || uploading ? (
-                  <ActivityIndicator size="small" color="#0C1559" />
-                ) : (
-                  <Ionicons name="camera" size={16} color="#0C1559" />
-                )}
+            {saving || uploading ? (
+              <View style={[styles.avatarWrapper, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#A3E635" />
               </View>
-            </TouchableOpacity>
+            ) : (
+              <TappableAvatar
+                uri={user?.avatar_url}
+                size={86}
+                label={user?.name || 'Driver'}
+                onEditPress={pickImage}
+                style={{ marginBottom: 8 }}
+              />
+            )}
             <Text style={styles.name}>{user?.name || 'Williams Boampong'}</Text>
             <View style={styles.ratingBadge}>
               <Ionicons name="star" size={14} color="#F59E0B" />

@@ -713,6 +713,27 @@ class QueryBuilder {
           messages: messagesMap[c.id] || []
         }));
       }
+
+      // --- STORES JOIN SHIM ---
+      if (this.tableName === 'stores' && result.rows.length > 0) {
+        const storeIds = result.rows.map(s => s.id);
+        
+        // Fetch products count for each store
+        const { rows: counts } = await db.query(
+          `SELECT store_id, COUNT(*)::int AS count 
+           FROM products 
+           WHERE deleted_at IS NULL AND is_active = TRUE AND store_id = ANY($1)
+           GROUP BY store_id`,
+          [storeIds]
+        );
+        
+        const countMap = counts.reduce((acc, c) => ({ ...acc, [c.store_id]: c.count }), {});
+        
+        result.rows = result.rows.map(store => ({
+          ...store,
+          products: [{ count: countMap[store.id] || 0 }]
+        }));
+      }
       // --- JOIN SHIM END ---
 
       if (this.singleMode) {

@@ -43,6 +43,10 @@ const toDisplayAvatarUrl = (raw?: string | null) => {
 const isLocalhostLikeUrl = (value?: string | null) =>
   !!value && /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(value);
 
+import TappableAvatar from '@/components/TappableAvatar';
+
+// Keep the rest of imports unchanged
+
 export default function SettingsScreen() {
   const router = useRouter();
   const [username, setUsername] = useState('User');
@@ -219,32 +223,36 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <TouchableOpacity
-                activeOpacity={0.86}
+              <View
                 style={styles.profileCard}
-                onPress={() => router.push('/settings/Account')}
                 ref={refProfile}
                 onLayout={() => measureElement(refProfile, 'profile')}
               >
-                <View style={styles.avatarContainer}>
-                  {avatarUrl ? (
-                    <Image
-                      source={{ uri: avatarUrl }}
-                      style={styles.avatarImage}
-                      onError={() => setAvatarUrl(null)}
-                    />
-                  ) : (
-                    <Text style={styles.avatarText}>{username.charAt(0)}</Text>
-                  )}
-                </View>
-                <View style={styles.profileInfo}>
+                <TappableAvatar
+                  uri={avatarUrl}
+                  size={72}
+                  label={username}
+                  fallbackText={username.charAt(0)}
+                  style={{ marginRight: 4 }}
+                />
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.profileInfo}
+                  onPress={() => router.push('/settings/Account')}
+                >
                   <Text style={styles.profileName}>{username}</Text>
                   <Text style={styles.profileEmail}>{email || 'View and edit profile'}</Text>
-                </View>
-                <View style={styles.profileAction} ref={refEdit} onLayout={() => measureElement(refEdit, 'edit')}>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  style={styles.profileAction}
+                  onPress={() => router.push('/settings/Account')}
+                  ref={refEdit}
+                  onLayout={() => measureElement(refEdit, 'edit')}
+                >
                   <Feather name="chevron-right" size={20} color="#E2E8F0" />
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </SafeAreaView>

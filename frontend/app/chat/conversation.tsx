@@ -54,6 +54,7 @@ type MessageItem = {
   is_read?: boolean;
   pending?: boolean;
   failed?: boolean;
+  is_moderated?: boolean;
   reply_to_message?: {
     id: string;
     content: string;
@@ -324,19 +325,19 @@ export default function ConversationScreen() {
         : new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   };
-  const fmtTime = (msg: MessageItem) => {
+  const fmtTime = useCallback((msg: MessageItem) => {
     const date = parseSafeDate(getMessageTimestamp(msg));
     const safeDate = date || new Date();
     return safeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  };
-  const fmtDate = (msg: MessageItem) => {
+  }, []);
+  const fmtDate = useCallback((msg: MessageItem) => {
     const date = parseSafeDate(getMessageTimestamp(msg));
     if (!date) return 'Today';
     const today = new Date(); const yday = new Date(today); yday.setDate(yday.getDate() - 1);
     if (date.toDateString() === today.toDateString()) return 'Today';
     if (date.toDateString() === yday.toDateString()) return 'Yesterday';
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-  };
+  }, []);
   const showDate = useCallback((i: number) => {
     if (i === 0) return true;
     const current = parseSafeDate(getMessageTimestamp(messages[i]));
@@ -346,7 +347,7 @@ export default function ConversationScreen() {
   }, [messages]);
 
   // ─── Message bubble ────────────────────────────────────────────────────────
-  const renderReplyPreview = (msgItem: MessageItem, isMe: boolean) => {
+  const renderReplyPreview = useCallback((msgItem: MessageItem, isMe: boolean) => {
     if (!msgItem.reply_to_message) return null;
     const parentMsg = msgItem.reply_to_message;
     const isParentMe = parentMsg.sender_id === currentUserId;
@@ -380,10 +381,31 @@ export default function ConversationScreen() {
         </View>
       </View>
     );
-  };
+  }, [currentUserId, displayName]);
 
   const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
+
+    if (item.is_moderated) {
+      return (
+        <>
+          {showDate(index) && (
+            <View style={styles.dateSep}>
+              <View style={styles.datePill}>
+                <Text style={styles.dateText}>{fmtDate(item)}</Text>
+              </View>
+            </View>
+          )}
+          <View style={styles.systemNoticeRow}>
+            <View style={styles.systemNoticePill}>
+              <Ionicons name="shield-alert-outline" size={14} color="#EF4444" style={{ marginRight: 6 }} />
+              <Text style={styles.systemNoticeText}>{item.content}</Text>
+            </View>
+          </View>
+        </>
+      );
+    }
+
     return (
       <>
         {showDate(index) && (
@@ -457,7 +479,7 @@ export default function ConversationScreen() {
         </View>
       </>
     );
-  }, [currentUserId, displayAvatar, displayName, showDate]);
+  }, [currentUserId, displayAvatar, displayName, showDate, fmtDate, fmtTime, renderReplyPreview]);
 
   // ─── Root ──────────────────────────────────────────────────────────────────
   return (
@@ -940,4 +962,32 @@ const styles = StyleSheet.create({
   },
   moreItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 10 },
   moreItemTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
+
+  systemNoticeRow: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginVertical: 8,
+    width: '100%',
+  },
+  systemNoticePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.07)',
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.15)',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    maxWidth: '90%',
+  },
+  systemNoticeText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    fontStyle: 'italic',
+    color: '#EF4444',
+    textAlign: 'center',
+    lineHeight: 18,
+    flexShrink: 1,
+  },
 });
