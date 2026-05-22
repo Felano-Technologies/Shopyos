@@ -20,8 +20,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
-import { getUserData, updateProfile, getPaymentMethods, uploadAvatar } from '@/services/api';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
+import { getUserData, updateProfile, getPaymentMethods, uploadAvatar, storage } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import TappableAvatar from '@/components/TappableAvatar';
 // removed useCloudinaryUpload import
 // --- 1. DATA CONSTANTS ---
 const AVATAR_SEEDS = [
@@ -44,6 +46,9 @@ const LOCATION_DATA: Record<string, string[]> = {
   'Canada': ['Ontario', 'Quebec', 'British Columbia', 'Alberta', 'Manitoba'],
 };
 const COUNTRIES = Object.keys(LOCATION_DATA).sort();
+const LOCAL_AVATAR_CACHE_KEY = 'lastUploadedAvatarUri';
+const isLocalhostLikeUrl = (value?: string | null) =>
+  !!value && /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(value);
 // --- 2. REUSABLE COMPONENT ---
 const ProfileField = ({
   icon,
@@ -160,6 +165,13 @@ export default function AccountScreen() {
     try {
       const data = await getUserData();
       const user = data.user || data;
+      let avatar = user.avatar_url || user.avatar || `https://api.dicebear.com/9.x/adventurer/png?seed=${user.name || 'User'}`;
+
+      if (isLocalhostLikeUrl(avatar)) {
+        const cachedLocalAvatar = await storage.getItem(LOCAL_AVATAR_CACHE_KEY);
+        if (cachedLocalAvatar) avatar = cachedLocalAvatar;
+      }
+
       const dateJoined = (user.created_at || user.createdAt)
         ? new Date(user.created_at || user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : 'N/A';
@@ -171,7 +183,7 @@ export default function AccountScreen() {
         region: user.state_province || user.city || '',
         address: user.address_line1 || '',
         createdAt: dateJoined,
-        avatar: user.avatar_url || user.avatar || `https://api.dicebear.com/9.x/adventurer/png?seed=${user.name || 'User'}`,
+        avatar,
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
@@ -248,32 +260,37 @@ export default function AccountScreen() {
       </View>
     </Modal>
   );
+  const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        alert('Sorry, we need camera roll permissions to make this work!');
+      const uri = await showImagePicker({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      if (!uri) return;
+      const asset = { uri, fileSize: undefined as number | undefined, mimeType: undefined as string | undefined };
+      const maxAvatarSize = 2 * 1024 * 1024;
+      const mime = (asset.mimeType || '').toLowerCase();
+      const unsupported = mime && !mime.startsWith('image/');
+      if ((asset.fileSize || 0) > maxAvatarSize) {
+        alert('Image is too large. Please choose one under 2MB.');
         return;
       }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets[0].uri) {
-        setShowAvatarModal(false);
-        setUploading(true);
-        const res = await uploadAvatar(result.assets[0].uri);
-        if (res && res.success) {
-          // Profile is already updated on the backend by /upload/avatar
-          setUserData({ ...userData, avatar: res.data.url });
-          CustomInAppToast.show({ type: 'success', title: 'Image Uploaded', message: 'Profile photo updated successfully!' });
-        }
+      if (unsupported) {
+        alert('Unsupported image type. Please choose JPG, PNG, or WEBP.');
+        return;
       }
-    } catch (error) {
+      setShowAvatarModal(false);
+      setUploading(true);
+      const res = await uploadAvatar(uri);
+      if (res && res.success) {
+        const uploadedAvatar = res?.data?.public_url || res?.data?.url || userData.avatar;
+        const safeAvatarToShow = isLocalhostLikeUrl(uploadedAvatar) ? uri : uploadedAvatar;
+        setUserData({ ...userData, avatar: safeAvatarToShow });
+        await storage.setItem(LOCAL_AVATAR_CACHE_KEY, uri);
+        CustomInAppToast.show({ type: 'success', title: 'Image Uploaded', message: 'Profile photo updated successfully!' });
+      }
+    } catch (error: any) {
       console.error('Failed to pick/upload image:', error);
-      alert('Failed to update profile photo. Please try again.');
+      const msg = error?.message || 'Failed to update profile photo. Please try again.';
+      alert(msg);
     } finally {
       setUploading(false);
       setSaving(false);
@@ -294,22 +311,22 @@ export default function AccountScreen() {
             <View style={{ width: 40 }} />
           </View>
           <View style={styles.profileSection}>
-            <View style={styles.imageWrapper}>
-              <Image
-                key={userData.avatar}
-                source={{ uri: userData.avatar }}
-                style={styles.profileImage}
-                defaultSource={require('../../assets/images/icon.png')}
-              />
-              <TouchableOpacity
-                style={styles.cameraBadge}
-                onPress={() => setShowAvatarModal(true)}
-              >
-                <Ionicons name="camera" size={16} color="#0C1559" />
-              </TouchableOpacity>
-            </View>
             {loading ? (
-              <ActivityIndicator color="#A3E635" style={{ marginTop: 10 }} />
+              <View style={[styles.profileImageSkeleton, { marginBottom: 12 }]} />
+            ) : (
+              <TappableAvatar
+                uri={userData.avatar}
+                size={100}
+                label={userData.name}
+                onEditPress={() => setShowAvatarModal(true)}
+                style={{ marginBottom: 12 }}
+              />
+            )}
+            {loading ? (
+              <>
+                <View style={styles.nameSkeleton} />
+                <View style={styles.dateSkeleton} />
+              </>
             ) : (
               <>
                 <Text style={styles.profileName}>{userData.name || 'User'}</Text>
@@ -332,63 +349,79 @@ export default function AccountScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            <ProfileField
-              icon="person"
-              value={userData.name}
-              placeholder="Enter your full name"
-              onChangeText={(t: string) => setUserData({ ...userData, name: t })}
-              loading={loading}
-            />
-            <ProfileField
-              icon="mail"
-              value={userData.email}
-              placeholder="Enter email address"
-              onChangeText={(t: string) => setUserData({ ...userData, email: t })}
-              loading={loading}
-            />
-            <ProfileField
-              icon="phone-alt"
-              library="FontAwesome5"
-              value={userData.phone}
-              placeholder="54 123 4567"
-              isPhone={true}
-              onChangeText={(t: string) => setUserData({ ...userData, phone: t })}
-              loading={loading}
-            />
-            <ProfileField
-              icon="map"
-              value={userData.country}
-              placeholder="Select Country"
-              isCountry={true}
-              onPress={() => setShowCountryModal(true)}
-              loading={loading}
-            />
-            <ProfileField
-              icon="location-sharp"
-              value={userData.region}
-              placeholder="Select Region/State"
-              isDropdown={true}
-              onPress={() => {
-                if (userData.country) {
-                  setShowRegionModal(true);
-                } else {
-                  alert('Please select a country first to browse regions.');
-                }
-              }}
-              loading={loading}
-            />
-            <ProfileField
-              icon="home"
-              value={userData.address}
-              placeholder="Digital Address or GPS Code"
-              onChangeText={(t: string) => setUserData({ ...userData, address: t })}
-              loading={loading}
-            />
-            <View style={{ height: 20 }} />
-            <TouchableOpacity style={styles.saveButton} activeOpacity={0.8} onPress={handleSave} disabled={saving}>
-              {saving ? <ActivityIndicator color="#A3E635" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
-            </TouchableOpacity>
-            <View style={{ height: 40 }} />
+            {loading ? (
+              <>
+                <View style={styles.fieldSkeleton} />
+                <View style={styles.fieldSkeleton} />
+                <View style={styles.fieldSkeleton} />
+                <View style={styles.fieldSkeleton} />
+                <View style={styles.fieldSkeleton} />
+                <View style={styles.fieldSkeleton} />
+                <View style={{ height: 20 }} />
+                <View style={styles.saveSkeleton} />
+                <View style={{ height: 40 }} />
+              </>
+            ) : (
+              <>
+                <ProfileField
+                  icon="person"
+                  value={userData.name}
+                  placeholder="Enter your full name"
+                  onChangeText={(t: string) => setUserData({ ...userData, name: t })}
+                  loading={loading}
+                />
+                <ProfileField
+                  icon="mail"
+                  value={userData.email}
+                  placeholder="Enter email address"
+                  onChangeText={(t: string) => setUserData({ ...userData, email: t })}
+                  loading={loading}
+                />
+                <ProfileField
+                  icon="phone-alt"
+                  library="FontAwesome5"
+                  value={userData.phone}
+                  placeholder="54 123 4567"
+                  isPhone={true}
+                  onChangeText={(t: string) => setUserData({ ...userData, phone: t })}
+                  loading={loading}
+                />
+                <ProfileField
+                  icon="map"
+                  value={userData.country}
+                  placeholder="Select Country"
+                  isCountry={true}
+                  onPress={() => setShowCountryModal(true)}
+                  loading={loading}
+                />
+                <ProfileField
+                  icon="location-sharp"
+                  value={userData.region}
+                  placeholder="Select Region/State"
+                  isDropdown={true}
+                  onPress={() => {
+                    if (userData.country) {
+                      setShowRegionModal(true);
+                    } else {
+                      alert('Please select a country first to browse regions.');
+                    }
+                  }}
+                  loading={loading}
+                />
+                <ProfileField
+                  icon="home"
+                  value={userData.address}
+                  placeholder="Digital Address or GPS Code"
+                  onChangeText={(t: string) => setUserData({ ...userData, address: t })}
+                  loading={loading}
+                />
+                <View style={{ height: 20 }} />
+                <TouchableOpacity style={styles.saveButton} activeOpacity={0.8} onPress={handleSave} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#A3E635" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
+                </TouchableOpacity>
+                <View style={{ height: 40 }} />
+              </>
+            )}
           </ScrollView>
         </SafeAreaView>
       </KeyboardAvoidingView>
@@ -496,6 +529,8 @@ export default function AccountScreen() {
           </View>
         </View>
       </Modal>
+
+
     </View>
   );
 }
@@ -527,6 +562,14 @@ const styles = StyleSheet.create({
   profileSection: { alignItems: 'center' },
   imageWrapper: { position: 'relative', marginBottom: 12 },
   profileImage: { width: 100, height: 100, borderRadius: 50, borderWidth: 3, borderColor: '#A3E635', backgroundColor: '#F1F5F9' },
+  profileImageSkeleton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 3,
+    borderColor: '#A3E635',
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
   cameraBadge: {
     position: 'absolute', bottom: 0, right: 0,
     backgroundColor: '#A3E635', width: 32, height: 32,
@@ -536,9 +579,36 @@ const styles = StyleSheet.create({
   profileName: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold', marginBottom: 6 },
   dateBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   dateText: { color: '#CBD5E1', fontSize: 12, fontFamily: 'Montserrat-Medium' },
+  nameSkeleton: {
+    marginTop: 10,
+    width: 180,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.35)',
+  },
+  dateSkeleton: {
+    marginTop: 10,
+    width: 210,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+  },
   // Content
   contentArea: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 30, paddingBottom: 100 },
+  fieldSkeleton: {
+    height: 54,
+    borderRadius: 25,
+    backgroundColor: '#E2E8F0',
+    borderWidth: 1.5,
+    borderColor: '#D7DFEA',
+    marginBottom: 16,
+  },
+  saveSkeleton: {
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#D7DFEA',
+  },
   fieldRow: { marginBottom: 16 },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF',
@@ -613,6 +683,31 @@ const styles = StyleSheet.create({
     backgroundColor: '#0C1559', paddingVertical: 14, paddingHorizontal: 40, borderRadius: 16, width: '100%'
   },
   successButtonText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold', textAlign: 'center' },
+  // Preview Modal
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  previewCloseBtn: {
+    position: 'absolute',
+    top: 48,
+    right: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    zIndex: 2,
+  },
+  previewImage: {
+    width: '100%',
+    height: '78%',
+    borderRadius: 12,
+  },
   // Image Upload Styles
   uploadCta: { paddingHorizontal: 20, marginBottom: 15 },
   uploadBtn: {

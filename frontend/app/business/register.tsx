@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import * as DocumentPicker from 'expo-document-picker';
 import { businessRegister, getAllCategories, CustomInAppToast } from '@/services/api';
 // removed useCloudinaryUpload import
@@ -368,22 +369,17 @@ const BusinessSetupScreen = () => {
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
+  const showImagePicker = useImagePickerSheet();
   const pickImage = async (type: 'logo' | 'cover') => {
     try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'We need access to your photos to upload images.' });
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
+      const uri = await showImagePicker({
         allowsEditing: true,
         aspect: type === 'logo' ? [1, 1] : [16, 9],
         quality: 0.8,
       });
-      if (!result.canceled) {
-        if (type === 'logo') setLogo(result.assets[0].uri);
-        else setCoverImage(result.assets[0].uri);
+      if (uri) {
+        if (type === 'logo') setLogo(uri);
+        else setCoverImage(uri);
       }
     } catch {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to pick image' });

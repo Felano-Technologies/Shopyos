@@ -6,13 +6,13 @@
 
 require('dotenv').config();
 
-const cron               = require('node-cron');
-const amqp               = require('amqplib');
-const { logger }         = require('../config/logger');
-const repositories       = require('../db/repositories');
-const expoPushService    = require('../services/expoPushService');
-const holidayService     = require('../services/holidayService');
-const aiService          = require('../services/aiService');
+const cron = require('node-cron');
+const amqp = require('amqplib');
+const { logger } = require('../config/logger');
+const repositories = require('../db/repositories');
+const expoPushService = require('../services/expoPushService');
+const holidayService = require('../services/holidayService');
+const aiService = require('../services/aiService');
 
 // ─── RabbitMQ helper ─────────────────────────────────────────────────────────
 // Opens a fresh connection per publish call — keeps the scheduler stateless.
@@ -40,7 +40,7 @@ async function publishToQueue(routingKey, payload) {
     logger.error(`[Scheduler] RabbitMQ publish failed (${routingKey}):`, err.message);
     return false;
   } finally {
-    if (conn) conn.close().catch(() => {});
+    if (conn) conn.close().catch(() => { });
   }
 }
 
@@ -48,7 +48,7 @@ async function publishToQueue(routingKey, payload) {
 
 function personalizeTemplate(templateString, user) {
   if (!templateString) return '';
-  
+
   // Extract details safely
   const profile = Array.isArray(user.user_profiles) ? user.user_profiles[0] : user.user_profiles;
   const store = Array.isArray(user.stores) ? user.stores[0] : user.stores;
@@ -78,17 +78,17 @@ async function resolveRecipients(recipientType, recipientIds) {
   }
 
   const roleMap = {
-    all:       null,
+    all: null,
     customers: 'buyer',
-    stores:    'seller',
-    drivers:   'driver'
+    stores: 'seller',
+    drivers: 'driver'
   };
 
   const role = roleMap[recipientType];
   if (role) {
     // Note: To join cleanly with PostgREST, we'll manually fetch profiles for the users.
     const { data } = await repositories.users.getUsersByRoleName(role, 20000);
-    
+
     // We fetch the enriched profiles separately since getUsersByRoleName only selects '*'
     if (!data || data.length === 0) return [];
     const ids = data.map(u => u.id);
@@ -99,9 +99,9 @@ async function resolveRecipients(recipientType, recipientIds) {
     });
     return enriched || [];
   } else {
-    const { data } = await repositories.users.findAll({ 
-      select: selectQuery, 
-      limit: 20000 
+    const { data } = await repositories.users.findAll({
+      select: selectQuery,
+      limit: 20000
     });
     return data || [];
   }
@@ -117,39 +117,32 @@ async function dispatchToUser(user, item) {
   const personalizedMessage = personalizeTemplate(message, user);
   const phone = user.phone || (Array.isArray(user.user_profiles) ? user.user_profiles[0]?.phone : user.user_profiles?.phone);
 
-  if (send_sms && phone) {
-    await publishToQueue('sms', {
-      eventType,
-      phone:        phone,
-      userId:       user.id,
-      referenceId:  item.id,
-      templateData: { textMsg: personalizedMessage }
-    });
-  }
+  const notificationService = require('../services/notificationService');
 
-  if (send_email && user.email) {
-    await publishToQueue('email', {
-      eventType,
-      email:        user.email,
-      userId:       user.id,
-      referenceId:  item.id,
-      templateData: {
-        subject: personalizedTitle,
-        html: `
-          <p style="font-size:17px;line-height:1.6;">${personalizedMessage}</p>
-        `,
-        textMsg: personalizedMessage
+  await notificationService.sendNotification({
+    userId: user.id,
+    type: eventType,
+    title: personalizedTitle,
+    message: personalizedMessage,
+    relatedId: item.id,
+    relatedType: 'scheduled_notification',
+    data: {
+      scheduledNotificationId: item.id,
+      campaignType: campaign_type
+    },
+    email: send_email && user.email ? {
+      html: `<p style="font-size:17px;line-height:1.6;">${personalizedMessage}</p>`
+    } : null,
+    sms: send_sms && phone ? {
+      text: personalizedMessage
+    } : null,
+    push: send_push ? {
+      data: {
+        screen: 'notifications',
+        scheduledNotificationId: item.id
       }
-    });
-  }
-
-  if (send_push) {
-    await expoPushService.sendPushNotificationToUser(user.id, {
-      title: personalizedTitle,
-      body:  personalizedMessage,
-      data:  { type: eventType, scheduledNotificationId: item.id }
-    });
-  }
+    } : null
+  }).catch(err => logger.error(`[Scheduler] dispatchToUser failed for user ${user.id}:`, err.message));
 }
 
 // ─── Job 1: Process due manual scheduled broadcasts ───────────────────────────
@@ -183,14 +176,14 @@ async function processManualBroadcasts() {
       }
 
       await repositories.scheduledNotifications.update(item.id, {
-        status:  'sent',
+        status: 'sent',
         sent_at: new Date().toISOString()
       });
       logger.info(`[Scheduler] Broadcast "${item.title}" sent ✓`);
     } catch (err) {
       logger.error(`[Scheduler] Broadcast "${item.title}" failed:`, err.message);
       await repositories.scheduledNotifications.update(item.id, {
-        status:        'failed',
+        status: 'failed',
         error_message: err.message
       });
     }
@@ -217,15 +210,15 @@ async function executeDailyMarketingSweep() {
     let campaign;
     try {
       campaign = await repositories.scheduledNotifications.create({
-        title:          copy.title,
-        message:        copy.message,
-        send_email:     true,
-        send_sms:       true,
-        send_push:      true,
+        title: copy.title,
+        message: copy.message,
+        send_email: true,
+        send_sms: true,
+        send_push: true,
         recipient_type: 'all',
-        campaign_type:  'holiday',
-        scheduled_at:   new Date().toISOString(),
-        status:         'processing'
+        campaign_type: 'holiday',
+        scheduled_at: new Date().toISOString(),
+        status: 'processing'
       });
     } catch (err) {
       logger.error('[Scheduler] Failed to persist holiday campaign record:', err.message);
@@ -238,19 +231,19 @@ async function executeDailyMarketingSweep() {
 
       for (const user of allUsers) {
         await dispatchToUser(user, {
-          id:            campaign?.id,
-          title:         copy.title,
-          message:       copy.message,
-          send_email:    true,
-          send_sms:      true,
-          send_push:     true,
+          id: campaign?.id,
+          title: copy.title,
+          message: copy.message,
+          send_email: true,
+          send_sms: true,
+          send_push: true,
           campaign_type: 'holiday'
         });
       }
 
       if (campaign) {
         await repositories.scheduledNotifications.update(campaign.id, {
-          status:  'sent',
+          status: 'sent',
           sent_at: new Date().toISOString()
         });
       }
@@ -259,29 +252,41 @@ async function executeDailyMarketingSweep() {
       logger.error('[Scheduler] Holiday blast dispatch failed:', err.message);
       if (campaign) {
         await repositories.scheduledNotifications.update(campaign.id, {
-          status:        'failed',
+          status: 'failed',
           error_message: err.message
         });
       }
     }
 
   } else {
-    // ── Daily customer engagement: Expo Push ONLY ─────────────────────────
+    // ── Daily customer engagement: Rotated channels ─────────────────────────
     const hour = new Date().getHours();
     const timeOfDay = hour < 12 ? 'morning' : 'evening';
-    logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement push to customers…`);
+    
+    // Rotate channel daily: Day % 3 (0 = Push, 1 = Email, 2 = SMS)
+    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+    const channelRotation = dayOfYear % 3;
+    const sendPush = channelRotation === 0;
+    const sendEmail = channelRotation === 1;
+    const sendSMS = channelRotation === 2;
+
+    const channelNames = ['Push Notification', 'Email', 'SMS'];
+    logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement sweep using channel: ${channelNames[channelRotation]}`);
+
     const copy = await aiService.generateNotificationText('engagement', { timeOfDay });
 
     let campaign;
     try {
       campaign = await repositories.scheduledNotifications.create({
-        title:          copy.title,
-        message:        copy.message,
-        send_push:      true,
+        title: copy.title,
+        message: copy.message,
+        send_push: sendPush,
+        send_email: sendEmail,
+        send_sms: sendSMS,
         recipient_type: 'customers',
-        campaign_type:  'daily_engagement',
-        scheduled_at:   new Date().toISOString(),
-        status:         'processing'
+        campaign_type: 'daily_engagement',
+        scheduled_at: new Date().toISOString(),
+        status: 'processing'
       });
     } catch (err) {
       logger.error('[Scheduler] Failed to persist engagement campaign record:', err.message);
@@ -290,7 +295,7 @@ async function executeDailyMarketingSweep() {
     try {
       const selectQuery = '*, user_profiles(full_name, phone), stores(store_name)';
       const { data: customersRole } = await repositories.users.getUsersByRoleName('buyer', 20000);
-      
+
       let customers = [];
       if (customersRole && customersRole.length > 0) {
         const ids = customersRole.map(u => u.id);
@@ -301,29 +306,46 @@ async function executeDailyMarketingSweep() {
         });
         customers = enriched || [];
       }
-      
-      logger.info(`[Scheduler] Sending engagement push to ${customers.length} customers…`);
 
+      logger.info(`[Scheduler] Dispatching engagement sweep to ${customers.length} customers…`);
+
+      const notificationService = require('../services/notificationService');
       for (const c of customers) {
-        await expoPushService.sendPushNotificationToUser(c.id, {
+        const phone = c.phone || (Array.isArray(c.user_profiles) ? c.user_profiles[0]?.phone : c.user_profiles?.phone);
+        await notificationService.sendNotification({
+          userId: c.id,
+          type: 'daily_engagement',
           title: copy.title,
-          body:  copy.message,
-          data:  { type: 'daily_engagement' }
-        });
+          message: copy.message,
+          relatedId: campaign?.id,
+          relatedType: 'scheduled_notification',
+          email: sendEmail && c.email ? {
+            html: `<p style="font-size:17px;line-height:1.6;">${copy.message}</p>`
+          } : null,
+          sms: sendSMS && phone ? {
+            text: copy.message
+          } : null,
+          push: sendPush ? {
+            data: {
+              screen: 'notifications',
+              type: 'daily_engagement'
+            }
+          } : null
+        }).catch(err => logger.error(`[Scheduler] Daily sweep notification failed for user ${c.id}:`, err.message));
       }
 
       if (campaign) {
         await repositories.scheduledNotifications.update(campaign.id, {
-          status:  'sent',
+          status: 'sent',
           sent_at: new Date().toISOString()
         });
       }
-      logger.info('[Scheduler] Daily engagement push sent ✓');
+      logger.info(`[Scheduler] Daily engagement sweep sent ✓ (${channelNames[channelRotation]})`);
     } catch (err) {
-      logger.error('[Scheduler] Engagement push failed:', err.message);
+      logger.error('[Scheduler] Engagement sweep failed:', err.message);
       if (campaign) {
         await repositories.scheduledNotifications.update(campaign.id, {
-          status:        'failed',
+          status: 'failed',
           error_message: err.message
         });
       }

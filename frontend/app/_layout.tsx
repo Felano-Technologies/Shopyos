@@ -218,6 +218,8 @@ function AppContent() {
   );
 }
 
+import { ImagePreviewProvider } from '@/context/ImagePreviewContext';
+
 export default function RootLayout() {
   const [loaded] = useFonts({
     'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
@@ -236,7 +238,9 @@ export default function RootLayout() {
   return (
     <QueryProvider>
       <OnboardingProvider>
-        <AppContent />
+        <ImagePreviewProvider>
+          <AppContent />
+        </ImagePreviewProvider>
       </OnboardingProvider>
     </QueryProvider>
   );

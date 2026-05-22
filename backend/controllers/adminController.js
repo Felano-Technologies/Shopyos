@@ -31,12 +31,12 @@ const getDashboard = async (req, res, next) => {
     res.status(200).json({
       success: true,
       stats: {
-        totalUsers:                s.total_users                || 0,
-        totalStores:               s.total_stores               || 0,
-        totalOrders:               s.total_orders               || 0,
-        totalRevenue:              parseFloat(s.total_revenue)  || 0,
-        pendingPayouts:            0,
-        activePromotions:          0,
+        totalUsers: s.total_users || 0,
+        totalStores: s.total_stores || 0,
+        totalOrders: s.total_orders || 0,
+        totalRevenue: parseFloat(s.total_revenue) || 0,
+        pendingPayouts: 0,
+        activePromotions: 0,
         pendingDriverVerifications: s.pending_driver_verifications || 0,
       }
     });
@@ -218,13 +218,13 @@ const verifyStore = async (req, res, next) => {
 
     // 1. Fetch current store details to check for documents
     const currentStore = await repositories.stores.findById(storeId);
-    
+
     // 2. Determine trusted status (only if verified)
     let isTrusted = false;
     if (status === 'verified' && currentStore) {
       isTrusted = !!(
-        currentStore.business_cert_url || 
-        currentStore.business_license_url || 
+        currentStore.business_cert_url ||
+        currentStore.business_license_url ||
         currentStore.proof_of_bank_url
       );
     }
@@ -566,7 +566,7 @@ const getAllOrders = async (req, res, next) => {
 const getAllEscrows = async (req, res, next) => {
   try {
     const { status, limit, offset } = req.query;
-    
+
     let query = repositories.orders.db.from('orders')
       .select('id, order_number, total_amount, platform_fee, seller_payout_amount, escrow_status, updated_at, buyer_id, store_id')
       .neq('escrow_status', 'PENDING');
@@ -733,6 +733,27 @@ const approveDriverVerification = async (req, res, next) => {
     if (driver?.user_id) {
       const user = await repositories.users.findById(driver.user_id);
       const profile = await repositories.userProfiles.findByUserId(driver.user_id);
+
+      // Send standard push & in-app notification
+      await notificationService.sendNotification({
+        userId: driver.user_id,
+        type: 'driver_approved',
+        title: 'Driver Account Approved',
+        message: 'Your driver account has been approved! You can now start accepting delivery requests.',
+        relatedId: driver.id,
+        relatedType: 'driver',
+        data: {
+          driverId: driver.id,
+          status: 'verified'
+        },
+        push: {
+          data: {
+            screen: 'driver/dashboard',
+            driverId: driver.id
+          }
+        }
+      }).catch(err => logger.error('Failed to send driver approval notification:', err.message));
+
       if (user?.email) {
         rabbitMQService.publishMessage('email', {
           eventType: 'DRIVER_VERIFICATION_RESULT',
@@ -768,6 +789,28 @@ const rejectDriverVerification = async (req, res, next) => {
     if (driver?.user_id) {
       const user = await repositories.users.findById(driver.user_id);
       const profile = await repositories.userProfiles.findByUserId(driver.user_id);
+
+      // Send standard push & in-app notification
+      await notificationService.sendNotification({
+        userId: driver.user_id,
+        type: 'driver_rejected',
+        title: 'Driver Account Rejected',
+        message: `Your driver account verification was rejected. Reason: ${reason}`,
+        relatedId: driver.id,
+        relatedType: 'driver',
+        data: {
+          driverId: driver.id,
+          status: 'rejected',
+          reason
+        },
+        push: {
+          data: {
+            screen: 'driver/verification',
+            driverId: driver.id
+          }
+        }
+      }).catch(err => logger.error('Failed to send driver rejection notification:', err.message));
+
       if (user?.email) {
         rabbitMQService.publishMessage('email', {
           eventType: 'DRIVER_VERIFICATION_RESULT',
