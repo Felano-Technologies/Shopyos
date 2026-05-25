@@ -55,6 +55,22 @@ function getGreeting() {
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
+
+function getStoreDisplayName(item: any) {
+  return (
+    item?.store?.store_name ||
+    item?.store?.businessName ||
+    item?.store?.name ||
+    item?.business?.businessName ||
+    item?.business?.store_name ||
+    item?.business?.name ||
+    item?.store_name ||
+    item?.businessName ||
+    item?.sellerName ||
+    'Shopyos'
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -447,7 +463,7 @@ export default function Home() {
           style={S.productImage}
         />
         <View style={S.productInfo}>
-          <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
+          <Text style={S.productStore} numberOfLines={1}>{getStoreDisplayName(item)}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
           <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
@@ -463,7 +479,7 @@ export default function Home() {
           style={S.productImage}
         />
         <View style={S.productInfo}>
-          <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
+          <Text style={S.productStore} numberOfLines={1}>{getStoreDisplayName(item)}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
           <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
@@ -545,7 +561,10 @@ export default function Home() {
           <Text style={S.priceLbl}>₵{Number(item.price || 0).toFixed(2)}</Text>
           <TouchableOpacity
             style={S.addBtn}
-            onPress={() => handleAddToCart(item)}
+            onPress={(e: any) => {
+              e?.stopPropagation?.();
+              handleAddToCart(item);
+            }}
             disabled={addingId === item._id}
           >
             {addingId === item._id

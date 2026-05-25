@@ -1148,8 +1148,27 @@ const getAllBusinesses = async (req, res, next) => {
     if (countResult.error) throw countResult.error;
 
     const totalCount = countResult.count || 0;
+    const storesData = storesResult.data || [];
+    const storeIds = storesData.map(s => s.id).filter(Boolean);
 
-    const mapped = (storesResult.data || []).map(s => ({
+    let productCountMap = {};
+    if (storeIds.length > 0) {
+      const { data: productCounts, error: productCountError } = await repositories.stores.db
+        .from('products')
+        .select('store_id')
+        .in('store_id', storeIds)
+        .is('deleted_at', null);
+
+      if (productCountError) throw productCountError;
+
+      productCountMap = (productCounts || []).reduce((acc, row) => {
+        const key = row.store_id;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    const mapped = storesData.map(s => ({
       id: s.id,
       name: s.store_name,
       category: s.category,
@@ -1159,7 +1178,7 @@ const getAllBusinesses = async (req, res, next) => {
       verified: s.is_verified || false,
       isTrusted: s.is_trusted || false,
       ownerId: s.owner_id,
-      catalogues: s.products?.[0]?.count || 0
+      catalogues: productCountMap[s.id] ?? s.products?.[0]?.count ?? 0
     }));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;

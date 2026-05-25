@@ -777,6 +777,7 @@ export const searchProducts = async (params: {
   sortBy?: string;
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
 }) => {
   try {
     const response = await api.get('/products/search', { params });

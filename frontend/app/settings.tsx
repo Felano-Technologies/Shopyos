@@ -7,9 +7,11 @@ import {
   Image,
   Switch,
   ScrollView,
-  Alert,
+  Modal,
+  Pressable,
   StatusBar,
   Animated,
+  ActivityIndicator,
 } from 'react-native';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
@@ -55,6 +57,8 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   // Toggles State
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -156,23 +160,22 @@ export default function SettingsScreen() {
     }
   };
   const handleLogout = async () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await logoutUser();
-            router.replace('/login');
-          } catch (error) {
-            console.error('Logout error:', error);
-            // Even if API fails, we should clear local and redirect
-            router.replace('/login');
-          }
-        }
-      },
-    ]);
+    setLogoutModalVisible(true);
+  };
+
+  const confirmLogout = async () => {
+    try {
+      setLogoutLoading(true);
+      await logoutUser();
+      setLogoutModalVisible(false);
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      setLogoutModalVisible(false);
+      router.replace('/login');
+    } finally {
+      setLogoutLoading(false);
+    }
   };
   const renderSettingItem = ({
     icon,
@@ -345,6 +348,41 @@ export default function SettingsScreen() {
         steps={onboardingSteps}
         onComplete={handleOnboardingComplete}
       />
+      <Modal
+        visible={logoutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={styles.logoutModalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setLogoutModalVisible(false)} />
+          <View style={styles.logoutModalCard}>
+            <View style={styles.logoutModalIcon}>
+              <Feather name="log-out" size={22} color="#EF4444" />
+            </View>
+            <Text style={styles.logoutModalTitle}>Log Out?</Text>
+            <Text style={styles.logoutModalBody}>
+              You will need to sign in again to access your account.
+            </Text>
+            <View style={styles.logoutModalActions}>
+              <TouchableOpacity
+                style={styles.logoutCancelBtn}
+                onPress={() => setLogoutModalVisible(false)}
+                disabled={logoutLoading}
+              >
+                <Text style={styles.logoutCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.logoutConfirmBtn}
+                onPress={confirmLogout}
+                disabled={logoutLoading}
+              >
+                {logoutLoading ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.logoutConfirmText}>Log Out</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -540,6 +578,73 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
     color: '#EF4444',
+  },
+  logoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 6, 23, 0.45)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  logoutModalCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+  },
+  logoutModalIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center',
+    marginBottom: 10,
+  },
+  logoutModalTitle: {
+    fontSize: 20,
+    color: '#0F172A',
+    fontFamily: 'Montserrat-Bold',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  logoutModalBody: {
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#64748B',
+    fontFamily: 'Montserrat-Medium',
+    textAlign: 'center',
+    marginBottom: 18,
+  },
+  logoutModalActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  logoutCancelBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutCancelText: {
+    color: '#334155',
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  logoutConfirmBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#DC2626',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  logoutConfirmText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
   },
   versionText: {
     fontSize: 12,

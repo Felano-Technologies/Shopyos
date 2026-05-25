@@ -7,15 +7,37 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
+  Alert,
+  ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { requestPasswordReset } from '@/services/api';
+import LottieView from 'lottie-react-native';
 
 const { width } = Dimensions.get('window');
 
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
+  const [sending, setSending] = useState(false);
+  const [successVisible, setSuccessVisible] = useState(false);
+
+  const handleRequestReset = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return;
+
+    try {
+      setSending(true);
+      await requestPasswordReset(normalizedEmail);
+      setSuccessVisible(true);
+    } catch (error: any) {
+      Alert.alert('Request Failed', error?.message || 'Could not send reset email. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -48,12 +70,40 @@ const ForgotPasswordScreen = () => {
 
       {/* Verify Button */}
       <TouchableOpacity
-        style={[styles.verifyButton, !email && { opacity: 0.4 }]}
-        disabled={!email}
-        onPress={() => router.push('/otp')}
+        style={[styles.verifyButton, (!email || sending) && { opacity: 0.4 }]}
+        disabled={!email || sending}
+        onPress={handleRequestReset}
       >
-        <Text style={styles.verifyText}>Verify</Text>
+        {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyText}>Send Reset Link</Text>}
       </TouchableOpacity>
+
+      <Modal
+        visible={successVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSuccessVisible(false)}
+      >
+        <View style={styles.successOverlay}>
+          <View style={styles.successCard}>
+            <LottieView
+              source={require('../assets/animations/reset-success.json')}
+              autoPlay
+              loop
+              style={styles.successArt}
+            />
+            <Text style={styles.successTitle}>Email Sent</Text>
+            <Text style={styles.successMessage}>
+              Your reset link is on the way. Please check your inbox and spam folder.
+            </Text>
+            <TouchableOpacity
+              style={styles.successButton}
+              onPress={() => setSuccessVisible(false)}
+            >
+              <Text style={styles.successButtonText}>Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Footer Logos */}
       <View style={styles.bottomLogos}>
@@ -150,5 +200,59 @@ const styles = StyleSheet.create({
     width: 100,
     height: 40,
     resizeMode: 'contain',
+  },
+  successOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  successCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFF',
+    borderRadius: 28,
+    paddingHorizontal: 24,
+    paddingVertical: 26,
+    alignItems: 'center',
+  },
+  successArt: {
+    width: 170,
+    height: 130,
+    marginBottom: 10,
+  },
+  successBackdropArt: {
+    width: 150,
+    height: 70,
+    resizeMode: 'contain',
+    marginBottom: -8,
+    opacity: 0.35,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  successMessage: {
+    fontSize: 14,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  successButton: {
+    backgroundColor: '#0F172A',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 999,
+  },
+  successButtonText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
   },
 });

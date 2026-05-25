@@ -87,6 +87,17 @@ export default function SearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (typeof params.query === 'string') {
+      setQuery(params.query);
+    } else if (Array.isArray(params.query)) {
+      setQuery(params.query[0] || '');
+    }
+    setCategory(params.category ? String(params.category) : null);
+    setSortBy(params.sortBy ? String(params.sortBy) : 'newest');
+  }, [params.query, params.category, params.sortBy]);
+
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -159,6 +170,7 @@ export default function SearchScreen() {
     sortBy: sortBy as any,
     minPrice: params.minPrice ? parseFloat(String(params.minPrice)) : undefined,
     maxPrice: params.maxPrice ? parseFloat(String(params.maxPrice)) : undefined,
+    minRating: params.minRating ? parseFloat(String(params.minRating)) : undefined,
   };
   const isActive = query.length >= 2;
   const { data: allData, isLoading: loadingAll } = useProducts(filters, 50);
@@ -194,7 +206,7 @@ export default function SearchScreen() {
     Keyboard.dismiss();
   };
   const handleProductPress = (item: any) => {
-    safePush(`/product/${item._id}`, { name: item.name, price: item.price, image: item.images?.[0] || '' });
+    safePush('/product/details', { id: item._id });
   };
   const handleAddToCart = async (item: any) => {
     setAddingId(item._id);
@@ -284,7 +296,10 @@ export default function SearchScreen() {
           <Text style={styles.priceLbl}>₵{parseFloat(item.price).toFixed(2)}</Text>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => handleAddToCart(item)}
+            onPress={(e: any) => {
+              e?.stopPropagation?.();
+              handleAddToCart(item);
+            }}
             disabled={addingId === item._id}
           >
             {addingId === item._id
@@ -315,7 +330,10 @@ export default function SearchScreen() {
       </View>
       <TouchableOpacity
         style={styles.featAddBtn}
-        onPress={() => handleAddToCart(item)}
+        onPress={(e: any) => {
+          e?.stopPropagation?.();
+          handleAddToCart(item);
+        }}
         disabled={addingId === item._id}
       >
         {addingId === item._id
@@ -349,7 +367,10 @@ export default function SearchScreen() {
         </View>
         <TouchableOpacity
           style={styles.listAddBtn}
-          onPress={() => handleAddToCart(item)}
+          onPress={(e: any) => {
+            e?.stopPropagation?.();
+            handleAddToCart(item);
+          }}
           disabled={addingId === item._id}
         >
           {addingId === item._id
@@ -493,7 +514,17 @@ export default function SearchScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.hdrBtn}
-                    onPress={() => safePush('/filter')}
+                    onPress={() =>
+                      safePush('/filter', {
+                        sortBy,
+                        query: query.trim().length > 0 ? query.trim() : undefined,
+                        category: category ?? undefined,
+                        minPrice: params.minPrice ? String(params.minPrice) : undefined,
+                        maxPrice: params.maxPrice ? String(params.maxPrice) : undefined,
+                        minRating: params.minRating ? String(params.minRating) : undefined,
+                        priceRange: params.priceRange ? String(params.priceRange) : undefined,
+                      })
+                    }
                   >
                     <Feather name="sliders" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>

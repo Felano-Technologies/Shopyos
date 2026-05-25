@@ -611,6 +611,7 @@ const searchProducts = async (req, res, next) => {
       category,
       minPrice,
       maxPrice,
+      minRating,
       sortBy = 'relevance',
       limit = 20,
       offset = 0
@@ -651,6 +652,7 @@ const searchProducts = async (req, res, next) => {
       category,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      minRating: minRating ? parseFloat(minRating) : undefined,
       sortBy: sortColumn,
       ascending: sortAscending,
       limit: limitNum,

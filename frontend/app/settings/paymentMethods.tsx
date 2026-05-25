@@ -246,6 +246,10 @@ export default function PaymentMethodsScreen() {
                 <TextInput 
                   style={styles.input}
                   placeholder={newMethod.type === 'card' ? 'e.g. John Doe' : 'e.g. My MTN Wallet'}
+                  placeholderTextColor="#94A3B8"
+                  selectionColor="#0C1559"
+                  cursorColor="#0C1559"
+                  autoCapitalize="words"
                   value={newMethod.title}
                   onChangeText={(text) => setNewMethod({ ...newMethod, title: text })}
                 />
@@ -256,6 +260,9 @@ export default function PaymentMethodsScreen() {
                 <TextInput 
                   style={styles.input}
                   placeholder={newMethod.type === 'card' ? '**** **** **** ****' : '05XXXXXXXX'}
+                  placeholderTextColor="#94A3B8"
+                  selectionColor="#0C1559"
+                  cursorColor="#0C1559"
                   value={newMethod.identifier}
                   keyboardType="numeric"
                   onChangeText={(text) => setNewMethod({ ...newMethod, identifier: text })}

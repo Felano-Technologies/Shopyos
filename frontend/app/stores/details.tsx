@@ -42,6 +42,13 @@ import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { ReportModal } from '../../components/ReportModal';
 const { width } = Dimensions.get('window');
+const DEFAULT_LATITUDE = 6.6745;
+const DEFAULT_LONGITUDE = -1.5716;
+
+const toFiniteCoordinate = (value: unknown, fallback: number) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
 export default function StoreDetailsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -61,6 +68,7 @@ export default function StoreDetailsScreen() {
   const [userRating, setUserRating] = useState(0);
   const [userComment, setUserComment] = useState('');
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewEligibilityVisible, setReviewEligibilityVisible] = useState(false);
   // --- Report Store ---
   const [reportVisible, setReportVisible] = useState(false);
   // --- Map Picker State ---
@@ -81,8 +89,8 @@ export default function StoreDetailsScreen() {
     email: storeData.email || "",
     address: storeData.address || "Address not provided",
     hours: storeData.openingHours || "Mon - Sat: 9am - 6pm",
-    latitude: storeData.latitude ? parseFloat(storeData.latitude) : 6.6745,
-    longitude: storeData.longitude ? parseFloat(storeData.longitude) : -1.5716,
+    latitude: toFiniteCoordinate(storeData.latitude, DEFAULT_LATITUDE),
+    longitude: toFiniteCoordinate(storeData.longitude, DEFAULT_LONGITUDE),
     isTrusted: storeData.isTrusted || false,
   } : {
     id: params.id,
@@ -98,8 +106,8 @@ export default function StoreDetailsScreen() {
     email: "",
     address: "",
     hours: "",
-    latitude: 6.6745,
-    longitude: -1.5716,
+    latitude: DEFAULT_LATITUDE,
+    longitude: DEFAULT_LONGITUDE,
   };
   const fetchReviews = useCallback(async () => {
     try {
@@ -136,8 +144,17 @@ export default function StoreDetailsScreen() {
     setMapPickerVisible(true);
   };
   const openExternalMap = (type: 'google' | 'apple') => {
-    const lat = store.latitude;
-    const lng = store.longitude;
+    const lat = toFiniteCoordinate(store.latitude, Number.NaN);
+    const lng = toFiniteCoordinate(store.longitude, Number.NaN);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Location Unavailable',
+        message: 'This store does not have a valid map location yet.'
+      });
+      setMapPickerVisible(false);
+      return;
+    }
     const label = encodeURIComponent(store.name);
     const url = type === 'apple' 
       ? `maps://?q=${label}&ll=${lat},${lng}`
@@ -167,7 +184,12 @@ export default function StoreDetailsScreen() {
         fetchReviews();
       }
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to post review");
+      const message = String(error?.message || '').toLowerCase();
+      if (message.includes('invalid order') || message.includes('order')) {
+        setReviewEligibilityVisible(true);
+      } else {
+        Alert.alert("Error", error.message || "Failed to post review");
+      }
     } finally {
       setIsSubmittingReview(false);
     }
@@ -323,14 +345,17 @@ export default function StoreDetailsScreen() {
                 provider={PROVIDER_GOOGLE}
                 style={styles.map}
                 initialRegion={{
-                  latitude: store.latitude,
-                  longitude: store.longitude,
+                  latitude: toFiniteCoordinate(store.latitude, DEFAULT_LATITUDE),
+                  longitude: toFiniteCoordinate(store.longitude, DEFAULT_LONGITUDE),
                   latitudeDelta: 0.005,
                   longitudeDelta: 0.005,
                 }}
                 scrollEnabled={false}
               >
-                <Marker coordinate={{ latitude: store.latitude, longitude: store.longitude }}>
+                <Marker coordinate={{
+                  latitude: toFiniteCoordinate(store.latitude, DEFAULT_LATITUDE),
+                  longitude: toFiniteCoordinate(store.longitude, DEFAULT_LONGITUDE)
+                }}>
                     <View style={styles.customMarker}>
                         {store.logo && <Image source={store.logo} style={styles.markerLogo} />}
                     </View>
@@ -542,6 +567,30 @@ export default function StoreDetailsScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+      <Modal
+        visible={reviewEligibilityVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setReviewEligibilityVisible(false)}
+      >
+        <View style={styles.eligibilityOverlay}>
+          <View style={styles.eligibilityCard}>
+            <View style={styles.eligibilityIcon}>
+              <Ionicons name="information-circle" size={28} color="#0C1559" />
+            </View>
+            <Text style={styles.eligibilityTitle}>Review Not Available Yet</Text>
+            <Text style={styles.eligibilityText}>
+              You can only leave a review for stores you have interacted with, such as placing an order with them.
+            </Text>
+            <TouchableOpacity
+              style={styles.eligibilityButton}
+              onPress={() => setReviewEligibilityVisible(false)}
+            >
+              <Text style={styles.eligibilityButtonText}>Understood</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <ReviewCommentsSheet visible={isCommentsVisible} onClose={() => setIsCommentsVisible(false)} reviewId={selectedReviewId} comments={activeComments} onSendComment={handleSendComment} isSubmitting={commentSubmitting} />
       <ReportModal
         visible={reportVisible}
@@ -653,4 +702,11 @@ const styles = StyleSheet.create({
   submitReviewBtn: { width: '100%', borderRadius: 18, overflow: 'hidden' },
   submitGradient: { paddingVertical: 18, justifyContent: 'center', alignItems: 'center' },
   submitReviewText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },
+  eligibilityOverlay: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.45)', justifyContent: 'center', paddingHorizontal: 24 },
+  eligibilityCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 22, alignItems: 'center' },
+  eligibilityIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  eligibilityTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
+  eligibilityText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 21, textAlign: 'center', marginBottom: 18 },
+  eligibilityButton: { backgroundColor: '#0C1559', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, minWidth: 140, alignItems: 'center' },
+  eligibilityButtonText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
 });
