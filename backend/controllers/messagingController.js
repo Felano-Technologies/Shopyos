@@ -153,11 +153,11 @@ const getConversationDetails = async (req, res, next) => {
 const sendMessage = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
-    const { content, messageType = 'text', attachmentUrl, replyToMessageId } = req.body;
+    const { content, messageType = 'text', attachmentUrl, attachmentMeta, replyToMessageId } = req.body;
     const userId = req.user.id;
 
-    // Validate input
-    if (!content || content.trim() === '') {
+    // Validate input — content only required for text messages
+    if (messageType === 'text' && (!content || content.trim() === '')) {
       return res.status(400).json({
         success: false,
         error: 'Message content is required'
@@ -173,8 +173,9 @@ const sendMessage = async (req, res, next) => {
       });
     }
 
-    // Moderate content before sending
-    const moderationResult = moderateText(content.trim());
+    // Moderate content before sending if content exists
+    const hasContent = content && content.trim() !== '';
+    const moderationResult = hasContent ? moderateText(content.trim()) : { content: '', isModerated: false };
     const finalContent = moderationResult.content;
     const isModerated = moderationResult.isModerated;
 
@@ -182,10 +183,11 @@ const sendMessage = async (req, res, next) => {
     const message = await repositories.messages.sendMessage({
       conversationId,
       senderId: userId,
-      content: finalContent,
+      content: finalContent || '',
       isModerated,
       messageType,
       attachmentUrl,
+      attachmentMeta,
       replyToMessageId
     });
 
@@ -349,7 +351,14 @@ const sendMessage = async (req, res, next) => {
           if (profile) senderName = profile.full_name || senderName;
         }
 
-        const notificationContent = messageType === 'text' ? content.substring(0, 50) : `Sent an ${messageType}`;
+        const previewMap = {
+          text: content?.substring(0, 50),
+          image: '📷 Photo',
+          video: '🎬 Video',
+          voice: '🎙️ Voice message',
+          sticker: content || '😊 Sticker',
+        };
+        const notificationContent = previewMap[messageType] || 'New message';
 
         await notificationService.sendNotification({
           userId: recipientId,
@@ -564,6 +573,261 @@ const deleteConversation = async (req, res, next) => {
   }
 };
 
+/**
+ * @route   POST /api/messaging/upload
+ * @desc    Upload message media (image, video, voice) to object storage
+ * @access  Private
+ */
+const uploadChatMedia = async (req, res, next) => {
+  try {
+    const { conversationId } = req.body;
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file uploaded'
+      });
+    }
+
+    if (!conversationId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Conversation ID is required'
+      });
+    }
+
+    // Verify user is participant of conversation
+    const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
+    if (!isParticipant) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to upload media to this conversation'
+      });
+    }
+
+    // Upload to S3/MinIO
+    const { s3, toPublicUrl } = require('../config/storage');
+    const { PutObjectCommand } = require('@aws-sdk/client-s3');
+    const crypto = require('crypto');
+    const path = require('path');
+
+    const ext = path.extname(req.file.originalname).toLowerCase() || '';
+    const random = crypto.randomBytes(6).toString('hex');
+    const now = Date.now();
+    const key = `chat-media/${conversationId}/${now}-${random}${ext}`;
+
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.STORAGE_BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    }));
+
+    res.status(200).json({
+      success: true,
+      media: {
+        url: toPublicUrl(key),
+        mimeType: req.file.mimetype,
+        size: req.file.size
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/messaging/users/:userId/presence
+ * @desc    Get user's online/offline presence status
+ * @access  Private
+ */
+const getUserPresence = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { cacheGet } = require('../config/redis');
+
+    // 1. Check Redis cache first
+    let isOnline = false;
+    const cachedPresence = await cacheGet(`presence:${userId}`);
+    if (cachedPresence === '1') {
+      isOnline = true;
+    }
+
+    // 2. Fetch profile from DB to get the most recent db state
+    const profile = await repositories.userProfiles.findByUserId(userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        error: 'User profile not found'
+      });
+    }
+
+    // Cache is ground truth for active connection, DB is backup
+    const finalOnline = isOnline || profile.is_online || false;
+
+    res.status(200).json({
+      success: true,
+      presence: {
+        userId,
+        isOnline: finalOnline,
+        lastSeen: profile.last_seen || new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/messaging/stickers/packs
+ * @desc    Get messaging sticker packs (built-in + custom user stickers)
+ * @access  Private
+ */
+const getStickerPacks = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
+    const { s3, toPublicUrl } = require('../config/storage');
+
+    // 1. Fetch custom user stickers from S3
+    const customPrefix = `stickers/custom/${userId}/`;
+    let customStickers = [];
+    try {
+      const response = await s3.send(new ListObjectsV2Command({
+        Bucket: process.env.STORAGE_BUCKET,
+        Prefix: customPrefix
+      }));
+      if (response.Contents) {
+        customStickers = response.Contents
+          .filter(item => item.Size > 0)
+          .map(item => ({
+            id: item.Key.split('/').pop().replace(/\.[^/.]+$/, ""),
+            url: toPublicUrl(item.Key),
+            label: 'Custom'
+          }));
+      }
+    } catch (s3Err) {
+      logger.warn(`Could not list custom stickers for user ${userId}: ${s3Err.message}`);
+    }
+
+    // 2. Built-in packs using premium transparent 3D Fluent assets
+    const packs = [
+      {
+        id: 'expressions',
+        name: 'Expressions',
+        preview: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Smiling%20face%20with%20smiling%20eyes/3D/smiling_face_with_smiling_eyes_3d.png',
+        stickers: [
+          { id: 'e1', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Smiling%20face%20with%20smiling%20eyes/3D/smiling_face_with_smiling_eyes_3d.png', label: 'Happy' },
+          { id: 'e2', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Smiling%20face%20with%20heart-eyes/3D/smiling_face_with_heart-eyes_3d.png', label: 'Love' },
+          { id: 'e3', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Rolling%20on%20the%20floor%20laughing/3D/rolling_on_the_floor_laughing_3d.png', label: 'LOL' },
+          { id: 'e4', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Winking%20face/3D/winking_face_3d.png', label: 'Wink' },
+          { id: 'e5', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Crying%20face/3D/crying_face_3d.png', label: 'Cry' },
+          { id: 'e6', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Enraged%20face/3D/enraged_face_3d.png', label: 'Angry' },
+          { id: 'e7', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Thinking%20face/3D/thinking_face_3d.png', label: 'Think' },
+          { id: 'e8', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Exploding%20head/3D/exploding_head_3d.png', label: 'Mindblown' }
+        ]
+      },
+      {
+        id: 'shopping',
+        name: 'Shopping',
+        preview: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shopping%20cart/3D/shopping_cart_3d.png',
+        stickers: [
+          { id: 's1', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Shopping%20cart/3D/shopping_cart_3d.png', label: 'Cart' },
+          { id: 's2', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Delivery%20truck/3D/delivery_truck_3d.png', label: 'Delivery' },
+          { id: 's3', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Money%20bag/3D/money_bag_3d.png', label: 'Paid' },
+          { id: 's4', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Wrapped%20gift/3D/wrapped_gift_3d.png', label: 'Gift' },
+          { id: 's5', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Credit%20card/3D/credit_card_3d.png', label: 'Card' },
+          { id: 's6', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Label/3D/label_3d.png', label: 'Sale' }
+        ]
+      },
+      {
+        id: 'reactions',
+        name: 'Reactions',
+        preview: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Thumbs%20up/3D/thumbs_up_3d_default.png',
+        stickers: [
+          { id: 'r1', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Thumbs%20up/3D/thumbs_up_3d_default.png', label: 'Thumbs Up' },
+          { id: 'r2', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Fire/3D/fire_3d.png', label: 'Fire' },
+          { id: 'r3', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Clapping%20hands/3D/clapping_hands_3d_default.png', label: 'Clap' },
+          { id: 'r4', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Party%20popper/3D/party_popper_3d.png', label: 'Party' },
+          { id: 'r5', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Star/3D/star_3d.png', label: 'Star' },
+          { id: 'r6', url: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Red%20heart/3D/red_heart_3d.png', label: 'Heart' }
+        ]
+      }
+    ];
+
+    // Add custom pack at the start
+    if (customStickers.length > 0) {
+      packs.unshift({
+        id: 'custom',
+        name: 'My Stickers',
+        preview: customStickers[0].url,
+        stickers: customStickers
+      });
+    } else {
+      packs.unshift({
+        id: 'custom',
+        name: 'My Stickers',
+        preview: 'https://raw.githubusercontent.com/microsoft/fluentui-emoji/main/assets/Frame%20with%20picture/3D/frame_with_picture_3d.png',
+        stickers: []
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      packs
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   POST /api/messaging/stickers/create
+ * @desc    Create a custom sticker from uploaded image
+ * @access  Private
+ */
+const createCustomSticker = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No image uploaded'
+      });
+    }
+
+    const { s3, toPublicUrl } = require('../config/storage');
+    const { PutObjectCommand } = require('@aws-sdk/client-s3');
+    const crypto = require('crypto');
+    const path = require('path');
+
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
+    const random = crypto.randomBytes(6).toString('hex');
+    const now = Date.now();
+    const key = `stickers/custom/${userId}/${now}-${random}${ext}`;
+
+    await s3.send(new PutObjectCommand({
+      Bucket: process.env.STORAGE_BUCKET,
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    }));
+
+    res.status(200).json({
+      success: true,
+      sticker: {
+        id: `${now}-${random}`,
+        url: toPublicUrl(key),
+        label: 'Custom'
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   startConversation,
   getConversations,
@@ -574,5 +838,9 @@ module.exports = {
   deleteConversation,
   deleteMessage,
   searchMessages,
-  getUnreadCount
+  getUnreadCount,
+  getUserPresence,
+  uploadChatMedia,
+  getStickerPacks,
+  createCustomSticker
 };

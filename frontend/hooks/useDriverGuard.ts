@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'expo-router';
 import { useDriverProfile } from './useDelivery';
+import { secureStorage } from '../services/api';
 
 // Screens that unverified drivers ARE allowed to access
 const UNGUARDED_DRIVER_ROUTES = [
@@ -24,15 +25,21 @@ export const useDriverGuard = () => {
       return;
     }
 
-    // Skip the guard on routes where unverified drivers are allowed
-    if (UNGUARDED_DRIVER_ROUTES.some((r) => pathname.startsWith(r))) {
-      setIsChecking(false);
-      return;
-    }
-
-    const driver = profileData?.profile || profileData?.data || profileData;
-
     const checkVerification = async () => {
+      const token = await secureStorage.getItem('userToken');
+      if (!token) {
+        setIsChecking(false);
+        return;
+      }
+
+      // Skip the guard on routes where unverified drivers are allowed
+      if (UNGUARDED_DRIVER_ROUTES.some((r) => pathname.startsWith(r))) {
+        setIsChecking(false);
+        return;
+      }
+
+      const driver = profileData?.profile || profileData?.data || profileData;
+
       // 1. If we have driver profile, check verification status
       if (driver) {
         // Only force verification screen if they are NOT verified OR PENDING.

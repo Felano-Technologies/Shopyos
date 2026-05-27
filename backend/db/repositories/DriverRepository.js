@@ -88,6 +88,29 @@ class DriverRepository extends BaseRepository {
     if (error) throw error;
     return data;
   }
+
+  /**
+   * Get all verified, online drivers with coordinates and contact details
+   * @returns {Promise<Array>}
+   */
+  async getOnlineDrivers() {
+    const { getPool } = require('../../config/postgres');
+    const db = getPool();
+    const { rows } = await db.query(`
+      SELECT 
+        d.user_id,
+        u.email,
+        p.full_name,
+        p.phone,
+        p.latitude,
+        p.longitude
+      FROM driver_profiles d
+      JOIN users u ON d.user_id = u.id
+      JOIN user_profiles p ON d.user_id = p.user_id
+      WHERE d.is_available = TRUE AND d.is_verified = TRUE
+    `);
+    return rows || [];
+  }
 }
 
 module.exports = DriverRepository;

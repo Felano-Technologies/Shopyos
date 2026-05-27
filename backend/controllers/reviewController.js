@@ -40,22 +40,42 @@ const createProductReview = async (req, res, next) => {
       });
     }
 
-    // Verify user has purchased the product (if orderId provided)
+    // Verify user has purchased the product via a completed order
+    let finalOrderId = orderId;
     if (orderId) {
       const order = await repositories.orders.findById(orderId);
       if (!order || order.buyer_id !== userId) {
         return res.status(403).json({
           success: false,
-          error: 'Invalid order'
+          error: 'You can only review products from your own orders.',
+          code: 'ORDER_REQUIRED'
         });
       }
+    } else {
+      // No orderId provided — check if user has ANY delivered order containing this product
+      const { data: userOrders } = await repositories.orders.db
+        .from('orders')
+        .select('id, order_items!inner(product_id)')
+        .eq('buyer_id', userId)
+        .eq('status', 'delivered')
+        .eq('order_items.product_id', productId)
+        .limit(1);
+
+      if (!userOrders || userOrders.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'You need to purchase and receive this product before leaving a review.',
+          code: 'PURCHASE_REQUIRED'
+        });
+      }
+      finalOrderId = userOrders[0].id;
     }
 
     // Create review
     const review = await repositories.reviews.createProductReview({
       productId,
       userId,
-      orderId: orderId || null,
+      orderId: finalOrderId,
       rating,
       reviewText: reviewText || null,
       images: images || null
@@ -108,21 +128,41 @@ const createStoreReview = async (req, res, next) => {
     }
 
     // Verify user has ordered from the store
+    let finalOrderId = orderId;
     if (orderId) {
       const order = await repositories.orders.findById(orderId);
       if (!order || order.buyer_id !== userId || order.store_id !== storeId) {
         return res.status(403).json({
           success: false,
-          error: 'Invalid order'
+          error: 'You can only review stores you have ordered from.',
+          code: 'ORDER_REQUIRED'
         });
       }
+    } else {
+      // No orderId provided — check if user has ANY delivered order from this store
+      const { data: userOrders } = await repositories.orders.db
+        .from('orders')
+        .select('id')
+        .eq('buyer_id', userId)
+        .eq('store_id', storeId)
+        .eq('status', 'delivered')
+        .limit(1);
+
+      if (!userOrders || userOrders.length === 0) {
+        return res.status(403).json({
+          success: false,
+          error: 'You need to place and receive an order from this store before leaving a review.',
+          code: 'PURCHASE_REQUIRED'
+        });
+      }
+      finalOrderId = userOrders[0].id;
     }
 
     // Create review
     const review = await repositories.reviews.createStoreReview({
       storeId,
       userId,
-      orderId: orderId || null,
+      orderId: finalOrderId,
       rating,
       reviewText: reviewText || null
     });
@@ -233,9 +273,36 @@ const getProductReviews = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
+    // Map reviews to match frontend expectations (flat user object with converted avatar URL, and isLiked flag)
+    const reviewIds = reviews.map(r => r.id);
+    let likedSet = new Set();
+    if (req.user?.id && reviewIds.length > 0) {
+      const { data: likedList } = await repositories.reviews.db
+        .from('review_likes')
+        .select('review_id')
+        .eq('user_id', req.user.id)
+        .in('review_id', reviewIds);
+      
+      likedSet = new Set((likedList || []).map(item => item.review_id));
+    }
+
+    const mappedReviews = reviews.map(r => {
+      const rawProfile = r.user?.user_profiles;
+      const userProfile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
+      return {
+        ...r,
+        user: {
+          id: r.buyer_id,
+          full_name: userProfile?.full_name || 'Anonymous User',
+          avatar_url: userProfile?.avatar_url ? toPublicUrl(userProfile.avatar_url) : null
+        },
+        isLiked: likedSet.has(r.id)
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: reviews,
+      data: mappedReviews,
       stats,
       pagination: {
         totalItems: totalCount,
@@ -276,9 +343,36 @@ const getStoreReviews = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
+    // Map reviews to match frontend expectations (flat user object with converted avatar URL, and isLiked flag)
+    const reviewIds = reviews.map(r => r.id);
+    let likedSet = new Set();
+    if (req.user?.id && reviewIds.length > 0) {
+      const { data: likedList } = await repositories.reviews.db
+        .from('review_likes')
+        .select('review_id')
+        .eq('user_id', req.user.id)
+        .in('review_id', reviewIds);
+      
+      likedSet = new Set((likedList || []).map(item => item.review_id));
+    }
+
+    const mappedReviews = reviews.map(r => {
+      const rawProfile = r.user?.user_profiles;
+      const userProfile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
+      return {
+        ...r,
+        user: {
+          id: r.buyer_id,
+          full_name: userProfile?.full_name || 'Anonymous User',
+          avatar_url: userProfile?.avatar_url ? toPublicUrl(userProfile.avatar_url) : null
+        },
+        isLiked: likedSet.has(r.id)
+      };
+    });
+
     res.status(200).json({
       success: true,
-      data: reviews,
+      data: mappedReviews,
       stats,
       pagination: {
         totalItems: totalCount,
@@ -683,6 +777,28 @@ const createReviewComment = async (req, res, next) => {
       .single();
 
     if (error) throw error;
+
+    // Increment comments_count on the appropriate review table
+    const reviewTableMap = {
+      product: 'product_reviews',
+      store: 'store_reviews',
+      driver: 'driver_reviews'
+    };
+    const targetTable = reviewTableMap[polymorphicReview.type];
+    if (targetTable) {
+      const { data: rev } = await repositories.reviews.db
+        .from(targetTable)
+        .select('comments_count')
+        .eq('id', reviewId)
+        .single();
+      
+      const currentComments = rev?.comments_count || 0;
+      await repositories.reviews.db
+        .from(targetTable)
+        .update({ comments_count: currentComments + 1 })
+        .eq('id', reviewId)
+        .catch(() => {});
+    }
 
     res.status(201).json({ success: true, message: 'Comment added', data: comment });
   } catch (error) {

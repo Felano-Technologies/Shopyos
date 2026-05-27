@@ -377,23 +377,23 @@ const resetPassword = async (req, res, next) => {
 
     await repositories.users.setPasswordResetToken(user.id, token, expiresAt);
 
-    const appScheme = process.env.APP_SCHEME || 'shopyos';
-    const resetUrl = `${appScheme}://reset-password?token=${token}`;
+    const frontendUrl = process.env.FRONTEND_URL || 'https://shopyos.com';
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
 
     await getTransporter().sendMail({
       to: user.email,
       from: process.env.EMAIL_FROM,
       subject: 'Shopyos - Password Reset Request',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2>Password Reset Request</h2>
-          <p>You requested a password reset for your Shopyos account.</p>
-          <p>Click the button below to open the app and reset your password (link expires in 1 hour):</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0C1559; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">Reset Password in App</a>
-          <p style="margin-top: 30px; color: #999; font-size: 12px;">If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+          <h2 style="color: #0C1559; margin-bottom: 16px;">Password Reset Request</h2>
+          <p style="color: #334155; font-size: 14px; line-height: 22px;">You requested a password reset for your Shopyos account.</p>
+          <p style="color: #64748B; font-size: 14px; line-height: 22px; margin-bottom: 24px;">Click the button below to reset your password. This will automatically open the Shopyos app on your device (link expires in 1 hour):</p>
+          <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background-color: #0C1559; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; margin-bottom: 24px;">Reset Password</a>
+          <p style="margin-top: 20px; color: #94a3b8; font-size: 12px; line-height: 18px;">If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
         </div>
       `,
-      text: `You requested a password reset.\n\nOpen this link in your mobile device to reset your password: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`
+      text: `You requested a password reset.\n\nReset your password here: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`
     });
 
     res.status(200).json({ success: true, message: 'Recovery email sent' });

@@ -24,7 +24,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
-  
   startConversation,
   getBusinessById,
   getStoreProducts,
@@ -48,6 +47,30 @@ const DEFAULT_LONGITUDE = -1.5716;
 const toFiniteCoordinate = (value: unknown, fallback: number) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const formatStoreAge = (createdAtString?: string) => {
+  if (!createdAtString) return 'Joined recently';
+  const createdDate = new Date(createdAtString);
+  if (isNaN(createdDate.getTime())) return 'Joined recently';
+  
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 30) {
+    return 'Joined this month';
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `Joined ${months} ${months === 1 ? 'month' : 'months'} ago`;
+  } else {
+    const years = Math.floor(diffDays / 365);
+    const months = Math.floor((diffDays % 365) / 30);
+    if (months === 0) {
+      return `Joined ${years} ${years === 1 ? 'year' : 'years'} ago`;
+    }
+    return `Joined ${years} ${years === 1 ? 'year' : 'years'} and ${months} ${months === 1 ? 'month' : 'months'} ago`;
+  }
 };
 export default function StoreDetailsScreen() {
   const router = useRouter();
@@ -92,6 +115,8 @@ export default function StoreDetailsScreen() {
     latitude: toFiniteCoordinate(storeData.latitude, DEFAULT_LATITUDE),
     longitude: toFiniteCoordinate(storeData.longitude, DEFAULT_LONGITUDE),
     isTrusted: storeData.isTrusted || false,
+    createdAt: storeData.createdAt || "",
+    followers: storeData.followersCount || 0,
   } : {
     id: params.id,
     name: params.name || "Store",
@@ -108,6 +133,8 @@ export default function StoreDetailsScreen() {
     hours: "",
     latitude: DEFAULT_LATITUDE,
     longitude: DEFAULT_LONGITUDE,
+    followers: 0,
+    createdAt: "",
   };
   const fetchReviews = useCallback(async () => {
     try {
@@ -127,7 +154,10 @@ export default function StoreDetailsScreen() {
         getBusinessById(params.id as string),
         getStoreProducts(params.id as string)
       ]);
-      if (bizRes.success) setStoreData(bizRes.business);
+      if (bizRes.success) {
+        setStoreData(bizRes.business);
+        setIsFollowing(bizRes.business.isFollowing || false);
+      }
       if (prodRes.success) setProducts(prodRes.products);
       fetchReviews();
     } catch (error) {
@@ -172,7 +202,6 @@ export default function StoreDetailsScreen() {
       setIsSubmittingReview(true);
       const res = await createStoreReview({
         storeId: store.id,
-        orderId: storeData?._id || '',
         rating: userRating,
         reviewText: userComment
       });
@@ -182,11 +211,17 @@ export default function StoreDetailsScreen() {
         setUserRating(0);
         setUserComment('');
         fetchReviews();
+        getBusinessById(params.id as string).then(bizRes => {
+          if (bizRes.success) setStoreData(bizRes.business);
+        });
       }
     } catch (error: any) {
       const message = String(error?.message || '').toLowerCase();
-      if (message.includes('invalid order') || message.includes('order')) {
+      if (message.includes('purchase') || message.includes('order') || message.includes('receive')) {
+        setReviewModalVisible(false);
         setReviewEligibilityVisible(true);
+      } else if (message.includes('already reviewed')) {
+        Alert.alert("Already Reviewed", "You have already reviewed this store. You can update your existing review from your profile.");
       } else {
         Alert.alert("Error", error.message || "Failed to post review");
       }
@@ -325,6 +360,13 @@ export default function StoreDetailsScreen() {
             </View>
             <View style={styles.infoList}>
               <View style={styles.infoItem}>
+                <Ionicons name="calendar-outline" size={22} color="#0C1559" />
+                <View style={styles.infoTextCol}>
+                   <Text style={styles.infoLabelText}>Store Age</Text>
+                   <Text style={styles.infoValueText}>{formatStoreAge(store.createdAt)}</Text>
+                </View>
+              </View>
+              <View style={styles.infoItem}>
                 <Ionicons name="time-outline" size={22} color="#0C1559" />
                 <View style={styles.infoTextCol}>
                    <Text style={styles.infoLabelText}>Opening Hours</Text>
@@ -433,10 +475,6 @@ export default function StoreDetailsScreen() {
                </TouchableOpacity>
             </View>
           </SafeAreaView>
-          <View style={styles.headerTitleWrap}>
-            <Text style={styles.headerStoreName} numberOfLines={1}>{store.name}</Text>
-            {store.category ? <Text style={styles.headerStoreMeta} numberOfLines={1}>{store.category}</Text> : null}
-          </View>
         </View>
         <View style={styles.profileSection}>
           <View style={styles.logoWrapper}>
@@ -446,7 +484,7 @@ export default function StoreDetailsScreen() {
             )}
           </View>
           <View style={styles.infoContent}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <Text style={styles.storeName}>{store.name}</Text>
               {store.isTrusted && (
                 <View style={styles.verifiedBadge}>
@@ -454,7 +492,11 @@ export default function StoreDetailsScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{Number(store.rating || 0).toFixed(1)} ({reviews.length} Reviews)</Text></View>
+            {store.category ? <Text style={styles.storeCat} numberOfLines={1}>{store.category}</Text> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <View style={styles.ratingRow}><Ionicons name="star" size={14} color="#FACC15" /><Text style={styles.ratingText}>{Number(store.rating || 0).toFixed(1)} ({reviews.length} Reviews)</Text></View>
+              <View style={[styles.ratingRow, { backgroundColor: '#EEF2FF', borderColor: '#E2E8F0', borderWidth: 0.5 }]}><Feather name="users" size={12} color="#0C1559" /><Text style={[styles.ratingText, { color: '#0C1559' }]}>{store.followers || 0} Followers</Text></View>
+            </View>
           </View>
         </View>
         <View style={styles.actionRow}>
@@ -576,17 +618,26 @@ export default function StoreDetailsScreen() {
         <View style={styles.eligibilityOverlay}>
           <View style={styles.eligibilityCard}>
             <View style={styles.eligibilityIcon}>
-              <Ionicons name="information-circle" size={28} color="#0C1559" />
+              <Ionicons name="bag-check-outline" size={28} color="#0C1559" />
             </View>
-            <Text style={styles.eligibilityTitle}>Review Not Available Yet</Text>
+            <Text style={styles.eligibilityTitle}>Purchase Required</Text>
             <Text style={styles.eligibilityText}>
-              You can only leave a review for stores you have interacted with, such as placing an order with them.
+              To ensure authentic reviews, you can only review stores and products after placing and receiving an order. This helps keep our community trustworthy!
             </Text>
             <TouchableOpacity
               style={styles.eligibilityButton}
+              onPress={() => {
+                setReviewEligibilityVisible(false);
+                router.push('/order' as any);
+              }}
+            >
+              <Text style={styles.eligibilityButtonText}>View My Orders</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.eligibilityDismiss}
               onPress={() => setReviewEligibilityVisible(false)}
             >
-              <Text style={styles.eligibilityButtonText}>Understood</Text>
+              <Text style={styles.eligibilityDismissText}>Maybe Later</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -612,12 +663,13 @@ const styles = StyleSheet.create({
   headerTitleWrap: { position: 'absolute', left: 16, right: 16, bottom: 14 },
   headerStoreName: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#FFFFFF', textShadowColor: 'rgba(0,0,0,0.65)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
   headerStoreMeta: { marginTop: 2, fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#E2E8F0', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
-  profileSection: { flexDirection: 'row', paddingHorizontal: 20, marginTop: -40, alignItems: 'flex-end', marginBottom: 16 },
+  profileSection: { flexDirection: 'row', paddingHorizontal: 20, marginTop: -40, alignItems: 'flex-start', marginBottom: 16 },
   logoWrapper: { position: 'relative' },
   storeLogo: { width: 80, height: 80, borderRadius: 20, borderWidth: 4, borderColor: '#FFF', backgroundColor: '#FFF' },
   verifiedBadge: { position: 'absolute', bottom: -6, right: -6, backgroundColor: '#3B82F6', borderRadius: 12, padding: 2, borderWidth: 2, borderColor: '#FFF' },
-  infoContent: { flex: 1, marginLeft: 12, paddingBottom: 4 },
+  infoContent: { flex: 1, marginLeft: 12, paddingTop: 44, paddingBottom: 4 },
   storeName: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
+  storeCat: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B', marginBottom: 4 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   ratingText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginLeft: 4 },
   actionRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 12, marginBottom: 20 },
@@ -709,4 +761,6 @@ const styles = StyleSheet.create({
   eligibilityText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 21, textAlign: 'center', marginBottom: 18 },
   eligibilityButton: { backgroundColor: '#0C1559', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, minWidth: 140, alignItems: 'center' },
   eligibilityButtonText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+  eligibilityDismiss: { marginTop: 10, paddingVertical: 8 },
+  eligibilityDismissText: { color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
 });

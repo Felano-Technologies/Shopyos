@@ -92,6 +92,46 @@ function initializeSocket(httpServer) {
     // Join user-specific room for notifications
     socket.join(`user:${socket.userId}`);
 
+    // Set online presence
+    const presenceInterval = setInterval(async () => {
+      try {
+        const { cacheSet } = require('./redis');
+        await cacheSet(`presence:${socket.userId}`, '1', 300);
+      } catch (err) {
+        // Silently catch
+      }
+    }, 120000); // Refresh every 2 mins
+
+    (async () => {
+      try {
+        const { cacheSet } = require('./redis');
+        const repositories = require('../db/repositories');
+        
+        // 1. Set Redis key with 5min TTL
+        await cacheSet(`presence:${socket.userId}`, '1', 300);
+        
+        // 2. Persist to DB
+        await repositories.userProfiles.updateByUserId(socket.userId, {
+          is_online: true,
+          last_seen: new Date().toISOString()
+        });
+        
+        // 3. Emit to all conversations the user is in
+        const { data: convs } = await repositories.conversations.db
+          .from('conversations')
+          .select('id')
+          .or(`participant1_id.eq.${socket.userId},participant2_id.eq.${socket.userId}`);
+        
+        if (convs && convs.length > 0) {
+          for (const conv of convs) {
+            emitToConversation(conv.id, 'presence:online', { userId: socket.userId });
+          }
+        }
+      } catch (err) {
+        logger.error(`Error setting online presence for user ${socket.userId}: ${err.message}`);
+      }
+    })();
+
     // Listen for room joining requests (e.g., for specific conversations)
     socket.on('room:join', (room) => {
       socket.join(room);
@@ -138,7 +178,7 @@ function initializeSocket(httpServer) {
       }
     });
 
-    socket.on('message:send', async ({ conversationId, content, messageType = 'text', attachmentUrl }, callback) => {
+    socket.on('message:send', async ({ conversationId, content, messageType = 'text', attachmentUrl, attachmentMeta }, callback) => {
       try {
         const repositories = require('../db/repositories');
         const notificationService = require('../services/notificationService');
@@ -164,17 +204,19 @@ function initializeSocket(httpServer) {
           return obj;
         };
 
-        const moderationResult = moderateText(content.trim());
+        const hasContent = content && content.trim() !== '';
+        const moderationResult = hasContent ? moderateText(content.trim()) : { content: '', isModerated: false };
         const finalContent = moderationResult.content;
         const isModerated = moderationResult.isModerated;
 
         const message = await repositories.messages.sendMessage({
           conversationId,
           senderId: socket.userId,
-          content: finalContent,
+          content: finalContent || '',
           isModerated,
           messageType,
-          attachmentUrl
+          attachmentUrl,
+          attachmentMeta
         });
 
         const [, { data: messageWithSender }] = await Promise.all([
@@ -276,7 +318,14 @@ function initializeSocket(httpServer) {
                 if (profile) senderName = profile.full_name || senderName;
               }
 
-              const notificationContent = messageType === 'text' ? content.substring(0, 50) : `Sent an ${messageType}`;
+              const previewMap = {
+                text: content?.substring(0, 50),
+                image: '📷 Photo',
+                video: '🎬 Video',
+                voice: '🎙️ Voice message',
+                sticker: content || '😊 Sticker',
+              };
+              const notificationContent = previewMap[messageType] || 'New message';
 
               await notificationService.sendNotification({
                 userId: recipientId,
@@ -306,6 +355,42 @@ function initializeSocket(httpServer) {
 
     socket.on('disconnect', (reason) => {
       logger.info(`Client disconnected: user=${socket.userId}, socket=${socket.id}, reason=${reason}`);
+      if (typeof presenceInterval !== 'undefined') {
+        clearInterval(presenceInterval);
+      }
+      
+      (async () => {
+        try {
+          const { cacheDel } = require('./redis');
+          const repositories = require('../db/repositories');
+          
+          // 1. Delete Redis key
+          await cacheDel(`presence:${socket.userId}`);
+          
+          // 2. Persist to DB
+          await repositories.userProfiles.updateByUserId(socket.userId, {
+            is_online: false,
+            last_seen: new Date().toISOString()
+          });
+          
+          // 3. Emit to all conversations the user is in
+          const { data: convs } = await repositories.conversations.db
+            .from('conversations')
+            .select('id')
+            .or(`participant1_id.eq.${socket.userId},participant2_id.eq.${socket.userId}`);
+          
+          if (convs && convs.length > 0) {
+            for (const conv of convs) {
+              emitToConversation(conv.id, 'presence:offline', { 
+                userId: socket.userId,
+                lastSeen: new Date().toISOString()
+              });
+            }
+          }
+        } catch (err) {
+          logger.error(`Error setting offline presence for user ${socket.userId}: ${err.message}`);
+        }
+      })();
     });
 
     socket.on('error', (error) => {

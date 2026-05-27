@@ -240,6 +240,14 @@ export default function OrderDetailsScreen() {
           {!['delivered', 'cancelled'].includes(currentStatus) && (
             <View style={S.section}>
               <Text style={S.sectionLbl}>Workflow Actions</Text>
+              
+              {currentStatus === 'ready_for_pickup' && (
+                <View style={S.infoNote}>
+                  <Ionicons name="time-outline" size={rs(18)} color="#7C3AED" />
+                  <Text style={S.infoNoteTxt}>Waiting for driver to accept</Text>
+                </View>
+              )}
+
               <View style={S.actionRow}>
                 {currentStatus === 'paid' && (
                   <TouchableOpacity
@@ -259,16 +267,6 @@ export default function OrderDetailsScreen() {
                   >
                     <Ionicons name="cube-outline" size={rs(16)} color="#15803D" />
                     <Text style={[S.actionBtnTxt, { color: '#15803D' }]}>Mark Ready</Text>
-                  </TouchableOpacity>
-                )}
-                {currentStatus === 'ready_for_pickup' && (
-                  <TouchableOpacity
-                    style={[S.actionBtn, { backgroundColor: '#EEF2FF' }]}
-                    onPress={() => confirmAction('Delivered', 'delivered')}
-                    disabled={updating}
-                  >
-                    <Ionicons name="checkmark-circle-outline" size={rs(16)} color="#4F46E5" />
-                    <Text style={[S.actionBtnTxt, { color: '#4F46E5' }]}>Mark Delivered</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
@@ -537,4 +535,10 @@ const S = StyleSheet.create({
     backgroundColor: '#F8FAFC', padding: rs(12), borderRadius: rs(14), marginTop: rs(14),
   },
   methodTxt: { fontSize: rf(12), fontFamily: 'Montserrat-Bold', color: '#475569' },
+  infoNote: {
+    flexDirection: 'row', alignItems: 'center', gap: rs(8),
+    backgroundColor: '#F5F3FF', borderWidth: 1, borderColor: '#DDD6FE',
+    padding: rs(12), borderRadius: rs(14), marginBottom: rs(12),
+  },
+  infoNoteTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#7C3AED' },
 });

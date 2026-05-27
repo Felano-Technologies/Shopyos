@@ -81,7 +81,7 @@ export default function DriverEarnings() {
 
             <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Total Today</Text>
-                <Text style={styles.balanceValue}>₵{stats.earnings.toFixed(2)}</Text>
+                <Text style={styles.balanceValue}>₵{(stats.earnings || 0).toFixed(2)}</Text>
                 <TouchableOpacity style={styles.cashoutBtn} onPress={() => CustomInAppToast.show({ type: 'info', title: 'Payout', message: 'Payouts are processed weekly. You will receive it in your MOMO wallet.' })}>
                     <Text style={styles.cashoutText}>Request Payout</Text>
                     <Feather name="chevron-right" size={16} color="#0C1559" />

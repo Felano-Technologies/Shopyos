@@ -10,7 +10,7 @@ import {
   requestLocationPermissions,
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
-import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar } from '@/services/api';
+import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDriverAvailability, logoutUser } from '@/services/api';
 import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
@@ -24,6 +24,7 @@ export default function DriverSettings() {
   const [, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [logoutLoading, setLogoutLoading] = useState(false);
   // Load profile and preferences on mount
   useEffect(() => {
     loadData();
@@ -100,6 +101,28 @@ export default function DriverSettings() {
     } catch (error) {
       console.error('Error toggling location sharing:', error);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to update location sharing preference.' });
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      setLogoutLoading(true);
+      try {
+        await updateDriverAvailability(false);
+      } catch (err) {
+        console.warn('Failed to set driver offline during logout:', err);
+      }
+      await logoutUser();
+      CustomInAppToast.show({
+        type: 'success',
+        title: 'Logged Out',
+        message: 'You have been successfully logged out.'
+      });
+      router.replace('/login');
+    } catch (error) {
+      router.replace('/login');
+    } finally {
+      setLogoutLoading(false);
     }
   };
   const SettingRow = ({ icon, label, value, onPress }: any) => (
@@ -197,8 +220,16 @@ export default function DriverSettings() {
           <SettingRow icon="map" label="Navigation App" value="Google Maps" />
           <SettingRow icon="bell" label="Sound & Notification" value="On" />
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => router.replace('/login')}>
-          <Text style={styles.logoutText}>Stop Driving (Logout)</Text>
+        <TouchableOpacity 
+          style={styles.logoutBtn} 
+          onPress={handleLogout}
+          disabled={logoutLoading}
+        >
+          {logoutLoading ? (
+            <ActivityIndicator size="small" color="#DC2626" />
+          ) : (
+            <Text style={styles.logoutText}>Stop Driving (Logout)</Text>
+          )}
         </TouchableOpacity>
         {/* Extra Space at bottom for safe scrolling */}
         <View style={{ height: 40 }} />

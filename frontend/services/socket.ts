@@ -224,7 +224,8 @@ class SocketService {
     conversationId: string,
     content: string,
     messageType: string = 'text',
-    attachmentUrl?: string
+    attachmentUrl?: string,
+    attachmentMeta?: any
   ): Promise<any> {
     return new Promise(async (resolve, reject) => {
       try {
@@ -234,7 +235,8 @@ class SocketService {
           conversationId,
           content,
           messageType,
-          attachmentUrl
+          attachmentUrl,
+          attachmentMeta
         }, (response: any) => {
           if (response?.success) {
             resolve(response.message);
@@ -295,6 +297,40 @@ class SocketService {
         this.socket.off('message:new');
         this.eventHandlers.delete('message:new');
       }
+    }
+  }
+
+  /**
+   * Listen for user going online
+   */
+  async onUserOnline(callback: (data: { userId: string }) => void): Promise<void> {
+    const socket = await this.connect();
+    this.addEventHandler('presence:online', callback);
+    socket.off('presence:online', callback);
+    socket.on('presence:online', callback);
+  }
+
+  offUserOnline(callback: SocketEventCallback): void {
+    if (this.socket) {
+      this.socket.off('presence:online', callback);
+      this.removeEventHandler('presence:online', callback);
+    }
+  }
+
+  /**
+   * Listen for user going offline
+   */
+  async onUserOffline(callback: (data: { userId: string; lastSeen: string }) => void): Promise<void> {
+    const socket = await this.connect();
+    this.addEventHandler('presence:offline', callback);
+    socket.off('presence:offline', callback);
+    socket.on('presence:offline', callback);
+  }
+
+  offUserOffline(callback: SocketEventCallback): void {
+    if (this.socket) {
+      this.socket.off('presence:offline', callback);
+      this.removeEventHandler('presence:offline', callback);
     }
   }
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import TappableAvatar from '@/components/TappableAvatar';
 import {
   View,
   Text,
@@ -18,8 +19,7 @@ import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {  Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage } from '@/services/api';
-import { baseURL } from '@/services/api';
+import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage, baseURL } from '@/services/api';
 
 const LOCAL_AVATAR_CACHE_KEY = 'lastUploadedAvatarUri';
 const toDisplayAvatarUrl = (raw?: string | null) => {
@@ -44,10 +44,6 @@ const toDisplayAvatarUrl = (raw?: string | null) => {
 };
 const isLocalhostLikeUrl = (value?: string | null) =>
   !!value && /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(value);
-
-import TappableAvatar from '@/components/TappableAvatar';
-
-// Keep the rest of imports unchanged
 
 export default function SettingsScreen() {
   const router = useRouter();

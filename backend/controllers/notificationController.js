@@ -256,6 +256,28 @@ const registerPushToken = async (req, res, next) => {
   }
 };
 
+/**
+ * Mark all message notifications read by conversation ID
+ * @route   PUT /api/notifications/read-by-conversation/:conversationId
+ * @access  Private
+ */
+const markReadByConversation = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { conversationId } = req.params;
+
+    const count = await repositories.notifications.markNotificationsAsReadByConversation(conversationId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: 'Notifications marked as read',
+      updatedCount: count
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getNotifications,
   getUnreadCount,
@@ -266,5 +288,6 @@ module.exports = {
   getPreferences,
   updatePreferences,
   getNotificationsByType,
-  registerPushToken
+  registerPushToken,
+  markReadByConversation
 };

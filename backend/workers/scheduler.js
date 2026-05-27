@@ -108,6 +108,7 @@ async function resolveRecipients(recipientType, recipientIds) {
 }
 
 // ─── Fan-out one user across channels ────────────────────────────────────────
+// Returns true on success, false on failure (never throws).
 
 async function dispatchToUser(user, item) {
   const { title, message, send_email, send_sms, send_push, campaign_type } = item;
@@ -119,30 +120,36 @@ async function dispatchToUser(user, item) {
 
   const notificationService = require('../services/notificationService');
 
-  await notificationService.sendNotification({
-    userId: user.id,
-    type: eventType,
-    title: personalizedTitle,
-    message: personalizedMessage,
-    relatedId: item.id,
-    relatedType: 'scheduled_notification',
-    data: {
-      scheduledNotificationId: item.id,
-      campaignType: campaign_type
-    },
-    email: send_email && user.email ? {
-      html: `<p style="font-size:17px;line-height:1.6;">${personalizedMessage}</p>`
-    } : null,
-    sms: send_sms && phone ? {
-      text: personalizedMessage
-    } : null,
-    push: send_push ? {
+  try {
+    await notificationService.sendNotification({
+      userId: user.id,
+      type: eventType,
+      title: personalizedTitle,
+      message: personalizedMessage,
+      relatedId: item.id,
+      relatedType: 'scheduled_notification',
       data: {
-        screen: 'notifications',
-        scheduledNotificationId: item.id
-      }
-    } : null
-  }).catch(err => logger.error(`[Scheduler] dispatchToUser failed for user ${user.id}:`, err.message));
+        scheduledNotificationId: item.id,
+        campaignType: campaign_type
+      },
+      email: send_email && user.email ? {
+        html: `<p style="font-size:17px;line-height:1.6;">${personalizedMessage}</p>`
+      } : null,
+      sms: send_sms && phone ? {
+        text: personalizedMessage
+      } : null,
+      push: send_push ? {
+        data: {
+          screen: 'notifications',
+          scheduledNotificationId: item.id
+        }
+      } : null
+    });
+    return true;
+  } catch (err) {
+    logger.error(`[Scheduler] dispatchToUser failed for user ${user.id}:`, err.message);
+    return false;
+  }
 }
 
 // ─── Job 1: Process due manual scheduled broadcasts ───────────────────────────
@@ -171,8 +178,17 @@ async function processManualBroadcasts() {
       const recipients = await resolveRecipients(item.recipient_type, item.recipient_ids);
       logger.info(`[Scheduler] Broadcast "${item.title}" → ${recipients.length} recipients`);
 
+      let successCount = 0;
+      let failCount = 0;
       for (const user of recipients) {
-        await dispatchToUser(user, item);
+        const ok = await dispatchToUser(user, item);
+        if (ok) successCount++; else failCount++;
+      }
+
+      logger.info(`[Scheduler] Broadcast "${item.title}" dispatched: ${successCount} ok, ${failCount} failed`);
+
+      if (recipients.length > 0 && successCount === 0) {
+        throw new Error(`All ${failCount} dispatches failed — check notification_type enum and DB logs`);
       }
 
       await repositories.scheduledNotifications.update(item.id, {

@@ -23,6 +23,7 @@ const createProduct = async (req, res, next) => {
       description,
       price,
       category,
+      gender,
       stockQuantity,
       sku,
       weight,
@@ -79,6 +80,7 @@ const createProduct = async (req, res, next) => {
       description: description || '',
       price: parseFloat(price),
       category: category || 'general',
+      gender: gender || 'Unisex',
       sku: sku || null,
       weight_kg: weight ? parseFloat(weight) : null,
       dimensions: dimensions || null,
@@ -107,6 +109,7 @@ const createProduct = async (req, res, next) => {
         description: product.description,
         price: product.price,
         category: product.category,
+        gender: product.gender,
         images: [],
         createdAt: product.created_at,
         updatedAt: product.updated_at
@@ -157,6 +160,7 @@ const getStoreProducts = async (req, res, next) => {
       price: p.price,
       images: p.product_images ? p.product_images.map(img => toPublicUrl(img.image_url)) : [],
       category: p.category,
+      gender: p.gender,
       sku: p.sku,
       stockQuantity: Array.isArray(p.inventory) ? p.inventory[0]?.quantity : (p.inventory?.quantity || 0),
       createdAt: p.created_at,
@@ -236,6 +240,7 @@ const getProductById = async (req, res, next) => {
       price: product.price,
       images: product.product_images?.map(img => toPublicUrl(img.image_url)) || [],
       category: product.category,
+      gender: product.gender,
       brand: product.brand,
       sku: product.sku,
       stockQuantity: Array.isArray(product.inventory) ? product.inventory[0]?.quantity : (product.inventory?.quantity || 0),
@@ -357,6 +362,7 @@ const updateProduct = async (req, res, next) => {
     if (updateData.description) mappedData.description = updateData.description;
     if (updateData.price) mappedData.price = parseFloat(updateData.price);
     if (updateData.category) mappedData.category = updateData.category;
+    if (updateData.gender) mappedData.gender = updateData.gender;
     if (updateData.sku) mappedData.sku = updateData.sku;
     if (updateData.brand) mappedData.brand = updateData.brand;
     if (updateData.weight) mappedData.weight_kg = parseFloat(updateData.weight);
@@ -395,6 +401,7 @@ const updateProduct = async (req, res, next) => {
         description: updated.description,
         price: updated.price,
         category: updated.category,
+        gender: updated.gender,
         updatedAt: updated.updated_at,
         isActive: updated.is_active
       }
@@ -609,6 +616,7 @@ const searchProducts = async (req, res, next) => {
     const {
       query,
       category,
+      gender,
       minPrice,
       maxPrice,
       minRating,
@@ -650,6 +658,7 @@ const searchProducts = async (req, res, next) => {
     const { data: rawProducts, count: totalCount } = await repositories.products.search({
       query,
       category,
+      gender,
       minPrice: minPrice ? parseFloat(minPrice) : undefined,
       maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
       minRating: minRating ? parseFloat(minRating) : undefined,
@@ -668,12 +677,16 @@ const searchProducts = async (req, res, next) => {
       price: p.price,
       images: p.product_images?.map(img => toPublicUrl(img.image_url)) || [],
       category: p.category,
+      gender: p.gender,
       salesCount: p.total_sales || p.sales_count || 0,
       averageRating: p.avg_rating || 0,
       reviewCount: p.review_count || 0,
       store: p.stores ? {
-        name: p.stores.store_name,
-        rating: p.stores.avg_rating
+        store_name: p.stores.store_name,  // keep canonical field name
+        name: p.stores.store_name,        // alias for legacy frontend reads
+        slug: p.stores.slug,
+        logo_url: p.stores.logo_url,
+        rating: p.stores.average_rating
       } : null
     }));
 

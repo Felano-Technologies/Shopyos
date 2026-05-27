@@ -17,7 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { getUserData, submitDriverVerification, getDriverProfile, CustomInAppToast } from '@/services/api';
+import { getUserData, submitDriverVerification, getDriverProfile, CustomInAppToast, logoutUser } from '@/services/api';
 
 
 export default function DriverVerification() {
@@ -239,6 +239,20 @@ export default function DriverVerification() {
     setViewState('pending');
   };
 
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      CustomInAppToast.show({
+        type: 'success',
+        title: 'Logged Out',
+        message: 'You have been successfully logged out.'
+      });
+      router.replace('/login');
+    } catch (error) {
+      router.replace('/login');
+    }
+  };
+
   // --- REUSABLE UPLOAD BOX ---
   const UploadBox = ({ label, imageUri, onPress }: { label: string, imageUri: string | null, onPress: () => void }) => (
     <TouchableOpacity style={[styles.uploadBox, imageUri ? styles.uploadBoxSuccess : {}]} onPress={onPress} activeOpacity={0.7}>
@@ -279,7 +293,7 @@ export default function DriverVerification() {
             <TouchableOpacity style={styles.refreshBtn} onPress={() => router.replace('/driver')}>
                 <Text style={styles.refreshText}>Check Status</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.logoutLink} onPress={() => router.replace('/login')}>
+            <TouchableOpacity style={styles.logoutLink} onPress={handleLogout}>
                 <Text style={styles.logoutLinkText}>Log Out</Text>
             </TouchableOpacity>
         </View>

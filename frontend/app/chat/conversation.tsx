@@ -10,35 +10,41 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as ImagePicker from 'expo-image-picker';
 import {
   getMessages, sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
   markConversationRead, storage, getUserData,
-  blockUser
+  blockUser, uploadChatMedia, markNotificationsReadByConversation,
+  getPresence
 } from '../../services/api';
 import { socketService } from '../../services/socket';
 import { useChat } from '@/context/ChatContext';
-import { CustomInAppToast } from "@/components/InAppToastHost";
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ReportModal } from '../../components/ReportModal';
+import MediaMessage from '../../components/chat/MediaMessage';
+import VoiceRecorder from '../../components/chat/VoiceRecorder';
+import VoiceMessage from '../../components/chat/VoiceMessage';
+import StickerPicker from '../../components/chat/StickerPicker';
 
 const { width } = Dimensions.get('window');
 
-// ─── Shopyos design tokens ────────────────────────────────────────────────────
+// Shopyos design tokens
 const C = {
-  pageBg:       '#E9F0FF',   // home container — chat background
-  navyDeep:     '#0C1559',   // primary navy
-  navyMid:      '#1e3a8a',   // secondary navy
-  lime:         '#84cc16',   // active CTA — send button
-  limeTick:     '#84cc16',   // read receipt tick
-  cardBg:       '#FFFFFF',   // product card — incoming bubble
-  priceGreen:   '#0d3804',
-  alertRed:     '#ff0101',
-  bodyText:     '#0F172A',
-  mutedText:    '#64748B',
-  borderLight:  'rgba(12,21,89,0.08)',
-  borderCard:   'rgba(12,21,89,0.12)',
-  onlineGreen:  '#22c55e',
-  datePillBg:   'rgba(12,21,89,0.07)',
+  pageBg:        '#E9F0FF',
+  navyDeep:      '#0C1559',
+  navyMid:       '#1e3a8a',
+  lime:          '#84cc16',
+  limeTick:      '#84cc16',
+  cardBg:        '#FFFFFF',
+  priceGreen:    '#0d3804',
+  alertRed:      '#ff0101',
+  bodyText:      '#0F172A',
+  mutedText:     '#64748B',
+  borderLight:   'rgba(12,21,89,0.08)',
+  borderCard:    'rgba(12,21,89,0.12)',
+  onlineGreen:   '#22c55e',
+  datePillBg:    'rgba(12,21,89,0.07)',
   datePillBorder:'rgba(12,21,89,0.1)',
 };
 
@@ -51,6 +57,15 @@ type MessageItem = {
   sent_at?: string;
   sender_id: string;
   message_type?: string;
+  attachment_url?: string;
+  attachment_meta?: {
+    width?: number;
+    height?: number;
+    size?: number;
+    mimeType?: string;
+    durationMs?: number;
+    thumbnailUrl?: string;
+  };
   is_read?: boolean;
   pending?: boolean;
   failed?: boolean;
@@ -61,9 +76,7 @@ type MessageItem = {
     sender_id: string;
     sender?: {
       id: string;
-      user_profiles?: {
-        full_name?: string;
-      } | null;
+      user_profiles?: { full_name?: string } | null;
     } | null;
   } | null;
 };
@@ -73,7 +86,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
-  const { deleteConversation, buyerConversations, sellerConversations } = useChat();
+  const { deleteConversation } = useChat();
 
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<MessageItem[]>([]);
@@ -87,15 +100,46 @@ export default function ConversationScreen() {
   const [reportVisible, setReportVisible] = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
 
+  // Presence & media states
+  const [isOnline, setIsOnline] = useState(false);
+  const [lastSeen, setLastSeen] = useState<string | null>(null);
+  const [showStickerPicker, setShowStickerPicker] = useState(false);
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false);
+  const [uploadingProgress, setUploadingProgress] = useState<number | null>(null);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
   const listRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
 
   const displayName = name || 'Chat';
   const displayAvatar = avatar || null;
   const initials = (n: string) =>
-    (n || 'S').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+    (n || 'S').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  // ─── Load user ID ──────────────────────────────────────────────────────────
+  // Format last seen
+  const formatLastSeen = (iso: string | null): string => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    const diffMins = Math.floor((Date.now() - d.getTime()) / 60000);
+    if (diffMins < 1) return 'Last seen just now';
+    if (diffMins < 60) return `Last seen ${diffMins}m ago`;
+    const h = Math.floor(diffMins / 60);
+    if (h < 24) return `Last seen ${h}h ago`;
+    return `Last seen ${d.toLocaleDateString()}`;
+  };
+
+  // Combined mark as read
+  const markAsReadCombined = useCallback(async () => {
+    try {
+      await Promise.all([
+        markConversationRead(conversationId).catch(() => {}),
+        markNotificationsReadByConversation(conversationId).catch(() => {}),
+      ]);
+    } catch {}
+  }, [conversationId]);
+
+  // Load user ID
   useEffect(() => {
     (async () => {
       let uid = await storage.getItem('userId');
@@ -109,17 +153,57 @@ export default function ConversationScreen() {
     })();
   }, []);
 
-  // ─── Active Conversation Tracking for Push Suppression ─────────────────────
+  // Initial presence fetch
+  useEffect(() => {
+    if (participantId) {
+      getPresence(participantId)
+        .then((res: any) => {
+          if (res?.success && res.presence) {
+            setIsOnline(res.presence.isOnline);
+            setLastSeen(res.presence.lastSeen);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [participantId]);
+
+  // Socket presence listeners
+  useEffect(() => {
+    if (!participantId) return;
+
+    const handleUserOnline = (data: any) => {
+      if (data.userId === participantId) {
+        setIsOnline(true);
+        setLastSeen(null);
+      }
+    };
+
+    const handleUserOffline = (data: any) => {
+      if (data.userId === participantId) {
+        setIsOnline(false);
+        setLastSeen(data.lastSeen);
+      }
+    };
+
+    // These are async (call connect()) - fire-and-forget
+    socketService.onUserOnline(handleUserOnline).catch(() => {});
+    socketService.onUserOffline(handleUserOffline).catch(() => {});
+
+    return () => {
+      socketService.offUserOnline(handleUserOnline);
+      socketService.offUserOffline(handleUserOffline);
+    };
+  }, [participantId]);
+
+  // Active conversation tracking for push suppression
   useEffect(() => {
     if (conversationId) {
       (global as any).activeConversationId = conversationId;
     }
-    return () => {
-      (global as any).activeConversationId = null;
-    };
+    return () => { (global as any).activeConversationId = null; };
   }, [conversationId]);
 
-  // ─── Fetch ────────────────────────────────────────────────────────────────
+  // Fetch messages
   const fetchMessages = useCallback(async (showLoader: boolean) => {
     try {
       if (showLoader) setLoading(true);
@@ -127,70 +211,143 @@ export default function ConversationScreen() {
       if (res?.messages) {
         setMessages(res.messages);
         const hasUnread = res.messages.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
-        if (hasUnread) markConversationRead(conversationId).catch(() => {});
+        if (hasUnread) markAsReadCombined().catch(() => {});
       }
     } catch {}
     finally { if (showLoader) setLoading(false); }
-  }, [conversationId, currentUserId]);
+  }, [conversationId, currentUserId, markAsReadCombined]);
 
   useEffect(() => {
     if (conversationId && currentUserId) {
-      fetchMessages(true);
-      markConversationRead(conversationId).catch(() => {});
-    }
-  }, [conversationId, currentUserId, fetchMessages]);
-
-  // ─── Socket ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!conversationId) return;
-    let alive = true;
-    (async () => {
-      try {
-        await socketService.connect();
-        await socketService.joinConversation(conversationId);
-        socketService.onNewMessage(({ message, conversationId: cid }: any) => {
-          if (cid !== conversationId || !alive) return;
-          if (message.sender_id === '00000000-0000-0000-0000-000000000001') {
-            setIsBotTyping(false);
+      let alive = true;
+      (async () => {
+        try {
+          await fetchMessages(true);
+          await socketService.joinConversation(conversationId);
+          socketService.onNewMessage(({ message, conversationId: cid }: any) => {
+            if (!alive || cid !== conversationId) return;
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === message.id)) return prev;
+              return [...prev, message];
+            });
+            markAsReadCombined().catch(() => {});
+          });
+          const sock = socketService.getSocket();
+          if (sock) {
+            sock.on('connect', () => {
+              if (alive) { fetchMessages(false); socketService.joinConversation(conversationId); }
+            });
+            sock.on('bot:stop_typing', ({ conversationId: cid }: any) => {
+              if (cid === conversationId && alive) setIsBotTyping(false);
+            });
           }
-          if (message.sender_id === currentUserId) return;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === message.id)) return prev;
-            return [...prev, message];
-          });
-          socketService.markConversationRead(conversationId).catch(() => {});
-        });
+        } catch {}
+      })();
+      return () => {
+        alive = false;
+        socketService.leaveConversation(conversationId).catch(() => {});
+        socketService.offNewMessage();
         const sock = socketService.getSocket();
-        if (sock) {
-          sock.on('connect', () => {
-            if (alive) { fetchMessages(false); socketService.joinConversation(conversationId); }
-          });
-          sock.on('bot:stop_typing', ({ conversationId: cid }: any) => {
-            if (cid === conversationId && alive) {
-              setIsBotTyping(false);
-            }
-          });
-        }
-      } catch {}
-    })();
-    return () => {
-      alive = false;
-      socketService.leaveConversation(conversationId).catch(() => {});
-      socketService.offNewMessage();
-      const sock = socketService.getSocket();
-      if (sock) {
-        sock.off('bot:stop_typing');
-      }
-    };
-  }, [conversationId, currentUserId, fetchMessages]);
+        if (sock) sock.off('bot:stop_typing');
+      };
+    }
+  }, [conversationId, currentUserId, fetchMessages, markAsReadCombined]);
 
-  // ─── Auto-scroll ───────────────────────────────────────────────────────────
+  // Auto-scroll
   useEffect(() => {
     if (messages.length > 0)
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }, [messages.length]);
 
-  // ─── Send ──────────────────────────────────────────────────────────────────
+  // ---- Media, Voice, Sticker Handlers ----
+
+  const handleAttachMedia = async () => {
+    Alert.alert('Attach Media', 'Choose an attachment type', [
+      { text: '\u{1F4F7} Photo (Max 10MB)', onPress: () => handlePickMedia('image') },
+      { text: '\u{1F3AC} Video (Max 20MB)', onPress: () => handlePickMedia('video') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const handlePickMedia = async (type: 'image' | 'video') => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (permission.status !== 'granted') {
+        CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Photos permissions are required to upload media.' });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: type === 'image' ? ['images'] : ['videos'],
+        allowsEditing: false,
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        const fileSize = asset.fileSize || 0;
+        if (type === 'image' && fileSize > 10 * 1024 * 1024) {
+          CustomInAppToast.show({ type: 'error', title: 'Image Too Large', message: 'Images are limited to 10 MB.' });
+          return;
+        }
+        if (type === 'video' && fileSize > 20 * 1024 * 1024) {
+          CustomInAppToast.show({ type: 'error', title: 'Video Too Large', message: 'Video is too large. Max 20 MB. Try trimming it first.' });
+          return;
+        }
+        setIsUploadingMedia(true);
+        setUploadingProgress(0);
+        const uploadRes = await uploadChatMedia(asset.uri, conversationId, (prog: number) => {
+          setUploadingProgress(Math.round(prog * 100));
+        });
+        if (uploadRes?.success && uploadRes.media) {
+          const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
+          const sentMsg = res.message;
+          if (sentMsg) setMessages((prev) => prev.some((m) => m.id === sentMsg.id) ? prev : [...prev, sentMsg]);
+        }
+      }
+    } catch (err: any) {
+      console.error('Pick media error', err);
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not upload file.' });
+    } finally {
+      setIsUploadingMedia(false);
+      setUploadingProgress(null);
+    }
+  };
+
+  const handleSendVoiceNote = async (uri: string, durationMs: number) => {
+    setIsUploadingMedia(true);
+    setUploadingProgress(0);
+    try {
+      const uploadRes = await uploadChatMedia(uri, conversationId, (prog: number) => {
+        setUploadingProgress(Math.round(prog * 100));
+      });
+      if (uploadRes?.success && uploadRes.media) {
+        const res = await apiSendMessage(conversationId, '', undefined, 'voice', uploadRes.media.url, { durationMs, mimeType: uploadRes.media.mimeType, size: uploadRes.media.size });
+        const sentMsg = res.message;
+        if (sentMsg) setMessages((prev) => prev.some((m) => m.id === sentMsg.id) ? prev : [...prev, sentMsg]);
+      }
+    } catch (err: any) {
+      console.error('Upload voice note error', err);
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not upload voice note.' });
+    } finally {
+      setIsUploadingMedia(false);
+      setUploadingProgress(null);
+      setIsVoiceRecording(false);
+    }
+  };
+
+  const handleSendSticker = async (stickerUrl: string, label: string) => {
+    try {
+      const res = await apiSendMessage(conversationId, label, undefined, 'sticker', stickerUrl);
+      const sentMsg = res.message;
+      if (sentMsg) setMessages((prev) => prev.some((m) => m.id === sentMsg.id) ? prev : [...prev, sentMsg]);
+    } catch (err: any) {
+      console.error('Send sticker error', err);
+    } finally {
+      setShowStickerPicker(false);
+    }
+  };
+
+  // ---- Send text message ----
+
   const handleSend = async () => {
     if (!text.trim() || !conversationId || sending) return;
     const msgText = text.trim();
@@ -205,14 +362,11 @@ export default function ConversationScreen() {
     const isBot = participantId === '00000000-0000-0000-0000-000000000001' || displayName === 'Shopyos Bot';
     if (isBot) {
       setIsBotTyping(true);
-      // Auto-clear typing indicator after 35 seconds as safety fallback
       setTimeout(() => setIsBotTyping(false), 35000);
     }
     try {
-      let sent;
       const res = await apiSendMessage(conversationId, msgText, replyId);
-      sent = res.message;
-      
+      const sent = res.message;
       setMessages((prev) => {
         const f = prev.filter((m) => m.id !== tempId);
         if (f.some((m) => m.id === sent.id)) return f;
@@ -231,7 +385,8 @@ export default function ConversationScreen() {
     setText(msg.content); inputRef.current?.focus();
   };
 
-  // ─── Context actions ────────────────────────────────────────────────────────
+  // ---- Context actions ----
+
   const doLongPress = (msg: MessageItem) => { Vibration.vibrate(28); setSelectedMsg(msg); setMenuVisible(true); };
   const doReply = () => { if (!selectedMsg) return; setReplyTo(selectedMsg); setMenuVisible(false); setTimeout(() => inputRef.current?.focus(), 80); };
   const doCopy = () => {
@@ -243,7 +398,8 @@ export default function ConversationScreen() {
     if (!selectedMsg) return;
     if (selectedMsg.sender_id !== currentUserId) {
       setMenuVisible(false);
-      CustomInAppToast.show({ type: 'error', title: 'Unauthorized', message: 'You can only delete your own messages.' }); return;
+      CustomInAppToast.show({ type: 'error', title: 'Unauthorized', message: 'You can only delete your own messages.' });
+      return;
     }
     setMenuVisible(false);
     Alert.alert('Delete Message', 'Remove this message?', [
@@ -257,79 +413,65 @@ export default function ConversationScreen() {
   };
   const doBlockUser = () => {
     setMoreVisible(false);
-    Alert.alert('Block User', `Are you sure you want to block ${displayName}? You will no longer receive messages from them.`, [
+    const otherUserId = messages.find(m => m.sender_id !== currentUserId)?.sender_id || participantId;
+    if (!otherUserId) return;
+    Alert.alert('Block User', `Block ${displayName}? You will no longer receive messages from them.`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Block', style: 'destructive', onPress: async () => {
-          try {
-            // Determine target user ID deterministically
-            let targetId = participantId;
-
-            if (!targetId) {
-              const allConvs = [...buyerConversations, ...sellerConversations];
-              const metadata = allConvs.find(c => c.id === conversationId);
-              targetId = metadata?.otherParticipant?.id;
-            }
-
-            if (!targetId) {
-              targetId = messages.find(m => m.sender_id !== currentUserId)?.sender_id;
-            }
-
-            if (!targetId && chatType === 'seller') {
-              targetId = entityId; // For sellers, entityId is the buyer userId
-            }
-
-            if (!targetId) {
-                CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not identify user to block.' });
-                return;
-            }
-
-            await blockUser(targetId);
-            CustomInAppToast.show({ type: 'success', title: 'Blocked', message: `${displayName} has been blocked.` });
-            router.back();
-          } catch (e: any) {
-            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not block user.' });
-          }
+          try { await blockUser(otherUserId); router.back(); }
+          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not block user.' }); }
         },
       },
     ]);
   };
-
-  const doReportUser = () => {
-    setMoreVisible(false);
-    setReportVisible(true);
-  };
-
   const doClearChat = () => {
     setMoreVisible(false);
-    Alert.alert('Delete Chat', 'Permanently delete this conversation?', [
+    Alert.alert('Delete Chat', 'This will permanently delete all messages in this conversation.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-          setMessages([]);
-          const ok = await deleteConversation(conversationId, chatType as any);
-          if (ok) router.back(); else fetchMessages(false);
+          try { await deleteConversation(conversationId); router.back(); }
+          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete conversation.' }); }
         },
       },
     ]);
   };
+  const doReportUser = () => { setMoreVisible(false); setReportVisible(true); };
 
-  // ─── Helpers ───────────────────────────────────────────────────────────────
+  // ---- Reply preview renderer ----
+
+  const renderReplyPreview = (item: MessageItem, isMe: boolean) => {
+    if (!item.reply_to_message) return null;
+    const replyMsg = item.reply_to_message;
+    const senderProfile = replyMsg.sender?.user_profiles;
+    const senderName = senderProfile?.full_name || (replyMsg.sender_id === currentUserId ? 'You' : displayName);
+    return (
+      <View style={[styles.bubbleReplyPreview, isMe ? styles.bubbleReplyMe : styles.bubbleReplyThem]}>
+        <View style={[styles.bubbleReplyAccent, isMe ? styles.bubbleReplyAccentMe : styles.bubbleReplyAccentThem]} />
+        <View style={styles.bubbleReplyBody}>
+          <Text style={[styles.bubbleReplyLabel, isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem]}>{senderName}</Text>
+          <Text style={[styles.bubbleReplyText, isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem]} numberOfLines={1}>{replyMsg.content}</Text>
+        </View>
+      </View>
+    );
+  };
+
+  // ---- Date helpers ----
+
   const getMessageTimestamp = (msg?: Partial<MessageItem> | null) =>
     msg?.created_at || msg?.timestamp || msg?.createdAt || msg?.sent_at || null;
 
   const parseSafeDate = (value?: string | number | null) => {
     if (value === undefined || value === null) return null;
     if (typeof value === 'string' && (!value.trim() || value.trim().toLowerCase() === 'invalid date')) return null;
-    const date =
-      typeof value === 'number'
-        ? new Date(value < 1e12 ? value * 1000 : value)
-        : new Date(value);
+    const date = typeof value === 'number' ? new Date(value < 1e12 ? value * 1000 : value) : new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
   };
+
   const fmtTime = useCallback((msg: MessageItem) => {
     const date = parseSafeDate(getMessageTimestamp(msg));
-    const safeDate = date || new Date();
-    return safeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return (date || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }, []);
+
   const fmtDate = useCallback((msg: MessageItem) => {
     const date = parseSafeDate(getMessageTimestamp(msg));
     if (!date) return 'Today';
@@ -338,6 +480,7 @@ export default function ConversationScreen() {
     if (date.toDateString() === yday.toDateString()) return 'Yesterday';
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }, []);
+
   const showDate = useCallback((i: number) => {
     if (i === 0) return true;
     const current = parseSafeDate(getMessageTimestamp(messages[i]));
@@ -346,59 +489,55 @@ export default function ConversationScreen() {
     return current.toDateString() !== prev.toDateString();
   }, [messages]);
 
-  // ─── Message bubble ────────────────────────────────────────────────────────
-  const renderReplyPreview = useCallback((msgItem: MessageItem, isMe: boolean) => {
-    if (!msgItem.reply_to_message) return null;
-    const parentMsg = msgItem.reply_to_message;
-    const isParentMe = parentMsg.sender_id === currentUserId;
-    const profile = Array.isArray(parentMsg.sender?.user_profiles)
-      ? parentMsg.sender?.user_profiles[0]
-      : parentMsg.sender?.user_profiles;
-    const parentSenderName = isParentMe ? 'You' : (profile?.full_name || displayName);
+  // ---- Message content renderer ----
+
+  const renderMsgContent = (item: MessageItem, isMe: boolean) => {
+    const isImage = item.message_type === 'image';
+    const isVideo = item.message_type === 'video';
+    const isVoice = item.message_type === 'voice';
+
+    if (isImage || isVideo) {
+      return (
+        <View style={!isMe ? { padding: 4 } : undefined}>
+          {renderReplyPreview(item, isMe)}
+          <MediaMessage url={item.attachment_url || ''} mimeType={isVideo ? 'video/mp4' : 'image/jpeg'} isMe={isMe} />
+          {item.content ? <Text style={[isMe ? styles.bubbleTxtMe : styles.bubbleTxtThem, { padding: 8 }]}>{item.content}</Text> : null}
+        </View>
+      );
+    }
+
+    if (isVoice) {
+      return (
+        <View>
+          {renderReplyPreview(item, isMe)}
+          <VoiceMessage url={item.attachment_url || ''} durationMs={item.attachment_meta?.durationMs} isMe={isMe} />
+        </View>
+      );
+    }
 
     return (
-      <View style={[
-        styles.bubbleReplyPreview,
-        isMe ? styles.bubbleReplyMe : styles.bubbleReplyThem
-      ]}>
-        <View style={[
-          styles.bubbleReplyAccent,
-          isMe ? styles.bubbleReplyAccentMe : styles.bubbleReplyAccentThem
-        ]} />
-        <View style={styles.bubbleReplyBody}>
-          <Text style={[
-            styles.bubbleReplyLabel,
-            isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem
-          ]} numberOfLines={1}>
-            {parentSenderName}
-          </Text>
-          <Text style={[
-            styles.bubbleReplyText,
-            isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem
-          ]} numberOfLines={2}>
-            {parentMsg.content}
-          </Text>
-        </View>
+      <View style={!isMe ? { paddingVertical: 10, paddingHorizontal: 14 } : undefined}>
+        {renderReplyPreview(item, isMe)}
+        <Text style={isMe ? styles.bubbleTxtMe : styles.bubbleTxtThem}>{item.content}</Text>
       </View>
     );
-  }, [currentUserId, displayName]);
+  };
+
+  // ---- Message bubble renderer ----
 
   const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
+    const isSticker = item.message_type === 'sticker';
 
     if (item.is_moderated) {
       return (
         <>
           {showDate(index) && (
-            <View style={styles.dateSep}>
-              <View style={styles.datePill}>
-                <Text style={styles.dateText}>{fmtDate(item)}</Text>
-              </View>
-            </View>
+            <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
           )}
           <View style={styles.systemNoticeRow}>
             <View style={styles.systemNoticePill}>
-              <Ionicons name="shield-alert-outline" size={14} color="#EF4444" style={{ marginRight: 6 }} />
+              <Ionicons name="shield-checkmark-outline" size={14} color="#EF4444" style={{ marginRight: 6 }} />
               <Text style={styles.systemNoticeText}>{item.content}</Text>
             </View>
           </View>
@@ -406,25 +545,39 @@ export default function ConversationScreen() {
       );
     }
 
+    if (isSticker) {
+      return (
+        <>
+          {showDate(index) && (
+            <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
+          )}
+          <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
+            {!isMe && (
+              displayAvatar
+                ? <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+                : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
+            )}
+            <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
+              <Image source={{ uri: item.attachment_url }} style={styles.stickerImage} />
+            </TouchableOpacity>
+          </View>
+        </>
+      );
+    }
+
+    const hasMedia = item.message_type === 'image' || item.message_type === 'video' || item.message_type === 'voice';
+
     return (
       <>
         {showDate(index) && (
-          <View style={styles.dateSep}>
-            <View style={styles.datePill}>
-              <Text style={styles.dateText}>{fmtDate(item)}</Text>
-            </View>
-          </View>
+          <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
         )}
         <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
-          {/* Incoming avatar */}
           {!isMe && (
             displayAvatar
               ? <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
-              : <View style={styles.msgAvatarFallback}>
-                  <Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text>
-                </View>
+              : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
           )}
-
           <TouchableOpacity
             activeOpacity={0.82}
             onLongPress={() => !item.failed && doLongPress(item)}
@@ -432,21 +585,19 @@ export default function ConversationScreen() {
             delayLongPress={280}
             style={[
               styles.bubble,
-              isMe ? styles.bubbleMe : styles.bubbleThem,
+              isMe ? styles.bubbleMe : [styles.bubbleThem, hasMedia && { paddingVertical: 0, paddingHorizontal: 0, borderWidth: 0, backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 }],
               item.pending && styles.bubblePending,
               item.failed && styles.bubbleFailed,
             ]}
           >
-            {/* Outgoing: navy gradient wrapper */}
             {isMe && !item.failed ? (
               <LinearGradient
                 colors={[C.navyDeep, C.navyMid]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={styles.bubbleMeGrad}
+                style={[styles.bubbleMeGrad, hasMedia && { paddingVertical: 0, paddingHorizontal: 0 }]}
               >
-                {renderReplyPreview(item, true)}
-                <Text style={styles.bubbleTxtMe}>{item.content}</Text>
-                <View style={styles.metaRow}>
+                {renderMsgContent(item, true)}
+                <View style={[styles.metaRow, hasMedia && { paddingRight: 10, paddingBottom: 6 }]}>
                   <Text style={styles.metaTimeMe}>{fmtTime(item)}</Text>
                   {!item.failed && (
                     <Ionicons
@@ -466,13 +617,13 @@ export default function ConversationScreen() {
                 <Text style={styles.bubbleTxtFailed}>{item.content}</Text>
               </View>
             ) : (
-              /* Incoming: plain white card */
               <>
-                {renderReplyPreview(item, false)}
-                <Text style={styles.bubbleTxtThem}>{item.content}</Text>
-                <View style={styles.metaRow}>
-                  <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
-                </View>
+                {renderMsgContent(item, false)}
+                {!hasMedia && (
+                  <View style={[styles.metaRow, { paddingHorizontal: 14, paddingBottom: 6 }]}>
+                    <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+                  </View>
+                )}
               </>
             )}
           </TouchableOpacity>
@@ -481,16 +632,14 @@ export default function ConversationScreen() {
     );
   }, [currentUserId, displayAvatar, displayName, showDate, fmtDate, fmtTime, renderReplyPreview]);
 
-  // ─── Root ──────────────────────────────────────────────────────────────────
+  // ---- Root render ----
+
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      {/* ── Header — navy gradient, same as home FAB ─────────────────────────── */}
-      <LinearGradient
-        colors={[C.navyDeep, C.navyMid]}
-        style={[styles.header, { paddingTop: insets.top }]}
-      >
+      {/* Header */}
+      <LinearGradient colors={[C.navyDeep, C.navyMid]} style={[styles.header, { paddingTop: insets.top }]}>
         <View style={styles.headerInner}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={24} color="rgba(255,255,255,0.85)" />
@@ -500,16 +649,18 @@ export default function ConversationScreen() {
             <View style={styles.hdrAvatarWrap}>
               {displayAvatar
                 ? <Image source={{ uri: displayAvatar }} style={styles.hdrAvatar} />
-                : <View style={styles.hdrAvatarFallback}>
-                    <Text style={styles.hdrAvatarTxt}>{initials(displayName)}</Text>
-                  </View>
+                : <View style={styles.hdrAvatarFallback}><Text style={styles.hdrAvatarTxt}>{initials(displayName)}</Text></View>
               }
-              <View style={styles.hdrOnline} />
+              {isOnline && <View style={styles.hdrOnline} />}
             </View>
             <View>
               <Text style={styles.hdrName} numberOfLines={1}>{displayName}</Text>
               <Text style={styles.hdrStatus}>
-                {chatType === 'buyer' ? 'Official Store' : 'Customer'} · Online
+                {isOnline
+                  ? 'Online'
+                  : lastSeen
+                    ? formatLastSeen(lastSeen)
+                    : chatType === 'buyer' ? 'Official Store' : 'Customer'}
               </Text>
             </View>
           </TouchableOpacity>
@@ -520,24 +671,13 @@ export default function ConversationScreen() {
         </View>
       </LinearGradient>
 
-      {/*
-        FIX: KeyboardAvoidingView wraps ONLY the body — not the header.
-        Eliminates the duplicate textbox bug on both iOS and Android.
-      */}
-      <KeyboardAvoidingView
-        style={styles.body}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={0}
-      >
+      {/* Body */}
+      <KeyboardAvoidingView style={styles.body} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
         {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={C.navyDeep} />
-          </View>
+          <View style={styles.loadingWrap}><ActivityIndicator size="large" color={C.navyDeep} /></View>
         ) : messages.length === 0 ? (
           <View style={styles.emptyWrap}>
-            <View style={styles.emptyCircle}>
-              <MaterialCommunityIcons name="chat-processing-outline" size={40} color={C.navyMid} />
-            </View>
+            <View style={styles.emptyCircle}><MaterialCommunityIcons name="chat-processing-outline" size={40} color={C.navyMid} /></View>
             <Text style={styles.emptyTitle}>Start the conversation</Text>
             <Text style={styles.emptyBody}>Say hello to {displayName}!</Text>
           </View>
@@ -574,16 +714,14 @@ export default function ConversationScreen() {
           />
         )}
 
-        {/* ── Input bar ──────────────────────────────────────────────────────── */}
+        {/* Input bar */}
         <View style={[styles.inputBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           {/* Reply preview */}
           {replyTo && (
             <View style={styles.replyPreview}>
               <View style={styles.replyAccent} />
               <View style={styles.replyBody}>
-                <Text style={styles.replyLabel}>
-                  {replyTo.sender_id === currentUserId ? 'You' : displayName}
-                </Text>
+                <Text style={styles.replyLabel}>{replyTo.sender_id === currentUserId ? 'You' : displayName}</Text>
                 <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
               </View>
               <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyClose}>
@@ -592,93 +730,112 @@ export default function ConversationScreen() {
             </View>
           )}
 
-          {/* Input pill — white card, same surface as product cards */}
-          <View style={styles.pill}>
-            <TouchableOpacity style={styles.attachBtn}>
-              <Feather name="paperclip" size={18} color={C.mutedText} />
-            </TouchableOpacity>
-            <TextInput
-              ref={inputRef}
-              style={styles.textInput}
-              placeholder={`Message ${displayName}...`}
-              placeholderTextColor="#94A3B8"
-              value={text}
-              onChangeText={setText}
-              multiline
-              maxLength={1000}
-              textAlignVertical="center"
-              scrollEnabled={text.split('\n').length > 1}
+          {/* Upload progress */}
+          {isUploadingMedia && uploadingProgress !== null && (
+            <View style={styles.uploadBar}>
+              <View style={[styles.uploadFill, { width: `${uploadingProgress}%` }]} />
+              <Text style={styles.uploadPct}>{uploadingProgress}%</Text>
+            </View>
+          )}
+
+          {/* Voice recorder replaces normal pill */}
+          {isVoiceRecording ? (
+            <VoiceRecorder
+              onSend={(uri: string, durationMs: number) => handleSendVoiceNote(uri, durationMs)}
+              onCancel={() => setIsVoiceRecording(false)}
             />
-            {/* Send button — lime, same as active chip CTA */}
-            <TouchableOpacity
-              style={[styles.sendBtn, !text.trim() && styles.sendBtnOff]}
-              onPress={handleSend}
-              disabled={!text.trim() || sending}
-              activeOpacity={0.8}
-            >
-              {sending
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Ionicons name="send" size={15} color="#fff" style={{ marginLeft: 2 }} />
-              }
-            </TouchableOpacity>
-          </View>
+          ) : (
+            <View style={styles.pill}>
+              {/* Paperclip */}
+              <TouchableOpacity style={styles.attachBtn} onPress={handleAttachMedia} disabled={isUploadingMedia}>
+                <Feather name="paperclip" size={18} color={isUploadingMedia ? '#CBD5E1' : C.mutedText} />
+              </TouchableOpacity>
+
+              {/* Sticker */}
+              <TouchableOpacity style={styles.attachBtn} onPress={() => { setShowStickerPicker(true); inputRef.current?.blur(); }}>
+                <Ionicons name="happy-outline" size={20} color={C.mutedText} />
+              </TouchableOpacity>
+
+              <TextInput
+                ref={inputRef}
+                style={styles.textInput}
+                placeholder={`Message ${displayName}...`}
+                placeholderTextColor="#94A3B8"
+                value={text}
+                onChangeText={setText}
+                multiline
+                maxLength={1000}
+                textAlignVertical="center"
+                scrollEnabled={text.split('\n').length > 1}
+                onFocus={() => setShowStickerPicker(false)}
+              />
+
+              {/* Mic button (when no text) */}
+              {!text.trim() && (
+                <TouchableOpacity style={styles.micBtn} onPress={() => setIsVoiceRecording(true)} disabled={isUploadingMedia}>
+                  <Ionicons name="mic" size={18} color="#fff" />
+                </TouchableOpacity>
+              )}
+
+              {/* Send button (when text is typed) */}
+              {!!text.trim() && (
+                <TouchableOpacity style={styles.sendBtn} onPress={handleSend} disabled={!text.trim() || sending} activeOpacity={0.8}>
+                  {sending ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="send" size={15} color="#fff" style={{ marginLeft: 2 }} />}
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </View>
+
+        {/* Sticker picker */}
+        {showStickerPicker && (
+          <StickerPicker onSelectSticker={(url: string, label: string) => handleSendSticker(url, label)} onClose={() => setShowStickerPicker(false)} />
+        )}
       </KeyboardAvoidingView>
 
-      {/* ── Context menu ────────────────────────────────────────────────────── */}
+      {/* Context menu */}
       <Modal visible={menuVisible} transparent animationType="fade" onRequestClose={() => setMenuVisible(false)}>
         <Pressable style={styles.overlay} onPress={() => setMenuVisible(false)}>
           <Pressable style={styles.contextMenu}>
             {selectedMsg && (
-              <View style={styles.ctxPreview}>
-                <Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text>
-              </View>
+              <View style={styles.ctxPreview}><Text style={styles.ctxPreviewTxt} numberOfLines={3}>{selectedMsg.content}</Text></View>
             )}
             <TouchableOpacity style={styles.ctxItem} onPress={doReply}>
-              <Feather name="corner-up-left" size={16} color={C.navyDeep} />
-              <Text style={styles.ctxItemTxt}>Reply</Text>
+              <Feather name="corner-up-left" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Reply</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.ctxItem} onPress={doCopy}>
-              <Feather name="copy" size={16} color={C.navyDeep} />
-              <Text style={styles.ctxItemTxt}>Copy</Text>
+              <Feather name="copy" size={16} color={C.navyDeep} /><Text style={styles.ctxItemTxt}>Copy</Text>
             </TouchableOpacity>
             {selectedMsg?.sender_id === currentUserId && (
               <TouchableOpacity style={[styles.ctxItem, styles.ctxDanger]} onPress={doDelete}>
-                <Feather name="trash-2" size={16} color="#EF4444" />
-                <Text style={[styles.ctxItemTxt, { color: '#EF4444' }]}>Unsend</Text>
+                <Feather name="trash-2" size={16} color="#EF4444" /><Text style={[styles.ctxItemTxt, { color: '#EF4444' }]}>Unsend</Text>
               </TouchableOpacity>
             )}
           </Pressable>
         </Pressable>
       </Modal>
 
-      {/* ── More menu ───────────────────────────────────────────────────────── */}
+      {/* More menu */}
       <Modal visible={moreVisible} transparent animationType="fade" onRequestClose={() => setMoreVisible(false)}>
         <Pressable style={styles.overlay} onPress={() => setMoreVisible(false)}>
           <View style={[styles.moreMenu, { top: insets.top + 58 }]}>
-            <TouchableOpacity style={styles.moreItem} onPress={() => {
-              setMoreVisible(false); markConversationRead(conversationId);
-            }}>
-              <Ionicons name="checkmark-done-outline" size={17} color={C.navyDeep} />
-              <Text style={styles.moreItemTxt}>Mark as read</Text>
+            <TouchableOpacity style={styles.moreItem} onPress={() => { setMoreVisible(false); markAsReadCombined(); }}>
+              <Ionicons name="checkmark-done-outline" size={17} color={C.navyDeep} /><Text style={styles.moreItemTxt}>Mark as read</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.moreItem} onPress={doReportUser}>
-              <Ionicons name="flag-outline" size={17} color={C.navyDeep} />
-              <Text style={styles.moreItemTxt}>Report</Text>
+              <Ionicons name="flag-outline" size={17} color={C.navyDeep} /><Text style={styles.moreItemTxt}>Report</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doBlockUser}>
-              <Ionicons name="ban-outline" size={17} color="#EF4444" />
-              <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Block User</Text>
+              <Ionicons name="ban-outline" size={17} color="#EF4444" /><Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Block User</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.moreItem, styles.ctxDanger]} onPress={doClearChat}>
-              <Ionicons name="trash-bin-outline" size={17} color="#EF4444" />
-              <Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Delete chat</Text>
+              <Ionicons name="trash-bin-outline" size={17} color="#EF4444" /><Text style={[styles.moreItemTxt, { color: '#EF4444' }]}>Delete chat</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
       </Modal>
 
-      {/* ── Report Modal ────────────────────────────────────────────────────── */}
+      {/* Report Modal */}
       <ReportModal
         visible={reportVisible}
         onClose={() => setReportVisible(false)}
@@ -694,180 +851,69 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.pageBg },
   body: { flex: 1 },
 
-  // ── Header ────────────────────────────────────────────────────────────────
+  // Header
   header: {
-    borderBottomLeftRadius: 24, borderBottomRightRadius: 24,
-    paddingBottom: 16,
-    elevation: 10,
-    shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2, shadowRadius: 16,
-    zIndex: 10,
+    borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingBottom: 16,
+    elevation: 10, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.2, shadowRadius: 16, zIndex: 10,
   },
   headerInner: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingTop: 8 },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center', alignItems: 'center', marginRight: 6,
-  },
+  backBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center', marginRight: 6 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   hdrAvatarWrap: { position: 'relative' },
-  hdrAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
-  },
-  hdrAvatarFallback: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: C.lime,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
-    justifyContent: 'center', alignItems: 'center',
-  },
+  hdrAvatar: { width: 40, height: 40, borderRadius: 20, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)' },
+  hdrAvatarFallback: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.lime, borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)', justifyContent: 'center', alignItems: 'center' },
   hdrAvatarTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#111827' },
-  hdrOnline: {
-    width: 11, height: 11, borderRadius: 6,
-    backgroundColor: C.lime,
-    position: 'absolute', bottom: 0, right: 0,
-    borderWidth: 2, borderColor: C.navyDeep,
-  },
+  hdrOnline: { width: 11, height: 11, borderRadius: 6, backgroundColor: C.onlineGreen, position: 'absolute', bottom: 0, right: 0, borderWidth: 2, borderColor: C.navyDeep },
   hdrName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#fff', maxWidth: width * 0.48 },
   hdrStatus: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: 2 },
-  moreBtn: {
-    width: 36, height: 36, borderRadius: 11,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center', alignItems: 'center',
-  },
+  moreBtn: { width: 36, height: 36, borderRadius: 11, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
 
-  // ── States ────────────────────────────────────────────────────────────────
+  // Loading / empty
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
-  emptyCircle: {
-    width: 86, height: 86, borderRadius: 43,
-    backgroundColor: '#EEF2FF',
-    justifyContent: 'center', alignItems: 'center', marginBottom: 16,
-    elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 8,
-  },
-  emptyTitle: { fontSize: 17, fontFamily: 'Montserrat-Bold', color: C.bodyText, marginBottom: 8 },
-  emptyBody: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, textAlign: 'center', lineHeight: 20 },
+  emptyWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(12,21,89,0.06)', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 6 },
+  emptyBody: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.mutedText, textAlign: 'center' },
 
-  // ── List ──────────────────────────────────────────────────────────────────
   listContent: { paddingHorizontal: 14, paddingTop: 16, paddingBottom: 10 },
 
-  // ── Date separator ─────────────────────────────────────────────────────────
+  // Date separator
   dateSep: { alignItems: 'center', marginVertical: 14 },
-  datePill: {
-    backgroundColor: C.datePillBg,
-    borderWidth: 0.5, borderColor: C.datePillBorder,
-    paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20,
-  },
-  dateText: {
-    fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.mutedText,
-    textTransform: 'uppercase', letterSpacing: 0.6,
-  },
+  datePill: { backgroundColor: C.datePillBg, borderWidth: 0.5, borderColor: C.datePillBorder, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20 },
+  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.mutedText, textTransform: 'uppercase', letterSpacing: 0.6 },
 
-  // ── Bubbles ────────────────────────────────────────────────────────────────
+  // Bubbles
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, maxWidth: '100%' },
-  rowMe:   { justifyContent: 'flex-end' },
+  rowMe: { justifyContent: 'flex-end' },
   rowThem: { justifyContent: 'flex-start' },
   msgAvatar: { width: 26, height: 26, borderRadius: 13, marginRight: 6, marginBottom: 2 },
-  msgAvatarFallback: {
-    width: 26, height: 26, borderRadius: 13,
-    backgroundColor: C.lime,
-    marginRight: 6, marginBottom: 2,
-    justifyContent: 'center', alignItems: 'center',
-  },
+  msgAvatarFallback: { width: 26, height: 26, borderRadius: 13, backgroundColor: C.lime, marginRight: 6, marginBottom: 2, justifyContent: 'center', alignItems: 'center' },
   msgAvatarTxt: { fontSize: 9, fontFamily: 'Montserrat-Bold', color: '#111827' },
 
-  bubble: {
-    maxWidth: '76%',
-    borderRadius: 20,
-    overflow: 'hidden',  // clips LinearGradient to rounded corners
-  },
-  bubbleMe: {
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderBottomLeftRadius: 20, borderBottomRightRadius: 4,
-    // shadow matching product card elevation
-    elevation: 4,
-    shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18, shadowRadius: 8,
-  },
-  bubbleMeGrad: {
-    paddingVertical: 10, paddingHorizontal: 14,
-  },
-  bubbleThem: {
-    backgroundColor: C.cardBg,
-    borderTopLeftRadius: 20, borderTopRightRadius: 20,
-    borderBottomLeftRadius: 4, borderBottomRightRadius: 20,
-    paddingVertical: 10, paddingHorizontal: 14,
-    elevation: 3,
-    shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08, shadowRadius: 6,
-    borderWidth: 0.5, borderColor: C.borderCard,
-  },
-  bubbleReplyPreview: {
-    flexDirection: 'row',
-    borderRadius: 8,
-    overflow: 'hidden',
-    marginBottom: 6,
-    maxWidth: '100%',
-  },
-  bubbleReplyMe: {
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  bubbleReplyThem: {
-    backgroundColor: '#F1F5F9',
-    borderWidth: 0.5,
-    borderColor: '#E2E8F0',
-  },
-  bubbleReplyAccent: {
-    width: 3.5,
-  },
-  bubbleReplyAccentMe: {
-    backgroundColor: '#fff',
-  },
-  bubbleReplyAccentThem: {
-    backgroundColor: C.navyDeep,
-  },
-  bubbleReplyBody: {
-    flex: 1,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
-  },
-  bubbleReplyLabel: {
-    fontSize: 11,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 2,
-  },
-  bubbleReplyLabelMe: {
-    color: '#fff',
-  },
-  bubbleReplyLabelThem: {
-    color: C.navyDeep,
-  },
-  bubbleReplyText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    lineHeight: 16,
-  },
-  bubbleReplyTextMe: {
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  bubbleReplyTextThem: {
-    color: C.mutedText,
-  },
+  bubble: { maxWidth: '76%', borderRadius: 20, overflow: 'hidden' },
+  bubbleMe: { borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: 20, borderBottomRightRadius: 4, elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.18, shadowRadius: 8 },
+  bubbleMeGrad: { paddingVertical: 10, paddingHorizontal: 14 },
+  bubbleThem: { backgroundColor: C.cardBg, borderTopLeftRadius: 20, borderTopRightRadius: 20, borderBottomLeftRadius: 4, borderBottomRightRadius: 20, paddingVertical: 10, paddingHorizontal: 14, elevation: 3, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, borderWidth: 0.5, borderColor: C.borderCard },
+  bubbleReplyPreview: { flexDirection: 'row', borderRadius: 8, overflow: 'hidden', marginBottom: 6, maxWidth: '100%' },
+  bubbleReplyMe: { backgroundColor: 'rgba(255, 255, 255, 0.12)' },
+  bubbleReplyThem: { backgroundColor: '#F1F5F9', borderWidth: 0.5, borderColor: '#E2E8F0' },
+  bubbleReplyAccent: { width: 3.5 },
+  bubbleReplyAccentMe: { backgroundColor: '#fff' },
+  bubbleReplyAccentThem: { backgroundColor: C.navyDeep },
+  bubbleReplyBody: { flex: 1, paddingVertical: 5, paddingHorizontal: 8 },
+  bubbleReplyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', marginBottom: 2 },
+  bubbleReplyLabelMe: { color: '#fff' },
+  bubbleReplyLabelThem: { color: C.navyDeep },
+  bubbleReplyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', lineHeight: 16 },
+  bubbleReplyTextMe: { color: 'rgba(255, 255, 255, 0.8)' },
+  bubbleReplyTextThem: { color: C.mutedText },
   bubblePending: { opacity: 0.55 },
-  bubbleFailed: {
-    backgroundColor: '#FFF5F5',
-    borderWidth: 1, borderColor: '#FECACA',
-    paddingVertical: 10, paddingHorizontal: 14,
-  },
+  bubbleFailed: { backgroundColor: '#FFF5F5', borderWidth: 1, borderColor: '#FECACA', paddingVertical: 10, paddingHorizontal: 14 },
   bubbleFailedInner: {},
   failRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
   failText: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.alertRed },
 
-  bubbleTxtMe:   { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
+  bubbleTxtMe: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.95)', lineHeight: 21 },
   bubbleTxtThem: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, lineHeight: 21 },
 
   typingRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 8, paddingLeft: 2 },
@@ -876,118 +922,49 @@ const styles = StyleSheet.create({
   bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 21 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 4 },
-  metaTimeMe:   { fontSize: 9, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.4)' },
+  metaTimeMe: { fontSize: 9, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.4)' },
   metaTimeThem: { fontSize: 9, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
 
-  // ── Input bar ──────────────────────────────────────────────────────────────
-  inputBar: {
-    paddingHorizontal: 12, paddingTop: 8,
-    backgroundColor: 'rgba(233,240,255,0.97)',
-    borderTopWidth: 0.5, borderTopColor: C.borderLight,
-  },
-  replyPreview: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: C.cardBg,
-    borderWidth: 0.5, borderColor: C.borderCard,
-    borderRadius: 12, padding: 10, marginBottom: 8,
-    elevation: 1, shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3,
-  },
-  replyAccent: {
-    width: 3, alignSelf: 'stretch',
-    backgroundColor: C.navyDeep, borderRadius: 2, marginRight: 10,
-  },
+  // Sticker
+  stickerBubble: { padding: 4 },
+  stickerImage: { width: 140, height: 140, resizeMode: 'contain' },
+
+  // System notice
+  systemNoticeRow: { alignItems: 'center', marginVertical: 4 },
+  systemNoticePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF5F5', borderWidth: 0.5, borderColor: '#FECACA', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  systemNoticeText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#EF4444' },
+
+  // Input bar
+  inputBar: { paddingHorizontal: 12, paddingTop: 8, backgroundColor: 'rgba(233,240,255,0.97)', borderTopWidth: 0.5, borderTopColor: C.borderLight },
+  replyPreview: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.cardBg, borderWidth: 0.5, borderColor: C.borderCard, borderRadius: 12, padding: 10, marginBottom: 8, elevation: 1, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 3 },
+  replyAccent: { width: 3, alignSelf: 'stretch', backgroundColor: C.navyDeep, borderRadius: 2, marginRight: 10 },
   replyBody: { flex: 1 },
   replyLabel: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.navyDeep, marginBottom: 2 },
   replyText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.mutedText },
   replyClose: { padding: 4 },
 
-  // Input pill — white card, elevation matches product cards
-  pill: {
-    flexDirection: 'row', alignItems: 'flex-end',
-    backgroundColor: C.cardBg,
-    borderRadius: 28,
-    paddingHorizontal: 6, paddingVertical: 6,
-    borderWidth: 0.5, borderColor: C.borderCard,
-    elevation: 4,
-    shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1, shadowRadius: 8,
-  },
-  attachBtn: { width: 38, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 19 },
-  textInput: {
-    flex: 1,
-    minHeight: 38, maxHeight: 110,
-    fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText,
-    paddingTop: Platform.OS === 'android' ? 8 : 10,
-    paddingBottom: Platform.OS === 'android' ? 8 : 10,
-    paddingHorizontal: 6,
-    textAlignVertical: 'center',
-  },
-  // Send button — lime, same as active category chip on home
-  sendBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: C.lime,
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 2, shadowColor: C.lime,
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4,
-  },
-  sendBtnOff: { backgroundColor: '#E2E8F0', shadowOpacity: 0 },
+  // Upload progress
+  uploadBar: { height: 4, borderRadius: 2, backgroundColor: '#E2E8F0', marginBottom: 8, overflow: 'hidden', position: 'relative' },
+  uploadFill: { height: '100%', backgroundColor: C.lime, borderRadius: 2 },
+  uploadPct: { position: 'absolute', right: 0, top: -16, fontSize: 10, fontFamily: 'Montserrat-Medium', color: C.mutedText },
 
-  // ── Modals ────────────────────────────────────────────────────────────────
+  // Input pill
+  pill: { flexDirection: 'row', alignItems: 'flex-end', backgroundColor: C.cardBg, borderRadius: 28, paddingHorizontal: 6, paddingVertical: 6, borderWidth: 0.5, borderColor: C.borderCard, elevation: 4, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, marginBottom: 4 },
+  attachBtn: { width: 34, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 17 },
+  textInput: { flex: 1, minHeight: 38, maxHeight: 110, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.bodyText, paddingTop: Platform.OS === 'android' ? 8 : 10, paddingBottom: Platform.OS === 'android' ? 8 : 10, paddingHorizontal: 6, textAlignVertical: 'center' },
+  sendBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: C.lime, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
+  micBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: C.navyDeep, justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 4 },
+
+  // Modals
   overlay: { flex: 1, backgroundColor: 'rgba(12,21,89,0.35)', justifyContent: 'center', alignItems: 'center' },
-  contextMenu: {
-    backgroundColor: C.cardBg,
-    borderRadius: 22, width: width * 0.72,
-    paddingVertical: 6, overflow: 'hidden',
-    elevation: 16, shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.14, shadowRadius: 24,
-  },
-  ctxPreview: {
-    paddingHorizontal: 18, paddingVertical: 14,
-    backgroundColor: '#F8FAFC',
-    borderBottomWidth: 0.5, borderBottomColor: C.borderLight,
-  },
-  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, fontStyle: 'italic', lineHeight: 19 },
-  ctxItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 15, gap: 12 },
+  contextMenu: { backgroundColor: C.cardBg, borderRadius: 20, width: width * 0.76, overflow: 'hidden', elevation: 20, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.18, shadowRadius: 24 },
+  ctxPreview: { padding: 16, borderBottomWidth: 0.5, borderBottomColor: C.borderLight, backgroundColor: '#F8FAFF' },
+  ctxPreviewTxt: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.mutedText, lineHeight: 19 },
+  ctxItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
   ctxItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
-  ctxDanger: { borderTopWidth: 0.5, borderTopColor: '#FEE2E2' },
+  ctxDanger: { borderBottomWidth: 0 },
 
-  moreMenu: {
-    position: 'absolute', right: 14,
-    backgroundColor: C.cardBg,
-    borderRadius: 18, width: 210, paddingVertical: 4,
-    elevation: 14, shadowColor: C.navyDeep,
-    shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.12, shadowRadius: 20,
-  },
-  moreItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 14, gap: 10 },
-  moreItemTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
-
-  systemNoticeRow: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 8,
-    width: '100%',
-  },
-  systemNoticePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(239, 68, 68, 0.15)',
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    maxWidth: '90%',
-  },
-  systemNoticeText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-Medium',
-    fontStyle: 'italic',
-    color: '#EF4444',
-    textAlign: 'center',
-    lineHeight: 18,
-    flexShrink: 1,
-  },
+  moreMenu: { position: 'absolute', right: 12, backgroundColor: C.cardBg, borderRadius: 16, minWidth: 200, overflow: 'hidden', elevation: 16, shadowColor: C.navyDeep, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.14, shadowRadius: 16 },
+  moreItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 13, paddingHorizontal: 16, borderBottomWidth: 0.5, borderBottomColor: C.borderLight },
+  moreItemTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C.bodyText },
 });

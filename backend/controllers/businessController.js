@@ -53,6 +53,14 @@ const createBusiness = async (req, res, next) => {
     // Check if business name already exists for this user
     const existingStoresResult = await repositories.stores.findByOwner(userId);
     const existingStores = Array.isArray(existingStoresResult) ? existingStoresResult : (existingStoresResult?.data || []);
+    
+    if (existingStores.length >= 3) {
+      return res.status(400).json({
+        success: false,
+        error: 'You have reached the maximum limit of 3 business profiles'
+      });
+    }
+
     const nameExists = existingStores.some(
       store => store.store_name.toLowerCase() === businessName.toLowerCase()
     );
@@ -222,7 +230,7 @@ const createBusiness = async (req, res, next) => {
       banner_url: toPublicUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       isActive: store.is_active,
-      rating: store.avg_rating || 0,
+      rating: store.average_rating || 0,
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
       updatedAt: store.updated_at
@@ -287,7 +295,7 @@ const getMyBusinesses = async (req, res, next) => {
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
       isTrusted: store.is_trusted || false,
-      rating: store.avg_rating || 0,
+      rating: store.average_rating || 0,
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
       updatedAt: store.updated_at
@@ -370,11 +378,16 @@ const getBusinessById = async (req, res, next) => {
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
       isTrusted: store.is_trusted || false,
-      rating: store.avg_rating || 0,
+      rating: store.average_rating || 0,
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
       updatedAt: store.updated_at,
-      isFollowing: await repositories.stores.isFollowing(userId, businessId)
+      isFollowing: await repositories.stores.isFollowing(userId, businessId),
+      followersCount: await repositories.stores.db
+        .from('store_follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('store_id', businessId)
+        .then(res => res.count || 0)
     };
 
     res.status(200).json({
@@ -570,7 +583,7 @@ const updateBusiness = async (req, res, next) => {
       verificationStatus: updatedStore.verification_status,
       rejectionReason: updatedStore.rejection_reason || '',
       isActive: updatedStore.is_active,
-      rating: updatedStore.avg_rating || 0,
+      rating: updatedStore.average_rating || 0,
       totalReviews: updatedStore.total_reviews || 0,
       updatedAt: updatedStore.updated_at
     };
@@ -794,7 +807,7 @@ const getBusinessDashboard = async (req, res, next) => {
     }
 
     // Fetch counts and recent orders in parallel
-    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders, revenueStats] = await Promise.all([
+    const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders, revenueStats, followersCount] = await Promise.all([
       repositories.products.count({ store_id: businessId, deleted_at: null }),
       repositories.orders.count({ store_id: businessId }),
       repositories.orders.count({ store_id: businessId, status: 'pending' }),
@@ -808,7 +821,12 @@ const getBusinessDashboard = async (req, res, next) => {
         orderBy: 'created_at',
         ascending: false,
       }),
-      repositories.orders.getStoreRevenueStats(businessId)
+      repositories.orders.getStoreRevenueStats(businessId),
+      repositories.stores.db
+        .from('store_follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('store_id', businessId)
+        .then(res => res.count || 0)
     ]);
 
     // Extract the data array from the getStoreOrders result
@@ -879,7 +897,8 @@ const getBusinessDashboard = async (req, res, next) => {
         completedOrders,
         totalRevenue,
         pendingRevenue,
-        balance: parseFloat(store.current_balance || 0)
+        balance: parseFloat(store.current_balance || 0),
+        followers: followersCount
       },
       recentOrders: recentOrders.map(order => ({
         _id: order.id,

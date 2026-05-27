@@ -23,6 +23,7 @@ class MessageRepository extends BaseRepository {
         is_moderated: messageData.isModerated || false,
         message_type: messageData.messageType || 'text',
         attachment_url: messageData.attachmentUrl || null,
+        attachment_meta: messageData.attachmentMeta || null,
         reply_to_message_id: messageData.replyToMessageId || null
       })
       .select(`

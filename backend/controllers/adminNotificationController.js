@@ -164,3 +164,46 @@ exports.triggerMarketingSweep = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Failed to trigger sweep' });
   }
 };
+
+// ─── POST /api/v1/admin/scheduled-notifications/send-test ─────────────────────
+// Sends a test notification immediately to the requesting admin.
+// Use this to verify the full pipeline (DB insert → socket emit → push delivery).
+
+exports.sendTestNotification = async (req, res) => {
+  try {
+    const adminId = req.user?.id;
+    if (!adminId) {
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
+    }
+
+    const notificationService = require('../services/notificationService');
+
+    const result = await notificationService.sendNotification({
+      userId: adminId,
+      type: 'admin_broadcast',
+      title: '🔔 Test Notification',
+      message: 'Pipeline check: in-app ✓ socket ✓ push (if token registered) ✓',
+      relatedType: 'scheduled_notification',
+      data: { test: true },
+      push: {
+        data: { screen: 'notifications', test: true }
+      }
+    });
+
+    if (result) {
+      logger.info(`[AdminNotif] Test notification sent to admin ${adminId}`);
+      return res.status(200).json({
+        success: true,
+        message: 'Test notification delivered. Check your in-app notification bell and (if a push token is registered) your device.'
+      });
+    } else {
+      return res.status(500).json({
+        success: false,
+        message: 'sendNotification returned false — check server logs for the DB or push error. Most likely cause: missing notification_type enum value. Run migration 044.'
+      });
+    }
+  } catch (err) {
+    logger.error('[AdminNotif] sendTestNotification error:', err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};

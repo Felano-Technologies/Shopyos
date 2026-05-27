@@ -6,15 +6,21 @@ const {
   updateProductReview, deleteReview, getMyReviews, getReviewableProducts,
   likeReview, getReviewComments, createReviewComment
 } = require('../controllers/reviewController');
-const { protect } = require('../middleware/authMiddleware');
+const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { cacheMiddleware, reviewCacheKey } = require('../middleware/cache');
 
-router.get('/product/:productId', cacheMiddleware(
-  req => reviewCacheKey.product(req.params.productId, req.query.page || 1), 300
+router.get('/product/:productId', optionalAuth, cacheMiddleware(
+  req => {
+    const base = reviewCacheKey.product(req.params.productId, req.query.page || 1);
+    return req.user ? `${base}:user:${req.user.id}` : `${base}:public`;
+  }, 300
 ), getProductReviews);
 
-router.get('/store/:storeId', cacheMiddleware(
-  req => reviewCacheKey.store(req.params.storeId, req.query.page || 1), 300
+router.get('/store/:storeId', optionalAuth, cacheMiddleware(
+  req => {
+    const base = reviewCacheKey.store(req.params.storeId, req.query.page || 1);
+    return req.user ? `${base}:user:${req.user.id}` : `${base}:public`;
+  }, 300
 ), getStoreReviews);
 
 router.get('/driver/:driverId', getDriverReviews); // Drivers uncacheable for now

@@ -1,70 +1,98 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated , Appearance } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated, Appearance } from 'react-native';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-// import * as SecureStore from 'expo-secure-store'; // ⛔ temporarily disabled
-import {  getUserData, secureStorage } from '@/services/api';
+import { getUserData, secureStorage } from '@/services/api';
+
 const { width, height } = Dimensions.get('window');
+
+// ⚙️ DEV: Force the update overlay visible so you can test its look.
+// Set to `false` (or remove) before shipping to production.
+const DEV_FORCE_SHOW_UPDATE = false;
+
 const IndexScreen = () => {
   const colorScheme = Appearance.getColorScheme();
-  const [isUpdating, setIsUpdating] = useState(Updates.isEmbeddedLaunch);
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const fadeAnim = useRef(new Animated.Value(0)).current; // animation value for logo opacity
-  const fadeOutAnim = useRef(new Animated.Value(1)).current; // Screen fade-out overlay
-  const bgScale = useRef(new Animated.Value(1)).current; // background zoom
-  const bgTranslateY = useRef(new Animated.Value(0)).current; // background drift
 
-  // OTA Update Check Effect
+  // In production: block until OTA check finishes if this is an embedded launch.
+  // In dev: always start as false (we simulate via DEV_FORCE_SHOW_UPDATE).
+  const [isUpdating, setIsUpdating] = useState(
+    !__DEV__ && Updates.isEmbeddedLaunch
+  );
+  const [updateStatusText, setUpdateStatusText] = useState('Checking for updates…');
+
+  const dotAnim = useRef(new Animated.Value(0)).current;
+  const updateBannerOpacity = useRef(new Animated.Value(DEV_FORCE_SHOW_UPDATE ? 1 : 0)).current;
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeOutAnim = useRef(new Animated.Value(1)).current;
+  const bgScale = useRef(new Animated.Value(1)).current;
+  const bgTranslateY = useRef(new Animated.Value(0)).current;
+
+  // --- OTA Update Check ---
   useEffect(() => {
     const runUpdateCheck = async () => {
-      if (!Updates.isEmbeddedLaunch) {
+      if (__DEV__) {
+        // In dev: just show the banner for 2s so it's testable, then proceed.
+        setUpdateStatusText('Checking for updates…');
+        setTimeout(() => {
+          setUpdateStatusText('App is up to date ✓');
+          setTimeout(() => {
+            Animated.timing(updateBannerOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }).start();
+          }, 800);
+        }, 1800);
         return;
       }
+      if (!Updates.isEmbeddedLaunch) return;
       try {
         const update = await Updates.checkForUpdateAsync();
         if (update.isAvailable) {
+          setUpdateStatusText('Downloading update…');
           await Updates.fetchUpdateAsync();
+          setUpdateStatusText('Restarting…');
           await Updates.reloadAsync();
         } else {
-          setIsUpdating(false);
+          setUpdateStatusText('App is up to date ✓');
+          setTimeout(() => {
+            Animated.timing(updateBannerOpacity, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }).start(() => setIsUpdating(false));
+          }, 600);
         }
       } catch (error) {
         console.warn('OTA Update Check failed:', error);
-        setIsUpdating(false);
+        Animated.timing(updateBannerOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }).start(() => setIsUpdating(false));
       }
     };
     runUpdateCheck();
   }, []);
 
-  // Breathing Logo Animation Effect
+  // --- Animated dots for "Checking…" text ---
   useEffect(() => {
-    if (isUpdating) {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulseAnim, {
-            toValue: 1.12,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(pulseAnim, {
-            toValue: 0.96,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-        ])
-      ).start();
-    } else {
-      pulseAnim.setValue(1);
-    }
-  }, [isUpdating]);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(dotAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+        Animated.timing(dotAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
+      ])
+    ).start();
+  }, []);
 
+  // --- Main index animation (runs once update phase is done) ---
   useEffect(() => {
-    if (isUpdating) return; // Wait until updates complete or skip
+    if (isUpdating) return;
 
-    // Parallel fade + background zoom animations
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -82,7 +110,7 @@ const IndexScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-    // Perform auth check concurrently with animation wait
+
     const authCheckPromise = async () => {
       try {
         const token = await secureStorage.getItem('userToken');
@@ -97,40 +125,24 @@ const IndexScreen = () => {
         return '/home';
       } catch (error) {
         console.warn('Startup Auth Check Failed:', error);
-        return '/getstarted'; // Session invalid or network issue
+        return '/getstarted';
       }
     };
+
     const runStartup = async () => {
       const minWaitPromise = new Promise((resolve) => setTimeout(resolve, 2000));
       const [nextRoute] = await Promise.all([authCheckPromise(), minWaitPromise]);
       Animated.timing(fadeOutAnim, {
         toValue: 0,
-        duration: 1000, // smooth fade out
+        duration: 1000,
         useNativeDriver: true,
       }).start(() => {
         router.replace(nextRoute as any);
       });
     };
+
     runStartup();
   }, [bgScale, bgTranslateY, fadeAnim, fadeOutAnim, isUpdating]);
-
-  if (isUpdating) {
-    return (
-      <View style={styles.updateContainer}>
-        <StatusBar style="dark" translucent backgroundColor="transparent" />
-        <Animated.Image
-          source={require('../assets/images/logo - blue.png')}
-          style={[
-            styles.updateLogo,
-            {
-              transform: [{ scale: pulseAnim }],
-            },
-          ]}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -140,49 +152,50 @@ const IndexScreen = () => {
           transform: [{ scale: bgScale }, { translateY: bgTranslateY }],
         }}
       >
-      <ImageBackground
-        source={require('../assets/images/shopbackground.png')}
-        style={styles.backgroundImage}
-        imageStyle={styles.backgroundImageStyle}
-      >
-        <View style={styles.overlay} />
-        <StatusBar style="light" translucent backgroundColor="transparent" />
-        <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
-          {/* Centered logo (responsive true center) */}
-          <View style={styles.logoAbsoluteContainer}>
-            <Animated.Image
-              source={require('../assets/images/iconwhite.png')}
-              style={[styles.logo, { opacity: fadeAnim }]}
-              resizeMode="contain"
-            />
-          </View>
-          {/* Hidden buttons (keep functionality for later) */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              style={[styles.createAccountButton, { opacity: 0 }]}
-              onPress={() => router.push('/register')}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#1b7c22', '#34a853']}
-                style={styles.gradientButton}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
+        <ImageBackground
+          source={require('../assets/images/shopbackground.png')}
+          style={styles.backgroundImage}
+          imageStyle={styles.backgroundImageStyle}
+        >
+          <View style={styles.overlay} />
+          <StatusBar style="light" translucent backgroundColor="transparent" />
+          <SafeAreaView style={styles.safeArea} edges={['right', 'bottom', 'left']}>
+            {/* Centered logo */}
+            <View style={styles.logoAbsoluteContainer}>
+              <Animated.Image
+                source={require('../assets/images/iconwhite.png')}
+                style={[styles.logo, { opacity: isUpdating ? 1 : fadeAnim }]}
+                resizeMode="contain"
+              />
+            </View>
+            {/* Hidden buttons */}
+            <View style={styles.footer}>
+              <TouchableOpacity
+                style={[styles.createAccountButton, { opacity: 0 }]}
+                onPress={() => router.push('/register')}
+                activeOpacity={0.8}
               >
-                <Text style={styles.createAccountText}>Create Account</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.loginButton, { opacity: 0 }]}
-              onPress={() => router.push('/login')}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.loginText}>Already have an account? Login</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </ImageBackground>
+                <LinearGradient
+                  colors={['#1b7c22', '#34a853']}
+                  style={styles.gradientButton}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <Text style={styles.createAccountText}>Create Account</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.loginButton, { opacity: 0 }]}
+                onPress={() => router.push('/login')}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.loginText}>Already have an account? Login</Text>
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+        </ImageBackground>
       </Animated.View>
+
       {/* Screen fade-out overlay */}
       <Animated.View
         style={[
@@ -196,9 +209,31 @@ const IndexScreen = () => {
           },
         ]}
       />
+
+      {/* OTA Update status banner — overlaid on the animation, no separate screen */}
+      <Animated.View
+        style={[styles.updateBanner, { opacity: updateBannerOpacity }]}
+        pointerEvents="none"
+      >
+        <View style={styles.updateBannerInner}>
+          <Animated.View
+            style={[
+              styles.updateDot,
+              {
+                opacity: dotAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 1],
+                }),
+              },
+            ]}
+          />
+          <Text style={styles.updateBannerText}>{updateStatusText}</Text>
+        </View>
+      </Animated.View>
     </View>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -226,20 +261,20 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-    logoAbsoluteContainer: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 2,
-    },
-    logo: {
-      width: width * 0.55,
-      height: height * 0.12,
-    },
+  logoAbsoluteContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  logo: {
+    width: width * 0.55,
+    height: height * 0.12,
+  },
   footer: {
     paddingHorizontal: 30,
     paddingBottom: 40,
@@ -270,15 +305,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  updateContainer: {
-    flex: 1,
-    backgroundColor: '#f2f2f2',
-    justifyContent: 'center',
+  // Update banner styles (replaces the old full-screen updateContainer)
+  updateBanner: {
+    position: 'absolute',
+    bottom: 48,
+    left: 0,
+    right: 0,
     alignItems: 'center',
+    zIndex: 10,
   },
-  updateLogo: {
-    width: width * 0.6,
-    height: height * 0.15,
+  updateBannerInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  updateDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#4ade80',
+  },
+  updateBannerText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    fontWeight: '500',
+    letterSpacing: 0.3,
   },
 });
 export default IndexScreen;

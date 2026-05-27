@@ -67,18 +67,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const startTour = async (screen: string) => {
-    // Aggressive check: always try to get fresh state if we think it's not completed
-    // This prevents showing it again after login if the state was cleared locally
-    let current = onboardingState;
-    if (Object.keys(current).length === 0) {
-      const fresh = await loadOnboardingState();
-      if (fresh) current = fresh;
-    }
-    
-    if (!current[screen]) {
-      setActiveScreen(screen);
-      setIsTourActive(true);
-    }
+    return; // Onboarding tours disabled for now
   };
 
   const stopTour = () => {

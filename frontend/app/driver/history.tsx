@@ -32,7 +32,7 @@ export default function DriverHistory() {
           date: new Date(d.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
           time: new Date(d.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }),
           restaurant: d.order?.store?.store_name || d.pickup_address || 'Unknown Store',
-          earnings: d.status === 'delivered' ? (d.delivery_fee || 15.0) : 0,
+          earnings: d.status === 'delivered' ? Number(d.delivery_fee || 15.0) : 0,
           status: d.status.charAt(0).toUpperCase() + d.status.slice(1).replace('_', ' '),
           orderId: `#${d.order?.order_number || 'N/A'}`
         })));
@@ -64,7 +64,7 @@ export default function DriverHistory() {
                 <Text style={styles.orderId}>Order {item.orderId}</Text>
             </View>
             <Text style={[styles.earnings, isCancelled && styles.earningsCancelled]}>
-                {isCancelled ? '₵0.00' : `₵${item.earnings.toFixed(2)}`}
+                {isCancelled ? '₵0.00' : `₵${Number(item.earnings || 0).toFixed(2)}`}
             </Text>
         </View>
 

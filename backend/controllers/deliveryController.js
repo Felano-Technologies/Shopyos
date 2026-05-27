@@ -289,6 +289,14 @@ const updateDeliveryStatus = async (req, res, next) => {
       });
     }
 
+    // Enforce role boundary: drivers must verify PIN via verify-pin endpoint, not direct status change
+    if (status === 'delivered') {
+      return res.status(400).json({
+        success: false,
+        error: "To complete delivery, you must verify the customer's 6-digit PIN. Please use the verification endpoint."
+      });
+    }
+
     // Update status
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
 
@@ -314,7 +322,7 @@ const updateDeliveryStatus = async (req, res, next) => {
       if (order && order.buyer_id !== driverId) {
         await notificationService.sendNotification({
           userId: order.buyer_id,
-          type: 'order_status',
+          type: 'order_picked_up',
           title: 'Order Picked Up',
           message: `Your order #${order.order_number} has been picked up. Give this PIN to the driver upon delivery: ${verificationPin}`,
           relatedId: order.id,
@@ -334,6 +342,20 @@ const updateDeliveryStatus = async (req, res, next) => {
             eventType: 'ORDER_PICKED_UP',
             userId: order.buyer_id,
             email: buyer.email,
+            templateData: {
+              orderNumber: order.order_number,
+              verificationPin
+            }
+          });
+        }
+
+        const buyerProfile = await repositories.userProfiles.findByUserId(order.buyer_id);
+        const buyerPhone = order.delivery_phone || buyerProfile?.phone;
+        if (buyerPhone) {
+          rabbitMQService.publishMessage('sms', {
+            eventType: 'ORDER_PICKED_UP',
+            userId: order.buyer_id,
+            phone: buyerPhone,
             templateData: {
               orderNumber: order.order_number,
               verificationPin

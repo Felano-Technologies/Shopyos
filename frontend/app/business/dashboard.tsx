@@ -23,7 +23,7 @@ import { BusinessDashboardSkeleton } from '@/components/skeletons/BusinessDashbo
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import SpotlightIndicator from '../../components/ui/SpotlightIndicator';
-import { useMyBusinesses, useBusinessDashboard } from '@/hooks/useBusiness';
+import { useActiveBusiness, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 const { width } = Dimensions.get('window');
@@ -50,10 +50,9 @@ const BusinessDashboard = () => {
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
   const { isChecking, isVerified } = useSellerGuard();
+  const [showSwitcher, setShowSwitcher] = useState(false);
   // --- TanStack Query Hooks ---
-  const { data: businessesData, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses } = useMyBusinesses();
-  const businesses = businessesData?.businesses || [];
-  const selectedBusiness = businesses[0] || null;
+  const { activeBusiness: selectedBusiness, businesses, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses, selectBusiness } = useActiveBusiness();
   
   const { data: dashboardData, isLoading: isLoadingDashboard, refetch: refetchDashboard, isRefetching: isRefetchingDashboard } = useBusinessDashboard(selectedBusiness?._id);
   const { data: unreadData } = useUnreadNotificationCount(false);
@@ -144,7 +143,7 @@ const BusinessDashboard = () => {
               </TouchableOpacity>
             </View>
           </View>
-          <View style={styles.businessProfile}>
+          <TouchableOpacity style={styles.businessProfile} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
             <View style={styles.logoWrapper}>
               {(selectedBusiness?.logo_url || selectedBusiness?.logo) ? (
                 <Image source={{ uri: selectedBusiness.logo_url || selectedBusiness.logo }} style={styles.businessLogo} />
@@ -157,13 +156,22 @@ const BusinessDashboard = () => {
             </View>
             <View style={styles.businessTexts}>
               <Text style={styles.welcomeLabel}>Store Dashboard</Text>
-              <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
-              <View style={styles.ratingRow}>
-                <Ionicons name="star" size={14} color="#F59E0B" />
-                <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Text style={styles.businessName} numberOfLines={1}>{selectedBusiness?.businessName}</Text>
+                <Ionicons name="chevron-down-outline" size={16} color="#FFF" style={{ marginTop: 2 }} />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <View style={styles.ratingRow}>
+                  <Ionicons name="star" size={14} color="#F59E0B" />
+                  <Text style={styles.ratingText}>{selectedBusiness?.rating || 0} Rating</Text>
+                </View>
+                <View style={[styles.ratingRow, { backgroundColor: 'rgba(255,255,255,0.15)' }]}>
+                  <Feather name="users" size={12} color="#FFF" />
+                  <Text style={styles.ratingText}>{stats.followers || 0} Followers</Text>
+                </View>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -222,7 +230,7 @@ const BusinessDashboard = () => {
       </View>
     );
   }
-  const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0, totalRevenue: 0, pendingRevenue: 0, balance: 0 };
+  const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0, totalRevenue: 0, pendingRevenue: 0, balance: 0, followers: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
     // Show a blank loading screen while the guard checks storage.
@@ -407,6 +415,71 @@ const BusinessDashboard = () => {
           </View>
         </View>
       </Modal>
+      {/* --- SWITCHER BOTTOM SHEET --- */}
+      <Modal visible={showSwitcher} animationType="slide" transparent>
+        <View style={styles.switcherOverlay}>
+          <TouchableOpacity style={styles.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
+          <View style={styles.switcherSheet}>
+            <View style={styles.switcherHeader}>
+              <Text style={styles.switcherTitle}>Switch Profile</Text>
+              <TouchableOpacity onPress={() => setShowSwitcher(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.switcherList}>
+              {businesses.map((biz: any) => {
+                const active = biz._id === selectedBusiness?._id;
+                return (
+                  <TouchableOpacity
+                    key={biz._id}
+                    style={[styles.switcherCard, active && styles.switcherCardActive]}
+                    onPress={async () => {
+                      await selectBusiness(biz._id);
+                      setShowSwitcher(false);
+                    }}
+                  >
+                    <View style={styles.switcherLogoWrapper}>
+                      {(biz.logo_url || biz.logo) ? (
+                        <Image source={{ uri: biz.logo_url || biz.logo }} style={styles.switcherLogo} />
+                      ) : (
+                        <View style={[styles.switcherLogo, styles.switcherLogoPlaceholder]}>
+                          <Text style={styles.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={styles.switcherName} numberOfLines={1}>{biz.businessName}</Text>
+                      <Text style={styles.switcherCat}>{biz.category}</Text>
+                    </View>
+                    {active ? (
+                      <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+              
+              {businesses.length < 3 && (
+                <TouchableOpacity
+                  style={styles.switcherAddCard}
+                  onPress={() => {
+                    setShowSwitcher(false);
+                    router.push('/business/register');
+                  }}
+                >
+                  <View style={styles.switcherAddIcon}>
+                    <Ionicons name="add" size={22} color="#0C1559" />
+                  </View>
+                  <Text style={styles.switcherAddText}>Register Another Store</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <BusinessBottomNav />
       <SpotlightTour 
         visible={isTourActive && activeScreen === 'business_dashboard'} 
@@ -510,5 +583,23 @@ const styles = StyleSheet.create({
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
   emptyOrdersCard: { backgroundColor: '#FFF', padding: 30, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 10, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
   emptyOrdersText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
+  
+  switcherOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.4)', justifyContent: 'flex-end' },
+  switcherDismiss: { flex: 1 },
+  switcherSheet: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: 40, elevation: 12 },
+  switcherHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  switcherTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  switcherList: { gap: 12 },
+  switcherCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#E2E8F0' },
+  switcherCardActive: { backgroundColor: '#EEF2FF', borderColor: '#3b82f6' },
+  switcherLogoWrapper: { width: 44, height: 44, borderRadius: 14, overflow: 'hidden', backgroundColor: '#FFF', elevation: 2 },
+  switcherLogo: { width: '100%', height: '100%', resizeMode: 'cover' },
+  switcherLogoPlaceholder: { backgroundColor: '#3b82f6', justifyContent: 'center', alignItems: 'center' },
+  switcherLogoInitial: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  switcherName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  switcherCat: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
+  switcherAddCard: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 16, borderStyle: 'dashed', borderWidth: 1.5, borderColor: '#3b82f6', backgroundColor: '#EFF6FF' },
+  switcherAddIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
+  switcherAddText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginLeft: 12 },
 });
 export default BusinessDashboard;

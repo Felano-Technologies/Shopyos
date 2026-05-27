@@ -70,6 +70,24 @@ class ReviewRepository extends BaseRepository {
       .single();
 
     if (error) throw error;
+
+    const { data: allRatings } = await this.db
+      .from('store_reviews')
+      .select('rating')
+      .eq('store_id', reviewData.storeId)
+      .is('deleted_at', null);
+
+    if (allRatings && allRatings.length > 0) {
+      const sum = allRatings.reduce((acc, r) => acc + r.rating, 0);
+      await this.db
+        .from('stores')
+        .update({
+          average_rating: parseFloat((sum / allRatings.length).toFixed(2)),
+          total_reviews: allRatings.length
+        })
+        .eq('id', reviewData.storeId);
+    }
+
     return data;
   }
 
@@ -108,7 +126,7 @@ class ReviewRepository extends BaseRepository {
       .from('product_reviews')
       .select(`
         *,
-        user:buyer_id (
+        user:users!buyer_id (
           id,
           user_profiles (full_name, avatar_url)
         )
@@ -142,7 +160,7 @@ class ReviewRepository extends BaseRepository {
       .from('store_reviews')
       .select(`
         *,
-        user:buyer_id (
+        user:users!buyer_id (
           id,
           user_profiles (full_name, avatar_url)
         )
@@ -176,7 +194,7 @@ class ReviewRepository extends BaseRepository {
       .from('driver_reviews')
       .select(`
         *,
-        user:buyer_id (
+        user:users!buyer_id (
           id,
           user_profiles (full_name, avatar_url)
         )

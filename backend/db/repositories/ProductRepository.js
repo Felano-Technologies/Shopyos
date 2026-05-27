@@ -76,6 +76,7 @@ class ProductRepository extends BaseRepository {
     const {
       query,
       category,
+      gender,
       minPrice,
       maxPrice,
       minRating,
@@ -139,6 +140,11 @@ class ProductRepository extends BaseRepository {
       dbQuery = dbQuery.ilike('category', String(category).trim());
     }
 
+    // Filter by gender
+    if (gender) {
+      dbQuery = dbQuery.eq('gender', gender);
+    }
+
     // Price range filter
     if (minPrice !== undefined) {
       dbQuery = dbQuery.gte('price', minPrice);
@@ -172,6 +178,7 @@ class ProductRepository extends BaseRepository {
       }
     }
     if (category) countQuery = countQuery.ilike('category', String(category).trim());
+    if (gender) countQuery = countQuery.eq('gender', gender);
     if (minPrice !== undefined) countQuery = countQuery.gte('price', minPrice);
     if (maxPrice !== undefined) countQuery = countQuery.lte('price', maxPrice);
 

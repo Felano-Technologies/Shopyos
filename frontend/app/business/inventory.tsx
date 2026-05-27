@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, Animated, RefreshControl, Image,
-  Dimensions, ScrollView, ActivityIndicator,
+  Dimensions, ScrollView, ActivityIndicator, Modal,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,7 +10,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { useStoreProducts, useMyBusinesses } from '@/hooks/useBusiness';
+import { useStoreProducts, useActiveBusiness } from '@/hooks/useBusiness';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 
 const { width: SW } = Dimensions.get('window');
@@ -48,10 +49,13 @@ const Inventory = () => {
   const [searchQuery,  setSearch]      = useState('');
   const [sortBy,       setSortBy]      = useState<'name' | 'stock' | 'price'>('name');
 
-  const { data: businessesData } = useMyBusinesses();
-  const businessId = businessesData?.businesses?.[0]?._id;
+  const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const businessId = activeBusiness?._id;
 
   const { data, isLoading, refetch, isRefetching } = useStoreProducts(businessId || '');
+  const { data: unreadData } = useUnreadNotificationCount(false);
+  const unreadCount = unreadData?.unreadCount || 0;
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {
@@ -154,13 +158,46 @@ const Inventory = () => {
             <View style={S.hdrGlow} pointerEvents="none" />
 
             <View style={S.hdrRow}>
-              <Image source={require('../../assets/images/iconwhite.png')} style={S.logo} resizeMode="contain" />
               <TouchableOpacity
-                style={S.hdrBtn}
-                onPress={() => router.push('/business/products' as any)}
+                style={S.storeSelectorPill}
+                onPress={() => setShowSwitcher(true)}
+                activeOpacity={0.85}
               >
-                <Ionicons name="add" size={rs(22)} color="#fff" />
+                {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
+                  <Image source={{ uri: activeBusiness.logo_url || activeBusiness.logo }} style={S.storePillLogo} />
+                ) : (
+                  <View style={S.storePillPlaceholder}>
+                    <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
+                  </View>
+                )}
+                <View style={S.storePillTextWrap}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(3) }}>
+                    <Text style={S.storePillName} numberOfLines={1}>{activeBusiness?.businessName || 'Store'}</Text>
+                    <Ionicons name="chevron-down" size={rs(12)} color="#FFF" />
+                  </View>
+                  <Text style={S.storePillRating}>★ {activeBusiness?.rating || 0} Rating</Text>
+                </View>
               </TouchableOpacity>
+              
+              <View style={S.topIcons}>
+                <TouchableOpacity
+                  style={S.hdrBtn}
+                  onPress={() => router.push('/business/products' as any)}
+                >
+                  <Ionicons name="add" size={rs(22)} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/notifications')}>
+                  <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                  {unreadCount > 0 && (
+                    <View style={S.badgeContainer}>
+                      <Text style={S.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/settings')}>
+                  <Ionicons name="settings-outline" size={20} color="#FFF" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={S.hdrTitle}>Inventory</Text>
@@ -272,6 +309,71 @@ const Inventory = () => {
 
         <BusinessBottomNav />
       </SafeAreaView>
+
+      {/* --- SWITCHER BOTTOM SHEET --- */}
+      <Modal visible={showSwitcher} animationType="slide" transparent>
+        <View style={S.switcherOverlay}>
+          <TouchableOpacity style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
+          <View style={S.switcherSheet}>
+            <View style={S.switcherHeader}>
+              <Text style={S.switcherTitle}>Switch Profile</Text>
+              <TouchableOpacity onPress={() => setShowSwitcher(false)}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={S.switcherList}>
+              {businesses.map((biz: any) => {
+                const active = biz._id === activeBusiness?._id;
+                return (
+                  <TouchableOpacity
+                    key={biz._id}
+                    style={[S.switcherCard, active && S.switcherCardActive]}
+                    onPress={async () => {
+                      await selectBusiness(biz._id);
+                      setShowSwitcher(false);
+                    }}
+                  >
+                    <View style={S.switcherLogoWrapper}>
+                      {(biz.logo_url || biz.logo) ? (
+                        <Image source={{ uri: biz.logo_url || biz.logo }} style={S.switcherLogo} />
+                      ) : (
+                        <View style={[S.switcherLogo, S.switcherLogoPlaceholder]}>
+                          <Text style={S.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={S.switcherName} numberOfLines={1}>{biz.businessName}</Text>
+                      <Text style={S.switcherCat}>{biz.category}</Text>
+                    </View>
+                    {active ? (
+                      <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                    ) : (
+                      <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+              
+              {businesses.length < 3 && (
+                <TouchableOpacity
+                  style={S.switcherAddCard}
+                  onPress={() => {
+                    setShowSwitcher(false);
+                    router.push('/business/register');
+                  }}
+                >
+                  <View style={S.switcherAddIcon}>
+                    <Ionicons name="add" size={22} color="#0C1559" />
+                  </View>
+                  <Text style={S.switcherAddText}>Register Another Store</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -296,11 +398,23 @@ const S = StyleSheet.create({
   hdrRow:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: rs(14) },
   logo:     { width: 110, height: 34 },
   hdrBtn: {
-    width: rs(40), height: rs(40), borderRadius: rs(13),
+    width: rs(38), height: rs(38), borderRadius: rs(12),
     backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center',
     elevation: 3, shadowColor: C.lime, shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35, shadowRadius: rs(5),
   },
+  topIcons: { flexDirection: 'row', gap: rs(10), alignItems: 'center' },
+  iconBtn: {
+    width: rs(38), height: rs(38), borderRadius: rs(12),
+    backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center',
+    borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.1)',
+  },
+  badgeContainer: {
+    position: 'absolute', top: -3, right: -3,
+    backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.navy,
+  },
+  badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
   hdrTitle: { fontSize: rf(26), fontFamily: 'Montserrat-Bold',   color: '#fff' },
   hdrSub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(3) },
   hdrArc: {
@@ -391,6 +505,163 @@ const S = StyleSheet.create({
   emptyCircle:{ width: rs(80), height: rs(80), borderRadius: rs(40), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16) },
   emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold',   color: C.body, marginBottom: rs(6) },
   emptySub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, textAlign: 'center' },
+
+  // Store Selector Pill
+  storeSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(6),
+    borderRadius: rs(16),
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    maxWidth: SW * 0.48,
+  },
+  storePillLogo: {
+    width: rs(28),
+    height: rs(28),
+    borderRadius: rs(14),
+    backgroundColor: '#F1F5F9',
+  },
+  storePillPlaceholder: {
+    width: rs(28),
+    height: rs(28),
+    borderRadius: rs(14),
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storePillInitial: {
+    color: '#FFF',
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-Bold',
+  },
+  storePillTextWrap: {
+    marginLeft: rs(8),
+    justifyContent: 'center',
+  },
+  storePillName: {
+    color: '#FFF',
+    fontSize: rf(11),
+    fontFamily: 'Montserrat-Bold',
+    maxWidth: SW * 0.28,
+  },
+  storePillRating: {
+    color: '#F59E0B',
+    fontSize: rf(9),
+    fontFamily: 'Montserrat-Bold',
+    marginTop: rs(1),
+  },
+
+  // Switcher bottom sheet styles
+  switcherOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  switcherDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  switcherSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: rs(30),
+    borderTopRightRadius: rs(30),
+    padding: rs(24),
+    paddingBottom: rs(40),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 25,
+  },
+  switcherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: rs(20),
+  },
+  switcherTitle: {
+    fontSize: rf(20),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  switcherList: {
+    gap: rs(12),
+  },
+  switcherCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: rs(14),
+    borderRadius: rs(18),
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  switcherCardActive: {
+    borderColor: '#0C1559',
+    backgroundColor: '#F1F5F9',
+  },
+  switcherLogoWrapper: {
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
+    overflow: 'hidden',
+  },
+  switcherLogo: {
+    width: '100%',
+    height: '100%',
+  },
+  switcherLogoPlaceholder: {
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switcherLogoInitial: {
+    color: '#FFF',
+    fontSize: rf(18),
+    fontFamily: 'Montserrat-Bold',
+  },
+  switcherName: {
+    fontSize: rf(15),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  switcherCat: {
+    fontSize: rf(12),
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginTop: rs(2),
+  },
+  switcherAddCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: rs(14),
+    borderRadius: rs(18),
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    marginTop: rs(6),
+  },
+  switcherAddIcon: {
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switcherAddText: {
+    fontSize: rf(14),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+    marginLeft: rs(12),
+  },
 });
 
 export default Inventory;

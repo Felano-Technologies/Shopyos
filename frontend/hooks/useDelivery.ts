@@ -89,6 +89,21 @@ export const useUpdateDeliveryStatus = () => {
   });
 };
 
+export const useVerifyDeliveryPin = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ deliveryId, pin }: { deliveryId: string; pin: string }) => {
+      return await ApiService.verifyDeliveryPin(deliveryId, pin);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.detail(variables.deliveryId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.active() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.delivery.stats('today') });
+    },
+  });
+};
+
 export const useDriverProfile = () => {
   return useQuery({
     queryKey: ['driver_profile'],
