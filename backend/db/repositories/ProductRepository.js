@@ -76,8 +76,10 @@ class ProductRepository extends BaseRepository {
     const {
       query,
       category,
+      gender,
       minPrice,
       maxPrice,
+      minRating,
       sortBy = 'created_at',
       ascending = false,
       limit = 20,
@@ -90,7 +92,21 @@ class ProductRepository extends BaseRepository {
       .select('id')
       .eq('is_verified', true)
       .eq('is_active', true);
-    const verifiedStoreIds = (verifiedStores || []).map(s => s.id);
+    let verifiedStoreIds = (verifiedStores || []).map(s => s.id);
+
+    if (minRating !== undefined) {
+      const { data: ratedStores, error: ratedStoresError } = await this.db
+        .from('stores')
+        .select('id')
+        .eq('is_verified', true)
+        .eq('is_active', true)
+        .gte('average_rating', minRating);
+
+      if (ratedStoresError) throw ratedStoresError;
+
+      const ratedStoreIds = new Set((ratedStores || []).map(s => s.id));
+      verifiedStoreIds = verifiedStoreIds.filter(id => ratedStoreIds.has(id));
+    }
 
     let dbQuery = this.db
       .from(this.tableName)
@@ -121,7 +137,12 @@ class ProductRepository extends BaseRepository {
 
     // Filter by category
     if (category) {
-      dbQuery = dbQuery.eq('category', category);
+      dbQuery = dbQuery.ilike('category', String(category).trim());
+    }
+
+    // Filter by gender
+    if (gender) {
+      dbQuery = dbQuery.eq('gender', gender);
     }
 
     // Price range filter
@@ -156,7 +177,8 @@ class ProductRepository extends BaseRepository {
         countQuery = countQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
       }
     }
-    if (category) countQuery = countQuery.eq('category', category);
+    if (category) countQuery = countQuery.ilike('category', String(category).trim());
+    if (gender) countQuery = countQuery.eq('gender', gender);
     if (minPrice !== undefined) countQuery = countQuery.gte('price', minPrice);
     if (maxPrice !== undefined) countQuery = countQuery.lte('price', maxPrice);
 

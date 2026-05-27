@@ -41,7 +41,8 @@ class OrderRepository extends BaseRepository {
           phone,
           address_line1,
           city,
-          country
+          country,
+          created_at
         ),
         order_items (
           id,
@@ -99,7 +100,7 @@ class OrderRepository extends BaseRepository {
       where,
       select: `
         *,
-        store:store_id (store_name, logo_url, category),
+        store:store_id (store_name, logo_url, category, created_at),
         order_items (product_title, quantity, price),
         payments (status, payment_method)
       `,

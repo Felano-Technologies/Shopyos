@@ -21,7 +21,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
-import { useMyBusinesses, useUpdateBusiness } from '@/hooks/useBusiness';
+import { useActiveBusiness, useUpdateBusiness } from '@/hooks/useBusiness';
 const InputField = React.memo(function InputField({
   label,
   value,
@@ -52,9 +52,9 @@ const InputField = React.memo(function InputField({
   );
 });
 const BusinessUpdateScreen = () => {
-  const { data: bizData, isLoading: loadingData } = useMyBusinesses();
+  const { activeBusiness: activeBiz, isLoading: loadingData } = useActiveBusiness();
   const updateMutation = useUpdateBusiness();
-  const businessId = bizData?.businesses?.[0]?._id;
+  const businessId = activeBiz?._id;
   const [formData, setFormData] = useState({
     businessName: '',
     description: '',
@@ -79,8 +79,8 @@ const BusinessUpdateScreen = () => {
   ];
   // --- Map Data to Form ---
   useEffect(() => {
-    if (bizData?.success && bizData.businesses.length > 0) {
-      const biz = bizData.businesses[0];
+    if (activeBiz) {
+      const biz = activeBiz;
       
       setFormData({
         businessName: biz.store_name || biz.businessName || '',

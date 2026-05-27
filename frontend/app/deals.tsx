@@ -24,15 +24,19 @@ export default function DealsScreen() {
   // --- TanStack Query Hook ---
   const { data, isLoading } = useProducts({ sortBy: 'price_asc' });
   
-  const deals = data?.products?.map((p: any) => ({
-    id: p._id,
-    title: p.name,
-    price: p.price,
-    oldPrice: p.oldPrice || p.price * 1.25,
-    image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
-    category: p.category || 'General',
-    tag: p.price < 100 ? 'Hot' : 'Sale',
-  })) || [];
+  const deals = data?.products?.map((p: any) => {
+    const priceNum = Number(p.price) || 0;
+    const oldPriceNum = p.oldPrice ? Number(p.oldPrice) : priceNum * 1.25;
+    return {
+      id: p._id,
+      title: p.name,
+      price: priceNum,
+      oldPrice: oldPriceNum,
+      image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
+      category: p.category || 'General',
+      tag: priceNum < 100 ? 'Hot' : 'Sale',
+    };
+  }) || [];
 
   const loading = isLoading;
 
@@ -78,8 +82,8 @@ export default function DealsScreen() {
         <Text style={styles.dealTitle} numberOfLines={1}>{item.title}</Text>
         
         <View style={styles.priceRow}>
-            <Text style={styles.dealPrice}>₵{item.price.toFixed(2)}</Text>
-            <Text style={styles.oldPrice}>₵{item.oldPrice.toFixed(2)}</Text>
+            <Text style={styles.dealPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+            <Text style={styles.oldPrice}>₵{Number(item.oldPrice || 0).toFixed(2)}</Text>
         </View>
 
         {/* Grab Deal Button */}

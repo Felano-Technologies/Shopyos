@@ -74,11 +74,14 @@ function registerMessagingHandlers(io) {
     /**
      * Send a message via socket
      */
-    socket.on('message:send', async ({ conversationId, content, messageType = 'text', attachmentUrl }, callback) => {
+    socket.on('message:send', async ({ conversationId, content, messageType = 'text', attachmentUrl, attachmentMeta }, callback) => {
       try {
-        // Validate input
-        if (!conversationId || !content || content.trim() === '') {
-          return callback?.({ success: false, error: 'Conversation ID and content are required' });
+        // Validate input — content only required for text messages
+        if (!conversationId) {
+          return callback?.({ success: false, error: 'Conversation ID is required' });
+        }
+        if (messageType === 'text' && (!content || content.trim() === '')) {
+          return callback?.({ success: false, error: 'Message content is required' });
         }
 
         // Verify user is participant
@@ -91,8 +94,9 @@ function registerMessagingHandlers(io) {
           return callback?.({ success: false, error: 'Not authorized to send messages in this conversation' });
         }
 
-        // Moderate content before sending
-        const moderationResult = moderateText(content.trim());
+        // Moderate content before sending (only if content exists)
+        const hasContent = content && content.trim() !== '';
+        const moderationResult = hasContent ? moderateText(content.trim()) : { content: '', isModerated: false };
         const finalContent = moderationResult.content;
         const isModerated = moderationResult.isModerated;
 
@@ -103,7 +107,8 @@ function registerMessagingHandlers(io) {
           content: finalContent,
           isModerated,
           messageType,
-          attachmentUrl
+          attachmentUrl,
+          attachmentMeta
         });
 
         // Update conversation last activity
@@ -145,11 +150,14 @@ function registerMessagingHandlers(io) {
               sender?.user_profiles?.[0]?.full_name ||
               'Someone';
 
+            const previewMap = { text: (content || '').substring(0, 50), image: '\u{1F4F7} Photo', video: '\u{1F3AC} Video', voice: '\u{1F3A4} Voice message', sticker: 'Sticker' };
+            const notifPreview = previewMap[messageType] || 'New message';
+
             await notificationService.sendNotification({
               userId: recipientId,
               type: 'new_message',
               title: `New message from ${senderName}`,
-              message: content.substring(0, 100),
+              message: notifPreview,
               relatedId: conversationId,
               relatedType: 'conversation',
               data: {

@@ -34,8 +34,11 @@ export const startDriverLocationTracking = async (
     const { status: fg } = await Location.getForegroundPermissionsAsync();
     if (fg !== 'granted') return { success: false, message: 'Foreground permission not granted' };
 
+    // Request background permission as a best-effort progressive enhancement
     const { status: bg } = await Location.getBackgroundPermissionsAsync();
-    if (bg !== 'granted') return { success: false, message: 'Background permission not granted' };
+    if (bg !== 'granted') {
+      await Location.requestBackgroundPermissionsAsync().catch(() => {});
+    }
 
     await storage.setItem('activeDeliveryId', deliveryId);
 
@@ -55,6 +58,17 @@ export const startDriverLocationTracking = async (
     console.log('[TaskController] Driver location tracking started');
     return { success: true, message: 'Location tracking started' };
   } catch (error: any) {
+    const msg: string = error?.message ?? '';
+    if (
+      msg.includes('Background location has not been configured') ||
+      msg.includes('UIBackgroundModes') ||
+      msg.includes('BACKGROUND_LOCATION')
+    ) {
+      console.log(
+        '[TaskController] Background location tracking unavailable (Expo Go/simulator fallback active).'
+      );
+      return { success: true, message: 'Foreground fallback active (Expo Go)' };
+    }
     console.error('[TaskController] Failed to start driver tracking:', error);
     return { success: false, message: error.message || 'Failed to start tracking' };
   }

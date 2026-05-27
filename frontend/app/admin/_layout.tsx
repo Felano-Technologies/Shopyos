@@ -24,7 +24,7 @@ function AdminTabBar() {
   const router   = useRouter();
   const pathname = usePathname();
   const insets   = useSafeAreaInsets();
-  const { isMobile, isTablet, isDesktop } = useAdminBreakpoint();
+  const { isTablet, isDesktop } = useAdminBreakpoint();
 
   // Desktop uses the sidebar inside AdminShell — no floating bar needed
   if (isDesktop) return null;

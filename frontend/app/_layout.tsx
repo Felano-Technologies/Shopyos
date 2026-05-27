@@ -20,8 +20,9 @@ import { OnboardingProvider } from '@/context/OnboardingContext';
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
+import { ImagePreviewProvider } from '@/context/ImagePreviewContext';
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const toastConfig = {
   success: (props: any) => (
@@ -218,8 +219,6 @@ function AppContent() {
   );
 }
 
-import { ImagePreviewProvider } from '@/context/ImagePreviewContext';
-
 export default function RootLayout() {
   const [loaded] = useFonts({
     'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
@@ -229,7 +228,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [loaded]);
 

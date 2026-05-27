@@ -34,7 +34,8 @@ const {
   createScheduledNotification,
   cancelScheduledNotification,
   previewHolidayCampaign,
-  triggerMarketingSweep
+  triggerMarketingSweep,
+  sendTestNotification
 } = require('../controllers/adminNotificationController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -127,6 +128,7 @@ router.put('/escrows/:id/release', releaseEscrow);
 // Sub-paths BEFORE /:id to prevent shadowing
 router.get('/scheduled-notifications/holiday-preview', previewHolidayCampaign);
 router.post('/scheduled-notifications/trigger-sweep', triggerMarketingSweep);
+router.post('/scheduled-notifications/send-test', sendTestNotification);
 // CRUD
 router.get('/scheduled-notifications', getScheduledNotifications);
 router.post('/scheduled-notifications', createScheduledNotification);

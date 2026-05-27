@@ -15,7 +15,7 @@ import BusinessBottomNav from '../../components/BusinessBottomNav';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { getStoreReviews } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useMyBusinesses } from '@/hooks/useBusiness';
+import { useActiveBusiness } from '@/hooks/useBusiness';
 const ReviewsScreen = () => {
   const theme = useColorScheme();
   const isDarkMode = theme === 'dark';
@@ -30,8 +30,8 @@ const ReviewsScreen = () => {
   const [, setLoading] = useState(true);
   const [, setRefreshing] = useState(false);
   const { isVerified } = useSellerGuard();
-  const { data: businessesData } = useMyBusinesses();
-  const businessId = businessesData?.businesses?.[0]?._id;
+  const { activeBusiness } = useActiveBusiness();
+  const businessId = activeBusiness?._id;
   const fetchReviews = React.useCallback(async () => {
     try {
       if (businessId) {

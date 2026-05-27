@@ -21,7 +21,8 @@
         "buildType": "app-bundle"
       },
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {}
     }
   },
   "submit": {

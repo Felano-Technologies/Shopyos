@@ -4,7 +4,6 @@ import {
   TextInput, Image, Dimensions, ScrollView,
   ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -21,7 +20,8 @@ import {
 } from '@/services/api';
 import * as WebBrowser from 'expo-web-browser';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useMyBusinesses } from '@/hooks/useBusiness';
+import { useActiveBusiness } from '@/hooks/useBusiness';
+import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -40,6 +40,11 @@ const C = {
   subtle: '#94A3B8',
 };
 
+const isFashionCategory = (cat: string) => {
+  const c = String(cat || '').toLowerCase();
+  return c.includes('fashion') || c.includes('footwear') || c.includes('sneaker') || c.includes('accessory') || c.includes('accessories') || c.includes('clothing');
+};
+
 const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -56,18 +61,25 @@ const ProductsScreen = () => {
   const [image, setImage] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [category, setCategory] = useState('');
+  const [gender, setGender] = useState('Unisex');
   const [categories, setCategories] = useState<{ id?: string; name: string; count?: number }[]>([]);
   const [categoryModal, setCategoryModal] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchQuery, setSearch] = useState('');
 
-  const { data: businessesData } = useMyBusinesses();
-  const businessId = businessesData?.businesses?.[0]?._id;
+  const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
+  const [showSwitcher, setShowSwitcher] = useState(false);
+  const [formModalVisible, setFormModalVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const { data: unreadData } = useUnreadNotificationCount(false);
+  const unreadCount = unreadData?.unreadCount || 0;
+  const businessId = activeBusiness?._id;
   
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen, user } = useOnboarding();
-  const businessEmail = businessesData?.businesses?.[0]?.email || user?.email;
+  const businessEmail = activeBusiness?.email || user?.email;
   const [layouts, setLayouts] = useState<any>({});
   const refForm = useRef<View>(null);
   const refPhoto = useRef<View>(null);
@@ -138,6 +150,7 @@ const ProductsScreen = () => {
           isActive: p.isActive ?? p.is_active ?? true,
           description: p.description || '',
           category: p.category || '',
+          gender: p.gender || 'Unisex',
         })));
       }
     } catch (e) { console.error('Failed to fetch products', e); }
@@ -155,10 +168,14 @@ const ProductsScreen = () => {
       fetchProducts();
       fetchCategories();
       // verificationStatus can be derived from the business object
-      const status = businessesData?.businesses?.[0]?.verificationStatus;
+      const status = activeBusiness?.verificationStatus;
       setVerificationStatus(status || 'pending');
     }
-  }, [businessId, fetchProducts, fetchCategories, businessesData]);
+  }, [businessId, fetchProducts, fetchCategories, activeBusiness]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, businessId]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
   const showImagePicker = useImagePickerSheet();
 
@@ -172,10 +189,19 @@ const ProductsScreen = () => {
   const portfolioValue = products.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.stock) || 0), 0);
   const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  const ITEMS_PER_PAGE = 5;
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = filteredProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
   // ── Helpers ───────────────────────────────────────────────────────────────
   const resetForm = () => {
     setName(''); setPrice(''); setStock(''); setDescription('');
     setImage(null); setEditingId(null); setIsActive(true); setCategory('');
+    setGender('Unisex');
+    setFormModalVisible(false);
     Keyboard.dismiss();
   };
 
@@ -188,7 +214,8 @@ const ProductsScreen = () => {
     setName(item.name); setPrice(item.price); setStock(item.stock);
     setDescription(item.description); setImage(item.image);
     setEditingId(item.id); setIsActive(item.isActive); setCategory(item.category);
-    scrollRef.current?.scrollTo({ y: 0, animated: true });
+    setGender(item.gender || 'Unisex');
+    setFormModalVisible(true);
   };
 
   const handleSave = async () => {
@@ -201,7 +228,7 @@ const ProductsScreen = () => {
 
       const productData = {
         storeId: businessId, name, price: parseFloat(price),
-        category, stockQuantity: parseInt(stock), description, isActive,
+        category, gender, stockQuantity: parseInt(stock), description, isActive,
       };
 
       if (editingId) {
@@ -290,10 +317,40 @@ const ProductsScreen = () => {
             <View style={S.hdrGlow} pointerEvents="none" />
 
             <View style={S.hdrRow}>
-              <Image source={require('../../assets/images/iconwhite.png')} style={S.logo} resizeMode="contain" />
-              <TouchableOpacity style={S.hdrBtn} onPress={() => router.push('/business/settings' as any)}>
-                <Ionicons name="settings-outline" size={rs(20)} color="#fff" />
+              <TouchableOpacity
+                style={S.storeSelectorPill}
+                onPress={() => setShowSwitcher(true)}
+                activeOpacity={0.85}
+              >
+                {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
+                  <Image source={{ uri: activeBusiness.logo_url || activeBusiness.logo }} style={S.storePillLogo} />
+                ) : (
+                  <View style={S.storePillPlaceholder}>
+                    <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
+                  </View>
+                )}
+                <View style={S.storePillTextWrap}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(3) }}>
+                    <Text style={S.storePillName} numberOfLines={1}>{activeBusiness?.businessName || 'Store'}</Text>
+                    <Ionicons name="chevron-down" size={rs(12)} color="#FFF" />
+                  </View>
+                  <Text style={S.storePillRating}>★ {activeBusiness?.rating || 0} Rating</Text>
+                </View>
               </TouchableOpacity>
+
+              <View style={S.topIcons}>
+                <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/notifications')}>
+                  <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                  {unreadCount > 0 && (
+                    <View style={S.badgeContainer}>
+                      <Text style={S.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/settings')}>
+                  <Ionicons name="settings-outline" size={20} color="#FFF" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* Stats strip inside header */}
@@ -345,135 +402,180 @@ const ProductsScreen = () => {
             </View>
           )}
 
-          {/* ── Add / Edit form ───────────────────────────────────────── */}
-          <View
-            style={[S.formWrap, isBlocked && { opacity: 0.4 }]}
-            pointerEvents={isBlocked ? 'none' : 'auto'}
+          {/* ── Add / Edit Form Modal ────────────────────────────────────── */}
+          <Modal
+            animationType="slide"
+            transparent={false}
+            visible={formModalVisible}
+            onRequestClose={() => resetForm()}
           >
-            <View style={S.formCard} ref={refForm} onLayout={() => measureElement(refForm, 'form')}>
-              <View style={S.formHeader}>
-                <Text style={S.formTitle}>{editingId ? 'Edit Product' : 'Add New Item'}</Text>
-                {editingId ? (
-                  <TouchableOpacity onPress={resetForm} disabled={isSubmitting}>
-                    <Text style={S.cancelTxt}>Cancel</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={S.newBadge}><Text style={S.newBadgeTxt}>New</Text></View>
-                )}
-              </View>
-
-              <View style={S.inputRow}>
-                {/* Image picker */}
-                <TouchableOpacity 
-                  style={S.imgBox} 
-                  onPress={pickImage} 
-                  disabled={isSubmitting}
-                  ref={refPhoto}
-                  onLayout={() => measureElement(refPhoto, 'photo')}
-                >
-                  {image ? (
-                    <Image source={{ uri: image }} style={StyleSheet.absoluteFill} />
-                  ) : (
-                    <View style={S.imgPlaceholder}>
-                      <Feather name="camera" size={rs(22)} color={C.subtle} />
-                      <Text style={S.imgPlaceholderTxt}>Photo</Text>
-                    </View>
-                  )}
+            <SafeAreaView style={{ flex: 1, backgroundColor: C.bg }} edges={['top', 'left', 'right', 'bottom']}>
+              <View style={S.modalHeaderBar}>
+                <TouchableOpacity onPress={() => resetForm()} style={S.modalBackBtn}>
+                  <Ionicons name="arrow-back" size={rs(22)} color={C.navy} />
                 </TouchableOpacity>
+                <Text style={S.modalHeaderTitle}>{editingId ? 'Edit Product' : 'Add New Item'}</Text>
+                <View style={{ width: rs(40) }} />
+              </View>
+              
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ padding: rs(16), paddingBottom: rs(40) }}
+                keyboardShouldPersistTaps="handled"
+              >
+                <View
+                  style={[S.formWrap, isBlocked && { opacity: 0.4 }]}
+                  pointerEvents={isBlocked ? 'none' : 'auto'}
+                >
+                  <View style={S.formCard} ref={refForm} onLayout={() => measureElement(refForm, 'form')}>
+                    <View style={S.formHeader}>
+                      <Text style={S.formTitle}>{editingId ? 'Edit Product' : 'Add New Item'}</Text>
+                      {editingId ? (
+                        <TouchableOpacity onPress={resetForm} disabled={isSubmitting}>
+                          <Text style={S.cancelTxt}>Cancel</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={S.newBadge}><Text style={S.newBadgeTxt}>New</Text></View>
+                      )}
+                    </View>
 
-                <View style={{ flex: 1 }}>
-                  {/* Name */}
-                  <View style={S.inputField}>
-                    <Feather name="tag" size={rs(14)} color={C.muted} style={S.inputIcon} />
-                    <TextInput
-                      value={name} onChangeText={setName}
-                      placeholder="Product Name" placeholderTextColor={C.subtle}
-                      style={S.inputTxt} editable={!isSubmitting}
-                    />
-                  </View>
-                  {/* Category */}
-                  <TouchableOpacity
-                    style={[S.inputField, { marginTop: rs(8) }]}
-                    onPress={() => setCategoryModal(true)}
-                    disabled={isSubmitting}
-                  >
-                    <Feather name="grid" size={rs(14)} color={C.muted} style={S.inputIcon} />
-                    <Text style={[S.inputTxt, { paddingVertical: rs(12), flex: 1, color: category ? C.body : C.subtle }]}>
-                      {category || 'Select Category'}
-                    </Text>
-                    <Feather name="chevron-down" size={rs(14)} color={C.muted} />
-                  </TouchableOpacity>
-                  {/* Description */}
-                  <View style={[S.inputField, { height: rs(76), alignItems: 'flex-start', paddingTop: rs(10), marginTop: rs(8) }]}>
-                    <Feather name="file-text" size={rs(14)} color={C.muted} style={[S.inputIcon, { marginTop: rs(2) }]} />
-                    <TextInput
-                      value={description} onChangeText={setDescription}
-                      placeholder="Description" placeholderTextColor={C.subtle}
-                      style={[S.inputTxt, { height: '100%', textAlignVertical: 'top' }]}
-                      multiline numberOfLines={3} editable={!isSubmitting}
-                    />
-                  </View>
-                  {/* Price + Stock */}
-                  <View style={[S.inputRow, { marginTop: rs(8), gap: rs(8) }]}>
-                    <View style={[S.inputField, { flex: 1 }]}>
-                      <Text style={S.currencySymbol}>₵</Text>
-                      <TextInput
-                        value={price} onChangeText={setPrice}
-                        placeholder="Price" keyboardType="numeric"
-                        placeholderTextColor={C.subtle} style={S.inputTxt}
-                        editable={!isSubmitting}
+                    <View style={S.inputRow}>
+                      {/* Image picker */}
+                      <TouchableOpacity 
+                        style={S.imgBox} 
+                        onPress={pickImage} 
+                        disabled={isSubmitting}
+                        ref={refPhoto}
+                        onLayout={() => measureElement(refPhoto, 'photo')}
+                      >
+                        {image ? (
+                          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} />
+                        ) : (
+                          <View style={S.imgPlaceholder}>
+                            <Feather name="camera" size={rs(22)} color={C.subtle} />
+                            <Text style={S.imgPlaceholderTxt}>Photo</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+
+                      <View style={{ flex: 1 }}>
+                        {/* Name */}
+                        <View style={S.inputField}>
+                          <Feather name="tag" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                          <TextInput
+                            value={name} onChangeText={setName}
+                            placeholder="Product Name" placeholderTextColor={C.subtle}
+                            style={S.inputTxt} editable={!isSubmitting}
+                          />
+                        </View>
+                        {/* Category */}
+                        <TouchableOpacity
+                          style={[S.inputField, { marginTop: rs(8) }]}
+                          onPress={() => setCategoryModal(true)}
+                          disabled={isSubmitting}
+                        >
+                          <Feather name="grid" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                          <Text style={[S.inputTxt, { paddingVertical: rs(12), flex: 1, color: category ? C.body : C.subtle }]}>
+                            {category || 'Select Category'}
+                          </Text>
+                          <Feather name="chevron-down" size={rs(14)} color={C.muted} />
+                        </TouchableOpacity>
+
+                        {/* Target Gender */}
+                        {isFashionCategory(category) && (
+                          <View style={S.genderContainer}>
+                            <Text style={S.genderLabel}>Target Gender</Text>
+                            <View style={S.genderGroup}>
+                              {['Unisex', 'Men', 'Women', 'Boys', 'Girls'].map((g) => {
+                                const isSel = gender === g;
+                                return (
+                                  <TouchableOpacity
+                                    key={g}
+                                    style={[S.genderBtn, isSel && S.genderBtnOn]}
+                                    onPress={() => setGender(g)}
+                                    disabled={isSubmitting}
+                                  >
+                                    <Text style={[S.genderBtnTxt, isSel && S.genderBtnTxtOn]}>{g}</Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          </View>
+                        )}
+                        {/* Description */}
+                        <View style={[S.inputField, { height: rs(76), alignItems: 'flex-start', paddingTop: rs(10), marginTop: rs(8) }]}>
+                          <Feather name="file-text" size={rs(14)} color={C.muted} style={[S.inputIcon, { marginTop: rs(2) }]} />
+                          <TextInput
+                            value={description} onChangeText={setDescription}
+                            placeholder="Description" placeholderTextColor={C.subtle}
+                            style={[S.inputTxt, { height: '100%', textAlignVertical: 'top' }]}
+                            multiline numberOfLines={3} editable={!isSubmitting}
+                          />
+                        </View>
+                        {/* Price + Stock */}
+                        <View style={[S.inputRow, { marginTop: rs(8), gap: rs(8) }]}>
+                          <View style={[S.inputField, { flex: 1 }]}>
+                            <Text style={S.currencySymbol}>₵</Text>
+                            <TextInput
+                              value={price} onChangeText={setPrice}
+                              placeholder="Price" keyboardType="numeric"
+                              placeholderTextColor={C.subtle} style={S.inputTxt}
+                              editable={!isSubmitting}
+                            />
+                          </View>
+                          <View style={[S.inputField, { flex: 1 }]}>
+                            <Feather name="layers" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                            <TextInput
+                              value={stock} onChangeText={setStock}
+                              placeholder="Qty" keyboardType="numeric"
+                              placeholderTextColor={C.subtle} style={S.inputTxt}
+                              editable={!isSubmitting}
+                            />
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Active toggle */}
+                    <View style={S.toggleRow}>
+                      <Text style={S.toggleLbl}>Active — visible to customers</Text>
+                      <Switch
+                        value={isActive} onValueChange={setIsActive}
+                        trackColor={{ false: '#CBD5E1', true: '#DCFCE7' }}
+                        thumbColor={isActive ? '#15803D' : C.subtle}
+                        disabled={isSubmitting}
                       />
                     </View>
-                    <View style={[S.inputField, { flex: 1 }]}>
-                      <Feather name="layers" size={rs(14)} color={C.muted} style={S.inputIcon} />
-                      <TextInput
-                        value={stock} onChangeText={setStock}
-                        placeholder="Qty" keyboardType="numeric"
-                        placeholderTextColor={C.subtle} style={S.inputTxt}
-                        editable={!isSubmitting}
-                      />
-                    </View>
+
+                    {/* Submit */}
+                    <TouchableOpacity
+                      onPress={handleSave}
+                      disabled={isSubmitting || isBlocked}
+                      activeOpacity={0.85}
+                      style={{ marginTop: rs(14) }}
+                      ref={refSubmit}
+                      onLayout={() => measureElement(refSubmit, 'submit')}
+                    >
+                      <LinearGradient
+                        colors={editingId ? ['#CA8A04', '#EAB308'] : [C.navy, C.navyMid]}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                        style={S.submitBtn}
+                      >
+                        {isSubmitting ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Feather name={editingId ? 'save' : 'plus'} size={rs(17)} color="#fff" />
+                            <Text style={S.submitBtnTxt}>{editingId ? 'Update Product' : 'Add to Inventory'}</Text>
+                          </>
+                        )}
+                      </LinearGradient>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              </View>
-
-              {/* Active toggle */}
-              <View style={S.toggleRow}>
-                <Text style={S.toggleLbl}>Active — visible to customers</Text>
-                <Switch
-                  value={isActive} onValueChange={setIsActive}
-                  trackColor={{ false: '#CBD5E1', true: '#DCFCE7' }}
-                  thumbColor={isActive ? '#15803D' : C.subtle}
-                  disabled={isSubmitting}
-                />
-              </View>
-
-              {/* Submit */}
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={isSubmitting || isBlocked}
-                activeOpacity={0.85}
-                style={{ marginTop: rs(14) }}
-                ref={refSubmit}
-                onLayout={() => measureElement(refSubmit, 'submit')}
-              >
-                <LinearGradient
-                  colors={editingId ? ['#CA8A04', '#EAB308'] : [C.navy, C.navyMid]}
-                  start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-                  style={S.submitBtn}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <>
-                      <Feather name={editingId ? 'save' : 'plus'} size={rs(17)} color="#fff" />
-                      <Text style={S.submitBtnTxt}>{editingId ? 'Update Product' : 'Add to Inventory'}</Text>
-                    </>
-                  )}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
+              </ScrollView>
+            </SafeAreaView>
+          </Modal>
 
           {/* ── Product list ──────────────────────────────────────────── */}
           <View style={S.listWrap}>
@@ -488,51 +590,87 @@ const ProductsScreen = () => {
               />
             </View>
 
-            <Text style={S.listHeader}>Inventory ({filteredProducts.length})</Text>
+            <View style={S.listHeaderRow}>
+              <Text style={S.listHeader}>Inventory ({filteredProducts.length})</Text>
+              <TouchableOpacity
+                style={S.addProductBtn}
+                onPress={() => { resetForm(); setFormModalVisible(true); }}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add" size={rs(16)} color="#FFF" />
+                <Text style={S.addProductBtnTxt}>Add Product</Text>
+              </TouchableOpacity>
+            </View>
 
             {filteredProducts.length > 0 ? (
-              <FlatList
-                data={filteredProducts}
-                keyExtractor={(p) => p.id}
-                scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={{ height: rs(10) }} />}
-                renderItem={({ item, index }) => (
-                  <View 
-                    style={S.productRow}
-                    ref={index === 0 ? refFirstItem : undefined}
-                    onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
-                  >
-                    {item.image ? (
-                      <Image source={{ uri: item.image }} style={S.productImg} />
-                    ) : (
-                      <View style={[S.productImg, S.productImgFallback]}>
-                        <Feather name="package" size={rs(18)} color={C.muted} />
-                      </View>
-                    )}
+              <>
+                <FlatList
+                  data={paginatedProducts}
+                  keyExtractor={(p) => p.id}
+                  scrollEnabled={false}
+                  ItemSeparatorComponent={() => <View style={{ height: rs(10) }} />}
+                  renderItem={({ item, index }) => (
+                    <View 
+                      style={S.productRow}
+                      ref={index === 0 ? refFirstItem : undefined}
+                      onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
+                    >
+                      {item.image ? (
+                        <Image source={{ uri: item.image }} style={S.productImg} />
+                      ) : (
+                        <View style={[S.productImg, S.productImgFallback]}>
+                          <Feather name="package" size={rs(18)} color={C.muted} />
+                        </View>
+                      )}
 
-                    <View style={S.productInfo}>
-                      <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
-                      <View style={S.productMeta}>
-                        <Text style={S.productPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
-                        <View style={[S.activeDot, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
-                        <Text style={[S.activeTxt, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
-                          {item.isActive ? 'Active' : 'Inactive'}
-                        </Text>
+                      <View style={S.productInfo}>
+                        <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
+                        <View style={S.productMeta}>
+                          <Text style={S.productPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                          {isFashionCategory(item.category) && (
+                            <View style={S.genderBadge}><Text style={S.genderBadgeTxt}>{item.gender}</Text></View>
+                          )}
+                          <View style={[S.activeDot, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
+                          <Text style={[S.activeTxt, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
+                            {item.isActive ? 'Active' : 'Inactive'}
+                          </Text>
+                        </View>
+                        <Text style={S.productStock}>Stock: {item.stock}</Text>
                       </View>
-                      <Text style={S.productStock}>Stock: {item.stock}</Text>
-                    </View>
 
-                    <View style={S.productActions}>
-                      <TouchableOpacity style={S.actionBtn} onPress={() => handleEditPress(item)} disabled={isSubmitting}>
-                        <Feather name="edit-2" size={rs(15)} color={C.muted} />
-                      </TouchableOpacity>
-                      <TouchableOpacity style={[S.actionBtn, S.deleteBtn]} onPress={() => removeProduct(item.id)} disabled={isSubmitting}>
-                        <Feather name="trash-2" size={rs(15)} color="#EF4444" />
-                      </TouchableOpacity>
+                      <View style={S.productActions}>
+                        <TouchableOpacity style={S.actionBtn} onPress={() => handleEditPress(item)} disabled={isSubmitting}>
+                          <Feather name="edit-2" size={rs(15)} color={C.muted} />
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[S.actionBtn, S.deleteBtn]} onPress={() => removeProduct(item.id)} disabled={isSubmitting}>
+                          <Feather name="trash-2" size={rs(15)} color="#EF4444" />
+                        </TouchableOpacity>
+                      </View>
                     </View>
+                  )}
+                />
+
+                {/* --- Pagination Controls --- */}
+                {totalPages > 1 && (
+                  <View style={S.paginationRow}>
+                    <TouchableOpacity
+                      style={[S.pageBtn, currentPage === 1 && S.pageBtnDisabled]}
+                      onPress={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <Feather name="chevron-left" size={18} color={currentPage === 1 ? C.subtle : C.navy} />
+                    </TouchableOpacity>
+                    <Text style={S.pageInfo}>Page {currentPage} of {totalPages}</Text>
+                    <TouchableOpacity
+                      style={[S.pageBtn, currentPage === totalPages && S.pageBtnDisabled]}
+                      onPress={() => currentPage < totalPages && setCurrentPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      <Feather name="chevron-right" size={18} color={currentPage === totalPages ? C.subtle : C.navy} />
+                    </TouchableOpacity>
                   </View>
                 )}
-              />
+              </>
             ) : (
               <View style={S.emptyWrap}>
                 <View style={S.emptyCircle}>
@@ -548,6 +686,71 @@ const ProductsScreen = () => {
         </ScrollView>
 
         <BusinessBottomNav />
+
+        {/* --- SWITCHER BOTTOM SHEET --- */}
+        <Modal visible={showSwitcher} animationType="slide" transparent>
+          <View style={S.switcherOverlay}>
+            <TouchableOpacity style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
+            <View style={S.switcherSheet}>
+              <View style={S.switcherHeader}>
+                <Text style={S.switcherTitle}>Switch Profile</Text>
+                <TouchableOpacity onPress={() => setShowSwitcher(false)}>
+                  <Ionicons name="close" size={24} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={S.switcherList}>
+                {businesses.map((biz: any) => {
+                  const active = biz._id === activeBusiness?._id;
+                  return (
+                    <TouchableOpacity
+                      key={biz._id}
+                      style={[S.switcherCard, active && S.switcherCardActive]}
+                      onPress={async () => {
+                        await selectBusiness(biz._id);
+                        setShowSwitcher(false);
+                      }}
+                    >
+                      <View style={S.switcherLogoWrapper}>
+                        {(biz.logo_url || biz.logo) ? (
+                          <Image source={{ uri: biz.logo_url || biz.logo }} style={S.switcherLogo} />
+                        ) : (
+                          <View style={[S.switcherLogo, S.switcherLogoPlaceholder]}>
+                            <Text style={S.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={S.switcherName} numberOfLines={1}>{biz.businessName}</Text>
+                        <Text style={S.switcherCat}>{biz.category}</Text>
+                      </View>
+                      {active ? (
+                        <Ionicons name="checkmark-circle" size={22} color="#84cc16" />
+                      ) : (
+                        <Ionicons name="ellipse-outline" size={22} color="#CBD5E1" />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+                
+                {businesses.length < 3 && (
+                  <TouchableOpacity
+                    style={S.switcherAddCard}
+                    onPress={() => {
+                      setShowSwitcher(false);
+                      router.push('/business/register');
+                    }}
+                  >
+                    <View style={S.switcherAddIcon}>
+                      <Ionicons name="add" size={22} color="#0C1559" />
+                    </View>
+                    <Text style={S.switcherAddText}>Register Another Store</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         <SpotlightTour 
           visible={isTourActive && activeScreen === 'business_products'} 
@@ -713,6 +916,24 @@ const S = StyleSheet.create({
   activeDot: { width: rs(6), height: rs(6), borderRadius: rs(3) },
   activeTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
   productStock: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  genderContainer: { marginTop: rs(8), marginBottom: rs(4) },
+  genderLabel: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.muted, marginBottom: rs(6) },
+  genderGroup: { flexDirection: 'row', gap: rs(6), flexWrap: 'wrap' },
+  genderBtn: {
+    paddingHorizontal: rs(12),
+    paddingVertical: rs(8),
+    borderRadius: rs(8),
+    borderWidth: 0.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  genderBtnOn: { backgroundColor: C.navy, borderColor: C.navy },
+  genderBtnTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted },
+  genderBtnTxtOn: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
+  genderBadge: { backgroundColor: '#EEF2FF', paddingHorizontal: rs(6), paddingVertical: rs(2), borderRadius: rs(4), marginHorizontal: rs(4) },
+  genderBadgeTxt: { fontSize: rf(9), fontFamily: 'Montserrat-SemiBold', color: C.navyMid, textTransform: 'uppercase' },
   productActions: { flexDirection: 'row', gap: rs(8) },
   actionBtn: { width: rs(32), height: rs(32), borderRadius: rs(10), backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
   deleteBtn: { backgroundColor: '#FEF2F2' },
@@ -735,6 +956,262 @@ const S = StyleSheet.create({
   catItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: rs(14), borderBottomWidth: 0.5, borderBottomColor: '#F1F5F9' },
   catTxt: { fontSize: rf(15), fontFamily: 'Montserrat-Medium', color: C.muted },
   catTxtOn: { fontFamily: 'Montserrat-Bold', color: C.navy },
+
+  // Unified Header Styles
+  storeSelectorPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(6),
+    borderRadius: rs(16),
+    borderWidth: 0.5,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    maxWidth: SW * 0.48,
+  },
+  storePillLogo: {
+    width: rs(28),
+    height: rs(28),
+    borderRadius: rs(14),
+    backgroundColor: '#F1F5F9',
+  },
+  storePillPlaceholder: {
+    width: rs(28),
+    height: rs(28),
+    borderRadius: rs(14),
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  storePillInitial: {
+    color: '#FFF',
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-Bold',
+  },
+  storePillTextWrap: {
+    marginLeft: rs(8),
+    justifyContent: 'center',
+  },
+  storePillName: {
+    color: '#FFF',
+    fontSize: rf(11),
+    fontFamily: 'Montserrat-Bold',
+    maxWidth: SW * 0.28,
+  },
+  storePillRating: {
+    color: '#F59E0B',
+    fontSize: rf(9),
+    fontFamily: 'Montserrat-Bold',
+    marginTop: rs(1),
+  },
+  topIcons: { flexDirection: 'row', gap: rs(10), alignItems: 'center' },
+  iconBtn: {
+    width: rs(38),
+    height: rs(38),
+    borderRadius: rs(12),
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    backgroundColor: '#EF4444',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#0C1559',
+  },
+  badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
+
+  // List Header with add button
+  listHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: rs(12),
+  },
+  addProductBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#84cc16',
+    paddingHorizontal: rs(12),
+    paddingVertical: rs(6),
+    borderRadius: rs(10),
+    gap: rs(4),
+  },
+  addProductBtnTxt: {
+    color: '#1a2e00',
+    fontSize: rf(11),
+    fontFamily: 'Montserrat-Bold',
+  },
+
+  // Pagination controls styling
+  paginationRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: rs(16),
+    marginTop: rs(18),
+    marginBottom: rs(8),
+  },
+  pageBtn: {
+    width: rs(38),
+    height: rs(38),
+    borderRadius: rs(19),
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pageBtnDisabled: {
+    opacity: 0.4,
+    backgroundColor: '#F1F5F9',
+  },
+  pageInfo: {
+    fontSize: rf(13),
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#0F172A',
+  },
+
+  // Modal Header Styles
+  modalHeaderBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: rs(16),
+    paddingVertical: rs(12),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    backgroundColor: '#FFF',
+  },
+  modalBackBtn: {
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(12),
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalHeaderTitle: {
+    fontSize: rf(16),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+
+  // Switcher bottom sheet styles
+  switcherOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  switcherDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  switcherSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: rs(30),
+    borderTopRightRadius: rs(30),
+    padding: rs(24),
+    paddingBottom: rs(40),
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 25,
+  },
+  switcherHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: rs(20),
+  },
+  switcherTitle: {
+    fontSize: rf(20),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  switcherList: {
+    gap: rs(12),
+  },
+  switcherCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: rs(14),
+    borderRadius: rs(18),
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  switcherCardActive: {
+    borderColor: '#0C1559',
+    backgroundColor: '#F1F5F9',
+  },
+  switcherLogoWrapper: {
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
+    overflow: 'hidden',
+  },
+  switcherLogo: {
+    width: '100%',
+    height: '100%',
+  },
+  switcherLogoPlaceholder: {
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switcherLogoInitial: {
+    color: '#FFF',
+    fontSize: rf(18),
+    fontFamily: 'Montserrat-Bold',
+  },
+  switcherName: {
+    fontSize: rf(15),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  switcherCat: {
+    fontSize: rf(12),
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginTop: rs(2),
+  },
+  switcherAddCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: rs(14),
+    borderRadius: rs(18),
+    backgroundColor: '#FFF',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: '#CBD5E1',
+    marginTop: rs(6),
+  },
+  switcherAddIcon: {
+    width: rs(40),
+    height: rs(40),
+    borderRadius: rs(20),
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  switcherAddText: {
+    fontSize: rf(14),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+    marginLeft: rs(12),
+  },
 });
 
 export default ProductsScreen;

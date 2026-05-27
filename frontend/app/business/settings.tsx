@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import {  logoutUser } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useMyBusinesses } from '@/hooks/useBusiness';
+import { useActiveBusiness } from '@/hooks/useBusiness';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -39,8 +39,7 @@ export default function BusinessSettingsScreen() {
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [notificationsOn, setNotificationsOn] = useState(true);
-  const { data: businessesData, isLoading: profileLoading } = useMyBusinesses();
-  const businessData = businessesData?.businesses?.[0] || null;
+  const { activeBusiness: businessData, isLoading: profileLoading } = useActiveBusiness();
   const isBusinessVerified = businessData?.verificationStatus === 'verified';
   const handleRestrictedAction = () => {
     Alert.alert(
@@ -121,19 +120,23 @@ export default function BusinessSettingsScreen() {
           contentContainerStyle={[S.scroll, { paddingBottom: rs(40) + insets.bottom }]}
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
-          <LinearGradient
-            colors={[C.navy, C.navyMid]}
-            style={[S.header, { paddingTop: insets.top + rs(20), paddingBottom: rs(90) }]}
-          >
-            <View style={S.hdrGlow} pointerEvents="none" />
-            <View style={S.hdrRow}>
-              <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
-                <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
-              </TouchableOpacity>
-              <Text style={S.hdrTitle}>Settings</Text>
-              {/* placeholder to balance the row */}
-              <View style={{ width: rs(38) }} />
-            </View>
+          <View style={{ position: 'relative', zIndex: 10 }}>
+            <LinearGradient
+              colors={[C.navy, C.navyMid]}
+              style={[S.header, { paddingTop: insets.top + rs(20), paddingBottom: rs(90) }]}
+            >
+              <View style={S.hdrGlow} pointerEvents="none" />
+              <View style={S.hdrRow}>
+                <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+                  <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
+                </TouchableOpacity>
+                <Text style={S.hdrTitle}>Settings</Text>
+                {/* placeholder to balance the row */}
+                <View style={{ width: rs(38) }} />
+              </View>
+              {/* Arc cutout — behind the card */}
+              <View style={S.hdrArc} />
+            </LinearGradient>
             {/* Profile card — overlapping the header bottom */}
             <View style={S.profileCard}>
               {profileLoading ? (
@@ -180,9 +183,7 @@ export default function BusinessSettingsScreen() {
                 </View>
               )}
             </View>
-            {/* Arc cutout — behind the card */}
-            <View style={S.hdrArc} />
-          </LinearGradient>
+          </View>
           {/* Space for card overlap */}
           <View style={{ height: rs(110) }} />
           {/* ── Settings groups ────────────────────────────────────────── */}

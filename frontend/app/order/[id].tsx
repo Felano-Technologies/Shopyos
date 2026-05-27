@@ -17,6 +17,30 @@ const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+
+const formatStoreAge = (createdAtString?: string) => {
+  if (!createdAtString) return 'Joined recently';
+  const createdDate = new Date(createdAtString);
+  if (isNaN(createdDate.getTime())) return 'Joined recently';
+  
+  const now = new Date();
+  const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 30) {
+    return 'Joined this month';
+  } else if (diffDays < 365) {
+    const months = Math.floor(diffDays / 30);
+    return `Joined ${months} ${months === 1 ? 'month' : 'months'} ago`;
+  } else {
+    const years = Math.floor(diffDays / 365);
+    const months = Math.floor((diffDays % 365) / 30);
+    if (months === 0) {
+      return `Joined ${years} ${years === 1 ? 'year' : 'years'} ago`;
+    }
+    return `Joined ${years} ${years === 1 ? 'year' : 'years'} and ${months} ${months === 1 ? 'month' : 'months'} ago`;
+  }
+};
 const C = {
   bg: '#F8FAFC',
   navy: '#0C1559',
@@ -299,6 +323,26 @@ const OrderDetailsScreen = () => {
             );
           })}
         </View>
+        {/* ── Verification PIN Card ── */}
+        {(order.status.toLowerCase() === 'picked_up' || order.status.toLowerCase() === 'in_transit') && order.verification_pin && (
+          <View style={S.pinCard}>
+            <LinearGradient
+              colors={[C.navy, C.navyMid]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={S.pinCardGrad}
+            >
+              <View style={S.pinHeader}>
+                <MaterialCommunityIcons name="shield-key-outline" size={rs(20)} color={C.lime} />
+                <Text style={S.pinTitle}>Delivery Verification PIN</Text>
+              </View>
+              <Text style={S.pinDigits}>{order.verification_pin}</Text>
+              <Text style={S.pinSub}>
+                Give this 6-digit security code to the driver when they arrive to confirm delivery.
+              </Text>
+            </LinearGradient>
+          </View>
+        )}
         {/* ── Live tracking hint ───────────────────────────────────────────── */}
         {isLiveTrackable && (
           <TouchableOpacity
@@ -382,7 +426,13 @@ const OrderDetailsScreen = () => {
             </View>
             <View style={S.storeInfo}>
               <Text style={S.storeName}>{order.store?.store_name || 'Shopyos Store'}</Text>
-              <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(6), marginTop: rs(2) }}>
+                <Text style={S.storeCat}>{order.store?.store_category || order.store?.category || 'General'}</Text>
+                <Text style={{ fontSize: rf(11), color: C.subtle }}>•</Text>
+                <Text style={{ fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: '#16a34a' }}>
+                  {formatStoreAge(order.store?.created_at)}
+                </Text>
+              </View>
             </View>
             {order.store?.phone || order.store?.store_phone ? (
               <TouchableOpacity
@@ -563,23 +613,6 @@ const OrderDetailsScreen = () => {
               )}
             </TouchableOpacity>
           </View>
-        )}
-        {order.escrow_status === 'HELD' && (order.status.toLowerCase() === 'delivered' || order.status.toLowerCase() === 'paid') && (
-          <TouchableOpacity
-            style={[S.confirmBtn, isConfirming && { opacity: 0.65 }]}
-            onPress={handleConfirmDelivery}
-            disabled={isConfirming}
-            activeOpacity={0.82}
-          >
-            {isConfirming ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Ionicons name="checkmark-done-circle-outline" size={rs(18)} color="#fff" />
-                <Text style={S.confirmBtnTxt}>Confirm Received Order</Text>
-              </>
-            )}
-          </TouchableOpacity>
         )}
       </ScrollView>
     </View>
@@ -778,5 +811,47 @@ const S = StyleSheet.create({
     gap: rs(8), paddingVertical: rs(16),
   },
   payNowBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  // PIN Display styles for buyer order details
+  pinCard: {
+    marginBottom: rs(20),
+    borderRadius: rs(20),
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(4) },
+    shadowOpacity: 0.15,
+    shadowRadius: rs(10),
+  },
+  pinCardGrad: {
+    padding: rs(18),
+    alignItems: 'center',
+  },
+  pinHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: rs(8),
+    marginBottom: rs(8),
+  },
+  pinTitle: {
+    fontSize: rf(14),
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFFFFF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  pinDigits: {
+    fontSize: rf(32),
+    fontFamily: 'Montserrat-Bold',
+    color: C.lime,
+    letterSpacing: rs(6),
+    marginVertical: rs(10),
+  },
+  pinSub: {
+    fontSize: rf(11),
+    fontFamily: 'Montserrat-Medium',
+    color: 'rgba(255, 255, 255, 0.75)',
+    textAlign: 'center',
+    lineHeight: rs(16),
+  },
 });
 export default OrderDetailsScreen;

@@ -16,7 +16,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getPayoutHistory } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useMyBusinesses } from '@/hooks/useBusiness';
+import { useActiveBusiness } from '@/hooks/useBusiness';
 export default function PayoutScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -24,16 +24,16 @@ export default function PayoutScreen() {
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
   const { isChecking } = useSellerGuard();
-  const { data: businessesData, isLoading: isLoadingBusinesses } = useMyBusinesses();
+  const { activeBusiness, isLoading: isLoadingBusinesses } = useActiveBusiness();
   
   useEffect(() => {
-    if (businessesData?.businesses?.[0]) {
-      const store = businessesData.businesses[0];
+    if (activeBusiness) {
+      const store = activeBusiness;
       setBalance(parseFloat(store.current_balance || 0));
       setHasPayoutMethod(!!store.payout_method);
       fetchHistory(store._id);
     }
-  }, [businessesData]);
+  }, [activeBusiness]);
 
   const fetchHistory = async (storeId: string) => {
     try {

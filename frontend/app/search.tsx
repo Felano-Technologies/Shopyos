@@ -11,7 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { safePush } from '@/lib/navigation';
-import { CustomInAppToast, storage } from "@/services/api";
+import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
@@ -36,6 +36,11 @@ const C = {
   subtle: '#94A3B8',
   border: 'rgba(12,21,89,0.08)',
   borderMd: 'rgba(12,21,89,0.14)',
+};
+
+const isFashionCategory = (cat: string | null) => {
+  const c = String(cat || '').toLowerCase();
+  return c.includes('fashion') || c.includes('footwear') || c.includes('sneaker') || c.includes('accessory') || c.includes('accessories') || c.includes('clothing');
 };
 // Category tile accent colours — one per category slot
 const CAT_ACCENTS = [
@@ -77,6 +82,9 @@ export default function SearchScreen() {
   const [category, setCategory] = useState<string | null>(
     params.category ? String(params.category) : null
   );
+  const [gender, setGender] = useState<string | null>(
+    params.gender ? String(params.gender) : null
+  );
   const [sortBy, setSortBy] = useState<string>(
     params.sortBy ? String(params.sortBy) : 'newest'
   );
@@ -87,6 +95,33 @@ export default function SearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const [searchAd, setSearchAd] = useState<any | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getActiveBanners();
+        const highlightBanners = (res?.banners || []).filter(
+          (b: any) => b.placement === 'Search Highlight'
+        );
+        if (highlightBanners.length > 0) {
+          setSearchAd(highlightBanners[Math.floor(Math.random() * highlightBanners.length)]);
+        }
+      } catch { }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (typeof params.query === 'string') {
+      setQuery(params.query);
+    } else if (Array.isArray(params.query)) {
+      setQuery(params.query[0] || '');
+    }
+    setCategory(params.category ? String(params.category) : null);
+    setGender(params.gender ? String(params.gender) : null);
+    setSortBy(params.sortBy ? String(params.sortBy) : 'newest');
+  }, [params.query, params.category, params.gender, params.sortBy]);
+
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -156,9 +191,11 @@ export default function SearchScreen() {
   });
   const filters = {
     category: category ?? (params.category ? String(params.category) : undefined),
+    gender: gender ?? (params.gender ? String(params.gender) : undefined),
     sortBy: sortBy as any,
     minPrice: params.minPrice ? parseFloat(String(params.minPrice)) : undefined,
     maxPrice: params.maxPrice ? parseFloat(String(params.maxPrice)) : undefined,
+    minRating: params.minRating ? parseFloat(String(params.minRating)) : undefined,
   };
   const isActive = query.length >= 2;
   const { data: allData, isLoading: loadingAll } = useProducts(filters, 50);
@@ -194,7 +231,7 @@ export default function SearchScreen() {
     Keyboard.dismiss();
   };
   const handleProductPress = (item: any) => {
-    safePush(`/product/${item._id}`, { name: item.name, price: item.price, image: item.images?.[0] || '' });
+    safePush('/product/details', { id: item._id });
   };
   const handleAddToCart = async (item: any) => {
     setAddingId(item._id);
@@ -216,6 +253,37 @@ export default function SearchScreen() {
   };
   // ── Header title ────────────────────────────────────────────────────────────
   const headingTop = isActive ? 'Results for' : 'Discover';
+
+  const renderListHeader = () => {
+    return (
+      <View>
+        {renderStores()}
+        {searchAd && (
+          <TouchableOpacity
+            style={styles.searchAdBanner}
+            activeOpacity={0.9}
+            onPress={() => {
+              recordAdClick(searchAd.id).catch(() => {});
+              router.push({ pathname: '/stores/details', params: { id: searchAd.store_id } });
+            }}
+          >
+            <Image source={{ uri: searchAd.banner_url }} style={styles.searchAdImg} />
+            <LinearGradient
+              colors={['rgba(12,21,89,0.7)', 'transparent']}
+              start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.searchAdContent}>
+              <View style={styles.searchAdBadge}><Text style={styles.searchAdBadgeTxt}>SPONSORED</Text></View>
+              <Text style={styles.searchAdTitle} numberOfLines={1}>{searchAd.title}</Text>
+              <Text style={styles.searchAdSub}>Tap to explore store deals →</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   // ── Render: stores ──────────────────────────────────────────────────────────
   const renderStores = () => {
     if (!stores || stores.length === 0) return null;
@@ -284,7 +352,10 @@ export default function SearchScreen() {
           <Text style={styles.priceLbl}>₵{parseFloat(item.price).toFixed(2)}</Text>
           <TouchableOpacity
             style={styles.addBtn}
-            onPress={() => handleAddToCart(item)}
+            onPress={(e: any) => {
+              e?.stopPropagation?.();
+              handleAddToCart(item);
+            }}
             disabled={addingId === item._id}
           >
             {addingId === item._id
@@ -315,7 +386,10 @@ export default function SearchScreen() {
       </View>
       <TouchableOpacity
         style={styles.featAddBtn}
-        onPress={() => handleAddToCart(item)}
+        onPress={(e: any) => {
+          e?.stopPropagation?.();
+          handleAddToCart(item);
+        }}
         disabled={addingId === item._id}
       >
         {addingId === item._id
@@ -349,7 +423,10 @@ export default function SearchScreen() {
         </View>
         <TouchableOpacity
           style={styles.listAddBtn}
-          onPress={() => handleAddToCart(item)}
+          onPress={(e: any) => {
+            e?.stopPropagation?.();
+            handleAddToCart(item);
+          }}
           disabled={addingId === item._id}
         >
           {addingId === item._id
@@ -493,7 +570,17 @@ export default function SearchScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.hdrBtn}
-                    onPress={() => safePush('/filter')}
+                    onPress={() =>
+                      safePush('/filter', {
+                        sortBy,
+                        query: query.trim().length > 0 ? query.trim() : undefined,
+                        category: category ?? undefined,
+                        minPrice: params.minPrice ? String(params.minPrice) : undefined,
+                        maxPrice: params.maxPrice ? String(params.maxPrice) : undefined,
+                        minRating: params.minRating ? String(params.minRating) : undefined,
+                        priceRange: params.priceRange ? String(params.priceRange) : undefined,
+                      })
+                    }
                   >
                     <Feather name="sliders" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>
@@ -577,6 +664,27 @@ export default function SearchScreen() {
                     })}
                   </ScrollView>
                 )}
+
+                {/* Gender Quick-Filter Strip */}
+                {isFashionCategory(category) && (
+                  <View style={styles.genderFilterRow}>
+                    {['All', 'Men', 'Women', 'Unisex', 'Boys', 'Girls'].map((g) => {
+                      const active = (g === 'All' && !gender) || gender === g;
+                      return (
+                        <TouchableOpacity
+                          key={g}
+                          style={[styles.genderFilterChip, active && styles.genderFilterChipActive]}
+                          onPress={() => setGender(g === 'All' ? null : g)}
+                        >
+                          <Text style={[styles.genderFilterChipTxt, active && styles.genderFilterChipTxtActive]}>
+                            {g}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+
                 {/* Toolbar */}
                 <View style={styles.toolbar}>
                   <Text style={styles.resultCount}>
@@ -678,7 +786,7 @@ export default function SearchScreen() {
                       showsVerticalScrollIndicator={false}
                       keyboardShouldPersistTaps="handled"
                       renderItem={renderGrid}
-                      ListHeaderComponent={renderStores}
+                      ListHeaderComponent={renderListHeader}
                       ListEmptyComponent={renderEmpty}
                     />
                   ) : (
@@ -690,7 +798,7 @@ export default function SearchScreen() {
                       showsVerticalScrollIndicator={false}
                       keyboardShouldPersistTaps="handled"
                       renderItem={renderList}
-                      ListHeaderComponent={renderStores}
+                      ListHeaderComponent={renderListHeader}
                       ListEmptyComponent={renderEmpty}
                     />
                   )}
@@ -1306,4 +1414,83 @@ catTileFallback: {   // keep for safety, though now unused
     shadowRadius: 8,
   },
   resetBtnTxt: { color: '#fff', fontSize: 13, fontFamily: 'Montserrat-Bold' },
+  genderFilterRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 6,
+    gap: 8,
+    backgroundColor: '#ffffff',
+  },
+  genderFilterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 0.5,
+    borderColor: 'rgba(12,21,89,0.08)',
+    backgroundColor: '#F8FAFC',
+  },
+  genderFilterChipActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
+  },
+  genderFilterChipTxt: {
+    fontSize: 11,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#64748B',
+  },
+  genderFilterChipTxtActive: {
+    color: '#ffffff',
+  },
+  searchAdBanner: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    height: 90,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    elevation: 3,
+    shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+  },
+  searchAdImg: {
+    ...StyleSheet.absoluteFillObject,
+    resizeMode: 'cover',
+  },
+  searchAdContent: {
+    position: 'absolute',
+    left: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  searchAdBadge: {
+    backgroundColor: '#84cc16',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginBottom: 4,
+  },
+  searchAdBadgeTxt: {
+    fontSize: 8,
+    fontFamily: 'Montserrat-Bold',
+    color: '#1a2e00',
+  },
+  searchAdTitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    color: '#ffffff',
+    letterSpacing: -0.3,
+  },
+  searchAdSub: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Medium',
+    color: 'rgba(255,255,255,0.7)',
+    marginTop: 2,
+  },
 });

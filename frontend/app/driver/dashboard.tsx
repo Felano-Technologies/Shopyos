@@ -48,7 +48,6 @@ export default function Dashboard() {
         const response = await getDriverProfile();
         const fresh = response?.profile || response?.data || response;
         if (fresh) {
-           console.log('DEBUG [Dashboard] Directly fetched LATEST profile:', fresh.is_verified);
            setProfile(fresh);
         }
       } catch (err) {
@@ -62,8 +61,6 @@ export default function Dashboard() {
   }, [initialProfile]);
   useEffect(() => {
     if (profile) {
-      console.log('DEBUG [DriverDashboard] Profile data from backend:', JSON.stringify(profile, null, 2));
-      
       // Find the availability status
       const driverObj = profile?.profile || profile?.data || profile;
       if (driverObj && driverObj.is_available !== undefined) {
@@ -88,8 +85,8 @@ export default function Dashboard() {
     id: d.id || d._id,
     restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
     destination: d.delivery_address || d.order?.delivery_address || 'Destination',
-    price: d.delivery_fee || 15.0,
-    distance: d.distance ? `${d.distance.toFixed(1)} km` : `${(Math.random() * 4 + 1).toFixed(1)} km`,
+    price: Number(d.delivery_fee || 15.0),
+    distance: d.distance ? `${Number(d.distance).toFixed(1)} km` : `${(Math.random() * 4 + 1).toFixed(1)} km`,
     time: d.estimated_time || `${Math.floor(Math.random() * 15 + 10)} mins`,
     items: d.order?.order_items?.length || 1
   })) || [];
@@ -103,24 +100,24 @@ export default function Dashboard() {
   // Check location permission status on mount
   useEffect(() => {
     (async () => {
-      const { status: bg } = await Location.getBackgroundPermissionsAsync();
-      setLocationGranted(bg === 'granted');
+      const { status: fg } = await Location.getForegroundPermissionsAsync();
+      setLocationGranted(fg === 'granted');
     })();
   }, []);
   // Handle disclosure accept — request actual system permissions
   const handleDisclosureAccept = useCallback(async () => {
     setShowDisclosure(false);
     const perms = await requestLocationPermissions();
-    setLocationGranted(perms.background);
-    if (perms.background) {
-      await setLocationSharingPreference(true);
+    setLocationGranted(perms.foreground);
+    if (perms.foreground) {
+      await setLocationSharingPreference(perms.background);
       // Now proceed with going online
       await goOnline();
     } else {
       CustomInAppToast.show({
         type: 'error',
         title: 'Permission Denied',
-        message: 'Background location is required for delivery tracking. You can enable it in Settings.',
+        message: 'Location permission is required for delivery tracking. You can enable it in Settings.',
       });
     }
   }, []);
@@ -213,7 +210,7 @@ export default function Dashboard() {
     <View style={styles.requestCard}>
       <View style={styles.cardHeader}>
         <View style={styles.priceTag}>
-          <Text style={styles.priceText}>₵{item.price.toFixed(2)}</Text>
+          <Text style={styles.priceText}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
         <Text style={styles.distanceText}>Request Nearby</Text>
       </View>
@@ -317,7 +314,7 @@ export default function Dashboard() {
           <View style={styles.statsContainer}>
             <View style={styles.statBox}>
               <Text style={styles.statLabel}>Today&apos;s Earnings</Text>
-              <Text style={styles.statValue}>₵{stats.earnings.toFixed(2)}</Text>
+              <Text style={styles.statValue}>₵{(stats.earnings || 0).toFixed(2)}</Text>
             </View>
             <View style={styles.verticalDivider} />
             <View style={styles.statBox}>

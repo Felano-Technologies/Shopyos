@@ -575,6 +575,66 @@ class QueryBuilder {
           inventory: inventoryMap[product.id] || null
         }));
       }
+      
+      // --- FAVORITES JOIN SHIM ---
+      if (this.tableName === 'favorites' && result.rows.length > 0) {
+        const productIds = result.rows.map(f => f.product_id).filter(Boolean);
+        
+        if (productIds.length > 0) {
+          // 1. Fetch products
+          const { rows: products } = await db.query(
+            `SELECT id, title, price, description, category, store_id, is_active, deleted_at 
+             FROM products 
+             WHERE id = ANY($1)`,
+            [productIds]
+          );
+          
+          // 2. Fetch product images
+          const { rows: images } = await db.query(
+            `SELECT * FROM product_images WHERE product_id = ANY($1) ORDER BY display_order ASC`,
+            [productIds]
+          );
+          const imageMap = images.reduce((acc, img) => {
+            if (!acc[img.product_id]) acc[img.product_id] = [];
+            acc[img.product_id].push(img);
+            return acc;
+          }, {});
+          
+          // 3. Fetch stores
+          const storeIds = [...new Set(products.map(p => p.store_id).filter(Boolean))];
+          let storeMap = {};
+          if (storeIds.length > 0) {
+            const { rows: stores } = await db.query(
+              `SELECT id, store_name, logo_url, is_active, is_verified FROM stores WHERE id = ANY($1)`,
+              [storeIds]
+            );
+            stores.forEach(s => { storeMap[s.id] = s; });
+          }
+          
+          // 4. Map products to their images and stores
+          const productMap = {};
+          products.forEach(p => {
+            productMap[p.id] = {
+              id: p.id,
+              title: p.title,
+              price: p.price,
+              description: p.description,
+              category: p.category,
+              store_id: p.store_id,
+              is_active: p.is_active,
+              deleted_at: p.deleted_at,
+              product_images: imageMap[p.id] || [],
+              store: storeMap[p.store_id] || null
+            };
+          });
+          
+          // 5. Hydrate the favorites records
+          result.rows = result.rows.map(fav => ({
+            ...fav,
+            product: productMap[fav.product_id] || null
+          }));
+        }
+      }
 
       // --- MESSAGES JOIN SHIM ---
       if (this.tableName === 'messages' && result.rows.length > 0) {
@@ -732,6 +792,122 @@ class QueryBuilder {
         result.rows = result.rows.map(store => ({
           ...store,
           products: [{ count: countMap[store.id] || 0 }]
+        }));
+      }
+
+      // --- DELIVERIES JOIN SHIM ---
+      if (this.tableName === 'deliveries' && result.rows.length > 0) {
+        const orderIds = result.rows.map(d => d.order_id).filter(Boolean);
+        const driverIds = result.rows.map(d => d.driver_id).filter(Boolean);
+        const deliveryIds = result.rows.map(d => d.id).filter(Boolean);
+
+        // 1. Fetch Orders
+        let orderMap = {};
+        if (orderIds.length > 0) {
+          const { rows: orders } = await db.query(
+            `SELECT * FROM orders WHERE id = ANY($1)`,
+            [orderIds]
+          );
+
+          // Fetch Stores for these orders
+          const storeIds = [...new Set(orders.map(o => o.store_id).filter(Boolean))];
+          let storeMap = {};
+          if (storeIds.length > 0) {
+            const { rows: stores } = await db.query(
+              `SELECT * FROM stores WHERE id = ANY($1)`,
+              [storeIds]
+            );
+            stores.forEach(s => { storeMap[s.id] = s; });
+          }
+
+          // Fetch Buyers for these orders
+          const buyerIds = [...new Set(orders.map(o => o.buyer_id).filter(Boolean))];
+          let buyerMap = {};
+          if (buyerIds.length > 0) {
+            const { rows: buyers } = await db.query(
+              `SELECT u.id, u.email, up.full_name, up.phone, up.avatar_url 
+               FROM users u
+               LEFT JOIN user_profiles up ON u.id = up.user_id
+               WHERE u.id = ANY($1)`,
+              [buyerIds]
+            );
+            buyers.forEach(b => {
+              buyerMap[b.id] = {
+                id: b.id,
+                email: b.email,
+                user_profiles: {
+                  full_name: b.full_name,
+                  phone: b.phone,
+                  avatar_url: b.avatar_url
+                }
+              };
+            });
+          }
+
+          // Fetch Order Items for these orders
+          const { rows: orderItems } = await db.query(
+            `SELECT * FROM order_items WHERE order_id = ANY($1)`,
+            [orderIds]
+          );
+          const itemsByOrder = orderItems.reduce((acc, item) => {
+            if (!acc[item.order_id]) acc[item.order_id] = [];
+            acc[item.order_id].push(item);
+            return acc;
+          }, {});
+
+          orders.forEach(o => {
+            orderMap[o.id] = {
+              ...o,
+              store: storeMap[o.store_id] || null,
+              buyer: buyerMap[o.buyer_id] || null,
+              order_items: itemsByOrder[o.id] || []
+            };
+          });
+        }
+
+        // 2. Fetch Drivers
+        let driverMap = {};
+        if (driverIds.length > 0) {
+          const { rows: drivers } = await db.query(
+            `SELECT u.id, u.email, up.full_name, up.phone, up.avatar_url 
+             FROM users u
+             LEFT JOIN user_profiles up ON u.id = up.user_id
+             WHERE u.id = ANY($1)`,
+            [driverIds]
+          );
+          drivers.forEach(drv => {
+            driverMap[drv.id] = {
+              id: drv.id,
+              email: drv.email,
+              user_profiles: {
+                full_name: drv.full_name,
+                phone: drv.phone,
+                avatar_url: drv.avatar_url
+              }
+            };
+          });
+        }
+
+        // 3. Fetch Location Updates
+        let locationUpdatesMap = {};
+        if (deliveryIds.length > 0) {
+          const { rows: locationUpdates } = await db.query(
+            `SELECT * FROM delivery_location_updates WHERE delivery_id = ANY($1) ORDER BY timestamp DESC`,
+            [deliveryIds]
+          );
+          locationUpdates.forEach(update => {
+            if (!locationUpdatesMap[update.delivery_id]) {
+              locationUpdatesMap[update.delivery_id] = [];
+            }
+            locationUpdatesMap[update.delivery_id].push(update);
+          });
+        }
+
+        result.rows = result.rows.map(delivery => ({
+          ...delivery,
+          order: orderMap[delivery.order_id] || null,
+          driver: driverMap[delivery.driver_id] || null,
+          delivery_location_updates: locationUpdatesMap[delivery.id] || []
         }));
       }
       // --- JOIN SHIM END ---

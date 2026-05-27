@@ -10,6 +10,7 @@ import {
     Alert,
     Image,
     Dimensions,
+    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -57,23 +58,17 @@ const ProductReviewScreen = () => {
     useEffect(() => {
         if (id) fetchData();
     }, [fetchData, id]);
+    const [eligibilityVisible, setEligibilityVisible] = useState(false);
     const handleSubmit = async () => {
         if (rating === 0) {
             Alert.alert('Required', 'Please give a star rating');
             return;
         }
         try {
-            if (!matchingOrderId) {
-                Alert.alert(
-                    "Verified Purchase Required", 
-                    "To ensure authentic feedback, Shopyos only allows reviews for products you have successfully purchased and received. Please check your order history."
-                );
-                return;
-            }
             setSubmitting(true);
             await createProductReview({
                 productId: product.id || product._id,
-                orderId: matchingOrderId,
+                orderId: matchingOrderId || undefined,
                 rating: rating,
                 reviewText: comment
             });
@@ -81,8 +76,14 @@ const ProductReviewScreen = () => {
                 { text: 'OK', onPress: () => router.back() }
             ]);
         } catch (e: any) {
-            console.error(e);
-            Alert.alert('Error', e.message || 'Failed to submit review');
+            const msg = String(e?.message || '').toLowerCase();
+            if (msg.includes('purchase') || msg.includes('order') || msg.includes('receive')) {
+                setEligibilityVisible(true);
+            } else if (msg.includes('already reviewed')) {
+                Alert.alert('Already Reviewed', 'You have already reviewed this product. You can update your existing review from your profile.');
+            } else {
+                Alert.alert('Error', e.message || 'Failed to submit review');
+            }
         } finally {
             setSubmitting(false);
         }
@@ -163,6 +164,26 @@ const ProductReviewScreen = () => {
                     </LinearGradient>
                 </TouchableOpacity>
             </ScrollView>
+            {/* Purchase Required Modal */}
+            <Modal visible={eligibilityVisible} animationType="fade" transparent onRequestClose={() => setEligibilityVisible(false)}>
+                <View style={styles.eligibilityOverlay}>
+                    <View style={styles.eligibilityCard}>
+                        <View style={styles.eligibilityIcon}>
+                            <Ionicons name="bag-check-outline" size={28} color="#0C1559" />
+                        </View>
+                        <Text style={styles.eligibilityTitle}>Purchase Required</Text>
+                        <Text style={styles.eligibilityText}>
+                            To ensure authentic reviews, you can only review products after purchasing and receiving them. This helps keep our community trustworthy!
+                        </Text>
+                        <TouchableOpacity style={styles.eligibilityButton} onPress={() => { setEligibilityVisible(false); router.push('/order' as any); }}>
+                            <Text style={styles.eligibilityButtonText}>View My Orders</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.eligibilityDismiss} onPress={() => setEligibilityVisible(false)}>
+                            <Text style={styles.eligibilityDismissText}>Maybe Later</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -193,5 +214,15 @@ const styles = StyleSheet.create({
     submitBtnContainer: { marginTop: 10, borderRadius: 20, overflow: 'hidden' },
     submitBtn: { paddingVertical: 18, alignItems: 'center' },
     submitBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+
+    eligibilityOverlay: { flex: 1, backgroundColor: 'rgba(2, 6, 23, 0.45)', justifyContent: 'center', paddingHorizontal: 24 },
+    eligibilityCard: { backgroundColor: '#FFF', borderRadius: 20, padding: 22, alignItems: 'center' },
+    eligibilityIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+    eligibilityTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8, textAlign: 'center' },
+    eligibilityText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 21, textAlign: 'center', marginBottom: 18 },
+    eligibilityButton: { backgroundColor: '#0C1559', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 24, minWidth: 140, alignItems: 'center' },
+    eligibilityButtonText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+    eligibilityDismiss: { marginTop: 10, paddingVertical: 8 },
+    eligibilityDismissText: { color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
 });
 export default ProductReviewScreen;

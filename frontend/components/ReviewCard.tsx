@@ -10,8 +10,13 @@ interface ReviewCardProps {
 }
 
 export const ReviewCard = ({ review, onLike, onComment }: ReviewCardProps) => {
-    const [liked, setLiked] = useState(false);
+    const [liked, setLiked] = useState(!!review.isLiked);
     const [likeCount, setLikeCount] = useState(review.likes_count || 0);
+
+    React.useEffect(() => {
+        setLiked(!!review.isLiked);
+        setLikeCount(review.likes_count || 0);
+    }, [review.isLiked, review.likes_count]);
 
     const handleLike = () => {
         setLiked(!liked);
@@ -22,9 +27,9 @@ export const ReviewCard = ({ review, onLike, onComment }: ReviewCardProps) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Image 
-                    source={{ uri: review.user?.avatar_url || 'https://api.dicebear.com/7.x/avataaars/png' }} 
-                    style={styles.avatar} 
+                <Image
+                    source={{ uri: review.user?.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(review.user?.full_name || 'User')}` }}
+                    style={styles.avatar}
                 />
                 <View style={styles.userInfo}>
                     <Text style={styles.userName}>{review.user?.full_name}</Text>

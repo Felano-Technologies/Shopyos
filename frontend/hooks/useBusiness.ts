@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
@@ -164,4 +165,53 @@ export const useUpdateBusiness = () => {
       }
     },
   });
+};
+
+export const useActiveBusiness = () => {
+  const queryClient = useQueryClient();
+  const { data: businessesData, isLoading, refetch } = useMyBusinesses();
+  const businesses = businessesData?.businesses || [];
+  
+  const [activeBusinessId, setActiveBusinessId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadActiveId = async () => {
+      const storedId = await ApiService.storage.getItem('currentBusinessId');
+      if (storedId) {
+        setActiveBusinessId(storedId);
+      } else if (businesses.length > 0) {
+        const defaultId = businesses[0]._id;
+        await ApiService.storage.setItem('currentBusinessId', defaultId);
+        setActiveBusinessId(defaultId);
+      }
+    };
+    if (!isLoading) {
+      loadActiveId();
+    }
+  }, [isLoading, businesses]);
+
+  const activeBusiness = businesses.find((b: any) => b._id === activeBusinessId) || businesses[0] || null;
+
+  const selectBusiness = async (id: string) => {
+    const found = businesses.find((b: any) => b._id === id);
+    if (found) {
+      await ApiService.storage.setItem('currentBusinessId', id);
+      await ApiService.storage.setItem('currentBusinessVerificationStatus', found.verificationStatus || 'pending');
+      setActiveBusinessId(id);
+      
+      // Invalidate queries so dashboard, orders, products, etc. refresh instantly
+      queryClient.invalidateQueries({ queryKey: queryKeys.business.dashboard(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.business.orders(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.business.products(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
+    }
+  };
+
+  return {
+    activeBusiness,
+    businesses,
+    isLoading,
+    refetch,
+    selectBusiness,
+  };
 };

@@ -61,7 +61,7 @@ export default function FilterScreen() {
   const [sortBy,    setSortBy]    = useState<string>(String(params.sortBy    || 'newest'));
   const [category,  setCategory]  = useState<string>(String(params.category  || 'All'));
   const [pricePreset, setPreset]  = useState<string>(String(params.priceRange || 'any'));
-  const [rating,    setRating]    = useState<string>('any');
+  const [rating,    setRating]    = useState<string>(String(params.minRating || 'any'));
 
   // ── Derived active filters for the badge strip ────────────────────────────
   const activeFilters: { key: string; label: string }[] = [];
@@ -95,6 +95,7 @@ export default function FilterScreen() {
         maxPrice:  preset?.max,
         priceRange: pricePreset,
         minRating: rating !== 'any' ? rating : undefined,
+        query: params.query ? String(params.query) : undefined,
       } as any,
     });
   };

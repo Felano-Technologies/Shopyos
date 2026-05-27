@@ -447,6 +447,33 @@ const getOrderDeliveredTemplates = (data = {}) => {
 // ─────────────────────────────────────────────────────────────────────────────
 //  ADMIN BROADCAST (manual scheduled) & HOLIDAY CELEBRATION
 // ─────────────────────────────────────────────────────────────────────────────
+const getOrderPickedUpTemplates = (data = {}) => {
+    const orderNumber = safe(data.orderNumber, '');
+    const verificationPin = safe(data.verificationPin, '');
+
+    return {
+        email: {
+            subject: `Your order #${orderNumber} is on its way!`,
+            html: wrapHtml(
+                'Order On The Way!',
+                `
+                  <p>Your order #${orderNumber} has been picked up by the driver and is on its way to you! 🎉</p>
+                  ${divider}
+                  <p style="font-size:16px;">Give this security PIN to the driver upon delivery to confirm you received your order:</p>
+                  <div style="font-size:32px;font-weight:700;color:#0C1559;letter-spacing:4px;text-align:center;padding:20px;background:#f8fafc;border-radius:12px;margin:20px 0;">
+                    ${verificationPin}
+                  </div>
+                  ${divider}
+                  <p style="font-size:14px;color:#64748b;">Please do not share this PIN with anyone until the driver has physically delivered your order.</p>
+                `,
+                '#',
+                'Track My Order'
+            )
+        },
+        sms: `Shopyos: Your order #${orderNumber} is on its way! Give this PIN to the driver upon delivery: ${verificationPin}`
+    };
+};
+
 const getAdminBroadcastTemplate = (data = {}) => {
     const subject = safe(data.subject, 'A message from Shopyos');
     const html    = safe(data.html, `<p>${safe(data.textMsg, '')}</p>`);
@@ -498,6 +525,8 @@ const getEmailTemplateByEvent = (eventType, role, templateData = {}) => {
             return getDriverVerificationResultTemplates(templateData).email;
         case 'ORDER_DELIVERED':
             return getOrderDeliveredTemplates(templateData).email;
+        case 'ORDER_PICKED_UP':
+            return getOrderPickedUpTemplates(templateData).email;
         case 'admin_broadcast':
             return getAdminBroadcastTemplate(templateData).email;
         case 'holiday_celebration':
@@ -517,6 +546,8 @@ const getSmsTemplateByEvent = (eventType, role, templateData = {}) => {
             return getOrderCreatedTemplates(role, templateData)?.sms;
         case 'ORDER_DELIVERED':
             return getOrderDeliveredTemplates(templateData).sms;
+        case 'ORDER_PICKED_UP':
+            return getOrderPickedUpTemplates(templateData).sms;
         case 'admin_broadcast':
             return getAdminBroadcastTemplate(templateData).sms;
         case 'holiday_celebration':
@@ -535,6 +566,7 @@ module.exports = {
     getDriverVerificationSubmittedTemplates,
     getDriverVerificationResultTemplates,
     getOrderDeliveredTemplates,
+    getOrderPickedUpTemplates,
     getAdminBroadcastTemplate,
     getHolidayCelebrationTemplate,
     getEmailTemplateByEvent,

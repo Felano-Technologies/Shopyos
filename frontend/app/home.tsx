@@ -17,7 +17,7 @@ import { useProducts, useInfiniteProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 import Skeleton from '@/components/Skeleton';
-import { getPromotedProducts, recordAdClick, getUserData, storage, CustomInAppToast } from '@/services/api';
+import { getPromotedProducts, getActiveBanners, recordAdClick, getUserData, storage, CustomInAppToast } from '@/services/api';
 import { useChat } from '@/context/ChatContext';
 import { useCart } from '@/context/CartContext';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
@@ -55,6 +55,22 @@ function getGreeting() {
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
+
+function getStoreDisplayName(item: any) {
+  return (
+    item?.store?.store_name ||
+    item?.store?.businessName ||
+    item?.store?.name ||
+    item?.business?.businessName ||
+    item?.business?.store_name ||
+    item?.business?.name ||
+    item?.store_name ||
+    item?.businessName ||
+    item?.sellerName ||
+    'Shopyos'
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -241,9 +257,24 @@ export default function Home() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await getPromotedProducts();
-        if (res?.promotedProducts?.length > 0) setAds(res.promotedProducts);
-      } catch { }
+        const bannersRes = await getActiveBanners();
+        const activeBanners = (bannersRes?.banners || []).filter(
+          (b: any) => b.placement === 'Home Top Banner'
+        );
+        
+        if (activeBanners.length > 0) {
+          setAds(activeBanners);
+        } else {
+          const res = await getPromotedProducts();
+          if (res?.promotedProducts?.length > 0) {
+            setAds(res.promotedProducts);
+          } else {
+            setAds(FALLBACK_ADS);
+          }
+        }
+      } catch (err) {
+        setAds(FALLBACK_ADS);
+      }
     })();
   }, []);
   // ── Auto-advance ad carousel ────────────────────────────────────────────────
@@ -386,12 +417,15 @@ export default function Home() {
           activeOpacity={0.9}
           onPress={() => {
             recordAdClick(ad.id).catch(() => { });
-            if (ad.product?._id)
+            if (ad.product?._id) {
               router.push({ pathname: '/product/details', params: { id: ad.product._id } });
+            } else if (ad.store_id) {
+              router.push({ pathname: '/stores/details', params: { id: ad.store_id } });
+            }
           }}
         >
           <Image
-            source={{ uri: ad.product?.images?.[0] || ad.imageUrl || '' }}
+            source={{ uri: ad.banner_url || ad.product?.images?.[0] || ad.imageUrl || '' }}
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
           />
@@ -447,7 +481,7 @@ export default function Home() {
           style={S.productImage}
         />
         <View style={S.productInfo}>
-          <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
+          <Text style={S.productStore} numberOfLines={1}>{getStoreDisplayName(item)}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
           <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
@@ -463,7 +497,7 @@ export default function Home() {
           style={S.productImage}
         />
         <View style={S.productInfo}>
-          <Text style={S.productStore} numberOfLines={1}>{item.store?.store_name || 'Shopyos'}</Text>
+          <Text style={S.productStore} numberOfLines={1}>{getStoreDisplayName(item)}</Text>
           <Text style={S.productTitle} numberOfLines={1}>{item.name}</Text>
           <Text style={S.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
         </View>
@@ -538,14 +572,17 @@ export default function Home() {
       </View>
       <View style={S.gridInfo}>
         <Text style={S.storeLbl} numberOfLines={1}>
-          {item.store?.name || item.store?.store_name || 'Shopyos'}
+          {getStoreDisplayName(item)}
         </Text>
         <Text style={S.productLbl} numberOfLines={2}>{item.name}</Text>
         <View style={S.priceRow}>
           <Text style={S.priceLbl}>₵{Number(item.price || 0).toFixed(2)}</Text>
           <TouchableOpacity
             style={S.addBtn}
-            onPress={() => handleAddToCart(item)}
+            onPress={(e: any) => {
+              e?.stopPropagation?.();
+              handleAddToCart(item);
+            }}
             disabled={addingId === item._id}
           >
             {addingId === item._id

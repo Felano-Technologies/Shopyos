@@ -458,8 +458,108 @@ const updateOrderStatus = async (req, res, next) => {
       });
     }
 
+    // Enforce role boundary: sellers cannot set orders to in_transit, delivered, or completed
+    if (isSeller && !isAdmin) {
+      const forbiddenStatusesForSeller = ['in_transit', 'delivered', 'completed'];
+      if (forbiddenStatusesForSeller.includes(status)) {
+        return res.status(403).json({
+          success: false,
+          error: `Sellers are not authorized to update order status to ${status}. This is managed by the delivery flow.`
+        });
+      }
+    }
+
     // Update status
     const updatedOrder = await repositories.orders.updateStatus(orderId, status);
+
+    // Automatically create a delivery record if status is ready_for_pickup
+    if (status === 'ready_for_pickup') {
+      try {
+        const existingDelivery = await repositories.deliveries.findByOrderId(orderId);
+        if (!existingDelivery) {
+          const deliveryFeeVal = parseFloat(order.delivery_fee || 0);
+          const newDelivery = await repositories.deliveries.createDelivery({
+            orderId,
+            pickupAddress: store.address_line1 || 'Store Address',
+            deliveryAddress: order.delivery_address_line1 || order.delivery_address || 'Customer Address',
+            pickupLatitude: store.latitude || 0,
+            pickupLongitude: store.longitude || 0,
+            deliveryLatitude: order.delivery_latitude || 0,
+            deliveryLongitude: order.delivery_longitude || 0,
+            deliveryFee: deliveryFeeVal,
+            driverEarnings: deliveryFeeVal * 0.85
+          });
+          logger.info(`Automatically created delivery for order ${order.order_number}`);
+
+          // --- Notify Online Drivers in Range (10 km) ---
+          try {
+            const onlineDrivers = await repositories.drivers.getOnlineDrivers();
+            const driversInRange = onlineDrivers.filter(drv => {
+              if (!store.latitude || !store.longitude || !drv.latitude || !drv.longitude) return false;
+              const dist = haversineKm(
+                parseFloat(store.latitude), parseFloat(store.longitude),
+                parseFloat(drv.latitude), parseFloat(drv.longitude)
+              );
+              return dist <= 10.0; // 10 km radius
+            });
+
+            logger.info(`Found ${driversInRange.length} online drivers within 10 km of ${store.store_name}`);
+
+            for (const drv of driversInRange) {
+              try {
+                // 1. Push notification
+                await notificationService.sendPushNotification({
+                  userId: drv.user_id,
+                  title: 'New Delivery Request Available! 🚚',
+                  body: `New delivery request from ${store.store_name} in ${store.city} is available near you!`,
+                  data: {
+                    screen: 'driver_dashboard',
+                    deliveryId: newDelivery.id
+                  }
+                });
+
+                // 2. Email notification
+                if (drv.email) {
+                  await notificationService.sendEmail({
+                    to: drv.email,
+                    subject: 'New Delivery Request Available! 🚚',
+                    html: `
+                      <div style="font-family: sans-serif; padding: 20px; color: #0F172A; max-width: 600px; margin: auto; border: 1px solid #E2E8F0; border-radius: 12px;">
+                        <h2 style="color: #0C1559; border-bottom: 2px solid #F1F5F9; padding-bottom: 10px;">New Delivery Request</h2>
+                        <p style="font-size: 16px; line-height: 24px;">Hello <strong>${drv.full_name}</strong>,</p>
+                        <p style="font-size: 15px; line-height: 24px;">A new delivery request is available near you at <strong>${store.store_name}</strong> in ${store.city}!</p>
+                        <p style="font-size: 15px; margin: 20px 0;"><strong>Delivery Fee:</strong> ₵${deliveryFeeVal.toFixed(2)}</p>
+                        <p style="margin-top: 30px; text-align: center;">
+                          <a href="${process.env.FRONTEND_URL || 'https://shopyos.com'}/driver/dashboard" 
+                             style="background: #84cc16; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                             Open Dashboard
+                          </a>
+                        </p>
+                      </div>
+                    `,
+                    text: `Hello ${drv.full_name}, a new delivery request is available near you at ${store.store_name}. Open the Shopyos Driver app to accept!`
+                  });
+                }
+
+                // 3. SMS notification
+                if (drv.phone) {
+                  await notificationService.sendSMS({
+                    to: drv.phone,
+                    message: `Shopyos: New delivery request from ${store.store_name} is available near you. Open the Driver app to accept!`
+                  });
+                }
+              } catch (notifErr) {
+                logger.error(`Failed to send available request notification to driver ${drv.user_id}:`, notifErr.message);
+              }
+            }
+          } catch (listErr) {
+            logger.error(`Failed to fetch online drivers or dispatch notifications:`, listErr.message);
+          }
+        }
+      } catch (deliveryErr) {
+        logger.error(`Failed to automatically create delivery for order ${order.order_number}:`, deliveryErr.message);
+      }
+    }
 
     // Notify customer about status changes
     await notificationService.sendOrderNotification(order.buyer_id, order, status);

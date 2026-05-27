@@ -4,7 +4,7 @@ import {
   Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator 
 } from 'react-native';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useBusinessReviews, useReplyToReview, useMyBusinesses } from '@/hooks/useBusiness';
+import { useBusinessReviews, useReplyToReview, useActiveBusiness } from '@/hooks/useBusiness';
 
 export default function ReviewsScreen() {
   const [replyModalVisible, setReplyModalVisible] = useState(false);
@@ -17,8 +17,8 @@ export default function ReviewsScreen() {
   const filters = ['All', '5 Stars', '4 Stars', 'Below 4'];
 
   // Fetch store and reviews
-  const { data: businessesData } = useMyBusinesses();
-  const currentBusinessId = businessesData?.businesses?.[0]?._id;
+  const { activeBusiness } = useActiveBusiness();
+  const currentBusinessId = activeBusiness?._id;
 
   const { data: reviewsData, isLoading } = useBusinessReviews(currentBusinessId);
   const { mutate: replyToReviewMutate, isPending: isReplying } = useReplyToReview();

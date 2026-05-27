@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  Switch, ActivityIndicator, Alert, ScrollView, StyleSheet, RefreshControl,
+  ActivityIndicator, Alert, StyleSheet, RefreshControl,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -160,6 +160,21 @@ export default function AdminNotificationsScreen() {
       await api.post('/admin/scheduled-notifications/trigger-sweep');
       Alert.alert('Sweep triggered', 'Daily marketing sweep is running. Check logs.');
     } catch { Alert.alert('Error', 'Could not trigger sweep'); }
+  };
+
+  const [testingNotif, setTestingNotif] = useState(false);
+  const sendTestNotification = async () => {
+    setTestingNotif(true);
+    try {
+      const res  = await api.post('/admin/scheduled-notifications/send-test');
+      const json = res.data;
+      Alert.alert(
+        json.success ? 'Test sent ✓' : 'Test failed',
+        json.message
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.response?.data?.message ?? e.message ?? 'Request failed');
+    } finally { setTestingNotif(false); }
   };
 
   // ── Sub-components ─────────────────────────────────────────────────────────
@@ -358,6 +373,13 @@ export default function AdminNotificationsScreen() {
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <TouchableOpacity style={s.iconBtn} onPress={() => fetchBroadcasts(true)}>
               <Feather name="refresh-cw" size={15} color={adminColors.navy} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.iconBtn, { backgroundColor: '#16a34a', opacity: testingNotif ? 0.6 : 1 }]}
+              onPress={sendTestNotification}
+              disabled={testingNotif}
+            >
+              <Feather name="send" size={15} color="#fff" />
             </TouchableOpacity>
             <TouchableOpacity style={[s.iconBtn, { backgroundColor: adminColors.navy }]} onPress={triggerSweep}>
               <Feather name="zap" size={15} color="#fff" />

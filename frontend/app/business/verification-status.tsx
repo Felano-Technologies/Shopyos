@@ -16,14 +16,13 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useMyBusinesses } from '@/hooks/useBusiness';
+import { useActiveBusiness } from '@/hooks/useBusiness';
 import { Audio } from 'expo-av'; // --- NEW IMPORT ---
 
 const { width } = Dimensions.get('window');
 
 export default function VerificationStatus() {
-    const { data: businessesData, refetch, isLoading } = useMyBusinesses();
-    const business = businessesData?.businesses?.[0];
+    const { activeBusiness: business, refetch, isLoading } = useActiveBusiness();
 
     const [checking, setChecking] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -65,7 +64,8 @@ export default function VerificationStatus() {
         setTimeout(async () => {
             setChecking(false);
             // If the status is now verified, play the sound!
-            if (result.data?.businesses?.[0]?.verificationStatus === 'verified') {
+            const updatedBiz = result.data?.businesses?.find((b: any) => b._id === business?._id);
+            if (updatedBiz?.verificationStatus === 'verified') {
                 await playSuccessSound();
             }
         }, 1500);

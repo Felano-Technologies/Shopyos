@@ -1,4 +1,3 @@
-import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,19 +6,32 @@ import {
   Dimensions,
   Image,
   ScrollView,
-  ActivityIndicator
-, Linking, Platform } from 'react-native';
+  ActivityIndicator,
+  TextInput,
+  Linking,
+  Platform,
+  LayoutAnimation,
+  UIManager
+} from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useDeliveryDetails, useUpdateDeliveryStatus } from '@/hooks/useDelivery';
+import { useDeliveryDetails, useUpdateDeliveryStatus, useVerifyDeliveryPin } from '@/hooks/useDelivery';
 import {  startConversation, CustomInAppToast } from '@/services/api';
 import {
   startDriverLocationTracking,
   stopDriverLocationTracking,
   isTrackingLocation,
 } from '@/src/background/controller';
+import { useEffect, useState } from 'react';
+
+if (Platform.OS === 'android') {
+  if (UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+  }
+}
+
 const { height } = Dimensions.get('window');
 const ORDER_STEPS = ['Go to Restaurant', 'Confirm Pickup', 'Go to Customer', 'Confirm Delivery'];
 export default function ActiveOrderScreen() {
@@ -27,6 +39,8 @@ export default function ActiveOrderScreen() {
   const params = useLocalSearchParams();
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
+  const [pinCode, setPinCode] = useState('');
+  const verifyPinMutation = useVerifyDeliveryPin();
   // --- TanStack Query Hooks ---
   const { data, isLoading } = useDeliveryDetails(deliveryId);
   const delivery = data?.delivery;
@@ -35,15 +49,18 @@ export default function ActiveOrderScreen() {
   useEffect(() => {
     if (delivery) {
       const status = delivery.status;
-      if (status === 'picked_up' || status === 'in_transit') {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      if (status === 'picked_up') {
         setStep(2);
+      } else if (status === 'in_transit') {
+        setStep(3);
       } else if (status === 'delivered') {
         router.replace('/driver/dashboard');
       } else {
         setStep(0);
       }
     }
-  }, [delivery, delivery.status, router]);
+  }, [delivery, delivery?.status, router]);
   // Start background location tracking when this screen mounts
   useEffect(() => {
     if (!deliveryId) return;
@@ -95,6 +112,7 @@ export default function ActiveOrderScreen() {
   };
   const handleProgress = async () => {
     try {
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
       if (step === 0) {
         setStep(1);
       } else if (step === 1) {
@@ -104,7 +122,15 @@ export default function ActiveOrderScreen() {
         await updateStatusMutation.mutateAsync({ deliveryId, status: 'in_transit' });
         setStep(3);
       } else if (step === 3) {
-        await updateStatusMutation.mutateAsync({ deliveryId, status: 'delivered' });
+        if (!pinCode || pinCode.trim().length !== 6) {
+          CustomInAppToast.show({ 
+            type: 'error', 
+            title: 'Verification Failed', 
+            message: 'Please enter the valid 6-digit PIN code provided by the customer.' 
+          });
+          return;
+        }
+        await verifyPinMutation.mutateAsync({ deliveryId, pin: pinCode.trim() });
         // Stop background tracking when delivery is completed
         await stopDriverLocationTracking();
         CustomInAppToast.show({ 
@@ -270,6 +296,28 @@ export default function ActiveOrderScreen() {
               </TouchableOpacity>
             </View>
           </View>
+          {step === 3 && (
+            <View style={styles.pinCard}>
+              <View style={styles.pinHeader}>
+                <Ionicons name="shield-checkmark-outline" size={24} color="#0C1559" />
+                <Text style={styles.pinTitle}>Verify Customer PIN</Text>
+              </View>
+              <Text style={styles.pinSub}>
+                Ask the customer for the 6-digit delivery security code to complete this order.
+              </Text>
+              <View style={styles.pinInputContainer}>
+                <TextInput
+                  style={styles.pinInput}
+                  value={pinCode}
+                  onChangeText={(val) => setPinCode(val.replace(/[^0-9]/g, ''))}
+                  placeholder="• • • • • •"
+                  placeholderTextColor="#94A3B8"
+                  maxLength={6}
+                  keyboardType="number-pad"
+                />
+              </View>
+            </View>
+          )}
           <View style={styles.divider} />
           {/* Order Items Summary */}
           <View style={styles.orderSummary}>
@@ -278,28 +326,40 @@ export default function ActiveOrderScreen() {
               <View key={index} style={styles.orderItem}>
                 <Text style={styles.qty}>{item.quantity}x</Text>
                 <Text style={styles.itemName}>{item.product_title}</Text>
-                <Text style={styles.itemPrice}>₵{(item.unit_price * item.quantity).toFixed(2)}</Text>
+                <Text style={styles.itemPrice}>₵{(Number(item.price || item.unit_price || 0) * item.quantity).toFixed(2)}</Text>
               </View>
             ))}
             {(!delivery.order?.order_items || delivery.order.order_items.length === 0) && (
               <Text style={styles.noItems}>No item details available</Text>
             )}
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Subtotal</Text>
+                <Text style={styles.summaryValue}>₵{Number(delivery.order?.subtotal || 0).toFixed(2)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Delivery Fee</Text>
+                <Text style={styles.summaryValue}>₵{Number(delivery.delivery_fee || delivery.order?.delivery_fee || 0).toFixed(2)}</Text>
+            </View>
             <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Price</Text>
-                <Text style={styles.totalValue}>₵{delivery.order?.total_amount?.toFixed(2) || '0.00'}</Text>
+                <Text style={styles.totalLabel}>Total Amount</Text>
+                <Text style={styles.totalValue}>₵{Number(delivery.order?.total_amount || 0).toFixed(2)}</Text>
             </View>
           </View>
         </ScrollView>
         {/* --- MAIN ACTION BUTTON --- */}
         <View style={styles.footer}>
           <TouchableOpacity
-            style={[styles.mainBtn, step === 3 && styles.completeBtn, updateStatusMutation.isPending && { opacity: 0.8 }]}
+            style={[
+              styles.mainBtn, 
+              step === 3 && styles.completeBtn, 
+              (updateStatusMutation.isPending || verifyPinMutation.isPending) && { opacity: 0.8 }
+            ]}
             onPress={handleProgress}
             activeOpacity={0.8}
-            disabled={updateStatusMutation.isPending}
+            disabled={updateStatusMutation.isPending || verifyPinMutation.isPending}
           >
-            {updateStatusMutation.isPending ? (
-              <ActivityIndicator color={step === 3 ? "#FFF" : "#0C1559"} />
+            {updateStatusMutation.isPending || verifyPinMutation.isPending ? (
+              <ActivityIndicator color="#FFF" />
             ) : (
               <>
                 <Text style={[styles.mainBtnText, step === 3 && { color: '#FFF' }]}>
@@ -361,6 +421,48 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   totalLabel: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   totalValue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  // PIN Verification styles
+  pinCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 16,
+    padding: 18,
+    marginBottom: 20,
+  },
+  pinHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  pinTitle: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+  },
+  pinSub: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  pinInputContainer: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  pinInput: {
+    fontSize: 22,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+    textAlign: 'center',
+    letterSpacing: 8,
+  },
   // Footer
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
@@ -371,5 +473,21 @@ const styles = StyleSheet.create({
     paddingVertical: 18, borderRadius: 16, shadowColor: "#A3E635", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, elevation: 5, gap: 10
   },
   completeBtn: { backgroundColor: '#0C1559' },
-  mainBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' }
+  mainBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  summaryRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    marginTop: 8 
+  },
+  summaryLabel: { 
+    fontSize: 13, 
+    fontFamily: 'Montserrat-Medium', 
+    color: '#64748B' 
+  },
+  summaryValue: { 
+    fontSize: 14, 
+    fontFamily: 'Montserrat-Bold', 
+    color: '#0F172A' 
+  }
 });

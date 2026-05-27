@@ -10,6 +10,8 @@ import {
   Modal,
   TextInput,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -166,117 +168,129 @@ export default function PaymentMethodsScreen() {
         transparent={true}
         onRequestClose={() => setShowAddModal(false)}
       >
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={{ flex: 1 }} 
-            activeOpacity={1} 
-            onPress={() => setShowAddModal(false)} 
-          />
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHandle} />
-              <TouchableOpacity 
-                onPress={() => setShowAddModal(false)} 
-                style={styles.closeBtn}
-              >
-                <Ionicons name="close" size={24} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.modalTitle}>Add Payment Method</Text>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {/* Type Selector */}
-              <View style={styles.typeSelector}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity 
+              style={{ flex: 1 }} 
+              activeOpacity={1} 
+              onPress={() => setShowAddModal(false)} 
+            />
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <View style={styles.modalHandle} />
                 <TouchableOpacity 
-                  style={[styles.typeBtn, newMethod.type === 'momo' && styles.typeBtnActive]}
-                  onPress={() => setNewMethod({ ...newMethod, type: 'momo', provider: 'mtn' })}
+                  onPress={() => setShowAddModal(false)} 
+                  style={styles.closeBtn}
                 >
-                  <MaterialCommunityIcons 
-                    name="cellphone-wireless" 
-                    size={20} 
-                    color={newMethod.type === 'momo' ? '#FFF' : '#0C1559'} 
-                  />
-                  <Text style={[styles.typeText, newMethod.type === 'momo' && styles.typeTextActive]}>Mobile Money</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.typeBtn, newMethod.type === 'card' && styles.typeBtnActive]}
-                  onPress={() => setNewMethod({ ...newMethod, type: 'card', provider: 'visa' })}
-                >
-                  <Ionicons 
-                    name="card" 
-                    size={20} 
-                    color={newMethod.type === 'card' ? '#FFF' : '#0C1559'} 
-                  />
-                  <Text style={[styles.typeText, newMethod.type === 'card' && styles.typeTextActive]}>Card</Text>
+                  <Ionicons name="close" size={24} color="#64748B" />
                 </TouchableOpacity>
               </View>
-              {/* Provider Selection */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Select Provider</Text>
-                <View style={styles.providerList}>
-                  {newMethod.type === 'momo' ? (
-                    ['mtn', 'vodafone', 'airteltigo'].map(p => (
-                      <TouchableOpacity 
-                        key={p}
-                        style={[styles.providerBtn, newMethod.provider === p && styles.providerBtnActive]}
-                        onPress={() => setNewMethod({ ...newMethod, provider: p })}
-                      >
-                        <Text style={[styles.providerText, newMethod.provider === p && styles.providerTextActive]}>
-                          {p.toUpperCase()}
-                        </Text>
-                      </TouchableOpacity>
-                    ))
-                  ) : (
-                    ['visa', 'mastercard'].map(p => (
-                      <TouchableOpacity 
-                        key={p}
-                        style={[styles.providerBtn, newMethod.provider === p && styles.providerBtnActive]}
-                        onPress={() => setNewMethod({ ...newMethod, provider: p })}
-                      >
-                        <Text style={[styles.providerText, newMethod.provider === p && styles.providerTextActive]}>
-                          {p.charAt(0).toUpperCase() + p.slice(1)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))
-                  )}
+              <Text style={styles.modalTitle}>Add Payment Method</Text>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                {/* Type Selector */}
+                <View style={styles.typeSelector}>
+                  <TouchableOpacity 
+                    style={[styles.typeBtn, newMethod.type === 'momo' && styles.typeBtnActive]}
+                    onPress={() => setNewMethod({ ...newMethod, type: 'momo', provider: 'mtn' })}
+                  >
+                    <MaterialCommunityIcons 
+                      name="cellphone-wireless" 
+                      size={20} 
+                      color={newMethod.type === 'momo' ? '#FFF' : '#0C1559'} 
+                    />
+                    <Text style={[styles.typeText, newMethod.type === 'momo' && styles.typeTextActive]}>Mobile Money</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.typeBtn, newMethod.type === 'card' && styles.typeBtnActive]}
+                    onPress={() => setNewMethod({ ...newMethod, type: 'card', provider: 'visa' })}
+                  >
+                    <Ionicons 
+                      name="card" 
+                      size={20} 
+                      color={newMethod.type === 'card' ? '#FFF' : '#0C1559'} 
+                    />
+                    <Text style={[styles.typeText, newMethod.type === 'card' && styles.typeTextActive]}>Card</Text>
+                  </TouchableOpacity>
                 </View>
-              </View>
-              {/* Title / Name */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{newMethod.type === 'card' ? 'Cardholder Name' : 'Account Name'}</Text>
-                <TextInput 
-                  style={styles.input}
-                  placeholder={newMethod.type === 'card' ? 'e.g. John Doe' : 'e.g. My MTN Wallet'}
-                  value={newMethod.title}
-                  onChangeText={(text) => setNewMethod({ ...newMethod, title: text })}
-                />
-              </View>
-              {/* Identifier */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>{newMethod.type === 'card' ? 'Card Number' : 'Phone Number'}</Text>
-                <TextInput 
-                  style={styles.input}
-                  placeholder={newMethod.type === 'card' ? '**** **** **** ****' : '05XXXXXXXX'}
-                  value={newMethod.identifier}
-                  keyboardType="numeric"
-                  onChangeText={(text) => setNewMethod({ ...newMethod, identifier: text })}
-                />
-              </View>
-              {/* Submit */}
-              <TouchableOpacity 
-                style={styles.submitBtn} 
-                onPress={handleAddMethod}
-                disabled={adding}
-              >
-                {adding ? (
-                  <ActivityIndicator color="#FFF" />
-                ) : (
-                  <Text style={styles.submitBtnText}>Add Payment Method</Text>
-                )}
-              </TouchableOpacity>
-              <View style={{ height: 40 }} />
-            </ScrollView>
+                {/* Provider Selection */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Select Provider</Text>
+                  <View style={styles.providerList}>
+                    {newMethod.type === 'momo' ? (
+                      ['mtn', 'vodafone', 'airteltigo'].map(p => (
+                        <TouchableOpacity 
+                          key={p}
+                          style={[styles.providerBtn, newMethod.provider === p && styles.providerBtnActive]}
+                          onPress={() => setNewMethod({ ...newMethod, provider: p })}
+                        >
+                          <Text style={[styles.providerText, newMethod.provider === p && styles.providerTextActive]}>
+                            {p.toUpperCase()}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    ) : (
+                      ['visa', 'mastercard'].map(p => (
+                        <TouchableOpacity 
+                          key={p}
+                          style={[styles.providerBtn, newMethod.provider === p && styles.providerBtnActive]}
+                          onPress={() => setNewMethod({ ...newMethod, provider: p })}
+                        >
+                          <Text style={[styles.providerText, newMethod.provider === p && styles.providerTextActive]}>
+                            {p.charAt(0).toUpperCase() + p.slice(1)}
+                          </Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
+                </View>
+                {/* Title / Name */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{newMethod.type === 'card' ? 'Cardholder Name' : 'Account Name'}</Text>
+                  <TextInput 
+                    style={styles.input}
+                    placeholder={newMethod.type === 'card' ? 'e.g. John Doe' : 'e.g. My MTN Wallet'}
+                    placeholderTextColor="#94A3B8"
+                    selectionColor="#0C1559"
+                    cursorColor="#0C1559"
+                    autoCapitalize="words"
+                    value={newMethod.title}
+                    onChangeText={(text) => setNewMethod({ ...newMethod, title: text })}
+                  />
+                </View>
+                {/* Identifier */}
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>{newMethod.type === 'card' ? 'Card Number' : 'Phone Number'}</Text>
+                  <TextInput 
+                    style={styles.input}
+                    placeholder={newMethod.type === 'card' ? '**** **** **** ****' : '05XXXXXXXX'}
+                    placeholderTextColor="#94A3B8"
+                    selectionColor="#0C1559"
+                    cursorColor="#0C1559"
+                    value={newMethod.identifier}
+                    keyboardType="numeric"
+                    onChangeText={(text) => setNewMethod({ ...newMethod, identifier: text })}
+                  />
+                </View>
+                {/* Submit */}
+                <TouchableOpacity 
+                  style={styles.submitBtn} 
+                  onPress={handleAddMethod}
+                  disabled={adding}
+                >
+                  {adding ? (
+                    <ActivityIndicator color="#FFF" />
+                  ) : (
+                    <Text style={styles.submitBtnText}>Add Payment Method</Text>
+                  )}
+                </TouchableOpacity>
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
       {/* --- Header --- */}
       <View style={styles.header}>

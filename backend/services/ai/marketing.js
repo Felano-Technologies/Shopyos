@@ -26,14 +26,8 @@ exports.generateNotificationText = async (promptType, ctx = {}) => {
     try {
       logger.info(`[Shopyos Marketing] Attempting content generation using model: ${modelName}`);
       const model = ai.getGenerativeModel({ model: modelName });
-      const result = await model.generateContent({
-        contents: prompt,
-        generationConfig: {
-          thinkingConfig: {
-            thinkingLevel: 'low'
-          }
-        }
-      });
+      // Pass prompt as a plain string — the SDK wraps it into the correct Content format.
+      const result = await model.generateContent(prompt);
       const raw = result.response.text().trim();
 
       // Extract the first JSON object from the response

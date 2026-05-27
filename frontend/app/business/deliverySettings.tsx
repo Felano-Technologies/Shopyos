@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getDeliverySettings, updateDeliverySettings } from '@/services/api';
-import { useMyBusinesses } from '@/hooks/useBusiness';
+import { useActiveBusiness } from '@/hooks/useBusiness';
 
 const C = {
   bg: '#F8FAFC',
@@ -25,8 +25,8 @@ const C = {
 
 export default function DeliverySettingsScreen() {
   const router = useRouter();
-  const { data: businessesData } = useMyBusinesses();
-  const storeId = businessesData?.businesses?.[0]?._id;
+  const { activeBusiness } = useActiveBusiness();
+  const storeId = activeBusiness?._id;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);

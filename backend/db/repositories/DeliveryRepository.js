@@ -27,7 +27,9 @@ class DeliveryRepository extends BaseRepository {
         delivery_longitude: deliveryData.deliveryLongitude || 0,
         status: deliveryData.status || 'unassigned',
         estimated_pickup_time: deliveryData.estimatedPickupTime || null,
-        estimated_delivery_time: deliveryData.estimatedDeliveryTime || null
+        estimated_delivery_time: deliveryData.estimatedDeliveryTime || null,
+        delivery_fee: deliveryData.deliveryFee || 0,
+        driver_earnings: deliveryData.driverEarnings || 0
       })
       .select()
       .single();

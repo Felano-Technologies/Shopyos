@@ -47,6 +47,7 @@ export const productsApi = {
       category: filters?.category,
       minPrice: filters?.minPrice,
       maxPrice: filters?.maxPrice,
+      minRating: filters?.minRating,
       sortBy: filters?.sortBy,
       limit,
       offset,

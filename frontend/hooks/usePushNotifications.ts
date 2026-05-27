@@ -93,7 +93,14 @@ export function usePushNotifications() {
             if (data?.screen === 'messages') {
                 // Deep link to Chat
                 if (data.conversationId) {
-                    router.push(`/chat/conversation?id=${data.conversationId}`);
+                    router.push({
+                        pathname: '/chat/conversation',
+                        params: {
+                            conversationId: data.conversationId,
+                            chatType: data.chatType || 'buyer',
+                            name: data.senderName || '',
+                        }
+                    });
                 } else {
                     router.push('/chat');
                 }

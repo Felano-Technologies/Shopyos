@@ -182,6 +182,28 @@ class NotificationRepository extends BaseRepository {
   }
 
   /**
+   * Mark all user message notifications in a specific conversation as read
+   * @param {string} conversationId - Conversation ID
+   * @param {string} userId - User ID
+   * @returns {Promise<number>} Number of updated notifications
+   */
+  async markNotificationsAsReadByConversation(conversationId, userId) {
+    const { data, error } = await this.updateReadState((updateData) =>
+      this.db
+        .from(this.tableName)
+        .update(updateData)
+        .eq('user_id', userId)
+        .eq('related_id', conversationId)
+        .eq('type', 'new_message')
+        .eq('is_read', false)
+        .select()
+    );
+
+    if (error) throw error;
+    return data?.length || 0;
+  }
+
+  /**
    * Delete notification
    * @param {string} notificationId - Notification ID
    * @param {string} userId - User ID (for verification)

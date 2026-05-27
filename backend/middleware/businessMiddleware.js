@@ -20,8 +20,21 @@ const requireStore = async (req, res, next) => {
             });
         }
 
-        // Find the first active store, otherwise fall back to the most recent one to show the inactive message
-        const store = stores.find(s => s.is_active) || stores[0];
+        // Resolve store context from request headers if specified by client, otherwise default to first active
+        const clientBusinessId = req.headers['x-business-id'] || req.headers['x-store-id'];
+        
+        let store;
+        if (clientBusinessId) {
+            store = stores.find(s => s.id === clientBusinessId);
+            if (!store) {
+                return res.status(403).json({
+                    success: false,
+                    error: 'Access denied: You do not own the requested business profile.'
+                });
+            }
+        } else {
+            store = stores.find(s => s.is_active) || stores[0];
+        }
 
         if (!store.is_active) {
             return res.status(403).json({ 

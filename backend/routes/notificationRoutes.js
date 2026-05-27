@@ -13,7 +13,8 @@ const {
   getPreferences,
   updatePreferences,
   getNotificationsByType,
-  registerPushToken
+  registerPushToken,
+  markReadByConversation
 } = require('../controllers/notificationController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -54,6 +55,11 @@ router.put('/read-all', markAllAsRead);
 // @desc    Mark notification as read
 // @access  Private
 router.put('/:notificationId/read', markAsRead);
+
+// @route   PUT /api/notifications/read-by-conversation/:conversationId
+// @desc    Mark all notifications in a specific conversation as read
+// @access  Private
+router.put('/read-by-conversation/:conversationId', markReadByConversation);
 
 // @route   DELETE /api/notifications/:notificationId
 // @desc    Delete notification
