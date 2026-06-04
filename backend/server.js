@@ -16,8 +16,7 @@ validateEnv();
 const { logger, httpLogMiddleware } = require('./config/logger');
 const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
 const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
-const { initializeSocket } = require('./config/socket');
-const { registerMessagingHandlers } = require('./sockets/messagingSocket');
+const { initializeSocketBridge } = require('./config/socketBridge');
 const { getPool } = require('./config/postgres');
 
 const dbHealthCheck = async () => {
@@ -248,8 +247,9 @@ const enableLocalSocket = process.env.ENABLE_LOCAL_SOCKET !== 'false';
 let io = null;
 
 if (enableLocalSocket) {
-  io = initializeSocket(server);
-  registerMessagingHandlers(io);
+  initializeSocketBridge(server, logger).then((socketIo) => { io = socketIo; }).catch((err) => {
+    logger.error('Socket bridge failed to initialize:', err.message);
+  });
 } else {
   logger.info('Local Socket.IO disabled (ENABLE_LOCAL_SOCKET=false). Using external socket service.');
 }
@@ -266,6 +266,10 @@ server.listen(PORT, () => {
   } catch (err) {
     logger.error('Failed to start broadcast scheduler:', err.message);
   }
+
+  // Start notification worker in-process (connects to CloudAMQP, handles email/SMS queues)
+  const { startWorker } = require('./workers/notificationWorker');
+  startWorker().catch((err) => logger.error('Notification worker failed to start:', err.message));
 });
 
 const gracefulShutdown = async (signal) => {
