@@ -5,7 +5,7 @@ const nodemailer = require('nodemailer');
 const axios = require('axios');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
-const { emitToUser } = require('../config/socket');
+const { emitToUser } = require('../../socket/src/config/socketServer');
 
 class NotificationService {
   constructor() {

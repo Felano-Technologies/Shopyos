@@ -4,7 +4,7 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
-const { emitToConversation } = require('../config/socket');
+const { emitToConversation } = require('../../socket/src/config/socketServer');
 const aiService = require('../services/aiService');
 const { toPublicUrl } = require('../config/storage');
 const { moderateText } = require('../services/moderationService');
