@@ -453,10 +453,8 @@ const updateBusiness = async (req, res, next) => {
         
         // Map resulting URLs to the database column names if they were uploaded
         if (mappedData.logo) mappedData.logo_url = mappedData.logo;
-        if (mappedData.logo_url) mappedData.logo_url = mappedData.logo_url;
         if (mappedData.coverImage) mappedData.banner_url = mappedData.coverImage;
         if (mappedData.banner) mappedData.banner_url = mappedData.banner;
-        if (mappedData.banner_url) mappedData.banner_url = mappedData.banner_url;
         if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
         if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
         if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;

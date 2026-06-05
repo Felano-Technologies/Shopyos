@@ -2,16 +2,14 @@
 useDefault = true
 
 [allowlist]
-description = "Ignore example files, docs, and known non-sensitive patterns"
+description = "Ignore example files, docs, and Paystack test keys"
 paths = [
-  ".env.example",
-  ".env.example.local",
-  "README.md",
-  "CHANGELOG.md",
+  '''.env.example''',
+  '''README\.md''',
+  '''CHANGELOG\.md''',
   '''node_modules''',
-  '''\.github/workflows''',
 ]
-
-[[rules.allowlist]]
-description = "Ignore Paystack test keys (not production)"
-regexes = ['''sk_test_[a-zA-Z0-9]+''', '''pk_test_[a-zA-Z0-9]+''']
+regexes = [
+  '''sk_test_[a-zA-Z0-9]+''',
+  '''pk_test_[a-zA-Z0-9]+''',
+]
