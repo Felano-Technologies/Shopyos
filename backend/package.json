@@ -5,7 +5,8 @@
     "migrate": "node scripts/migrate.js",
     "migrate:apply": "node scripts/applyMigrations.js",
     "worker": "node workers/notificationWorker.js",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "lint": "eslint . --ext .js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.888.0",
@@ -40,6 +41,7 @@
     "winston": "^3.19.0"
   },
   "devDependencies": {
+    "eslint": "^8.57.1",
     "jscodeshift": "^17.3.0",
     "nodemon": "^3.1.10"
   }

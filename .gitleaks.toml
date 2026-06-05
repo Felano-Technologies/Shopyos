@@ -1,0 +1,22 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore example files, known historical findings, and standard config files"
+commits = [
+  # GCP API key in google-services.json (historical commit - key should be rotated)
+  "7eab6d976996b165021fb47be8a1f7467ea290e1",
+  # Hardcoded auth token in twoFactorController.js (file since deleted)
+  "1b4b00a0012e6a764a3e1a2410e7677bef473c1a",
+]
+paths = [
+  '''.env.example''',
+  '''README\.md''',
+  '''node_modules''',
+  # Firebase config — API key is restricted to app bundle ID by Google
+  '''frontend/google-services\.json''',
+]
+regexes = [
+  '''sk_test_[a-zA-Z0-9]+''',
+  '''pk_test_[a-zA-Z0-9]+''',
+]
