@@ -6,6 +6,7 @@
  * Conforms to guidelines/test.md.
  *
  * Note: @testing-library/react-native v14 render() is async.
+ * screen queries are used to reflect the latest render tree.
  */
 
 // ── Module mocks (must precede imports) ────────────────────────────────────
@@ -19,7 +20,7 @@ jest.mock('@expo/vector-icons', () => {
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act, screen } from '@testing-library/react-native';
 import CountryPicker from '../../components/CountryPicker';
 
 // ── Default props factory ────────────────────────────────────────────────────
@@ -46,45 +47,45 @@ describe('CountryPicker Component Tests', () => {
   // ── Rendering ─────────────────────────────────────────────────────────────
 
   test('test_CountryPicker_visible_rendersModalWithTitle', async () => {
-    const { getByText } = await render(<CountryPicker {...defaultProps()} />);
-    expect(getByText('Select Country')).toBeTruthy();
+    await render(<CountryPicker {...defaultProps()} />);
+    expect(screen.getByText('Select Country')).toBeTruthy();
   });
 
   test('test_CountryPicker_visible_rendersSearchInput', async () => {
-    const { getByPlaceholderText } = await render(<CountryPicker {...defaultProps()} />);
-    expect(getByPlaceholderText('Search country or code...')).toBeTruthy();
+    await render(<CountryPicker {...defaultProps()} />);
+    expect(screen.getByPlaceholderText('Search country or code...')).toBeTruthy();
   });
 
   test('test_CountryPicker_visible_rendersAllCountriesInitially', async () => {
-    const { getByText } = await render(<CountryPicker {...defaultProps()} />);
-    expect(getByText('Ghana')).toBeTruthy();
-    expect(getByText('Nigeria')).toBeTruthy();
-    expect(getByText('United States')).toBeTruthy();
-    expect(getByText('United Kingdom')).toBeTruthy();
-    expect(getByText('Canada')).toBeTruthy();
-    expect(getByText('South Africa')).toBeTruthy();
-    expect(getByText('India')).toBeTruthy();
+    await render(<CountryPicker {...defaultProps()} />);
+    expect(screen.getByText('Ghana')).toBeTruthy();
+    expect(screen.getByText('Nigeria')).toBeTruthy();
+    expect(screen.getByText('United States')).toBeTruthy();
+    expect(screen.getByText('United Kingdom')).toBeTruthy();
+    expect(screen.getByText('Canada')).toBeTruthy();
+    expect(screen.getByText('South Africa')).toBeTruthy();
+    expect(screen.getByText('India')).toBeTruthy();
   });
 
   test('test_CountryPicker_visible_rendersDialCodes', async () => {
-    const { getByText } = await render(<CountryPicker {...defaultProps()} />);
-    expect(getByText('+233')).toBeTruthy();
-    expect(getByText('+234')).toBeTruthy();
+    await render(<CountryPicker {...defaultProps()} />);
+    expect(screen.getByText('+233')).toBeTruthy();
+    expect(screen.getByText('+234')).toBeTruthy();
   });
 
   test('test_CountryPicker_visible_rendersFlagEmojis', async () => {
-    const { getByText } = await render(<CountryPicker {...defaultProps()} />);
-    expect(getByText('🇬🇭')).toBeTruthy();
-    expect(getByText('🇳🇬')).toBeTruthy();
+    await render(<CountryPicker {...defaultProps()} />);
+    expect(screen.getByText('🇬🇭')).toBeTruthy();
+    expect(screen.getByText('🇳🇬')).toBeTruthy();
   });
 
   // ── Country selection ─────────────────────────────────────────────────────
 
   test('test_CountryPicker_selectCountry_callsOnSelectWithCountryObject', async () => {
     const onSelect = jest.fn();
-    const { getByText } = await render(<CountryPicker {...defaultProps({ onSelect })} />);
+    await render(<CountryPicker {...defaultProps({ onSelect })} />);
 
-    fireEvent.press(getByText('Ghana'));
+    await act(async () => { fireEvent.press(screen.getByText('Ghana')); });
 
     expect(onSelect).toHaveBeenCalledTimes(1);
     expect(onSelect).toHaveBeenCalledWith(
@@ -98,9 +99,9 @@ describe('CountryPicker Component Tests', () => {
 
   test('test_CountryPicker_selectCountry_callsOnClose', async () => {
     const onClose = jest.fn();
-    const { getByText } = await render(<CountryPicker {...defaultProps({ onClose })} />);
+    await render(<CountryPicker {...defaultProps({ onClose })} />);
 
-    fireEvent.press(getByText('Nigeria'));
+    await act(async () => { fireEvent.press(screen.getByText('Nigeria')); });
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -110,8 +111,8 @@ describe('CountryPicker Component Tests', () => {
     const onSelect = jest.fn(() => callOrder.push('onSelect'));
     const onClose = jest.fn(() => callOrder.push('onClose'));
 
-    const { getByText } = await render(<CountryPicker {...defaultProps({ onSelect, onClose })} />);
-    fireEvent.press(getByText('Canada'));
+    await render(<CountryPicker {...defaultProps({ onSelect, onClose })} />);
+    await act(async () => { fireEvent.press(screen.getByText('Canada')); });
 
     expect(callOrder).toEqual(['onSelect', 'onClose']);
   });
@@ -119,114 +120,117 @@ describe('CountryPicker Component Tests', () => {
   // ── Selected state indicator ──────────────────────────────────────────────
 
   test('test_CountryPicker_withSelectedCountryCode_showsCheckmarkForSelectedCountry', async () => {
-    const { getAllByText } = await render(
+    await render(
       <CountryPicker {...defaultProps({ selectedCountryCode: 'GH' })} />
     );
     // Ionicons "checkmark-circle" mock renders the icon name as text
-    const checkmarks = getAllByText('checkmark-circle');
+    const checkmarks = screen.getAllByText('checkmark-circle');
     expect(checkmarks).toHaveLength(1);
   });
 
   test('test_CountryPicker_withNoSelectedCountryCode_showsNoCheckmark', async () => {
-    const { queryByText } = await render(<CountryPicker {...defaultProps()} />);
-    expect(queryByText('checkmark-circle')).toBeNull();
+    await render(<CountryPicker {...defaultProps()} />);
+    expect(screen.queryByText('checkmark-circle')).toBeNull();
   });
 
   // ── Search / filtering ────────────────────────────────────────────────────
 
   test('test_CountryPicker_searchByName_filtersCountriesToMatchingResults', async () => {
-    const { getByPlaceholderText, getByText, queryByText } = await render(
-      <CountryPicker {...defaultProps()} />
-    );
+    await render(<CountryPicker {...defaultProps()} />);
 
-    fireEvent.changeText(
-      getByPlaceholderText('Search country or code...'),
-      'Ghana'
-    );
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search country or code...'),
+        'Ghana'
+      );
+    });
 
-    expect(getByText('Ghana')).toBeTruthy();
-    expect(queryByText('Nigeria')).toBeNull();
-    expect(queryByText('United States')).toBeNull();
+    expect(screen.getByText('Ghana')).toBeTruthy();
+    expect(screen.queryByText('Nigeria')).toBeNull();
+    expect(screen.queryByText('United States')).toBeNull();
   });
 
   test('test_CountryPicker_searchByPartialName_returnsMatchingSubset', async () => {
-    const { getByPlaceholderText, getByText, queryByText } = await render(
-      <CountryPicker {...defaultProps()} />
-    );
+    await render(<CountryPicker {...defaultProps()} />);
 
-    fireEvent.changeText(
-      getByPlaceholderText('Search country or code...'),
-      'United'
-    );
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search country or code...'),
+        'United'
+      );
+    });
 
-    expect(getByText('United States')).toBeTruthy();
-    expect(getByText('United Kingdom')).toBeTruthy();
-    expect(queryByText('Ghana')).toBeNull();
+    expect(screen.getByText('United States')).toBeTruthy();
+    expect(screen.getByText('United Kingdom')).toBeTruthy();
+    expect(screen.queryByText('Ghana')).toBeNull();
   });
 
   test('test_CountryPicker_searchByDialCode_filtersToMatchingCountries', async () => {
-    const { getByPlaceholderText, getByText, queryByText } = await render(
-      <CountryPicker {...defaultProps()} />
-    );
+    await render(<CountryPicker {...defaultProps()} />);
 
     // +233 is Ghana only
-    fireEvent.changeText(
-      getByPlaceholderText('Search country or code...'),
-      '+233'
-    );
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search country or code...'),
+        '+233'
+      );
+    });
 
-    expect(getByText('Ghana')).toBeTruthy();
-    expect(queryByText('Nigeria')).toBeNull();
+    expect(screen.getByText('Ghana')).toBeTruthy();
+    expect(screen.queryByText('Nigeria')).toBeNull();
   });
 
   test('test_CountryPicker_searchIsCaseInsensitive_returnsResults', async () => {
-    const { getByPlaceholderText, getByText } = await render(
-      <CountryPicker {...defaultProps()} />
-    );
+    await render(<CountryPicker {...defaultProps()} />);
 
-    fireEvent.changeText(
-      getByPlaceholderText('Search country or code...'),
-      'ghana'
-    );
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search country or code...'),
+        'ghana'
+      );
+    });
 
-    expect(getByText('Ghana')).toBeTruthy();
+    expect(screen.getByText('Ghana')).toBeTruthy();
   });
 
   test('test_CountryPicker_searchNoMatch_rendersEmptyList', async () => {
-    const { getByPlaceholderText, queryByText } = await render(
-      <CountryPicker {...defaultProps()} />
-    );
+    await render(<CountryPicker {...defaultProps()} />);
 
-    fireEvent.changeText(
-      getByPlaceholderText('Search country or code...'),
-      'Zzzzzzz'
-    );
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search country or code...'),
+        'Zzzzzzz'
+      );
+    });
 
-    expect(queryByText('Ghana')).toBeNull();
-    expect(queryByText('Nigeria')).toBeNull();
+    expect(screen.queryByText('Ghana')).toBeNull();
+    expect(screen.queryByText('Nigeria')).toBeNull();
   });
 
   test('test_CountryPicker_selectCountryWhileSearching_resetsSearchOnClose', async () => {
-    const { getByPlaceholderText, getByText } = await render(
-      <CountryPicker {...defaultProps()} />
-    );
-    const input = getByPlaceholderText('Search country or code...');
+    await render(<CountryPicker {...defaultProps()} />);
 
-    fireEvent.changeText(input, 'Gha');
-    fireEvent.press(getByText('Ghana'));
+    await act(async () => {
+      fireEvent.changeText(
+        screen.getByPlaceholderText('Search country or code...'),
+        'Gha'
+      );
+    });
+
+    await act(async () => { fireEvent.press(screen.getByText('Ghana')); });
 
     // After selection the internal search state should reset to ''
-    expect(input.props.value).toBe('');
+    expect(screen.getByPlaceholderText('Search country or code...').props.value).toBe('');
   });
 
   // ── Close button ──────────────────────────────────────────────────────────
 
   test('test_CountryPicker_closeButtonPress_callsOnClose', async () => {
     const onClose = jest.fn();
-    const { getByText } = await render(<CountryPicker {...defaultProps({ onClose })} />);
+    await render(<CountryPicker {...defaultProps({ onClose })} />);
 
     // Ionicons "close" mock renders its name as text
-    fireEvent.press(getByText('close'));
+    await act(async () => { fireEvent.press(screen.getByText('close')); });
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });

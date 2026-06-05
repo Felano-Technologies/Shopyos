@@ -13,7 +13,7 @@
 // ── Minimal set of env vars that satisfy every validation rule ──────────────
 const VALID_ENV = {
   PORT: '3000',
-  JWT_SECRET: 'a-sufficiently-long-jwt-secret-that-is-at-least-32-chars',
+  JWT_SECRET: 'a-sufficiently-long-jwt-secret-that-is-at-least-32-chars', // gitleaks:allow
   DATABASE_URL: 'postgresql://user:pass@localhost:5432/shopyos',
   STORAGE_ENDPOINT: 'https://s3.example.com',
   STORAGE_REGION: 'us-east-1',

@@ -5,8 +5,9 @@
  * External services and toast are mocked so no real network calls occur.
  * Conforms to guidelines/test.md.
  *
- * Note: @testing-library/react-native v14 render() is async.
- * screen queries are used to reflect the latest render tree.
+ * Note: @testing-library/react-native v14 render() is async AND
+ * fireEvent.press / fireEvent.changeText are async — always await them.
+ * screen is used rather than destructured queries so the latest tree is queried.
  */
 
 // ── Module mocks (must precede imports) ────────────────────────────────────
@@ -30,7 +31,7 @@ jest.mock('@expo/vector-icons', () => {
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { render, fireEvent, act, waitFor, screen } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
 import { ReportModal } from '../../components/ReportModal';
 import { CustomInAppToast } from '../../components/InAppToastHost';
 
@@ -90,7 +91,7 @@ describe('ReportModal Component Tests', () => {
     await render(<ReportModal {...defaultProps({ onClose })} />);
 
     // The Ionicons "close" mock renders "close" as text
-    await act(async () => { fireEvent.press(screen.getByText('close')); });
+    await fireEvent.press(screen.getByText('close'));
 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -100,7 +101,7 @@ describe('ReportModal Component Tests', () => {
   test('test_ReportModal_selectReason_highlightsSelectedReason', async () => {
     await render(<ReportModal {...defaultProps()} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Spam or misleading')); });
+    await fireEvent.press(screen.getByText('Spam or misleading'));
 
     // After selection the check icon becomes visible (Ionicons mock renders 'checkmark-circle' as text)
     expect(screen.getByText('checkmark-circle')).toBeTruthy();
@@ -109,8 +110,8 @@ describe('ReportModal Component Tests', () => {
   test('test_ReportModal_selectDifferentReason_updatesSelection', async () => {
     await render(<ReportModal {...defaultProps()} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Spam or misleading')); });
-    await act(async () => { fireEvent.press(screen.getByText('Other')); });
+    await fireEvent.press(screen.getByText('Spam or misleading'));
+    await fireEvent.press(screen.getByText('Other'));
 
     // Only one checkmark should exist (for 'Other')
     expect(screen.queryAllByText('checkmark-circle')).toHaveLength(1);
@@ -121,7 +122,8 @@ describe('ReportModal Component Tests', () => {
   test('test_ReportModal_submitWithoutReason_showsErrorToast', async () => {
     await render(<ReportModal {...defaultProps()} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    // Press Submit with no reason selected — the button is disabled but handler fires
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     expect(CustomInAppToast.show).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'error', title: 'Error' })
@@ -133,7 +135,7 @@ describe('ReportModal Component Tests', () => {
     const onClose = jest.fn();
     await render(<ReportModal {...defaultProps({ onClose })} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -145,8 +147,8 @@ describe('ReportModal Component Tests', () => {
       <ReportModal {...defaultProps({ entityType: 'user', entityId: 'user-123' })} />
     );
 
-    await act(async () => { fireEvent.press(screen.getByText('Spam or misleading')); });
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Spam or misleading'));
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(mockReportEntity).toHaveBeenCalledWith(
@@ -161,12 +163,12 @@ describe('ReportModal Component Tests', () => {
   test('test_ReportModal_validSubmissionWithDetails_includesDetailsInCall', async () => {
     await render(<ReportModal {...defaultProps()} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Other')); });
-    fireEvent.changeText(
+    await fireEvent.press(screen.getByText('Other'));
+    await fireEvent.changeText(
       screen.getByPlaceholderText('Additional details (optional)'),
       'This account is fake.'
     );
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(mockReportEntity).toHaveBeenCalledWith(
@@ -181,8 +183,8 @@ describe('ReportModal Component Tests', () => {
   test('test_ReportModal_successfulSubmission_showsSuccessToast', async () => {
     await render(<ReportModal {...defaultProps()} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Spam or misleading')); });
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Spam or misleading'));
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(CustomInAppToast.show).toHaveBeenCalledWith(
@@ -195,8 +197,8 @@ describe('ReportModal Component Tests', () => {
     const onClose = jest.fn();
     await render(<ReportModal {...defaultProps({ onClose })} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('Scam or fraud')); });
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Scam or fraud'));
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(onClose).toHaveBeenCalledTimes(1);
@@ -209,8 +211,8 @@ describe('ReportModal Component Tests', () => {
     mockReportEntity.mockRejectedValueOnce(new Error('Server unavailable'));
 
     await render(<ReportModal {...defaultProps()} />);
-    await act(async () => { fireEvent.press(screen.getByText('Spam or misleading')); });
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Spam or misleading'));
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(CustomInAppToast.show).toHaveBeenCalledWith(
@@ -223,8 +225,8 @@ describe('ReportModal Component Tests', () => {
     mockReportEntity.mockRejectedValueOnce({});
 
     await render(<ReportModal {...defaultProps()} />);
-    await act(async () => { fireEvent.press(screen.getByText('Inappropriate content')); });
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Inappropriate content'));
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(CustomInAppToast.show).toHaveBeenCalledWith(
@@ -238,8 +240,8 @@ describe('ReportModal Component Tests', () => {
     const onClose = jest.fn();
 
     await render(<ReportModal {...defaultProps({ onClose })} />);
-    await act(async () => { fireEvent.press(screen.getByText('Other')); });
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
+    await fireEvent.press(screen.getByText('Other'));
+    await fireEvent.press(screen.getByText('Submit Report'));
 
     await waitFor(() => {
       expect(onClose).not.toHaveBeenCalled();
@@ -250,12 +252,15 @@ describe('ReportModal Component Tests', () => {
 
   test('test_ReportModal_additionalDetailsInput_acceptsText', async () => {
     await render(<ReportModal {...defaultProps()} />);
-    const input = screen.getByPlaceholderText('Additional details (optional)');
 
-    fireEvent.changeText(input, 'Some extra context');
-
-    expect(screen.getByPlaceholderText('Additional details (optional)').props.value).toBe(
+    await fireEvent.changeText(
+      screen.getByPlaceholderText('Additional details (optional)'),
       'Some extra context'
     );
+
+    // Re-query after state update to get the latest value
+    expect(
+      screen.getByPlaceholderText('Additional details (optional)').props.value
+    ).toBe('Some extra context');
   });
 });

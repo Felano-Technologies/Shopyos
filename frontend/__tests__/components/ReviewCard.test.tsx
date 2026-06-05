@@ -5,8 +5,8 @@
  * Icon libraries and date-fns are mocked so no native modules are required.
  * Conforms to guidelines/test.md.
  *
- * Note: @testing-library/react-native v14 render() is async.
- * screen queries are used to reflect the latest render tree.
+ * Note: @testing-library/react-native v14 render() and fireEvent.* are async.
+ * screen is used rather than destructured queries.
  */
 
 // ── Module mocks (must precede imports) ────────────────────────────────────
@@ -26,7 +26,7 @@ jest.mock('date-fns', () => ({
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { render, fireEvent, act, screen } from '@testing-library/react-native';
+import { render, fireEvent, screen } from '@testing-library/react-native';
 import { ReviewCard } from '../../components/ReviewCard';
 
 // ── Fixture factory ──────────────────────────────────────────────────────────
@@ -75,14 +75,15 @@ describe('ReviewCard Component Tests', () => {
   });
 
   test('test_ReviewCard_withLikesCount_rendersLikeCount', async () => {
-    await render(<ReviewCard review={makeReview({ likes_count: 5 })} />);
-    expect(screen.getByText('5')).toBeTruthy();
+    // Use a unique likes_count to avoid ambiguity with other rendered numbers
+    await render(<ReviewCard review={makeReview({ likes_count: 77, comments_count: 3 })} />);
+    expect(screen.getByText('77')).toBeTruthy();
   });
 
   test('test_ReviewCard_withCommentsCount_rendersCommentCount', async () => {
-    // Use a comments_count that differs from likes_count so we can target it uniquely
-    await render(<ReviewCard review={makeReview({ likes_count: 5, comments_count: 3 })} />);
-    expect(screen.getByText('3')).toBeTruthy();
+    // Use a comments_count that differs from likes_count to target it uniquely
+    await render(<ReviewCard review={makeReview({ likes_count: 5, comments_count: 13 })} />);
+    expect(screen.getByText('13')).toBeTruthy();
   });
 
   test('test_ReviewCard_withNoCommentsCount_rendersZero', async () => {
@@ -105,10 +106,10 @@ describe('ReviewCard Component Tests', () => {
 
   test('test_ReviewCard_likeButtonPress_callsOnLikeWithReviewId', async () => {
     const onLike = jest.fn();
-    // Use likes_count=10 to avoid ambiguity with other numbers
-    await render(<ReviewCard review={makeReview({ id: 'review-42', likes_count: 10 })} onLike={onLike} />);
+    // Use distinct counts to avoid ambiguity
+    await render(<ReviewCard review={makeReview({ id: 'review-42', likes_count: 10, comments_count: 3 })} onLike={onLike} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('10')); });
+    await fireEvent.press(screen.getByText('10'));
 
     expect(onLike).toHaveBeenCalledTimes(1);
     expect(onLike).toHaveBeenCalledWith('review-42');
@@ -117,7 +118,7 @@ describe('ReviewCard Component Tests', () => {
   test('test_ReviewCard_likeButtonPress_incrementsLocalLikeCount', async () => {
     await render(<ReviewCard review={makeReview({ likes_count: 20, comments_count: 1 })} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('20')); });
+    await fireEvent.press(screen.getByText('20'));
 
     expect(screen.getByText('21')).toBeTruthy();
   });
@@ -125,7 +126,7 @@ describe('ReviewCard Component Tests', () => {
   test('test_ReviewCard_likeButtonPressWhenAlreadyLiked_decrementsLocalLikeCount', async () => {
     await render(<ReviewCard review={makeReview({ likes_count: 20, isLiked: true, comments_count: 1 })} />);
 
-    await act(async () => { fireEvent.press(screen.getByText('20')); });
+    await fireEvent.press(screen.getByText('20'));
 
     expect(screen.getByText('19')).toBeTruthy();
   });
@@ -134,17 +135,17 @@ describe('ReviewCard Component Tests', () => {
     await render(<ReviewCard review={makeReview({ likes_count: 30, isLiked: false, comments_count: 1 })} />);
 
     // Like
-    await act(async () => { fireEvent.press(screen.getByText('30')); });
+    await fireEvent.press(screen.getByText('30'));
     expect(screen.getByText('31')).toBeTruthy();
 
     // Unlike
-    await act(async () => { fireEvent.press(screen.getByText('31')); });
+    await fireEvent.press(screen.getByText('31'));
     expect(screen.getByText('30')).toBeTruthy();
   });
 
   test('test_ReviewCard_withoutOnLikeCallback_pressDoesNotThrow', async () => {
     await render(<ReviewCard review={makeReview({ likes_count: 40, comments_count: 1 })} />);
-    await expect(act(async () => { fireEvent.press(screen.getByText('40')); })).resolves.toBeUndefined();
+    await expect(fireEvent.press(screen.getByText('40'))).resolves.toBeUndefined();
   });
 
   // ── Comment button ────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ describe('ReviewCard Component Tests', () => {
       />
     );
 
-    await act(async () => { fireEvent.press(screen.getByText('7')); });
+    await fireEvent.press(screen.getByText('7'));
 
     expect(onComment).toHaveBeenCalledTimes(1);
     expect(onComment).toHaveBeenCalledWith('review-99');
@@ -167,7 +168,7 @@ describe('ReviewCard Component Tests', () => {
 
   test('test_ReviewCard_withoutOnCommentCallback_commentPressDoesNotThrow', async () => {
     await render(<ReviewCard review={makeReview({ likes_count: 60, comments_count: 8 })} />);
-    await expect(act(async () => { fireEvent.press(screen.getByText('8')); })).resolves.toBeUndefined();
+    await expect(fireEvent.press(screen.getByText('8'))).resolves.toBeUndefined();
   });
 
   // ── Prop update ───────────────────────────────────────────────────────────

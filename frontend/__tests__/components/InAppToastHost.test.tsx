@@ -6,6 +6,7 @@
  * Conforms to guidelines/test.md.
  *
  * Note: @testing-library/react-native v14 render() is async.
+ * screen queries are used to reflect the latest render tree.
  */
 
 // ── Module mocks (must precede imports) ────────────────────────────────────
@@ -28,7 +29,7 @@ jest.mock('expo-av', () => ({
   },
 }));
 
-// Provide a minimal Animated mock — parallel's start() immediately invokes its callback
+// Minimal Animated mock — parallel.start() immediately invokes its callback
 // so the animation "completes" synchronously during tests.
 jest.mock('react-native/Libraries/Animated/Animated', () => {
   const ActualAnimated = jest.requireActual('react-native/Libraries/Animated/Animated');
@@ -45,7 +46,7 @@ jest.mock('react-native/Libraries/Animated/Animated', () => {
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { render, act, fireEvent } from '@testing-library/react-native';
+import { render, act, fireEvent, screen } from '@testing-library/react-native';
 import { InAppToastHost, CustomInAppToast } from '../../components/InAppToastHost';
 import { useRootNavigationState, router } from 'expo-router';
 
@@ -56,7 +57,7 @@ import { useRootNavigationState, router } from 'expo-router';
  * flushes state updates so the toast becomes visible.
  */
 async function renderWithToast(overrides: Record<string, unknown> = {}) {
-  const utils = await render(<InAppToastHost />);
+  await render(<InAppToastHost />);
 
   await act(async () => {
     CustomInAppToast.show({
@@ -66,8 +67,6 @@ async function renderWithToast(overrides: Record<string, unknown> = {}) {
       ...overrides,
     });
   });
-
-  return utils;
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -88,49 +87,49 @@ describe('InAppToastHost Component Tests', () => {
   // ── show() ────────────────────────────────────────────────────────────────
 
   test('test_CustomInAppToast_show_displaysToastWithTitleAndMessage', async () => {
-    const { getByText } = await renderWithToast({
+    await renderWithToast({
       title: 'Order Placed',
       message: 'Your order is confirmed.',
     });
 
-    expect(getByText('Order Placed')).toBeTruthy();
-    expect(getByText('Your order is confirmed.')).toBeTruthy();
+    expect(screen.getByText('Order Placed')).toBeTruthy();
+    expect(screen.getByText('Your order is confirmed.')).toBeTruthy();
   });
 
   // ── Toast types ───────────────────────────────────────────────────────────
 
   test('test_InAppToastHost_typeSuccess_rendersSuccessKicker', async () => {
-    const { getByText } = await renderWithToast({ type: 'success', title: 'Done', message: 'OK' });
-    expect(getByText('SUCCESS')).toBeTruthy();
+    await renderWithToast({ type: 'success', title: 'Done', message: 'OK' });
+    expect(screen.getByText('SUCCESS')).toBeTruthy();
   });
 
   test('test_InAppToastHost_typeError_rendersErrorKicker', async () => {
-    const { getByText } = await renderWithToast({ type: 'error', title: 'Oops', message: 'Failed' });
-    expect(getByText('ERROR')).toBeTruthy();
+    await renderWithToast({ type: 'error', title: 'Oops', message: 'Failed' });
+    expect(screen.getByText('ERROR')).toBeTruthy();
   });
 
   test('test_InAppToastHost_typeInfo_rendersInfoKicker', async () => {
-    const { getByText } = await renderWithToast({ type: 'info', title: 'Note', message: 'FYI' });
-    expect(getByText('INFO')).toBeTruthy();
+    await renderWithToast({ type: 'info', title: 'Note', message: 'FYI' });
+    expect(screen.getByText('INFO')).toBeTruthy();
   });
 
   test('test_InAppToastHost_noType_rendersNotificationKicker', async () => {
-    const { getByText } = await renderWithToast({ title: 'Hey', message: 'Listen' });
+    await renderWithToast({ title: 'Hey', message: 'Listen' });
     // When type is omitted the kicker defaults to NOTIFICATION
-    expect(getByText('NOTIFICATION')).toBeTruthy();
+    expect(screen.getByText('NOTIFICATION')).toBeTruthy();
   });
 
   // ── Press / navigate ──────────────────────────────────────────────────────
 
   test('test_InAppToastHost_pressWithOrderId_navigatesToOrderRoute', async () => {
-    const { getByText } = await renderWithToast({
+    await renderWithToast({
       title: 'New Order',
       message: 'Order #42',
       data: { orderId: 42 },
     });
 
     await act(async () => {
-      fireEvent.press(getByText('New Order'));
+      fireEvent.press(screen.getByText('New Order'));
     });
 
     expect(router.push).toHaveBeenCalledWith({
@@ -140,10 +139,10 @@ describe('InAppToastHost Component Tests', () => {
   });
 
   test('test_InAppToastHost_pressWithoutOrderId_navigatesToNotificationsRoute', async () => {
-    const { getByText } = await renderWithToast({ title: 'Hi', message: 'No order' });
+    await renderWithToast({ title: 'Hi', message: 'No order' });
 
     await act(async () => {
-      fireEvent.press(getByText('Hi'));
+      fireEvent.press(screen.getByText('Hi'));
     });
 
     expect(router.push).toHaveBeenCalledWith('/notification');
@@ -151,14 +150,14 @@ describe('InAppToastHost Component Tests', () => {
 
   test('test_InAppToastHost_pressWithCustomOnPress_callsOnPressCallback', async () => {
     const onPress = jest.fn();
-    const { getByText } = await renderWithToast({
+    await renderWithToast({
       title: 'Custom',
       message: 'Tap me',
       onPress,
     });
 
     await act(async () => {
-      fireEvent.press(getByText('Custom'));
+      fireEvent.press(screen.getByText('Custom'));
     });
 
     expect(onPress).toHaveBeenCalledTimes(1);
@@ -171,10 +170,10 @@ describe('InAppToastHost Component Tests', () => {
   test('test_InAppToastHost_navigationNotReady_doesNotNavigate', async () => {
     (useRootNavigationState as jest.Mock).mockReturnValue(null);
 
-    const { getByText } = await renderWithToast({ title: 'Early', message: 'Nav not ready' });
+    await renderWithToast({ title: 'Early', message: 'Nav not ready' });
 
     await act(async () => {
-      fireEvent.press(getByText('Early'));
+      fireEvent.press(screen.getByText('Early'));
     });
 
     expect(router.push).not.toHaveBeenCalled();
@@ -183,7 +182,7 @@ describe('InAppToastHost Component Tests', () => {
   // ── Queue behaviour ───────────────────────────────────────────────────────
 
   test('test_CustomInAppToast_show_multipleToastsQueued_displaysFirstToastFirst', async () => {
-    const { getByText } = await render(<InAppToastHost />);
+    await render(<InAppToastHost />);
 
     await act(async () => {
       CustomInAppToast.show({ type: 'success', title: 'First Toast', message: 'First' });
@@ -191,6 +190,6 @@ describe('InAppToastHost Component Tests', () => {
     });
 
     // Only the first queued toast should be visible at this point
-    expect(getByText('First Toast')).toBeTruthy();
+    expect(screen.getByText('First Toast')).toBeTruthy();
   });
 });
