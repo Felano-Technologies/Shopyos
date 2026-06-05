@@ -7,9 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  # ─────────────────────────────────────────────────────────────────
-  # STAGE 1 — Secrets scan (everything fans out from here)
-  # ─────────────────────────────────────────────────────────────────
+  # ── Step 1 ─────────────────────────────────────────────────────
   secrets-scan:
     name: Secrets & Leaks Scan
     runs-on: ubuntu-latest
@@ -27,11 +25,7 @@ jobs:
       - name: Scan for secrets
         run: gitleaks detect --source . --verbose --redact --config .gitleaks.toml
 
-  # ─────────────────────────────────────────────────────────────────
-  # STAGE 2 — All lint + test jobs run in PARALLEL after secrets-scan
-  # ─────────────────────────────────────────────────────────────────
-
-  # ── 2a. Backend lint ────────────────────────────────────────────
+  # ── Step 2 ─────────────────────────────────────────────────────
   backend-lint:
     name: Lint — Backend
     runs-on: ubuntu-latest
@@ -53,11 +47,11 @@ jobs:
         run: npm run lint
         working-directory: backend
 
-  # ── 2b. Frontend lint ───────────────────────────────────────────
+  # ── Step 3 ─────────────────────────────────────────────────────
   frontend-lint:
     name: Lint — Frontend
     runs-on: ubuntu-latest
-    needs: [secrets-scan]
+    needs: [backend-lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -75,11 +69,11 @@ jobs:
         run: npm run lint
         working-directory: frontend
 
-  # ── 2c. Frontend tests ──────────────────────────────────────────
+  # ── Step 4 ─────────────────────────────────────────────────────
   frontend-test:
     name: Test — Frontend
     runs-on: ubuntu-latest
-    needs: [secrets-scan]
+    needs: [frontend-lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -97,11 +91,11 @@ jobs:
         run: npm test -- --watchAll=false --ci --passWithNoTests
         working-directory: frontend
 
-  # ── 2d. Backend unit tests (no DB/Redis needed) ─────────────────
+  # ── Step 5 ─────────────────────────────────────────────────────
   backend-unit-tests:
     name: Test — Backend Unit
     runs-on: ubuntu-latest
-    needs: [secrets-scan]
+    needs: [frontend-test]
     steps:
       - uses: actions/checkout@v4
 
@@ -120,10 +114,10 @@ jobs:
         working-directory: backend
         env:
           NODE_ENV: test
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-unit-test-secret-only' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ENABLE_LOCAL_SOCKET: "false"
 
-      - name: Upload unit test results
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -131,11 +125,11 @@ jobs:
           path: backend/junit.xml
           if-no-files-found: ignore
 
-  # ── 2e. Backend integration tests (needs postgres + redis) ──────
+  # ── Step 6 ─────────────────────────────────────────────────────
   backend-integration:
     name: Test — Backend Integration
     runs-on: ubuntu-latest
-    needs: [secrets-scan]
+    needs: [backend-unit-tests]
 
     services:
       postgres:
@@ -175,7 +169,7 @@ jobs:
         run: npm ci
         working-directory: backend
 
-      - name: Wait for Postgres to be ready
+      - name: Wait for Postgres
         run: |
           until pg_isready -h localhost -p 5432 -U shopyos; do
             echo "Waiting for postgres..."
@@ -198,13 +192,13 @@ jobs:
           DATABASE_URL: postgresql://shopyos:shopyos_ci_password@localhost:5432/shopyos_test
           PG_SSL: "false"
           REDIS_URL: redis://localhost:6379
-          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-integration-test-secret-only' }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
           ENABLE_LOCAL_SOCKET: "false"
           EMAIL_USERNAME: test@shopyos.local
-          EMAIL_PASSWORD: test-email-password
+          EMAIL_PASSWORD: test-password
           EMAIL_FROM: no-reply@shopyos.local
 
-      - name: Upload integration test results
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -212,18 +206,11 @@ jobs:
           path: backend/junit.xml
           if-no-files-found: ignore
 
-  # ─────────────────────────────────────────────────────────────────
-  # STAGE 3 — Deploy (only on main, only after ALL checks pass)
-  # ─────────────────────────────────────────────────────────────────
+  # ── Step 7 ─────────────────────────────────────────────────────
   deploy:
     name: Deploy → Railway
     runs-on: ubuntu-latest
-    needs:
-      - backend-lint
-      - backend-unit-tests
-      - backend-integration
-      - frontend-lint
-      - frontend-test
+    needs: [backend-integration]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Trigger Railway deployment
