@@ -685,7 +685,7 @@ const searchProducts = async (req, res, next) => {
         store_name: p.stores.store_name,  // keep canonical field name
         name: p.stores.store_name,        // alias for legacy frontend reads
         slug: p.stores.slug,
-        logo_url: p.stores.logo_url,
+        logo_url: toPublicUrl(p.stores.logo_url),
         rating: p.stores.average_rating
       } : null
     }));

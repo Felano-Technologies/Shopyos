@@ -3,6 +3,7 @@
 // (the PostgREST-style query builder strips complex selects to bare *)
 
 const BaseRepository = require('./BaseRepository');
+const { toPublicUrl } = require('../../config/storage');
 const { getPool } = require('../../config/postgres');
 
 class AdminRepository extends BaseRepository {
@@ -465,14 +466,14 @@ class AdminRepository extends BaseRepository {
       full_name:          d.full_name   || 'Unknown',
       email:              d.email       || 'Unknown',
       phone:              d.phone       || 'Unknown',
-      avatar_url:         d.avatar_url,
+      avatar_url:         toPublicUrl(d.avatar_url),
       status:             d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
       verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-      license_image:      d.license_image_url,
-      insurance_image:    d.insurance_doc_url,
-      id_image:           d.national_id_url,
-      vehicle_reg_image:  d.vehicle_reg_url,
-      roadworthy_image:   d.roadworthy_url,
+      license_image:      toPublicUrl(d.license_image_url),
+      insurance_image:    toPublicUrl(d.insurance_doc_url),
+      id_image:           toPublicUrl(d.national_id_url),
+      vehicle_reg_image:  toPublicUrl(d.vehicle_reg_url),
+      roadworthy_image:   toPublicUrl(d.roadworthy_url),
       vehicle_plate:      d.license_plate,
     }));
   }
@@ -508,7 +509,7 @@ class AdminRepository extends BaseRepository {
       user_profiles: {
         full_name:    d.full_name,
         phone:        d.phone,
-        avatar_url:   d.avatar_url,
+        avatar_url:   toPublicUrl(d.avatar_url),
         address_line1: d.address_line1,
         city:         d.city,
         country:      d.country,
@@ -516,11 +517,11 @@ class AdminRepository extends BaseRepository {
       email:              d.email,
       status:             d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
       verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-      license_image:      d.license_image_url,
-      insurance_image:    d.insurance_doc_url,
-      id_image:           d.national_id_url,
-      vehicle_reg_image:  d.vehicle_reg_url,
-      roadworthy_image:   d.roadworthy_url,
+      license_image:      toPublicUrl(d.license_image_url),
+      insurance_image:    toPublicUrl(d.insurance_doc_url),
+      id_image:           toPublicUrl(d.national_id_url),
+      vehicle_reg_image:  toPublicUrl(d.vehicle_reg_url),
+      roadworthy_image:   toPublicUrl(d.roadworthy_url),
       vehicle_plate:      d.license_plate,
     };
   }

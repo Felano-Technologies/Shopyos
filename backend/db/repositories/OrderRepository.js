@@ -2,6 +2,7 @@
 // Data access layer for orders table
 
 const BaseRepository = require('./BaseRepository');
+const { transformImageUrls } = require('../../config/storage');
 
 class OrderRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -81,7 +82,7 @@ class OrderRepository extends BaseRepository {
       throw error;
     }
 
-    return data;
+    return transformImageUrls(data);
   }
 
   /**
@@ -96,7 +97,7 @@ class OrderRepository extends BaseRepository {
     const where = { buyer_id: buyerId };
     if (status) where.status = status;
 
-    return this.findAll({
+    const result = await this.findAll({
       where,
       select: `
         *,
@@ -109,6 +110,7 @@ class OrderRepository extends BaseRepository {
       limit,
       offset
     });
+    return transformImageUrls(result);
   }
 
   /**

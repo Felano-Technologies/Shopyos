@@ -2,6 +2,7 @@
 // Repository for managing promoted products (advertising system)
 
 const BaseRepository = require('./BaseRepository');
+const { transformImageUrls } = require('../../config/storage');
 
 class PromotedProductRepository extends BaseRepository {
   constructor(supabase) {
@@ -80,7 +81,7 @@ class PromotedProductRepository extends BaseRepository {
       results = results.filter(p => parseFloat(p.product.price) <= maxPrice);
     }
 
-    return results;
+    return transformImageUrls(results);
   }
 
   /**
@@ -127,7 +128,7 @@ class PromotedProductRepository extends BaseRepository {
       .single();
 
     if (error) throw error;
-    return data;
+    return transformImageUrls(data);
   }
 
   /**
