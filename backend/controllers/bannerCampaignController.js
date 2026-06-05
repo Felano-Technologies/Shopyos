@@ -1,6 +1,5 @@
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary } = require('../utils/uploadHelpers');
-const { logger } = require('../config/logger');
 const { toPublicUrl } = require('../config/storage');
 
 const formatBanners = (obj) => {

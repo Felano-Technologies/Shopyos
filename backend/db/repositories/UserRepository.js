@@ -205,7 +205,7 @@ class UserRepository extends BaseRepository {
     }
 
     // Remove password_hash from response
-    const { password_hash, ...userWithoutPassword } = data;
+    const { password_hash: _password_hash, ...userWithoutPassword } = data;
     return userWithoutPassword;
   }
 
@@ -233,7 +233,7 @@ class UserRepository extends BaseRepository {
       throw error;
     }
 
-    const { password_hash, ...userWithoutPassword } = data;
+    const { password_hash: _password_hash, ...userWithoutPassword } = data;
     return userWithoutPassword;
   }
 

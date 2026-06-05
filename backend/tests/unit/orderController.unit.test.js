@@ -71,9 +71,9 @@ jest.mock('../../db/repositories', () => ({
 }));
 
 const repositories = require('../../db/repositories');
-const notificationService = require('../../services/notificationService');
+const _notificationService = require('../../services/notificationService');
 const distanceUtil = require('../../utils/distance');
-const rabbitMQService = require('../../services/rabbitmq');
+const _rabbitMQService = require('../../services/rabbitmq');
 
 const {
   createOrder,

@@ -75,7 +75,7 @@ const badge = (text, color = '#1a47b8') =>
 // ─────────────────────────────────────────────────────────────────────────────
 //  WELCOME
 // ─────────────────────────────────────────────────────────────────────────────
-const getWelcomeTemplates = (role, name, phone) => {
+const getWelcomeTemplates = (role, name, _phone) => {
     const displayName = safe(name, 'there');
     const commonSms = `Welcome to Shopyos, ${displayName}! Your account is ready.`;
 

@@ -1,6 +1,5 @@
 // controllers/paymentMethodController.js
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 
 const getPaymentMethods = async (req, res, next) => {
     try {

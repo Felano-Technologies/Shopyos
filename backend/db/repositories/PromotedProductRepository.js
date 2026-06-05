@@ -91,7 +91,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Array>} Store campaigns
    */
   async getStoreCampaigns(storeId, options = {}) {
-    const { status, limit = 20, offset = 0 } = options;
+    const { status: _status, limit = 20, offset = 0 } = options;
 
     let query = this.db
       .from(this.tableName)

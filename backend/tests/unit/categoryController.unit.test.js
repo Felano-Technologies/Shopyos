@@ -37,7 +37,7 @@ jest.mock('../../db/repositories', () => ({
   },
 }));
 
-const repositories = require('../../db/repositories');
+const _repositories = require('../../db/repositories');
 const cacheInvalidation = require('../../config/cacheInvalidation');
 const categoryController = require('../../controllers/categoryController');
 

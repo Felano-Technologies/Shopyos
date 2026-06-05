@@ -265,7 +265,7 @@ const refreshAccessToken = async (req, res, next) => {
   }
 };
 
-const logout = async (req, res, next) => {
+const logout = async (req, res, _next) => {
   try {
     // Blacklist the access token in Redis for its remaining lifetime
     const authHeader = req.headers.authorization;

@@ -76,15 +76,15 @@ const {
   createStoreReview,
   createDriverReview,
   getProductReviews,
-  getStoreReviews,
-  getDriverReviews,
+  _getStoreReviews,
+  _getDriverReviews,
   updateProductReview,
   deleteReview,
   getMyReviews,
   getReviewableProducts,
-  likeReview,
-  getReviewComments,
-  createReviewComment,
+  _likeReview,
+  _getReviewComments,
+  _createReviewComment,
 } = require('../../controllers/reviewController');
 
 function mockReq(overrides = {}) {

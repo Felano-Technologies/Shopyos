@@ -25,7 +25,7 @@ jest.mock('../../config/logger', () => ({
 const {
   validateRegister,
   validateLogin,
-  validateCreateProduct,
+  _validateCreateProduct,
   validateSearch,
   validateAddToCart,
 } = require('../../middleware/validators');
@@ -38,7 +38,7 @@ function buildApp(validators, method = 'post') {
   app[method]('/test', ...validators, (req, res) => {
     res.status(200).json({ ok: true });
   });
-  app.use((err, req, res, next) => {
+  app.use((err, req, res, _next) => {
     const status = err.name === 'ValidationError' ? 422 : 500;
     res.status(status).json({ error: err.message });
   });

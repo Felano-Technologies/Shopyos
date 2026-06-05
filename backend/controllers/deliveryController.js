@@ -1,9 +1,7 @@
 // controllers/deliveryController.js
 // Delivery tracking and management controller
 
-const crypto = require('crypto');
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
 
@@ -302,7 +300,7 @@ const updateDeliveryStatus = async (req, res, next) => {
 
     // Get order and driver details for notifications
     const order = await repositories.orders.findById(updatedDelivery.order_id);
-    const driver = await repositories.users.findById(driverId);
+    const _driver = await repositories.users.findById(driverId);
 
     // Update order status based on delivery status
     if (status === 'picked_up') {

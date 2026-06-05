@@ -340,7 +340,7 @@ class DeliveryRepository extends BaseRepository {
    * @param {string} reason
    * @returns {Promise<Object>}
    */
-  async cancelDelivery(deliveryId, reason) {
+  async cancelDelivery(deliveryId, _reason) {
     return this.update(deliveryId, {
       status: 'cancelled'
     });

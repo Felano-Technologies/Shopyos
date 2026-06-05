@@ -1,4 +1,4 @@
-const { body, query, param } = require('express-validator');
+const { body, query } = require('express-validator');
 const { validateRequest } = require('./validateRequest');
 
 // Local executeValidation is now replaced by centralized validateRequest

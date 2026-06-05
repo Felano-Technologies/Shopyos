@@ -1,6 +1,6 @@
 const winston = require('winston');
 
-const { combine, timestamp, printf, colorize, json, errors } = winston.format;
+const { combine, timestamp, printf, colorize, errors } = winston.format;
 const LOG_LEVEL = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'http' : 'debug');
 
 const devFormat = combine(

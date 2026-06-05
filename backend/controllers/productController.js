@@ -1,7 +1,6 @@
 const repositories = require('../db/repositories');
 const { toPublicUrl } = require('../config/storage');
 const {
-  uploadFileToCloudinary,
   uploadMultipleFilesToCloudinary,
   deleteImage,
   extractPublicId

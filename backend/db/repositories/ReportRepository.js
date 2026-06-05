@@ -203,7 +203,7 @@ class ReportRepository extends BaseRepository {
    * @returns {Promise<boolean>} Whether report exists
    */
   async hasUserReported(reporterId, reportedId, reportedType) {
-    const { data, error } = await this.db
+    const { data, error: _error } = await this.db
       .from(this.tableName)
       .select('id')
       .eq('reporter_id', reporterId)

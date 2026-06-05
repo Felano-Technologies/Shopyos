@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect, hasAnyRole } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
-const { cacheMiddleware, productCacheKey, hashParams } = require('../middleware/cache');
+const { cacheMiddleware, productCacheKey } = require('../middleware/cache');
 const {
   createProduct, getStoreProducts, getProductById,
   updateProduct, deleteProduct, uploadProductImages,
