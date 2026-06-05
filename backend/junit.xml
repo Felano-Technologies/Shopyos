@@ -1,0 +1,489 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="204" failures="8" errors="0" time="19.043">
+  <testsuite name="ProductController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:51" time="4.713" tests="22">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" time="0.177">
+    </testcase>
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingName_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingName_returns400BadRequest" time="0.003">
+    </testcase>
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingPrice_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingPrice_returns400BadRequest" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_storeNotFound_returns404NotFound" name="ProductController Unit Tests createProduct test_createProduct_storeNotFound_returns404NotFound" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests createProduct test_createProduct_notAuthorizedOwner_returns403Forbidden" time="0.032">
+    </testcase>
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_validInput_createsProductAndReturns201Created" name="ProductController Unit Tests createProduct test_createProduct_validInput_createsProductAndReturns201Created" time="0.004">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_invalidUuid_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_invalidUuid_returns404NotFound" time="0.012">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_productDoesNotExist_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_productDoesNotExist_returns404NotFound" time="0.003">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_storeNotVerified_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_storeNotVerified_returns404NotFound" time="0.001">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_verifiedStoreProduct_returns200AndProductDetails" name="ProductController Unit Tests getProductById test_getProductById_verifiedStoreProduct_returns200AndProductDetails" time="0.016">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotFound_returns200AndEmptyArray" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotFound_returns200AndEmptyArray" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotVerified_returns200AndEmptyArray" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotVerified_returns200AndEmptyArray" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_verifiedStore_returnsProductsList" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_verifiedStore_returnsProductsList" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_productNotFound_returns404NotFound" name="ProductController Unit Tests updateProduct test_updateProduct_productNotFound_returns404NotFound" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests updateProduct test_updateProduct_notAuthorizedOwner_returns403Forbidden" time="0.001">
+    </testcase>
+    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_authorizedOwner_updatesAndReturns200Success" name="ProductController Unit Tests updateProduct test_updateProduct_authorizedOwner_updatesAndReturns200Success" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_productNotFound_returns404NotFound" name="ProductController Unit Tests deleteProduct test_deleteProduct_productNotFound_returns404NotFound" time="0.001">
+    </testcase>
+    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests deleteProduct test_deleteProduct_notAuthorizedOwner_returns403Forbidden" time="0.001">
+    </testcase>
+    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_authorizedOwner_deletesAndReturns200Success" name="ProductController Unit Tests deleteProduct test_deleteProduct_authorizedOwner_deletesAndReturns200Success" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_validQuery_returns200AndPaginatedResults" name="ProductController Unit Tests searchProducts test_searchProducts_validQuery_returns200AndPaginatedResults" time="0.002">
+    </testcase>
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_noMatchesFound_returns200AndEmptyArray" name="ProductController Unit Tests searchProducts test_searchProducts_noMatchesFound_returns200AndEmptyArray" time="0.001">
+    </testcase>
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_sortByPriceAsc_returns200AndSortedResults" name="ProductController Unit Tests searchProducts test_searchProducts_sortByPriceAsc_returns200AndSortedResults" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="errorHandler and notFoundHandler Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:51" time="5.055" tests="6">
+    <testcase classname="errorHandler and notFoundHandler Unit Tests test_notFoundHandler_anyRequest_respondsWith404NotFound" name="errorHandler and notFoundHandler Unit Tests test_notFoundHandler_anyRequest_respondsWith404NotFound" time="0.046">
+    </testcase>
+    <testcase classname="errorHandler and notFoundHandler Unit Tests test_notFoundHandler_missingPath_includesRequestedPathInResponseBody" name="errorHandler and notFoundHandler Unit Tests test_notFoundHandler_missingPath_includesRequestedPathInResponseBody" time="0.002">
+    </testcase>
+    <testcase classname="errorHandler and notFoundHandler Unit Tests test_errorHandler_customErrorStatus_usesErrorStatusInResponse" name="errorHandler and notFoundHandler Unit Tests test_errorHandler_customErrorStatus_usesErrorStatusInResponse" time="0.528">
+    </testcase>
+    <testcase classname="errorHandler and notFoundHandler Unit Tests test_errorHandler_noErrorStatus_defaultsTo500InternalServerError" name="errorHandler and notFoundHandler Unit Tests test_errorHandler_noErrorStatus_defaultsTo500InternalServerError" time="0.104">
+    </testcase>
+    <testcase classname="errorHandler and notFoundHandler Unit Tests test_errorHandler_anyError_returnsJsonResponseBody" name="errorHandler and notFoundHandler Unit Tests test_errorHandler_anyError_returnsJsonResponseBody" time="0.011">
+    </testcase>
+    <testcase classname="errorHandler and notFoundHandler Unit Tests test_errorHandler_withErrorMessage_includesErrorMessageInResponsePayload" name="errorHandler and notFoundHandler Unit Tests test_errorHandler_withErrorMessage_includesErrorMessageInResponsePayload" time="0.008">
+    </testcase>
+  </testsuite>
+  <testsuite name="OrderController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:51" time="4.925" tests="20">
+    <testcase classname="OrderController Unit Tests createOrder test_createOrder_missingDeliveryAddress_returns400BadRequest" name="OrderController Unit Tests createOrder test_createOrder_missingDeliveryAddress_returns400BadRequest" time="0.094">
+    </testcase>
+    <testcase classname="OrderController Unit Tests createOrder test_createOrder_emptyCart_returns400BadRequest" name="OrderController Unit Tests createOrder test_createOrder_emptyCart_returns400BadRequest" time="0.003">
+    </testcase>
+    <testcase classname="OrderController Unit Tests createOrder test_createOrder_storeOutOfRange_returns400BadRequest" name="OrderController Unit Tests createOrder test_createOrder_storeOutOfRange_returns400BadRequest" time="0.007">
+    </testcase>
+    <testcase classname="OrderController Unit Tests createOrder test_createOrder_validCartAndParams_createsOrderAndClearsCart" name="OrderController Unit Tests createOrder test_createOrder_validCartAndParams_createsOrderAndClearsCart" time="0.014">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getMyOrders test_getMyOrders_validQuery_returnsPaginatedBuyerOrders" name="OrderController Unit Tests getMyOrders test_getMyOrders_validQuery_returnsPaginatedBuyerOrders" time="0.004">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getStoreOrders test_getStoreOrders_storeNotFound_returns404NotFound" name="OrderController Unit Tests getStoreOrders test_getStoreOrders_storeNotFound_returns404NotFound" time="0.003">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getStoreOrders test_getStoreOrders_notAuthorizedSeller_returns403Forbidden" name="OrderController Unit Tests getStoreOrders test_getStoreOrders_notAuthorizedSeller_returns403Forbidden" time="0.003">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getStoreOrders test_getStoreOrders_authorizedSeller_returnsStoreOrders" name="OrderController Unit Tests getStoreOrders test_getStoreOrders_authorizedSeller_returnsStoreOrders" time="0.003">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getOrderDetails test_getOrderDetails_orderNotFound_returns404NotFound" name="OrderController Unit Tests getOrderDetails test_getOrderDetails_orderNotFound_returns404NotFound" time="0.001">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getOrderDetails test_getOrderDetails_notAuthorizedUser_returns403Forbidden" name="OrderController Unit Tests getOrderDetails test_getOrderDetails_notAuthorizedUser_returns403Forbidden" time="0.003">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getOrderDetails test_getOrderDetails_authorizedBuyer_returnsOrderDetails" name="OrderController Unit Tests getOrderDetails test_getOrderDetails_authorizedBuyer_returnsOrderDetails" time="0.001">
+    </testcase>
+    <testcase classname="OrderController Unit Tests updateOrderStatus test_updateOrderStatus_invalidStatus_returns400BadRequest" name="OrderController Unit Tests updateOrderStatus test_updateOrderStatus_invalidStatus_returns400BadRequest" time="0.002">
+    </testcase>
+    <testcase classname="OrderController Unit Tests updateOrderStatus test_updateOrderStatus_orderNotFound_returns404NotFound" name="OrderController Unit Tests updateOrderStatus test_updateOrderStatus_orderNotFound_returns404NotFound" time="0.002">
+    </testcase>
+    <testcase classname="OrderController Unit Tests updateOrderStatus test_updateOrderStatus_sellerSetsForbiddenStatus_returns403Forbidden" name="OrderController Unit Tests updateOrderStatus test_updateOrderStatus_sellerSetsForbiddenStatus_returns403Forbidden" time="0.004">
+    </testcase>
+    <testcase classname="OrderController Unit Tests cancelOrder test_cancelOrder_buyerCancelsNonPendingOrder_returns400BadRequest" name="OrderController Unit Tests cancelOrder test_cancelOrder_buyerCancelsNonPendingOrder_returns400BadRequest" time="0.001">
+    </testcase>
+    <testcase classname="OrderController Unit Tests cancelOrder test_cancelOrder_authorizedBuyerCancelsPendingOrder_cancelsSuccessfully" name="OrderController Unit Tests cancelOrder test_cancelOrder_authorizedBuyerCancelsPendingOrder_cancelsSuccessfully" time="0.001">
+    </testcase>
+    <testcase classname="OrderController Unit Tests getOrderByNumber test_getOrderByNumber_existingOrder_returnsOrderDetails" name="OrderController Unit Tests getOrderByNumber test_getOrderByNumber_existingOrder_returnsOrderDetails" time="0.002">
+    </testcase>
+    <testcase classname="OrderController Unit Tests verifyPayment test_verifyPayment_productionEnvironment_returns404NotFound" name="OrderController Unit Tests verifyPayment test_verifyPayment_productionEnvironment_returns404NotFound" time="0.001">
+    </testcase>
+    <testcase classname="OrderController Unit Tests verifyPayment test_verifyPayment_devEnvironmentValidCall_updatesStatusToPaid" name="OrderController Unit Tests verifyPayment test_verifyPayment_devEnvironmentValidCall_updatesStatusToPaid" time="0.003">
+    </testcase>
+    <testcase classname="OrderController Unit Tests confirmDelivery test_confirmDelivery_validRequest_callsRpcAndReleasesEscrow" name="OrderController Unit Tests confirmDelivery test_confirmDelivery_validRequest_callsRpcAndReleasesEscrow" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="Auth Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:57" time="1.324" tests="14">
+    <testcase classname="Auth Unit Tests test_generateAccessToken_validUserId_returnsNonEmptyString" name="Auth Unit Tests test_generateAccessToken_validUserId_returnsNonEmptyString" time="0.035">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_generateAccessToken_validUserId_producesValidVerifiableJWT" name="Auth Unit Tests test_generateAccessToken_validUserId_producesValidVerifiableJWT" time="0.012">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_generateAccessToken_validUserId_containsIdAndSubInPayload" name="Auth Unit Tests test_generateAccessToken_validUserId_containsIdAndSubInPayload" time="0.002">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_generateAccessToken_validUserId_setsAccessTypeInPayload" name="Auth Unit Tests test_generateAccessToken_validUserId_setsAccessTypeInPayload" time="0.004">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_generateAccessToken_validUserId_setsAuthenticatedRoleInPayload" name="Auth Unit Tests test_generateAccessToken_validUserId_setsAuthenticatedRoleInPayload" time="0.006">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_generateAccessToken_validUserId_setsValidFutureExpirationClaim" name="Auth Unit Tests test_generateAccessToken_validUserId_setsValidFutureExpirationClaim" time="0.002">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_generateAccessToken_differentUserIds_producesDifferentUniqueTokens" name="Auth Unit Tests test_generateAccessToken_differentUserIds_producesDifferentUniqueTokens" time="0.002">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_sanitizePhone_nullOrUndefined_returnsAsIs" name="Auth Unit Tests test_sanitizePhone_nullOrUndefined_returnsAsIs" time="0.002">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_sanitizePhone_duplicatePlusSigns_stripsToSinglePlusPrefix" name="Auth Unit Tests test_sanitizePhone_duplicatePlusSigns_stripsToSinglePlusPrefix" time="0.002">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_sanitizePhone_surroundingWhitespace_trimsSuccessfully" name="Auth Unit Tests test_sanitizePhone_surroundingWhitespace_trimsSuccessfully" time="0.001">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_sanitizePhone_cleanPhone_returnsUnchanged" name="Auth Unit Tests test_sanitizePhone_cleanPhone_returnsUnchanged" time="0.002">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_sanitizePhone_noPlusPrefix_returnsUnchanged" name="Auth Unit Tests test_sanitizePhone_noPlusPrefix_returnsUnchanged" time="0">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_verifyToken_wrongSecretSignature_throwsVerificationError" name="Auth Unit Tests test_verifyToken_wrongSecretSignature_throwsVerificationError" time="0.1">
+    </testcase>
+    <testcase classname="Auth Unit Tests test_verifyToken_malformedTokenString_throwsVerificationError" name="Auth Unit Tests test_verifyToken_malformedTokenString_throwsVerificationError" time="0.016">
+    </testcase>
+  </testsuite>
+  <testsuite name="Middleware Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:58" time="1.388" tests="16">
+    <testcase classname="Middleware Unit Tests protect test_protect_missingAuthorizationHeader_returns401Unauthorized" name="Middleware Unit Tests protect test_protect_missingAuthorizationHeader_returns401Unauthorized" time="0.004">
+    </testcase>
+    <testcase classname="Middleware Unit Tests protect test_protect_invalidAuthorizationScheme_returns401Unauthorized" name="Middleware Unit Tests protect test_protect_invalidAuthorizationScheme_returns401Unauthorized" time="0.003">
+    </testcase>
+    <testcase classname="Middleware Unit Tests protect test_protect_blacklistedToken_returns401UnauthorizedWithRevokedError" name="Middleware Unit Tests protect test_protect_blacklistedToken_returns401UnauthorizedWithRevokedError" time="0.023">
+    </testcase>
+    <testcase classname="Middleware Unit Tests protect test_protect_malformedTokenString_returns401Unauthorized" name="Middleware Unit Tests protect test_protect_malformedTokenString_returns401Unauthorized" time="0.002">
+    </testcase>
+    <testcase classname="Middleware Unit Tests protect test_protect_validTokenAndExistingUser_callsNextAndSetsReqUser" name="Middleware Unit Tests protect test_protect_validTokenAndExistingUser_callsNextAndSetsReqUser" time="0.008">
+    </testcase>
+    <testcase classname="Middleware Unit Tests protect test_protect_userNotFoundInDb_returns401Unauthorized" name="Middleware Unit Tests protect test_protect_userNotFoundInDb_returns401Unauthorized" time="0.003">
+    </testcase>
+    <testcase classname="Middleware Unit Tests protect test_protect_accountDeactivated_returns401UnauthorizedWithDeactivatedError" name="Middleware Unit Tests protect test_protect_accountDeactivated_returns401UnauthorizedWithDeactivatedError" time="0.033">
+    </testcase>
+    <testcase classname="Middleware Unit Tests admin role guard test_adminGuard_missingReqUser_returns401Unauthorized" name="Middleware Unit Tests admin role guard test_adminGuard_missingReqUser_returns401Unauthorized" time="0.034">
+    </testcase>
+    <testcase classname="Middleware Unit Tests admin role guard test_adminGuard_userNotAdmin_returns403Forbidden" name="Middleware Unit Tests admin role guard test_adminGuard_userNotAdmin_returns403Forbidden" time="0.005">
+    </testcase>
+    <testcase classname="Middleware Unit Tests admin role guard test_adminGuard_userIsAdmin_callsNextSuccessful" name="Middleware Unit Tests admin role guard test_adminGuard_userIsAdmin_callsNextSuccessful" time="0.001">
+    </testcase>
+    <testcase classname="Middleware Unit Tests seller role guard test_sellerGuard_userIsSeller_callsNextSuccessful" name="Middleware Unit Tests seller role guard test_sellerGuard_userIsSeller_callsNextSuccessful" time="0.001">
+    </testcase>
+    <testcase classname="Middleware Unit Tests seller role guard test_sellerGuard_userNotSeller_returns403Forbidden" name="Middleware Unit Tests seller role guard test_sellerGuard_userNotSeller_returns403Forbidden" time="0.007">
+    </testcase>
+    <testcase classname="Middleware Unit Tests hasAnyRole test_hasAnyRole_userLacksAllRequiredRoles_returns403Forbidden" name="Middleware Unit Tests hasAnyRole test_hasAnyRole_userLacksAllRequiredRoles_returns403Forbidden" time="0.009">
+    </testcase>
+    <testcase classname="Middleware Unit Tests hasAnyRole test_hasAnyRole_userHasAtLeastOneRequiredRole_callsNextSuccessful" name="Middleware Unit Tests hasAnyRole test_hasAnyRole_userHasAtLeastOneRequiredRole_callsNextSuccessful" time="0.008">
+    </testcase>
+    <testcase classname="Middleware Unit Tests hasAnyRole test_hasAnyRole_userHasAllRequiredRoles_callsNextSuccessful" name="Middleware Unit Tests hasAnyRole test_hasAnyRole_userHasAllRequiredRoles_callsNextSuccessful" time="0.002">
+    </testcase>
+    <testcase classname="Middleware Unit Tests hasAnyRole test_hasAnyRole_missingReqUser_returns401Unauthorized" name="Middleware Unit Tests hasAnyRole test_hasAnyRole_missingReqUser_returns401Unauthorized" time="0.009">
+    </testcase>
+  </testsuite>
+  <testsuite name="Templates Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:59" time="0.817" tests="13">
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_buyerRole_returnsCorrectEmailSubject" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_buyerRole_returnsCorrectEmailSubject" time="0.005">
+    </testcase>
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_buyerRole_returnsEmailHtmlWithUserName" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_buyerRole_returnsEmailHtmlWithUserName" time="0.002">
+    </testcase>
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_buyerRole_returnsSmsWithUserName" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_buyerRole_returnsSmsWithUserName" time="0.002">
+    </testcase>
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_sellerRole_returnsCorrectEmailSubject" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_sellerRole_returnsCorrectEmailSubject" time="0.002">
+    </testcase>
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_sellerRole_returnsSmsMentioningListingProducts" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_sellerRole_returnsSmsMentioningListingProducts" time="0.002">
+    </testcase>
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_driverRole_returnsCorrectEmailSubject" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_driverRole_returnsCorrectEmailSubject" time="0.003">
+    </testcase>
+    <testcase classname="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_driverRole_returnsSmsWithDriverName" name="Templates Unit Tests getWelcomeTemplates test_getWelcomeTemplates_driverRole_returnsSmsWithDriverName" time="0.001">
+    </testcase>
+    <testcase classname="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsEmailHtmlWithOrderAmount" name="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsEmailHtmlWithOrderAmount" time="0.003">
+    </testcase>
+    <testcase classname="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsEmailHtmlWithOrderId" name="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsEmailHtmlWithOrderId" time="0.001">
+    </testcase>
+    <testcase classname="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsSmsWithOrderId" name="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsSmsWithOrderId" time="0.001">
+    </testcase>
+    <testcase classname="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsSmsWithAmount" name="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_buyerRole_returnsSmsWithAmount" time="0.001">
+    </testcase>
+    <testcase classname="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_sellerRole_returnsEmailHtmlWithOrderId" name="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_sellerRole_returnsEmailHtmlWithOrderId" time="0.001">
+    </testcase>
+    <testcase classname="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_sellerRole_returnsEmailSubject" name="Templates Unit Tests getOrderCreatedTemplates test_getOrderCreatedTemplates_sellerRole_returnsEmailSubject" time="0.001">
+    </testcase>
+  </testsuite>
+  <testsuite name="CategoryController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:58" time="1.067" tests="15">
+    <testcase classname="CategoryController Unit Tests test_getAll_validCategoriesAndCounts_returnsSortedCategoriesWithCounts" name="CategoryController Unit Tests test_getAll_validCategoriesAndCounts_returnsSortedCategoriesWithCounts" time="0.087">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_getAll_databaseSelectFails_returns500ServerError" name="CategoryController Unit Tests test_getAll_databaseSelectFails_returns500ServerError" time="0.009">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_getAll_databaseRpcFails_returns500ServerError" name="CategoryController Unit Tests test_getAll_databaseRpcFails_returns500ServerError" time="0.055">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_create_missingCategoryName_returns400BadRequest" name="CategoryController Unit Tests test_create_missingCategoryName_returns400BadRequest" time="0.009">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_create_categoryNameAlreadyExists_returns400BadRequest" name="CategoryController Unit Tests test_create_categoryNameAlreadyExists_returns400BadRequest" time="0.006">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_create_validInput_createsCategoryAndInvalidatesCache" name="CategoryController Unit Tests test_create_validInput_createsCategoryAndInvalidatesCache" time="0.006">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_create_dbInsertFails_callsNextWithError" name="CategoryController Unit Tests test_create_dbInsertFails_callsNextWithError" time="0.008">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_update_categoryNotFound_returns404NotFound" name="CategoryController Unit Tests test_update_categoryNotFound_returns404NotFound" time="0.008">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_update_validInputs_updatesCategoryAndUpdatesProductCategoryReferences" name="CategoryController Unit Tests test_update_validInputs_updatesCategoryAndUpdatesProductCategoryReferences" time="0.004">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_update_dbUpdateFails_callsNextWithError" name="CategoryController Unit Tests test_update_dbUpdateFails_callsNextWithError" time="0.006">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_delete_categoryNotFound_returns404NotFound" name="CategoryController Unit Tests test_delete_categoryNotFound_returns404NotFound" time="0.004">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_delete_categoryHasProductsNoForce_returns400Rejection" name="CategoryController Unit Tests test_delete_categoryHasProductsNoForce_returns400Rejection" time="0.008">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_delete_categoryHasNoProducts_deletesCategorySuccessfully" name="CategoryController Unit Tests test_delete_categoryHasNoProducts_deletesCategorySuccessfully" time="0.002">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_delete_categoryHasProductsAndForceTrue_deletesCategorySuccessfully" name="CategoryController Unit Tests test_delete_categoryHasProductsAndForceTrue_deletesCategorySuccessfully" time="0.004">
+    </testcase>
+    <testcase classname="CategoryController Unit Tests test_delete_dbDeleteFails_callsNextWithError" name="CategoryController Unit Tests test_delete_dbDeleteFails_callsNextWithError" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="ReviewController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:06:00" time="0.561" tests="12">
+    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_missingRating_returns400BadRequest" name="ReviewController Unit Tests createProductReview test_createProductReview_missingRating_returns400BadRequest" time="0.005">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_invalidRatingRange_returns400BadRequest" name="ReviewController Unit Tests createProductReview test_createProductReview_invalidRatingRange_returns400BadRequest" time="0.001">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_alreadyReviewed_returns400BadRequest" name="ReviewController Unit Tests createProductReview test_createProductReview_alreadyReviewed_returns400BadRequest" time="0.001">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_notPurchasedProduct_returns403Forbidden" name="ReviewController Unit Tests createProductReview test_createProductReview_notPurchasedProduct_returns403Forbidden" time="0.002">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_validPurchaseAndInput_createsReviewAndInvalidatesCache" name="ReviewController Unit Tests createProductReview test_createProductReview_validPurchaseAndInput_createsReviewAndInvalidatesCache" time="0.004">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests createStoreReview test_createStoreReview_validInput_createsStoreReviewSuccessfully" name="ReviewController Unit Tests createStoreReview test_createStoreReview_validInput_createsStoreReviewSuccessfully" time="0.003">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests createDriverReview test_createDriverReview_validInput_createsDriverReviewSuccessfully" name="ReviewController Unit Tests createDriverReview test_createDriverReview_validInput_createsDriverReviewSuccessfully" time="0.004">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests getProductReviews test_getProductReviews_validProductId_returnsMappedReviewsAndStats" name="ReviewController Unit Tests getProductReviews test_getProductReviews_validProductId_returnsMappedReviewsAndStats" time="0.011">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests updateProductReview test_updateProductReview_notAuthorizedOwner_returns403Forbidden" name="ReviewController Unit Tests updateProductReview test_updateProductReview_notAuthorizedOwner_returns403Forbidden" time="0.003">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests deleteReview test_deleteReview_authorizedOwner_deletesSuccessfully" name="ReviewController Unit Tests deleteReview test_deleteReview_authorizedOwner_deletesSuccessfully" time="0.003">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests getMyReviews test_getMyReviews_validType_returnsPaginatedUserReviews" name="ReviewController Unit Tests getMyReviews test_getMyReviews_validType_returnsPaginatedUserReviews" time="0.002">
+    </testcase>
+    <testcase classname="ReviewController Unit Tests getReviewableProducts test_getReviewableProducts_validCall_returnsProductsList" name="ReviewController Unit Tests getReviewableProducts test_getReviewableProducts_validCall_returnsProductsList" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="CartController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:06:00" time="0.513" tests="14">
+    <testcase classname="CartController Unit Tests test_addToCart_missingProductId_returns400BadRequest" name="CartController Unit Tests test_addToCart_missingProductId_returns400BadRequest" time="0.011">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_addToCart_quantityLessThanOne_returns400BadRequest" name="CartController Unit Tests test_addToCart_quantityLessThanOne_returns400BadRequest" time="0.004">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_addToCart_productNotFound_returns404NotFound" name="CartController Unit Tests test_addToCart_productNotFound_returns404NotFound" time="0.004">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_addToCart_insufficientStock_returns400WithAvailableCount" name="CartController Unit Tests test_addToCart_insufficientStock_returns400WithAvailableCount" time="0.002">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_addToCart_validInput_addsItemAndReturnsCartDetails" name="CartController Unit Tests test_addToCart_validInput_addsItemAndReturnsCartDetails" time="0.016">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_getCart_emptyCart_returnsEmptyDetailsAndZeroTotals" name="CartController Unit Tests test_getCart_emptyCart_returnsEmptyDetailsAndZeroTotals" time="0.013">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_getCart_validCart_returnsCartAndComputedTotals" name="CartController Unit Tests test_getCart_validCart_returnsCartAndComputedTotals" time="0.013">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_updateCartItem_invalidQuantity_returns400BadRequest" name="CartController Unit Tests test_updateCartItem_invalidQuantity_returns400BadRequest" time="0.007">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_updateCartItem_notAuthorizedOwner_returns403Forbidden" name="CartController Unit Tests test_updateCartItem_notAuthorizedOwner_returns403Forbidden" time="0.009">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_updateCartItem_validInput_updatesQuantityAndReturnsUpdatedCart" name="CartController Unit Tests test_updateCartItem_validInput_updatesQuantityAndReturnsUpdatedCart" time="0.008">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_removeFromCart_notAuthorizedOwner_returns403Forbidden" name="CartController Unit Tests test_removeFromCart_notAuthorizedOwner_returns403Forbidden" time="0.01">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_removeFromCart_validInput_removesItemAndReturnsUpdatedCart" name="CartController Unit Tests test_removeFromCart_validInput_removesItemAndReturnsUpdatedCart" time="0.003">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_clearCart_validUser_clearsCartAndReturnsZeroTotals" name="CartController Unit Tests test_clearCart_validUser_clearsCartAndReturnsZeroTotals" time="0.005">
+    </testcase>
+    <testcase classname="CartController Unit Tests test_getCartItemCount_validUser_returnsItemCount" name="CartController Unit Tests test_getCartItemCount_validUser_returnsItemCount" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="NotificationController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:06:01" time="0.662" tests="13">
+    <testcase classname="NotificationController Unit Tests test_getNotifications_validInput_returnsNotificationsAndUnreadCount" name="NotificationController Unit Tests test_getNotifications_validInput_returnsNotificationsAndUnreadCount" time="0.02">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_getUnreadCount_validUser_returnsUnreadCountValue" name="NotificationController Unit Tests test_getUnreadCount_validUser_returnsUnreadCountValue" time="0.026">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_markAsRead_validInput_marksNotificationRead" name="NotificationController Unit Tests test_markAsRead_validInput_marksNotificationRead" time="0.013">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_markAllAsRead_validUser_marksAllNotificationsRead" name="NotificationController Unit Tests test_markAllAsRead_validUser_marksAllNotificationsRead" time="0.001">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_deleteNotification_validInput_deletesNotification" name="NotificationController Unit Tests test_deleteNotification_validInput_deletesNotification" time="0.012">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_deleteAllNotifications_validUser_deletesAllNotifications" name="NotificationController Unit Tests test_deleteAllNotifications_validUser_deletesAllNotifications" time="0.013">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_getPreferences_validUser_returnsPreferences" name="NotificationController Unit Tests test_getPreferences_validUser_returnsPreferences" time="0.021">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_updatePreferences_noValidFields_returns400BadRequest" name="NotificationController Unit Tests test_updatePreferences_noValidFields_returns400BadRequest" time="0.026">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_updatePreferences_validFields_updatesAndReturnsUpdatedPreferences" name="NotificationController Unit Tests test_updatePreferences_validFields_updatesAndReturnsUpdatedPreferences" time="0.011">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_getNotificationsByType_validInput_returnsTypedNotifications" name="NotificationController Unit Tests test_getNotificationsByType_validInput_returnsTypedNotifications" time="0.002">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_registerPushToken_missingToken_returns400BadRequest" name="NotificationController Unit Tests test_registerPushToken_missingToken_returns400BadRequest" time="0.002">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_registerPushToken_validInput_savesTokenAndReturns200Success" name="NotificationController Unit Tests test_registerPushToken_validInput_savesTokenAndReturns200Success" time="0.001">
+    </testcase>
+    <testcase classname="NotificationController Unit Tests test_markReadByConversation_validInput_marksNotificationsReadByConversation" name="NotificationController Unit Tests test_markReadByConversation_validInput_marksNotificationsReadByConversation" time="0.003">
+    </testcase>
+  </testsuite>
+  <testsuite name="FavoriteController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:06:01" time="0.529" tests="9">
+    <testcase classname="FavoriteController Unit Tests test_addFavorite_missingProductId_returns400BadRequest" name="FavoriteController Unit Tests test_addFavorite_missingProductId_returns400BadRequest" time="0.004">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_addFavorite_productNotFound_returns404NotFound" name="FavoriteController Unit Tests test_addFavorite_productNotFound_returns404NotFound" time="0.001">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_addFavorite_alreadyFavorited_returns200WithExistingFavorite" name="FavoriteController Unit Tests test_addFavorite_alreadyFavorited_returns200WithExistingFavorite" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_addFavorite_validInput_createsFavoriteAndReturns201Created" name="FavoriteController Unit Tests test_addFavorite_validInput_createsFavoriteAndReturns201Created" time="0.003">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_removeFavorite_favoriteNotFound_returns404NotFound" name="FavoriteController Unit Tests test_removeFavorite_favoriteNotFound_returns404NotFound" time="0.003">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_removeFavorite_validInput_deletesFavoriteAndReturns200Success" name="FavoriteController Unit Tests test_removeFavorite_validInput_deletesFavoriteAndReturns200Success" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_getUserFavorites_validUser_returnsFavoritesListWithTransformedProductUrls" name="FavoriteController Unit Tests test_getUserFavorites_validUser_returnsFavoritesListWithTransformedProductUrls" time="0.007">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_checkFavorite_itemIsFavorited_returnsTrueWithFavoriteId" name="FavoriteController Unit Tests test_checkFavorite_itemIsFavorited_returnsTrueWithFavoriteId" time="0.002">
+    </testcase>
+    <testcase classname="FavoriteController Unit Tests test_checkFavorite_itemIsNotFavorited_returnsFalseWithNullFavoriteId" name="FavoriteController Unit Tests test_checkFavorite_itemIsNotFavorited_returnsFalseWithNullFavoriteId" time="0.002">
+    </testcase>
+  </testsuite>
+  <testsuite name="validators Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:51" time="10.557" tests="22">
+    <testcase classname="validators Unit Tests validateRegister test_validateRegister_validData_passesWith200" name="validators Unit Tests validateRegister test_validateRegister_validData_passesWith200" time="0.447">
+    </testcase>
+    <testcase classname="validators Unit Tests validateRegister test_validateRegister_missingEmail_rejectsWith422" name="validators Unit Tests validateRegister test_validateRegister_missingEmail_rejectsWith422" time="0.042">
+    </testcase>
+    <testcase classname="validators Unit Tests validateRegister test_validateRegister_invalidEmailFormat_rejectsWith422" name="validators Unit Tests validateRegister test_validateRegister_invalidEmailFormat_rejectsWith422" time="0.022">
+    </testcase>
+    <testcase classname="validators Unit Tests validateRegister test_validateRegister_passwordShorterThan8_rejectsWith422" name="validators Unit Tests validateRegister test_validateRegister_passwordShorterThan8_rejectsWith422" time="0.033">
+    </testcase>
+    <testcase classname="validators Unit Tests validateRegister test_validateRegister_missingName_rejectsWith422" name="validators Unit Tests validateRegister test_validateRegister_missingName_rejectsWith422" time="0.031">
+    </testcase>
+    <testcase classname="validators Unit Tests validateRegister test_validateRegister_emptyName_rejectsWith422" name="validators Unit Tests validateRegister test_validateRegister_emptyName_rejectsWith422" time="0.018">
+    </testcase>
+    <testcase classname="validators Unit Tests validateLogin test_validateLogin_validCredentials_passesWith200" name="validators Unit Tests validateLogin test_validateLogin_validCredentials_passesWith200" time="0.017">
+    </testcase>
+    <testcase classname="validators Unit Tests validateLogin test_validateLogin_missingEmail_rejectsWith422" name="validators Unit Tests validateLogin test_validateLogin_missingEmail_rejectsWith422" time="0.024">
+    </testcase>
+    <testcase classname="validators Unit Tests validateLogin test_validateLogin_invalidEmail_rejectsWith422" name="validators Unit Tests validateLogin test_validateLogin_invalidEmail_rejectsWith422" time="0.017">
+    </testcase>
+    <testcase classname="validators Unit Tests validateLogin test_validateLogin_missingPassword_rejectsWith422" name="validators Unit Tests validateLogin test_validateLogin_missingPassword_rejectsWith422" time="0.017">
+    </testcase>
+    <testcase classname="validators Unit Tests validateLogin test_validateLogin_emptyPassword_rejectsWith422" name="validators Unit Tests validateLogin test_validateLogin_emptyPassword_rejectsWith422" time="0.016">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_noQueryParams_passesWith200" name="validators Unit Tests validateSearch test_validateSearch_noQueryParams_passesWith200" time="0.021">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_validLimitAndOffset_passesWith200" name="validators Unit Tests validateSearch test_validateSearch_validLimitAndOffset_passesWith200" time="0.031">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_limitGreaterThan100_rejectsWith422" name="validators Unit Tests validateSearch test_validateSearch_limitGreaterThan100_rejectsWith422" time="0.016">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_negativeOffset_rejectsWith422" name="validators Unit Tests validateSearch test_validateSearch_negativeOffset_rejectsWith422" time="0.019">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_nonNumericLimit_rejectsWith422" name="validators Unit Tests validateSearch test_validateSearch_nonNumericLimit_rejectsWith422" time="0.027">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_validPriceRange_passesWith200" name="validators Unit Tests validateSearch test_validateSearch_validPriceRange_passesWith200" time="0.018">
+    </testcase>
+    <testcase classname="validators Unit Tests validateSearch test_validateSearch_negativeMinPrice_rejectsWith422" name="validators Unit Tests validateSearch test_validateSearch_negativeMinPrice_rejectsWith422" time="0.011">
+    </testcase>
+    <testcase classname="validators Unit Tests validateAddToCart test_validateAddToCart_validProductId_passesWith200" name="validators Unit Tests validateAddToCart test_validateAddToCart_validProductId_passesWith200" time="0.027">
+    </testcase>
+    <testcase classname="validators Unit Tests validateAddToCart test_validateAddToCart_invalidProductIdUUID_rejectsWith422" name="validators Unit Tests validateAddToCart test_validateAddToCart_invalidProductIdUUID_rejectsWith422" time="0.025">
+    </testcase>
+    <testcase classname="validators Unit Tests validateAddToCart test_validateAddToCart_quantityZero_rejectsWith422" name="validators Unit Tests validateAddToCart test_validateAddToCart_quantityZero_rejectsWith422" time="0.011">
+    </testcase>
+    <testcase classname="validators Unit Tests validateAddToCart test_validateAddToCart_missingQuantity_passesWith200" name="validators Unit Tests validateAddToCart test_validateAddToCart_missingQuantity_passesWith200" time="0.01">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /" errors="0" failures="0" skipped="0" timestamp="2026-06-05T21:05:51" time="15.132" tests="5">
+    <testcase classname="GET / returns 200 with API live message" name="GET / returns 200 with API live message" time="0.177">
+    </testcase>
+    <testcase classname="GET /api returns 200 with API metadata" name="GET /api returns 200 with API metadata" time="0.022">
+    </testcase>
+    <testcase classname="GET /api/v1 returns 200 with endpoint list" name="GET /api/v1 returns 200 with endpoint list" time="0.03">
+    </testcase>
+    <testcase classname="GET /api/v1/nonexistent returns 404 for unknown routes" name="GET /api/v1/nonexistent returns 404 for unknown routes" time="0.022">
+    </testcase>
+    <testcase classname="GET /health returns a health object with expected shape" name="GET /health returns a health object with expected shape" time="0.218">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /api/v1/products/search" errors="0" failures="2" skipped="0" timestamp="2026-06-05T21:05:51" time="16.602" tests="9">
+    <testcase classname="GET /api/v1/products/search returns 200 with results array for a basic query" name="GET /api/v1/products/search returns 200 with results array for a basic query" time="0.737">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 200
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\products.integration.test.js:54:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="GET /api/v1/products/search returns 422 when limit is out of range" name="GET /api/v1/products/search returns 422 when limit is out of range" time="0.064">
+    </testcase>
+    <testcase classname="GET /api/v1/products/search returns 422 when offset is negative" name="GET /api/v1/products/search returns 422 when offset is negative" time="0.052">
+    </testcase>
+    <testcase classname="GET /api/v1/products/store/:storeId returns 200 for any storeId (even nonexistent — returns empty list)" name="GET /api/v1/products/store/:storeId returns 200 for any storeId (even nonexistent — returns empty list)" time="0.311">
+      <failure>Error: expect(received).toContain(expected) // indexOf
+
+Expected value: 500
+Received array: [200, 404]
+    at Object.toContain (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\products.integration.test.js:76:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/products returns 401 when unauthenticated" name="POST /api/v1/products returns 401 when unauthenticated" time="0.087">
+    </testcase>
+    <testcase classname="POST /api/v1/products returns 401 with a garbage token" name="POST /api/v1/products returns 401 with a garbage token" time="0.044">
+    </testcase>
+    <testcase classname="PUT /api/v1/products/:id returns 401 when unauthenticated" name="PUT /api/v1/products/:id returns 401 when unauthenticated" time="0.036">
+    </testcase>
+    <testcase classname="DELETE /api/v1/products/:id returns 401 when unauthenticated" name="DELETE /api/v1/products/:id returns 401 when unauthenticated" time="0.026">
+    </testcase>
+    <testcase classname="POST /api/v1/products — validation (no auth needed to see 422) returns 422 when storeId is not a UUID" name="POST /api/v1/products — validation (no auth needed to see 422) returns 422 when storeId is not a UUID" time="0.027">
+    </testcase>
+  </testsuite>
+  <testsuite name="POST /api/v1/auth/register" errors="0" failures="6" skipped="0" timestamp="2026-06-05T21:05:51" time="17.551" tests="14">
+    <testcase classname="POST /api/v1/auth/register registers a new user and returns 201 with a token" name="POST /api/v1/auth/register registers a new user and returns 201 with a token" time="0.6">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 201
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\auth.integration.test.js:57:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/auth/register returns 400 when registering a duplicate email" name="POST /api/v1/auth/register returns 400 when registering a duplicate email" time="0.368">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 400
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\auth.integration.test.js:80:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/auth/register returns 422 when email is invalid" name="POST /api/v1/auth/register returns 422 when email is invalid" time="0.034">
+    </testcase>
+    <testcase classname="POST /api/v1/auth/register returns 422 when password is too short" name="POST /api/v1/auth/register returns 422 when password is too short" time="0.046">
+    </testcase>
+    <testcase classname="POST /api/v1/auth/register returns 422 when name is missing" name="POST /api/v1/auth/register returns 422 when name is missing" time="0.03">
+    </testcase>
+    <testcase classname="POST /api/v1/auth/login returns 200 with token on valid credentials" name="POST /api/v1/auth/login returns 200 with token on valid credentials" time="0.27">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 200
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\auth.integration.test.js:131:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/auth/login returns 400 on wrong password" name="POST /api/v1/auth/login returns 400 on wrong password" time="0.226">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 400
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\auth.integration.test.js:141:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/auth/login returns 400 for non-existent email" name="POST /api/v1/auth/login returns 400 for non-existent email" time="0.209">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 400
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\auth.integration.test.js:150:24)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/auth/login returns 422 for missing email" name="POST /api/v1/auth/login returns 422 for missing email" time="0.028">
+    </testcase>
+    <testcase classname="GET /api/v1/auth/me returns 401 when no token is provided" name="GET /api/v1/auth/me returns 401 when no token is provided" time="0.018">
+    </testcase>
+    <testcase classname="GET /api/v1/auth/me returns 401 with a garbage token" name="GET /api/v1/auth/me returns 401 with a garbage token" time="0.026">
+    </testcase>
+    <testcase classname="GET /api/v1/auth/me returns 200 with valid token from a fresh registration" name="GET /api/v1/auth/me returns 200 with valid token from a fresh registration" time="0.189">
+      <failure>Error: expect(received).toBe(expected) // Object.is equality
+
+Expected: 201
+Received: 500
+    at Object.toBe (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\integration\auth.integration.test.js:183:27)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="POST /api/v1/auth/logout returns 200 regardless of whether a token is provided" name="POST /api/v1/auth/logout returns 200 regardless of whether a token is provided" time="0.013">
+    </testcase>
+    <testcase classname="POST /api/v1/auth/logout returns 200 and clears session with a valid token" name="POST /api/v1/auth/logout returns 200 and clears session with a valid token" time="0.162">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -6,7 +6,7 @@ const { validateRequest } = require('./validateRequest');
 const validateRegister = [
     body('email').isEmail().withMessage('Please provide a valid email').normalizeEmail(),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long'),
-    body('name').notEmpty().withMessage('Name is required').trim(),
+    body('name').trim().notEmpty().withMessage('Name is required'),
     validateRequest
 ];
 

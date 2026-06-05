@@ -254,23 +254,25 @@ if (enableLocalSocket) {
   logger.info('Local Socket.IO disabled (ENABLE_LOCAL_SOCKET=false). Using external socket service.');
 }
 
-const PORT = process.env.PORT || 5000;
+if (process.env.NODE_ENV !== 'test') {
+  const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => {
-  logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] | Redis: ${redis ? 'enabled' : 'disabled'}`);
+  server.listen(PORT, () => {
+    logger.info(`Server running on port ${PORT} [${process.env.NODE_ENV || 'development'}] | Redis: ${redis ? 'enabled' : 'disabled'}`);
 
-  // Start background broadcast scheduler (manual polls + daily engagement/holiday)
-  try {
-    const { initScheduler } = require('./workers/scheduler');
-    initScheduler();
-  } catch (err) {
-    logger.error('Failed to start broadcast scheduler:', err.message);
-  }
+    // Start background broadcast scheduler (manual polls + daily engagement/holiday)
+    try {
+      const { initScheduler } = require('./workers/scheduler');
+      initScheduler();
+    } catch (err) {
+      logger.error('Failed to start broadcast scheduler:', err.message);
+    }
 
-  // Start notification worker in-process (connects to CloudAMQP, handles email/SMS queues)
-  const { startWorker } = require('./workers/notificationWorker');
-  startWorker().catch((err) => logger.error('Notification worker failed to start:', err.message));
-});
+    // Start notification worker in-process (connects to CloudAMQP, handles email/SMS queues)
+    const { startWorker } = require('./workers/notificationWorker');
+    startWorker().catch((err) => logger.error('Notification worker failed to start:', err.message));
+  });
+}
 
 const gracefulShutdown = async (signal) => {
   logger.warn(`Received ${signal}, shutting down...`);

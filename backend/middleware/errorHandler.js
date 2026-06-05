@@ -5,7 +5,7 @@ const errorHandler = (err, req, res, next) => {
   let message = err.message || 'Internal Server Error';
 
   if (err.name === 'ValidationError') {
-    statusCode = 400;
+    statusCode = 422;
     message = Object.values(err.errors).map(e => e.message).join(', ');
   }
 

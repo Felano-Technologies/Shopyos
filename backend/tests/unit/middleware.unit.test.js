@@ -3,8 +3,9 @@
 /**
  * tests/unit/middleware.unit.test.js
  *
- * Unit tests for auth middleware, role guards, and error handler.
- * Uses mock req/res/next objects — no real server or DB.
+ * Unit tests for auth middleware, role guards, and hasAnyRole.
+ * Mocks all repositories and Redis caching.
+ * Conforms to guidelines/test.md.
  */
 
 const jwt = require('jsonwebtoken');
@@ -36,14 +37,10 @@ jest.mock('../../config/logger', () => ({
   httpLogMiddleware: (req, res, next) => next(),
 }));
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 const { protect, admin, seller, hasAnyRole } = require('../../middleware/authMiddleware');
-// Note: checkRole is an internal factory — we test it via the exported
-// role wrappers: admin (checkRole('admin')), seller (checkRole('seller'))
 const { cacheGet } = require('../../config/redis');
 const repositories = require('../../db/repositories');
 
-/** Build a minimal mock Express request */
 function mockReq(overrides = {}) {
   return {
     headers: {},
@@ -52,7 +49,6 @@ function mockReq(overrides = {}) {
   };
 }
 
-/** Build a mock Express response with jest spies */
 function mockRes() {
   const res = {};
   res.status = jest.fn().mockReturnValue(res);
@@ -68,226 +64,279 @@ function makeValidToken(userId = 'user-123', extraClaims = {}) {
   );
 }
 
-// ── protect middleware ───────────────────────────────────────────────────────
-describe('protect middleware', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  test('returns 401 when Authorization header is missing', async () => {
-    const req = mockReq();
-    const res = mockRes();
-    const next = jest.fn();
-
-    await protect(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  test('returns 401 when Authorization header does not start with Bearer', async () => {
-    const req = mockReq({ headers: { authorization: 'Basic sometoken' } });
-    const res = mockRes();
-    const next = jest.fn();
-
-    await protect(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-  });
-
-  test('returns 401 when token is blacklisted in Redis', async () => {
-    cacheGet.mockResolvedValueOnce({ userId: 'user-123' }); // token is blacklisted
-
-    const token = makeValidToken();
-    const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
-    const res = mockRes();
-    const next = jest.fn();
-
-    await protect(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining('revoked') }),
-    );
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  test('returns 401 with invalid (malformed) token', async () => {
-    const req = mockReq({ headers: { authorization: 'Bearer not.a.valid.token' } });
-    const res = mockRes();
-    const next = jest.fn();
-
-    await protect(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-  });
-
-  test('calls next() and sets req.user when token is valid and user exists', async () => {
-    cacheGet.mockResolvedValueOnce(null); // not blacklisted
-
-    // Return user data from DB (first call = findById, second = getUserWithRoles)
-    repositories.users.findById.mockResolvedValueOnce({
-      id: 'user-123',
-      email: 'test@shopyos.com',
-      email_verified: true,
-      is_active: true,
-    });
-    repositories.users.getUserWithRoles.mockResolvedValueOnce({
-      user_roles: [{ is_active: true, roles: { name: 'buyer' } }],
+describe('Middleware Unit Tests', () => {
+  // ── protect middleware ─────────────────────────────────────────────
+  describe('protect', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
     });
 
-    const token = makeValidToken('user-123');
-    const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
-    const res = mockRes();
-    const next = jest.fn();
+    test('test_protect_missingAuthorizationHeader_returns401Unauthorized', async () => {
+      // Arrange
+      const req = mockReq();
+      const res = mockRes();
+      const next = jest.fn();
 
-    await protect(req, res, next);
+      // Act
+      await protect(req, res, next);
 
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(req.user).toBeDefined();
-    expect(req.user.id).toBe('user-123');
-    expect(req.user.roles).toContain('buyer');
-  });
-
-  test('returns 401 when user is not found in DB', async () => {
-    cacheGet.mockResolvedValueOnce(null);
-    repositories.users.findById.mockResolvedValueOnce(null); // user not found
-    repositories.users.getUserWithRoles.mockResolvedValueOnce(null);
-
-    const token = makeValidToken('ghost-user');
-    const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
-    const res = mockRes();
-    const next = jest.fn();
-
-    await protect(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(next).not.toHaveBeenCalled();
-  });
-
-  test('returns 401 when account is deactivated', async () => {
-    cacheGet.mockResolvedValueOnce(null);
-    repositories.users.findById.mockResolvedValueOnce({
-      id: 'user-456',
-      email: 'banned@shopyos.com',
-      is_active: false,  // <-- deactivated
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
     });
-    repositories.users.getUserWithRoles.mockResolvedValueOnce({ user_roles: [] });
 
-    const token = makeValidToken('user-456');
-    const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
-    const res = mockRes();
-    const next = jest.fn();
+    test('test_protect_invalidAuthorizationScheme_returns401Unauthorized', async () => {
+      // Arrange
+      const req = mockReq({ headers: { authorization: 'Basic sometoken' } });
+      const res = mockRes();
+      const next = jest.fn();
 
-    await protect(req, res, next);
+      // Act
+      await protect(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(res.json).toHaveBeenCalledWith(
-      expect.objectContaining({ error: expect.stringContaining('deactivated') }),
-    );
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('test_protect_blacklistedToken_returns401UnauthorizedWithRevokedError', async () => {
+      // Arrange
+      cacheGet.mockResolvedValueOnce({ userId: 'user-123' }); // Token is blacklisted
+      const token = makeValidToken();
+      const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await protect(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.stringContaining('revoked') }),
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('test_protect_malformedTokenString_returns401Unauthorized', async () => {
+      // Arrange
+      const req = mockReq({ headers: { authorization: 'Bearer not.a.valid.token' } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await protect(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('test_protect_validTokenAndExistingUser_callsNextAndSetsReqUser', async () => {
+      // Arrange
+      cacheGet.mockResolvedValueOnce(null); // Not blacklisted
+      repositories.users.findById.mockResolvedValueOnce({
+        id: 'user-123',
+        email: 'test@shopyos.com',
+        email_verified: true,
+        is_active: true,
+      });
+      repositories.users.getUserWithRoles.mockResolvedValueOnce({
+        user_roles: [{ is_active: true, roles: { name: 'buyer' } }],
+      });
+
+      const token = makeValidToken('user-123');
+      const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await protect(req, res, next);
+
+      // Assert
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(req.user).toBeDefined();
+      expect(req.user.id).toBe('user-123');
+      expect(req.user.roles).toContain('buyer');
+    });
+
+    test('test_protect_userNotFoundInDb_returns401Unauthorized', async () => {
+      // Arrange
+      cacheGet.mockResolvedValueOnce(null);
+      repositories.users.findById.mockResolvedValueOnce(null);
+      repositories.users.getUserWithRoles.mockResolvedValueOnce(null);
+
+      const token = makeValidToken('ghost-user');
+      const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await protect(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('test_protect_accountDeactivated_returns401UnauthorizedWithDeactivatedError', async () => {
+      // Arrange
+      cacheGet.mockResolvedValueOnce(null);
+      repositories.users.findById.mockResolvedValueOnce({
+        id: 'user-456',
+        email: 'banned@shopyos.com',
+        is_active: false,
+      });
+      repositories.users.getUserWithRoles.mockResolvedValueOnce({ user_roles: [] });
+
+      const token = makeValidToken('user-456');
+      const req = mockReq({ headers: { authorization: `Bearer ${token}` } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await protect(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ error: expect.stringContaining('deactivated') }),
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
   });
-});
 
-// ── Role guards (testing via exported wrappers: admin, seller) ───────────────
-describe('admin role guard (checkRole("admin"))', () => {
-  test('returns 401 if req.user is not set', () => {
-    const req = mockReq({ user: undefined });
-    const res = mockRes();
-    const next = jest.fn();
+  // ── Role guards (admin) ────────────────────────────────────────────
+  describe('admin role guard', () => {
+    test('test_adminGuard_missingReqUser_returns401Unauthorized', () => {
+      // Arrange
+      const req = mockReq({ user: undefined });
+      const res = mockRes();
+      const next = jest.fn();
 
-    admin(req, res, next);
+      // Act
+      admin(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(401);
-    expect(next).not.toHaveBeenCalled();
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('test_adminGuard_userNotAdmin_returns403Forbidden', () => {
+      // Arrange
+      const req = mockReq({ user: { id: 'u1', roles: ['buyer'] } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      admin(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    test('test_adminGuard_userIsAdmin_callsNextSuccessful', () => {
+      // Arrange
+      const req = mockReq({ user: { id: 'u1', roles: ['admin'] } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      admin(req, res, next);
+
+      // Assert
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.status).not.toHaveBeenCalled();
+    });
   });
 
-  test('returns 403 if user does not have admin role', () => {
-    const req = mockReq({ user: { id: 'u1', roles: ['buyer'] } });
-    const res = mockRes();
-    const next = jest.fn();
+  // ── Role guards (seller) ───────────────────────────────────────────
+  describe('seller role guard', () => {
+    test('test_sellerGuard_userIsSeller_callsNextSuccessful', () => {
+      // Arrange
+      const req = mockReq({ user: { id: 'u1', roles: ['buyer', 'seller'] } });
+      const res = mockRes();
+      const next = jest.fn();
 
-    admin(req, res, next);
+      // Act
+      seller(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(403);
-    expect(next).not.toHaveBeenCalled();
+      // Assert
+      expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    test('test_sellerGuard_userNotSeller_returns403Forbidden', () => {
+      // Arrange
+      const req = mockReq({ user: { id: 'u1', roles: ['buyer'] } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      seller(req, res, next);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(next).not.toHaveBeenCalled();
+    });
   });
 
-  test('calls next() when user has admin role', () => {
-    const req = mockReq({ user: { id: 'u1', roles: ['admin'] } });
-    const res = mockRes();
-    const next = jest.fn();
+  // ── hasAnyRole ─────────────────────────────────────────────────────
+  describe('hasAnyRole', () => {
+    test('test_hasAnyRole_userLacksAllRequiredRoles_returns403Forbidden', () => {
+      // Arrange
+      const middleware = hasAnyRole('seller', 'admin');
+      const req = mockReq({ user: { id: 'u1', roles: ['buyer'] } });
+      const res = mockRes();
+      const next = jest.fn();
 
-    admin(req, res, next);
+      // Act
+      middleware(req, res, next);
 
-    expect(next).toHaveBeenCalledTimes(1);
-    expect(res.status).not.toHaveBeenCalled();
-  });
-});
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
 
-describe('seller role guard (checkRole("seller"))', () => {
-  test('calls next() if user has seller role', () => {
-    const req = mockReq({ user: { id: 'u1', roles: ['buyer', 'seller'] } });
-    const res = mockRes();
-    const next = jest.fn();
+    test('test_hasAnyRole_userHasAtLeastOneRequiredRole_callsNextSuccessful', () => {
+      // Arrange
+      const middleware = hasAnyRole('seller', 'admin');
+      const req = mockReq({ user: { id: 'u1', roles: ['seller'] } });
+      const res = mockRes();
+      const next = jest.fn();
 
-    seller(req, res, next);
+      // Act
+      middleware(req, res, next);
 
-    expect(next).toHaveBeenCalledTimes(1);
-  });
+      // Assert
+      expect(next).toHaveBeenCalledTimes(1);
+    });
 
-  test('returns 403 if user only has buyer role', () => {
-    const req = mockReq({ user: { id: 'u1', roles: ['buyer'] } });
-    const res = mockRes();
-    const next = jest.fn();
+    test('test_hasAnyRole_userHasAllRequiredRoles_callsNextSuccessful', () => {
+      // Arrange
+      const middleware = hasAnyRole('seller', 'admin');
+      const req = mockReq({ user: { id: 'u1', roles: ['seller', 'admin'] } });
+      const res = mockRes();
+      const next = jest.fn();
 
-    seller(req, res, next);
+      // Act
+      middleware(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(403);
-  });
-});
+      // Assert
+      expect(next).toHaveBeenCalledTimes(1);
+    });
 
-describe('hasAnyRole', () => {
-  test('returns 403 when user has none of the required roles', () => {
-    const middleware = hasAnyRole('seller', 'admin');
-    const req = mockReq({ user: { id: 'u1', roles: ['buyer'] } });
-    const res = mockRes();
-    const next = jest.fn();
+    test('test_hasAnyRole_missingReqUser_returns401Unauthorized', () => {
+      // Arrange
+      const middleware = hasAnyRole('seller');
+      const req = mockReq({ user: null });
+      const res = mockRes();
+      const next = jest.fn();
 
-    middleware(req, res, next);
+      // Act
+      middleware(req, res, next);
 
-    expect(res.status).toHaveBeenCalledWith(403);
-  });
-
-  test('calls next() when user has at least one required role', () => {
-    const middleware = hasAnyRole('seller', 'admin');
-    const req = mockReq({ user: { id: 'u1', roles: ['seller'] } });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware(req, res, next);
-
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  test('calls next() when user has all required roles', () => {
-    const middleware = hasAnyRole('seller', 'admin');
-    const req = mockReq({ user: { id: 'u1', roles: ['seller', 'admin'] } });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware(req, res, next);
-
-    expect(next).toHaveBeenCalledTimes(1);
-  });
-
-  test('returns 401 when req.user is missing', () => {
-    const middleware = hasAnyRole('seller');
-    const req = mockReq({ user: null });
-    const res = mockRes();
-    const next = jest.fn();
-
-    middleware(req, res, next);
-
-    expect(res.status).toHaveBeenCalledWith(401);
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(401);
+    });
   });
 });

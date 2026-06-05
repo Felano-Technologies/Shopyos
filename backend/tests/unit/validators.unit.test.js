@@ -4,7 +4,8 @@
  * tests/unit/validators.unit.test.js
  *
  * Unit tests for express-validator middleware chains.
- * Uses a minimal Express app per test so the validator chains run end-to-end.
+ * Uses a minimal Express app per test so the validator chains run.
+ * Conforms to guidelines/test.md.
  */
 
 const express = require('express');
@@ -37,181 +38,227 @@ function buildApp(validators, method = 'post') {
   app[method]('/test', ...validators, (req, res) => {
     res.status(200).json({ ok: true });
   });
-  // The validateRequest middleware sends 422 itself, so we just need an error fallback
   app.use((err, req, res, next) => {
-    res.status(500).json({ error: err.message });
+    const status = err.name === 'ValidationError' ? 422 : 500;
+    res.status(status).json({ error: err.message });
   });
   return app;
 }
 
-// ── validateRegister ─────────────────────────────────────────────────────────
-describe('validateRegister', () => {
-  const app = buildApp(validateRegister);
+describe('validators Unit Tests', () => {
+  // ── validateRegister ───────────────────────────────────────────────
+  describe('validateRegister', () => {
+    const app = buildApp(validateRegister);
 
-  test('passes with valid data', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'user@example.com',
-      password: 'securepassword',
-      name: 'Test User',
+    test('test_validateRegister_validData_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'user@example.com',
+        password: 'securepassword',
+        name: 'Test User',
+      });
+      // Assert
+      expect(res.status).toBe(200);
     });
-    expect(res.status).toBe(200);
-  });
 
-  test('rejects missing email', async () => {
-    const res = await request(app).post('/test').send({
-      password: 'securepassword',
-      name: 'Test User',
+    test('test_validateRegister_missingEmail_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        password: 'securepassword',
+        name: 'Test User',
+      });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
-  });
 
-  test('rejects invalid email format', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'not-an-email',
-      password: 'securepassword',
-      name: 'Test User',
+    test('test_validateRegister_invalidEmailFormat_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'not-an-email',
+        password: 'securepassword',
+        name: 'Test User',
+      });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
-  });
 
-  test('rejects password shorter than 8 characters', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'user@example.com',
-      password: 'short',
-      name: 'Test User',
+    test('test_validateRegister_passwordShorterThan8_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'user@example.com',
+        password: 'short',
+        name: 'Test User',
+      });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
-  });
 
-  test('rejects missing name', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'user@example.com',
-      password: 'securepassword',
+    test('test_validateRegister_missingName_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'user@example.com',
+        password: 'securepassword',
+      });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
-  });
 
-  test('rejects empty name', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'user@example.com',
-      password: 'securepassword',
-      name: '  ',
+    test('test_validateRegister_emptyName_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'user@example.com',
+        password: 'securepassword',
+        name: '  ',
+      });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
   });
-});
 
-// ── validateLogin ────────────────────────────────────────────────────────────
-describe('validateLogin', () => {
-  const app = buildApp(validateLogin);
+  // ── validateLogin ──────────────────────────────────────────────────
+  describe('validateLogin', () => {
+    const app = buildApp(validateLogin);
 
-  test('passes with valid credentials', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'user@example.com',
-      password: 'anypassword',
+    test('test_validateLogin_validCredentials_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'user@example.com',
+        password: 'anypassword',
+      });
+      // Assert
+      expect(res.status).toBe(200);
     });
-    expect(res.status).toBe(200);
-  });
 
-  test('rejects missing email', async () => {
-    const res = await request(app).post('/test').send({ password: 'pass' });
-    expect(res.status).toBe(422);
-  });
-
-  test('rejects invalid email', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'bad-email',
-      password: 'pass',
+    test('test_validateLogin_missingEmail_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({ password: 'pass' });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
-  });
 
-  test('rejects missing password', async () => {
-    const res = await request(app).post('/test').send({ email: 'user@example.com' });
-    expect(res.status).toBe(422);
-  });
-
-  test('rejects empty password', async () => {
-    const res = await request(app).post('/test').send({
-      email: 'user@example.com',
-      password: '',
+    test('test_validateLogin_invalidEmail_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'bad-email',
+        password: 'pass',
+      });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(422);
-  });
-});
 
-// ── validateSearch ────────────────────────────────────────────────────────────
-describe('validateSearch', () => {
-  const app = buildApp(validateSearch, 'get');
-
-  test('passes with no query params', async () => {
-    const res = await request(app).get('/test');
-    expect(res.status).toBe(200);
-  });
-
-  test('passes with valid limit and offset', async () => {
-    const res = await request(app).get('/test?limit=10&offset=0');
-    expect(res.status).toBe(200);
-  });
-
-  test('rejects limit > 100', async () => {
-    const res = await request(app).get('/test?limit=200');
-    expect(res.status).toBe(422);
-  });
-
-  test('rejects negative offset', async () => {
-    const res = await request(app).get('/test?offset=-1');
-    expect(res.status).toBe(422);
-  });
-
-  test('rejects non-numeric limit', async () => {
-    const res = await request(app).get('/test?limit=abc');
-    expect(res.status).toBe(422);
-  });
-
-  test('passes with valid price range', async () => {
-    const res = await request(app).get('/test?minPrice=5.00&maxPrice=100.00');
-    expect(res.status).toBe(200);
-  });
-
-  test('rejects negative minPrice', async () => {
-    const res = await request(app).get('/test?minPrice=-1');
-    expect(res.status).toBe(422);
-  });
-});
-
-// ── validateAddToCart ─────────────────────────────────────────────────────────
-describe('validateAddToCart', () => {
-  const app = buildApp(validateAddToCart);
-
-  test('passes with valid UUID product ID', async () => {
-    const res = await request(app).post('/test').send({
-      productId: '550e8400-e29b-41d4-a716-446655440000',
-      quantity: 2,
+    test('test_validateLogin_missingPassword_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({ email: 'user@example.com' });
+      // Assert
+      expect(res.status).toBe(422);
     });
-    expect(res.status).toBe(200);
+
+    test('test_validateLogin_emptyPassword_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        email: 'user@example.com',
+        password: '',
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
   });
 
-  test('rejects invalid UUID for productId', async () => {
-    const res = await request(app).post('/test').send({
-      productId: 'not-a-uuid',
-      quantity: 1,
+  // ── validateSearch ─────────────────────────────────────────────────
+  describe('validateSearch', () => {
+    const app = buildApp(validateSearch, 'get');
+
+    test('test_validateSearch_noQueryParams_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test');
+      // Assert
+      expect(res.status).toBe(200);
     });
-    expect(res.status).toBe(422);
+
+    test('test_validateSearch_validLimitAndOffset_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test?limit=10&offset=0');
+      // Assert
+      expect(res.status).toBe(200);
+    });
+
+    test('test_validateSearch_limitGreaterThan100_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test?limit=200');
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateSearch_negativeOffset_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test?offset=-1');
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateSearch_nonNumericLimit_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test?limit=abc');
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateSearch_validPriceRange_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test?minPrice=5.00&maxPrice=100.00');
+      // Assert
+      expect(res.status).toBe(200);
+    });
+
+    test('test_validateSearch_negativeMinPrice_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).get('/test?minPrice=-1');
+      // Assert
+      expect(res.status).toBe(422);
+    });
   });
 
-  test('rejects quantity of 0', async () => {
-    const res = await request(app).post('/test').send({
-      productId: '550e8400-e29b-41d4-a716-446655440000',
-      quantity: 0,
-    });
-    expect(res.status).toBe(422);
-  });
+  // ── validateAddToCart ──────────────────────────────────────────────
+  describe('validateAddToCart', () => {
+    const app = buildApp(validateAddToCart);
 
-  test('passes without quantity (it is optional)', async () => {
-    const res = await request(app).post('/test').send({
-      productId: '550e8400-e29b-41d4-a716-446655440000',
+    test('test_validateAddToCart_validProductId_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: 2,
+      });
+      // Assert
+      expect(res.status).toBe(200);
     });
-    expect(res.status).toBe(200);
+
+    test('test_validateAddToCart_invalidProductIdUUID_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        productId: 'not-a-uuid',
+        quantity: 1,
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateAddToCart_quantityZero_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+        quantity: 0,
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateAddToCart_missingQuantity_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        productId: '550e8400-e29b-41d4-a716-446655440000',
+      });
+      // Assert
+      expect(res.status).toBe(200);
+    });
   });
 });

@@ -4,16 +4,15 @@
  * tests/unit/auth.unit.test.js
  *
  * Unit tests for pure auth logic — token generation, cookie helpers, phone
- * sanitisation.  No real DB calls; repositories are mocked at the module level.
+ * sanitisation. Mocks all repositories at the module level.
+ * Conforms to guidelines/test.md.
  */
 
 const jwt = require('jsonwebtoken');
 
-// ── Module mocks ─────────────────────────────────────────────────────────────
-// Mock all heavy infrastructure BEFORE requiring anything that imports them.
-
-jest.mock('../../services/rabbitmq');        // no AMQP
-jest.mock('nodemailer');                     // no SMTP
+// Mock all heavy infrastructure
+jest.mock('../../services/rabbitmq');
+jest.mock('nodemailer');
 
 jest.mock('../../db/repositories', () => ({
   users: {
@@ -51,10 +50,6 @@ jest.mock('../../config/redis', () => ({
   cacheDel: jest.fn().mockResolvedValue(1),
 }));
 
-// ── Helpers extracted without importing the full controller ──────────────────
-// We test the pure functions directly by reconstructing them here so we can
-// keep them isolated from Express plumbing.
-
 const JWT_SECRET = 'shopyos-test-jwt-secret-do-not-use-in-prod';
 const ACCESS_TOKEN_EXPIRY = '15m';
 
@@ -71,86 +66,107 @@ function sanitizePhone(phone) {
   return phone.replace(/\++/g, '+').trim();
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
-
-describe('generateAccessToken', () => {
-  test('returns a non-empty string', () => {
+describe('Auth Unit Tests', () => {
+  // ── generateAccessToken ─────────────────────────────────────────────
+  test('test_generateAccessToken_validUserId_returnsNonEmptyString', () => {
+    // Arrange & Act
     const token = generateAccessToken('user-123');
+    // Assert
     expect(typeof token).toBe('string');
     expect(token.length).toBeGreaterThan(0);
   });
 
-  test('is a valid JWT that can be verified', () => {
+  test('test_generateAccessToken_validUserId_producesValidVerifiableJWT', () => {
+    // Arrange
     const token = generateAccessToken('user-abc');
+    // Act
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Assert
     expect(decoded).toBeDefined();
   });
 
-  test('payload contains id and sub', () => {
+  test('test_generateAccessToken_validUserId_containsIdAndSubInPayload', () => {
+    // Arrange
     const userId = 'test-user-id-456';
+    // Act
     const token = generateAccessToken(userId);
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Assert
     expect(decoded.id).toBe(userId);
     expect(decoded.sub).toBe(userId);
   });
 
-  test('payload type is "access"', () => {
+  test('test_generateAccessToken_validUserId_setsAccessTypeInPayload', () => {
+    // Arrange & Act
     const token = generateAccessToken('any-id');
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Assert
     expect(decoded.type).toBe('access');
   });
 
-  test('payload role is "authenticated"', () => {
+  test('test_generateAccessToken_validUserId_setsAuthenticatedRoleInPayload', () => {
+    // Arrange & Act
     const token = generateAccessToken('any-id');
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Assert
     expect(decoded.role).toBe('authenticated');
   });
 
-  test('token expires (has exp claim)', () => {
+  test('test_generateAccessToken_validUserId_setsValidFutureExpirationClaim', () => {
+    // Arrange & Act
     const token = generateAccessToken('any-id');
     const decoded = jwt.verify(token, JWT_SECRET);
+    // Assert
     expect(decoded.exp).toBeDefined();
     expect(decoded.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
   });
 
-  test('different userIds produce different tokens', () => {
+  test('test_generateAccessToken_differentUserIds_producesDifferentUniqueTokens', () => {
+    // Arrange & Act
     const t1 = generateAccessToken('user-1');
     const t2 = generateAccessToken('user-2');
+    // Assert
     expect(t1).not.toBe(t2);
   });
-});
 
-describe('sanitizePhone', () => {
-  test('returns null/undefined as-is', () => {
+  // ── sanitizePhone ───────────────────────────────────────────────────
+  test('test_sanitizePhone_nullOrUndefined_returnsAsIs', () => {
+    // Arrange & Act & Assert
     expect(sanitizePhone(null)).toBeNull();
     expect(sanitizePhone(undefined)).toBeUndefined();
   });
 
-  test('strips duplicate leading plus signs', () => {
+  test('test_sanitizePhone_duplicatePlusSigns_stripsToSinglePlusPrefix', () => {
+    // Arrange & Act & Assert
     expect(sanitizePhone('++233123456')).toBe('+233123456');
     expect(sanitizePhone('+++233123456')).toBe('+233123456');
   });
 
-  test('trims surrounding whitespace', () => {
+  test('test_sanitizePhone_surroundingWhitespace_trimsSuccessfully', () => {
+    // Arrange & Act & Assert
     expect(sanitizePhone('  +233123456  ')).toBe('+233123456');
   });
 
-  test('leaves clean phone unchanged', () => {
+  test('test_sanitizePhone_cleanPhone_returnsUnchanged', () => {
+    // Arrange & Act & Assert
     expect(sanitizePhone('+233123456789')).toBe('+233123456789');
   });
 
-  test('handles phone without + prefix', () => {
+  test('test_sanitizePhone_noPlusPrefix_returnsUnchanged', () => {
+    // Arrange & Act & Assert
     expect(sanitizePhone('0201234567')).toBe('0201234567');
   });
-});
 
-describe('JWT verification edge cases', () => {
-  test('token signed with wrong secret fails verification', () => {
+  // ── JWT verification edge cases ─────────────────────────────────────
+  test('test_verifyToken_wrongSecretSignature_throwsVerificationError', () => {
+    // Arrange
     const token = generateAccessToken('user-x');
+    // Act & Assert
     expect(() => jwt.verify(token, 'wrong-secret')).toThrow();
   });
 
-  test('malformed token fails verification', () => {
+  test('test_verifyToken_malformedTokenString_throwsVerificationError', () => {
+    // Arrange & Act & Assert
     expect(() => jwt.verify('not.a.token', JWT_SECRET)).toThrow();
   });
 });

@@ -17,9 +17,10 @@ class SocketService {
    * Get backend socket URL
    */
   private getSocketURL(): string {
-    const socketURL = process.env.EXPO_PUBLIC_SOCKET_URL?.trim();
+    const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
+    const socketURL = (isDev ? process.env.EXPO_PUBLIC_DEV_SOCKET_URL : process.env.EXPO_PUBLIC_SOCKET_URL)?.trim();
     if (!socketURL) {
-      throw new Error('EXPO_PUBLIC_SOCKET_URL is not set');
+      throw new Error(isDev ? 'EXPO_PUBLIC_DEV_SOCKET_URL is not set' : 'EXPO_PUBLIC_SOCKET_URL is not set');
     }
     console.log('📡 Socket URL:', socketURL);
     return socketURL.replace(/\/$/, '');

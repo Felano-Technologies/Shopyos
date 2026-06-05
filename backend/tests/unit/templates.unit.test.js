@@ -5,88 +5,112 @@
  *
  * Pure unit tests for the email/SMS template helpers.
  * No network, no DB, no external services.
+ * Conforms to guidelines/test.md.
  */
 
 const { getWelcomeTemplates, getOrderCreatedTemplates } = require('../../templates');
 
-describe('getWelcomeTemplates', () => {
-  describe('buyer role', () => {
-    const result = getWelcomeTemplates('buyer', 'Jane Doe', '+233123456789');
-
-    test('email subject is correct', () => {
-      expect(result.email.subject).toBe('Welcome to Shopyos!');
+describe('Templates Unit Tests', () => {
+  // ── getWelcomeTemplates ─────────────────────────────────────────────
+  describe('getWelcomeTemplates', () => {
+    test('test_getWelcomeTemplates_buyerRole_returnsCorrectEmailSubject', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('buyer', 'Jane Doe', '+233123456789');
+      // Assert
+      expect(result.email.subject).toBe('Welcome to Shopyos! 🎉');
     });
 
-    test('email HTML contains user name', () => {
+    test('test_getWelcomeTemplates_buyerRole_returnsEmailHtmlWithUserName', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('buyer', 'Jane Doe', '+233123456789');
+      // Assert
       expect(result.email.html).toContain('Jane Doe');
     });
 
-    test('SMS contains user name', () => {
+    test('test_getWelcomeTemplates_buyerRole_returnsSmsWithUserName', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('buyer', 'Jane Doe', '+233123456789');
+      // Assert
       expect(result.sms).toContain('Jane Doe');
     });
-  });
 
-  describe('seller role', () => {
-    const result = getWelcomeTemplates('seller', 'Store Owner', '+233987654321');
-
-    test('email subject is correct', () => {
-      expect(result.email.subject).toBe('Welcome to Shopyos!');
+    test('test_getWelcomeTemplates_sellerRole_returnsCorrectEmailSubject', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('seller', 'Store Owner', '+233987654321');
+      // Assert
+      expect(result.email.subject).toBe('Welcome to Shopyos — Start Selling!');
     });
 
-    test('SMS mentions listing products', () => {
+    test('test_getWelcomeTemplates_sellerRole_returnsSmsMentioningListingProducts', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('seller', 'Store Owner', '+233987654321');
+      // Assert
       expect(result.sms).toMatch(/list|product|sell/i);
     });
-  });
 
-  describe('driver role', () => {
-    const result = getWelcomeTemplates('driver', 'Driver Dan', '+233111222333');
-
-    test('email subject is correct', () => {
-      expect(result.email.subject).toBe('Welcome to Shopyos!');
+    test('test_getWelcomeTemplates_driverRole_returnsCorrectEmailSubject', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('driver', 'Driver Dan', '+233111222333');
+      // Assert
+      expect(result.email.subject).toBe('Welcome to Shopyos Drivers!');
     });
 
-    test('SMS contains driver name', () => {
+    test('test_getWelcomeTemplates_driverRole_returnsSmsWithDriverName', () => {
+      // Arrange & Act
+      const result = getWelcomeTemplates('driver', 'Driver Dan', '+233111222333');
+      // Assert
       expect(result.sms).toContain('Driver Dan');
     });
   });
-});
 
-describe('getOrderCreatedTemplates', () => {
-  const orderData = {
-    orderId: 'ORD-1234',
-    amount: '150.00',
-    customerName: 'John Mensah',
-    itemsCount: 2,
-  };
+  // ── getOrderCreatedTemplates ────────────────────────────────────────
+  describe('getOrderCreatedTemplates', () => {
+    const orderData = {
+      orderId: 'ORD-1234',
+      amount: '150.00',
+      customerName: 'John Mensah',
+      itemsCount: 2,
+    };
 
-  describe('buyer role', () => {
-    const result = getOrderCreatedTemplates('buyer', orderData);
-
-    test('email HTML contains order amount', () => {
+    test('test_getOrderCreatedTemplates_buyerRole_returnsEmailHtmlWithOrderAmount', () => {
+      // Arrange & Act
+      const result = getOrderCreatedTemplates('buyer', orderData);
+      // Assert
       expect(result.email.html).toContain('150.00');
     });
 
-    test('email HTML contains order ID', () => {
+    test('test_getOrderCreatedTemplates_buyerRole_returnsEmailHtmlWithOrderId', () => {
+      // Arrange & Act
+      const result = getOrderCreatedTemplates('buyer', orderData);
+      // Assert
       expect(result.email.html).toContain('ORD-1234');
     });
 
-    test('SMS contains order ID', () => {
+    test('test_getOrderCreatedTemplates_buyerRole_returnsSmsWithOrderId', () => {
+      // Arrange & Act
+      const result = getOrderCreatedTemplates('buyer', orderData);
+      // Assert
       expect(result.sms).toContain('ORD-1234');
     });
 
-    test('SMS contains amount', () => {
+    test('test_getOrderCreatedTemplates_buyerRole_returnsSmsWithAmount', () => {
+      // Arrange & Act
+      const result = getOrderCreatedTemplates('buyer', orderData);
+      // Assert
       expect(result.sms).toContain('150.00');
     });
-  });
 
-  describe('seller role', () => {
-    const result = getOrderCreatedTemplates('seller', orderData);
-
-    test('email HTML contains order ID', () => {
+    test('test_getOrderCreatedTemplates_sellerRole_returnsEmailHtmlWithOrderId', () => {
+      // Arrange & Act
+      const result = getOrderCreatedTemplates('seller', orderData);
+      // Assert
       expect(result.email.html).toContain('ORD-1234');
     });
 
-    test('email subject exists', () => {
+    test('test_getOrderCreatedTemplates_sellerRole_returnsEmailSubject', () => {
+      // Arrange & Act
+      const result = getOrderCreatedTemplates('seller', orderData);
+      // Assert
       expect(result.email.subject).toBeTruthy();
     });
   });

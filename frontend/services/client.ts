@@ -7,8 +7,9 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 export { CustomInAppToast };
 
 const getBaseURL = () => {
-  const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
-  if (!apiUrl) throw new Error('EXPO_PUBLIC_API_URL is not set');
+  const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
+  const apiUrl = (isDev ? process.env.EXPO_PUBLIC_DEV_API_URL : process.env.EXPO_PUBLIC_API_URL)?.trim();
+  if (!apiUrl) throw new Error(isDev ? 'EXPO_PUBLIC_DEV_API_URL is not set' : 'EXPO_PUBLIC_API_URL is not set');
   return apiUrl.replace(/\/$/, '');
 };
 
