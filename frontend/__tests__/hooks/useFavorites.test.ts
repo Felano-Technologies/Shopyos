@@ -7,44 +7,46 @@
  */
 
 // Mock TanStack React Query hooks
-const mockUseQuery = jest.fn();
-const mockUseMutation = jest.fn();
-const mockUseQueryClient = jest.fn();
-
 jest.mock('@tanstack/react-query', () => ({
-  useQuery: mockUseQuery,
-  useMutation: mockUseMutation,
-  useQueryClient: mockUseQueryClient,
+  __esModule: true,
+  useQuery: jest.fn(),
+  useMutation: jest.fn(),
+  useQueryClient: jest.fn(),
 }));
 
 // Mock react-native Alert
-const mockAlert = jest.fn();
 jest.mock('react-native', () => ({
-  Alert: { alert: mockAlert },
+  __esModule: true,
+  Alert: { alert: jest.fn() },
 }));
 
 // Mock favorites API and keys
-const mockFavoritesApi = {
-  getAll: jest.fn(),
-  check: jest.fn(),
-  add: jest.fn(),
-  remove: jest.fn(),
-};
-
-jest.mock('../../lib/query/api', () => ({
-  favoritesApi: mockFavoritesApi,
+jest.mock('@/lib/query/api', () => ({
+  __esModule: true,
+  favoritesApi: {
+    getAll: jest.fn(),
+    check: jest.fn(),
+    add: jest.fn(),
+    remove: jest.fn(),
+  },
 }));
 
 // Mock expo router
-jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
+jest.mock('expo-router', () => ({
+  __esModule: true,
+  router: { replace: jest.fn() },
+}));
 
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Alert } from 'react-native';
+import { favoritesApi } from '@/lib/query/api';
 import {
   useFavorites,
   useIsFavorite,
   useAddFavorite,
   useRemoveFavorite,
 } from '../../hooks/useFavorites';
-import { queryKeys } from '../../lib/query/keys';
+import { queryKeys } from '@/lib/query/keys';
 
 describe('useFavorites Hooks Unit Tests', () => {
   beforeEach(() => {
@@ -54,16 +56,16 @@ describe('useFavorites Hooks Unit Tests', () => {
   // ── useFavorites ────────────────────────────────────────────────────
   test('test_useFavorites_validCall_invokesUseQueryWithCorrectConfig', () => {
     // Arrange
-    mockUseQuery.mockReturnValue({ data: [], isLoading: false });
+    (useQuery as jest.Mock).mockReturnValue({ data: [], isLoading: false });
 
     // Act
     const result = useFavorites();
 
     // Assert
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: queryKeys.favorites.list(),
-        queryFn: mockFavoritesApi.getAll,
+        queryFn: favoritesApi.getAll,
         staleTime: 5 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
       })
@@ -74,13 +76,13 @@ describe('useFavorites Hooks Unit Tests', () => {
   // ── useIsFavorite ───────────────────────────────────────────────────
   test('test_useIsFavorite_withProductId_invokesUseQueryWithCorrectConfigAndChecksApi', () => {
     // Arrange
-    mockUseQuery.mockReturnValue({ data: true, isLoading: false });
+    (useQuery as jest.Mock).mockReturnValue({ data: true, isLoading: false });
 
     // Act
     const result = useIsFavorite('prod-123');
 
     // Assert
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: ['favorites', 'check', 'prod-123'],
         enabled: true,
@@ -88,9 +90,9 @@ describe('useFavorites Hooks Unit Tests', () => {
       })
     );
 
-    const config = mockUseQuery.mock.calls[0][0];
+    const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(mockFavoritesApi.check).toHaveBeenCalledWith('prod-123');
+    expect(favoritesApi.check).toHaveBeenCalledWith('prod-123');
     expect(result).toBeDefined();
   });
 
@@ -99,7 +101,7 @@ describe('useFavorites Hooks Unit Tests', () => {
     useIsFavorite('');
 
     // Assert
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         enabled: false,
       })
@@ -115,14 +117,14 @@ describe('useFavorites Hooks Unit Tests', () => {
       setQueryData: jest.fn(),
       invalidateQueries: jest.fn(),
     };
-    mockUseQueryClient.mockReturnValue(mockQueryClientInstance);
-    mockUseMutation.mockReturnValue({ mutate: jest.fn() });
+    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClientInstance);
+    (useMutation as jest.Mock).mockReturnValue({ mutate: jest.fn() });
 
     // Act
     useAddFavorite();
 
     // Assert
-    expect(mockUseMutation).toHaveBeenCalledWith(
+    expect(useMutation).toHaveBeenCalledWith(
       expect.objectContaining({
         mutationFn: expect.any(Function),
         onMutate: expect.any(Function),
@@ -131,11 +133,11 @@ describe('useFavorites Hooks Unit Tests', () => {
       })
     );
 
-    const config = mockUseMutation.mock.calls[0][0];
+    const config = (useMutation as jest.Mock).mock.calls[0][0];
 
     // Verify mutationFn calls API
     await config.mutationFn('prod-999');
-    expect(mockFavoritesApi.add).toHaveBeenCalledWith('prod-999');
+    expect(favoritesApi.add).toHaveBeenCalledWith('prod-999');
 
     // Verify onMutate performs optimistic cache updates
     const previousFavs = [{ id: 'p1', name: 'Shoes' }];
@@ -159,7 +161,7 @@ describe('useFavorites Hooks Unit Tests', () => {
       queryKeys.favorites.list(),
       previousFavs
     );
-    expect(mockAlert).toHaveBeenCalledWith('Error', 'Failed to add to favorites');
+    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to add to favorites');
 
     // Verify onSuccess invalidates keys
     config.onSuccess();
@@ -177,14 +179,14 @@ describe('useFavorites Hooks Unit Tests', () => {
       setQueryData: jest.fn(),
       invalidateQueries: jest.fn(),
     };
-    mockUseQueryClient.mockReturnValue(mockQueryClientInstance);
-    mockUseMutation.mockReturnValue({ mutate: jest.fn() });
+    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClientInstance);
+    (useMutation as jest.Mock).mockReturnValue({ mutate: jest.fn() });
 
     // Act
     useRemoveFavorite();
 
     // Assert
-    expect(mockUseMutation).toHaveBeenCalledWith(
+    expect(useMutation).toHaveBeenCalledWith(
       expect.objectContaining({
         mutationFn: expect.any(Function),
         onMutate: expect.any(Function),
@@ -193,11 +195,11 @@ describe('useFavorites Hooks Unit Tests', () => {
       })
     );
 
-    const config = mockUseMutation.mock.calls[0][0];
+    const config = (useMutation as jest.Mock).mock.calls[0][0];
 
     // Verify mutationFn
     await config.mutationFn('prod-123');
-    expect(mockFavoritesApi.remove).toHaveBeenCalledWith('prod-123');
+    expect(favoritesApi.remove).toHaveBeenCalledWith('prod-123');
 
     // Verify onMutate
     const previousFavs = [{ id: 'prod-123', name: 'Shoes' }, { id: 'p2', name: 'Belt' }];
@@ -217,7 +219,7 @@ describe('useFavorites Hooks Unit Tests', () => {
       queryKeys.favorites.list(),
       previousFavs
     );
-    expect(mockAlert).toHaveBeenCalledWith('Error', 'Access denied');
+    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Access denied');
 
     // Verify onSuccess
     config.onSuccess();

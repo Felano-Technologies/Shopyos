@@ -2,3 +2,5 @@
 node_modules/
 docs/
 test-connection.js
+coverage/
+junit.xml

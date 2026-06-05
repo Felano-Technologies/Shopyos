@@ -1,3 +1,4 @@
 .env
 shopyos_backup.dump
 guidelines
+coverage/

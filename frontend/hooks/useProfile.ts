@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { profileApi, UserProfile } from '../lib/query/api';
-import { queryKeys } from '../lib/query/keys';
+import { profileApi, UserProfile } from '@/lib/query/api';
+import { queryKeys } from '@/lib/query/keys';
 import { Alert } from 'react-native';
 
 export const useProfile = () => {

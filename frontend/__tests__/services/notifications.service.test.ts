@@ -20,13 +20,10 @@ jest.mock('../../services/storage', () => ({
   secureStorage: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() },
 }));
 
-const mockApiGet = jest.fn();
-const mockApiPut = jest.fn();
-
 jest.mock('../../services/client', () => ({
   api: {
-    get: mockApiGet,
-    put: mockApiPut,
+    get: jest.fn(),
+    put: jest.fn(),
     defaults: { headers: { common: {} } },
     interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
   },
@@ -38,6 +35,7 @@ jest.mock('../../services/client', () => ({
   CustomInAppToast: { show: jest.fn() },
 }));
 
+import { api } from '../../services/client';
 import {
   getNotifications,
   markNotificationRead,
@@ -58,19 +56,19 @@ describe('Notifications Service Unit Tests', () => {
     test('test_getNotifications_validCall_returnsNotifications', async () => {
       // Arrange
       const mockData = { success: true, data: [{ id: 'notif-1', title: 'New Promo' }] };
-      mockApiGet.mockResolvedValueOnce({ data: mockData });
+      (api.get as jest.Mock).mockResolvedValueOnce({ data: mockData });
 
       // Act
       const result = await getNotifications();
 
       // Assert
-      expect(mockApiGet).toHaveBeenCalledWith('/notifications');
+      expect(api.get).toHaveBeenCalledWith('/notifications');
       expect(result).toEqual(mockData);
     });
 
     test('test_getNotifications_apiFails_throwsError', async () => {
       // Arrange
-      mockApiGet.mockRejectedValueOnce(new Error('Network error'));
+      (api.get as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       // Act & Assert
       await expect(getNotifications()).rejects.toThrow('Network error');
@@ -82,13 +80,13 @@ describe('Notifications Service Unit Tests', () => {
     test('test_markNotificationRead_validId_returnsSuccessResponse', async () => {
       // Arrange
       const mockRes = { success: true, message: 'Marked read' };
-      mockApiPut.mockResolvedValueOnce({ data: mockRes });
+      (api.put as jest.Mock).mockResolvedValueOnce({ data: mockRes });
 
       // Act
       const result = await markNotificationRead('notif-123');
 
       // Assert
-      expect(mockApiPut).toHaveBeenCalledWith('/notifications/notif-123/read');
+      expect(api.put).toHaveBeenCalledWith('/notifications/notif-123/read');
       expect(result).toEqual(mockRes);
     });
   });
@@ -98,13 +96,13 @@ describe('Notifications Service Unit Tests', () => {
     test('test_markAllNotificationsRead_validCall_returnsSuccessResponse', async () => {
       // Arrange
       const mockRes = { success: true, message: 'All read' };
-      mockApiPut.mockResolvedValueOnce({ data: mockRes });
+      (api.put as jest.Mock).mockResolvedValueOnce({ data: mockRes });
 
       // Act
       const result = await markAllNotificationsRead();
 
       // Assert
-      expect(mockApiPut).toHaveBeenCalledWith('/notifications/read-all');
+      expect(api.put).toHaveBeenCalledWith('/notifications/read-all');
       expect(result).toEqual(mockRes);
     });
   });
@@ -114,13 +112,13 @@ describe('Notifications Service Unit Tests', () => {
     test('test_getUnreadNotificationCount_validCall_returnsCountObject', async () => {
       // Arrange
       const mockRes = { success: true, count: 5 };
-      mockApiGet.mockResolvedValueOnce({ data: mockRes });
+      (api.get as jest.Mock).mockResolvedValueOnce({ data: mockRes });
 
       // Act
       const result = await getUnreadNotificationCount();
 
       // Assert
-      expect(mockApiGet).toHaveBeenCalledWith('/notifications/unread-count');
+      expect(api.get).toHaveBeenCalledWith('/notifications/unread-count');
       expect(result).toEqual(mockRes);
     });
   });
@@ -130,13 +128,13 @@ describe('Notifications Service Unit Tests', () => {
     test('test_getNotificationPreferences_validCall_returnsPreferencesObject', async () => {
       // Arrange
       const mockPrefs = { email: true, push: false, sms: true };
-      mockApiGet.mockResolvedValueOnce({ data: { success: true, preferences: mockPrefs } });
+      (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, preferences: mockPrefs } });
 
       // Act
       const result = await getNotificationPreferences();
 
       // Assert
-      expect(mockApiGet).toHaveBeenCalledWith('/notifications/preferences');
+      expect(api.get).toHaveBeenCalledWith('/notifications/preferences');
       expect(result.preferences).toEqual(mockPrefs);
     });
   });
@@ -147,13 +145,13 @@ describe('Notifications Service Unit Tests', () => {
       // Arrange
       const updatedPrefs = { email: false, push: true };
       const mockRes = { success: true, preferences: updatedPrefs };
-      mockApiPut.mockResolvedValueOnce({ data: mockRes });
+      (api.put as jest.Mock).mockResolvedValueOnce({ data: mockRes });
 
       // Act
       const result = await updateNotificationPreferences(updatedPrefs);
 
       // Assert
-      expect(mockApiPut).toHaveBeenCalledWith('/notifications/preferences', updatedPrefs);
+      expect(api.put).toHaveBeenCalledWith('/notifications/preferences', updatedPrefs);
       expect(result).toEqual(mockRes);
     });
   });
@@ -163,13 +161,13 @@ describe('Notifications Service Unit Tests', () => {
     test('test_markNotificationsReadByConversation_validId_returnsSuccessResponse', async () => {
       // Arrange
       const mockRes = { success: true, message: 'Conversation read' };
-      mockApiPut.mockResolvedValueOnce({ data: mockRes });
+      (api.put as jest.Mock).mockResolvedValueOnce({ data: mockRes });
 
       // Act
       const result = await markNotificationsReadByConversation('conv-123');
 
       // Assert
-      expect(mockApiPut).toHaveBeenCalledWith('/notifications/read-by-conversation/conv-123');
+      expect(api.put).toHaveBeenCalledWith('/notifications/read-by-conversation/conv-123');
       expect(result).toEqual(mockRes);
     });
   });

@@ -88,8 +88,16 @@ jobs:
         working-directory: frontend
 
       - name: Run tests
-        run: npm test -- --watchAll=false --ci --passWithNoTests
+        run: npm test -- --watchAll=false --ci --passWithNoTests --coverage
         working-directory: frontend
+
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          if-no-files-found: ignore
 
   # ── Step 5 ─────────────────────────────────────────────────────
   backend-unit-tests:
@@ -110,7 +118,7 @@ jobs:
         working-directory: backend
 
       - name: Run unit tests
-        run: npm run test:unit
+        run: npm run test:unit -- --coverage
         working-directory: backend
         env:
           NODE_ENV: test
@@ -123,6 +131,14 @@ jobs:
         with:
           name: unit-test-results
           path: backend/junit.xml
+          if-no-files-found: ignore
+
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage/
           if-no-files-found: ignore
 
   # ── Step 6 ─────────────────────────────────────────────────────
@@ -206,11 +222,39 @@ jobs:
           path: backend/junit.xml
           if-no-files-found: ignore
 
+  # ── Step 6.5 ───────────────────────────────────────────────────
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    needs: [frontend-test, backend-unit-tests]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   # ── Step 7 ─────────────────────────────────────────────────────
   deploy:
     name: Deploy → Railway
     runs-on: ubuntu-latest
-    needs: [backend-integration]
+    needs: [backend-integration, sonarcloud]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Trigger Railway deployment

@@ -7,47 +7,38 @@
  */
 
 // Mock TanStack React Query hooks
-const mockUseQuery = jest.fn();
-const mockUseMutation = jest.fn();
-const mockUseQueryClient = jest.fn();
-
 jest.mock('@tanstack/react-query', () => ({
-  useQuery: mockUseQuery,
-  useMutation: mockUseMutation,
-  useQueryClient: mockUseQueryClient,
+  __esModule: true,
+  useQuery: jest.fn(),
+  useMutation: jest.fn(),
+  useQueryClient: jest.fn(),
 }));
 
 // Mock API service
-const mockSecureStorage = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-};
-
-const mockApiService = {
-  secureStorage: mockSecureStorage,
+jest.mock('@/services/api', () => ({
+  __esModule: true,
+  secureStorage: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+  },
   getNotifications: jest.fn(),
   getUnreadNotificationCount: jest.fn(),
   markNotificationRead: jest.fn(),
   markAllNotificationsRead: jest.fn(),
-};
-
-jest.mock('@/services/api', () => mockApiService);
+}));
 
 // Mock socket service
-const mockSocket = {
-  on: jest.fn(),
-  off: jest.fn(),
-};
-const mockSocketService = {
-  connect: jest.fn().mockResolvedValue(mockSocket),
-};
 jest.mock('@/services/socket', () => ({
-  socketService: mockSocketService,
+  __esModule: true,
+  socketService: {
+    connect: jest.fn(),
+  },
 }));
 
 // Mock expo router & hooks
 jest.mock('expo-router', () => ({
+  __esModule: true,
   useRouter: jest.fn(),
   usePathname: jest.fn().mockReturnValue('/home'),
 }));
@@ -57,56 +48,69 @@ const mockSoundInstance = {
   setOnPlaybackStatusUpdate: jest.fn(),
   unloadAsync: jest.fn(),
 };
-const mockPlaySound = jest.fn().mockResolvedValue({ sound: mockSoundInstance });
 jest.mock('expo-av', () => ({
+  __esModule: true,
   Audio: {
     Sound: {
-      createAsync: mockPlaySound,
+      createAsync: jest.fn().mockResolvedValue({ sound: mockSoundInstance }),
     },
   },
 }));
 
 // Mock expo-haptics
-const mockHapticsNotification = jest.fn().mockResolvedValue(undefined);
 jest.mock('expo-haptics', () => ({
+  __esModule: true,
   NotificationFeedbackType: {
     Success: 'success',
   },
-  notificationAsync: mockHapticsNotification,
+  notificationAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock CustomInAppToast
-const mockToastShow = jest.fn();
 jest.mock('@/components/InAppToastHost', () => ({
+  __esModule: true,
   CustomInAppToast: {
-    show: mockToastShow,
+    show: jest.fn(),
   },
 }));
 
-// Import components to test
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import * as ApiService from '@/services/api';
+import { socketService } from '@/services/socket';
+import { usePathname } from 'expo-router';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
+import { CustomInAppToast } from '@/components/InAppToastHost';
+
 import {
   useNotifications,
   useUnreadNotificationCount,
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from '../../hooks/useNotifications';
-import { queryKeys } from '../../lib/query/keys';
+import { queryKeys } from '@/lib/query/keys';
+
+const mockSocket = {
+  on: jest.fn(),
+  off: jest.fn(),
+};
 
 describe('useNotifications Hooks Unit Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (socketService.connect as jest.Mock).mockResolvedValue(mockSocket);
   });
 
   // ── useNotifications ────────────────────────────────────────────────
   test('test_useNotifications_validCall_invokesUseQueryWithCorrectConfigAndFetchesResponse', async () => {
     // Arrange
-    mockUseQuery.mockReturnValue({ data: [], isLoading: false });
+    (useQuery as jest.Mock).mockReturnValue({ data: [], isLoading: false });
 
     // Act
     const result = useNotifications();
 
     // Assert
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: queryKeys.notifications.list(),
         staleTime: 2 * 60 * 1000,
@@ -116,16 +120,16 @@ describe('useNotifications Hooks Unit Tests', () => {
     expect(result).toBeDefined();
 
     // Test queryFn behavior when token is missing
-    const queryFn = mockUseQuery.mock.calls[0][0].queryFn;
-    mockSecureStorage.getItem.mockResolvedValueOnce(null); // userToken
-    mockSecureStorage.getItem.mockResolvedValueOnce(null); // businessToken
+    const queryFn = (useQuery as jest.Mock).mock.calls[0][0].queryFn;
+    (ApiService.secureStorage.getItem as jest.Mock).mockResolvedValueOnce(null); // userToken
+    (ApiService.secureStorage.getItem as jest.Mock).mockResolvedValueOnce(null); // businessToken
     
     const emptyRes = await queryFn();
     expect(emptyRes).toEqual({ notifications: [], unreadCount: 0 });
 
     // Test queryFn behavior when token is present
-    mockSecureStorage.getItem.mockResolvedValueOnce('user-tok');
-    mockApiService.getNotifications.mockResolvedValueOnce({ notifications: [{ id: '1' }] });
+    (ApiService.secureStorage.getItem as jest.Mock).mockResolvedValueOnce('user-tok');
+    (ApiService.getNotifications as jest.Mock).mockResolvedValueOnce({ notifications: [{ id: '1' }] });
     const apiRes = await queryFn();
     expect(apiRes).toEqual({ notifications: [{ id: '1' }] });
   });
@@ -133,13 +137,13 @@ describe('useNotifications Hooks Unit Tests', () => {
   // ── useUnreadNotificationCount ──────────────────────────────────────
   test('test_useUnreadNotificationCount_validCall_invokesUseQueryWithCorrectConfigAndQueriesCount', async () => {
     // Arrange
-    mockUseQuery.mockReturnValue({ data: { unreadCount: 5 }, isLoading: false });
+    (useQuery as jest.Mock).mockReturnValue({ data: { unreadCount: 5 }, isLoading: false });
 
     // Act
     const result = useUnreadNotificationCount(false); // Disable real-time for config check
 
     // Assert
-    expect(mockUseQuery).toHaveBeenCalledWith(
+    expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
         queryKey: queryKeys.notifications.unreadCount(),
         refetchOnMount: 'always',
@@ -150,15 +154,15 @@ describe('useNotifications Hooks Unit Tests', () => {
     expect(result).toBeDefined();
 
     // Test queryFn behavior when token is missing
-    const queryFn = mockUseQuery.mock.calls[0][0].queryFn;
-    mockSecureStorage.getItem.mockResolvedValueOnce(null);
-    mockSecureStorage.getItem.mockResolvedValueOnce(null);
+    const queryFn = (useQuery as jest.Mock).mock.calls[0][0].queryFn;
+    (ApiService.secureStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
+    (ApiService.secureStorage.getItem as jest.Mock).mockResolvedValueOnce(null);
     const emptyRes = await queryFn();
     expect(emptyRes).toEqual({ unreadCount: 0 });
 
     // Test queryFn behavior when token is present
-    mockSecureStorage.getItem.mockResolvedValueOnce('biz-tok');
-    mockApiService.getUnreadNotificationCount.mockResolvedValueOnce({ unreadCount: 3 });
+    (ApiService.secureStorage.getItem as jest.Mock).mockResolvedValueOnce('biz-tok');
+    (ApiService.getUnreadNotificationCount as jest.Mock).mockResolvedValueOnce({ unreadCount: 3 });
     const apiRes = await queryFn();
     expect(apiRes).toEqual({ unreadCount: 3 });
   });
@@ -170,30 +174,30 @@ describe('useNotifications Hooks Unit Tests', () => {
       setQueryData: jest.fn(),
       invalidateQueries: jest.fn(),
     };
-    mockUseQueryClient.mockReturnValue(mockQueryClientInstance);
-    mockUseMutation.mockReturnValue({ mutate: jest.fn() });
+    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClientInstance);
+    (useMutation as jest.Mock).mockReturnValue({ mutate: jest.fn() });
 
     // Act
     useMarkNotificationRead();
 
     // Assert
-    expect(mockUseMutation).toHaveBeenCalledWith(
+    expect(useMutation).toHaveBeenCalledWith(
       expect.objectContaining({
         mutationFn: expect.any(Function),
         onSuccess: expect.any(Function),
       })
     );
 
-    const config = mockUseMutation.mock.calls[0][0];
+    const config = (useMutation as jest.Mock).mock.calls[0][0];
 
     // Verify mutationFn calls API
-    mockApiService.markNotificationRead.mockResolvedValueOnce({ success: true });
+    (ApiService.markNotificationRead as jest.Mock).mockResolvedValueOnce({ success: true });
     await config.mutationFn('notif-123');
-    expect(mockApiService.markNotificationRead).toHaveBeenCalledWith('notif-123');
+    expect(ApiService.markNotificationRead).toHaveBeenCalledWith('notif-123');
 
     // Verify onSuccess cache updates
     const prevList = { notifications: [{ id: 'notif-123', is_read: false }, { id: 'other', is_read: false }] };
-    mockQueryClientInstance.setQueryData.mockImplementation((key, updater) => {
+    mockQueryClientInstance.setQueryData.mockImplementation((key: any, updater: any) => {
       if (typeof updater === 'function') {
         if (JSON.stringify(key) === JSON.stringify(queryKeys.notifications.list())) {
           const updated = updater(prevList);
@@ -223,23 +227,23 @@ describe('useNotifications Hooks Unit Tests', () => {
       setQueryData: jest.fn(),
       invalidateQueries: jest.fn(),
     };
-    mockUseQueryClient.mockReturnValue(mockQueryClientInstance);
-    mockUseMutation.mockReturnValue({ mutate: jest.fn() });
+    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClientInstance);
+    (useMutation as jest.Mock).mockReturnValue({ mutate: jest.fn() });
 
     // Act
     useMarkAllNotificationsRead();
 
     // Assert
-    const config = mockUseMutation.mock.calls[0][0];
+    const config = (useMutation as jest.Mock).mock.calls[0][0];
 
     // Verify mutationFn calls API
-    mockApiService.markAllNotificationsRead.mockResolvedValueOnce({ success: true });
+    (ApiService.markAllNotificationsRead as jest.Mock).mockResolvedValueOnce({ success: true });
     await config.mutationFn();
-    expect(mockApiService.markAllNotificationsRead).toHaveBeenCalled();
+    expect(ApiService.markAllNotificationsRead).toHaveBeenCalled();
 
     // Verify onSuccess cache manipulation
     const prevList = { notifications: [{ id: '1', is_read: false }, { id: '2', is_read: false }] };
-    mockQueryClientInstance.setQueryData.mockImplementation((key, updater) => {
+    mockQueryClientInstance.setQueryData.mockImplementation((key: any, updater: any) => {
       if (typeof updater === 'function') {
         if (JSON.stringify(key) === JSON.stringify(queryKeys.notifications.list())) {
           const updated = updater(prevList);

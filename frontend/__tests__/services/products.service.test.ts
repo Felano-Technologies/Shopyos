@@ -20,17 +20,12 @@ jest.mock('../../services/storage', () => ({
   secureStorage: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() },
 }));
 
-const mockApiGet = jest.fn();
-const mockApiPost = jest.fn();
-const mockApiPut = jest.fn();
-const mockApiDelete = jest.fn();
-
 jest.mock('../../services/client', () => ({
   api: {
-    get: mockApiGet,
-    post: mockApiPost,
-    put: mockApiPut,
-    delete: mockApiDelete,
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
     defaults: { headers: { common: {} } },
     interceptors: { request: { use: jest.fn() }, response: { use: jest.fn() } },
   },
@@ -42,6 +37,7 @@ jest.mock('../../services/client', () => ({
   CustomInAppToast: { show: jest.fn() },
 }));
 
+import { api } from '../../services/client';
 import {
   getStoreProducts,
   searchProducts,
@@ -61,7 +57,7 @@ describe('Products Service Unit Tests', () => {
   // ── getStoreProducts ──────────────────────────────────────────────
   test('test_getStoreProducts_validStoreId_returnsNormalisedProductsArray', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({
+    (api.get as jest.Mock).mockResolvedValueOnce({
       data: { success: true, data: [{ _id: 'p1', name: 'Shirt' }], pagination: {} },
     });
 
@@ -69,25 +65,25 @@ describe('Products Service Unit Tests', () => {
     const result = await getStoreProducts('store-1');
 
     // Assert
-    expect(mockApiGet).toHaveBeenCalledWith('/products/store/store-1', expect.any(Object));
+    expect(api.get).toHaveBeenCalledWith('/products/store/store-1', expect.any(Object));
     expect(result.products).toHaveLength(1);
     expect(result.products[0].name).toBe('Shirt');
   });
 
   test('test_getStoreProducts_withQueryParams_passesParamsToApiCall', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({ data: { success: true, data: [], pagination: {} } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, data: [], pagination: {} } });
 
     // Act
     await getStoreProducts('store-2', { limit: 10, offset: 20 });
 
     // Assert
-    expect(mockApiGet).toHaveBeenCalledWith('/products/store/store-2', { params: { limit: 10, offset: 20 } });
+    expect(api.get).toHaveBeenCalledWith('/products/store/store-2', { params: { limit: 10, offset: 20 } });
   });
 
   test('test_getStoreProducts_apiError_throwsException', async () => {
     // Arrange
-    mockApiGet.mockRejectedValueOnce({ message: 'Network Error' });
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Network Error' });
 
     // Act & Assert
     await expect(getStoreProducts('bad-store')).rejects.toThrow('Network Error');
@@ -96,7 +92,7 @@ describe('Products Service Unit Tests', () => {
   // ── searchProducts ────────────────────────────────────────────────
   test('test_searchProducts_validQuery_returnsMatchingProductsList', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({
+    (api.get as jest.Mock).mockResolvedValueOnce({
       data: { success: true, data: [{ _id: 'p2', name: 'Sneaker' }], pagination: {} },
     });
 
@@ -104,13 +100,13 @@ describe('Products Service Unit Tests', () => {
     const result = await searchProducts({ query: 'sneaker', limit: 10 });
 
     // Assert
-    expect(mockApiGet).toHaveBeenCalledWith('/products/search', { params: { query: 'sneaker', limit: 10 } });
+    expect(api.get).toHaveBeenCalledWith('/products/search', { params: { query: 'sneaker', limit: 10 } });
     expect(result.products).toHaveLength(1);
   });
 
   test('test_searchProducts_noMatchesFound_returnsEmptyProductsList', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({ data: { success: true, data: [], pagination: {} } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, data: [], pagination: {} } });
 
     // Act
     const result = await searchProducts({ query: 'zzz-nothing' });
@@ -121,13 +117,13 @@ describe('Products Service Unit Tests', () => {
 
   test('test_searchProducts_filterParameters_passesFiltersToApiCall', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({ data: { success: true, data: [], pagination: {} } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, data: [], pagination: {} } });
 
     // Act
     await searchProducts({ category: 'shoes', minPrice: 10, maxPrice: 100 });
 
     // Assert
-    expect(mockApiGet).toHaveBeenCalledWith('/products/search', {
+    expect(api.get).toHaveBeenCalledWith('/products/search', {
       params: expect.objectContaining({ category: 'shoes', minPrice: 10, maxPrice: 100 }),
     });
   });
@@ -135,7 +131,7 @@ describe('Products Service Unit Tests', () => {
   // ── getProductById ────────────────────────────────────────────────
   test('test_getProductById_existingId_returnsProductDetailsPayload', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({
+    (api.get as jest.Mock).mockResolvedValueOnce({
       data: { success: true, product: { _id: 'p3', name: 'Air Max' } },
     });
 
@@ -149,7 +145,7 @@ describe('Products Service Unit Tests', () => {
   test('test_getProductById_ghostId_throwsException', async () => {
     // Arrange
     const err = { message: 'Product not found', response: { status: 404, data: { error: 'Product not found' } } };
-    mockApiGet.mockRejectedValueOnce(err);
+    (api.get as jest.Mock).mockRejectedValueOnce(err);
 
     // Act & Assert
     await expect(getProductById('ghost-id')).rejects.toThrow('Product not found');
@@ -158,7 +154,7 @@ describe('Products Service Unit Tests', () => {
   // ── createProduct ─────────────────────────────────────────────────
   test('test_createProduct_validData_postsProductDataSuccessfully', async () => {
     // Arrange
-    mockApiPost.mockResolvedValueOnce({
+    (api.post as jest.Mock).mockResolvedValueOnce({
       data: { success: true, product: { _id: 'new-p', name: 'New Shoe' } },
     });
     const data = { storeId: 'store-1', name: 'New Shoe', price: 50 };
@@ -167,7 +163,7 @@ describe('Products Service Unit Tests', () => {
     const result = await createProduct(data);
 
     // Assert
-    expect(mockApiPost).toHaveBeenCalledWith('/products', data);
+    expect(api.post).toHaveBeenCalledWith('/products', data);
     expect(result.success).toBe(true);
   });
 
@@ -180,7 +176,7 @@ describe('Products Service Unit Tests', () => {
         status: 402,
       },
     };
-    mockApiPost.mockRejectedValueOnce(err);
+    (api.post as jest.Mock).mockRejectedValueOnce(err);
 
     // Act & Assert
     try {
@@ -195,7 +191,7 @@ describe('Products Service Unit Tests', () => {
   test('test_createProduct_otherFailure_throwsGenericErrorMessage', async () => {
     // Arrange
     const err = { message: 'Unauthorized', response: { data: { error: 'Unauthorized' }, status: 401 } };
-    mockApiPost.mockRejectedValueOnce(err);
+    (api.post as jest.Mock).mockRejectedValueOnce(err);
 
     // Act & Assert
     await expect(createProduct({ storeId: 's1', name: 'x', price: 1 })).rejects.toThrow('Unauthorized');
@@ -204,19 +200,19 @@ describe('Products Service Unit Tests', () => {
   // ── updateProduct ─────────────────────────────────────────────────
   test('test_updateProduct_validData_callsPutEndpointWithUpdatedFields', async () => {
     // Arrange
-    mockApiPut.mockResolvedValueOnce({ data: { success: true } });
+    (api.put as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
 
     // Act
     await updateProduct('prod-1', { name: 'Updated Name', price: 75 });
 
     // Assert
-    expect(mockApiPut).toHaveBeenCalledWith('/products/prod-1', { name: 'Updated Name', price: 75 });
+    expect(api.put).toHaveBeenCalledWith('/products/prod-1', { name: 'Updated Name', price: 75 });
   });
 
   test('test_updateProduct_ghostId_throwsNotFoundException', async () => {
     // Arrange
     const err = { message: 'Not found', response: { data: { error: 'Not found' }, status: 404 } };
-    mockApiPut.mockRejectedValueOnce(err);
+    (api.put as jest.Mock).mockRejectedValueOnce(err);
 
     // Act & Assert
     await expect(updateProduct('ghost', {})).rejects.toThrow('Not found');
@@ -225,19 +221,19 @@ describe('Products Service Unit Tests', () => {
   // ── deleteProduct ─────────────────────────────────────────────────
   test('test_deleteProduct_validInput_callsDeleteEndpointWithProductId', async () => {
     // Arrange
-    mockApiDelete.mockResolvedValueOnce({ data: { success: true } });
+    (api.delete as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
 
     // Act
     await deleteProduct('prod-1', 'store-1');
 
     // Assert
-    expect(mockApiDelete).toHaveBeenCalledWith('/products/prod-1');
+    expect(api.delete).toHaveBeenCalledWith('/products/prod-1');
   });
 
   test('test_deleteProduct_notAuthorized_throwsUnauthorizedException', async () => {
     // Arrange
     const err = { message: 'Not authorized', response: { data: { error: 'Not authorized' }, status: 403 } };
-    mockApiDelete.mockRejectedValueOnce(err);
+    (api.delete as jest.Mock).mockRejectedValueOnce(err);
 
     // Act & Assert
     await expect(deleteProduct('locked-prod')).rejects.toThrow('Not authorized');
@@ -246,7 +242,7 @@ describe('Products Service Unit Tests', () => {
   // ── getAllCategories ──────────────────────────────────────────────
   test('test_getAllCategories_validCall_returnsCategoriesListPayload', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({
+    (api.get as jest.Mock).mockResolvedValueOnce({
       data: { success: true, categories: [{ id: 'c1', name: 'Footwear' }] },
     });
 
@@ -261,23 +257,23 @@ describe('Products Service Unit Tests', () => {
   // ── getPromotedProducts ───────────────────────────────────────────
   test('test_getPromotedProducts_noCategory_callsPromotedEndpointWithoutCategoryParam', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({ data: { success: true, products: [] } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, products: [] } });
 
     // Act
     await getPromotedProducts();
 
     // Assert
-    expect(mockApiGet).toHaveBeenCalledWith('/advertising/promoted', expect.any(Object));
+    expect(api.get).toHaveBeenCalledWith('/advertising/promoted', expect.any(Object));
   });
 
   test('test_getPromotedProducts_withCategory_passesCategoryParamToApiCall', async () => {
     // Arrange
-    mockApiGet.mockResolvedValueOnce({ data: { success: true, products: [] } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, products: [] } });
 
     // Act
     await getPromotedProducts('footwear');
 
     // Assert
-    expect(mockApiGet).toHaveBeenCalledWith('/advertising/promoted', { params: { category: 'footwear' } });
+    expect(api.get).toHaveBeenCalledWith('/advertising/promoted', { params: { category: 'footwear' } });
   });
 });
