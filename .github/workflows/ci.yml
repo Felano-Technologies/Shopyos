@@ -99,7 +99,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d '{
-              "query": "mutation Redeploy($serviceId: String!, $environmentId: String!) { serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId) }",
+              "query": "mutation Deploy($serviceId: String!, $environmentId: String!) { serviceInstanceDeploy(serviceId: $serviceId, environmentId: $environmentId) }",
               "variables": {
                 "serviceId": "${{ secrets.RAILWAY_SERVICE_ID }}",
                 "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}"
