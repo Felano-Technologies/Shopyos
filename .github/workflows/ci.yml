@@ -51,7 +51,7 @@ jobs:
   frontend-lint:
     name: Lint — Frontend
     runs-on: ubuntu-latest
-    needs: [backend-lint]
+    needs: [secrets-scan]
     steps:
       - uses: actions/checkout@v4
 
@@ -95,7 +95,7 @@ jobs:
   backend-unit-tests:
     name: Test — Backend Unit
     runs-on: ubuntu-latest
-    needs: [frontend-test]
+    needs: [backend-lint]
     steps:
       - uses: actions/checkout@v4
 
@@ -129,7 +129,7 @@ jobs:
   backend-integration:
     name: Test — Backend Integration
     runs-on: ubuntu-latest
-    needs: [backend-unit-tests]
+    needs: [backend-unit-tests, frontend-test]
 
     services:
       postgres:
