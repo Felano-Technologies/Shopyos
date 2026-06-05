@@ -2,6 +2,7 @@
 // Data access layer for product_reviews, store_reviews, and driver_reviews tables
 
 const BaseRepository = require('./BaseRepository');
+const { transformImageUrls } = require('../../config/storage');
 
 class ReviewRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -144,7 +145,7 @@ class ReviewRepository extends BaseRepository {
     const { data, count, error } = await query;
 
     if (error) throw error;
-    return { data: data || [], count: count || 0 };
+    return { data: transformImageUrls(data || []), count: count || 0 };
   }
 
   /**
@@ -178,7 +179,7 @@ class ReviewRepository extends BaseRepository {
     const { data, count, error } = await query;
 
     if (error) throw error;
-    return { data: data || [], count: count || 0 };
+    return { data: transformImageUrls(data || []), count: count || 0 };
   }
 
   /**
@@ -212,7 +213,7 @@ class ReviewRepository extends BaseRepository {
     const { data, count, error } = await query;
 
     if (error) throw error;
-    return { data: data || [], count: count || 0 };
+    return { data: transformImageUrls(data || []), count: count || 0 };
   }
 
   /**

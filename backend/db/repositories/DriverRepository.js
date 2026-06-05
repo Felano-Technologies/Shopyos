@@ -2,6 +2,7 @@
 // Data access layer for driver_profiles table
 
 const BaseRepository = require('./BaseRepository');
+const { transformImageUrls } = require('../../config/storage');
 
 class DriverRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -25,7 +26,7 @@ class DriverRepository extends BaseRepository {
       throw error;
     }
 
-    return data;
+    return transformImageUrls(data);
   }
 
   /**
@@ -64,7 +65,7 @@ class DriverRepository extends BaseRepository {
         .single();
 
       if (error) throw error;
-      return data;
+      return transformImageUrls(data);
     }
   }
 
@@ -86,7 +87,7 @@ class DriverRepository extends BaseRepository {
       .single();
 
     if (error) throw error;
-    return data;
+    return transformImageUrls(data);
   }
 
   /**

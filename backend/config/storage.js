@@ -184,6 +184,30 @@ const testConnection = async () => {
   }
 };
 
+// Fields that hold storage keys — transformed recursively on any nested object
+const IMAGE_FIELDS = new Set([
+  'avatar_url', 'logo_url', 'banner_url', 'image_url', 'attachment_url',
+  'license_image_url', 'national_id_url', 'insurance_doc_url',
+  'vehicle_reg_url', 'roadworthy_url', 'business_cert_url',
+  'business_license_url', 'proof_of_bank_url',
+]);
+
+const transformImageUrls = (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(transformImageUrls);
+  const out = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (IMAGE_FIELDS.has(key) && typeof val === 'string') {
+      out[key] = toPublicUrl(val);
+    } else if (val && typeof val === 'object') {
+      out[key] = transformImageUrls(val);
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+};
+
 module.exports = {
   s3,
   uploadImage,
@@ -195,5 +219,6 @@ module.exports = {
   getPresignedUploadUrl,
   extractObjectKey,
   toPublicUrl,
+  transformImageUrls,
   testConnection,
 };
