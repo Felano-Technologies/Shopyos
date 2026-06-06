@@ -55,9 +55,13 @@ module.exports = {
   testTimeout: 30000,
   verbose: true,
 
-  // socket.io lives in socket/node_modules, not backend/node_modules.
-  // Map it to a stub so integration tests can load server.js without failing.
+  // The socket server and its dependencies (socket.io, jsonwebtoken) live in
+  // socket/node_modules which is NOT installed when running backend tests.
+  // Map both to stubs so server.js loads cleanly without external deps.
   moduleNameMapper: {
+    // Mock the entire socketServer module — prevents loading socket.io, jwt, etc.
+    '.*socket/src/config/socketServer.*': '<rootDir>/tests/__mocks__/socketServer.js',
+    // Backup: mock socket.io itself in case anything requires it directly.
     '^socket\\.io$': '<rootDir>/tests/__mocks__/socket.io.js',
   },
 };

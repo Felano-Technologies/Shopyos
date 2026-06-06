@@ -1,151 +1,177 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="72" failures="0" errors="0" time="9.511">
-  <testsuite name="ProductController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:37:54" time="6.155" tests="38">
-    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" time="0.055">
+<testsuites name="jest tests" tests="82" failures="0" errors="0" time="24.887">
+  <testsuite name="POST /api/v1/orders/create" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:51:48" time="13.192" tests="32">
+    <testcase classname="POST /api/v1/orders/create returns 401 when no token is provided" name="POST /api/v1/orders/create returns 401 when no token is provided" time="0.209">
     </testcase>
-    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingName_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingName_returns400BadRequest" time="0.003">
+    <testcase classname="POST /api/v1/orders/create returns 401 with a garbage token" name="POST /api/v1/orders/create returns 401 with a garbage token" time="0.017">
     </testcase>
-    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingPrice_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingPrice_returns400BadRequest" time="0.002">
+    <testcase classname="POST /api/v1/orders/create returns 422 when deliveryAddress is missing" name="POST /api/v1/orders/create returns 422 when deliveryAddress is missing" time="0.477">
     </testcase>
-    <testcase classname="ProductController Unit Tests createProduct test_createProduct_storeNotFound_returns404NotFound" name="ProductController Unit Tests createProduct test_createProduct_storeNotFound_returns404NotFound" time="0.001">
+    <testcase classname="POST /api/v1/orders/create returns 422 when deliveryCity is missing" name="POST /api/v1/orders/create returns 422 when deliveryCity is missing" time="0.183">
     </testcase>
-    <testcase classname="ProductController Unit Tests createProduct test_createProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests createProduct test_createProduct_notAuthorizedOwner_returns403Forbidden" time="0.001">
+    <testcase classname="POST /api/v1/orders/create returns 422 when deliveryPhone is missing" name="POST /api/v1/orders/create returns 422 when deliveryPhone is missing" time="0.281">
     </testcase>
-    <testcase classname="ProductController Unit Tests createProduct test_createProduct_validInput_createsProductAndReturns201Created" name="ProductController Unit Tests createProduct test_createProduct_validInput_createsProductAndReturns201Created" time="0.004">
+    <testcase classname="POST /api/v1/orders/create returns 400 when cart is empty (all fields present)" name="POST /api/v1/orders/create returns 400 when cart is empty (all fields present)" time="0.294">
     </testcase>
-    <testcase classname="ProductController Unit Tests getProductById test_getProductById_invalidUuid_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_invalidUuid_returns404NotFound" time="0.004">
+    <testcase classname="GET /api/v1/orders/my-orders returns 401 when no token is provided" name="GET /api/v1/orders/my-orders returns 401 when no token is provided" time="0.014">
     </testcase>
-    <testcase classname="ProductController Unit Tests getProductById test_getProductById_productDoesNotExist_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_productDoesNotExist_returns404NotFound" time="0.002">
+    <testcase classname="GET /api/v1/orders/my-orders returns 401 with a garbage token" name="GET /api/v1/orders/my-orders returns 401 with a garbage token" time="0.023">
     </testcase>
-    <testcase classname="ProductController Unit Tests getProductById test_getProductById_storeNotVerified_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_storeNotVerified_returns404NotFound" time="0.002">
+    <testcase classname="GET /api/v1/orders/my-orders returns 200 with pagination for a newly registered user (no orders yet)" name="GET /api/v1/orders/my-orders returns 200 with pagination for a newly registered user (no orders yet)" time="0.316">
     </testcase>
-    <testcase classname="ProductController Unit Tests getProductById test_getProductById_verifiedStoreProduct_returns200AndProductDetails" name="ProductController Unit Tests getProductById test_getProductById_verifiedStoreProduct_returns200AndProductDetails" time="0.004">
+    <testcase classname="GET /api/v1/orders/my-orders accepts optional status query param without error" name="GET /api/v1/orders/my-orders accepts optional status query param without error" time="0.218">
     </testcase>
-    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotFound_returns200AndEmptyArray" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotFound_returns200AndEmptyArray" time="0.002">
+    <testcase classname="GET /api/v1/orders/my-orders accepts pagination query params without error" name="GET /api/v1/orders/my-orders accepts pagination query params without error" time="0.234">
     </testcase>
-    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotVerified_returns200AndEmptyArray" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotVerified_returns200AndEmptyArray" time="0.004">
+    <testcase classname="GET /api/v1/orders/:orderId returns 401 when no token is provided" name="GET /api/v1/orders/:orderId returns 401 when no token is provided" time="0.008">
     </testcase>
-    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_verifiedStore_returnsProductsList" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_verifiedStore_returnsProductsList" time="0.001">
+    <testcase classname="GET /api/v1/orders/:orderId returns 401 with a garbage token" name="GET /api/v1/orders/:orderId returns 401 with a garbage token" time="0.01">
     </testcase>
-    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_productNotFound_returns404NotFound" name="ProductController Unit Tests updateProduct test_updateProduct_productNotFound_returns404NotFound" time="0.003">
+    <testcase classname="GET /api/v1/orders/:orderId returns 404 for a non-existent order ID" name="GET /api/v1/orders/:orderId returns 404 for a non-existent order ID" time="0.198">
     </testcase>
-    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests updateProduct test_updateProduct_notAuthorizedOwner_returns403Forbidden" time="0.001">
+    <testcase classname="GET /api/v1/orders/:orderId returns 404 for a second distinct non-existent ID" name="GET /api/v1/orders/:orderId returns 404 for a second distinct non-existent ID" time="0.236">
     </testcase>
-    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_authorizedOwner_updatesAndReturns200Success" name="ProductController Unit Tests updateProduct test_updateProduct_authorizedOwner_updatesAndReturns200Success" time="0.001">
+    <testcase classname="PUT /api/v1/orders/:orderId/status returns 401 when no token is provided" name="PUT /api/v1/orders/:orderId/status returns 401 when no token is provided" time="0.007">
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_productNotFound_returns404NotFound" name="ProductController Unit Tests deleteProduct test_deleteProduct_productNotFound_returns404NotFound" time="0.003">
+    <testcase classname="PUT /api/v1/orders/:orderId/status returns 401 with a garbage token" name="PUT /api/v1/orders/:orderId/status returns 401 with a garbage token" time="0.007">
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests deleteProduct test_deleteProduct_notAuthorizedOwner_returns403Forbidden" time="0.006">
+    <testcase classname="PUT /api/v1/orders/:orderId/status returns 403 when a regular buyer attempts the status update (role-gated)" name="PUT /api/v1/orders/:orderId/status returns 403 when a regular buyer attempts the status update (role-gated)" time="0.255">
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_authorizedOwner_deletesAndReturns200Success" name="ProductController Unit Tests deleteProduct test_deleteProduct_authorizedOwner_deletesAndReturns200Success" time="0.004">
+    <testcase classname="PUT /api/v1/orders/:orderId/status returns 400 when status value is not in the allowed list" name="PUT /api/v1/orders/:orderId/status returns 400 when status value is not in the allowed list" time="0.197">
     </testcase>
-    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_validQuery_returns200AndPaginatedResults" name="ProductController Unit Tests searchProducts test_searchProducts_validQuery_returns200AndPaginatedResults" time="0.002">
+    <testcase classname="PUT /api/v1/orders/:orderId/cancel returns 401 when no token is provided" name="PUT /api/v1/orders/:orderId/cancel returns 401 when no token is provided" time="0.007">
     </testcase>
-    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_noMatchesFound_returns200AndEmptyArray" name="ProductController Unit Tests searchProducts test_searchProducts_noMatchesFound_returns200AndEmptyArray" time="0.002">
+    <testcase classname="PUT /api/v1/orders/:orderId/cancel returns 401 with a garbage token" name="PUT /api/v1/orders/:orderId/cancel returns 401 with a garbage token" time="0.008">
     </testcase>
-    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_sortByPriceAsc_returns200AndSortedResults" name="ProductController Unit Tests searchProducts test_searchProducts_sortByPriceAsc_returns200AndSortedResults" time="0.002">
+    <testcase classname="PUT /api/v1/orders/:orderId/cancel returns 404 when attempting to cancel a non-existent order" name="PUT /api/v1/orders/:orderId/cancel returns 404 when attempting to cancel a non-existent order" time="0.22">
     </testcase>
-    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_sortByRating_passesRatingColumnToRepository" name="ProductController Unit Tests searchProducts test_searchProducts_sortByRating_passesRatingColumnToRepository" time="0.002">
+    <testcase classname="PUT /api/v1/orders/:orderId/cancel cancel request without a reason body still returns 404 for missing order" name="PUT /api/v1/orders/:orderId/cancel cancel request without a reason body still returns 404 for missing order" time="0.199">
     </testcase>
-    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_withCategoryAndPriceFilters_passesFiltersToRepository" name="ProductController Unit Tests searchProducts test_searchProducts_withCategoryAndPriceFilters_passesFiltersToRepository" time="0.002">
+    <testcase classname="GET /api/v1/orders/number/:orderNumber returns 401 when no token is provided" name="GET /api/v1/orders/number/:orderNumber returns 401 when no token is provided" time="0.007">
     </testcase>
-    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_noFilesUploaded_returns400BadRequest" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_noFilesUploaded_returns400BadRequest" time="0.002">
+    <testcase classname="GET /api/v1/orders/number/:orderNumber returns 401 with a garbage token" name="GET /api/v1/orders/number/:orderNumber returns 401 with a garbage token" time="0.008">
     </testcase>
-    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_productNotFound_returns404NotFound" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_productNotFound_returns404NotFound" time="0.002">
+    <testcase classname="GET /api/v1/orders/number/:orderNumber returns 404 for a non-existent order number" name="GET /api/v1/orders/number/:orderNumber returns 404 for a non-existent order number" time="0.174">
     </testcase>
-    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_notAuthorizedOwner_returns403Forbidden" time="0.002">
+    <testcase classname="GET /api/v1/orders/store/:storeId (seller/admin only) returns 401 when no token is provided" name="GET /api/v1/orders/store/:storeId (seller/admin only) returns 401 when no token is provided" time="0.005">
     </testcase>
-    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_tooManyFiles_returns400BadRequest" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_tooManyFiles_returns400BadRequest" time="0.002">
+    <testcase classname="GET /api/v1/orders/store/:storeId (seller/admin only) returns 401 with a garbage token" name="GET /api/v1/orders/store/:storeId (seller/admin only) returns 401 with a garbage token" time="0.006">
     </testcase>
-    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_validInput_uploadsAndReturns200Success" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_validInput_uploadsAndReturns200Success" time="0.004">
+    <testcase classname="GET /api/v1/orders/store/:storeId (seller/admin only) returns 403 when a regular buyer tries to access store orders" name="GET /api/v1/orders/store/:storeId (seller/admin only) returns 403 when a regular buyer tries to access store orders" time="0.169">
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_productNotFound_returns404NotFound" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_productNotFound_returns404NotFound" time="0.002">
+    <testcase classname="PUT /api/v1/orders/:orderId/confirm-delivery returns 401 when no token is provided" name="PUT /api/v1/orders/:orderId/confirm-delivery returns 401 when no token is provided" time="0.007">
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_notAuthorizedOwner_returns403Forbidden" time="0.004">
+    <testcase classname="PUT /api/v1/orders/:orderId/confirm-delivery returns 401 with a garbage token" name="PUT /api/v1/orders/:orderId/confirm-delivery returns 401 with a garbage token" time="0.007">
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_imageNotFound_returns404NotFound" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_imageNotFound_returns404NotFound" time="0.002">
-    </testcase>
-    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" time="0.001">
-    </testcase>
-    <testcase classname="ProductController Unit Tests getCategories test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts" name="ProductController Unit Tests getCategories test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts" time="0.004">
-    </testcase>
-    <testcase classname="ProductController Unit Tests getCategories test_getCategories_dbCategoriesEmpty_fallsBackToProductCounts" name="ProductController Unit Tests getCategories test_getCategories_dbCategoriesEmpty_fallsBackToProductCounts" time="0.006">
-    </testcase>
-    <testcase classname="ProductController Unit Tests getCategories test_getCategories_categoryWithNoSlug_generatesSlugFromName" name="ProductController Unit Tests getCategories test_getCategories_categoryWithNoSlug_generatesSlugFromName" time="0.001">
-    </testcase>
-    <testcase classname="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" name="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" time="0.002">
-    </testcase>
-    <testcase classname="ProductController Unit Tests updateProduct – additional error paths test_updateProduct_stockQuantityProvided_updatesInventory" name="ProductController Unit Tests updateProduct – additional error paths test_updateProduct_stockQuantityProvided_updatesInventory" time="0.001">
+    <testcase classname="PUT /api/v1/orders/:orderId/confirm-delivery returns 404 for a non-existent order" name="PUT /api/v1/orders/:orderId/confirm-delivery returns 404 for a non-existent order" time="0.191">
     </testcase>
   </testsuite>
-  <testsuite name="ReviewController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:37:54" time="6.287" tests="34">
-    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_missingRating_returns400BadRequest" name="ReviewController Unit Tests createProductReview test_createProductReview_missingRating_returns400BadRequest" time="0.076">
+  <testsuite name="GET /api/v1/cart" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:52:02" time="4.519" tests="22">
+    <testcase classname="GET /api/v1/cart returns 401 when no token is provided" name="GET /api/v1/cart returns 401 when no token is provided" time="0.017">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_invalidRatingRange_returns400BadRequest" name="ReviewController Unit Tests createProductReview test_createProductReview_invalidRatingRange_returns400BadRequest" time="0.005">
+    <testcase classname="GET /api/v1/cart returns 401 with a garbage token" name="GET /api/v1/cart returns 401 with a garbage token" time="0.007">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_alreadyReviewed_returns400BadRequest" name="ReviewController Unit Tests createProductReview test_createProductReview_alreadyReviewed_returns400BadRequest" time="0.008">
+    <testcase classname="GET /api/v1/cart returns 200 with an empty cart for a newly registered user" name="GET /api/v1/cart returns 200 with an empty cart for a newly registered user" time="0.237">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_notPurchasedProduct_returns403Forbidden" name="ReviewController Unit Tests createProductReview test_createProductReview_notPurchasedProduct_returns403Forbidden" time="0.012">
+    <testcase classname="POST /api/v1/cart/add returns 401 when no token is provided" name="POST /api/v1/cart/add returns 401 when no token is provided" time="0.007">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createProductReview test_createProductReview_validPurchaseAndInput_createsReviewAndInvalidatesCache" name="ReviewController Unit Tests createProductReview test_createProductReview_validPurchaseAndInput_createsReviewAndInvalidatesCache" time="0.007">
+    <testcase classname="POST /api/v1/cart/add returns 401 with a garbage token" name="POST /api/v1/cart/add returns 401 with a garbage token" time="0.007">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createStoreReview test_createStoreReview_validInput_createsStoreReviewSuccessfully" name="ReviewController Unit Tests createStoreReview test_createStoreReview_validInput_createsStoreReviewSuccessfully" time="0.004">
+    <testcase classname="POST /api/v1/cart/add returns 422 when productId is not a valid UUID" name="POST /api/v1/cart/add returns 422 when productId is not a valid UUID" time="0.197">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createDriverReview test_createDriverReview_validInput_createsDriverReviewSuccessfully" name="ReviewController Unit Tests createDriverReview test_createDriverReview_validInput_createsDriverReviewSuccessfully" time="0.009">
+    <testcase classname="POST /api/v1/cart/add returns 422 when quantity is zero" name="POST /api/v1/cart/add returns 422 when quantity is zero" time="0.261">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getProductReviews test_getProductReviews_validProductId_returnsMappedReviewsAndStats" name="ReviewController Unit Tests getProductReviews test_getProductReviews_validProductId_returnsMappedReviewsAndStats" time="0.003">
+    <testcase classname="POST /api/v1/cart/add returns 422 when productId is missing" name="POST /api/v1/cart/add returns 422 when productId is missing" time="0.287">
     </testcase>
-    <testcase classname="ReviewController Unit Tests updateProductReview test_updateProductReview_notAuthorizedOwner_returns403Forbidden" name="ReviewController Unit Tests updateProductReview test_updateProductReview_notAuthorizedOwner_returns403Forbidden" time="0.002">
+    <testcase classname="POST /api/v1/cart/add returns 404 when product does not exist" name="POST /api/v1/cart/add returns 404 when product does not exist" time="0.315">
     </testcase>
-    <testcase classname="ReviewController Unit Tests deleteReview test_deleteReview_authorizedOwner_deletesSuccessfully" name="ReviewController Unit Tests deleteReview test_deleteReview_authorizedOwner_deletesSuccessfully" time="0.002">
+    <testcase classname="GET /api/v1/cart/count returns 401 when unauthenticated" name="GET /api/v1/cart/count returns 401 when unauthenticated" time="0.01">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getMyReviews test_getMyReviews_validType_returnsPaginatedUserReviews" name="ReviewController Unit Tests getMyReviews test_getMyReviews_validType_returnsPaginatedUserReviews" time="0.002">
+    <testcase classname="GET /api/v1/cart/count returns 200 with a count for an authenticated user" name="GET /api/v1/cart/count returns 200 with a count for an authenticated user" time="0.27">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getReviewableProducts test_getReviewableProducts_validCall_returnsProductsList" name="ReviewController Unit Tests getReviewableProducts test_getReviewableProducts_validCall_returnsProductsList" time="0.002">
+    <testcase classname="PUT /api/v1/cart/item/:itemId returns 401 when no token is provided" name="PUT /api/v1/cart/item/:itemId returns 401 when no token is provided" time="0.01">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getStoreReviews test_getStoreReviews_validStoreId_returnsMappedReviewsAndStats" name="ReviewController Unit Tests getStoreReviews test_getStoreReviews_validStoreId_returnsMappedReviewsAndStats" time="0.003">
+    <testcase classname="PUT /api/v1/cart/item/:itemId returns 401 with a garbage token" name="PUT /api/v1/cart/item/:itemId returns 401 with a garbage token" time="0.012">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getStoreReviews test_getStoreReviews_withRatingFilter_passesRatingToRepository" name="ReviewController Unit Tests getStoreReviews test_getStoreReviews_withRatingFilter_passesRatingToRepository" time="0.001">
+    <testcase classname="PUT /api/v1/cart/item/:itemId returns 400 when quantity is missing" name="PUT /api/v1/cart/item/:itemId returns 400 when quantity is missing" time="0.26">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getDriverReviews test_getDriverReviews_validDriverId_returnsReviewsAndStats" name="ReviewController Unit Tests getDriverReviews test_getDriverReviews_validDriverId_returnsReviewsAndStats" time="0.001">
+    <testcase classname="PUT /api/v1/cart/item/:itemId returns 400 when quantity is less than 1" name="PUT /api/v1/cart/item/:itemId returns 400 when quantity is less than 1" time="0.279">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getDriverReviews test_getDriverReviews_withRatingFilter_passesRatingToRepository" name="ReviewController Unit Tests getDriverReviews test_getDriverReviews_withRatingFilter_passesRatingToRepository" time="0.001">
+    <testcase classname="PUT /api/v1/cart/item/:itemId returns 403 when item does not belong to the authenticated user" name="PUT /api/v1/cart/item/:itemId returns 403 when item does not belong to the authenticated user" time="0.224">
     </testcase>
-    <testcase classname="ReviewController Unit Tests updateProductReview – additional paths test_updateProductReview_reviewNotFound_returns404NotFound" name="ReviewController Unit Tests updateProductReview – additional paths test_updateProductReview_reviewNotFound_returns404NotFound" time="0.002">
+    <testcase classname="DELETE /api/v1/cart/item/:itemId returns 401 when no token is provided" name="DELETE /api/v1/cart/item/:itemId returns 401 when no token is provided" time="0.008">
     </testcase>
-    <testcase classname="ReviewController Unit Tests updateProductReview – additional paths test_updateProductReview_invalidRating_returns400BadRequest" name="ReviewController Unit Tests updateProductReview – additional paths test_updateProductReview_invalidRating_returns400BadRequest" time="0.001">
+    <testcase classname="DELETE /api/v1/cart/item/:itemId returns 401 with a garbage token" name="DELETE /api/v1/cart/item/:itemId returns 401 with a garbage token" time="0.009">
     </testcase>
-    <testcase classname="ReviewController Unit Tests updateProductReview – additional paths test_updateProductReview_authorizedOwner_updatesAndReturns200" name="ReviewController Unit Tests updateProductReview – additional paths test_updateProductReview_authorizedOwner_updatesAndReturns200" time="0.003">
+    <testcase classname="DELETE /api/v1/cart/item/:itemId returns 403 when item does not belong to the authenticated user" name="DELETE /api/v1/cart/item/:itemId returns 403 when item does not belong to the authenticated user" time="0.202">
     </testcase>
-    <testcase classname="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_invalidReviewType_returns400BadRequest" name="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_invalidReviewType_returns400BadRequest" time="0.002">
+    <testcase classname="DELETE /api/v1/cart/clear returns 401 when no token is provided" name="DELETE /api/v1/cart/clear returns 401 when no token is provided" time="0.006">
     </testcase>
-    <testcase classname="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_reviewNotFound_returns404NotFound" name="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_reviewNotFound_returns404NotFound" time="0.002">
+    <testcase classname="DELETE /api/v1/cart/clear returns 401 with a garbage token" name="DELETE /api/v1/cart/clear returns 401 with a garbage token" time="0.007">
     </testcase>
-    <testcase classname="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_notAuthorizedNonAdmin_returns403Forbidden" name="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_notAuthorizedNonAdmin_returns403Forbidden" time="0.001">
+    <testcase classname="DELETE /api/v1/cart/clear returns 200 for an authenticated user even when cart is already empty" name="DELETE /api/v1/cart/clear returns 200 for an authenticated user even when cart is already empty" time="0.193">
     </testcase>
-    <testcase classname="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_adminUser_deletesAnyReview" name="ReviewController Unit Tests deleteReview – additional paths test_deleteReview_adminUser_deletesAnyReview" time="0.002">
+  </testsuite>
+  <testsuite name="POST /api/v1/auth/register" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:52:06" time="3.772" tests="14">
+    <testcase classname="POST /api/v1/auth/register registers a new user and returns 201 with a token" name="POST /api/v1/auth/register registers a new user and returns 201 with a token" time="0.345">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getMyReviews – additional paths test_getMyReviews_invalidType_returns400BadRequest" name="ReviewController Unit Tests getMyReviews – additional paths test_getMyReviews_invalidType_returns400BadRequest" time="0.001">
+    <testcase classname="POST /api/v1/auth/register returns 400 when registering a duplicate email" name="POST /api/v1/auth/register returns 400 when registering a duplicate email" time="0.384">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getMyReviews – additional paths test_getMyReviews_ascendingOrder_passesAscendingTrue" name="ReviewController Unit Tests getMyReviews – additional paths test_getMyReviews_ascendingOrder_passesAscendingTrue" time="0.001">
+    <testcase classname="POST /api/v1/auth/register returns 422 when email is invalid" name="POST /api/v1/auth/register returns 422 when email is invalid" time="0.025">
     </testcase>
-    <testcase classname="ReviewController Unit Tests likeReview test_likeReview_reviewNotFound_returns404NotFound" name="ReviewController Unit Tests likeReview test_likeReview_reviewNotFound_returns404NotFound" time="0.007">
+    <testcase classname="POST /api/v1/auth/register returns 422 when password is too short" name="POST /api/v1/auth/register returns 422 when password is too short" time="0.019">
     </testcase>
-    <testcase classname="ReviewController Unit Tests likeReview test_likeReview_notYetLiked_insertsLikeAndReturnsIsLikedTrue" name="ReviewController Unit Tests likeReview test_likeReview_notYetLiked_insertsLikeAndReturnsIsLikedTrue" time="0.002">
+    <testcase classname="POST /api/v1/auth/register returns 422 when name is missing" name="POST /api/v1/auth/register returns 422 when name is missing" time="0.023">
     </testcase>
-    <testcase classname="ReviewController Unit Tests likeReview test_likeReview_alreadyLiked_deletesLikeAndReturnsIsLikedFalse" name="ReviewController Unit Tests likeReview test_likeReview_alreadyLiked_deletesLikeAndReturnsIsLikedFalse" time="0.002">
+    <testcase classname="POST /api/v1/auth/login returns 200 with token on valid credentials" name="POST /api/v1/auth/login returns 200 with token on valid credentials" time="0.214">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getReviewComments test_getReviewComments_reviewNotFound_returns404NotFound" name="ReviewController Unit Tests getReviewComments test_getReviewComments_reviewNotFound_returns404NotFound" time="0.001">
+    <testcase classname="POST /api/v1/auth/login returns 400 on wrong password" name="POST /api/v1/auth/login returns 400 on wrong password" time="0.27">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getReviewComments test_getReviewComments_validReview_returnsMappedComments" name="ReviewController Unit Tests getReviewComments test_getReviewComments_validReview_returnsMappedComments" time="0.013">
+    <testcase classname="POST /api/v1/auth/login returns 400 for non-existent email" name="POST /api/v1/auth/login returns 400 for non-existent email" time="0.014">
     </testcase>
-    <testcase classname="ReviewController Unit Tests getReviewComments test_getReviewComments_tableNotExistError_returns200AndEmptyArray" name="ReviewController Unit Tests getReviewComments test_getReviewComments_tableNotExistError_returns200AndEmptyArray" time="0.002">
+    <testcase classname="POST /api/v1/auth/login returns 422 for missing email" name="POST /api/v1/auth/login returns 422 for missing email" time="0.017">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createReviewComment test_createReviewComment_missingText_returns400BadRequest" name="ReviewController Unit Tests createReviewComment test_createReviewComment_missingText_returns400BadRequest" time="0.002">
+    <testcase classname="GET /api/v1/auth/me returns 401 when no token is provided" name="GET /api/v1/auth/me returns 401 when no token is provided" time="0.009">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createReviewComment test_createReviewComment_reviewNotFound_returns404NotFound" name="ReviewController Unit Tests createReviewComment test_createReviewComment_reviewNotFound_returns404NotFound" time="0.001">
+    <testcase classname="GET /api/v1/auth/me returns 401 with a garbage token" name="GET /api/v1/auth/me returns 401 with a garbage token" time="0.012">
     </testcase>
-    <testcase classname="ReviewController Unit Tests createReviewComment test_createReviewComment_validInput_insertsCommentAndReturns201Created" name="ReviewController Unit Tests createReviewComment test_createReviewComment_validInput_insertsCommentAndReturns201Created" time="0.004">
+    <testcase classname="GET /api/v1/auth/me returns 200 with valid token from a fresh registration" name="GET /api/v1/auth/me returns 200 with valid token from a fresh registration" time="0.295">
+    </testcase>
+    <testcase classname="POST /api/v1/auth/logout returns 200 regardless of whether a token is provided" name="POST /api/v1/auth/logout returns 200 regardless of whether a token is provided" time="0.01">
+    </testcase>
+    <testcase classname="POST /api/v1/auth/logout returns 200 and clears session with a valid token" name="POST /api/v1/auth/logout returns 200 and clears session with a valid token" time="0.316">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /api/v1/products/search" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:52:10" time="1.363" tests="9">
+    <testcase classname="GET /api/v1/products/search returns 200 with results array for a basic query" name="GET /api/v1/products/search returns 200 with results array for a basic query" time="0.117">
+    </testcase>
+    <testcase classname="GET /api/v1/products/search returns 422 when limit is out of range" name="GET /api/v1/products/search returns 422 when limit is out of range" time="0.021">
+    </testcase>
+    <testcase classname="GET /api/v1/products/search returns 422 when offset is negative" name="GET /api/v1/products/search returns 422 when offset is negative" time="0.014">
+    </testcase>
+    <testcase classname="GET /api/v1/products/store/:storeId returns 200 for any storeId (even nonexistent — returns empty list)" name="GET /api/v1/products/store/:storeId returns 200 for any storeId (even nonexistent — returns empty list)" time="0.016">
+    </testcase>
+    <testcase classname="POST /api/v1/products returns 401 when unauthenticated" name="POST /api/v1/products returns 401 when unauthenticated" time="0.019">
+    </testcase>
+    <testcase classname="POST /api/v1/products returns 401 with a garbage token" name="POST /api/v1/products returns 401 with a garbage token" time="0.01">
+    </testcase>
+    <testcase classname="PUT /api/v1/products/:id returns 401 when unauthenticated" name="PUT /api/v1/products/:id returns 401 when unauthenticated" time="0.008">
+    </testcase>
+    <testcase classname="DELETE /api/v1/products/:id returns 401 when unauthenticated" name="DELETE /api/v1/products/:id returns 401 when unauthenticated" time="0.007">
+    </testcase>
+    <testcase classname="POST /api/v1/products — validation (no auth needed to see 422) returns 422 when storeId is not a UUID" name="POST /api/v1/products — validation (no auth needed to see 422) returns 422 when storeId is not a UUID" time="0.006">
+    </testcase>
+  </testsuite>
+  <testsuite name="GET /" errors="0" failures="0" skipped="0" timestamp="2026-06-06T09:52:11" time="1.704" tests="5">
+    <testcase classname="GET / returns 200 with API live message" name="GET / returns 200 with API live message" time="0.02">
+    </testcase>
+    <testcase classname="GET /api returns 200 with API metadata" name="GET /api returns 200 with API metadata" time="0.025">
+    </testcase>
+    <testcase classname="GET /api/v1 returns 200 with endpoint list" name="GET /api/v1 returns 200 with endpoint list" time="0.012">
+    </testcase>
+    <testcase classname="GET /api/v1/nonexistent returns 404 for unknown routes" name="GET /api/v1/nonexistent returns 404 for unknown routes" time="0.01">
+    </testcase>
+    <testcase classname="GET /health returns a health object with expected shape" name="GET /health returns a health object with expected shape" time="0.046">
     </testcase>
   </testsuite>
 </testsuites>
