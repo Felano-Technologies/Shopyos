@@ -2,7 +2,6 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { toPublicUrl } = require('../config/storage');
-const { getPool } = require('../config/postgres');
 
 // BLOCK USER
 const blockUser = async (req, res, next) => {
@@ -66,7 +65,7 @@ const getBlockedUsers = async (req, res, next) => {
     try {
         const blockerId = req.user.id;
 
-        const db = getPool();
+        const db = repositories.users.getPool();
         const { rows } = await db.query(
             `SELECT ub.blocked_id, ub.created_at,
                     u.id AS user_id, up.full_name, up.avatar_url
