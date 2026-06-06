@@ -1,5 +1,5 @@
 const repositories = require('../db/repositories');
-const { toPublicUrl } = require('../config/storage');
+const { toPublicUrl, resolveImageUrl } = require('../config/storage');
 const {
   uploadMultipleFilesToCloudinary,
   deleteImage,
@@ -151,13 +151,13 @@ const getStoreProducts = async (req, res, next) => {
     });
 
     // Format for backward compatibility
-    const formattedProducts = rawProducts.map(p => ({
+    const formattedProducts = await Promise.all(rawProducts.map(async p => ({
       _id: p.id,
       businessId: p.store_id,
       name: p.title,
       description: p.description,
       price: p.price,
-      images: p.product_images ? p.product_images.map(img => toPublicUrl(img.image_url)) : [],
+      images: await Promise.all((p.product_images || []).map(img => resolveImageUrl(img.image_url))),
       category: p.category,
       gender: p.gender,
       sku: p.sku,
@@ -165,7 +165,7 @@ const getStoreProducts = async (req, res, next) => {
       createdAt: p.created_at,
       updatedAt: p.updated_at,
       isActive: p.is_active
-    }));
+    })));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
@@ -237,7 +237,7 @@ const getProductById = async (req, res, next) => {
       name: product.title,
       description: product.description,
       price: product.price,
-      images: product.product_images?.map(img => toPublicUrl(img.image_url)) || [],
+      images: await Promise.all((product.product_images || []).map(img => resolveImageUrl(img.image_url))),
       category: product.category,
       gender: product.gender,
       brand: product.brand,
@@ -668,13 +668,13 @@ const searchProducts = async (req, res, next) => {
     });
 
     // Format response
-    const formattedProducts = rawProducts.map(p => ({
+    const formattedProducts = await Promise.all(rawProducts.map(async p => ({
       _id: p.id,
       businessId: p.store_id,
       name: p.title,
       description: p.description,
       price: p.price,
-      images: p.product_images?.map(img => toPublicUrl(img.image_url)) || [],
+      images: await Promise.all((p.product_images || []).map(img => resolveImageUrl(img.image_url))),
       category: p.category,
       gender: p.gender,
       salesCount: p.total_sales || p.sales_count || 0,
@@ -687,7 +687,7 @@ const searchProducts = async (req, res, next) => {
         logo_url: toPublicUrl(p.stores.logo_url),
         rating: p.stores.average_rating
       } : null
-    }));
+    })));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);

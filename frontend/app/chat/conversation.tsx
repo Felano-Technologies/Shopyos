@@ -12,12 +12,15 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  getMessages, sendMessage as apiSendMessage,
+  sendMessage as apiSendMessage,
   deleteMessage as apiDeleteMessage,
   markConversationRead, storage, getUserData,
   blockUser, uploadChatMedia, markNotificationsReadByConversation,
   getPresence
 } from '../../services/api';
+import { useMessages } from '@/hooks/useChat';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query/keys';
 import { socketService } from '../../services/socket';
 import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -88,10 +91,19 @@ export default function ConversationScreen() {
   const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
   const { deleteConversation } = useChat();
 
+  const queryClient = useQueryClient();
+  const {
+    data: messages = [],
+    isLoading: loading,
+    refetch: refetchMessages,
+    appendMessage,
+    replaceMessage,
+    updateMessage,
+    removeMessage,
+  } = useMessages(conversationId);
+
   const [text, setText] = useState('');
-  const [messages, setMessages] = useState<MessageItem[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [selectedMsg, setSelectedMsg] = useState<MessageItem | null>(null);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -203,55 +215,45 @@ export default function ConversationScreen() {
     return () => { (global as any).activeConversationId = null; };
   }, [conversationId]);
 
-  // Fetch messages
-  const fetchMessages = useCallback(async (showLoader: boolean) => {
-    try {
-      if (showLoader) setLoading(true);
-      const res = await getMessages(conversationId);
-      if (res?.messages) {
-        setMessages(res.messages);
-        const hasUnread = res.messages.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
-        if (hasUnread) markAsReadCombined().catch(() => {});
-      }
-    } catch {}
-    finally { if (showLoader) setLoading(false); }
-  }, [conversationId, currentUserId, markAsReadCombined]);
-
+  // Mark unread on initial load
   useEffect(() => {
-    if (conversationId && currentUserId) {
-      let alive = true;
-      (async () => {
-        try {
-          await fetchMessages(true);
-          await socketService.joinConversation(conversationId);
-          socketService.onNewMessage(({ message, conversationId: cid }: any) => {
-            if (!alive || cid !== conversationId) return;
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === message.id)) return prev;
-              return [...prev, message];
-            });
-            markAsReadCombined().catch(() => {});
-          });
-          const sock = socketService.getSocket();
-          if (sock) {
-            sock.on('connect', () => {
-              if (alive) { fetchMessages(false); socketService.joinConversation(conversationId); }
-            });
-            sock.on('bot:stop_typing', ({ conversationId: cid }: any) => {
-              if (cid === conversationId && alive) setIsBotTyping(false);
-            });
-          }
-        } catch {}
-      })();
-      return () => {
-        alive = false;
-        socketService.leaveConversation(conversationId).catch(() => {});
-        socketService.offNewMessage();
-        const sock = socketService.getSocket();
-        if (sock) sock.off('bot:stop_typing');
-      };
+    if (messages.length > 0 && currentUserId) {
+      const hasUnread = messages.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
+      if (hasUnread) markAsReadCombined().catch(() => {});
     }
-  }, [conversationId, currentUserId, fetchMessages, markAsReadCombined]);
+  }, [messages.length === 0 ? 0 : 1, currentUserId]);
+
+  // Socket: join conversation, receive new messages, handle reconnect
+  useEffect(() => {
+    if (!conversationId || !currentUserId) return;
+    let alive = true;
+    (async () => {
+      try {
+        await socketService.joinConversation(conversationId);
+        socketService.onNewMessage(({ message, conversationId: cid }: any) => {
+          if (!alive || cid !== conversationId) return;
+          appendMessage(message);
+          markAsReadCombined().catch(() => {});
+        });
+        const sock = socketService.getSocket();
+        if (sock) {
+          sock.on('connect', () => {
+            if (alive) { refetchMessages(); socketService.joinConversation(conversationId); }
+          });
+          sock.on('bot:stop_typing', ({ conversationId: cid }: any) => {
+            if (cid === conversationId && alive) setIsBotTyping(false);
+          });
+        }
+      } catch {}
+    })();
+    return () => {
+      alive = false;
+      socketService.leaveConversation(conversationId).catch(() => {});
+      socketService.offNewMessage();
+      const sock = socketService.getSocket();
+      if (sock) sock.off('bot:stop_typing');
+    };
+  }, [conversationId, currentUserId]);
 
   // Auto-scroll
   useEffect(() => {
@@ -300,7 +302,7 @@ export default function ConversationScreen() {
         if (uploadRes?.success && uploadRes.media) {
           const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
           const sentMsg = res.message;
-          if (sentMsg) setMessages((prev) => prev.some((m) => m.id === sentMsg.id) ? prev : [...prev, sentMsg]);
+          if (sentMsg) appendMessage(sentMsg);
         }
       }
     } catch (err: any) {
@@ -322,7 +324,7 @@ export default function ConversationScreen() {
       if (uploadRes?.success && uploadRes.media) {
         const res = await apiSendMessage(conversationId, '', undefined, 'voice', uploadRes.media.url, { durationMs, mimeType: uploadRes.media.mimeType, size: uploadRes.media.size });
         const sentMsg = res.message;
-        if (sentMsg) setMessages((prev) => prev.some((m) => m.id === sentMsg.id) ? prev : [...prev, sentMsg]);
+        if (sentMsg) appendMessage(sentMsg);
       }
     } catch (err: any) {
       console.error('Upload voice note error', err);
@@ -338,7 +340,7 @@ export default function ConversationScreen() {
     try {
       const res = await apiSendMessage(conversationId, label, undefined, 'sticker', stickerUrl);
       const sentMsg = res.message;
-      if (sentMsg) setMessages((prev) => prev.some((m) => m.id === sentMsg.id) ? prev : [...prev, sentMsg]);
+      if (sentMsg) appendMessage(sentMsg);
     } catch (err: any) {
       console.error('Send sticker error', err);
     } finally {
@@ -354,11 +356,11 @@ export default function ConversationScreen() {
     const replyId = replyTo?.id;
     setText(''); setSending(true);
     const tempId = `temp_${Date.now()}`;
-    setMessages((prev) => [...prev, {
+    appendMessage({
       id: tempId, content: msgText,
       created_at: new Date().toISOString(),
       sender_id: currentUserId || '', pending: true,
-    }]);
+    });
     const isBot = participantId === '00000000-0000-0000-0000-000000000001' || displayName === 'Shopyos Bot';
     if (isBot) {
       setIsBotTyping(true);
@@ -367,21 +369,15 @@ export default function ConversationScreen() {
     try {
       const res = await apiSendMessage(conversationId, msgText, replyId);
       const sent = res.message;
-      setMessages((prev) => {
-        const f = prev.filter((m) => m.id !== tempId);
-        if (f.some((m) => m.id === sent.id)) return f;
-        return [...f, { ...sent, pending: false }];
-      });
+      replaceMessage(tempId, { ...sent, pending: false });
     } catch {
-      setMessages((prev) =>
-        prev.map((m) => m.id === tempId ? { ...m, pending: false, failed: true } : m)
-      );
+      updateMessage(tempId, { pending: false, failed: true });
       CustomInAppToast.show({ type: 'error', title: 'Failed to send', message: 'Tap to retry.' });
     } finally { setSending(false); setReplyTo(null); }
   };
 
   const handleRetry = (msg: MessageItem) => {
-    setMessages((p) => p.filter((m) => m.id !== msg.id));
+    removeMessage(msg.id);
     setText(msg.content); inputRef.current?.focus();
   };
 
@@ -405,7 +401,7 @@ export default function ConversationScreen() {
     Alert.alert('Delete Message', 'Remove this message?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await apiDeleteMessage(selectedMsg.id); setMessages((p) => p.filter((m) => m.id !== selectedMsg.id)); }
+          try { await apiDeleteMessage(selectedMsg.id); removeMessage(selectedMsg.id); }
           catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete message.' }); }
         },
       },
@@ -469,7 +465,7 @@ export default function ConversationScreen() {
 
   const fmtTime = useCallback((msg: MessageItem) => {
     const date = parseSafeDate(getMessageTimestamp(msg));
-    return (date || new Date()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
   }, []);
 
   const fmtDate = useCallback((msg: MessageItem) => {
@@ -516,7 +512,7 @@ export default function ConversationScreen() {
     }
 
     return (
-      <View style={!isMe ? { paddingVertical: 10, paddingHorizontal: 14 } : undefined}>
+      <View>
         {renderReplyPreview(item, isMe)}
         <Text style={isMe ? styles.bubbleTxtMe : styles.bubbleTxtThem}>{item.content}</Text>
       </View>
@@ -620,7 +616,7 @@ export default function ConversationScreen() {
               <>
                 {renderMsgContent(item, false)}
                 {!hasMedia && (
-                  <View style={[styles.metaRow, { paddingHorizontal: 14, paddingBottom: 6 }]}>
+                  <View style={[styles.metaRow, { paddingBottom: 6 }]}>
                     <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
                   </View>
                 )}

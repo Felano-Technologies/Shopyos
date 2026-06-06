@@ -73,6 +73,13 @@ export const queryKeys = {
     all: ['payment'] as const,
     methods: () => ['payment', 'methods'] as const,
   },
+
+  chat: {
+    all: ['chat'] as const,
+    conversations: () => ['chat', 'conversations'] as const,
+    messages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
+    presence: (userId: string) => ['chat', 'presence', userId] as const,
+  },
 };
 
 export interface ProductFilters {

@@ -67,6 +67,7 @@ export default function ProductDetails() {
         try {
             const res = await getProductById(params.id as string);
             if (res.success) {
+                console.log('[ProductDetails] images from backend:', res.product.images);
                 setProduct((prev) => ({
                     ...prev,
                     title: res.product.name,

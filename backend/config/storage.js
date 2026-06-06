@@ -236,12 +236,13 @@ const IMAGE_FIELDS = new Set([
 
 const transformImageUrls = (obj) => {
   if (!obj || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
   if (Array.isArray(obj)) return obj.map(transformImageUrls);
   const out = {};
   for (const [key, val] of Object.entries(obj)) {
     if (IMAGE_FIELDS.has(key) && typeof val === 'string') {
       out[key] = toPublicUrl(val);
-    } else if (val && typeof val === 'object') {
+    } else if (val && typeof val === 'object' && !(val instanceof Date)) {
       out[key] = transformImageUrls(val);
     } else {
       out[key] = val;
@@ -254,12 +255,13 @@ const transformImageUrls = (obj) => {
 // Repositories call this so controllers need no changes.
 const transformImageUrlsAsync = async (obj) => {
   if (!obj || typeof obj !== 'object') return obj;
+  if (obj instanceof Date) return obj;
   if (Array.isArray(obj)) return Promise.all(obj.map(transformImageUrlsAsync));
   const out = {};
   for (const [key, val] of Object.entries(obj)) {
     if (IMAGE_FIELDS.has(key) && typeof val === 'string') {
       out[key] = await resolveImageUrl(val);
-    } else if (val && typeof val === 'object') {
+    } else if (val && typeof val === 'object' && !(val instanceof Date)) {
       out[key] = await transformImageUrlsAsync(val);
     } else {
       out[key] = val;

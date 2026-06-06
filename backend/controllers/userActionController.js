@@ -49,7 +49,8 @@ const unblockUser = async (req, res, next) => {
 
         const { error } = await repositories.users.db.from('user_blocks')
             .delete()
-            .match({ blocker_id: blockerId, blocked_id: blockedId });
+            .eq('blocker_id', blockerId)
+            .eq('blocked_id', blockedId);
 
         if (error) throw error;
 
@@ -64,39 +65,35 @@ const unblockUser = async (req, res, next) => {
 const getBlockedUsers = async (req, res, next) => {
     try {
         const blockerId = req.user.id;
-        const pool = repositories.users.getPool();
 
-        // Using raw SQL JOIN because the supabaseLikePgClient adapter has limited support for complex nested joins
-        const { rows } = await pool.query(
-            `
-                SELECT 
-                    ub.blocked_id,
-                    ub.created_at,
-                    u.id AS user_id,
-                    up.full_name,
-                    up.avatar_url
-                FROM user_blocks ub
-                LEFT JOIN users u ON u.id = ub.blocked_id
-                LEFT JOIN user_profiles up ON up.user_id = u.id
-                WHERE ub.blocker_id = $1
-                ORDER BY ub.created_at DESC
-            `,
-            [blockerId]
-        );
+        const { data, error } = await repositories.users.db
+            .from('user_blocks')
+            .select(`
+                blocked_id,
+                created_at,
+                users!user_blocks_blocked_id_fkey (
+                    id,
+                    user_profiles (full_name, avatar_url)
+                )
+            `)
+            .eq('blocker_id', blockerId)
+            .order('created_at', { ascending: false });
 
-        const data = rows.map((row) => ({
+        if (error) throw error;
+
+        const blockedUsers = (data || []).map((row) => ({
             blocked_id: row.blocked_id,
             created_at: row.created_at,
-            blocked_user: {
-                id: row.user_id,
+            blocked_user: row.users ? {
+                id: row.users.id,
                 user_profiles: {
-                    full_name: row.full_name,
-                    avatar_url: toPublicUrl(row.avatar_url)
+                    full_name: row.users.user_profiles?.full_name || null,
+                    avatar_url: toPublicUrl(row.users.user_profiles?.avatar_url)
                 }
-            }
+            } : null
         }));
 
-        res.status(200).json({ success: true, blockedUsers: data });
+        res.status(200).json({ success: true, blockedUsers });
     } catch (error) {
         logger.error(`Error fetching blocked users: ${error.message}`);
         next(error);

@@ -88,6 +88,18 @@ const getUserProfile = async (userId) => {
   return rows[0] || null;
 };
 
+const updateUserPresence = async (userId, isOnline) => {
+  const db = getPool();
+  if (isOnline) {
+    await db.query('UPDATE user_profiles SET is_online = TRUE WHERE user_id = $1', [userId]);
+  } else {
+    await db.query(
+      'UPDATE user_profiles SET is_online = FALSE, last_seen = NOW() WHERE user_id = $1',
+      [userId]
+    );
+  }
+};
+
 module.exports = {
   isParticipant,
   findConversation,
@@ -96,4 +108,5 @@ module.exports = {
   getMessageWithSender,
   markConversationRead,
   getUserProfile,
+  updateUserPresence,
 };

@@ -57,11 +57,9 @@ export default function VoiceRecorder({ onSend, onCancel }: VoiceRecorderProps) 
     }
   }, [isRecording]);
 
-  // Cleanup on unmount
+  // Cleanup audio resources when they change or on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (meteringRef.current) clearInterval(meteringRef.current);
       if (recording) recording.stopAndUnloadAsync().catch(() => {});
       if (soundPreview) soundPreview.unloadAsync().catch(() => {});
     };
@@ -90,6 +88,7 @@ export default function VoiceRecorder({ onSend, onCancel }: VoiceRecorderProps) 
       const preset = Audio.RecordingOptionsPresets.HIGH_QUALITY;
       const { recording: newRecording } = await Audio.Recording.createAsync({
         ...preset,
+        isMeteringEnabled: true,
         android: {
           ...preset.android,
           numberOfChannels: 1,
