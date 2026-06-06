@@ -30,6 +30,10 @@ jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => url ? `http://mocked-public-url/${url}` : null),
 }));
 
+jest.mock('../../config/postgres', () => ({
+  getPool: jest.fn(() => mockPool),
+}));
+
 const userActionController = require('../../controllers/userActionController');
 const _repositories = require('../../db/repositories');
 const _storage = require('../../config/storage');

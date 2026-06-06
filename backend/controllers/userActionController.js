@@ -49,8 +49,7 @@ const unblockUser = async (req, res, next) => {
 
         const { error } = await repositories.users.db.from('user_blocks')
             .delete()
-            .eq('blocker_id', blockerId)
-            .eq('blocked_id', blockedId);
+            .match({ blocker_id: blockerId, blocked_id: blockedId });
 
         if (error) throw error;
 

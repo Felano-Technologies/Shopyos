@@ -130,8 +130,8 @@ export const useReplyToReview = () => {
     mutationFn: async ({ reviewId, text }: { reviewId: string; text: string }) => {
       return await ApiService.replyToReview(reviewId, text);
     },
-    onSuccess: (_, { reviewId }) => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['business', 'reviews'] });
     },
   });
 };
