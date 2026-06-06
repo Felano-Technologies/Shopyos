@@ -12,42 +12,51 @@ jobs:
     steps:
       - name: Pause backend
         run: |
-          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+          DEPLOYMENT_ID=$(curl -s -X POST https://backboard.railway.app/graphql/v2 \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "query": "mutation Pause($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
-              "variables": {
-                "serviceId": "${{ secrets.RAILWAY_SERVICE_ID }}",
-                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
-                "input": { "numReplicas": 0 }
-              }
-            }'
+            -d "$(jq -cn \
+              --arg sid "${{ secrets.RAILWAY_SERVICE_ID }}" \
+              --arg eid "${{ secrets.RAILWAY_ENVIRONMENT_ID }}" \
+              '{query:"query($sid:String!,$eid:String!){deployments(input:{serviceId:$sid,environmentId:$eid},first:1){edges{node{id}}}}",variables:{sid:$sid,eid:$eid}}')" \
+            | jq -r '.data.deployments.edges[0].node.id')
+          echo "Stopping backend deployment: $DEPLOYMENT_ID"
+          curl -s -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -cn --arg id "$DEPLOYMENT_ID" \
+              '{query:"mutation($id:String!){deploymentStop(id:$id)}",variables:{id:$id}}')"
 
       - name: Pause Postgres
         run: |
-          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+          DEPLOYMENT_ID=$(curl -s -X POST https://backboard.railway.app/graphql/v2 \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "query": "mutation Pause($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
-              "variables": {
-                "serviceId": "${{ secrets.RAILWAY_POSTGRES_SERVICE_ID }}",
-                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
-                "input": { "numReplicas": 0 }
-              }
-            }'
+            -d "$(jq -cn \
+              --arg sid "${{ secrets.RAILWAY_POSTGRES_SERVICE_ID }}" \
+              --arg eid "${{ secrets.RAILWAY_ENVIRONMENT_ID }}" \
+              '{query:"query($sid:String!,$eid:String!){deployments(input:{serviceId:$sid,environmentId:$eid},first:1){edges{node{id}}}}",variables:{sid:$sid,eid:$eid}}')" \
+            | jq -r '.data.deployments.edges[0].node.id')
+          echo "Stopping Postgres deployment: $DEPLOYMENT_ID"
+          curl -s -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -cn --arg id "$DEPLOYMENT_ID" \
+              '{query:"mutation($id:String!){deploymentStop(id:$id)}",variables:{id:$id}}')"
 
       - name: Pause Redis
         run: |
-          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+          DEPLOYMENT_ID=$(curl -s -X POST https://backboard.railway.app/graphql/v2 \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{
-              "query": "mutation Pause($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
-              "variables": {
-                "serviceId": "${{ secrets.RAILWAY_REDIS_SERVICE_ID }}",
-                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
-                "input": { "numReplicas": 0 }
-              }
-            }'
+            -d "$(jq -cn \
+              --arg sid "${{ secrets.RAILWAY_REDIS_SERVICE_ID }}" \
+              --arg eid "${{ secrets.RAILWAY_ENVIRONMENT_ID }}" \
+              '{query:"query($sid:String!,$eid:String!){deployments(input:{serviceId:$sid,environmentId:$eid},first:1){edges{node{id}}}}",variables:{sid:$sid,eid:$eid}}')" \
+            | jq -r '.data.deployments.edges[0].node.id')
+          echo "Stopping Redis deployment: $DEPLOYMENT_ID"
+          curl -s -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -cn --arg id "$DEPLOYMENT_ID" \
+              '{query:"mutation($id:String!){deploymentStop(id:$id)}",variables:{id:$id}}')"

@@ -25,10 +25,12 @@ async function initializeSocketBridge(httpServer, logger) {
     logger.warn('Socket bridge: Redis adapter unavailable, running single-instance mode:', err.message);
   }
 
+  const { cacheSet, cacheDel } = require('./redis');
+
   registerMessagingHandlers(io);
   registerCallHandlers(io);
   registerNotificationHandlers(io);
-  registerPresenceHandlers(io);
+  registerPresenceHandlers(io, { cacheSet, cacheDel });
 
   startRealtimeSubscriber().catch((err) => {
     logger.error('Socket bridge: Realtime subscriber failed to start:', err.message);

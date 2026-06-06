@@ -13,7 +13,6 @@ jest.mock('../../config/logger', () => ({
   httpLogMiddleware: (req, res, next) => next(),
 }));
 
-const { logger } = require('../../config/logger');
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function mockReq(overrides = {}) {

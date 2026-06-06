@@ -1173,12 +1173,6 @@ describe('BusinessController Unit Tests', () => {
       mockDbStoreChain.range.mockResolvedValue({ data: [], error: null });
       mockDbStoreChain.is.mockResolvedValue({ data: [], error: null });
 
-      const chainWithCount = {
-        from: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockResolvedValue({ count: 0, error: null }),
-        ilike: jest.fn().mockReturnThis(),
-      };
       mockDbStoreChain.from.mockImplementation((table) => {
         if (table === 'products') {
           return { select: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), is: jest.fn().mockResolvedValue({ data: [], error: null }) };

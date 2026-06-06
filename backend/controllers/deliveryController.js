@@ -298,9 +298,8 @@ const updateDeliveryStatus = async (req, res, next) => {
     // Update status
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
 
-    // Get order and driver details for notifications
+    // Get order details for notifications
     const order = await repositories.orders.findById(updatedDelivery.order_id);
-    const _driver = await repositories.users.findById(driverId);
 
     // Update order status based on delivery status
     if (status === 'picked_up') {

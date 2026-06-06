@@ -24,13 +24,10 @@ const createBusiness = async (req, res, next) => {
       logo,
       coverImage,
       email,
-      _businessCert, // from req.body or handled via files
       taxId,
-      _businessLicense, // via files
       bankName,
       accountName,
       accountNumber,
-      _proofOfBank // via files
     } = req.body;
 
     // Validate required fields
@@ -201,8 +198,6 @@ const createBusiness = async (req, res, next) => {
     }
 
     // Get store with owner details
-    const _storeWithOwner = await repositories.stores.getStoreDetails(store.id);
-
     // Format response for backward compatibility
     const response = {
       _id: store.id,
@@ -835,8 +830,6 @@ const getBusinessDashboard = async (req, res, next) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // weeklyOrders.data is the actual array from findAll()
-    const _weeklyData = (weeklyOrders.data || []).filter(o => new Date(o.created_at) >= sevenDaysAgo);
-
     // Group by day
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const chartData = [0, 0, 0, 0, 0, 0, 0]; // 7 days
@@ -937,7 +930,6 @@ const getBusinessAnalytics = async (req, res, next) => {
     if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
 
     // Calculate Date Range
-    const _endDate = new Date();
     const startDate = new Date();
 
     if (timeframe === 'month') startDate.setMonth(startDate.getMonth() - 1);
@@ -1095,7 +1087,7 @@ const getBusinessAnalytics = async (req, res, next) => {
 // @access  Private (Logged in user)
 const getAllBusinesses = async (req, res, next) => {
   try {
-    const { search, category, sortBy = 'rating', limit = 20, offset = 0, verified: _verified } = req.query;
+    const { search, category, sortBy = 'rating', limit = 20, offset = 0 } = req.query;
 
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);

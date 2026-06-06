@@ -141,11 +141,6 @@ describe('upload middleware Unit Tests', () => {
           });
         });
       });
-    } else {
-      // Fallback: if the spy approach couldn't capture the filter, still pass
-      test('test_fileFilter_notCaptured_skipped', () => {
-        expect(true).toBe(true);
-      });
     }
   });
 });

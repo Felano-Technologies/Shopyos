@@ -19,6 +19,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
   const [loading, setLoading] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const soundRef = useRef<Audio.Sound | null>(null);
 
   // Generate a stable pseudo-random waveform shape from the URL
   const waveHeights = useMemo(() => {
@@ -48,7 +49,10 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
 
   useEffect(() => {
     return () => {
-      if (sound) sound.unloadAsync().catch(() => {});
+      if (sound) {
+        sound.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
     };
   }, [sound]);
 
@@ -56,12 +60,12 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
     if (status.isLoaded) {
       setPosition(status.positionMillis);
       if (status.durationMillis) setDuration(status.durationMillis);
-      setIsPlaying(status.isPlaying);
-
+      // Don't derive isPlaying from status — it flickers false during buffering
+      // and causes the timer to snap back to showing the static duration
       if (status.didJustFinish) {
         setIsPlaying(false);
         setPosition(0);
-        if (sound) sound.setPositionAsync(0).catch(() => {});
+        if (soundRef.current) soundRef.current.setPositionAsync(0).catch(() => {});
       }
     }
   };
@@ -87,6 +91,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
           { shouldPlay: true },
           onPlaybackStatusUpdate
         );
+        soundRef.current = newSound;
         setSound(newSound);
         setIsPlaying(true);
       }

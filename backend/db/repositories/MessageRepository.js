@@ -2,7 +2,7 @@
 // Data access layer for messages table
 
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class MessageRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -46,7 +46,7 @@ class MessageRepository extends BaseRepository {
       .single();
 
     if (error) throw error;
-    return transformImageUrls(data);
+    return await transformImageUrlsAsync(data);
   }
 
   /**
@@ -99,7 +99,7 @@ class MessageRepository extends BaseRepository {
     if (error) throw error;
 
     // Return in chronological order (oldest first)
-    return transformImageUrls((data || []).reverse());
+    return await transformImageUrlsAsync((data || []).reverse());
   }
 
   /**
@@ -199,7 +199,7 @@ class MessageRepository extends BaseRepository {
       .limit(limit);
 
     if (error) throw error;
-    return transformImageUrls(data || []);
+    return await transformImageUrlsAsync(data || []);
   }
 
   /**
