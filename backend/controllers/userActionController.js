@@ -2,6 +2,7 @@
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { toPublicUrl } = require('../config/storage');
+const { getPool } = require('../config/postgres');
 
 // BLOCK USER
 const blockUser = async (req, res, next) => {
@@ -49,8 +50,7 @@ const unblockUser = async (req, res, next) => {
 
         const { error } = await repositories.users.db.from('user_blocks')
             .delete()
-            .eq('blocker_id', blockerId)
-            .eq('blocked_id', blockedId);
+            .match({ blocker_id: blockerId, blocked_id: blockedId });
 
         if (error) throw error;
 
@@ -66,29 +66,26 @@ const getBlockedUsers = async (req, res, next) => {
     try {
         const blockerId = req.user.id;
 
-        const { data, error } = await repositories.users.db
-            .from('user_blocks')
-            .select(`
-                blocked_id,
-                created_at,
-                users!user_blocks_blocked_id_fkey (
-                    id,
-                    user_profiles (full_name, avatar_url)
-                )
-            `)
-            .eq('blocker_id', blockerId)
-            .order('created_at', { ascending: false });
+        const db = getPool();
+        const { rows } = await db.query(
+            `SELECT ub.blocked_id, ub.created_at,
+                    u.id AS user_id, up.full_name, up.avatar_url
+             FROM user_blocks ub
+             LEFT JOIN users u ON u.id = ub.blocked_id
+             LEFT JOIN user_profiles up ON up.user_id = ub.blocked_id
+             WHERE ub.blocker_id = $1
+             ORDER BY ub.created_at DESC`,
+            [blockerId]
+        );
 
-        if (error) throw error;
-
-        const blockedUsers = (data || []).map((row) => ({
+        const blockedUsers = (rows || []).map((row) => ({
             blocked_id: row.blocked_id,
             created_at: row.created_at,
-            blocked_user: row.users ? {
-                id: row.users.id,
+            blocked_user: row.user_id ? {
+                id: row.user_id,
                 user_profiles: {
-                    full_name: row.users.user_profiles?.full_name || null,
-                    avatar_url: toPublicUrl(row.users.user_profiles?.avatar_url)
+                    full_name: row.full_name || null,
+                    avatar_url: toPublicUrl(row.avatar_url)
                 }
             } : null
         }));
