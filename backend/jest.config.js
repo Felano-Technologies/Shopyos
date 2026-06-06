@@ -54,4 +54,10 @@ module.exports = {
 
   testTimeout: 30000,
   verbose: true,
+
+  // socket.io lives in socket/node_modules, not backend/node_modules.
+  // Map it to a stub so integration tests can load server.js without failing.
+  moduleNameMapper: {
+    '^socket\\.io$': '<rootDir>/tests/__mocks__/socket.io.js',
+  },
 };
