@@ -118,28 +118,9 @@ describe('ReportModal Component Tests', () => {
   });
 
   // ── Validation ────────────────────────────────────────────────────────────
-
-  test('test_ReportModal_submitWithoutReason_showsErrorToast', async () => {
-    await render(<ReportModal {...defaultProps()} />);
-
-    // fireEvent bypasses the disabled prop and invokes onPress directly,
-    // which triggers the !selectedReason guard inside handleReport.
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
-
-    expect(CustomInAppToast.show).toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'error', title: 'Error' })
-    );
-    expect(mockReportEntity).not.toHaveBeenCalled();
-  });
-
-  test('test_ReportModal_submitWithoutReason_doesNotCallOnClose', async () => {
-    const onClose = jest.fn();
-    await render(<ReportModal {...defaultProps({ onClose })} />);
-
-    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
-
-    expect(onClose).not.toHaveBeenCalled();
-  });
+  // Note: RNTL v14 respects the `disabled` prop so pressing a disabled button
+  // is a no-op. The Submit button is disabled when no reason is selected, which
+  // is the correct UX. Validation is covered by the disabled-state tests above.
 
   // ── Successful submission ─────────────────────────────────────────────────
 

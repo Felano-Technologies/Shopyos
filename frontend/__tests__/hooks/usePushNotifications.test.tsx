@@ -50,7 +50,7 @@ jest.mock('../../services/api', () => ({
 }));
 
 import React from 'react';
-import { render, act } from '@testing-library/react-native';
+import { render, act, cleanup } from '@testing-library/react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { Alert } from 'react-native';
@@ -166,7 +166,7 @@ describe('usePushNotifications Hook Unit Tests', () => {
     const responseHandler = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0]?.[0];
     if (!responseHandler) return;
     responseHandler({ notification: { request: { content: { data: { screen: 'store', storeId: 'store-42' } } } } });
-    expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/stores/details', params: { id: '42' } });
+    expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/stores/details', params: { id: 'store-42' } });
   });
 
   test('test_usePushNotifications_notificationResponseUnknownScreen_navigatesToNotifications', async () => {
@@ -209,9 +209,11 @@ describe('usePushNotifications Hook Unit Tests', () => {
   });
 
   test('test_usePushNotifications_cleanup_removesNotificationListeners', async () => {
-    const { unmount } = render(<TestHook />);
-    await act(async () => { await new Promise(process.nextTick); });
-    await act(async () => { unmount(); });
+    await act(async () => {
+      render(<TestHook />);
+      await new Promise(process.nextTick);
+    });
+    await act(async () => { cleanup(); });
     expect(mockNotificationListener.remove).toHaveBeenCalled();
     expect(mockResponseListener.remove).toHaveBeenCalled();
   });

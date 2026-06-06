@@ -47,6 +47,9 @@ import {
   deleteProduct,
   getAllCategories,
   getPromotedProducts,
+  createCategory,
+  updateCategory,
+  deleteCategory,
 } from '../../services/products';
 
 describe('Products Service Unit Tests', () => {
@@ -269,13 +272,76 @@ describe('Products Service Unit Tests', () => {
   });
 
   test('test_getPromotedProducts_withCategory_passesCategoryParamToApiCall', async () => {
-    // Arrange
     (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, products: [] } });
-
-    // Act
     await getPromotedProducts('footwear');
-
-    // Assert
     expect(api.get).toHaveBeenCalledWith('/advertising/promoted', { params: { category: 'footwear' } });
+  });
+
+  // ── createCategory ───────────────────────────────────────────────
+  test('test_createCategory_validName_callsPostAndReturnsCategory', async () => {
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: { id: 'c2', name: 'Electronics' } });
+    const result = await createCategory('Electronics', 'All electronics');
+    expect(api.post).toHaveBeenCalledWith('/categories', { name: 'Electronics', description: 'All electronics' });
+    expect(result.name).toBe('Electronics');
+  });
+
+  test('test_createCategory_apiError_throwsWithServerMessage', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Already exists' } } });
+    await expect(createCategory('Dup')).rejects.toThrow('Already exists');
+  });
+
+  test('test_createCategory_networkError_rethrowsError', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce(new Error('Network down'));
+    await expect(createCategory('Net')).rejects.toThrow('Network down');
+  });
+
+  // ── updateCategory ───────────────────────────────────────────────
+  test('test_updateCategory_validParams_callsPutAndReturnsUpdatedCategory', async () => {
+    (api.put as jest.Mock).mockResolvedValueOnce({ data: { id: 'c1', name: 'Footwear Updated' } });
+    const result = await updateCategory('c1', 'Footwear Updated');
+    expect(api.put).toHaveBeenCalledWith('/categories/c1', { name: 'Footwear Updated' });
+    expect(result.name).toBe('Footwear Updated');
+  });
+
+  test('test_updateCategory_apiError_throwsWithServerMessage', async () => {
+    (api.put as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Category not found' } } });
+    await expect(updateCategory('bad-id', 'X')).rejects.toThrow('Category not found');
+  });
+
+  // ── deleteCategory ───────────────────────────────────────────────
+  test('test_deleteCategory_validId_callsDeleteAndReturnsSuccess', async () => {
+    (api.delete as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await deleteCategory('c1');
+    expect(api.delete).toHaveBeenCalledWith('/categories/c1?force=false');
+    expect(result.success).toBe(true);
+  });
+
+  test('test_deleteCategory_withForceFlag_passesForceParamToApiCall', async () => {
+    (api.delete as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    await deleteCategory('c1', true);
+    expect(api.delete).toHaveBeenCalledWith('/categories/c1?force=true');
+  });
+
+  test('test_deleteCategory_apiErrorWithConfirmation_throwsRawResponseData', async () => {
+    const responseData = { requiresConfirmation: true, message: 'Category has products' };
+    (api.delete as jest.Mock).mockRejectedValueOnce({ response: { data: responseData } });
+    await expect(deleteCategory('c1')).rejects.toEqual(responseData);
+  });
+
+  test('test_deleteCategory_apiErrorWithMessage_throwsWithMessage', async () => {
+    (api.delete as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Not found' } } });
+    await expect(deleteCategory('bad')).rejects.toThrow('Not found');
+  });
+
+  // ── getAllCategories error path ───────────────────────────────────
+  test('test_getAllCategories_apiError_throwsException', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Server error' });
+    await expect(getAllCategories()).rejects.toThrow('Server error');
+  });
+
+  // ── searchProducts error path ────────────────────────────────────
+  test('test_searchProducts_apiError_throwsException', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Search error' });
+    await expect(searchProducts({ query: 'x' })).rejects.toThrow('Search error');
   });
 });

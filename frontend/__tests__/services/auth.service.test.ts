@@ -56,10 +56,19 @@ import { api, secureStorage, storage } from '../../services/client';
 import {
   registerUser,
   loginUser,
+  logoutUser,
+  getUserData,
   requestPasswordReset,
   confirmResetPassword,
   updateProfile,
   updateUserRole,
+  updateOnboardingState,
+  updateUserLocation,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  reportEntity,
+  registerPushTokenInBackend,
 } from '../../services/auth';
 
 describe('Auth Service Unit Tests', () => {
@@ -225,11 +234,137 @@ describe('Auth Service Unit Tests', () => {
   });
 
   test('test_updateUserRole_invalidRoleName_throwsValidationError', async () => {
-    // Arrange
     const apiError = { message: 'Invalid role', response: { data: { error: 'Invalid role' }, status: 400 } };
     (api.post as jest.Mock).mockRejectedValueOnce(apiError);
-
-    // Act & Assert
     await expect(updateUserRole('superuser')).rejects.toThrow('Invalid role');
+  });
+
+  test('test_updateProfile_apiError_throwsWithServerMessage', async () => {
+    const apiError = { message: 'Validation failed', response: { data: { error: 'Name too short' }, status: 400 } };
+    (api.put as jest.Mock).mockRejectedValueOnce(apiError);
+    await expect(updateProfile({ name: 'X' })).rejects.toThrow('Name too short');
+  });
+
+  // ── registerPushTokenInBackend ────────────────────────────────────
+  test('test_registerPushTokenInBackend_validToken_syncsWithBackend', async () => {
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await registerPushTokenInBackend('ExponentPushToken[abc]');
+    expect(api.post).toHaveBeenCalledWith('/notifications/push-token', { token: 'ExponentPushToken[abc]', deviceName: 'Mobile App' });
+    expect(result.success).toBe(true);
+  });
+
+  test('test_registerPushTokenInBackend_apiError_throwsError', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce(new Error('Unauthorized'));
+    await expect(registerPushTokenInBackend('bad-token')).rejects.toThrow('Unauthorized');
+  });
+
+  // ── logoutUser ────────────────────────────────────────────────────
+  test('test_logoutUser_validCall_clearsAllStorageAndDisconnectsSocket', async () => {
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: {} });
+    await logoutUser();
+    expect(secureStorage.removeItem).toHaveBeenCalledWith('userToken');
+    expect(secureStorage.removeItem).toHaveBeenCalledWith('refreshToken');
+    expect(storage.removeItem).toHaveBeenCalledWith('userId');
+  });
+
+  test('test_logoutUser_apiThrows_stillClearsStorage', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+    await logoutUser(); // should NOT throw — clears storage in finally
+    expect(secureStorage.removeItem).toHaveBeenCalledWith('userToken');
+  });
+
+  // ── getUserData ───────────────────────────────────────────────────
+  test('test_getUserData_validCall_returnsUserProfile', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { id: 'u-1', email: 'me@test.com' } });
+    const result = await getUserData();
+    expect(api.get).toHaveBeenCalledWith('/auth/me');
+    expect(result.email).toBe('me@test.com');
+  });
+
+  test('test_getUserData_apiError_throwsWithMessage', async () => {
+    const err = { message: 'Not found', response: { data: { error: 'User not found' }, status: 404 } };
+    (api.get as jest.Mock).mockRejectedValueOnce(err);
+    await expect(getUserData()).rejects.toThrow('User not found');
+  });
+
+  // ── updateOnboardingState ─────────────────────────────────────────
+  test('test_updateOnboardingState_validParams_callsOnboardingEndpoint', async () => {
+    (api.put as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await updateOnboardingState('role-selection', true);
+    expect(api.put).toHaveBeenCalledWith('/auth/onboarding', { screen: 'role-selection', completed: true });
+    expect(result.success).toBe(true);
+  });
+
+  test('test_updateOnboardingState_apiError_returnsNull', async () => {
+    (api.put as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
+    const result = await updateOnboardingState('role-selection');
+    expect(result).toBeNull();
+  });
+
+  // ── updateUserLocation ────────────────────────────────────────────
+  test('test_updateUserLocation_validCoords_sendsLatLngToApi', async () => {
+    (api.put as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await updateUserLocation(5.6037, -0.1870);
+    expect(api.put).toHaveBeenCalledWith('/auth/location', { latitude: 5.6037, longitude: -0.1870 });
+    expect(result.success).toBe(true);
+  });
+
+  test('test_updateUserLocation_apiError_throwsError', async () => {
+    (api.put as jest.Mock).mockRejectedValueOnce({ message: 'Location error' });
+    await expect(updateUserLocation(0, 0)).rejects.toThrow('Location error');
+  });
+
+  // ── blockUser ─────────────────────────────────────────────────────
+  test('test_blockUser_validId_callsBlockEndpoint', async () => {
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await blockUser('user-bad');
+    expect(api.post).toHaveBeenCalledWith('/user-actions/block', { blockedId: 'user-bad' });
+    expect(result.success).toBe(true);
+  });
+
+  test('test_blockUser_apiError_throwsError', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce({ message: 'Already blocked' });
+    await expect(blockUser('user-dup')).rejects.toThrow('Already blocked');
+  });
+
+  // ── unblockUser ───────────────────────────────────────────────────
+  test('test_unblockUser_validId_callsUnblockEndpoint', async () => {
+    (api.delete as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await unblockUser('user-bad');
+    expect(api.delete).toHaveBeenCalledWith('/user-actions/block/user-bad');
+    expect(result.success).toBe(true);
+  });
+
+  test('test_unblockUser_apiError_throwsError', async () => {
+    (api.delete as jest.Mock).mockRejectedValueOnce({ message: 'Not blocked' });
+    await expect(unblockUser('user-x')).rejects.toThrow('Not blocked');
+  });
+
+  // ── getBlockedUsers ───────────────────────────────────────────────
+  test('test_getBlockedUsers_validCall_returnsBlockedList', async () => {
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { blockedUsers: [{ id: 'u-2' }] } });
+    const result = await getBlockedUsers();
+    expect(api.get).toHaveBeenCalledWith('/user-actions/blocks');
+    expect(result.blockedUsers).toHaveLength(1);
+  });
+
+  test('test_getBlockedUsers_apiError_throwsError', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Unauthorized' });
+    await expect(getBlockedUsers()).rejects.toThrow('Unauthorized');
+  });
+
+  // ── reportEntity ──────────────────────────────────────────────────
+  test('test_reportEntity_validParams_submitsReportToApi', async () => {
+    (api.post as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+    const result = await reportEntity('user', 'u-3', 'Spam', 'Keeps spamming');
+    expect(api.post).toHaveBeenCalledWith('/user-actions/report', {
+      entityType: 'user', entityId: 'u-3', reason: 'Spam', details: 'Keeps spamming',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test('test_reportEntity_apiError_throwsError', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce({ message: 'Already reported' });
+    await expect(reportEntity('store', 's-1', 'Fraud')).rejects.toThrow('Already reported');
   });
 });

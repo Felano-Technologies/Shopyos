@@ -37,6 +37,7 @@ import {
   addToCart,
   clearBackendCart,
   createOrder,
+  confirmDelivery,
   getMyOrders,
   getStoreOrders,
   getOrderDetails,
@@ -254,25 +255,81 @@ describe('Orders Service Unit Tests', () => {
 
   describe('checkIsFavorite', () => {
     test('test_checkIsFavorite_itemIsFavorited_returnsTrue', async () => {
-      // Arrange
       (api.get as jest.Mock).mockResolvedValueOnce({ data: { isFavorite: true } });
-
-      // Act
       const result = await checkIsFavorite('prod-1');
-
-      // Assert
       expect(result.isFavorite).toBe(true);
     });
 
     test('test_checkIsFavorite_apiThrows_returnsFalse', async () => {
-      // Arrange
       (api.get as jest.Mock).mockRejectedValueOnce(new Error('Network Error'));
-
-      // Act
       const result = await checkIsFavorite('bad-prod');
-
-      // Assert
       expect(result.isFavorite).toBe(false);
     });
+  });
+
+  // ── confirmDelivery ─────────────────────────────────────────────────
+  describe('confirmDelivery', () => {
+    test('test_confirmDelivery_validOrderId_callsPutConfirmDeliveryEndpoint', async () => {
+      (api.put as jest.Mock).mockResolvedValueOnce({ data: { success: true } });
+      const result = await confirmDelivery('ord-confirm');
+      expect(api.put).toHaveBeenCalledWith('/orders/ord-confirm/confirm-delivery');
+      expect(result.success).toBe(true);
+    });
+
+    test('test_confirmDelivery_apiError_throwsException', async () => {
+      (api.put as jest.Mock).mockRejectedValueOnce({ message: 'Order not found' });
+      await expect(confirmDelivery('ord-bad')).rejects.toThrow('Order not found');
+    });
+  });
+
+  // ── Error paths for remaining functions ─────────────────────────────
+  test('test_clearBackendCart_apiError_throwsException', async () => {
+    (api.delete as jest.Mock).mockRejectedValueOnce({ message: 'Cart error' });
+    await expect(clearBackendCart()).rejects.toThrow('Cart error');
+  });
+
+  test('test_getMyOrders_apiError_throwsException', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Unauthorized' });
+    await expect(getMyOrders()).rejects.toThrow('Unauthorized');
+  });
+
+  test('test_getStoreOrders_apiErrorWithResponse_throwsServerMessage', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Store not found' } } });
+    await expect(getStoreOrders('bad-store')).rejects.toThrow('Store not found');
+  });
+
+  test('test_getStoreOrders_networkError_throwsNetworkMessage', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Network error fetching store orders' });
+    await expect(getStoreOrders('store-x')).rejects.toThrow('Network error fetching store orders');
+  });
+
+  test('test_getOrderDetails_apiErrorWithResponse_throwsServerMessage', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Order not found' } } });
+    await expect(getOrderDetails('ord-ghost')).rejects.toThrow('Order not found');
+  });
+
+  test('test_updateOrderStatus_apiErrorWithResponse_throwsServerMessage', async () => {
+    (api.put as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Invalid status' } } });
+    await expect(updateOrderStatus('ord-1', 'invalid')).rejects.toThrow('Invalid status');
+  });
+
+  test('test_cancelOrder_apiErrorWithResponse_throwsServerMessage', async () => {
+    (api.put as jest.Mock).mockRejectedValueOnce({ response: { data: { error: 'Already cancelled' } } });
+    await expect(cancelOrder('ord-2')).rejects.toThrow('Already cancelled');
+  });
+
+  test('test_addToFavorites_apiError_throwsException', async () => {
+    (api.post as jest.Mock).mockRejectedValueOnce({ message: 'Already favorited' });
+    await expect(addToFavorites('prod-dup')).rejects.toThrow('Already favorited');
+  });
+
+  test('test_removeFromFavorites_apiError_throwsException', async () => {
+    (api.delete as jest.Mock).mockRejectedValueOnce({ message: 'Not in favorites' });
+    await expect(removeFromFavorites('prod-missing')).rejects.toThrow('Not in favorites');
+  });
+
+  test('test_getFavorites_apiError_throwsException', async () => {
+    (api.get as jest.Mock).mockRejectedValueOnce({ message: 'Unauthorized' });
+    await expect(getFavorites()).rejects.toThrow('Unauthorized');
   });
 });
