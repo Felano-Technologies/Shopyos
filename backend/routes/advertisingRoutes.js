@@ -10,8 +10,6 @@ const {
   getCampaignDetails,
   updateCampaignStatus,
   updateCampaignBudget,
-  recordImpression,
-  recordClick,
   createReport
 } = require('../controllers/advertisingController');
 const { protect, seller, hasAnyRole } = require('../middleware/authMiddleware');

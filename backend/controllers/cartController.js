@@ -2,7 +2,6 @@
 // Cart management controller
 
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 
 /**
  * @route   POST /api/cart/add

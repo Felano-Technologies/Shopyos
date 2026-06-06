@@ -1,5 +1,4 @@
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 const { toPublicUrl } = require('../config/storage');
 
 const formatPromotions = (obj) => {

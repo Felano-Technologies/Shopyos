@@ -2,7 +2,6 @@
 // Controller for notification management
 
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 
 /**
  * Get user notifications

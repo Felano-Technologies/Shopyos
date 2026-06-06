@@ -1,6 +1,5 @@
 // controllers/favoriteController.js
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 const { toPublicUrl } = require('../config/storage');
 
 // @desc    Add product to favorites

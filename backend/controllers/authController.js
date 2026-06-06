@@ -22,6 +22,7 @@ const getTransporter = () => {
   if (!_transporter) {
     _transporter = nodemailer.createTransport({
       service: 'Gmail',
+      family: 4,
       auth: {
         user: process.env.EMAIL_USERNAME || process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
@@ -265,7 +266,7 @@ const refreshAccessToken = async (req, res, next) => {
   }
 };
 
-const logout = async (req, res, next) => {
+const logout = async (req, res, _next) => {
   try {
     // Blacklist the access token in Redis for its remaining lifetime
     const authHeader = req.headers.authorization;

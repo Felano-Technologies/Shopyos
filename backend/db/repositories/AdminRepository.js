@@ -109,7 +109,7 @@ class AdminRepository extends BaseRepository {
   /**
    * Update user account status
    */
-  async updateUserStatus(profileId, status, reason = null) {
+  async updateUserStatus(profileId, status, _reason = null) {
     const db = getPool();
 
     // 1. Resolve user_id from profile id

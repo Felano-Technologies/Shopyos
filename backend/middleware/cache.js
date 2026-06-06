@@ -1,6 +1,5 @@
 const crypto = require('crypto');
 const { cacheGet, cacheSet, acquireLock, releaseLock } = require('../config/redis');
-const { logger } = require('../config/logger');
 
 const hashParams = (params) => {
     const sorted = JSON.stringify(params, Object.keys(params).sort());

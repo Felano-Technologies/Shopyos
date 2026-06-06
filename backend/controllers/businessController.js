@@ -24,13 +24,13 @@ const createBusiness = async (req, res, next) => {
       logo,
       coverImage,
       email,
-      businessCert, // from req.body or handled via files
+      _businessCert, // from req.body or handled via files
       taxId,
-      businessLicense, // via files
+      _businessLicense, // via files
       bankName,
       accountName,
       accountNumber,
-      proofOfBank // via files
+      _proofOfBank // via files
     } = req.body;
 
     // Validate required fields
@@ -90,7 +90,6 @@ const createBusiness = async (req, res, next) => {
 
     if (req.files) {
       try {
-        const uploadPromises = [];
         const processFile = (fieldName, folder) => {
           if (req.files[fieldName] && req.files[fieldName][0]) {
             return uploadFileToCloudinary(req.files[fieldName][0], folder)
@@ -202,7 +201,7 @@ const createBusiness = async (req, res, next) => {
     }
 
     // Get store with owner details
-    const storeWithOwner = await repositories.stores.getStoreDetails(store.id);
+    const _storeWithOwner = await repositories.stores.getStoreDetails(store.id);
 
     // Format response for backward compatibility
     const response = {
@@ -836,7 +835,7 @@ const getBusinessDashboard = async (req, res, next) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // weeklyOrders.data is the actual array from findAll()
-    const weeklyData = (weeklyOrders.data || []).filter(o => new Date(o.created_at) >= sevenDaysAgo);
+    const _weeklyData = (weeklyOrders.data || []).filter(o => new Date(o.created_at) >= sevenDaysAgo);
 
     // Group by day
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -938,7 +937,7 @@ const getBusinessAnalytics = async (req, res, next) => {
     if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
 
     // Calculate Date Range
-    const endDate = new Date();
+    const _endDate = new Date();
     const startDate = new Date();
 
     if (timeframe === 'month') startDate.setMonth(startDate.getMonth() - 1);
@@ -1096,7 +1095,7 @@ const getBusinessAnalytics = async (req, res, next) => {
 // @access  Private (Logged in user)
 const getAllBusinesses = async (req, res, next) => {
   try {
-    const { search, category, sortBy = 'rating', limit = 20, offset = 0, verified } = req.query;
+    const { search, category, sortBy = 'rating', limit = 20, offset = 0, verified: _verified } = req.query;
 
     const limitNum = parseInt(limit);
     const offsetNum = parseInt(offset);

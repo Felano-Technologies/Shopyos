@@ -1,11 +1,11 @@
 const { logger } = require('../config/logger');
 
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res, _next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
 
   if (err.name === 'ValidationError') {
-    statusCode = 400;
+    statusCode = 422;
     message = Object.values(err.errors).map(e => e.message).join(', ');
   }
 

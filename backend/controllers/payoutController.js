@@ -1,6 +1,5 @@
 // controllers/payoutController.js
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 const paystackService = require('../services/paystackService');
 
 // @desc    Request a payout

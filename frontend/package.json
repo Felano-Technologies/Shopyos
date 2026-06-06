@@ -9,6 +9,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "test": "jest --watchAll",
+    "test:ci": "jest --watchAll=false --passWithNoTests --forceExit",
     "lint": "expo lint"
   },
   "jest": {
@@ -88,6 +89,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
+    "@testing-library/react-native": "^14.0.0",
     "@types/jest": "^29.5.12",
     "@types/react": "~19.1.10",
     "@types/react-test-renderer": "^18.3.0",
@@ -96,6 +98,8 @@
     "eslint-import-resolver-typescript": "^4.4.4",
     "jest": "~29.7.0",
     "jest-expo": "~54.0.17",
+    "jest-junit": "^17.0.0",
+    "supertest": "^7.2.2",
     "typescript": "~5.9.2"
   },
   "private": true,

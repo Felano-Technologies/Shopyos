@@ -2,7 +2,6 @@
 // Reviews and ratings management controller
 
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
 const { invalidateReviews } = require('../config/cacheInvalidation');
 const { toPublicUrl } = require('../config/storage');
 

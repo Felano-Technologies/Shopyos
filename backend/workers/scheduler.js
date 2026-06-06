@@ -10,14 +10,14 @@ const cron = require('node-cron');
 const amqp = require('amqplib');
 const { logger } = require('../config/logger');
 const repositories = require('../db/repositories');
-const expoPushService = require('../services/expoPushService');
+const _expoPushService = require('../services/expoPushService');
 const holidayService = require('../services/holidayService');
 const aiService = require('../services/aiService');
 
 // ─── RabbitMQ helper ─────────────────────────────────────────────────────────
 // Opens a fresh connection per publish call — keeps the scheduler stateless.
 
-async function publishToQueue(routingKey, payload) {
+async function _publishToQueue(routingKey, payload) {
   const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
   if (!url) {
     logger.warn('[Scheduler] RABBITMQ_URL not set — skipping MQ publish for', routingKey);
