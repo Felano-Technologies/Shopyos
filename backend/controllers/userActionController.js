@@ -49,7 +49,8 @@ const unblockUser = async (req, res, next) => {
 
         const { error } = await repositories.users.db.from('user_blocks')
             .delete()
-            .match({ blocker_id: blockerId, blocked_id: blockedId });
+            .eq('blocker_id', blockerId)
+            .eq('blocked_id', blockedId);
 
         if (error) throw error;
 
@@ -65,7 +66,8 @@ const getBlockedUsers = async (req, res, next) => {
     try {
         const blockerId = req.user.id;
 
-        const db = repositories.users.getPool();
+        const { getPool } = require('../config/postgres');
+        const db = getPool();
         const { rows } = await db.query(
             `SELECT ub.blocked_id, ub.created_at,
                     u.id AS user_id, up.full_name, up.avatar_url

@@ -168,15 +168,7 @@ export default function Home() {
   const trendingProducts = trendingData?.success ? trendingData.products : [];
   const dealsProducts = dealsData?.success ? dealsData.products : [];
   const exploreProducts = exploreData?.pages?.flatMap((p: any) => p.products || []) || [];
-  useEffect(() => {
-    const allProducts = [...recentProducts, ...trendingProducts, ...dealsProducts, ...exploreProducts];
-    if (allProducts.length > 0) {
-      console.log('[Home] product image URLs from backend:',
-        allProducts.map(p => ({ id: p._id, name: p.name, images: p.images }))
-      );
-    }
-  }, [recentProducts, trendingProducts, dealsProducts, exploreProducts]);
-  // ── Ad carousel refs ────────────────────────────────────────────────────────
+// ── Ad carousel refs ────────────────────────────────────────────────────────
   // Using a plain horizontal ScrollView instead of FlatList — pagingEnabled
   // works reliably on ScrollView and avoids the overlap / snap bug that occurs
   // when FlatList tries to reconcile virtualisation with snap offsets.
