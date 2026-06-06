@@ -9,6 +9,11 @@
 // ── Mocks
 jest.mock('expo-router', () => ({ router: { replace: jest.fn() } }));
 jest.mock('@/lib/query/client', () => ({ queryClient: { clear: jest.fn(), invalidateQueries: jest.fn(), removeQueries: jest.fn() } }));
+// Set EXPO_PUBLIC_API_URL before client.ts loads so getBaseURL() doesn't throw
+jest.mock('../../services/client', () => {
+  process.env.EXPO_PUBLIC_API_URL = 'http://localhost:5000';
+  return jest.requireActual('../../services/client');
+});
 jest.mock('../../services/storage', () => ({
   storage: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() },
   secureStorage: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() },

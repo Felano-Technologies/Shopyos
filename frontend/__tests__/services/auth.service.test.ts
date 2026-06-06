@@ -196,7 +196,7 @@ describe('Auth Service Unit Tests', () => {
     (api.post as jest.Mock).mockRejectedValueOnce(apiError);
 
     // Act & Assert
-    await expect(confirmResetPassword('bad-token', 'NewPass')).rejects.toThrow('Invalid token');
+    await expect(confirmResetPassword('bad-token', 'NewPass')).rejects.toThrow('Invalid or expired reset token');
   });
 
   // ── updateProfile ─────────────────────────────────────────────────

@@ -7,10 +7,10 @@ on:
 
 jobs:
   shutdown:
-    name: Pause Railway Backend
+    name: Pause Railway Services
     runs-on: ubuntu-latest
     steps:
-      - name: Pause service
+      - name: Pause backend
         run: |
           curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
@@ -19,6 +19,34 @@ jobs:
               "query": "mutation Pause($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
               "variables": {
                 "serviceId": "${{ secrets.RAILWAY_SERVICE_ID }}",
+                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
+                "input": { "numReplicas": 0 }
+              }
+            }'
+
+      - name: Pause Postgres
+        run: |
+          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation Pause($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
+              "variables": {
+                "serviceId": "${{ secrets.RAILWAY_POSTGRES_SERVICE_ID }}",
+                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
+                "input": { "numReplicas": 0 }
+              }
+            }'
+
+      - name: Pause Redis
+        run: |
+          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation Pause($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
+              "variables": {
+                "serviceId": "${{ secrets.RAILWAY_REDIS_SERVICE_ID }}",
                 "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
                 "input": { "numReplicas": 0 }
               }

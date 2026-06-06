@@ -74,6 +74,7 @@ jest.mock('@/components/InAppToastHost', () => ({
   },
 }));
 
+import { renderHook, act } from '@testing-library/react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
@@ -106,8 +107,9 @@ describe('useNotifications Hooks Unit Tests', () => {
     // Arrange
     (useQuery as jest.Mock).mockReturnValue({ data: [], isLoading: false });
 
-    // Act
-    const result = useNotifications();
+    // Act — renderHook so React hooks (useEffect) work correctly
+    const { result } = renderHook(() => useNotifications());
+    await act(async () => { await new Promise(process.nextTick); });
 
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
@@ -117,7 +119,7 @@ describe('useNotifications Hooks Unit Tests', () => {
         gcTime: 10 * 60 * 1000,
       })
     );
-    expect(result).toBeDefined();
+    expect(result.current).toBeDefined();
 
     // Test queryFn behavior when token is missing
     const queryFn = (useQuery as jest.Mock).mock.calls[0][0].queryFn;
@@ -139,8 +141,9 @@ describe('useNotifications Hooks Unit Tests', () => {
     // Arrange
     (useQuery as jest.Mock).mockReturnValue({ data: { unreadCount: 5 }, isLoading: false });
 
-    // Act
-    const result = useUnreadNotificationCount(false); // Disable real-time for config check
+    // Act — renderHook so React hooks (useEffect) work correctly
+    const { result } = renderHook(() => useUnreadNotificationCount(false));
+    await act(async () => { await new Promise(process.nextTick); });
 
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
@@ -151,7 +154,7 @@ describe('useNotifications Hooks Unit Tests', () => {
         gcTime: 5 * 60 * 1000,
       })
     );
-    expect(result).toBeDefined();
+    expect(result.current).toBeDefined();
 
     // Test queryFn behavior when token is missing
     const queryFn = (useQuery as jest.Mock).mock.calls[0][0].queryFn;

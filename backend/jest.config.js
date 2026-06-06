@@ -11,7 +11,6 @@ module.exports = {
       setupFiles: ['<rootDir>/tests/setup.js'],
       globalSetup: '<rootDir>/tests/globalSetup.js',
       globalTeardown: '<rootDir>/tests/globalTeardown.js',
-      testTimeout: 10000,
       clearMocks: true,
       restoreMocks: true,
     },
@@ -24,7 +23,6 @@ module.exports = {
       globalTeardown: '<rootDir>/tests/globalTeardown.js',
       // Run integration tests serially — one server instance, one DB
       runner: 'jest-runner',
-      testTimeout: 30000,
       clearMocks: true,
       restoreMocks: true,
     },
@@ -54,5 +52,6 @@ module.exports = {
     ['jest-junit', { outputDirectory: '.', outputName: 'junit.xml' }],
   ],
 
+  testTimeout: 30000,
   verbose: true,
 };

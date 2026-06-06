@@ -152,7 +152,7 @@ describe('POST /api/v1/cart/add', () => {
       .post('/api/v1/cart/add')
       .set('Authorization', `Bearer ${token}`)
       .send({
-        productId: '00000000-0000-0000-0000-000000000001',
+        productId: '00000000-0000-4000-8000-000000000001',
         quantity: 1,
       });
 

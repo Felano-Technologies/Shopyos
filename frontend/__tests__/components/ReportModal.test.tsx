@@ -31,7 +31,7 @@ jest.mock('@expo/vector-icons', () => {
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import React from 'react';
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native';
+import { render, fireEvent, waitFor, screen, act } from '@testing-library/react-native';
 import { ReportModal } from '../../components/ReportModal';
 import { CustomInAppToast } from '../../components/InAppToastHost';
 
@@ -122,8 +122,9 @@ describe('ReportModal Component Tests', () => {
   test('test_ReportModal_submitWithoutReason_showsErrorToast', async () => {
     await render(<ReportModal {...defaultProps()} />);
 
-    // Press Submit with no reason selected — the button is disabled but handler fires
-    await fireEvent.press(screen.getByText('Submit Report'));
+    // fireEvent bypasses the disabled prop and invokes onPress directly,
+    // which triggers the !selectedReason guard inside handleReport.
+    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
 
     expect(CustomInAppToast.show).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'error', title: 'Error' })
@@ -135,7 +136,7 @@ describe('ReportModal Component Tests', () => {
     const onClose = jest.fn();
     await render(<ReportModal {...defaultProps({ onClose })} />);
 
-    await fireEvent.press(screen.getByText('Submit Report'));
+    await act(async () => { fireEvent.press(screen.getByText('Submit Report')); });
 
     expect(onClose).not.toHaveBeenCalled();
   });

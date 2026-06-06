@@ -7,10 +7,41 @@ on:
 
 jobs:
   wakeup:
-    name: Resume Railway Backend
+    name: Resume Railway Services
     runs-on: ubuntu-latest
     steps:
-      - name: Resume service
+      - name: Resume Postgres
+        run: |
+          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation Resume($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
+              "variables": {
+                "serviceId": "${{ secrets.RAILWAY_POSTGRES_SERVICE_ID }}",
+                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
+                "input": { "numReplicas": 1 }
+              }
+            }'
+
+      - name: Resume Redis
+        run: |
+          curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "query": "mutation Resume($serviceId: String!, $environmentId: String!, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
+              "variables": {
+                "serviceId": "${{ secrets.RAILWAY_REDIS_SERVICE_ID }}",
+                "environmentId": "${{ secrets.RAILWAY_ENVIRONMENT_ID }}",
+                "input": { "numReplicas": 1 }
+              }
+            }'
+
+      - name: Wait for databases to initialize
+        run: sleep 15
+
+      - name: Resume backend
         run: |
           curl -s -f -X POST https://backboard.railway.app/graphql/v2 \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \

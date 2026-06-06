@@ -143,8 +143,10 @@ describe('Products Service Unit Tests', () => {
   });
 
   test('test_getProductById_ghostId_throwsException', async () => {
-    // Arrange
-    const err = { message: 'Product not found', response: { status: 404, data: { error: 'Product not found' } } };
+    // Arrange — use a real Error so rejects.toThrow can match .message
+    const err = Object.assign(new Error('Product not found'), {
+      response: { status: 404, data: { error: 'Product not found' } },
+    });
     (api.get as jest.Mock).mockRejectedValueOnce(err);
 
     // Act & Assert

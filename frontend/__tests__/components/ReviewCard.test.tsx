@@ -96,10 +96,23 @@ describe('ReviewCard Component Tests', () => {
 
   test('test_ReviewCard_withNoAvatar_usesInitialsFallbackUrl', async () => {
     const review = makeReview({ user: { full_name: 'John Smith', avatar_url: null } });
-    await render(<ReviewCard review={review} />);
-    const { Image } = require('react-native');
-    const img = screen.UNSAFE_getAllByType(Image)[0];
-    expect(img.props.source.uri).toContain('dicebear');
+    const { toJSON } = await render(<ReviewCard review={review} />);
+
+    // Walk the rendered JSON tree looking for an Image node (type === 'Image')
+    // and assert its source URI contains the dicebear initials service.
+    function findImageUri(node: any): string | null {
+      if (!node || typeof node !== 'object') return null;
+      if (node.type === 'Image') return node.props?.source?.uri ?? null;
+      for (const child of node.children ?? []) {
+        const found = findImageUri(child);
+        if (found !== null) return found;
+      }
+      return null;
+    }
+
+    const uri = findImageUri(toJSON());
+    expect(uri).toBeTruthy();
+    expect(uri).toContain('dicebear');
   });
 
   // ── Like button ───────────────────────────────────────────────────────────

@@ -55,17 +55,20 @@ import { useRootNavigationState, router } from 'expo-router';
 /**
  * Renders InAppToastHost, queues a toast via CustomInAppToast.show, then
  * flushes state updates so the toast becomes visible.
+ *
+ * IMPORTANT: `type` is NOT included in the base defaults — callers that want
+ * no type (so the NOTIFICATION kicker is rendered) simply omit it from
+ * `overrides`.  Callers that want a specific type pass it explicitly.
  */
 async function renderWithToast(overrides: Record<string, unknown> = {}) {
   await render(<InAppToastHost />);
 
   await act(async () => {
     CustomInAppToast.show({
-      type: 'success',
       title: 'Test Title',
       message: 'Test message',
       ...overrides,
-    });
+    } as any);
   });
 }
 
@@ -184,10 +187,14 @@ describe('InAppToastHost Component Tests', () => {
   test('test_CustomInAppToast_show_multipleToastsQueued_displaysFirstToastFirst', async () => {
     await render(<InAppToastHost />);
 
+    // Queue the first toast in its own act() so it is set as currentToast
+    // before the second is enqueued.  The second stays in the queue.
     await act(async () => {
       CustomInAppToast.show({ type: 'success', title: 'First Toast', message: 'First' });
-      CustomInAppToast.show({ type: 'info', title: 'Second Toast', message: 'Second' });
     });
+
+    // Queue the second toast without flushing the first away
+    CustomInAppToast.show({ type: 'info', title: 'Second Toast', message: 'Second' });
 
     // Only the first queued toast should be visible at this point
     expect(screen.getByText('First Toast')).toBeTruthy();
