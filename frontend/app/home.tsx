@@ -17,9 +17,11 @@ import { useProducts, useInfiniteProducts } from '@/hooks/useProducts';
 import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 import Skeleton from '@/components/Skeleton';
-import { getPromotedProducts, getActiveBanners, recordAdClick, getUserData, storage, CustomInAppToast } from '@/services/api';
-import { useChat } from '@/context/ChatContext';
-import { useCart } from '@/context/CartContext';
+import { recordAdClick, storage, CustomInAppToast } from '@/services/api';
+import { useActiveBanners, usePromotedProducts } from '@/hooks/useBanners';
+import { useProfile } from '@/hooks/useProfile';
+import { useBuyerUnreadCount } from '@/hooks/useChat';
+import { useCart } from '@/store/cartStore';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
@@ -82,10 +84,7 @@ export default function Home() {
   const [adIndex, setAdIndex] = useState(0);
   const [animValues, setAnimValues] = useState<Animated.Value[]>([]);
   const [showStartupSkeleton, setShowStartupSkeleton] = useState(true);
-  const { buyerConversations } = useChat();
-  const unreadCount = buyerConversations?.reduce(
-    (acc: number, c: any) => acc + (c.unread || 0), 0
-  ) || 0;
+  const { data: unreadCount = 0 } = useBuyerUnreadCount();
   const { items: cartItems, addToCart } = useCart();
   const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -136,6 +135,9 @@ export default function Home() {
       onSettled,
     });
   };
+  const { data: profileData } = useProfile();
+  const { data: bannersData } = useActiveBanners();
+  const { data: promotedData } = usePromotedProducts();
   const { data: notifData } = useUnreadNotificationCount(false);
   const unreadNotifCount = notifData?.unreadCount ?? 0;
   const { data: categoriesData } = useCategories();
@@ -246,37 +248,24 @@ export default function Home() {
   const handleOnboardingComplete = () => {
     markCompleted('home');
   };
-  // ── Load user name ──────────────────────────────────────────────────────────
+  // ── Derive user name from profile hook ─────────────────────────────────────
   useEffect(() => {
-    if (user) {
-      const name = user.name || user.email || '';
-      setUserName(name.split(' ')[0]);
+    const name = profileData?.name || profileData?.email || user?.name || user?.email || '';
+    setUserName(name.split(' ')[0]);
+  }, [profileData, user]);
+  // ── Derive ads from banner/promoted hooks ───────────────────────────────────
+  useEffect(() => {
+    const activeBanners = (bannersData?.banners || []).filter(
+      (b: any) => b.placement === 'Home Top Banner'
+    );
+    if (activeBanners.length > 0) {
+      setAds(activeBanners);
+    } else if (promotedData?.promotedProducts?.length > 0) {
+      setAds(promotedData.promotedProducts);
+    } else if (bannersData !== undefined || promotedData !== undefined) {
+      setAds(FALLBACK_ADS);
     }
-  }, [user]);
-  // ── Load promoted ads ───────────────────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      try {
-        const bannersRes = await getActiveBanners();
-        const activeBanners = (bannersRes?.banners || []).filter(
-          (b: any) => b.placement === 'Home Top Banner'
-        );
-        
-        if (activeBanners.length > 0) {
-          setAds(activeBanners);
-        } else {
-          const res = await getPromotedProducts();
-          if (res?.promotedProducts?.length > 0) {
-            setAds(res.promotedProducts);
-          } else {
-            setAds(FALLBACK_ADS);
-          }
-        }
-      } catch (err) {
-        setAds(FALLBACK_ADS);
-      }
-    })();
-  }, []);
+  }, [bannersData, promotedData]);
   // ── Auto-advance ad carousel ────────────────────────────────────────────────
   const goToAd = useCallback((idx: number) => {
     const clamped = Math.max(0, Math.min(idx, ads.length - 1));
@@ -330,22 +319,17 @@ export default function Home() {
           console.log('Live GPS error', e);
         }
       }
-      // 3. Fallback to profile Data if no live GPS
-      if (!liveCoords) {
-        try {
-          const userData = await getUserData();
-          if (userData?.latitude && userData?.longitude) {
-            liveCoords = { latitude: userData.latitude, longitude: userData.longitude };
-          } else if (userData?.city) {
-            const profileLoc = userData.city + (userData.country ? `, ${userData.country}` : '');
-            if (profileLoc !== cachedTxt) {
-              setLocationText(profileLoc);
-              await storage.setItem('CACHED_LOCATION_TEXT', profileLoc);
-            }
-            return; // We have a city, no need to geocode.
+      // 3. Fallback to cached profile data if no live GPS
+      if (!liveCoords && profileData) {
+        if (profileData.latitude && profileData.longitude) {
+          liveCoords = { latitude: profileData.latitude, longitude: profileData.longitude };
+        } else if (profileData.city) {
+          const profileLoc = profileData.city + (profileData.country ? `, ${profileData.country}` : '');
+          if (profileLoc !== cachedTxt) {
+            setLocationText(profileLoc);
+            await storage.setItem('CACHED_LOCATION_TEXT', profileLoc);
           }
-        } catch (err) {
-          console.log('Profile location fallback error', err);
+          return;
         }
       }
       // 4. Reverse Geocode ONLY if moved significantly or no cache
@@ -384,7 +368,7 @@ export default function Home() {
         setLocationText('Location unavailable');
       }
     })();
-  }, []);
+  }, [profileData]);
   // ── Card stagger animation ──────────────────────────────────────────────────
   useEffect(() => {
     if (recentProducts.length > 0) {

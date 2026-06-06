@@ -15,7 +15,7 @@ import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/se
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/store/cartStore';
 import { SearchSkeleton } from '@/components/skeletons/SearchSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';

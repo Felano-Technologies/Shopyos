@@ -31,9 +31,11 @@ const chatUpload = multer({
   fileFilter: (req, file, cb) => {
     const allowedMimeTypes = [
       'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+      'image/heic', 'image/heif',
       'video/mp4', 'video/quicktime',
       'audio/aac', 'audio/x-aac', 'audio/m4a', 'audio/mp4', 'audio/mpeg',
-      'audio/x-caf', 'audio/3gpp', 'audio/webm'
+      'audio/x-caf', 'audio/3gpp', 'audio/webm',
+      'application/octet-stream', // fallback when client cannot determine MIME type
     ];
     if (allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);

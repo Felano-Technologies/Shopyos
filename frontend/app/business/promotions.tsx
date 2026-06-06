@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, Text, StyleSheet, ScrollView, TouchableOpacity, 
   TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
@@ -11,12 +11,8 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
-import { 
-  getMyBannerCampaigns, 
-  createBannerCampaign, 
-  initializeBannerPayment,
-  verifyBannerPayment 
-} from '@/services/api';
+import { initializeBannerPayment, verifyBannerPayment } from '@/services/api';
+import { useMyCampaigns, useCreateCampaign } from '@/hooks/useBusiness';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 const PRICING = {
   'Home Top Banner': 50, // per day
@@ -28,62 +24,36 @@ export default function PromotionsScreen() {
   const insets = useSafeAreaInsets();
   
   const [activeTab, setActiveTab] = useState<'campaigns' | 'create'>('campaigns');
-  const [campaigns, setCampaigns] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
   // Create Ad Form State
   const [adTitle, setAdTitle] = useState('');
   const [placement, setPlacement] = useState<keyof typeof PRICING>('Home Top Banner');
   const [duration, setDuration] = useState(3);
   const [bannerUri, setBannerUri] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
+
   const { reference } = useLocalSearchParams();
-  const verifyPayment = useCallback(async (paystackRef: string) => {
-    try {
-      setLoading(true);
-      const res = await verifyBannerPayment(paystackRef);
-      if (res.success) {
-        CustomInAppToast.show({
-          type: 'success',
-          title: 'Payment Successful',
-          message: 'Your ad campaign is now live!'
-        });
-        fetchMyCampaigns();
-      }
-    } catch (error: any) {
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Verification Failed',
-        message: error.message || 'Payment could not be verified'
-      });
-    } finally {
-      setLoading(false);
-      // Clean URL
-      router.replace('/business/promotions');
-    }
-  }, [router]);
+  const { data: campaignsData, isLoading: loading, refetch: refetchCampaigns } = useMyCampaigns();
+  const campaigns: any[] = campaignsData?.campaigns || [];
+  const createCampaignMutation = useCreateCampaign();
+
   useEffect(() => {
-    if (reference) {
-      verifyPayment(reference as string);
-    }
-  }, [reference, verifyPayment]);
-  const fetchMyCampaigns = async () => {
-    try {
-      setLoading(true);
-      const res = await getMyBannerCampaigns();
-      if (res.success) {
-        setCampaigns(res.campaigns || []);
+    if (!reference) return;
+    (async () => {
+      try {
+        setPaymentLoading(true);
+        const res = await verifyBannerPayment(reference as string);
+        if (res.success) {
+          CustomInAppToast.show({ type: 'success', title: 'Payment Successful', message: 'Your ad campaign is now live!' });
+          refetchCampaigns();
+        }
+      } catch (error: any) {
+        CustomInAppToast.show({ type: 'error', title: 'Verification Failed', message: error.message || 'Payment could not be verified' });
+      } finally {
+        setPaymentLoading(false);
+        router.replace('/business/promotions');
       }
-    } catch (error) {
-      console.error('Fetch my campaigns error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => {
-    if (activeTab === 'campaigns') {
-      fetchMyCampaigns();
-    }
-  }, [activeTab]);
+    })();
+  }, [reference]);
   const totalCost = PRICING[placement] * duration;
   const showImagePicker = useImagePickerSheet();
   const handlePickImage = async () => {
@@ -99,71 +69,41 @@ export default function PromotionsScreen() {
       default: return { color: '#64748B', bg: '#F1F5F9' };
     }
   };
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!adTitle || !bannerUri) return;
-    try {
-      setSubmitting(true);
-      
-      const formData = new FormData();
-      formData.append('title', adTitle);
-      formData.append('placement', placement);
-      formData.append('duration', duration.toString());
-      
-      const filename = bannerUri.split('/').pop();
-      const match = /\.(\w+)$/.exec(filename || '');
-      const type = match ? `image/${match[1]}` : 'image';
-      
-      formData.append('banner', {
-        uri: bannerUri,
-        name: filename,
-        type,
-      } as any);
-      const res = await createBannerCampaign(formData);
-      if (res.success) {
-        CustomInAppToast.show({
-          type: 'success',
-          title: 'Ad Submitted',
-          message: 'Ad details uploaded! You can pay once it is approved.'
-        });
+    const formData = new FormData();
+    formData.append('title', adTitle);
+    formData.append('placement', placement);
+    formData.append('duration', duration.toString());
+    const filename = bannerUri.split('/').pop();
+    const match = /\.(\w+)$/.exec(filename || '');
+    const type = match ? `image/${match[1]}` : 'image';
+    formData.append('banner', { uri: bannerUri, name: filename, type } as any);
+
+    createCampaignMutation.mutate(formData, {
+      onSuccess: () => {
+        CustomInAppToast.show({ type: 'success', title: 'Ad Submitted', message: 'Ad details uploaded! You can pay once it is approved.' });
         setActiveTab('campaigns');
         setAdTitle('');
         setBannerUri(null);
-        fetchMyCampaigns();
-      }
-    } catch (error: any) {
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Submission Failed',
-        message: error.message || 'Check your internet connection and try again'
-      });
-    } finally {
-      setSubmitting(false);
-    }
+      },
+      onError: (error: any) => {
+        CustomInAppToast.show({ type: 'error', title: 'Submission Failed', message: error.message || 'Check your internet connection and try again' });
+      },
+    });
   };
   const handlePayAd = async (campaignId: string) => {
     try {
-      setLoading(true);
-      const res = await initializeBannerPayment({
-        campaignId,
-        email: 'merchant@shopyos.com',
-      });
+      setPaymentLoading(true);
+      const res = await initializeBannerPayment({ campaignId, email: 'merchant@shopyos.com' });
       if (res.success && res.data.authorization_url) {
-        CustomInAppToast.show({
-          type: 'success',
-          title: 'Opening Checkout',
-          message: 'Redirecting to Paystack secure payment page...'
-        });
-        
+        CustomInAppToast.show({ type: 'success', title: 'Opening Checkout', message: 'Redirecting to Paystack secure payment page...' });
         Linking.openURL(res.data.authorization_url);
       }
     } catch (error: any) {
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Initialisation Failed',
-        message: error.message || 'Could not reach payment provider'
-      });
+      CustomInAppToast.show({ type: 'error', title: 'Initialisation Failed', message: error.message || 'Could not reach payment provider' });
     } finally {
-      setLoading(false);
+      setPaymentLoading(false);
     }
   };
   return (
@@ -332,12 +272,12 @@ export default function PromotionsScreen() {
                   <Text style={styles.totalValue}>₵{totalCost}</Text>
                 </View>
               </View>
-              <TouchableOpacity 
-                style={[styles.submitBtn, (!adTitle || !bannerUri || submitting) && styles.submitBtnDisabled]}
-                disabled={!adTitle || !bannerUri || submitting}
+              <TouchableOpacity
+                style={[styles.submitBtn, (!adTitle || !bannerUri || createCampaignMutation.isPending) && styles.submitBtnDisabled]}
+                disabled={!adTitle || !bannerUri || createCampaignMutation.isPending}
                 onPress={handleSubmit}
               >
-                {submitting ? (
+                {createCampaignMutation.isPending ? (
                   <ActivityIndicator color="#FFF" />
                 ) : (
                   <>

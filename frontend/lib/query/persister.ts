@@ -44,7 +44,7 @@ function sanitizeForStorage(client: PersistedClient): PersistedClient {
   const sanitizedQueries = client.clientState.queries
     .filter(query => {
       const key = query.queryKey[0];
-      return !['profile', 'orders'].includes(String(key));
+      return !['profile'].includes(String(key));
     })
     .map(query => ({
       ...query,

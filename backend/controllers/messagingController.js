@@ -6,7 +6,8 @@ const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const { emitToConversation } = require('../../socket/src/config/socketServer');
 const aiService = require('../services/aiService');
-const { toPublicUrl } = require('../config/storage');
+const { s3, toPublicUrl, resolveImageUrl } = require('../config/storage');
+const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { moderateText } = require('../services/moderationService');
 
 const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
@@ -607,8 +608,6 @@ const uploadChatMedia = async (req, res, next) => {
     }
 
     // Upload to S3/MinIO
-    const { s3, toPublicUrl } = require('../config/storage');
-    const { PutObjectCommand } = require('@aws-sdk/client-s3');
     const crypto = require('crypto');
     const path = require('path');
 
@@ -627,7 +626,7 @@ const uploadChatMedia = async (req, res, next) => {
     res.status(200).json({
       success: true,
       media: {
-        url: toPublicUrl(key),
+        url: await resolveImageUrl(key),
         mimeType: req.file.mimetype,
         size: req.file.size
       }
@@ -798,8 +797,6 @@ const createCustomSticker = async (req, res, next) => {
       });
     }
 
-    const { s3, toPublicUrl } = require('../config/storage');
-    const { PutObjectCommand } = require('@aws-sdk/client-s3');
     const crypto = require('crypto');
     const path = require('path');
 
@@ -819,7 +816,7 @@ const createCustomSticker = async (req, res, next) => {
       success: true,
       sticker: {
         id: `${now}-${random}`,
-        url: toPublicUrl(key),
+        url: await resolveImageUrl(key),
         label: 'Custom'
       }
     });

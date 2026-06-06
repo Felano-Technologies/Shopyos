@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/store/cartStore';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods, getDeliveryQuote, getProductById,

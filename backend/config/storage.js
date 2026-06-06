@@ -150,7 +150,6 @@ const uploadImage = async (imageInput, folder = 'shopyos', options = {}) => {
     Key: key,
     Body: transformed.body,
     ContentType: transformed.contentType || mimeType,
-    ACL: 'public-read',
   }));
 
   const presignedUrl = await resolveImageUrl(key);
@@ -200,7 +199,6 @@ const getPresignedUploadUrl = async ({ keyPrefix = 'uploads', filename = 'file.b
     Bucket: bucket,
     Key: key,
     ContentType: contentType,
-    ACL: 'public-read',
   });
 
   const url = await getSignedUrl(s3, command, { expiresIn });

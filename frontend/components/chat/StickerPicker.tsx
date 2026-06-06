@@ -66,17 +66,17 @@ export default function StickerPicker({ onSelectSticker, onClose }: StickerPicke
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1], // Force square crop for stickers
         quality: 0.8,
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const uri = result.assets[0].uri;
+        const asset = result.assets[0];
         setCreatingSticker(true);
 
-        const res = await createCustomSticker(uri);
+        const res = await createCustomSticker(asset.uri, asset.mimeType ?? undefined);
         if (res?.success && res.sticker) {
           CustomInAppToast.show({
             type: 'success',

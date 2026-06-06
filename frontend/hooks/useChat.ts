@@ -4,9 +4,12 @@ import {
   getConversations,
   getMessages,
   sendMessage as apiSendMessage,
+  deleteConversation as apiDeleteConversation,
   getPresence,
 } from '@/services/messaging';
 import { queryKeys } from '@/lib/query/keys';
+import { socketService } from '@/services/socket';
+import { useChatStore } from '@/store/chatStore';
 
 // ── Conversations ────────────────────────────────────────────────────────────
 
@@ -178,4 +181,150 @@ export const usePresence = (userId: string | null) => {
     gcTime: 5 * 60 * 1000,
     select: (data: any) => data?.presence ?? null,
   });
+};
+
+// ── Conversation formatting helpers ──────────────────────────────────────────
+
+const parseSafeDate = (value?: string | null) => {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const formatSafeTime = (value?: string | null) => {
+  const d = parseSafeDate(value);
+  if (!d) return '';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const resolveConversationTimestamp = (c: any) =>
+  c?.updatedAt || c?.updated_at || c?.lastMessage?.created_at ||
+  c?.lastMessage?.timestamp || c?.lastMessage?.createdAt || null;
+
+const formatConversation = (c: any, currentUserId: string | null) => {
+  const p = c.otherParticipant;
+  let name = 'Unknown User';
+  let avatar = 'https://via.placeholder.com/150';
+  if (p) {
+    if (p.store) {
+      name = p.store.store_name || name;
+      avatar = p.store.logo_url || avatar;
+    } else {
+      const profile = Array.isArray(p.user_profiles) ? p.user_profiles[0] : p.user_profiles;
+      if (profile) {
+        name = profile.full_name || name;
+        avatar = profile.avatar_url || avatar;
+      }
+    }
+  }
+  const isMe = currentUserId && c.lastMessage?.sender_id === currentUserId;
+  const time = formatSafeTime(resolveConversationTimestamp(c));
+  return {
+    id: c.id,
+    name,
+    avatar,
+    lastMessage: c.lastMessage?.content || 'No messages yet',
+    time,
+    unread: c.unreadCount || 0,
+    online: false,
+    messages: c.lastMessage
+      ? [{ id: c.lastMessage.id, text: c.lastMessage.content, sender: (isMe ? 'me' : 'them') as 'me' | 'them', time }]
+      : [],
+    otherParticipant: p,
+  };
+};
+
+const BUYER_FILTER = (c: any) =>
+  c.otherParticipant?.store?.id ||
+  c.otherParticipant?.id === '00000000-0000-0000-0000-000000000001';
+
+const SELLER_FILTER = (c: any) =>
+  !c.otherParticipant?.store?.id &&
+  c.otherParticipant?.id !== '00000000-0000-0000-0000-000000000001';
+
+const conversationsQueryOptions = {
+  queryFn: async () => {
+    const res = await getConversations();
+    return (res?.conversations ?? []) as any[];
+  },
+  refetchOnMount: true as const,
+  staleTime: 30 * 1000,
+  gcTime: 10 * 60 * 1000,
+};
+
+// ── Specialized conversation hooks ────────────────────────────────────────────
+
+export const useBuyerConversations = () => {
+  const currentUserId = useChatStore((s) => s.currentUserId);
+  const select = useCallback(
+    (data: any[]) => data.filter(BUYER_FILTER).map((c) => formatConversation(c, currentUserId)),
+    [currentUserId]
+  );
+  return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
+};
+
+export const useSellerConversations = () => {
+  const currentUserId = useChatStore((s) => s.currentUserId);
+  const select = useCallback(
+    (data: any[]) => data.filter(SELLER_FILTER).map((c) => formatConversation(c, currentUserId)),
+    [currentUserId]
+  );
+  return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
+};
+
+export const useBuyerUnreadCount = () => {
+  const select = useCallback(
+    (data: any[]) => data.filter(BUYER_FILTER).reduce((sum, c) => sum + (c.unreadCount || 0), 0),
+    []
+  );
+  return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
+};
+
+export const useSellerUnreadCount = () => {
+  const select = useCallback(
+    (data: any[]) => data.filter(SELLER_FILTER).reduce((sum, c) => sum + (c.unreadCount || 0), 0),
+    []
+  );
+  return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
+};
+
+// ── Chat actions hook ─────────────────────────────────────────────────────────
+
+export const useChatActions = () => {
+  const queryClient = useQueryClient();
+  const convKey = queryKeys.chat.conversations();
+
+  const sendMessage = useCallback(
+    async (id: string, text: string) => {
+      if (socketService.isConnected()) await socketService.sendMessage(id, text);
+      else await apiSendMessage(id, text);
+      queryClient.invalidateQueries({ queryKey: convKey });
+    },
+    [queryClient]
+  );
+
+  const markAsRead = useCallback(
+    async (id: string) => {
+      try { await socketService.markConversationRead(id); } catch {}
+      queryClient.invalidateQueries({ queryKey: convKey });
+    },
+    [queryClient]
+  );
+
+  const deleteConversation = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        await apiDeleteConversation(id);
+        queryClient.setQueryData<any[]>(convKey, (prev = []) => prev.filter((c: any) => c.id !== id));
+        return true;
+      } catch { return false; }
+    },
+    [queryClient]
+  );
+
+  const refresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: convKey });
+  }, [queryClient]);
+
+  return { sendMessage, markAsRead, deleteConversation, refresh };
 };

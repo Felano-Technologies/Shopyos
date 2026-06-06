@@ -91,20 +91,53 @@ Requirements:
 function fallback(type, ctx) {
   if (type === 'holiday') {
     const name = ctx.holidayName || 'the Public Holiday';
-    return {
-      title: `Happy ${name}! 🎉`,
-      message: `Shopyos wishes you a joyful ${name}. Relax — we've got your deliveries covered today!`
-    };
+    const holidayHooks = [
+      { title: `Happy ${name}! 🎉`,  message: `Shopyos wishes you a joyful ${name}. Relax — we've got your deliveries covered today!` },
+      { title: `Enjoy the ${name} 🇬🇭`, message: `Wishing you a wonderful ${name} celebration! Shopyos is here whenever you need us.` },
+      { title: `${name} vibes ✨`,     message: `Celebrate in style! Browse Shopyos for gifts, fashion & more this ${name}.` },
+      { title: `It's ${name}! 🥳`,    message: `Take a break and enjoy the day. Shopyos will be right here when you're ready to shop.` },
+    ];
+    return holidayHooks[new Date().getDay() % holidayHooks.length];
   }
-  const isMorning = ctx.timeOfDay !== 'evening';
-  const hooks = isMorning ? [
-    { title: 'Good morning! ☀️', message: 'Start your day right — browse fresh deals on Shopyos and shop with one tap!' },
-    { title: 'New Arrivals 🛍️',      message: 'Your favourite stores just restocked. Discover fashion, gadgets & more on Shopyos.' },
-    { title: 'Deals waiting! 🎁', message: 'Exclusive daily offers are live on the Shopyos hub. Don\'t miss out — shop now!' }
-  ] : [
-    { title: 'Evening scrolling? 🌙', message: 'Relax and discover amazing products from trusted Ghanaian sellers tonight on Shopyos.' },
-    { title: 'Midnight cravings? 🛒', message: 'Shop late-night flash deals and get them delivered tomorrow!' },
-    { title: 'Treat yourself 🍷', message: 'You worked hard today. Explore new fashion and gadgets on Shopyos.' }
-  ];
+  const timeOfDay = ctx.timeOfDay || 'morning';
+  const hooksByTime = {
+    morning: [
+      { title: 'Good morning! ☀️',        message: 'Start your day right — browse fresh deals on Shopyos and shop with one tap!' },
+      { title: 'New Arrivals 🛍️',          message: 'Your favourite stores just restocked. Discover fashion, gadgets & more on Shopyos.' },
+      { title: 'Deals waiting! 🎁',         message: 'Exclusive daily offers are live on the Shopyos hub. Don\'t miss out — shop now!' },
+      { title: 'Rise & shop! 🌤️',           message: 'Good morning! Fresh products from local sellers are ready for you on Shopyos.' },
+      { title: 'Your morning haul 👜',       message: 'Top picks handpicked for you. Tap to see what\'s trending this morning on Shopyos.' },
+      { title: 'Fresh drops overnight 📦',   message: 'While you slept, sellers added new items. Check them out before they sell out!' },
+      { title: 'Morning motivation 💪',      message: 'Treat yourself today — great products, great prices. Only on Shopyos.' },
+      { title: 'Beat the crowd 🏃',          message: 'Shop early and get the best picks before everyone else. Shopyos is open!' },
+      { title: 'Today\'s top finds ✨',       message: 'Discover what\'s hot this morning — fashion, tech & more from trusted Ghanaian sellers.' },
+      { title: 'Start strong 🔥',            message: 'Great morning deals are waiting. Open Shopyos and grab yours before they\'re gone!' },
+    ],
+    afternoon: [
+      { title: 'Afternoon pick-me-up 🛒',   message: 'Take a break and browse today\'s best deals on Shopyos — delivered to your door!' },
+      { title: 'Midday deals 🔥',            message: 'Hot offers are live right now on Shopyos. Grab yours before they\'re gone!' },
+      { title: 'Lunch break shopping 🛍️',   message: 'Use your break wisely — discover new arrivals from trusted Ghanaian sellers on Shopyos.' },
+      { title: 'Flash deal alert ⚡',         message: 'Limited-time afternoon deals just dropped on Shopyos. Don\'t sleep on this!' },
+      { title: 'You deserve a treat 🎀',     message: 'Halfway through the day — reward yourself with something nice from Shopyos.' },
+      { title: 'Sellers near you 📍',         message: 'Local Ghanaian sellers have fresh stock this afternoon. Shop & support local!' },
+      { title: 'Restock yourself 💡',         message: 'Running low on essentials? Shopyos has you covered. Order now, delivered fast.' },
+      { title: 'Afternoon finds 🌟',          message: 'Trendy styles, cool gadgets & daily must-haves — all live on Shopyos right now.' },
+      { title: 'Keep it moving 🚀',           message: 'Don\'t let the afternoon slow you down. Great deals are one tap away on Shopyos.' },
+      { title: 'Mid-week motivation 🛒',      message: 'Push through the week with a little retail therapy. Check what\'s new on Shopyos!' },
+    ],
+    evening: [
+      { title: 'Evening scrolling? 🌙',      message: 'Relax and discover amazing products from trusted Ghanaian sellers tonight on Shopyos.' },
+      { title: 'Unwind & shop 🍷',            message: 'You worked hard today. Explore new fashion and gadgets on Shopyos.' },
+      { title: 'Tonight\'s deals 🌟',         message: 'End your day on a high — check out tonight\'s exclusive offers on Shopyos.' },
+      { title: 'Wind down & browse 🌅',       message: 'Evening is the perfect time to find something special. Open Shopyos and explore.' },
+      { title: 'Night owl deals 🦉',           message: 'Shopping at night just got better. Exclusive evening picks are live on Shopyos.' },
+      { title: 'Order tonight, arrive tomorrow 📬', message: 'Place your order now and wake up to a delivery. Fast shipping on Shopyos.' },
+      { title: 'Your cart is waiting 🛒',     message: 'You left something behind! Finish your order tonight on Shopyos.' },
+      { title: 'Evening essentials 🌙',        message: 'Stock up on what you need tonight. Trusted sellers, fast delivery on Shopyos.' },
+      { title: 'Treat someone tonight 🎁',    message: 'Surprise a friend or loved one with a gift from Shopyos. Order now!' },
+      { title: 'Last chance today ⏰',         message: 'Some of today\'s best deals expire at midnight. Grab them now on Shopyos.' },
+    ]
+  };
+  const hooks = hooksByTime[timeOfDay] || hooksByTime.morning;
   return hooks[new Date().getDay() % hooks.length];
 }

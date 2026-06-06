@@ -7,12 +7,11 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import BottomNav from '../components/BottomNav';
 import DriverBottomNav from '../components/DriverBottomNav';
-import { CartProvider } from '@/context/CartContext';
-import { ChatProvider } from '@/context/ChatContext';
 import { QueryProvider } from '../components/QueryProvider';
 import { usePushNotifications } from '../hooks/usePushNotifications';
 import { useBackgroundTasks } from '../hooks/useBackgroundTasks';
 import { useUnreadNotificationCount } from '../hooks/useNotifications';
+import { useSocketSetup } from '../hooks/useSocketSetup';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
 import { OnboardingProvider } from '@/context/OnboardingContext';
@@ -69,6 +68,9 @@ function AppContent() {
   // Listen for socket events and show root-level Toast popups globally
   useUnreadNotificationCount();
 
+  // Connect socket and load currentUserId into Zustand (replaces ChatProvider)
+  useSocketSetup();
+
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const isIndexRoute = pathname === '/' || pathname === '/index';
   const isHomeRoute = pathname === '/home';
@@ -110,9 +112,7 @@ function AppContent() {
   ].includes(pathname);
 
   return (
-    <CartProvider>
-      <ChatProvider>
-        <ThemeProvider value={navTheme}>
+    <ThemeProvider value={navTheme}>
           <View style={[styles.container, { backgroundColor: screenBg }]}>
             <Stack
               screenOptions={{
@@ -214,8 +214,6 @@ function AppContent() {
             <InAppToastHost />
           </View>
         </ThemeProvider>
-      </ChatProvider>
-    </CartProvider>
   );
 }
 

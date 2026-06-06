@@ -18,11 +18,10 @@ import {
   blockUser, uploadChatMedia, markNotificationsReadByConversation,
   getPresence
 } from '../../services/api';
-import { useMessages } from '@/hooks/useChat';
+import { useMessages, useChatActions } from '@/hooks/useChat';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { socketService } from '../../services/socket';
-import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ReportModal } from '../../components/ReportModal';
 import MediaMessage from '../../components/chat/MediaMessage';
@@ -89,7 +88,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
-  const { deleteConversation } = useChat();
+  const { deleteConversation } = useChatActions();
 
   const queryClient = useQueryClient();
   const {
@@ -298,7 +297,7 @@ export default function ConversationScreen() {
         setUploadingProgress(0);
         const uploadRes = await uploadChatMedia(asset.uri, conversationId, (prog: number) => {
           setUploadingProgress(Math.round(prog * 100));
-        });
+        }, asset.mimeType ?? undefined);
         if (uploadRes?.success && uploadRes.media) {
           const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
           const sentMsg = res.message;
@@ -320,7 +319,7 @@ export default function ConversationScreen() {
     try {
       const uploadRes = await uploadChatMedia(uri, conversationId, (prog: number) => {
         setUploadingProgress(Math.round(prog * 100));
-      });
+      }, 'audio/mp4');
       if (uploadRes?.success && uploadRes.media) {
         const res = await apiSendMessage(conversationId, '', undefined, 'voice', uploadRes.media.url, { durationMs, mimeType: uploadRes.media.mimeType, size: uploadRes.media.size });
         const sentMsg = res.message;

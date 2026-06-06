@@ -5,7 +5,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/store/cartStore';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 export default function CartScreen() {

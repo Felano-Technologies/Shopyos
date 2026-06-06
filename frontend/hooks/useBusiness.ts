@@ -113,7 +113,7 @@ export const useUpdateCampaignStatus = () => {
 
 export const useBusinessReviews = (businessId: string | undefined) => {
   return useQuery({
-    queryKey: ['business', 'reviews', businessId],
+    queryKey: queryKeys.business.reviews(businessId ?? ''),
     queryFn: async () => {
       if (!businessId) return null;
       const response = await ApiService.getBusinessReviews(businessId);
@@ -125,20 +125,19 @@ export const useBusinessReviews = (businessId: string | undefined) => {
 
 export const useReplyToReview = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: async ({ reviewId, text }: { reviewId: string; text: string }) => {
       return await ApiService.replyToReview(reviewId, text);
     },
-    // We can invalidate specific keys if needed, but we'll leave it simple for now
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['business', 'reviews'] });
+    onSuccess: (_, { reviewId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
     },
   });
 };
 export const useStoreSearch = (query: string, limit = 10) => {
   return useQuery({
-    queryKey: ['stores', 'search', query],
+    queryKey: queryKeys.stores.search(query),
     queryFn: async () => {
       const response = await ApiService.searchStores({ search: query, limit });
       return response;

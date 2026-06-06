@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, Image, ScrollView,
@@ -11,12 +11,12 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
-import { getStoreOrders } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import { useStoreOrders } from '@/hooks/useOrders';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 const { width: SW } = Dimensions.get('window');
@@ -69,49 +69,31 @@ const OrdersScreen = () => {
   const insets = useSafeAreaInsets();
   const { isChecking, isVerified } = useSellerGuard();
 
-  const [filter,     setFilter]     = useState<FilterType>('All');
-  const [refreshing, setRefreshing] = useState(false);
-  const [loading,    setLoading]    = useState(true);
-  const [orders,     setOrders]     = useState<Order[]>([]);
+  const [filter,      setFilter]      = useState<FilterType>('All');
+  const [showSwitcher, setShowSwitcher] = useState(false);
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
-  const [showSwitcher, setShowSwitcher] = useState(false);
   const businessId = activeBusiness?._id;
-  
+
+  const { data: storeOrdersData, isLoading: loading, isRefetching: refreshing, refetch } =
+    useStoreOrders(businessId ?? '');
+
+  const orders: Order[] = useMemo(() => {
+    if (!storeOrdersData?.success) return [];
+    return storeOrdersData.orders.map((o: any) => ({
+      id:           o._id || o.id,
+      orderNumber:  o.order_number,
+      customerName: o.buyer?.user_profiles?.full_name || 'Guest',
+      itemsCount:   o.order_items?.length || 0,
+      totalAmount:  parseFloat(o.total_amount || 0),
+      date:         o.created_at,
+      status:       o.status,
+      displayStatus: MAP_STATUS(o.status).label,
+    }));
+  }, [storeOrdersData]);
+
   const { data: unreadData } = useUnreadNotificationCount(false);
   const unreadCount = unreadData?.unreadCount || 0;
-
-
-  const fetchOrders = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    try {
-      if (businessId) {
-        const data = await getStoreOrders(businessId);
-        if (data.success) {
-          const mapped: Order[] = data.orders.map((o: any) => ({
-            id:           o._id || o.id,
-            orderNumber:  o.order_number,
-            customerName: o.buyer?.user_profiles?.full_name || 'Guest',
-            itemsCount:   o.order_items?.length || 0,
-            totalAmount:  parseFloat(o.total_amount || 0),
-            date:         o.created_at,
-            status:       o.status,
-            displayStatus: MAP_STATUS(o.status).label,
-          }));
-          setOrders(mapped);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch orders:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [businessId]);
-
-
-  useEffect(() => {
-    fetchOrders(true);
-  }, [fetchOrders, businessId]);
 
   // --- Onboarding & Refs ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
@@ -129,11 +111,7 @@ const OrdersScreen = () => {
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchOrders(false);
-    setRefreshing(false);
-  };
+  const handleRefresh = () => refetch();
 
   const filtered = filter === 'All' ? orders : orders.filter((o) => o.displayStatus === filter);
 

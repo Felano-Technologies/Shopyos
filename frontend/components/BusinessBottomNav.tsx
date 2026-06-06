@@ -4,7 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import { router, usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getBusinessDashboard, storage } from '@/services/api';
-import { useChat } from '@/context/ChatContext';
+import { useSellerUnreadCount } from '@/hooks/useChat';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -16,10 +16,7 @@ const { width } = Dimensions.get('window');
 const BusinessBottomNav = () => {
   const pathname = usePathname();
   const [orderCount, setOrderCount] = useState(0); // Default to 0
-  const { sellerConversations } = useChat();
-
-  // Calculate total unread messages from seller chats
-  const chatCount = sellerConversations ? sellerConversations.reduce((acc: number, c: any) => acc + (c.unread || 0), 0) : 0;
+  const { data: chatCount = 0 } = useSellerUnreadCount();
 
   useEffect(() => {
     // Fetch real stats (Orders)
