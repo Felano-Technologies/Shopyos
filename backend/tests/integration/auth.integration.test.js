@@ -10,6 +10,13 @@
  * RabbitMQ, Redis, nodemailer are mocked to keep tests isolated.
  */
 
+jest.mock('../../../socket/src/config/socketServer', () => ({
+  getIO: jest.fn().mockReturnValue(null),
+  initializeSocketBridge: jest.fn(),
+  emitToUser: jest.fn(),
+  emitToConversation: jest.fn(),
+}));
+
 jest.mock('../../services/rabbitmq');
 jest.mock('nodemailer');
 

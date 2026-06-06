@@ -7,6 +7,15 @@
  * Spins up the real Express app via Supertest — requires DATABASE_URL.
  */
 
+// Mock the external socket server — it lives in socket/ which has its own
+// node_modules not installed during backend CI runs.
+jest.mock('../../../socket/src/config/socketServer', () => ({
+  getIO: jest.fn().mockReturnValue(null),
+  initializeSocketBridge: jest.fn(),
+  emitToUser: jest.fn(),
+  emitToConversation: jest.fn(),
+}));
+
 // Mock infrastructure that would fail in CI without real external services
 jest.mock('../../services/rabbitmq');
 jest.mock('nodemailer');

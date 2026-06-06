@@ -4,6 +4,19 @@
  * Sets test environment variables and silences noisy modules.
  */
 
+// ── External socket server stub ───────────────────────────────────────────────
+// The socket server lives in socket/ (outside backend/) and requires packages
+// (socket.io, jsonwebtoken) that are only in socket/node_modules — not installed
+// during backend CI runs. Mock it globally so server.js loads cleanly.
+jest.mock('../../socket/src/config/socketServer', () => ({
+  getIO: jest.fn().mockReturnValue(null),
+  initializeSocketBridge: jest.fn(),
+  emitToUser: jest.fn(),
+  emitToConversation: jest.fn(),
+  emitToRoom: jest.fn(),
+  broadcastToAll: jest.fn(),
+}));
+
 // Load local .env variables so custom local configurations are preserved
 require('dotenv').config();
 
