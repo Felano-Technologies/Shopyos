@@ -359,7 +359,7 @@ async function executeDailyMarketingSweep() {
           sent_at: new Date().toISOString()
         });
       }
-      logger.info(`[Scheduler] Daily engagement sweep sent ✓ (${channelNames[channelRotation]})`);
+      logger.info(`[Scheduler] Daily engagement sweep sent ✓ (${activeChannels})`);
     } catch (err) {
       logger.error('[Scheduler] Engagement sweep failed:', err.message);
       if (campaign) {
