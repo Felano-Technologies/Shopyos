@@ -66,7 +66,6 @@ jest.mock('../../db/repositories', () => ({
 
 const repositories = require('../../db/repositories');
 const notificationService = require('../../services/notificationService');
-const rabbitMQService = require('../../services/rabbitmq');
 
 const {
   createDelivery,

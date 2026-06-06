@@ -24,7 +24,7 @@ const {
   storeCacheKey,
   reviewCacheKey,
 } = require('../../middleware/cache');
-const { cacheGet, cacheSet, acquireLock, releaseLock } = require('../../config/redis');
+const { cacheGet, cacheSet, acquireLock } = require('../../config/redis');
 
 function mockReq(overrides = {}) {
   return {

@@ -3,19 +3,6 @@
 // Minimal socket.io stub used by integration tests.
 // The real socket.io lives in socket/node_modules, not backend/node_modules.
 
-const mockSocket = {
-  id: 'mock-socket-id',
-  join: jest.fn(),
-  leave: jest.fn(),
-  emit: jest.fn(),
-  on: jest.fn(),
-  to: jest.fn().mockReturnThis(),
-  in: jest.fn().mockReturnThis(),
-  broadcast: { emit: jest.fn() },
-  use: jest.fn(),
-  disconnect: jest.fn(),
-};
-
 const mockIo = {
   on: jest.fn(),
   emit: jest.fn(),

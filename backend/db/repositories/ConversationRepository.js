@@ -94,7 +94,7 @@ class ConversationRepository extends BaseRepository {
 
 
     // Process conversations to get last message and other participant
-    return (data || []).map(conv => {
+    return Promise.all((data || []).map(async conv => {
       // Handle potentially array-wrapped participants (PostgREST quirk with some join types)
       let p1 = conv.participant1;
       let p2 = conv.participant2;
@@ -127,7 +127,7 @@ class ConversationRepository extends BaseRepository {
         ? conv.messages.filter(m => !m.is_read && m.sender_id !== userId).length
         : 0;
 
-      return await transformImageUrlsAsync({
+      return transformImageUrlsAsync({
         id: conv.id,
         otherParticipant,
         lastMessage,
@@ -135,7 +135,7 @@ class ConversationRepository extends BaseRepository {
         updatedAt: conv.updated_at,
         createdAt: conv.created_at
       });
-    });
+    }));
   }
 
   /**
