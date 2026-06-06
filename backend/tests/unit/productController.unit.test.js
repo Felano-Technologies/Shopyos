@@ -617,11 +617,14 @@ describe('ProductController Unit Tests', () => {
       uploadHelpers.uploadMultipleFilesToCloudinary.mockResolvedValueOnce([
         { url: 'https://res.cloudinary.com/img1.jpg', public_id: 'shopyos/products/img1' },
       ]);
-      // existing images lookup: .from('product_images').select('*').eq('product_id', id)
-      // Terminal is .eq() — mock it to resolve with empty array
-      mockDbChain.eq.mockResolvedValueOnce({ data: [], error: null });
-      // insert image records: .from('product_images').insert(imageInserts) — insert is terminal
+      // The existing-images query ends with .eq() (terminal), but stale Once entries from
+      // earlier tests can sit in the eq queue and break chained .eq().eq() patterns.
+      // Reset eq so this test controls exactly what each call returns.
+      mockDbChain.eq.mockReset();
+      mockDbChain.eq.mockReturnThis(); // default: every eq returns this for chaining
+      // insert image records: .from('product_images').insert(imageInserts) — terminal
       mockDbChain.insert.mockResolvedValueOnce({ data: {}, error: null });
+      // existingImages falls back to mockDbChain (no .data), so currentCount = 0 — that's fine
 
       const req = mockReq({
         params: { id: 'prod-1' },
@@ -699,13 +702,16 @@ describe('ProductController Unit Tests', () => {
       // Arrange
       repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
       repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      // Reset eq queue so stale Once entries from prior tests don't interfere with
+      // the .eq('id').eq('product_id').single() image lookup chain — then single is terminal.
+      mockDbChain.eq.mockReset();
+      mockDbChain.eq.mockReturnThis();
       // image record lookup: .from.select.eq.eq.single — single is terminal
       mockDbChain.single.mockResolvedValueOnce({
         data: { id: 'img-1', cloudinary_public_id: 'shopyos/products/img1', product_id: 'prod-1' },
         error: null,
       });
-      // DB delete: .from('product_images').delete().eq('id', imageId) — eq is terminal
-      mockDbChain.eq.mockResolvedValueOnce({ data: null, error: null });
+      // DB delete: .from.delete.eq — eq returns this (no result needed, controller ignores it)
 
       const req = mockReq({ params: { id: 'prod-1', imageId: 'img-1' } });
       const res = mockRes();
@@ -816,8 +822,11 @@ describe('ProductController Unit Tests', () => {
         owner_id: 'seller-user-id',
         listing_tier: 'free',
       });
-      // product count query: .from('products').select(..., {count:'exact'}).eq('store_id', storeId).is('deleted_at', null)
-      // Terminal is .is() — resolves with count >= 100
+      // Earlier createProduct tests that return before reaching the .is() call leave stale
+      // Once entries in the is queue (clearMocks resets call counts but not Once queues).
+      // Reset the queue explicitly so our value is dequeued first.
+      mockDbChain.is.mockReset();
+      mockDbChain.is.mockReturnThis(); // restore default for chaining, then override with Once
       mockDbChain.is.mockResolvedValueOnce({ count: 100, data: null, error: null });
 
       const req = mockReq({ body: { storeId: 'store-1', name: 'Shoes', price: 50 } });

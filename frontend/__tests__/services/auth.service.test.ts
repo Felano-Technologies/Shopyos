@@ -128,7 +128,6 @@ describe('Auth Service Unit Tests', () => {
       data: { token: 'login-token', refreshToken: 'refresh-token', role: 'buyer', roles: ['buyer'], requiresRoleSelection: false },
     });
     (api.get as jest.Mock).mockResolvedValueOnce({ data: { id: 'user-123' } });
-    (api.get as jest.Mock).mockResolvedValueOnce(null);
 
     // Act
     const result = await loginUser('buyer@test.com', 'pass', 5.6, -0.2);

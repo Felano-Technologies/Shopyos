@@ -555,13 +555,13 @@ describe('ReviewController Unit Tests', () => {
     });
 
     test('test_updateProductReview_invalidRating_returns400BadRequest', async () => {
-      // Arrange
+      // Arrange — use 6 (> 5) because the controller checks `if (rating && ...)`, making 0 falsy
       mockDbChain.single.mockResolvedValueOnce({
         data: { id: 'rev-1', user_id: 'buyer-user-id', rating: 3, product_id: 'prod-1' },
         error: null,
       });
 
-      const req = mockReq({ params: { reviewId: 'rev-1' }, body: { rating: 0 } });
+      const req = mockReq({ params: { reviewId: 'rev-1' }, body: { rating: 6 } });
       const res = mockRes();
       const next = jest.fn();
 
@@ -756,11 +756,16 @@ describe('ReviewController Unit Tests', () => {
     test('test_likeReview_alreadyLiked_deletesLikeAndReturnsIsLikedFalse', async () => {
       // Arrange
       repositories.reviews.findPolymorphicReviewById.mockResolvedValueOnce({ id: 'rev-1', type: 'product' });
-      // existingLike check: single finds a like
+      // Reset eq queue: stale Once entries from prior tests would break the two chained
+      // .eq('review_id').eq('user_id') calls before .single(), returning a Promise
+      // instead of `this` and causing a TypeError on the second .eq() call.
+      mockDbChain.eq.mockReset();
+      mockDbChain.eq.mockReturnThis();
+      // existingLike check: .from.select.eq.eq.single — single is terminal
       mockDbChain.single.mockResolvedValueOnce({ data: { id: 'like-1' }, error: null });
-      // delete chain: .from.delete.eq — eq is terminal here, resolves ok
-      mockDbChain.eq.mockResolvedValueOnce({ data: null, error: null });
-      // rpc decrement
+      // delete chain: .from.delete.eq — eq returns this (controller does not check result)
+      // rpc decrement — reset to clear any stale Once left by the notYetLiked test
+      mockDbChain.rpc.mockReset();
       mockDbChain.rpc.mockResolvedValueOnce({ data: null, error: null });
 
       const req = mockReq({ params: { reviewId: 'rev-1' } });
@@ -885,11 +890,15 @@ describe('ReviewController Unit Tests', () => {
       // Arrange
       const newComment = { id: 'c-new', comment: 'Nice!', created_at: '2024-01-01T00:00:00Z' };
       repositories.reviews.findPolymorphicReviewById.mockResolvedValueOnce({ id: 'rev-1', type: 'product' });
-      // Chain: .from('review_comments').insert(...).select().single() — single is terminal (1st call)
+      // Reset single queue to clear stale Once entries from prior tests in this describe
+      // (e.g. likeReview's existingLike check or updateProductReview's ownership check).
+      mockDbChain.single.mockReset();
+      mockDbChain.single.mockResolvedValue({ data: null, error: null }); // safe default
+      // 1st terminal: .from('review_comments').insert(...).select().single()
       mockDbChain.single.mockResolvedValueOnce({ data: newComment, error: null });
-      // Chain: .from(targetTable).select('comments_count').eq(...).single() — single is terminal (2nd call)
+      // 2nd terminal: .from(targetTable).select('comments_count').eq(...).single()
       mockDbChain.single.mockResolvedValueOnce({ data: { comments_count: 2 }, error: null });
-      // Chain: .from(targetTable).update(...).eq(...).catch() — catch is terminal (no need to mock, default ok)
+      // 3rd chain: .from(targetTable).update(...).eq(...).catch() — catch is terminal, default ok
 
       const req = mockReq({ params: { reviewId: 'rev-1' }, body: { text: 'Nice!' } });
       const res = mockRes();
