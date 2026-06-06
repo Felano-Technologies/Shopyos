@@ -2,7 +2,7 @@
 // Data access layer for orders table
 
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class OrderRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -82,7 +82,7 @@ class OrderRepository extends BaseRepository {
       throw error;
     }
 
-    return transformImageUrls(data);
+    return await transformImageUrlsAsync(data);
   }
 
   /**
@@ -110,7 +110,7 @@ class OrderRepository extends BaseRepository {
       limit,
       offset
     });
-    return transformImageUrls(result);
+    return await transformImageUrlsAsync(result);
   }
 
   /**

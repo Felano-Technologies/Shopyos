@@ -2,7 +2,7 @@
 // Data access layer for deliveries and delivery_location_updates tables
 
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class DeliveryRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -119,7 +119,7 @@ class DeliveryRepository extends BaseRepository {
       throw error;
     }
 
-    return transformImageUrls(data);
+    return await transformImageUrlsAsync(data);
   }
 
   /**

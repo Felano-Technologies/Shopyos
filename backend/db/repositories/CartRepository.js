@@ -2,7 +2,7 @@
 // Data access layer for cart and cart_items tables
 
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class CartRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -75,7 +75,7 @@ class CartRepository extends BaseRepository {
       .maybeSingle();
 
     if (error) throw error;
-    return transformImageUrls(data);
+    return await transformImageUrlsAsync(data);
   }
 
   /**

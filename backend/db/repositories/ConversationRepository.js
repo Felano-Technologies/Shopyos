@@ -2,7 +2,7 @@
 // Data access layer for conversations table
 
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class ConversationRepository extends BaseRepository {
   constructor(supabaseClient) {
@@ -127,7 +127,7 @@ class ConversationRepository extends BaseRepository {
         ? conv.messages.filter(m => !m.is_read && m.sender_id !== userId).length
         : 0;
 
-      return transformImageUrls({
+      return await transformImageUrlsAsync({
         id: conv.id,
         otherParticipant,
         lastMessage,
@@ -178,7 +178,7 @@ class ConversationRepository extends BaseRepository {
       throw error;
     }
 
-    return transformImageUrls(data);
+    return await transformImageUrlsAsync(data);
   }
 
   /**

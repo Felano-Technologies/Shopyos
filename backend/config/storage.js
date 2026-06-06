@@ -1,7 +1,7 @@
 // config/storage.js
 // Sevalla Object Storage (S3-compatible) configuration and helpers
 
-const { S3Client, PutObjectCommand, DeleteObjectCommand, HeadBucketCommand } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, HeadBucketCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const sharp = require('sharp');
 const path = require('path');
@@ -24,6 +24,25 @@ const s3 = new S3Client({
   forcePathStyle: true,
   credentials: { accessKeyId, secretAccessKey },
 });
+
+// ── Presigned URL cache ───────────────────────────────────────────────────────
+// In-memory cache: key → { url, expiresAt }. 6-day cache TTL gives a 1-day
+// buffer before the 7-day (604800s) presigned URL itself expires.
+const PRESIGN_TTL_S = 7 * 24 * 60 * 60;           // 604800s — S3/Tigris SigV4 max
+const CACHE_TTL_MS  = 6 * 24 * 60 * 60 * 1000;    // 518400000ms
+
+const _urlCache = new Map();
+
+function _getCached(key) {
+  const entry = _urlCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { _urlCache.delete(key); return null; }
+  return entry.url;
+}
+
+function _setCached(key, url) {
+  _urlCache.set(key, { url, expiresAt: Date.now() + CACHE_TTL_MS });
+}
 
 const sanitizeFilename = (name = 'file') => name.replace(/[^a-zA-Z0-9._-]/g, '_');
 
@@ -100,6 +119,26 @@ const maybeTransform = async (buffer, options = {}) => {
   return { body: await image.toBuffer(), contentType, finalExt };
 };
 
+// Generate a presigned GET URL valid for PRESIGN_TTL_S seconds.
+const getPresignedReadUrl = async (key, ttl = PRESIGN_TTL_S) => {
+  const command = new GetObjectCommand({ Bucket: bucket, Key: key });
+  return getSignedUrl(s3, command, { expiresIn: ttl });
+};
+
+// Resolve a stored key (or full URL) to a presigned URL, with in-memory caching.
+const resolveImageUrl = async (keyOrUrl) => {
+  if (!keyOrUrl) return null;
+  const key = extractObjectKey(keyOrUrl);
+  if (!key) return null;
+
+  const cached = _getCached(key);
+  if (cached) return cached;
+
+  const url = await getPresignedReadUrl(key);
+  _setCached(key, url);
+  return url;
+};
+
 const uploadImage = async (imageInput, folder = 'shopyos', options = {}) => {
   const { buffer, mimeType, extension } = parseInputToBuffer(imageInput);
   const transformed = await maybeTransform(buffer, options);
@@ -114,9 +153,10 @@ const uploadImage = async (imageInput, folder = 'shopyos', options = {}) => {
     ACL: 'public-read',
   }));
 
+  const presignedUrl = await resolveImageUrl(key);
   return {
     url: key,
-    public_url: toPublicUrl(key),
+    public_url: presignedUrl,
     public_id: key,
     format: (ext || extension).replace('.', '') || undefined,
     bytes: transformed.body.length,
@@ -210,6 +250,24 @@ const transformImageUrls = (obj) => {
   return out;
 };
 
+// Async version of transformImageUrls — replaces keys with 7-day presigned URLs.
+// Repositories call this so controllers need no changes.
+const transformImageUrlsAsync = async (obj) => {
+  if (!obj || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return Promise.all(obj.map(transformImageUrlsAsync));
+  const out = {};
+  for (const [key, val] of Object.entries(obj)) {
+    if (IMAGE_FIELDS.has(key) && typeof val === 'string') {
+      out[key] = await resolveImageUrl(val);
+    } else if (val && typeof val === 'object') {
+      out[key] = await transformImageUrlsAsync(val);
+    } else {
+      out[key] = val;
+    }
+  }
+  return out;
+};
+
 module.exports = {
   s3,
   uploadImage,
@@ -219,8 +277,11 @@ module.exports = {
   getOptimizedUrl,
   getThumbnailUrl,
   getPresignedUploadUrl,
+  getPresignedReadUrl,
+  resolveImageUrl,
   extractObjectKey,
   toPublicUrl,
   transformImageUrls,
+  transformImageUrlsAsync,
   testConnection,
 };

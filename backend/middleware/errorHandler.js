@@ -1,5 +1,20 @@
 const { logger } = require('../config/logger');
 
+function resolveInfraError(err, statusCode, message) {
+  // Redis down — degrade gracefully, don't crash
+  const isRedisDown = err.message?.includes('ECONNREFUSED') &&
+    (err.message.includes('6379') || err.message.includes('redis'));
+  if (isRedisDown) {
+    const resolvedStatus = statusCode === 500 ? 503 : statusCode;
+    return { statusCode: resolvedStatus, message: resolvedStatus === 503 ? 'Service temporarily unavailable' : message };
+  }
+  // Supabase connection pool exhausted
+  if (err.message?.includes('remaining connection slots are reserved')) {
+    return { statusCode: 503, message: 'Service temporarily unavailable — please try again shortly' };
+  }
+  return { statusCode, message };
+}
+
 const errorHandler = (err, req, res, _next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal Server Error';
@@ -17,17 +32,7 @@ const errorHandler = (err, req, res, _next) => {
   if (err.code === '23503') { statusCode = 400; message = 'Referenced resource does not exist'; }
   if (err.code === '23502') { statusCode = 400; message = 'Missing required field'; }
 
-  // Redis down — degrade gracefully, don't crash
-  if (err.message?.includes('ECONNREFUSED') && (err.message.includes('6379') || err.message.includes('redis'))) {
-    statusCode = statusCode === 500 ? 503 : statusCode;
-    message = statusCode === 503 ? 'Service temporarily unavailable' : message;
-  }
-
-  // Supabase connection pool exhausted
-  if (err.message?.includes('remaining connection slots are reserved')) {
-    statusCode = 503;
-    message = 'Service temporarily unavailable — please try again shortly';
-  }
+  ({ statusCode, message } = resolveInfraError(err, statusCode, message));
 
   const logData = { message: err.message, stack: err.stack, path: req.path, method: req.method, requestId: req.requestId, statusCode, userId: req.user?.id };
   if (statusCode >= 500) {

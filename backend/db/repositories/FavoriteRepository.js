@@ -1,6 +1,6 @@
 // db/repositories/FavoriteRepository.js
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class FavoriteRepository extends BaseRepository {
     constructor(supabaseClient) {
@@ -46,7 +46,7 @@ class FavoriteRepository extends BaseRepository {
             .order('created_at', { ascending: false });
 
         if (error) throw error;
-        const favorites = transformImageUrls(data || []);
+        const favorites = await transformImageUrlsAsync(data || []);
         return favorites.filter((fav) => {
             const product = fav?.product;
             const store = product?.store;

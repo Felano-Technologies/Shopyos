@@ -47,7 +47,7 @@ const unblockUser = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Blocked user ID is required' });
         }
 
-        const { error, count: _count } = await repositories.users.db.from('user_blocks')
+        const { error } = await repositories.users.db.from('user_blocks')
             .delete()
             .match({ blocker_id: blockerId, blocked_id: blockedId });
 

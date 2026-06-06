@@ -2,7 +2,7 @@
 // Repository for managing promoted products (advertising system)
 
 const BaseRepository = require('./BaseRepository');
-const { transformImageUrls } = require('../../config/storage');
+const { transformImageUrlsAsync } = require('../../config/storage');
 
 class PromotedProductRepository extends BaseRepository {
   constructor(supabase) {
@@ -81,7 +81,7 @@ class PromotedProductRepository extends BaseRepository {
       results = results.filter(p => parseFloat(p.product.price) <= maxPrice);
     }
 
-    return transformImageUrls(results);
+    return await transformImageUrlsAsync(results);
   }
 
   /**
@@ -91,7 +91,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<Array>} Store campaigns
    */
   async getStoreCampaigns(storeId, options = {}) {
-    const { status: _status, limit = 20, offset = 0 } = options;
+    const { limit = 20, offset = 0 } = options;
 
     let query = this.db
       .from(this.tableName)
@@ -128,7 +128,7 @@ class PromotedProductRepository extends BaseRepository {
       .single();
 
     if (error) throw error;
-    return transformImageUrls(data);
+    return await transformImageUrlsAsync(data);
   }
 
   /**
