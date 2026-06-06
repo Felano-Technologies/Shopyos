@@ -1,69 +1,125 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="32" failures="0" errors="0" time="5.794">
-  <testsuite name="MessagingController Unit Tests" errors="0" failures="0" skipped="0" timestamp="2026-06-06T08:54:08" time="4.918" tests="32">
-    <testcase classname="MessagingController Unit Tests startConversation test_startConversation_missingParticipantId_returns400BadRequest" name="MessagingController Unit Tests startConversation test_startConversation_missingParticipantId_returns400BadRequest" time="0.126">
+<testsuites name="jest tests" tests="38" failures="1" errors="0" time="1.799">
+  <testsuite name="ProductController Unit Tests" errors="0" failures="1" skipped="37" timestamp="2026-06-06T09:34:26" time="1.473" tests="38">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests startConversation test_startConversation_selfConversation_returns400BadRequest" name="MessagingController Unit Tests startConversation test_startConversation_selfConversation_returns400BadRequest" time="0.046">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingName_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingName_returns400BadRequest" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests startConversation test_startConversation_participantNotFound_returns404NotFound" name="MessagingController Unit Tests startConversation test_startConversation_participantNotFound_returns404NotFound" time="0.024">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingPrice_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingPrice_returns400BadRequest" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests startConversation test_startConversation_validInput_returnsConversationDetails" name="MessagingController Unit Tests startConversation test_startConversation_validInput_returnsConversationDetails" time="0.023">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_storeNotFound_returns404NotFound" name="ProductController Unit Tests createProduct test_createProduct_storeNotFound_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests startConversation test_startConversation_repositoryThrows_callsNext" name="MessagingController Unit Tests startConversation test_startConversation_repositoryThrows_callsNext" time="0.022">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests createProduct test_createProduct_notAuthorizedOwner_returns403Forbidden" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getConversations test_getConversations_validUser_returnsConversationsList" name="MessagingController Unit Tests getConversations test_getConversations_validUser_returnsConversationsList" time="0.023">
+    <testcase classname="ProductController Unit Tests createProduct test_createProduct_validInput_createsProductAndReturns201Created" name="ProductController Unit Tests createProduct test_createProduct_validInput_createsProductAndReturns201Created" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getConversations test_getConversations_defaultPagination_usesDefaultLimitOffset" name="MessagingController Unit Tests getConversations test_getConversations_defaultPagination_usesDefaultLimitOffset" time="0.017">
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_invalidUuid_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_invalidUuid_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getConversations test_getConversations_repositoryThrows_callsNext" name="MessagingController Unit Tests getConversations test_getConversations_repositoryThrows_callsNext" time="0.022">
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_productDoesNotExist_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_productDoesNotExist_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getConversationDetails test_getConversationDetails_notParticipant_returns403Forbidden" name="MessagingController Unit Tests getConversationDetails test_getConversationDetails_notParticipant_returns403Forbidden" time="0.033">
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_storeNotVerified_returns404NotFound" name="ProductController Unit Tests getProductById test_getProductById_storeNotVerified_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getConversationDetails test_getConversationDetails_conversationNotFound_returns404NotFound" name="MessagingController Unit Tests getConversationDetails test_getConversationDetails_conversationNotFound_returns404NotFound" time="0.025">
+    <testcase classname="ProductController Unit Tests getProductById test_getProductById_verifiedStoreProduct_returns200AndProductDetails" name="ProductController Unit Tests getProductById test_getProductById_verifiedStoreProduct_returns200AndProductDetails" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getConversationDetails test_getConversationDetails_validParticipant_returnsConversation" name="MessagingController Unit Tests getConversationDetails test_getConversationDetails_validParticipant_returnsConversation" time="0.002">
+    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotFound_returns200AndEmptyArray" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotFound_returns200AndEmptyArray" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests sendMessage test_sendMessage_emptyTextContent_returns400BadRequest" name="MessagingController Unit Tests sendMessage test_sendMessage_emptyTextContent_returns400BadRequest" time="0.072">
+    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotVerified_returns200AndEmptyArray" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_storeNotVerified_returns200AndEmptyArray" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests sendMessage test_sendMessage_notParticipant_returns403Forbidden" name="MessagingController Unit Tests sendMessage test_sendMessage_notParticipant_returns403Forbidden" time="0.001">
+    <testcase classname="ProductController Unit Tests getStoreProducts test_getStoreProducts_verifiedStore_returnsProductsList" name="ProductController Unit Tests getStoreProducts test_getStoreProducts_verifiedStore_returnsProductsList" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests sendMessage test_sendMessage_validTextMessage_returns201WithMessage" name="MessagingController Unit Tests sendMessage test_sendMessage_validTextMessage_returns201WithMessage" time="0.019">
+    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_productNotFound_returns404NotFound" name="ProductController Unit Tests updateProduct test_updateProduct_productNotFound_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests sendMessage test_sendMessage_imageMessageWithNoContent_sends201Successfully" name="MessagingController Unit Tests sendMessage test_sendMessage_imageMessageWithNoContent_sends201Successfully" time="0.034">
+    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests updateProduct test_updateProduct_notAuthorizedOwner_returns403Forbidden" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getMessages test_getMessages_notParticipant_returns403Forbidden" name="MessagingController Unit Tests getMessages test_getMessages_notParticipant_returns403Forbidden" time="0.025">
+    <testcase classname="ProductController Unit Tests updateProduct test_updateProduct_authorizedOwner_updatesAndReturns200Success" name="ProductController Unit Tests updateProduct test_updateProduct_authorizedOwner_updatesAndReturns200Success" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getMessages test_getMessages_validParticipant_returnsMessages" name="MessagingController Unit Tests getMessages test_getMessages_validParticipant_returnsMessages" time="0.023">
+    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_productNotFound_returns404NotFound" name="ProductController Unit Tests deleteProduct test_deleteProduct_productNotFound_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests markConversationAsRead test_markConversationAsRead_notParticipant_returns403Forbidden" name="MessagingController Unit Tests markConversationAsRead test_markConversationAsRead_notParticipant_returns403Forbidden" time="0.029">
+    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests deleteProduct test_deleteProduct_notAuthorizedOwner_returns403Forbidden" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests markConversationAsRead test_markConversationAsRead_validParticipant_returnsUpdatedCount" name="MessagingController Unit Tests markConversationAsRead test_markConversationAsRead_validParticipant_returnsUpdatedCount" time="0.038">
+    <testcase classname="ProductController Unit Tests deleteProduct test_deleteProduct_authorizedOwner_deletesAndReturns200Success" name="ProductController Unit Tests deleteProduct test_deleteProduct_authorizedOwner_deletesAndReturns200Success" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests deleteConversation test_deleteConversation_notParticipant_returns403Forbidden" name="MessagingController Unit Tests deleteConversation test_deleteConversation_notParticipant_returns403Forbidden" time="0.015">
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_validQuery_returns200AndPaginatedResults" name="ProductController Unit Tests searchProducts test_searchProducts_validQuery_returns200AndPaginatedResults" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests deleteConversation test_deleteConversation_validParticipant_deletesAndReturns200Success" name="MessagingController Unit Tests deleteConversation test_deleteConversation_validParticipant_deletesAndReturns200Success" time="0.01">
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_noMatchesFound_returns200AndEmptyArray" name="ProductController Unit Tests searchProducts test_searchProducts_noMatchesFound_returns200AndEmptyArray" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests deleteMessage test_deleteMessage_validInput_deletesMessageAndReturns200" name="MessagingController Unit Tests deleteMessage test_deleteMessage_validInput_deletesMessageAndReturns200" time="0.06">
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_sortByPriceAsc_returns200AndSortedResults" name="ProductController Unit Tests searchProducts test_searchProducts_sortByPriceAsc_returns200AndSortedResults" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests deleteMessage test_deleteMessage_repositoryThrows_callsNext" name="MessagingController Unit Tests deleteMessage test_deleteMessage_repositoryThrows_callsNext" time="0.002">
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_sortByRating_passesRatingColumnToRepository" name="ProductController Unit Tests searchProducts test_searchProducts_sortByRating_passesRatingColumnToRepository" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests searchMessages test_searchMessages_emptyQuery_returns400BadRequest" name="MessagingController Unit Tests searchMessages test_searchMessages_emptyQuery_returns400BadRequest" time="0.05">
+    <testcase classname="ProductController Unit Tests searchProducts test_searchProducts_withCategoryAndPriceFilters_passesFiltersToRepository" name="ProductController Unit Tests searchProducts test_searchProducts_withCategoryAndPriceFilters_passesFiltersToRepository" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests searchMessages test_searchMessages_missingQuery_returns400BadRequest" name="MessagingController Unit Tests searchMessages test_searchMessages_missingQuery_returns400BadRequest" time="0.002">
+    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_noFilesUploaded_returns400BadRequest" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_noFilesUploaded_returns400BadRequest" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests searchMessages test_searchMessages_notParticipant_returns403Forbidden" name="MessagingController Unit Tests searchMessages test_searchMessages_notParticipant_returns403Forbidden" time="0.013">
+    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_productNotFound_returns404NotFound" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_productNotFound_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests searchMessages test_searchMessages_validInput_returnsSearchResults" name="MessagingController Unit Tests searchMessages test_searchMessages_validInput_returnsSearchResults" time="0.015">
+    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_notAuthorizedOwner_returns403Forbidden" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getUnreadCount test_getUnreadCount_validUser_returnsUnreadConversationCount" name="MessagingController Unit Tests getUnreadCount test_getUnreadCount_validUser_returnsUnreadConversationCount" time="0.011">
+    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_tooManyFiles_returns400BadRequest" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_tooManyFiles_returns400BadRequest" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getUnreadCount test_getUnreadCount_repositoryThrows_callsNext" name="MessagingController Unit Tests getUnreadCount test_getUnreadCount_repositoryThrows_callsNext" time="0.001">
+    <testcase classname="ProductController Unit Tests uploadProductImages test_uploadProductImages_validInput_uploadsAndReturns200Success" name="ProductController Unit Tests uploadProductImages test_uploadProductImages_validInput_uploadsAndReturns200Success" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getUserPresence test_getUserPresence_profileNotFound_returns404NotFound" name="MessagingController Unit Tests getUserPresence test_getUserPresence_profileNotFound_returns404NotFound" time="0.009">
+    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_productNotFound_returns404NotFound" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_productNotFound_returns404NotFound" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getUserPresence test_getUserPresence_userOnlineInCache_returnsOnlineTrue" name="MessagingController Unit Tests getUserPresence test_getUserPresence_userOnlineInCache_returnsOnlineTrue" time="0.006">
+    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_notAuthorizedOwner_returns403Forbidden" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_notAuthorizedOwner_returns403Forbidden" time="0">
+      <skipped/>
     </testcase>
-    <testcase classname="MessagingController Unit Tests getUserPresence test_getUserPresence_userOffline_returnsOnlineFalse" name="MessagingController Unit Tests getUserPresence test_getUserPresence_userOffline_returnsOnlineFalse" time="0.004">
+    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_imageNotFound_returns404NotFound" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_imageNotFound_returns404NotFound" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" time="0.015">
+      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+Expected: &quot;shopyos/products/img1&quot;
+
+Number of calls: 0
+    at Object.toHaveBeenCalledWith (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\unit\productController.unit.test.js:717:41)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    </testcase>
+    <testcase classname="ProductController Unit Tests getCategories test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts" name="ProductController Unit Tests getCategories test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="ProductController Unit Tests getCategories test_getCategories_dbCategoriesEmpty_fallsBackToProductCounts" name="ProductController Unit Tests getCategories test_getCategories_dbCategoriesEmpty_fallsBackToProductCounts" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="ProductController Unit Tests getCategories test_getCategories_categoryWithNoSlug_generatesSlugFromName" name="ProductController Unit Tests getCategories test_getCategories_categoryWithNoSlug_generatesSlugFromName" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" name="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" time="0">
+      <skipped/>
+    </testcase>
+    <testcase classname="ProductController Unit Tests updateProduct – additional error paths test_updateProduct_stockQuantityProvided_updatesInventory" name="ProductController Unit Tests updateProduct – additional error paths test_updateProduct_stockQuantityProvided_updatesInventory" time="0">
+      <skipped/>
     </testcase>
   </testsuite>
 </testsuites>

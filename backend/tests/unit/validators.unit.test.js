@@ -25,9 +25,10 @@ jest.mock('../../config/logger', () => ({
 const {
   validateRegister,
   validateLogin,
-  _validateCreateProduct,
+  validateCreateProduct,
   validateSearch,
   validateAddToCart,
+  validateStartConversation,
 } = require('../../middleware/validators');
 
 /** Build a minimal Express app that runs the given validator chain,
@@ -259,6 +260,105 @@ describe('validators Unit Tests', () => {
       });
       // Assert
       expect(res.status).toBe(200);
+    });
+  });
+
+  // ── validateCreateProduct (lines 24-27: custom body check) ────────
+  describe('validateCreateProduct', () => {
+    const app = buildApp(validateCreateProduct);
+
+    test('test_validateCreateProduct_withName_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        storeId: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Widget',
+        price: 9.99,
+      });
+      // Assert
+      expect(res.status).toBe(200);
+    });
+
+    test('test_validateCreateProduct_withTitle_passesWith200', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        storeId: '550e8400-e29b-41d4-a716-446655440000',
+        title: 'Widget Title',
+        price: 9.99,
+      });
+      // Assert
+      expect(res.status).toBe(200);
+    });
+
+    test('test_validateCreateProduct_missingNameAndTitle_rejectsWith422', async () => {
+      // Arrange & Act — covers lines 24-27: the custom body().custom() branch
+      const res = await request(app).post('/test').send({
+        storeId: '550e8400-e29b-41d4-a716-446655440000',
+        price: 9.99,
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateCreateProduct_missingStoreId_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        name: 'Widget',
+        price: 9.99,
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateCreateProduct_invalidStoreIdUUID_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        storeId: 'not-a-uuid',
+        name: 'Widget',
+        price: 9.99,
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateCreateProduct_zeroPricePriceNotPositive_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({
+        storeId: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'Widget',
+        price: 0,
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+  });
+
+  // ── validateStartConversation (lines 62-66: custom UUID check) ────
+  describe('validateStartConversation', () => {
+    const app = buildApp(validateStartConversation);
+
+    test('test_validateStartConversation_validUUID_passesWith200', async () => {
+      // Arrange & Act — covers lines 62-65: UUID regex passes
+      const res = await request(app).post('/test').send({
+        participantId: '550e8400-e29b-41d4-a716-446655440000',
+      });
+      // Assert
+      expect(res.status).toBe(200);
+    });
+
+    test('test_validateStartConversation_invalidUUID_rejectsWith422', async () => {
+      // Arrange & Act — covers line 63-64: regex fails, Error thrown
+      const res = await request(app).post('/test').send({
+        participantId: 'not-a-uuid',
+      });
+      // Assert
+      expect(res.status).toBe(422);
+    });
+
+    test('test_validateStartConversation_missingParticipantId_rejectsWith422', async () => {
+      // Arrange & Act
+      const res = await request(app).post('/test').send({});
+      // Assert
+      expect(res.status).toBe(422);
     });
   });
 });

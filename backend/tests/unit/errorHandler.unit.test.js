@@ -105,4 +105,113 @@ describe('errorHandler and notFoundHandler Unit Tests', () => {
     const body = res.json.mock.calls[0][0];
     expect(JSON.stringify(body)).toContain('Custom error message');
   });
+
+  // ── Uncovered lines 8-9: ValidationError ──────────────────────────
+  test('test_errorHandler_validationError_respondsWith422AndJoinedMessages', () => {
+    // Arrange — shape matches Mongoose/Sequelize ValidationError
+    const err = Object.assign(new Error('Validation failed'), {
+      name: 'ValidationError',
+      errors: {
+        email: { message: 'Email is invalid' },
+        name: { message: 'Name is required' },
+      },
+    });
+    const req = mockReq();
+    const res = mockRes();
+
+    // Act
+    errorHandler(err, req, res, jest.fn());
+
+    // Assert
+    expect(res.status).toHaveBeenCalledWith(422);
+    const body = res.json.mock.calls[0][0];
+    expect(body.error).toMatch(/Email is invalid/);
+    expect(body.error).toMatch(/Name is required/);
+  });
+
+  // ── Uncovered lines 22-23: Redis ECONNREFUSED 503 ─────────────────
+  test('test_errorHandler_redisEconnrefused6379_respondsWith503ServiceUnavailable', () => {
+    // Arrange
+    const err = new Error('connect ECONNREFUSED 127.0.0.1:6379');
+    const req = mockReq();
+    const res = mockRes();
+
+    // Act
+    errorHandler(err, req, res, jest.fn());
+
+    // Assert
+    expect(res.status).toHaveBeenCalledWith(503);
+    const body = res.json.mock.calls[0][0];
+    expect(body.error).toBe('Service temporarily unavailable');
+  });
+
+  test('test_errorHandler_redisEconnrefusedWithRedisWord_respondsWith503ServiceUnavailable', () => {
+    // Arrange — alternative message pattern that contains "redis"
+    const err = new Error('connect ECONNREFUSED redis://cache:6380');
+    const req = mockReq();
+    const res = mockRes();
+
+    // Act
+    errorHandler(err, req, res, jest.fn());
+
+    // Assert
+    expect(res.status).toHaveBeenCalledWith(503);
+  });
+
+  // ── Uncovered lines 28-29: Supabase pool exhaustion 503 ───────────
+  test('test_errorHandler_supabasePoolExhausted_respondsWith503ServiceTemporarilyUnavailable', () => {
+    // Arrange
+    const err = new Error('remaining connection slots are reserved for non-replication superuser connections');
+    const req = mockReq();
+    const res = mockRes();
+
+    // Act
+    errorHandler(err, req, res, jest.fn());
+
+    // Assert
+    expect(res.status).toHaveBeenCalledWith(503);
+    const body = res.json.mock.calls[0][0];
+    expect(body.error).toMatch(/please try again shortly/i);
+  });
+
+  // ── Uncovered lines 43-44: development-mode stack/details ─────────
+  test('test_errorHandler_developmentEnv_includesDetailsAndStackInResponse', () => {
+    // Arrange
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const err = new Error('Dev error');
+    const req = mockReq();
+    const res = mockRes();
+
+    // Act
+    errorHandler(err, req, res, jest.fn());
+
+    // Assert
+    const body = res.json.mock.calls[0][0];
+    expect(body).toHaveProperty('details');
+    expect(body).toHaveProperty('stack');
+
+    // Restore
+    process.env.NODE_ENV = originalEnv;
+  });
+
+  test('test_errorHandler_nonDevelopmentEnv_doesNotIncludeDetailsOrStack', () => {
+    // Arrange
+    const originalEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'test';
+    const err = new Error('Prod error');
+    const req = mockReq();
+    const res = mockRes();
+
+    // Act
+    errorHandler(err, req, res, jest.fn());
+
+    // Assert
+    const body = res.json.mock.calls[0][0];
+    expect(body).not.toHaveProperty('details');
+    expect(body).not.toHaveProperty('stack');
+
+    // Restore
+    process.env.NODE_ENV = originalEnv;
+  });
 });

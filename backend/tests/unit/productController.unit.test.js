@@ -77,6 +77,9 @@ const {
   searchProducts,
   updateProduct,
   deleteProduct,
+  uploadProductImages,
+  deleteProductImage,
+  getCategories,
 } = require('../../controllers/productController');
 
 function mockReq(overrides = {}) {
@@ -505,6 +508,357 @@ describe('ProductController Unit Tests', () => {
 
       // Act
       await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('test_searchProducts_sortByRating_passesRatingColumnToRepository', async () => {
+      // Arrange
+      repositories.products.search.mockResolvedValueOnce({ data: [], count: 0 });
+      const req = mockReq({ query: { sortBy: 'rating', limit: '10', offset: '0' } });
+      const res = mockRes();
+
+      // Act
+      await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(repositories.products.search).toHaveBeenCalledWith(
+        expect.objectContaining({ sortBy: 'average_rating', ascending: false })
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test('test_searchProducts_withCategoryAndPriceFilters_passesFiltersToRepository', async () => {
+      // Arrange
+      repositories.products.search.mockResolvedValueOnce({ data: [], count: 0 });
+      const req = mockReq({
+        query: { category: 'footwear', minPrice: '20', maxPrice: '100', limit: '10', offset: '0' },
+      });
+      const res = mockRes();
+
+      // Act
+      await searchProducts(req, res, jest.fn());
+
+      // Assert
+      expect(repositories.products.search).toHaveBeenCalledWith(
+        expect.objectContaining({ category: 'footwear', minPrice: 20, maxPrice: 100 })
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+  });
+
+  // ── uploadProductImages ────────────────────────────────────────────
+  describe('uploadProductImages', () => {
+    const uploadHelpers = require('../../utils/uploadHelpers');
+
+    test('test_uploadProductImages_noFilesUploaded_returns400BadRequest', async () => {
+      // Arrange
+      const req = mockReq({ params: { id: 'prod-1' }, files: [] });
+      const res = mockRes();
+
+      // Act
+      await uploadProductImages(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'No images uploaded' });
+    });
+
+    test('test_uploadProductImages_productNotFound_returns404NotFound', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce(null);
+      const req = mockReq({ params: { id: 'prod-ghost' }, files: [{ buffer: Buffer.from('x') }] });
+      const res = mockRes();
+
+      // Act
+      await uploadProductImages(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Product not found' });
+    });
+
+    test('test_uploadProductImages_notAuthorizedOwner_returns403Forbidden', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'other-user' });
+      const req = mockReq({ params: { id: 'prod-1' }, files: [{ buffer: Buffer.from('x') }] });
+      const res = mockRes();
+
+      // Act
+      await uploadProductImages(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Not authorized' });
+    });
+
+    test('test_uploadProductImages_tooManyFiles_returns400BadRequest', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      const files = Array.from({ length: 6 }, (_, i) => ({ buffer: Buffer.from(`img${i}`) }));
+      const req = mockReq({ params: { id: 'prod-1' }, files });
+      const res = mockRes();
+
+      // Act
+      await uploadProductImages(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Maximum 5 images allowed per product' });
+    });
+
+    test('test_uploadProductImages_validInput_uploadsAndReturns200Success', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      uploadHelpers.uploadMultipleFilesToCloudinary.mockResolvedValueOnce([
+        { url: 'https://res.cloudinary.com/img1.jpg', public_id: 'shopyos/products/img1' },
+      ]);
+      // existing images lookup: .from('product_images').select('*').eq('product_id', id)
+      // Terminal is .eq() — mock it to resolve with empty array
+      mockDbChain.eq.mockResolvedValueOnce({ data: [], error: null });
+      // insert image records: .from('product_images').insert(imageInserts) — insert is terminal
+      mockDbChain.insert.mockResolvedValueOnce({ data: {}, error: null });
+
+      const req = mockReq({
+        params: { id: 'prod-1' },
+        files: [{ buffer: Buffer.from('img') }],
+      });
+      const res = mockRes();
+
+      // Act
+      await uploadProductImages(req, res, jest.fn());
+
+      // Assert
+      expect(uploadHelpers.uploadMultipleFilesToCloudinary).toHaveBeenCalledWith(
+        req.files,
+        'shopyos/products'
+      );
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, images: expect.any(Array) })
+      );
+    });
+  });
+
+  // ── deleteProductImage ─────────────────────────────────────────────
+  describe('deleteProductImage', () => {
+    const uploadHelpers = require('../../utils/uploadHelpers');
+
+    test('test_deleteProductImage_productNotFound_returns404NotFound', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce(null);
+      const req = mockReq({ params: { id: 'prod-ghost', imageId: 'img-1' } });
+      const res = mockRes();
+
+      // Act
+      await deleteProductImage(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Product not found' });
+    });
+
+    test('test_deleteProductImage_notAuthorizedOwner_returns403Forbidden', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'other-user' });
+      const req = mockReq({ params: { id: 'prod-1', imageId: 'img-1' } });
+      const res = mockRes();
+
+      // Act
+      await deleteProductImage(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Not authorized' });
+    });
+
+    test('test_deleteProductImage_imageNotFound_returns404NotFound', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      // image record lookup returns null
+      mockDbChain.single.mockResolvedValueOnce({ data: null, error: null });
+
+      const req = mockReq({ params: { id: 'prod-1', imageId: 'img-missing' } });
+      const res = mockRes();
+
+      // Act
+      await deleteProductImage(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Image not found' });
+    });
+
+    test('test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success', async () => {
+      // Arrange
+      repositories.products.findById.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      // image record lookup: .from.select.eq.eq.single — single is terminal
+      mockDbChain.single.mockResolvedValueOnce({
+        data: { id: 'img-1', cloudinary_public_id: 'shopyos/products/img1', product_id: 'prod-1' },
+        error: null,
+      });
+      // DB delete: .from('product_images').delete().eq('id', imageId) — eq is terminal
+      mockDbChain.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      const req = mockReq({ params: { id: 'prod-1', imageId: 'img-1' } });
+      const res = mockRes();
+
+      // Act
+      await deleteProductImage(req, res, jest.fn());
+
+      // Assert
+      expect(uploadHelpers.deleteImage).toHaveBeenCalledWith('shopyos/products/img1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Image deleted successfully' });
+    });
+  });
+
+  // ── getCategories ──────────────────────────────────────────────────
+  describe('getCategories', () => {
+    test('test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts', async () => {
+      // Arrange
+      const dbCats = [
+        { id: 'cat-1', name: 'Footwear', slug: 'footwear', is_active: true },
+        { id: 'cat-2', name: 'Clothing', slug: 'clothing', is_active: true },
+      ];
+      // First db chain call: .from('categories').select.eq.order => categories list
+      mockDbChain.order.mockResolvedValueOnce({ data: dbCats, error: null });
+      // Second db chain call: .rpc('get_category_counts') => product counts
+      mockDbChain.rpc.mockResolvedValueOnce({
+        data: [
+          { category: 'Footwear', product_count: '12' },
+          { category: 'Clothing', product_count: '7' },
+        ],
+        error: null,
+      });
+
+      const req = mockReq({});
+      const res = mockRes();
+
+      // Act
+      await getCategories(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        categories: expect.arrayContaining([
+          expect.objectContaining({ name: 'Footwear', slug: 'footwear', count: 12 }),
+          expect.objectContaining({ name: 'Clothing', slug: 'clothing', count: 7 }),
+        ]),
+      });
+    });
+
+    test('test_getCategories_dbCategoriesEmpty_fallsBackToProductCounts', async () => {
+      // Arrange
+      // categories table returns empty array
+      mockDbChain.order.mockResolvedValueOnce({ data: [], error: null });
+      // rpc returns counts for categories derived from products
+      mockDbChain.rpc.mockResolvedValueOnce({
+        data: [{ category: 'Electronics', product_count: '3' }],
+        error: null,
+      });
+
+      const req = mockReq({});
+      const res = mockRes();
+
+      // Act
+      await getCategories(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        categories: expect.arrayContaining([
+          expect.objectContaining({ name: 'Electronics', count: 3 }),
+        ]),
+      });
+    });
+
+    test('test_getCategories_categoryWithNoSlug_generatesSlugFromName', async () => {
+      // Arrange
+      mockDbChain.order.mockResolvedValueOnce({
+        data: [{ id: 'cat-3', name: 'Home Decor', slug: null, is_active: true }],
+        error: null,
+      });
+      mockDbChain.rpc.mockResolvedValueOnce({ data: [], error: null });
+
+      const req = mockReq({});
+      const res = mockRes();
+
+      // Act
+      await getCategories(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        categories: expect.arrayContaining([
+          expect.objectContaining({ slug: 'home-decor', count: 0 }),
+        ]),
+      });
+    });
+  });
+
+  // ── createProduct – additional error paths ─────────────────────────
+  describe('createProduct – additional error paths', () => {
+    test('test_createProduct_listingLimitReached_returns402PaymentRequired', async () => {
+      // Arrange
+      repositories.stores.findById.mockResolvedValueOnce({
+        id: 'store-1',
+        owner_id: 'seller-user-id',
+        listing_tier: 'free',
+      });
+      // product count query: .from('products').select(..., {count:'exact'}).eq('store_id', storeId).is('deleted_at', null)
+      // Terminal is .is() — resolves with count >= 100
+      mockDbChain.is.mockResolvedValueOnce({ count: 100, data: null, error: null });
+
+      const req = mockReq({ body: { storeId: 'store-1', name: 'Shoes', price: 50 } });
+      const res = mockRes();
+
+      // Act
+      await createProduct(req, res, jest.fn());
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(402);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: false, code: 'LISTING_FEE_REQUIRED' })
+      );
+    });
+  });
+
+  // ── updateProduct – additional error paths ─────────────────────────
+  describe('updateProduct – additional error paths', () => {
+    test('test_updateProduct_stockQuantityProvided_updatesInventory', async () => {
+      // Arrange
+      repositories.products.getProductDetails.mockResolvedValueOnce({ id: 'prod-1', store_id: 'store-1' });
+      repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-user-id' });
+      repositories.products.update.mockResolvedValueOnce({
+        id: 'prod-1',
+        title: 'Shoes',
+        store_id: 'store-1',
+        price: 50,
+        category: 'footwear',
+        gender: 'Unisex',
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      });
+      // inventory update chain
+      mockDbChain.update.mockReturnThis();
+      mockDbChain.eq.mockResolvedValueOnce({ data: null, error: null });
+
+      const req = mockReq({ params: { id: 'prod-1' }, body: { stockQuantity: 25 } });
+      const res = mockRes();
+
+      // Act
+      await updateProduct(req, res, jest.fn());
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(200);
