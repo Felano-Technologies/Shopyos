@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuites name="jest tests" tests="38" failures="1" errors="0" time="1.799">
-  <testsuite name="ProductController Unit Tests" errors="0" failures="1" skipped="37" timestamp="2026-06-06T09:34:26" time="1.473" tests="38">
+<testsuites name="jest tests" tests="38" failures="0" errors="0" time="2.361">
+  <testsuite name="ProductController Unit Tests" errors="0" failures="0" skipped="37" timestamp="2026-06-06T09:35:17" time="1.821" tests="38">
     <testcase classname="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" name="ProductController Unit Tests createProduct test_createProduct_missingStoreId_returns400BadRequest" time="0">
       <skipped/>
     </testcase>
@@ -97,14 +97,8 @@
     <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_imageNotFound_returns404NotFound" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_imageNotFound_returns404NotFound" time="0">
       <skipped/>
     </testcase>
-    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" time="0.015">
-      <failure>Error: expect(jest.fn()).toHaveBeenCalledWith(...expected)
-
-Expected: &quot;shopyos/products/img1&quot;
-
-Number of calls: 0
-    at Object.toHaveBeenCalledWith (C:\Users\EugeneDokyeAnokye\Documents\Shopyos\backend\tests\unit\productController.unit.test.js:717:41)
-    at processTicksAndRejections (node:internal/process/task_queues:103:5)</failure>
+    <testcase classname="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" name="ProductController Unit Tests deleteProductImage test_deleteProductImage_authorizedOwner_deletesImageAndReturns200Success" time="0">
+      <skipped/>
     </testcase>
     <testcase classname="ProductController Unit Tests getCategories test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts" name="ProductController Unit Tests getCategories test_getCategories_dbHasCategories_returnsMappedCategoriesWithCounts" time="0">
       <skipped/>
@@ -115,8 +109,7 @@ Number of calls: 0
     <testcase classname="ProductController Unit Tests getCategories test_getCategories_categoryWithNoSlug_generatesSlugFromName" name="ProductController Unit Tests getCategories test_getCategories_categoryWithNoSlug_generatesSlugFromName" time="0">
       <skipped/>
     </testcase>
-    <testcase classname="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" name="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" time="0">
-      <skipped/>
+    <testcase classname="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" name="ProductController Unit Tests createProduct – additional error paths test_createProduct_listingLimitReached_returns402PaymentRequired" time="0.03">
     </testcase>
     <testcase classname="ProductController Unit Tests updateProduct – additional error paths test_updateProduct_stockQuantityProvided_updatesInventory" name="ProductController Unit Tests updateProduct – additional error paths test_updateProduct_stockQuantityProvided_updatesInventory" time="0">
       <skipped/>
