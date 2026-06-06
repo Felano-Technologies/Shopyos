@@ -74,7 +74,8 @@ jest.mock('@/components/InAppToastHost', () => ({
   },
 }));
 
-import { renderHook, act } from '@testing-library/react-native';
+import React from 'react';
+import { render, act } from '@testing-library/react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
@@ -96,10 +97,23 @@ const mockSocket = {
   off: jest.fn(),
 };
 
+// Capture hook output via test components (renderHook doesn't flush effects in React 19)
+const mockQueryClient = { invalidateQueries: jest.fn(), setQueryData: jest.fn() };
+let notifResult: any = null;
+let unreadResult: any = null;
+function NotifHook() { notifResult = useNotifications(); return null; }
+function UnreadHook({ realtime }: { realtime: boolean }) {
+  unreadResult = useUnreadNotificationCount(realtime); return null;
+}
+
 describe('useNotifications Hooks Unit Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    notifResult = null;
+    unreadResult = null;
     (socketService.connect as jest.Mock).mockResolvedValue(mockSocket);
+    // Provide a valid queryClient so the hook's useEffect doesn't crash
+    (useQueryClient as jest.Mock).mockReturnValue(mockQueryClient);
   });
 
   // ── useNotifications ────────────────────────────────────────────────
@@ -107,9 +121,11 @@ describe('useNotifications Hooks Unit Tests', () => {
     // Arrange
     (useQuery as jest.Mock).mockReturnValue({ data: [], isLoading: false });
 
-    // Act — renderHook so React hooks (useEffect) work correctly
-    const { result } = renderHook(() => useNotifications());
-    await act(async () => { await new Promise(process.nextTick); });
+    // Act — render via component wrapper so useEffect runs correctly in React 19
+    await act(async () => {
+      render(<NotifHook />);
+      await new Promise(process.nextTick);
+    });
 
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
@@ -119,7 +135,7 @@ describe('useNotifications Hooks Unit Tests', () => {
         gcTime: 10 * 60 * 1000,
       })
     );
-    expect(result.current).toBeDefined();
+    expect(notifResult).toBeDefined();
 
     // Test queryFn behavior when token is missing
     const queryFn = (useQuery as jest.Mock).mock.calls[0][0].queryFn;
@@ -141,9 +157,11 @@ describe('useNotifications Hooks Unit Tests', () => {
     // Arrange
     (useQuery as jest.Mock).mockReturnValue({ data: { unreadCount: 5 }, isLoading: false });
 
-    // Act — renderHook so React hooks (useEffect) work correctly
-    const { result } = renderHook(() => useUnreadNotificationCount(false));
-    await act(async () => { await new Promise(process.nextTick); });
+    // Act — render via component wrapper so useEffect runs correctly in React 19
+    await act(async () => {
+      render(<UnreadHook realtime={false} />);
+      await new Promise(process.nextTick);
+    });
 
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
@@ -154,7 +172,7 @@ describe('useNotifications Hooks Unit Tests', () => {
         gcTime: 5 * 60 * 1000,
       })
     );
-    expect(result.current).toBeDefined();
+    expect(unreadResult).toBeDefined();
 
     // Test queryFn behavior when token is missing
     const queryFn = (useQuery as jest.Mock).mock.calls[0][0].queryFn;

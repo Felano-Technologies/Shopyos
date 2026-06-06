@@ -33,7 +33,7 @@ jest.mock('../../services/moderationService', () => ({
 }));
 
 // Socket module lives outside backend — stub it entirely.
-jest.mock('../../../../socket/src/config/socketServer', () => ({
+jest.mock('../../../socket/src/config/socketServer', () => ({
   emitToConversation: jest.fn(),
 }), { virtual: true });
 
