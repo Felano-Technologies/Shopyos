@@ -14,7 +14,6 @@ import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin
 const NAV_ITEMS = [
   { label: 'Home',       route: '/admin/dashboard',     icon: 'grid'          as const },
   { label: 'Orders',     route: '/admin/orders',        icon: 'shopping-bag'  as const },
-  { label: 'Stores',     route: '/admin/stores',        icon: 'shopping-cart' as const },
   { label: 'Users',      route: '/admin/users',         icon: 'users'         as const },
   { label: 'Broadcasts', route: '/admin/notifications', icon: 'bell'          as const },
   { label: 'Settings',   route: '/admin/settings',      icon: 'settings'      as const },
@@ -82,7 +81,6 @@ export default function AdminLayout() {
       >
         <Tabs.Screen name="dashboard" />
         <Tabs.Screen name="orders" />
-        <Tabs.Screen name="stores" />
         <Tabs.Screen name="users" />
         <Tabs.Screen name="settings" />
         {/* Sub-pages: hide from tab bar but keep under /admin layout */}

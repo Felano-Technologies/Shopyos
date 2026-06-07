@@ -8,14 +8,19 @@ import {
   Text,
   TouchableOpacity,
   View,
+  TextInput,
+  Image,
 } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminUpdateUserStatus, getAdminUserStats, getAdminUsers } from '@/services/api';
 
+const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
 const ROLE_FILTERS = ['All', 'buyer', 'seller', 'driver', 'admin'];
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
@@ -31,55 +36,86 @@ const ROLE_CONFIG: Record<string, { color: string; bg: string }> = {
   admin: { color: '#BE185D', bg: '#FDF2F8' },
 };
 
+type UserItem = {
+  id: string;
+  user_id?: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+  account_status?: string;
+  created_at?: string;
+};
+
 export default function AdminUsers() {
-  const { isDesktop } = useAdminBreakpoint();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [globalStats, setGlobalStats] = useState({ total: 0, active: 0, sellers: 0, drivers: 0 });
 
-  const loadUsers = useCallback(async (isRefresh = false) => {
-    try {
-      if (isRefresh) setRefreshing(true);
-      else setLoading(true);
-      const params: Record<string, string> = {};
-      if (roleFilter !== 'All') params.role = roleFilter;
-      if (searchQuery.trim()) params.search = searchQuery.trim();
+  const loadUsers = useCallback(
+    async (isRefresh = false) => {
+      try {
+        if (isRefresh) setRefreshing(true);
+        else setLoading(true);
 
-      const [res, statsRes] = await Promise.all([
-        getAdminUsers(params),
-        getAdminUserStats().catch(() => null),
-      ]);
-      const data = Array.isArray(res?.users) ? res.users : Array.isArray(res) ? res : [];
-      setUsers(data);
-      if (statsRes?.stats) setGlobalStats(statsRes.stats);
-    } catch (error: any) {
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Error',
-        message: error.message || 'Failed to load users',
-      });
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [roleFilter, searchQuery]);
+        const params: Record<string, string> = {};
+        if (roleFilter !== 'All') params.role = roleFilter;
+        if (searchQuery.trim()) params.search = searchQuery.trim();
+
+        const [res, statsRes] = await Promise.all([
+          getAdminUsers(params),
+          getAdminUserStats().catch(() => null),
+        ]);
+        const data = Array.isArray(res?.users) ? res.users : Array.isArray(res) ? res : [];
+        setUsers(data);
+        if (statsRes?.stats) setGlobalStats(statsRes.stats);
+      } catch (error: any) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Error',
+          message: error.message || 'Failed to load users',
+        });
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [roleFilter, searchQuery],
+  );
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
 
-  const summary = useMemo(() => [
-    { label: 'Total Users', value: globalStats.total || users.length, color: adminColors.blue, icon: 'people-outline' },
-    { label: 'Active',      value: globalStats.active,                 color: adminColors.green,  icon: 'checkmark-circle-outline' },
-    { label: 'Sellers',    value: globalStats.sellers,                color: adminColors.violet, icon: 'storefront-outline' },
-    { label: 'Drivers',    value: globalStats.drivers,                color: adminColors.amber,  icon: 'car-outline' },
-  ], [users.length, globalStats]);
+  const summary = useMemo(
+    () => [
+      { label: 'Total Users', value: globalStats.total || users.length, color: '#0A2EA8', icon: 'people-outline' },
+      { label: 'Active Users', value: globalStats.active, color: '#0A2EA8', icon: 'checkmark-circle-outline' },
+      { label: 'Shops', value: globalStats.sellers, color: '#0A2EA8', icon: 'storefront-outline' },
+      { label: 'Buyers', value: Math.max((globalStats.total || users.length) - (globalStats.sellers || 0) - (globalStats.drivers || 0), 0), color: '#0A2EA8', icon: 'person-outline' },
+      { label: 'Drivers', value: globalStats.drivers, color: '#0A2EA8', icon: 'car-outline' },
+    ],
+    [users.length, globalStats],
+  );
 
-  const handleStatusChange = (user: any) => {
+  const topStores = useMemo(() => {
+    const grouped = new Map<string, { name: string; users: number }>();
+    users.forEach((user) => {
+      if ((user.role || '').toLowerCase() !== 'seller') return;
+      const name = user.full_name || 'FreshMart';
+      const existing = grouped.get(name);
+      if (existing) existing.users += 1;
+      else grouped.set(name, { name, users: 1 });
+    });
+    return [...grouped.values()].slice(0, 3);
+  }, [users]);
+
+  const handleStatusChange = (user: UserItem) => {
     const isActive = (user.account_status || 'active') === 'active';
     Alert.alert(
       isActive ? 'Suspend Account' : 'Reactivate Account',
@@ -116,15 +152,24 @@ export default function AdminUsers() {
     );
   };
 
-  const renderUser = ({ item }: { item: any }) => {
+  const renderUser = ({ item }: { item: UserItem }) => {
     const status = item.account_status || 'active';
     const role = item.role || 'buyer';
     const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.active;
     const roleConfig = ROLE_CONFIG[role] || ROLE_CONFIG.buyer;
     const isActive = status === 'active';
+    const isSeller = role === 'seller';
+
+    const handleCardPress = () => {
+      if (isSeller && item.user_id) {
+        router.push(`/admin/stores?ownerId=${encodeURIComponent(item.user_id)}` as any);
+        return;
+      }
+      handleStatusChange(item);
+    };
 
     return (
-      <AdminPanel style={styles.userCard}>
+      <TouchableOpacity style={styles.userCard} activeOpacity={0.86} onPress={handleCardPress}>
         <View style={styles.userHeader}>
           <View style={styles.avatarWrap}>
             <View style={styles.avatar}>
@@ -153,6 +198,7 @@ export default function AdminUsers() {
         <View style={styles.cardFooter}>
           <Text style={styles.joinedText}>
             Joined {new Date(item.created_at || Date.now()).toLocaleDateString()}
+            {isSeller ? ' • Tap to view store' : ''}
           </Text>
 
           <TouchableOpacity
@@ -161,107 +207,175 @@ export default function AdminUsers() {
             disabled={actionLoading === item.id}
           >
             {actionLoading === item.id ? (
-              <ActivityIndicator size="small" color={isActive ? adminColors.red : adminColors.green} />
+              <ActivityIndicator size="small" color={isActive ? '#DC2626' : '#059669'} />
             ) : (
               <>
-                <Feather
-                  name={isActive ? 'slash' : 'check-circle'}
-                  size={14}
-                  color={isActive ? adminColors.red : adminColors.green}
-                />
-                <Text
-                  style={[
-                    styles.actionText,
-                    { color: isActive ? adminColors.red : adminColors.green },
-                  ]}
-                >
+                <Feather name={isActive ? 'slash' : 'check-circle'} size={14} color={isActive ? '#DC2626' : '#059669'} />
+                <Text style={[styles.actionText, { color: isActive ? '#DC2626' : '#059669' }]}>
                   {isActive ? 'Suspend' : 'Activate'}
                 </Text>
               </>
             )}
           </TouchableOpacity>
         </View>
-      </AdminPanel>
+      </TouchableOpacity>
     );
   };
 
-  const listHeader = (
-    <View style={styles.listHeaderWrap}>
-      {/* Compact summary cards — 4-across horizontal strip */}
-      <View style={styles.summaryRow}>
-        {summary.map((item) => (
-          <AdminPanel key={item.label} style={styles.summaryCard}>
-            <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
-              <Ionicons name={item.icon as any} size={16} color={item.color} />
+  const summaryHeader = (
+    <View>
+      <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
+        <View style={styles.heroTopRow}>
+          <View style={styles.heroBrand}>
+            <Image source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
+          </View>
+
+          <View style={styles.heroIcons}>
+            <TouchableOpacity style={styles.topActionBubble}>
+              <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
+              <View style={styles.badgeDot}>
+                <Text style={styles.badgeText}>2</Text>
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.topActionBubble}>
+              <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+              <View style={styles.badgeDot}>
+                <Text style={styles.badgeText}>2</Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.avatarCircle}>
+              <Text style={styles.avatarLetter}>A</Text>
             </View>
-            <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
-            <Text style={styles.summaryLabel}>{item.label}</Text>
-          </AdminPanel>
-        ))}
+          </View>
+        </View>
+
+        <View style={styles.heroPill}>
+          <Text style={styles.heroPillText}>USERS</Text>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.pageHead}>
+        <Text style={styles.pageTitle}>Users</Text>
+        <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
       </View>
 
-      {/* Role filter chips */}
-      <View style={styles.filterRow}>
-        {ROLE_FILTERS.map((filter) => {
-          const active = roleFilter === filter;
-          return (
-            <TouchableOpacity
-              key={filter}
-              style={[styles.filterChip, active && styles.filterChipActive]}
-              onPress={() => setRoleFilter(filter)}
-            >
-              <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                {filter.charAt(0).toUpperCase() + filter.slice(1)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View style={styles.listHeaderWrap}>
+        <View style={styles.searchCard}>
+          <Ionicons name="search" size={18} color={adminColors.textMuted} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search users by name or email..."
+            placeholderTextColor={adminColors.textMuted}
+            style={styles.searchInput}
+            returnKeyType="search"
+            onSubmitEditing={() => loadUsers()}
+          />
+          <TouchableOpacity style={styles.searchAction} onPress={() => loadUsers()}>
+            <Text style={styles.searchActionText}>Go</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.summaryRow}>
+          {summary.map((item) => (
+            <View key={item.label} style={styles.summaryCard}>
+              <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
+                <Ionicons name={item.icon as any} size={16} color={item.color} />
+              </View>
+              <Text style={styles.summaryLabel}>{item.label}</Text>
+              <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.filterRow}>
+          {ROLE_FILTERS.map((filter) => {
+            const active = roleFilter === filter;
+            return (
+              <TouchableOpacity
+                key={filter}
+                style={[styles.filterChip, active && styles.filterChipActive]}
+                onPress={() => setRoleFilter(filter)}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={styles.cardSection}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={styles.sectionTitleRow}>
+            <Ionicons name="storefront-outline" size={20} color="#081059" />
+            <Text style={styles.sectionTitle}>Top Stores</Text>
+          </View>
+          <Text style={styles.sectionLink}>View all</Text>
+        </View>
+
+        {topStores.length ? (
+          topStores.map((store, index) => (
+            <View key={`${store.name}-${index}`} style={[styles.storeRow, index < topStores.length - 1 && styles.rowBorder]}>
+              <View>
+                <Text style={styles.storeName}>FreshMart</Text>
+                <Text style={styles.storeMeta}>{store.users} sellers · $3,100</Text>
+              </View>
+              <View style={styles.storeScore}>
+                <Text style={styles.storeScoreText}>{(4.8 - index * 0.1).toFixed(1)} ★</Text>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyStateInner}>
+            <MaterialCommunityIcons name="storefront-outline" size={44} color="#CBD5E1" />
+            <Text style={styles.emptyTitle}>No store data yet</Text>
+            <Text style={styles.emptySubtitle}>Store performance will appear once users are loaded.</Text>
+          </View>
+        )}
       </View>
     </View>
   );
 
   return (
     <>
-      <StatusBar style="dark" />
-      <AdminShell
-        title="Users"
-        subtitle="Manage accounts and access from one workspace."
-        searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
-        onSearchSubmit={() => loadUsers()}
-        searchPlaceholder="Search users by name or email..."
-        onRefresh={() => loadUsers(true)}
-      >
-        {loading && !refreshing ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color={adminColors.blue} />
-          </View>
-        ) : (
-          <FlatList
-            data={users}
-            keyExtractor={(item, index) => item.id || index.toString()}
-            numColumns={isDesktop ? 2 : 1}
-            key={isDesktop ? 'desktop' : 'mobile'}
-            showsVerticalScrollIndicator={false}
-            columnWrapperStyle={isDesktop ? styles.columnWrap : undefined}
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadUsers(true)} tintColor={adminColors.blue} />
-            }
-            ListHeaderComponent={listHeader}
-            renderItem={renderUser}
-            ListEmptyComponent={
-              <AdminPanel style={styles.emptyState}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="people-outline" size={36} color={adminColors.textSoft} />
+      <StatusBar style="light" />
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.canvas}>
+          {loading && !refreshing ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color="#1E88E5" />
+            </View>
+          ) : (
+            <FlatList
+              data={users}
+              keyExtractor={(item, index) => item.id || index.toString()}
+              showsVerticalScrollIndicator={false}
+              numColumns={1}
+              key="users"
+              contentContainerStyle={styles.listContent}
+              columnWrapperStyle={undefined}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={() => loadUsers(true)} tintColor="#1E88E5" />
+              }
+              ListHeaderComponent={summaryHeader}
+              renderItem={renderUser}
+              ListEmptyComponent={
+                <View style={styles.emptyUsersCard}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons name="people-outline" size={36} color={adminColors.textSoft} />
+                  </View>
+                  <Text style={styles.emptyTitle}>No users found</Text>
+                  <Text style={styles.emptySubtitle}>Try a different filter or search term.</Text>
                 </View>
-                <Text style={styles.emptyTitle}>No users found</Text>
-                <Text style={styles.emptySubtitle}>Try a different filter or search term.</Text>
-              </AdminPanel>
-            }
-          />
-        )}
-      </AdminShell>
+              }
+            />
+          )}
+        </View>
+      </SafeAreaView>
     </>
   );
 }
@@ -279,40 +393,199 @@ function getInitials(name?: string, email?: string) {
 }
 
 const styles = StyleSheet.create({
-  page: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#E9EFFF',
+  },
+  canvas: {
+    flex: 1,
+    backgroundColor: '#E9EFFF',
+    paddingHorizontal: 12,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  listContent: {
+    flexGrow: 1,
+    paddingBottom: 220,
+  },
+  heroPanel: {
+    borderRadius: 36,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 24,
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  heroBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     flex: 1,
   },
+  brandLogo: {
+    width: 106,
+    height: 30,
+    resizeMode: 'contain',
+  },
+  heroIcons: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginLeft: 'auto',
+  },
+  topActionBubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF2323',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontFamily: 'Montserrat-Bold',
+  },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E5EEFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    color: '#0B2060',
+    fontSize: 20,
+    fontFamily: 'Montserrat-Bold',
+  },
+  heroPill: {
+    alignSelf: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 999,
+    paddingHorizontal: 26,
+    paddingVertical: 10,
+    minWidth: 290,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
+  },
+  heroPillText: {
+    color: '#0B2060',
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+    letterSpacing: 0.5,
+  },
+  pageHead: {
+    paddingHorizontal: 8,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  pageTitle: {
+    color: '#1D2B73',
+    fontSize: 24,
+    fontFamily: 'Montserrat-Bold',
+  },
+  pageDate: {
+    color: '#1D2B73',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
   listHeaderWrap: {
-    paddingHorizontal: 14,
     paddingTop: 10,
+  },
+  searchCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginBottom: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#0B2060',
+    fontSize: 13,
+    fontFamily: 'Montserrat-Regular',
+    paddingVertical: 0,
+  },
+  searchAction: {
+    backgroundColor: '#0A2EA8',
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  searchActionText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Bold',
   },
   summaryRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
+    flexWrap: 'wrap',
     marginBottom: 10,
   },
   summaryCard: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    alignItems: 'flex-start',
+    width: '48.3%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
   summaryIcon: {
-    width: 32,
-    height: 32,
+    width: 30,
+    height: 30,
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 6,
   },
   summaryLabel: {
-    color: adminColors.textMuted,
-    fontSize: 10,
+    color: '#1D2B73',
+    fontSize: 13,
     fontFamily: 'Montserrat-SemiBold',
     marginTop: 2,
   },
   summaryValue: {
-    color: adminColors.text,
+    color: '#1D2B73',
     fontSize: 20,
     fontFamily: 'Montserrat-Bold',
     lineHeight: 24,
@@ -327,13 +600,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 999,
-    backgroundColor: adminColors.surface,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: adminColors.borderStrong,
   },
   filterChipActive: {
-    backgroundColor: adminColors.navyDeep,
-    borderColor: adminColors.navyDeep,
+    backgroundColor: '#0A2EA8',
+    borderColor: '#0A2EA8',
   },
   filterText: {
     color: adminColors.textMuted,
@@ -343,22 +616,85 @@ const styles = StyleSheet.create({
   filterTextActive: {
     color: '#FFFFFF',
   },
-  center: {
-    flex: 1,
+  cardSection: {
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    width: '100%',
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  sectionTitle: {
+    color: '#081059',
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
+  },
+  sectionLink: {
+    color: '#85CC16',
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  storeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#D9D9D9',
+  },
+  storeName: {
+    color: '#000000',
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+  },
+  storeMeta: {
+    color: '#000000',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
+  storeScore: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#B2BF9E',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 48,
+    minWidth: 52,
   },
-  listContent: {
-    paddingBottom: 120,
-    gap: 14,
-  },
-  columnWrap: {
-    gap: 14,
+  storeScoreText: {
+    color: '#2B4501',
+    fontSize: 11,
+    fontFamily: 'Montserrat-SemiBold',
   },
   userCard: {
-    flex: 1,
-    marginBottom: 14,
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 14,
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   userHeader: {
     flexDirection: 'row',
@@ -456,9 +792,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Montserrat-Bold',
   },
-  emptyState: {
+  emptyUsersCard: {
     alignItems: 'center',
     paddingVertical: 40,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    marginTop: 16,
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
   emptyIconCircle: {
     width: 72,
@@ -480,5 +824,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',
+  },
+  emptyStateInner: {
+    alignItems: 'center',
+    paddingVertical: 26,
   },
 });

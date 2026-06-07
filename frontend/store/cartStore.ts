@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { storage } from '@/services/api';
+import { storage } from '@/services/storage';
 
 type Product = {
   id: string;
