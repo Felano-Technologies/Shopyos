@@ -7,6 +7,15 @@ import { useChatStore } from '../store/chatStore';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { queryKeys } from '@/lib/query/keys';
 
+const getMsgPreview = (msg: any): string => {
+  const type = msg?.message_type;
+  if (type === 'image') return '📷 Photo';
+  if (type === 'video') return '🎥 Video';
+  if (type === 'voice') return '🎙️ Voice note';
+  if (type === 'sticker') return msg.content || '😊 Sticker';
+  return msg?.content || '';
+};
+
 export const useSocketSetup = () => {
   const queryClient = useQueryClient();
   const currentUserId = useChatStore((s) => s.currentUserId);
@@ -57,7 +66,7 @@ export const useSocketSetup = () => {
           CustomInAppToast.show({
             type: 'info',
             title: isBot ? 'Shopyos Bot' : 'New Message',
-            message: message.content,
+            message: getMsgPreview(message),
           });
         }
       }
@@ -78,6 +87,8 @@ export const useSocketSetup = () => {
                   lastMessage: {
                     ...c.lastMessage,
                     content: message.content,
+                    message_type: message.message_type,
+                    attachment_url: message.attachment_url,
                     created_at: message.created_at || message.timestamp,
                   },
                   updatedAt: message.created_at || message.timestamp,

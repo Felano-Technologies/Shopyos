@@ -61,7 +61,7 @@ export const useMessages = (conversationId: string) => {
     enabled: !!conversationId,
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
-    refetchOnMount: false,
+    refetchOnMount: true,
   });
 
   const appendMessage = useCallback(
@@ -201,6 +201,16 @@ const resolveConversationTimestamp = (c: any) =>
   c?.updatedAt || c?.updated_at || c?.lastMessage?.created_at ||
   c?.lastMessage?.timestamp || c?.lastMessage?.createdAt || null;
 
+const getLastMessagePreview = (msg: any): string => {
+  if (!msg) return 'No messages yet';
+  const type = msg.message_type;
+  if (type === 'image') return '📷 Photo';
+  if (type === 'video') return '🎥 Video';
+  if (type === 'voice') return '🎙️ Voice note';
+  if (type === 'sticker') return msg.content || '😊 Sticker';
+  return msg.content || 'No messages yet';
+};
+
 const formatConversation = (c: any, currentUserId: string | null) => {
   const p = c.otherParticipant;
   let name = 'Unknown User';
@@ -219,16 +229,17 @@ const formatConversation = (c: any, currentUserId: string | null) => {
   }
   const isMe = currentUserId && c.lastMessage?.sender_id === currentUserId;
   const time = formatSafeTime(resolveConversationTimestamp(c));
+  const preview = getLastMessagePreview(c.lastMessage);
   return {
     id: c.id,
     name,
     avatar,
-    lastMessage: c.lastMessage?.content || 'No messages yet',
+    lastMessage: preview,
     time,
     unread: c.unreadCount || 0,
     online: false,
     messages: c.lastMessage
-      ? [{ id: c.lastMessage.id, text: c.lastMessage.content, sender: (isMe ? 'me' : 'them') as 'me' | 'them', time }]
+      ? [{ id: c.lastMessage.id, text: preview, sender: (isMe ? 'me' : 'them') as 'me' | 'them', time }]
       : [],
     otherParticipant: p,
   };

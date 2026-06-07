@@ -9,7 +9,7 @@ import BottomNav from '../components/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
@@ -264,7 +264,7 @@ export default function SearchScreen() {
             activeOpacity={0.9}
             onPress={() => {
               recordAdClick(searchAd.id).catch(() => {});
-              router.push({ pathname: '/stores/details', params: { id: searchAd.store_id } });
+              safePush('/stores/details', { id: searchAd.store_id });
             }}
           >
             <Image source={{ uri: searchAd.banner_url }} style={styles.searchAdImg} />

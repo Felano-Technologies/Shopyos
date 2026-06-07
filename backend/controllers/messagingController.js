@@ -14,6 +14,7 @@ const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
 const formatAvatars = (obj) => {
   if (!obj) return obj;
+  if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) {
     return obj.map(formatAvatars);
   }
@@ -353,11 +354,11 @@ const sendMessage = async (req, res, next) => {
         }
 
         const previewMap = {
-          text: content?.substring(0, 50),
+          text: finalContent?.substring(0, 50),
           image: '📷 Photo',
-          video: '🎬 Video',
-          voice: '🎙️ Voice message',
-          sticker: content || '😊 Sticker',
+          video: '🎥 Video',
+          voice: '🎙️ Voice note',
+          sticker: finalContent || '😊 Sticker',
         };
         const notificationContent = previewMap[messageType] || 'New message';
 

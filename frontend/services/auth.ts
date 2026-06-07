@@ -16,7 +16,7 @@ export const registerUser = async (
     }
     return response.data;
   } catch (error: any) {
-    if (error.response) throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
+    if (error.response) throw new Error(error.response.data?.error || `can't reach server : ${error.response.status}`);
     throw new Error(error.message || 'Network error during registration');
   }
 };
