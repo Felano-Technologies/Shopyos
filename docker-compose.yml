@@ -1,7 +1,7 @@
 services:
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: shopyos-backend
     restart: unless-stopped
@@ -33,7 +33,7 @@ services:
 
   notification-worker:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: shopyos-notification-worker
     restart: unless-stopped

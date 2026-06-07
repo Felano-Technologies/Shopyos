@@ -11,14 +11,15 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
-import { useChat } from '@/context/ChatContext'; 
+import { useSellerConversations, useChatActions } from '@/hooks/useChat';
 
 const { height } = Dimensions.get('window');
 
 export default function MessagesScreen() {
   const router = useRouter();
   // Fetch only SELLER chats from Global Context
-  const { sellerConversations, markAsRead, refresh } = useChat();
+  const { data: sellerConversations = [] } = useSellerConversations();
+  const { markAsRead, refresh } = useChatActions();
  
   // Refresh when screen focuses 
   React.useEffect(() => {

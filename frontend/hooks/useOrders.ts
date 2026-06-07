@@ -33,7 +33,7 @@ export const useOrders = (status?: string, page?: number, PAGE_SIZE?: number) =>
   });
 };
 
-export const useOrderDetail = (id: string) => {
+export const useOrderDetail = (id: string, options?: Record<string, any>) => {
   return useQuery({
     queryKey: queryKeys.orders.detail(id),
     queryFn: () => ordersApi.getById(id),
@@ -41,6 +41,7 @@ export const useOrderDetail = (id: string) => {
     refetchOnMount: true,
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
+    ...options,
   });
 };
 
@@ -119,7 +120,7 @@ export const useCreateProduct = (storeId: string) => {
       // New product should appear in store listing and search immediately
       queryClient.invalidateQueries({ queryKey: queryKeys.business.products(storeId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
-      queryClient.invalidateQueries({ queryKey: ['products', 'search'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.searchAll() });
     },
   });
 };
@@ -139,7 +140,7 @@ export const useUpdateProduct = (productId: string, storeId?: string) => {
         });
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
-      queryClient.invalidateQueries({ queryKey: ['products', 'search'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.searchAll() });
     },
   });
 };
@@ -159,7 +160,7 @@ export const useDeleteProduct = (storeId?: string) => {
         });
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.products.lists() });
-      queryClient.invalidateQueries({ queryKey: ['products', 'search'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.products.searchAll() });
     },
   });
 };

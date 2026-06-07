@@ -18,11 +18,10 @@ import {
   blockUser, uploadChatMedia, markNotificationsReadByConversation,
   getPresence
 } from '../../services/api';
-import { useMessages } from '@/hooks/useChat';
+import { useMessages, useChatActions } from '@/hooks/useChat';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import { socketService } from '../../services/socket';
-import { useChat } from '@/context/ChatContext';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ReportModal } from '../../components/ReportModal';
 import MediaMessage from '../../components/chat/MediaMessage';
@@ -89,7 +88,7 @@ export default function ConversationScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams() as any;
   const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
-  const { deleteConversation } = useChat();
+  const { deleteConversation } = useChatActions();
 
   const queryClient = useQueryClient();
   const {
@@ -101,6 +100,7 @@ export default function ConversationScreen() {
     updateMessage,
     removeMessage,
   } = useMessages(conversationId);
+
 
   const [text, setText] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -298,7 +298,7 @@ export default function ConversationScreen() {
         setUploadingProgress(0);
         const uploadRes = await uploadChatMedia(asset.uri, conversationId, (prog: number) => {
           setUploadingProgress(Math.round(prog * 100));
-        });
+        }, asset.mimeType ?? undefined);
         if (uploadRes?.success && uploadRes.media) {
           const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
           const sentMsg = res.message;
@@ -320,7 +320,7 @@ export default function ConversationScreen() {
     try {
       const uploadRes = await uploadChatMedia(uri, conversationId, (prog: number) => {
         setUploadingProgress(Math.round(prog * 100));
-      });
+      }, 'audio/mp4');
       if (uploadRes?.success && uploadRes.media) {
         const res = await apiSendMessage(conversationId, '', undefined, 'voice', uploadRes.media.url, { durationMs, mimeType: uploadRes.media.mimeType, size: uploadRes.media.size });
         const sentMsg = res.message;
@@ -553,9 +553,21 @@ export default function ConversationScreen() {
                 ? <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
                 : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
             )}
-            <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
-              <Image source={{ uri: item.attachment_url }} style={styles.stickerImage} />
-            </TouchableOpacity>
+            <View>
+              <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
+                <Image source={{ uri: item.attachment_url }} style={styles.stickerImage} />
+              </TouchableOpacity>
+              <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
+                <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+                {isMe && !item.failed && (
+                  <Ionicons
+                    name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
+                    size={13}
+                    color={item.pending ? C.mutedText : item.is_read ? C.limeTick : C.mutedText}
+                  />
+                )}
+              </View>
+            </View>
           </View>
         </>
       );
@@ -615,11 +627,9 @@ export default function ConversationScreen() {
             ) : (
               <>
                 {renderMsgContent(item, false)}
-                {!hasMedia && (
-                  <View style={[styles.metaRow, { paddingBottom: 6 }]}>
-                    <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
-                  </View>
-                )}
+                <View style={[styles.metaRow, { paddingBottom: hasMedia ? 2 : 6, paddingTop: hasMedia ? 4 : 0, paddingHorizontal: hasMedia ? 6 : 0 }]}>
+                  <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+                </View>
               </>
             )}
           </TouchableOpacity>
@@ -875,8 +885,8 @@ const styles = StyleSheet.create({
 
   // Date separator
   dateSep: { alignItems: 'center', marginVertical: 14 },
-  datePill: { backgroundColor: C.datePillBg, borderWidth: 0.5, borderColor: C.datePillBorder, paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20 },
-  dateText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: C.mutedText, textTransform: 'uppercase', letterSpacing: 0.6 },
+  datePill: { backgroundColor: 'rgba(12,21,89,0.13)', borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.2)', paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
+  dateText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#334155', textTransform: 'uppercase', letterSpacing: 0.6 },
 
   // Bubbles
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 6, maxWidth: '100%' },
@@ -918,8 +928,8 @@ const styles = StyleSheet.create({
   bubbleTxtFailed: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#B91C1C', lineHeight: 21 },
 
   metaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 4 },
-  metaTimeMe: { fontSize: 9, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.4)' },
-  metaTimeThem: { fontSize: 9, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
+  metaTimeMe: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.72)' },
+  metaTimeThem: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B' },
 
   // Sticker
   stickerBubble: { padding: 4 },

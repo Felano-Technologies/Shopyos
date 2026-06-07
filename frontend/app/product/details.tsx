@@ -17,7 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/store/cartStore';
 import {
     getProductById,
     addToFavorites,
@@ -67,8 +67,7 @@ export default function ProductDetails() {
         try {
             const res = await getProductById(params.id as string);
             if (res.success) {
-                console.log('[ProductDetails] images from backend:', res.product.images);
-                setProduct((prev) => ({
+setProduct((prev) => ({
                     ...prev,
                     title: res.product.name,
                     description: res.product.description,

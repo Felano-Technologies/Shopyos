@@ -4,7 +4,7 @@ import {
   Image, Text, Alert, TextInput, Modal, ActivityIndicator, Pressable,
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useChat } from '@/context/ChatContext';
+import { useBuyerConversations, useChatActions } from '@/hooks/useChat';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { startConversation, getAllStores } from '@/services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,7 +31,8 @@ const C = {
 
 export default function ChatInbox() {
   const router = useRouter();
-  const { buyerConversations, markAsRead, refresh, deleteConversation } = useChat();
+  const { data: buyerConversations = [] } = useBuyerConversations();
+  const { markAsRead, refresh, deleteConversation } = useChatActions();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', 'Unread', 'Read'];

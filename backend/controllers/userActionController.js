@@ -65,7 +65,8 @@ const getBlockedUsers = async (req, res, next) => {
     try {
         const blockerId = req.user.id;
 
-        const db = repositories.users.getPool();
+        const { getPool } = require('../config/postgres');
+        const db = getPool();
         const { rows } = await db.query(
             `SELECT ub.blocked_id, ub.created_at,
                     u.id AS user_id, up.full_name, up.avatar_url

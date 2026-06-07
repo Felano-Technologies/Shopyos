@@ -15,7 +15,7 @@ import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
 import { CustomInAppToast } from '@/services/api';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/store/cartStore';
 import Skeleton from '../components/Skeleton';
 
 const { width } = Dimensions.get('window');

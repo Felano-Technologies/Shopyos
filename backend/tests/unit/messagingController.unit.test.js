@@ -17,6 +17,7 @@ jest.mock('../../config/logger', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => (url ? `http://public/${url}` : url)),
+  resolveImageUrl: jest.fn(async (key) => (key ? `http://public/${key}` : key)),
   s3: { send: jest.fn() },
 }));
 

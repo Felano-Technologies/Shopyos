@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Image, Dimensions, ActivityIndicator, Alert, Linking,
@@ -9,8 +9,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
-import { getOrderDetails, cancelOrder, startConversation, confirmDelivery } from '@/services/api';
-import { queryClient } from '@/lib/query/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { cancelOrder, startConversation, confirmDelivery } from '@/services/api';
+import { useOrderDetail } from '@/hooks/useOrders';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
 const { width: SW } = Dimensions.get('window');
@@ -80,84 +81,48 @@ const OrderDetailsScreen = () => {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isCancelling, setIsCancelling] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
-  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const fetchOrder = useCallback(async (showLoading = false) => {
-    if (showLoading) setLoading(true);
-    try {
-      const data = await getOrderDetails(id as string);
-      const orderData = data.order || data;
-      if (orderData?.id) {
-        setOrder(orderData);
-        const s = orderData.status?.toLowerCase() || '';
-        if (['delivered', 'cancelled', 'failed'].includes(s)) {
-          if (pollInterval.current) { clearInterval(pollInterval.current); pollInterval.current = null; }
-        }
-      }
-    } catch {
-      if (showLoading) Alert.alert('Error', 'Failed to load order details');
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [id]);
-  useEffect(() => {
-    if (id) {
-      fetchOrder(true);
-      pollInterval.current = setInterval(() => fetchOrder(false), 10_000);
-    }
-    return () => { if (pollInterval.current) clearInterval(pollInterval.current); };
-  }, [fetchOrder, id]);
+  const qc = useQueryClient();
+
+  const orderId = id as string;
+  const { data: orderRaw, isLoading: loading } = useOrderDetail(orderId, {
+    refetchInterval: (query) => {
+      const status = (query.state.data as any)?.status?.toLowerCase() ?? '';
+      return ['delivered', 'cancelled', 'failed'].includes(status) ? false : 10_000;
+    },
+  });
+  const order = orderRaw?.order ?? orderRaw ?? null;
+
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelOrder(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
+      Alert.alert('Success', 'Order cancelled successfully');
+    },
+    onError: (e: any) => Alert.alert('Error', e.message || 'Failed to cancel order'),
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: () => confirmDelivery(orderId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.orders.lists() });
+      qc.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
+      Alert.alert('Success', 'Delivery confirmed. Thank you!');
+    },
+    onError: (e: any) => Alert.alert('Error', e.message || 'Failed to confirm delivery'),
+  });
+
   const handleCancelOrder = () => {
     Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
       { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, Cancel', style: 'destructive',
-        onPress: async () => {
-          try {
-            setIsCancelling(true);
-            const res = await cancelOrder(id as string);
-            if (res.success) {
-              await fetchOrder();
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
-              Alert.alert('Success', 'Order cancelled successfully');
-            }
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to cancel order');
-          } finally {
-            setIsCancelling(false);
-          }
-        },
-      },
+      { text: 'Yes, Cancel', style: 'destructive', onPress: () => cancelMutation.mutate() },
     ]);
   };
 
   const handleConfirmDelivery = () => {
     Alert.alert('Confirm Delivery', 'Have you received your order? This will release payment to the seller.', [
       { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, I received it',
-        style: 'default',
-        onPress: async () => {
-          try {
-            setIsConfirming(true);
-            const res = await confirmDelivery(id as string);
-            if (res.success) {
-              await fetchOrder();
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.lists() });
-              await queryClient.invalidateQueries({ queryKey: queryKeys.orders.detail(id as string) });
-              Alert.alert('Success', 'Delivery confirmed. Thank you!');
-            }
-          } catch (e: any) {
-            Alert.alert('Error', e.message || 'Failed to confirm delivery');
-          } finally {
-            setIsConfirming(false);
-          }
-        },
-      },
+      { text: 'Yes, I received it', style: 'default', onPress: () => confirmMutation.mutate() },
     ]);
   };
   const [chatLoading, setChatLoading] = useState(false);
@@ -598,12 +563,12 @@ const OrderDetailsScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[S.cancelBtn, isCancelling && { opacity: 0.65 }]}
+              style={[S.cancelBtn, cancelMutation.isPending && { opacity: 0.65 }]}
               onPress={handleCancelOrder}
-              disabled={isCancelling}
+              disabled={cancelMutation.isPending}
               activeOpacity={0.82}
             >
-              {isCancelling ? (
+              {cancelMutation.isPending ? (
                 <ActivityIndicator color="#EF4444" />
               ) : (
                 <>

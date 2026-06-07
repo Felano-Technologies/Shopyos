@@ -9,7 +9,7 @@
     "lint": "eslint . --ext .js",
     "test": "jest --forceExit",
     "test:unit": "jest --selectProjects unit --forceExit",
-    "test:integration": "jest --selectProjects integration --runInBand --forceExit",
+    "test:integration": "jest --config jest.integration.config.js --runInBand --forceExit",
     "test:coverage": "jest --coverage --forceExit",
     "test:ci": "jest --ci --forceExit --reporters=default --reporters=jest-junit"
   },

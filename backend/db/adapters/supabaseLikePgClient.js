@@ -80,6 +80,13 @@ class QueryBuilder {
     return this;
   }
 
+  match(obj) {
+    Object.entries(obj).forEach(([column, value]) => {
+      this.filters.push({ type: 'binary', op: '=', column, value });
+    });
+    return this;
+  }
+
   neq(column, value) {
     this.filters.push({ type: 'binary', op: '!=', column, value });
     return this;

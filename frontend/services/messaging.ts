@@ -75,19 +75,39 @@ export const deleteConversation = async (conversationId: string) => {
 export const uploadChatMedia = async (
   uri: string,
   conversationId: string,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  mimeType?: string
 ): Promise<any> => {
   const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
-  const filename = uri.split('/').pop() || `upload_${Date.now()}.bin`;
-  const ext = (filename.split('.').pop() || '').toLowerCase();
 
-  let type = 'application/octet-stream';
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
+  // Strip query params / fragment from URI before extracting filename
+  const cleanUri = uri.split('?')[0].split('#')[0];
+  const filename = cleanUri.split('/').pop() || `upload_${Date.now()}.bin`;
+  const ext = (filename.includes('.') ? filename.split('.').pop() : '').toLowerCase() || '';
+
+  // Prefer explicitly provided mimeType, otherwise infer from extension
+  let type: string;
+  if (mimeType) {
+    type = mimeType;
+  } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
     type = `image/${ext === 'jpg' ? 'jpeg' : ext}`;
-  } else if (['mp4', 'mov', 'qt'].includes(ext)) {
-    type = ext === 'mov' || ext === 'qt' ? 'video/quicktime' : 'video/mp4';
-  } else if (['aac', 'm4a', 'mp3', 'caf', '3gp'].includes(ext)) {
-    type = ext === 'mp3' ? 'audio/mpeg' : ext === 'caf' ? 'audio/x-caf' : ext === '3gp' ? 'audio/3gpp' : 'audio/mp4';
+  } else if (['heic', 'heif'].includes(ext)) {
+    type = `image/${ext}`;
+  } else if (['mp4'].includes(ext)) {
+    type = 'video/mp4';
+  } else if (['mov', 'qt'].includes(ext)) {
+    type = 'video/quicktime';
+  } else if (ext === 'mp3') {
+    type = 'audio/mpeg';
+  } else if (ext === 'aac') {
+    type = 'audio/aac';
+  } else if (['m4a', '3gp', 'mp4a'].includes(ext)) {
+    type = 'audio/mp4';
+  } else if (ext === 'caf') {
+    type = 'audio/x-caf';
+  } else {
+    // Fallback: let server decide — backend accepts application/octet-stream
+    type = 'application/octet-stream';
   }
 
   return new Promise((resolve, reject) => {
@@ -129,10 +149,29 @@ export const getStickerPacks = async () => {
   }
 };
 
-export const createCustomSticker = async (uri: string): Promise<any> => {
+export const createCustomSticker = async (uri: string, mimeType?: string): Promise<any> => {
   const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
-  const filename = uri.split('/').pop() || `sticker_${Date.now()}.png`;
-  const type = 'image/png';
+
+  const cleanUri = uri.split('?')[0].split('#')[0];
+  const filename = cleanUri.split('/').pop() || `sticker_${Date.now()}.png`;
+  const ext = (filename.includes('.') ? filename.split('.').pop() : '').toLowerCase() || '';
+
+  // Use provided mimeType or infer from extension; default to image/jpeg
+  let type: string;
+  if (mimeType) {
+    type = mimeType;
+  } else if (ext === 'png') {
+    type = 'image/png';
+  } else if (ext === 'webp') {
+    type = 'image/webp';
+  } else if (ext === 'gif') {
+    type = 'image/gif';
+  } else if (['heic', 'heif'].includes(ext)) {
+    type = `image/${ext}`;
+  } else {
+    // jpg, jpeg, or unknown → jpeg
+    type = 'image/jpeg';
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

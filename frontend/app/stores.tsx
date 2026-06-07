@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   Image, StyleSheet, Dimensions, Keyboard, Pressable,
@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BottomNav from '@/components/BottomNav';
-import { getAllStores } from '@/services/api';
+import { useStores } from '@/hooks/useStores';
 import { StoresSkeleton } from '@/components/skeletons/StoresSkeleton';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
@@ -40,15 +40,39 @@ const initials = (name: string) =>
 export default function StoresScreen() {
   const [searchQuery,    setSearchQuery]    = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [stores,         setStores]         = useState<any[]>([]);
-  const [popularStores,  setPopularStores]  = useState<any[]>([]);
-  const [loading,        setLoading]        = useState(true);
-  const [isRefreshing,   setIsRefreshing]   = useState(false);
   const [showFilter,     setShowFilter]     = useState(false);
   const [filterSort,     setFilterSort]     = useState<'rating' | 'newest' | 'name'>('rating');
   const [filterVerified, setFilterVerified] = useState(false);
   const fadeAnim   = useRef(new Animated.Value(1)).current;
   const isSearching = searchQuery.length > 0;
+
+  const { data: storesData, isLoading: loading, isRefetching: isRefreshing, refetch } = useStores({
+    search:   searchQuery || undefined,
+    category: activeCategory !== 'All' ? activeCategory : undefined,
+    sortBy:   filterSort,
+    verified: filterVerified ? 'true' : undefined,
+  });
+
+  const rawStores: any[] = useMemo(() => {
+    if (!storesData?.success) return [];
+    return (storesData.businesses || []).map((b: any) => ({
+      id:          b.id,
+      name:        b.name        || 'Unknown Store',
+      category:    b.category    || 'General',
+      rating:      Number(b.rating || 0),
+      reviewCount: b.reviewCount || 0,
+      logo:        b.logo        || null,
+      catalogues:  b.catalogues  || 0,
+      verified:    b.verified    || false,
+      isTrusted:   b.isTrusted   || false,
+    }));
+  }, [storesData]);
+
+  const stores       = rawStores;
+  const popularStores = useMemo(
+    () => (!isSearching && activeCategory === 'All' ? rawStores.slice(0, 6) : []),
+    [rawStores, isSearching, activeCategory]
+  );
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -101,47 +125,13 @@ export default function StoresScreen() {
   const handleOnboardingComplete = () => {
     markCompleted('stores');
   };
-  const fetchStores = useCallback(async () => {
-    try {
-      // Only show full skeleton if we have no data yet
-      const isInitial = stores.length === 0;
-      if (isInitial) setLoading(true);
-      else setIsRefreshing(true);
-      const res = await getAllStores({
-        search:   searchQuery || undefined,
-        category: activeCategory !== 'All' ? activeCategory : undefined,
-        sortBy:   filterSort,
-        verified: filterVerified ? 'true' : undefined,
-      });
-      if (res.success) {
-        const mapped = (res.businesses || []).map((b: any) => ({
-          id:          b.id,
-          name:        b.name        || 'Unknown Store',
-          category:    b.category    || 'General',
-          rating:      Number(b.rating || 0),
-          reviewCount: b.reviewCount || 0,
-          logo:        b.logo        || null,
-          catalogues:  b.catalogues  || 0,
-          verified:    b.verified    || false,
-          isTrusted:   b.isTrusted   || false,
-        }));
-        Animated.sequence([
-          Animated.timing(fadeAnim, { toValue: 0.5, duration: 120, useNativeDriver: true }),
-          Animated.timing(fadeAnim, { toValue: 1,   duration: 300, useNativeDriver: true }),
-        ]).start();
-        setStores(mapped);
-        if (searchQuery === '' && activeCategory === 'All') {
-          setPopularStores(mapped.slice(0, 6));
-        }
-      }
-    } catch (e) {
-      console.error('Error fetching stores', e);
-    } finally {
-      setLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [stores.length, searchQuery, activeCategory, filterSort, filterVerified, fadeAnim]);
-  useEffect(() => { fetchStores(); }, [fetchStores]);
+  useEffect(() => {
+    if (!isRefreshing) return;
+    Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 0.5, duration: 120, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1,   duration: 300, useNativeDriver: true }),
+    ]).start();
+  }, [isRefreshing, fadeAnim]);
   const handleVisitStore = (item: any) => {
     safePush('/stores/details', { id: item.id, name: item.name, category: item.category, logo: item.logo });
   };
@@ -444,7 +434,7 @@ export default function StoresScreen() {
               <TouchableOpacity
                 style={styles.applyBtn}
                 activeOpacity={0.88}
-                onPress={() => { setShowFilter(false); fetchStores(); }}
+                onPress={() => { setShowFilter(false); refetch(); }}
               >
                 <Text style={styles.applyTxt}>Apply filters</Text>
               </TouchableOpacity>

@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { useCart } from '@/context/CartContext';
+import { useCart } from '@/store/cartStore';
 import { RecentSkeleton } from '../components/skeletons/RecentSkeleton';
 import { useProducts } from '@/hooks/useProducts';
 

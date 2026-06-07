@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -16,89 +16,56 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getOrderDetails, createProductReview, createStoreReview, createDriverReview } from '@/services/api';
+import { useMutation } from '@tanstack/react-query';
+import { createProductReview, createStoreReview, createDriverReview } from '@/services/api';
+import { useOrderDetail } from '@/hooks/useOrders';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
 const ReviewScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
-    const [order, setOrder] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
+
+    const { data: orderRaw, isLoading: loading } = useOrderDetail(id as string);
+    const order = orderRaw?.order ?? orderRaw ?? null;
+
     const [productRatings, setProductRatings] = useState<{ [key: string]: number }>({});
     const [productComments, setProductComments] = useState<{ [key: string]: string }>({});
     const [storeRating, setStoreRating] = useState(0);
     const [storeComment, setStoreComment] = useState('');
     const [driverRating, setDriverRating] = useState(0);
     const [driverComment, setDriverComment] = useState('');
-    const fetchOrderData = useCallback(async () => {
-        try {
-            const res = await getOrderDetails(id as string);
-            const orderData = res.order || res;
-            
-            if (orderData && orderData.order_items) {
-                setOrder(orderData);
-                const ratings: { [key: string]: number } = {};
-                orderData.order_items.forEach((item: any) => {
-                    ratings[item.product_id] = 5;
-                });
-                setProductRatings(ratings);
-            } else {
-                Alert.alert('Error', 'Order not found');
-                router.back();
-            }
-        } catch (e) {
-            console.error(e);
-            Alert.alert('Error', 'Failed to load order details');
-            router.back();
-        } finally {
-            setLoading(false);
-        }
-    }, [id, router]);
+
     useEffect(() => {
-        if (id) fetchOrderData();
-    }, [fetchOrderData, id]);
-    const handleSubmit = async () => {
+        if (order?.order_items) {
+            const ratings: { [key: string]: number } = {};
+            order.order_items.forEach((item: any) => { ratings[item.product_id] = 5; });
+            setProductRatings(ratings);
+        }
+    }, [order]);
+
+    const submitMutation = useMutation({
+        mutationFn: async () => {
+            await createStoreReview({ storeId: order.store_id, orderId: order.id, rating: storeRating, reviewText: storeComment });
+            for (const item of order.order_items) {
+                await createProductReview({ productId: item.product_id, orderId: order.id, rating: productRatings[item.product_id] || 5, reviewText: productComments[item.product_id] || '' });
+            }
+            const delivery = order.deliveries?.[0];
+            if (delivery?.driver_id && driverRating > 0) {
+                await createDriverReview({ driverId: delivery.driver_id, deliveryId: delivery.id, rating: driverRating, reviewText: driverComment });
+            }
+        },
+        onSuccess: () => {
+            Alert.alert('Thank You!', 'Your feedback helps us improve Shopyos.', [{ text: 'OK', onPress: () => router.push('/order') }]);
+        },
+        onError: (e: any) => {
+            Alert.alert('Error', e.message || 'Failed to submit review');
+        },
+    });
+    const handleSubmit = () => {
         if (storeRating === 0) {
             Alert.alert('Required', 'Please rate the store');
             return;
         }
-        try {
-            setSubmitting(true);
-            // 1. Submit store review
-            await createStoreReview({
-                storeId: order.store_id,
-                orderId: order.id,
-                rating: storeRating,
-                reviewText: storeComment
-            });
-            // 2. Submit product reviews
-            for (const item of order.order_items) {
-                await createProductReview({
-                    productId: item.product_id,
-                    orderId: order.id,
-                    rating: productRatings[item.product_id] || 5,
-                    reviewText: productComments[item.product_id] || ''
-                });
-            }
-            // 3. Submit driver review if delivery exists
-            const delivery = order.deliveries?.[0];
-            if (delivery && delivery.driver_id && driverRating > 0) {
-                await createDriverReview({
-                    driverId: delivery.driver_id,
-                    deliveryId: delivery.id,
-                    rating: driverRating,
-                    reviewText: driverComment
-                });
-            }
-            Alert.alert('Thank You!', 'Your feedback helps us improve Shopyos.', [
-                { text: 'OK', onPress: () => router.push('/order') }
-            ]);
-        } catch (e: any) {
-            console.error(e);
-            Alert.alert('Error', e.message || 'Failed to submit review');
-        } finally {
-            setSubmitting(false);
-        }
+        submitMutation.mutate();
     };
     const StarRating = ({ rating, onRate, size = 32 }: { rating: number, onRate: (r: number) => void, size?: number }) => (
         <View style={styles.starRow}>
@@ -212,12 +179,12 @@ const ReviewScreen = () => {
                     ))}
                 </View>
                 <TouchableOpacity
-                    style={[styles.submitBtnContainer, submitting && { opacity: 0.7 }]}
+                    style={[styles.submitBtnContainer, submitMutation.isPending && { opacity: 0.7 }]}
                     onPress={handleSubmit}
-                    disabled={submitting}
+                    disabled={submitMutation.isPending}
                 >
                     <LinearGradient colors={['#A3E635', '#65a30d']} style={styles.submitBtn}>
-                        {submitting ? (
+                        {submitMutation.isPending ? (
                             <ActivityIndicator color="#0C1559" />
                         ) : (
                             <Text style={styles.submitBtnText}>Submit Appreciation</Text>

@@ -277,17 +277,20 @@ async function executeDailyMarketingSweep() {
   } else {
     // ── Daily customer engagement: Rotated channels ─────────────────────────
     const hour = new Date().getHours();
-    const timeOfDay = hour < 12 ? 'morning' : 'evening';
+    const timeOfDay = hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : 'evening';
     
-    // Rotate channel daily: Day % 3 (0 = Push, 1 = Email, 2 = SMS)
-    const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-    const channelRotation = dayOfYear % 3;
-    const sendPush = channelRotation === 0;
-    const sendEmail = channelRotation === 1;
-    const sendSMS = channelRotation === 2;
+    // Push: every run, every day.
+    // Email: morning run only, Mon/Wed/Fri (3× per week).
+    // SMS:   morning run only, Saturday only (1× per week — most expensive channel).
+    const isMorningRun = hour === 10;
+    const dayOfWeek = new Date().getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 
-    const channelNames = ['Push Notification', 'Email', 'SMS'];
-    logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement sweep using channel: ${channelNames[channelRotation]}`);
+    const sendPush  = true;
+    const sendEmail = isMorningRun && [1, 3, 5].includes(dayOfWeek); // Mon, Wed, Fri
+    const sendSMS   = isMorningRun && dayOfWeek === 6;               // Saturday
+
+    const activeChannels = ['Push', sendEmail && 'Email', sendSMS && 'SMS'].filter(Boolean).join(' + ');
+    logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement sweep via: ${activeChannels}`);
 
     const copy = await aiService.generateNotificationText('engagement', { timeOfDay });
 
@@ -356,7 +359,7 @@ async function executeDailyMarketingSweep() {
           sent_at: new Date().toISOString()
         });
       }
-      logger.info(`[Scheduler] Daily engagement sweep sent ✓ (${channelNames[channelRotation]})`);
+      logger.info(`[Scheduler] Daily engagement sweep sent ✓ (${activeChannels})`);
     } catch (err) {
       logger.error('[Scheduler] Engagement sweep failed:', err.message);
       if (campaign) {
@@ -379,14 +382,14 @@ function initScheduler() {
     );
   });
 
-  // Every morning at 08:00 AM and evening at 08:00 PM (20:00) server time
-  cron.schedule('0 8,20 * * *', () => {
+  // Morning 10:00 AM, afternoon 3:00 PM, evening 7:00 PM server time
+  cron.schedule('0 10,15,19 * * *', () => {
     executeDailyMarketingSweep().catch(err =>
       logger.error('[Scheduler] Uncaught error in daily sweep:', err.message)
     );
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (08:00 AM & 08:00 PM)');
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts };
