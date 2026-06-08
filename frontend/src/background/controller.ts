@@ -6,7 +6,7 @@
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { storage } from '../../services/api';
-import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE } from './taskNames';
+import { TASK_DRIVER_LOCATION, TASK_LOCATION_GEOFENCE, PROXIMITY_RADIUS_METERS } from './taskNames';
 import { flushQueue } from './queue';
 
 export interface UserState {
@@ -96,67 +96,70 @@ export const isGeofenceRunning = async (): Promise<boolean> => {
 };
 
 /**
- * Start the geofence / proximity task for any authenticated user.
- * Caches reverse-geocoded location text and fires store proximity notifications.
- * Battery-friendly: 50m / 60s interval.
+ * Start OS-native geofencing for store proximity alerts.
+ * Reads the cached store list from AsyncStorage and registers each store as a
+ * geofence region. The OS fires TASK_LOCATION_GEOFENCE only when the user
+ * physically enters a region — no continuous polling, no foreground service,
+ * no persistent notification.
  *
- * NOTE: Requires a dev/production build with UIBackgroundModes=location.
- * Returns { success: false, isExpoGo: true } when running inside Expo Go so
- * callers can fall back to foreground-only tracking.
+ * Call this after stores have been cached (i.e. from the cacheStores callback).
+ * Safe to call repeatedly — stops any existing session before starting fresh
+ * so the region list stays in sync with the latest store data.
  */
 export const startGeofenceTracking = async (): Promise<{ success: boolean; message: string; isExpoGo?: boolean }> => {
   try {
-    if (await isGeofenceRunning()) return { success: true, message: 'Already running' };
-
     const { status: fg } = await Location.requestForegroundPermissionsAsync();
     if (fg !== 'granted') return { success: false, message: 'Foreground location permission denied' };
 
-    // Best-effort background permission (task still works foreground-only if denied)
-    const { status: bg } = await Location.getBackgroundPermissionsAsync();
-    if (bg !== 'granted') {
-      await Location.requestBackgroundPermissionsAsync().catch(() => {});
+    const storeRaw = await storage.getItem('CACHED_STORES');
+    if (!storeRaw) return { success: false, message: 'No stores cached yet — geofencing deferred' };
+
+    const stores: { id: string; latitude: number | string; longitude: number | string }[] = JSON.parse(storeRaw);
+
+    const regions = stores
+      .map(s => ({
+        identifier: s.id,
+        latitude: typeof s.latitude === 'string' ? parseFloat(s.latitude) : s.latitude,
+        longitude: typeof s.longitude === 'string' ? parseFloat(s.longitude) : s.longitude,
+        radius: PROXIMITY_RADIUS_METERS,
+        notifyOnEnter: true,
+        notifyOnExit: false,
+      }))
+      .filter(r => !isNaN(r.latitude) && !isNaN(r.longitude) && r.latitude !== 0 && r.longitude !== 0);
+
+    if (regions.length === 0) return { success: false, message: 'No valid store coordinates in cache' };
+
+    // Stop first so we replace regions on refresh rather than append
+    if (await isGeofenceRunning()) {
+      await Location.stopGeofencingAsync(TASK_LOCATION_GEOFENCE);
     }
 
-    await Location.startLocationUpdatesAsync(TASK_LOCATION_GEOFENCE, {
-      accuracy: Location.Accuracy.Balanced,
-      distanceInterval: 50,
-      timeInterval: 60_000,
-      showsBackgroundLocationIndicator: false,
-      pausesUpdatesAutomatically: true,
-    });
-
-    console.log('[TaskController] Geofence tracking started');
-    return { success: true, message: 'Geofence tracking started' };
+    await Location.startGeofencingAsync(TASK_LOCATION_GEOFENCE, regions);
+    console.log(`[TaskController] Geofencing started for ${regions.length} stores`);
+    return { success: true, message: `Geofencing started (${regions.length} stores)` };
   } catch (error: any) {
     const msg: string = error?.message ?? '';
-
-    // Expo Go (and any build without UIBackgroundModes=location) throws this specific error.
-    // Return a typed result so the caller can gracefully fall back to foreground polling.
     if (
       msg.includes('Background location has not been configured') ||
       msg.includes('UIBackgroundModes') ||
       msg.includes('BACKGROUND_LOCATION')
     ) {
-      console.warn(
-        '[TaskController] Background location unavailable (Expo Go or missing native config). ' +
-        'Falling back to foreground-only tracking.'
-      );
+      console.warn('[TaskController] OS geofencing unavailable (Expo Go). Foreground poll handles proximity.');
       return { success: false, message: msg, isExpoGo: true };
     }
-
-    console.error('[TaskController] Failed to start geofence tracking:', error);
-    return { success: false, message: msg || 'Failed to start geofence' };
+    console.error('[TaskController] Failed to start geofencing:', error);
+    return { success: false, message: msg || 'Failed to start geofencing' };
   }
 };
 
 export const stopGeofenceTracking = async (): Promise<void> => {
   try {
     if (await isGeofenceRunning()) {
-      await Location.stopLocationUpdatesAsync(TASK_LOCATION_GEOFENCE);
-      console.log('[TaskController] Geofence tracking stopped');
+      await Location.stopGeofencingAsync(TASK_LOCATION_GEOFENCE);
+      console.log('[TaskController] Geofencing stopped');
     }
   } catch (error) {
-    console.error('[TaskController] Error stopping geofence tracking:', error);
+    console.error('[TaskController] Error stopping geofencing:', error);
   }
 };
 

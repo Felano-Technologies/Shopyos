@@ -125,7 +125,7 @@ export default function Home() {
 
   // ── Campaign / ad logic ───────────────────────────────────────────────────────
   const activeCampaigns = useMemo(
-    () => (bannersData?.banners || []).filter((b: any) => b.status === 'active' || b.status === 'approved'),
+    () => (bannersData?.banners || []).filter((b: any) => b.status === 'Active'),
     [bannersData]
   );
   const isManyAds = activeCampaigns.length > AD_THRESHOLD;
@@ -183,10 +183,9 @@ export default function Home() {
 
   // ── Resolve ads array ──────────────────────────────────────────────────────────
   useEffect(() => {
-    const homeBanners = (bannersData?.banners || []).filter((b: any) => b.placement === 'Home Top Banner');
-    if (homeBanners.length > 0) { setAds(homeBanners); return; }
-    if (promotedData?.promotedProducts?.length > 0) { setAds(promotedData.promotedProducts); return; }
-    if (bannersData !== undefined || promotedData !== undefined) setAds([]);
+    const allBanners = bannersData?.banners || [];
+    if (allBanners.length > 0) { setAds(allBanners); return; }
+    if (bannersData !== undefined) setAds([]);
   }, [bannersData, promotedData]);
 
   // ── Location ───────────────────────────────────────────────────────────────────
@@ -552,7 +551,7 @@ export default function Home() {
             favoriteBusyId={favoriteBusyId}
             onSeeAll={() => router.push('/search' as any)}
             getStoreName={getStoreDisplayName}
-            injectedAds={isManyAds ? sponsoredCampaigns : [{ id: 'ph', isPlaceholder: true }]}
+            injectedAds={isManyAds ? sponsoredCampaigns : []}
             emptyTitle="Nothing to explore yet"
             emptyIcon="grid-outline"
           />

@@ -29,7 +29,9 @@ const createProduct = async (req, res, next) => {
       weight,
       dimensions,
       brand,
-      tags
+      tags,
+      variants,
+      variantOptions
     } = req.body;
 
     // Validate required fields
@@ -100,6 +102,18 @@ const createProduct = async (req, res, next) => {
         low_stock_threshold: 10
       });
 
+    // Persist variants and option metadata if provided
+    let createdVariants = [];
+    let createdOptions = [];
+    if (Array.isArray(variants) && variants.length > 0) {
+      [createdVariants, createdOptions] = await Promise.all([
+        repositories.productVariants.replaceVariants(product.id, variants),
+        Array.isArray(variantOptions) && variantOptions.length > 0
+          ? repositories.productVariants.replaceOptions(product.id, variantOptions)
+          : Promise.resolve([])
+      ]);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
@@ -113,6 +127,8 @@ const createProduct = async (req, res, next) => {
         category: product.category,
         gender: product.gender,
         images: [],
+        variants: createdVariants,
+        variantOptions: createdOptions,
         createdAt: product.created_at,
         updatedAt: product.updated_at
       }
@@ -233,6 +249,12 @@ const getProductById = async (req, res, next) => {
       logger.warn('Failed to increment view count:', err.message);
     }
 
+    // Fetch variants and option metadata in parallel
+    const [variants, variantOptions] = await Promise.all([
+      repositories.productVariants.getByProductId(id),
+      repositories.productVariants.getOptions(id)
+    ]);
+
     // Format response
     const formattedProduct = {
       _id: product.id,
@@ -250,6 +272,8 @@ const getProductById = async (req, res, next) => {
       salesCount: product.total_sales || product.sales_count || 0,
       averageRating: product.avg_rating || 0,
       reviewCount: product.review_count || 0,
+      variants,
+      variantOptions,
       store: product.stores ? {
         _id: product.stores.id,
         name: product.stores.store_name,
@@ -388,6 +412,9 @@ const updateProduct = async (req, res, next) => {
 
     logger.debug('Mapped update data', { productId: id, fields: Object.keys(mappedData) });
 
+    // Snapshot old price before update for price-drop detection
+    const oldPrice = product.price;
+
     // Update product
     const updated = await repositories.products.update(id, mappedData);
 
@@ -397,6 +424,44 @@ const updateProduct = async (req, res, next) => {
         .from('inventory')
         .update({ quantity: parseInt(updateData.stockQuantity) })
         .eq('product_id', id);
+    }
+
+    // Update variants if provided
+    if (Array.isArray(updateData.variants)) {
+      await repositories.productVariants.replaceVariants(id, updateData.variants);
+    }
+    if (Array.isArray(updateData.variantOptions)) {
+      await repositories.productVariants.replaceOptions(id, updateData.variantOptions);
+    }
+
+    // Price drop alert — fan-out push to users who favourited this product.
+    // setImmediate so the seller's response is never blocked by fan-out latency.
+    if (mappedData.price !== undefined && updated.price < oldPrice) {
+      setImmediate(async () => {
+        try {
+          const { rows: fans } = await repositories.products.db.query(
+            `SELECT user_id FROM favorites WHERE product_id = $1`,
+            [id]
+          );
+          if (fans.length === 0) return;
+
+          const notificationService = require('../services/notificationService');
+          await Promise.allSettled(fans.map(f =>
+            notificationService.sendNotification({
+              userId: f.user_id,
+              type: 'price_drop',
+              title: 'Price dropped on your wishlist!',
+              message: `${updated.title} dropped from ₵${oldPrice} to ₵${updated.price}.`,
+              relatedId: id,
+              relatedType: 'product',
+              push: { data: { screen: 'product/details', productId: id } }
+            })
+          ));
+          logger.info(`[PriceDrop] Notified ${fans.length} users for product ${id}`);
+        } catch (e) {
+          logger.error('[PriceDrop] Fan-out failed:', e.message);
+        }
+      });
     }
 
     res.status(200).json({

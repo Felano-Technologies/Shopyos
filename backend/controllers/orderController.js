@@ -7,6 +7,8 @@ const { logger } = require('../config/logger');
 const rabbitMQService = require('../services/rabbitmq');
 const notificationService = require('../services/notificationService');
 const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
+const { creditPoints, deductPoints, calcPointsDiscount } = require('./loyaltyController');
+const { getPool } = require('../config/postgres');
 
 /**
  * Generate unique order number
@@ -33,8 +35,10 @@ const createOrder = async (req, res, next) => {
       deliveryPhone,
       deliveryNotes,
       paymentMethod = 'paystack',
-      buyerLat,    // optional — used to calculate distance-based delivery fee
-      buyerLng
+      buyerLat,
+      buyerLng,
+      promoCode,
+      loyaltyPointsToRedeem = 0,
     } = req.body;
 
     // Validate delivery info
@@ -53,6 +57,47 @@ const createOrder = async (req, res, next) => {
         success: false,
         error: 'Cart is empty'
       });
+    }
+
+    // ── Promo code validation (once, before any orders are created) ─────────────
+    const pool = getPool();
+    let validatedPromo = null;
+
+    if (promoCode) {
+      const { rows: promoRows } = await pool.query(
+        `SELECT * FROM promo_codes WHERE UPPER(code) = UPPER($1) AND is_active = true`,
+        [promoCode.trim()]
+      );
+      const promo = promoRows[0];
+
+      if (!promo) {
+        return res.status(400).json({ success: false, error: 'Invalid or expired promo code' });
+      }
+      if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+        return res.status(400).json({ success: false, error: 'This promo code has expired' });
+      }
+      if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
+        return res.status(400).json({ success: false, error: 'Promo code usage limit reached' });
+      }
+      const { rows: usedRows } = await pool.query(
+        `SELECT id FROM promo_code_uses WHERE code_id = $1 AND user_id = $2`,
+        [promo.id, userId]
+      );
+      if (usedRows.length > 0) {
+        return res.status(400).json({ success: false, error: 'You have already used this promo code' });
+      }
+      validatedPromo = promo;
+    }
+
+    // ── Loyalty points validation ────────────────────────────────────────────────
+    let validatedLoyaltyPoints = 0;
+    if (loyaltyPointsToRedeem > 0) {
+      const { rows: lpRows } = await pool.query(
+        `SELECT balance FROM loyalty_points WHERE user_id = $1`,
+        [userId]
+      );
+      const userBalance = lpRows[0]?.balance ?? 0;
+      validatedLoyaltyPoints = Math.min(Math.floor(loyaltyPointsToRedeem), userBalance);
     }
 
     // Group items by store
@@ -146,17 +191,42 @@ const createOrder = async (req, res, next) => {
         }
       }
 
-      const totalAmount = subtotal + tax + deliveryFee;
+      // ── Discount calculation ───────────────────────────────────────────────────
+      // For multi-store carts: distribute discount proportionally by subtotal share.
+      const totalSubtotal = cart.cart_items.reduce(
+        (sum, i) => sum + i.products.price * i.quantity, 0
+      );
+      const storeShare = totalSubtotal > 0 ? subtotal / totalSubtotal : 1;
 
-      // Update order creation data to include delivery_state_province
+      let promoDiscount = 0;
+      if (validatedPromo) {
+        const rawPromoDiscount = validatedPromo.type === 'percentage'
+          ? (totalSubtotal * parseFloat(validatedPromo.value)) / 100
+          : parseFloat(validatedPromo.value);
+        promoDiscount = parseFloat((Math.min(rawPromoDiscount, totalSubtotal) * storeShare).toFixed(2));
+      }
+
+      const { validPoints, discountAmount: loyaltyDiscount } = calcPointsDiscount(
+        Math.round(validatedLoyaltyPoints * storeShare),
+        Math.round(validatedLoyaltyPoints * storeShare),
+        subtotal
+      );
+      const storePointsUsed = validPoints;
+
+      const discountAmount = parseFloat((promoDiscount + loyaltyDiscount).toFixed(2));
+      const totalAmount = parseFloat((subtotal + tax + deliveryFee - discountAmount).toFixed(2));
+
       const orderData = {
         order_number: generateOrderNumber(),
         buyer_id: userId,
         store_id: storeId,
         status: 'pending',
-        subtotal: subtotal,
-        tax: tax,
+        subtotal,
+        tax,
         delivery_fee: deliveryFee,
+        discount_amount: discountAmount,
+        promo_code_id: validatedPromo?.id ?? null,
+        loyalty_points_used: storePointsUsed,
         total_amount: totalAmount,
         delivery_address_line1: deliveryAddress,
         delivery_city: req.body.deliveryCity || 'Accra',
@@ -248,9 +318,32 @@ const createOrder = async (req, res, next) => {
       if (buyerInfo?.email) rabbitMQService.publishMessage('email', buyerPayload);
       if (buyerPayload.phone) rabbitMQService.publishMessage('sms', buyerPayload);
 
-      createdOrders.push({
-        ...order
-      });
+      // Credit loyalty points earned from this order's subtotal
+      await creditPoints(userId, order.id, subtotal, pool).catch(err =>
+        logger.warn('Failed to credit loyalty points:', err)
+      );
+
+      // Deduct redeemed points
+      if (storePointsUsed > 0) {
+        await deductPoints(userId, order.id, storePointsUsed, pool).catch(err =>
+          logger.warn('Failed to deduct loyalty points:', err)
+        );
+      }
+
+      createdOrders.push({ ...order });
+    }
+
+    // Mark promo code as used (once, after all orders succeed)
+    if (validatedPromo) {
+      await pool.query(
+        `UPDATE promo_codes SET uses_count = uses_count + 1 WHERE id = $1`,
+        [validatedPromo.id]
+      );
+      await pool.query(
+        `INSERT INTO promo_code_uses (code_id, user_id, order_id)
+         VALUES ($1, $2, $3)`,
+        [validatedPromo.id, userId, createdOrders[0].id]
+      );
     }
 
     // Clear cart after successful order creation
@@ -579,6 +672,18 @@ const updateOrderStatus = async (req, res, next) => {
           }
         });
       }
+
+      // Credit loyalty points on order completion (1 point per GH₵1 of subtotal)
+      if (status === 'completed') {
+        setImmediate(async () => {
+          try {
+            await creditPoints(order.buyer_id, order.id, order.subtotal || order.total_amount, getPool());
+            logger.info(`[Loyalty] Credited points for order ${order.order_number}`);
+          } catch (e) {
+            logger.error('[Loyalty] creditPoints failed:', e.message);
+          }
+        });
+      }
     }
 
     const { cacheDelPattern } = require('../config/redis');
@@ -645,6 +750,19 @@ const cancelOrder = async (req, res, next) => {
           ? 'Orders can only be cancelled while they are pending'
           : `Order cannot be cancelled in '${order.status}' status`
       });
+    }
+
+    // Buyers have a 5-minute cancellation window after placing the order.
+    // Sellers and admins are not time-constrained.
+    const CANCEL_WINDOW_MINUTES = 5;
+    if (isBuyer && !isAdmin) {
+      const ageMinutes = (Date.now() - new Date(order.created_at).getTime()) / 60000;
+      if (ageMinutes > CANCEL_WINDOW_MINUTES) {
+        return res.status(400).json({
+          success: false,
+          error: `Orders can only be cancelled within ${CANCEL_WINDOW_MINUTES} minutes of placing. Please contact the seller to request a cancellation.`
+        });
+      }
     }
 
     // Cancel order

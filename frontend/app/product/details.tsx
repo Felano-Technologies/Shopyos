@@ -110,11 +110,15 @@ export default function ProductDetails() {
         isTrusted: false,
         stockQuantity: null as number | null,
     });
+    const [variants, setVariants] = useState<any[]>([]);
+    const [variantOptions, setVariantOptions] = useState<any[]>([]);
+    const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
+    const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
     const fetchProductDetails = useCallback(async () => {
         try {
             const res = await getProductById(params.id as string);
             if (res.success) {
-setProduct((prev) => ({
+                setProduct((prev) => ({
                     ...prev,
                     title: res.product.name,
                     description: res.product.description,
@@ -130,6 +134,8 @@ setProduct((prev) => ({
                     isTrusted: res.product.store?.is_trusted || false,
                     stockQuantity: res.product.stockQuantity ?? null,
                 }));
+                if (res.product.variantOptions?.length) setVariantOptions(res.product.variantOptions);
+                if (res.product.variants?.length) setVariants(res.product.variants);
             }
         } catch (err) { console.log("Error loading product details", err); }
     }, [params.id]);
@@ -216,17 +222,44 @@ setProduct((prev) => ({
             }
         } catch (error: any) { Alert.alert("Error", error.message || "Failed to start chat with seller"); }
     };
-    const isOutOfStock = product.stockQuantity !== null && product.stockQuantity === 0;
+    // Resolve which variant (if any) matches the current attribute selection
+    const resolveVariant = useCallback((attrs: Record<string, string>) => {
+        if (!variants.length) return null;
+        return variants.find((v) => {
+            const vAttrs: Record<string, string> = v.attributes || {};
+            return Object.entries(attrs).every(([k, val]) => vAttrs[k] === val);
+        }) || null;
+    }, [variants]);
+
+    const handleAttributeSelect = (optionName: string, value: string) => {
+        const next = { ...selectedAttributes, [optionName]: value };
+        setSelectedAttributes(next);
+        setSelectedVariant(resolveVariant(next));
+    };
+
+    const effectivePrice = selectedVariant?.price != null ? selectedVariant.price : product.price;
+    const isOutOfStock = selectedVariant
+        ? selectedVariant.stock_quantity === 0
+        : (product.stockQuantity !== null && product.stockQuantity === 0);
+    // Require all options to be selected before allowing add-to-cart when variants exist
+    const allOptionsSelected = variantOptions.length === 0 ||
+        variantOptions.every((opt) => selectedAttributes[opt.option_name]);
 
     const handleAddToCart = () => {
         if (isOutOfStock) return;
+        if (variantOptions.length > 0 && !allOptionsSelected) {
+            Alert.alert('Select options', 'Please select all options before adding to cart.');
+            return;
+        }
         addToCart({
             id: product.id,
             title: product.title,
-            price: product.price,
+            price: effectivePrice,
             image: product.image,
             category: product.category,
-            storeId: product.storeId
+            storeId: product.storeId,
+            variantId: selectedVariant?.id || null,
+            variantAttributes: selectedVariant?.attributes || undefined,
         });
         setSuccessModalVisible(true);
     };
@@ -280,10 +313,33 @@ setProduct((prev) => ({
                         </View>
                         <Text style={styles.title}>{product.title}</Text>
                         <View style={styles.priceRow}>
-                            <Text style={styles.price}>₵{Number(product.price || 0).toFixed(2)}</Text>
+                            <Text style={styles.price}>₵{Number(effectivePrice || 0).toFixed(2)}</Text>
                             {product.oldPrice && <Text style={styles.oldPrice}>₵{Number(product.oldPrice).toFixed(2)}</Text>}
+                            {selectedVariant?.compare_at_price && (
+                                <Text style={styles.oldPrice}>₵{Number(selectedVariant.compare_at_price).toFixed(2)}</Text>
+                            )}
                         </View>
-                        <StockIndicator qty={product.stockQuantity} />
+                        <StockIndicator qty={selectedVariant ? selectedVariant.stock_quantity : product.stockQuantity} />
+                        {variantOptions.map((opt) => (
+                            <View key={opt.option_name} style={styles.variantSection}>
+                                <Text style={styles.variantLabel}>{opt.option_name.charAt(0).toUpperCase() + opt.option_name.slice(1)}</Text>
+                                <View style={styles.variantChips}>
+                                    {opt.option_values.map((val: string) => {
+                                        const active = selectedAttributes[opt.option_name] === val;
+                                        return (
+                                            <TouchableOpacity
+                                                key={val}
+                                                style={[styles.variantChip, active && styles.variantChipActive]}
+                                                onPress={() => handleAttributeSelect(opt.option_name, val)}
+                                                activeOpacity={0.75}
+                                            >
+                                                <Text style={[styles.variantChipText, active && styles.variantChipTextActive]}>{val}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ))}
                         <Text style={styles.sectionTitle}>Description</Text>
                         <Text style={styles.description}>{product.description}</Text>
                         {/* Seller Info */}
@@ -346,7 +402,9 @@ setProduct((prev) => ({
                         start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
                     >
                         <Feather name={isOutOfStock ? 'x-circle' : 'shopping-cart'} size={20} color="#FFF" />
-                        <Text style={styles.cartText}>{isOutOfStock ? 'Out of Stock' : 'Add to Cart'}</Text>
+                        <Text style={styles.cartText}>
+                            {isOutOfStock ? 'Out of Stock' : !allOptionsSelected ? 'Select Options' : 'Add to Cart'}
+                        </Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
@@ -417,6 +475,13 @@ const styles = StyleSheet.create({
     writeReviewText: { color: '#84cc16', fontFamily: 'Montserrat-Bold', fontSize: 13 },
     emptyReviews: { alignItems: 'center', padding: 30, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
     emptyReviewsText: { textAlign: 'center', color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-Medium', marginTop: 10 },
+    variantSection: { marginBottom: 16 },
+    variantLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
+    variantChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    variantChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: '#CBD5E1', backgroundColor: '#FFF' },
+    variantChipActive: { borderColor: '#0C1559', backgroundColor: '#EEF2FF' },
+    variantChipText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+    variantChipTextActive: { color: '#0C1559', fontFamily: 'Montserrat-Bold' },
     bottomBar: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', flexDirection: 'row', paddingHorizontal: 20, paddingTop: 16, paddingBottom: Platform.OS === 'ios' ? 30 : 20, borderTopLeftRadius: 24, borderTopRightRadius: 24, shadowColor: "#000", shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 10 },
     chatBtn: { width: 60, height: 50, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F1F5F9', borderRadius: 14, marginRight: 16 },
     chatText: { fontSize: 10, color: '#0C1559', marginTop: 2, fontFamily: 'Montserrat-Bold' },

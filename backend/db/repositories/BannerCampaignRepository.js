@@ -51,11 +51,14 @@ class BannerCampaignRepository extends BaseRepository {
   async getActiveBanners() {
     const { data, error } = await this.db
       .from(this.tableName)
-      .select('*')
+      .select('*, store:stores(id, store_name, logo_url)')
       .eq('status', 'Active')
       .order('impressions', { ascending: false });
     if (error) throw error;
-    return data;
+
+    // Filter out expired campaigns — don't serve banners past their end_date
+    const now = new Date();
+    return (data || []).filter(b => !b.end_date || new Date(b.end_date) >= now);
   }
 }
 

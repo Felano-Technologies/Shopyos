@@ -43,6 +43,16 @@ export const ReviewCard = ({ review, onLike, onComment }: ReviewCardProps) => {
 
             <Text style={styles.comment}>{review.review_text}</Text>
 
+            {review.seller_response ? (
+                <View style={styles.sellerReply}>
+                    <View style={styles.sellerReplyHeader}>
+                        <Ionicons name="storefront-outline" size={13} color="#0C1559" />
+                        <Text style={styles.sellerReplyLabel}>Store replied</Text>
+                    </View>
+                    <Text style={styles.sellerReplyText}>{review.seller_response}</Text>
+                </View>
+            ) : null}
+
             <View style={styles.footer}>
                 <TouchableOpacity style={styles.actionBtn} onPress={handleLike}>
                     <Ionicons 
@@ -74,5 +84,9 @@ const styles = StyleSheet.create({
     comment: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#334155', lineHeight: 20 },
     footer: { flexDirection: 'row', marginTop: 15, gap: 20, borderTopWidth: 1, borderTopColor: '#F8FAFC', paddingTop: 12 },
     actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    actionText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' }
+    actionText: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
+    sellerReply: { backgroundColor: '#F0F4FF', borderLeftWidth: 3, borderLeftColor: '#0C1559', borderRadius: 8, padding: 10, marginTop: 10 },
+    sellerReplyHeader: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+    sellerReplyLabel: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+    sellerReplyText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#334155', lineHeight: 18 },
 });

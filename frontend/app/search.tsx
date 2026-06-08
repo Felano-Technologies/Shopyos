@@ -12,6 +12,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
+import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
+import { HeroAd } from '@/components/home/HeroCarousel';
 import { useProducts, useProductSearch } from '@/hooks/useProducts';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
@@ -95,20 +97,21 @@ export default function SearchScreen() {
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const [searchAd, setSearchAd] = useState<any | null>(null);
+  const [searchAds, setSearchAds] = useState<HeroAd[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await getActiveBanners();
-        const highlightBanners = (res?.banners || []).filter(
-          (b: any) => b.placement === 'Search Highlight'
-        );
-        if (highlightBanners.length > 0) {
-          setSearchAd(highlightBanners[Math.floor(Math.random() * highlightBanners.length)]);
-        }
+        if (res?.banners?.length > 0) setSearchAds(res.banners);
       } catch { }
     })();
+  }, []);
+
+  const handleAdPress = useCallback((ad: HeroAd) => {
+    recordAdClick(ad.id).catch(() => {});
+    if (ad.product?.id) safePush('/product/details', { id: ad.product.id });
+    else if (ad.store_id) safePush('/stores/details', { id: ad.store_id });
   }, []);
 
   useEffect(() => {
@@ -258,27 +261,8 @@ export default function SearchScreen() {
     return (
       <View>
         {renderStores()}
-        {searchAd ? (
-          <TouchableOpacity
-            style={styles.searchAdBanner}
-            activeOpacity={0.9}
-            onPress={() => {
-              recordAdClick(searchAd.id).catch(() => {});
-              safePush('/stores/details', { id: searchAd.store_id });
-            }}
-          >
-            <Image source={{ uri: searchAd.banner_url }} style={styles.searchAdImg} />
-            <LinearGradient
-              colors={['rgba(12,21,89,0.7)', 'transparent']}
-              start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.searchAdContent}>
-              <View style={styles.searchAdBadge}><Text style={styles.searchAdBadgeTxt}>SPONSORED</Text></View>
-              <Text style={styles.searchAdTitle} numberOfLines={1}>{searchAd.title}</Text>
-              <Text style={styles.searchAdSub}>Tap to explore store deals →</Text>
-            </View>
-          </TouchableOpacity>
+        {searchAds.length > 0 ? (
+          <CompactAdCarousel ads={searchAds} onAdPress={handleAdPress} />
         ) : (
           <View style={styles.searchAdPlaceholder}>
             <LinearGradient
@@ -483,27 +467,10 @@ export default function SearchScreen() {
         </View>
       )}
       {/* Ad campaign slot — always visible in discovery */}
-      {searchAd ? (
-        <TouchableOpacity
-          style={[styles.searchAdBanner, { marginTop: 4 }]}
-          activeOpacity={0.9}
-          onPress={() => {
-            recordAdClick(searchAd.id).catch(() => {});
-            safePush('/stores/details', { id: searchAd.store_id });
-          }}
-        >
-          <Image source={{ uri: searchAd.banner_url }} style={styles.searchAdImg} />
-          <LinearGradient
-            colors={['rgba(12,21,89,0.7)', 'transparent']}
-            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.searchAdContent}>
-            <View style={styles.searchAdBadge}><Text style={styles.searchAdBadgeTxt}>SPONSORED</Text></View>
-            <Text style={styles.searchAdTitle} numberOfLines={1}>{searchAd.title}</Text>
-            <Text style={styles.searchAdSub}>Tap to explore store deals →</Text>
-          </View>
-        </TouchableOpacity>
+      {searchAds.length > 0 ? (
+        <View style={{ marginTop: 4 }}>
+          <CompactAdCarousel ads={searchAds} onAdPress={handleAdPress} />
+        </View>
       ) : (
         <View style={[styles.searchAdPlaceholder, { marginTop: 4 }]}>
           <LinearGradient

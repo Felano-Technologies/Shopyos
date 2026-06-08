@@ -14,20 +14,19 @@ import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { initializeBannerPayment, verifyBannerPayment } from '@/services/api';
 import { useMyCampaigns, useCreateCampaign } from '@/hooks/useBusiness';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-const PRICING = {
-  'Home Top Banner': 50, // per day
-  'Search Highlight': 30,
-  'Category Featured': 20,
-};
+const DURATION_TIERS = [
+  { days: 1,  label: '1 Day',   price: 1  },
+  { days: 7,  label: '1 Week',  price: 10 },
+  { days: 30, label: '1 Month', price: 50 },
+];
+
 export default function PromotionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+
   const [activeTab, setActiveTab] = useState<'campaigns' | 'create'>('campaigns');
-  // Create Ad Form State
   const [adTitle, setAdTitle] = useState('');
-  const [placement, setPlacement] = useState<keyof typeof PRICING>('Home Top Banner');
-  const [duration, setDuration] = useState(3);
+  const [duration, setDuration] = useState(DURATION_TIERS[1]); // default: 1 week
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
 
@@ -54,7 +53,6 @@ export default function PromotionsScreen() {
       }
     })();
   }, [reference]);
-  const totalCost = PRICING[placement] * duration;
   const showImagePicker = useImagePickerSheet();
   const handlePickImage = async () => {
     const uri = await showImagePicker({ allowsEditing: true, aspect: [10.8, 4], quality: 1 });
@@ -73,8 +71,7 @@ export default function PromotionsScreen() {
     if (!adTitle || !bannerUri) return;
     const formData = new FormData();
     formData.append('title', adTitle);
-    formData.append('placement', placement);
-    formData.append('duration', duration.toString());
+    formData.append('duration', duration.days.toString());
     const filename = bannerUri.split('/').pop();
     const match = /\.(\w+)$/.exec(filename || '');
     const type = match ? `image/${match[1]}` : 'image';
@@ -216,33 +213,20 @@ export default function PromotionsScreen() {
                 value={adTitle}
                 onChangeText={setAdTitle}
               />
-              <Text style={styles.inputLabel}>Select Placement</Text>
-              <View style={styles.placementGrid}>
-                {(Object.keys(PRICING) as (keyof typeof PRICING)[]).map((place) => (
-                  <TouchableOpacity 
-                    key={place} 
-                    style={[styles.placeCard, placement === place && styles.placeCardActive]}
-                    onPress={() => setPlacement(place)}
-                  >
-                    <Ionicons 
-                      name={place.includes('Home') ? 'home' : place.includes('Search') ? 'search' : 'grid'} 
-                      size={24} 
-                      color={placement === place ? '#0C1559' : '#94A3B8'} 
-                    />
-                    <Text style={[styles.placeTitle, placement === place && styles.placeTitleActive]}>{place}</Text>
-                    <Text style={styles.placePrice}>₵{PRICING[place]}/day</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <Text style={styles.inputLabel}>Duration (Days)</Text>
+              <Text style={styles.inputLabel}>Duration</Text>
               <View style={styles.durationRow}>
-                {[3, 5, 7, 14, 30].map(days => (
-                  <TouchableOpacity 
-                    key={days}
-                    style={[styles.durationPill, duration === days && styles.durationPillActive]}
-                    onPress={() => setDuration(days)}
+                {DURATION_TIERS.map(tier => (
+                  <TouchableOpacity
+                    key={tier.days}
+                    style={[styles.durationPill, duration.days === tier.days && styles.durationPillActive]}
+                    onPress={() => setDuration(tier)}
                   >
-                    <Text style={[styles.durationText, duration === days && styles.durationTextActive]}>{days}</Text>
+                    <Text style={[styles.durationText, duration.days === tier.days && styles.durationTextActive]}>
+                      {tier.label}
+                    </Text>
+                    <Text style={[styles.durationPrice, duration.days === tier.days && styles.durationPriceActive]}>
+                      ₵{tier.price}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -263,18 +247,22 @@ export default function PromotionsScreen() {
               {/* Checkout Summary */}
               <View style={styles.checkoutBox}>
                 <View style={styles.checkoutRow}>
-                  <Text style={styles.checkoutLabel}>Placement ({placement})</Text>
-                  <Text style={styles.checkoutValue}>₵{PRICING[placement]} x {duration}</Text>
+                  <Text style={styles.checkoutLabel}>Duration</Text>
+                  <Text style={styles.checkoutValue}>{duration.label}</Text>
+                </View>
+                <View style={styles.checkoutRow} style={{ marginTop: 8 }}>
+                  <Text style={styles.checkoutLabel}>Placement</Text>
+                  <Text style={styles.checkoutValue}>Assigned by admin</Text>
                 </View>
                 <View style={styles.divider} />
                 <View style={styles.checkoutRow}>
                   <Text style={styles.totalLabel}>Total Payable</Text>
-                  <Text style={styles.totalValue}>₵{totalCost}</Text>
+                  <Text style={styles.totalValue}>₵{duration.price}</Text>
                 </View>
               </View>
               <TouchableOpacity
                 style={[styles.submitBtn, (!adTitle || !bannerUri || createCampaignMutation.isPending) && styles.submitBtnDisabled]}
-                disabled={!adTitle || !bannerUri || createCampaignMutation.isPending}
+                disabled={!adTitle || !bannerUri || !duration || createCampaignMutation.isPending}
                 onPress={handleSubmit}
               >
                 {createCampaignMutation.isPending ? (
@@ -334,17 +322,13 @@ const styles = StyleSheet.create({
   inputLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 10, marginTop: 10 },
   input: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 15, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A', marginBottom: 15 },
   
-  placementGrid: { flexDirection: 'row', gap: 10, marginBottom: 15 },
-  placeCard: { flex: 1, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 15, alignItems: 'center', gap: 8 },
-  placeCardActive: { borderColor: '#0C1559', backgroundColor: '#EEF2FF', borderWidth: 2 },
-  placeTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#64748B', textAlign: 'center' },
-  placeTitleActive: { color: '#0C1559' },
-  placePrice: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
   durationRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 15 },
-  durationPill: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20 },
+  durationPill: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, alignItems: 'center' },
   durationPillActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
   durationText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   durationTextActive: { color: '#FFF' },
+  durationPrice: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#84cc16', marginTop: 2 },
+  durationPriceActive: { color: '#A3E635' },
   uploadBox: { height: 120, backgroundColor: '#FFF', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginBottom: 25 },
   uploadText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 10 },
   checkoutBox: { backgroundColor: '#FFF', padding: 20, borderRadius: 20, elevation: 3, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, marginBottom: 25 },

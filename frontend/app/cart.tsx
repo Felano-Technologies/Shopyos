@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,11 +8,34 @@ import { StatusBar } from 'expo-status-bar';
 import { useCart } from '@/store/cartStore';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import { HeroAd } from '@/components/home/HeroCarousel';
+import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
+import { getActiveBanners, recordAdClick } from '@/services/api';
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { items: cartItems, removeFromCart, updateQuantity } = useCart();
   const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const [cartAds, setCartAds] = useState<HeroAd[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await getActiveBanners();
+        if (res?.banners?.length > 0) setCartAds(res.banners);
+      } catch { }
+    })();
+  }, []);
+
+  const handleAdPress = useCallback((ad: HeroAd) => {
+    recordAdClick(ad.id).catch(() => {});
+    if (ad.product?.id) {
+      router.push({ pathname: '/product/details', params: { id: ad.product.id } } as any);
+    } else if (ad.store_id) {
+      router.push({ pathname: '/stores/details', params: { id: ad.store_id } } as any);
+    }
+  }, [router]);
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
@@ -65,6 +88,30 @@ export default function CartScreen() {
           </View>
         </SafeAreaView>
       </LinearGradient>
+      {cartAds.length > 0 ? (
+        <CompactAdCarousel ads={cartAds} onAdPress={handleAdPress} />
+      ) : (
+        <View style={styles.adPlaceholder}>
+          <LinearGradient
+            colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.adPlaceholderContent}>
+            <View style={styles.adPlaceholderBadge}>
+              <Text style={styles.adPlaceholderBadgeTxt}>ADS</Text>
+            </View>
+            <Text style={styles.adPlaceholderTitle}>Your campaign here</Text>
+            <Text style={styles.adPlaceholderSub}>Promote your store to thousands of buyers →</Text>
+          </View>
+          <View style={styles.adPlaceholderDots}>
+            {[0, 1, 2].map(i => (
+              <View key={i} style={[styles.adPlaceholderDot, i === 0 && styles.adPlaceholderDotActive]} />
+            ))}
+          </View>
+        </View>
+      )}
+
       <FlatList
         data={cartItems}
         keyExtractor={item => item.id}
@@ -199,4 +246,25 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 18, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 20, marginBottom: 30 },
   shopBtn: { backgroundColor: '#0C1559', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
   shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
+
+  adPlaceholder: {
+    marginBottom: 12, height: 80,
+    borderWidth: 1, borderColor: 'rgba(12,21,89,0.1)',
+    borderStyle: 'dashed', overflow: 'hidden',
+  },
+  adPlaceholderContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 16 },
+  adPlaceholderBadge: {
+    backgroundColor: 'rgba(12,21,89,0.08)', borderRadius: 4,
+    paddingHorizontal: 6, paddingVertical: 2,
+    alignSelf: 'flex-start', marginBottom: 4,
+  },
+  adPlaceholderBadgeTxt: { fontSize: 8, fontFamily: 'Montserrat-Bold', color: '#64748B', letterSpacing: 0.5 },
+  adPlaceholderTitle:    { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 2 },
+  adPlaceholderSub:      { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(100,116,139,0.7)' },
+  adPlaceholderDots: {
+    flexDirection: 'row', justifyContent: 'center', gap: 6,
+    position: 'absolute', bottom: 10, left: 0, right: 0,
+  },
+  adPlaceholderDot:       { width: 6,  height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.15)' },
+  adPlaceholderDotActive: { width: 24, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.25)' },
 });

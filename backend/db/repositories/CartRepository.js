@@ -86,47 +86,44 @@ class CartRepository extends BaseRepository {
    * @param {number} price - The product price at the time of adding
    * @returns {Promise<Object>}
    */
-  async addItem(userId, productId, quantity = 1, price) {
+  async addItem(userId, productId, quantity = 1, price, variantId = null) {
     // Get or create cart
     const cart = await this.getOrCreateCart(userId);
 
-    // Check if item already exists in cart
-    const { data: existingItem, error: checkError } = await this.db
-      .from('cart_items')
-      .select('*')
-      .eq('cart_id', cart.id)
-      .eq('product_id', productId)
-      .maybeSingle();
-
-    if (checkError) throw checkError;
+    // Each (product, variant) combo is its own line item — use raw SQL to handle
+    // the variant_id match correctly (NULL-safe comparison).
+    const { rows: existing } = await this.db.query(
+      `SELECT * FROM cart_items
+       WHERE cart_id = $1
+         AND product_id = $2
+         AND (variant_id = $3 OR ($3 IS NULL AND variant_id IS NULL))
+       LIMIT 1`,
+      [cart.id, productId, variantId]
+    );
+    const existingItem = existing[0] || null;
 
     if (existingItem) {
       // Update quantity
       const newQuantity = existingItem.quantity + quantity;
-      const { data, error } = await this.db
-        .from('cart_items')
-        .update({ quantity: newQuantity, price_at_add: price })
-        .eq('id', existingItem.id)
-        .select()
-        .single();
-
+      const { rows, error } = await this.db.query(
+        `UPDATE cart_items
+         SET quantity = $1, price_at_add = $2, updated_at = NOW()
+         WHERE id = $3
+         RETURNING *`,
+        [newQuantity, price, existingItem.id]
+      );
       if (error) throw error;
-      return data;
+      return rows[0];
     } else {
       // Add new item
-      const { data, error } = await this.db
-        .from('cart_items')
-        .insert({
-          cart_id: cart.id,
-          product_id: productId,
-          quantity,
-          price_at_add: price
-        })
-        .select()
-        .single();
-
+      const { rows, error } = await this.db.query(
+        `INSERT INTO cart_items (cart_id, product_id, variant_id, quantity, price_at_add)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [cart.id, productId, variantId, quantity, price]
+      );
       if (error) throw error;
-      return data;
+      return rows[0];
     }
   }
 
@@ -286,6 +283,58 @@ class CartRepository extends BaseRepository {
       itemCount: items.length,
       items
     };
+  }
+
+  // ─── Abandoned cart recovery ────────────────────────────────────────────────
+
+  /**
+   * Returns carts that have been inactive for at least inactiveMinutes,
+   * have at least one item, and have not yet received a recovery notification.
+   */
+  async getAbandonedCarts(inactiveMinutes = 60) {
+    const { rows } = await this.db.query(
+      `SELECT
+         c.id, c.user_id, c.last_activity,
+         json_agg(json_build_object(
+           'id',       ci.id,
+           'quantity', ci.quantity,
+           'product',  json_build_object(
+             'id',    p.id,
+             'title', p.title,
+             'price', p.price
+           )
+         )) AS cart_items
+       FROM carts c
+       JOIN cart_items ci ON ci.cart_id = c.id
+       JOIN products   p  ON p.id = ci.product_id
+       WHERE c.last_activity < NOW() - ($1 || ' minutes')::INTERVAL
+         AND c.abandonment_notified_at IS NULL
+       GROUP BY c.id, c.user_id, c.last_activity`,
+      [String(inactiveMinutes)]
+    );
+    return rows;
+  }
+
+  /** Mark a cart as notified so we don't send a second recovery message. */
+  async markAbandonmentNotified(cartId) {
+    await this.db.query(
+      `UPDATE carts SET abandonment_notified_at = NOW() WHERE id = $1`,
+      [cartId]
+    );
+  }
+
+  /**
+   * Called every time a user actively touches their cart (add/update/remove).
+   * Resets both the activity timestamp and the notified flag so a future
+   * abandonment can trigger a fresh notification.
+   */
+  async touchLastActivity(userId) {
+    await this.db.query(
+      `UPDATE carts
+       SET last_activity = NOW(), abandonment_notified_at = NULL
+       WHERE user_id = $1`,
+      [userId]
+    );
   }
 }
 
