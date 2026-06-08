@@ -3,6 +3,7 @@ const amqp = require('amqplib');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const winston = require('winston');
+const { Expo } = require('expo-server-sdk');
 const { getEmailTemplateByEvent, getSmsTemplateByEvent } = require('../templates');
 const repositories = require('../db/repositories');
 
@@ -250,6 +251,111 @@ async function handleSMS(msg) {
     }
 }
 
+// ─── Push Notification Handler ───────────────────────────────────────────────
+
+async function handlePush(msg) {
+    const payload = JSON.parse(msg.content.toString());
+    const { eventType, userId, notificationId, title, body, data } = payload;
+
+    // Use userId as the log target (a user may have multiple tokens)
+    const target = userId;
+    const refId = notificationId || userId;
+
+    if (!userId) {
+        logger.warn('Push target (userId) missing; skipping message', { eventType });
+        await updateLogStatus(eventType || 'push', 'unknown', refId, 'FAILED', 'Missing userId');
+        return true;
+    }
+
+    if (await checkOrLogIdempotency(eventType, target, refId)) {
+        return true; // Already processed
+    }
+
+    try {
+        // Fetch user's registered Expo push tokens
+        const tokens = await repositories.notifications.getUserPushTokens(userId);
+
+        if (!tokens || tokens.length === 0) {
+            logger.info(`[Push] No push tokens for user ${userId} — skipping (${eventType})`);
+            await updateLogStatus(eventType, target, refId, 'FAILED', 'No push tokens registered');
+            return true; // Not retryable — user has no tokens
+        }
+
+        const expo = new Expo();
+        const messages = [];
+
+        for (const pushToken of tokens) {
+            if (!Expo.isExpoPushToken(pushToken)) {
+                logger.warn(`[Push] Invalid Expo token for user ${userId}: ${pushToken}`);
+                await repositories.notifications.removePushToken(pushToken);
+                continue;
+            }
+            messages.push({
+                to: pushToken,
+                sound: 'default',
+                priority: 'high',
+                channelId: 'default',
+                title,
+                body,
+                data: data || {}
+            });
+        }
+
+        if (messages.length === 0) {
+            logger.warn(`[Push] No valid Expo tokens for user ${userId} after validation`);
+            await updateLogStatus(eventType, target, refId, 'FAILED', 'No valid Expo tokens after validation');
+            return true;
+        }
+
+        // Send in chunks (Expo limit: 100 per chunk)
+        const chunks = expo.chunkPushNotifications(messages);
+        const tickets = [];
+        for (const chunk of chunks) {
+            const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            tickets.push(...ticketChunk);
+        }
+
+        logger.info(`[Push] Sent ${messages.length} push notification(s) to user ${userId} for ${eventType}. Tickets: ${tickets.length}`);
+
+        // Process tickets — clean up stale tokens
+        let anyOk = false;
+        for (let i = 0; i < tickets.length; i++) {
+            const ticket = tickets[i];
+            if (ticket.status === 'ok') {
+                anyOk = true;
+                logger.info(`[Push] ✅ Delivered to token: ${messages[i].to}`);
+            } else if (ticket.status === 'error') {
+                logger.error(`[Push] ❌ Ticket error for user ${userId}: ${ticket.message}`);
+                if (ticket.details?.error === 'DeviceNotRegistered') {
+                    await repositories.notifications.removePushToken(messages[i].to);
+                    logger.info(`[Push] Removed stale token: ${messages[i].to}`);
+                }
+            }
+        }
+
+        if (anyOk) {
+            await updateLogStatus(eventType, target, refId, 'SENT');
+            // Mark the in-app notification record as push-delivered
+            if (notificationId) {
+                await repositories.notifications.db
+                    .from('notifications')
+                    .update({ sent_via_push: true })
+                    .eq('id', notificationId);
+            }
+        } else {
+            await updateLogStatus(eventType, target, refId, 'FAILED', 'All Expo tickets returned errors');
+        }
+
+        return true;
+
+    } catch (error) {
+        const details = extractErrorDetails(error);
+        logger.error(`[Push] Failed to send push to user ${userId} for ${eventType}`, details);
+        await updateLogStatus(eventType, target, refId, 'FAILED', JSON.stringify(details));
+        throw error; // Allow retry
+    }
+}
+
 async function startWorker() {
     try {
         const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
@@ -281,6 +387,7 @@ async function startWorker() {
         // Use separate channels so prefetch limits are independent per queue
         const emailChannel = await conn.createChannel();
         const smsChannel = await conn.createChannel();
+        const pushChannel = await conn.createChannel();
 
         // Email Setup — allow up to 10 unacked messages at a time
         await emailChannel.assertQueue('email_queue', { durable: true });
@@ -291,6 +398,11 @@ async function startWorker() {
         await smsChannel.assertQueue('sms_queue', { durable: true });
         await smsChannel.bindQueue('sms_queue', 'notifications_exchange', 'sms');
         smsChannel.prefetch(5);
+
+        // Push Setup — allow up to 10 unacked messages at a time
+        await pushChannel.assertQueue('push_queue', { durable: true });
+        await pushChannel.bindQueue('push_queue', 'notifications_exchange', 'push');
+        pushChannel.prefetch(10);
 
         logger.info('Notification Workers started. Waiting for messages...');
 
@@ -360,6 +472,39 @@ async function startWorker() {
             }
         });
 
+        // Consume Push
+        pushChannel.consume('push_queue', async (msg) => {
+            if (msg !== null) {
+                try {
+                    await handlePush(msg);
+                    pushChannel.ack(msg);
+                } catch (error) {
+                    if (error?.retryable === false) {
+                        logger.error('[Push] Job failed with non-retryable error. Discarding.', {
+                            reason: error?.reason || error?.message,
+                            eventType: JSON.parse(msg.content.toString())?.eventType ?? null
+                        });
+                        pushChannel.reject(msg, false);
+                        return;
+                    }
+                    const retryCount = msg.properties.headers?.['x-retry-count'] || 0;
+                    if (retryCount >= 3) {
+                        logger.error('[Push] Max retries reached. Discarding.');
+                        pushChannel.reject(msg, false);
+                    } else {
+                        const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+                        logger.info(`[Push] Requeueing. Attempt ${retryCount + 1} (after ${delay}ms)`);
+                        await new Promise(res => setTimeout(res, delay));
+                        pushChannel.ack(msg);
+                        pushChannel.publish('notifications_exchange', 'push', msg.content, {
+                            persistent: true,
+                            headers: { 'x-retry-count': retryCount + 1 }
+                        });
+                    }
+                }
+            }
+        });
+
     } catch (error) {
         logger.error('Worker failed to start:', error.message);
         setTimeout(startWorker, 5000); // Retry startup instead of hard-exiting
@@ -370,4 +515,4 @@ if (require.main === module) {
     startWorker();
 }
 
-module.exports = { startWorker, handleEmail, handleSMS };
+module.exports = { startWorker, handleEmail, handleSMS, handlePush };
