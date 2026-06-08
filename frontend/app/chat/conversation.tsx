@@ -456,8 +456,18 @@ export default function ConversationScreen() {
   const getMessageTimestamp = (msg?: Partial<MessageItem> | null) =>
     msg?.created_at || msg?.timestamp || msg?.createdAt || msg?.sent_at || null;
 
-  const parseSafeDate = (value?: string | number | null) => {
+  const parseSafeDate = (value?: any) => {
     if (value === undefined || value === null) return null;
+    // Handle Date objects directly (pg adapter may leak them through socket or cache)
+    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+    // Handle Date-like objects with toISOString (e.g. wrapped Date subclasses)
+    if (value && typeof value === 'object') {
+      if (typeof value.toISOString === 'function') {
+        const d = new Date(value.toISOString());
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+      return null;
+    }
     if (typeof value === 'string' && (!value.trim() || value.trim().toLowerCase() === 'invalid date')) return null;
     const date = typeof value === 'number' ? new Date(value < 1e12 ? value * 1000 : value) : new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;

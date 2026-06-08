@@ -12,6 +12,20 @@ const isComplexSelect = (selectString) => {
   return typeof selectString === 'string' && (selectString.includes('(') || selectString.includes(':'));
 };
 
+// Recursively convert Date objects to ISO strings so every response is JSON-safe.
+// The pg driver returns timestamp columns as Date objects; callers expect strings.
+const serializeDates = (value) => {
+  if (value === null || value === undefined) return value;
+  if (value instanceof Date) return value.toISOString();
+  if (Array.isArray(value)) return value.map(serializeDates);
+  if (typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = serializeDates(v);
+    return out;
+  }
+  return value;
+};
+
 class QueryBuilder {
   constructor(tableName) {
     this.tableName = tableName;
@@ -255,11 +269,11 @@ class QueryBuilder {
           const inserted = result.rows[0] || null;
           const conflictIgnored = rowCount === 0;
 
-          return { 
-            data: inserted, 
-            error: null, 
-            rowCount, 
-            conflictIgnored 
+          return {
+            data: serializeDates(inserted),
+            error: null,
+            rowCount,
+            conflictIgnored
           };
         }
 
@@ -271,7 +285,7 @@ class QueryBuilder {
 
         sql += ' RETURNING *';
         const result = await db.query(sql, values);
-        return { data: this.singleMode || this.maybeSingleMode ? result.rows[0] || null : result.rows, error: null };
+        return { data: serializeDates(this.singleMode || this.maybeSingleMode ? result.rows[0] || null : result.rows), error: null };
       }
 
       if (this.operation === 'update') {
@@ -293,14 +307,14 @@ class QueryBuilder {
           return { data: null, error: toPgError(new Error('No rows'), true) };
         }
 
-        return { data: this.singleMode || this.maybeSingleMode ? result.rows[0] || null : result.rows, error: null };
+        return { data: serializeDates(this.singleMode || this.maybeSingleMode ? result.rows[0] || null : result.rows), error: null };
       }
 
       if (this.operation === 'delete') {
         const { clause, values } = this._whereClause();
         const sql = `DELETE FROM ${this.tableName}${clause} RETURNING *`;
         const result = await db.query(sql, values);
-        return { data: this.singleMode || this.maybeSingleMode ? result.rows[0] || null : result.rows, error: null };
+        return { data: serializeDates(this.singleMode || this.maybeSingleMode ? result.rows[0] || null : result.rows), error: null };
       }
 
       const { clause, values } = this._whereClause();
@@ -918,6 +932,9 @@ class QueryBuilder {
         }));
       }
       // --- JOIN SHIM END ---
+
+      // Normalize: convert any remaining Date objects to ISO strings before returning.
+      result.rows = serializeDates(result.rows);
 
       if (this.singleMode) {
         if (result.rows.length === 0) {
