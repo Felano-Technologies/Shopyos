@@ -3,7 +3,7 @@
 
 const repositories = require('../db/repositories');
 const { invalidateReviews } = require('../config/cacheInvalidation');
-const { toPublicUrl } = require('../config/storage');
+const { resolveImageUrl } = require('../config/storage');
 
 /**
  * @route   POST /api/reviews/product
@@ -297,7 +297,7 @@ const getProductReviews = async (req, res, next) => {
       reviews.forEach(r => { r.seller_response = responseMap[r.id] || null; });
     }
 
-    const mappedReviews = reviews.map(r => {
+    const mappedReviews = await Promise.all(reviews.map(async r => {
       const rawProfile = r.user?.user_profiles;
       const userProfile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
       return {
@@ -305,11 +305,11 @@ const getProductReviews = async (req, res, next) => {
         user: {
           id: r.buyer_id,
           full_name: userProfile?.full_name || 'Anonymous User',
-          avatar_url: userProfile?.avatar_url ? toPublicUrl(userProfile.avatar_url) : null
+          avatar_url: userProfile?.avatar_url ? await resolveImageUrl(userProfile.avatar_url) : null
         },
         isLiked: likedSet.has(r.id)
       };
-    });
+    }));
 
     res.status(200).json({
       success: true,
@@ -379,7 +379,7 @@ const getStoreReviews = async (req, res, next) => {
       reviews.forEach(r => { r.seller_response = responseMap[r.id] || null; });
     }
 
-    const mappedReviews = reviews.map(r => {
+    const mappedReviews = await Promise.all(reviews.map(async r => {
       const rawProfile = r.user?.user_profiles;
       const userProfile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
       return {
@@ -387,11 +387,11 @@ const getStoreReviews = async (req, res, next) => {
         user: {
           id: r.buyer_id,
           full_name: userProfile?.full_name || 'Anonymous User',
-          avatar_url: userProfile?.avatar_url ? toPublicUrl(userProfile.avatar_url) : null
+          avatar_url: userProfile?.avatar_url ? await resolveImageUrl(userProfile.avatar_url) : null
         },
         isLiked: likedSet.has(r.id)
       };
-    });
+    }));
 
     res.status(200).json({
       success: true,
@@ -750,15 +750,15 @@ const getReviewComments = async (req, res, next) => {
     if (error) throw error;
 
     // Map output to match frontend expectations
-    const mappedComments = comments.map(c => ({
+    const mappedComments = await Promise.all(comments.map(async c => ({
       id: c.id,
       text: c.comment,
       createdAt: c.created_at,
       user: c.profiles ? {
         name: c.profiles.full_name,
-        avatar: toPublicUrl(c.profiles.avatar_url)
+        avatar: await resolveImageUrl(c.profiles.avatar_url)
       } : { name: 'Unknown User' }
-    }));
+    })));
 
     res.status(200).json({ success: true, data: mappedComments });
   } catch (error) {

@@ -16,10 +16,10 @@ exports.createSnap = async (req, res) => {
       [storeId, media_url, caption, product_id || null]
     );
 
-    const { toPublicUrl } = require('../config/storage');
+    const { resolveImageUrl } = require('../config/storage');
     const snap = rows[0];
     if (snap) {
-      snap.media_url = toPublicUrl(snap.media_url);
+      snap.media_url = await resolveImageUrl(snap.media_url);
     }
 
     res.status(201).json({ success: true, snap });
@@ -56,15 +56,15 @@ exports.getSnapFeed = async (req, res) => {
       LIMIT 20
     `);
 
-    const { toPublicUrl } = require('../config/storage');
-    const feed = rows.map(row => ({
+    const { resolveImageUrl } = require('../config/storage');
+    const feed = await Promise.all(rows.map(async row => ({
       ...row,
-      store_logo: toPublicUrl(row.store_logo),
-      snaps: row.snaps.map(snap => ({
+      store_logo: await resolveImageUrl(row.store_logo),
+      snaps: await Promise.all(row.snaps.map(async snap => ({
         ...snap,
-        media_url: toPublicUrl(snap.media_url)
-      }))
-    }));
+        media_url: await resolveImageUrl(snap.media_url)
+      })))
+    })));
 
     res.json({ success: true, feed });
   } catch (error) {

@@ -86,7 +86,8 @@ class NotificationRepository extends BaseRepository {
     await this.db.from('expo_push_tokens').insert({
       user_id: userId,
       token,
-      device_name: deviceName
+      device_name: deviceName,
+      last_used_at: new Date()
     });
   }
 
@@ -98,6 +99,27 @@ class NotificationRepository extends BaseRepository {
 
   async removePushToken(token) {
     await this.db.from('expo_push_tokens').delete().eq('token', token);
+  }
+
+  async updateTokenLastUsed(token) {
+    await this.db
+      .from('expo_push_tokens')
+      .update({ last_used_at: new Date() })
+      .eq('token', token);
+  }
+
+  async pruneStaleTokens(daysOld = 60) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - daysOld);
+
+    const { data, error } = await this.db
+      .from('expo_push_tokens')
+      .delete()
+      .lt('last_used_at', cutoff.toISOString())
+      .select();
+
+    if (error) throw error;
+    return data?.length || 0;
   }
 
   /**

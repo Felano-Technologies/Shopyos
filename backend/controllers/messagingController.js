@@ -6,25 +6,25 @@ const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const { emitToConversation } = require('../../socket/src/config/socketServer');
 const aiService = require('../services/aiService');
-const { s3, toPublicUrl, resolveImageUrl } = require('../config/storage');
+const { s3, resolveImageUrl } = require('../config/storage');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { moderateText } = require('../services/moderationService');
 
 const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
-const formatAvatars = (obj) => {
+const formatAvatars = async (obj) => {
   if (!obj) return obj;
   if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) {
-    return obj.map(formatAvatars);
+    return Promise.all(obj.map(formatAvatars));
   }
   if (typeof obj === 'object') {
     const formatted = {};
     for (const [key, value] of Object.entries(obj)) {
       if ((key === 'avatar_url' || key === 'avatar') && typeof value === 'string' && value) {
-        formatted[key] = toPublicUrl(value);
+        formatted[key] = await resolveImageUrl(value);
       } else {
-        formatted[key] = formatAvatars(value);
+        formatted[key] = await formatAvatars(value);
       }
     }
     return formatted;
@@ -703,7 +703,7 @@ const getStickerPacks = async (req, res, next) => {
           .filter(item => item.Size > 0)
           .map(item => ({
             id: item.Key.split('/').pop().replace(/\.[^/.]+$/, ""),
-            url: toPublicUrl(item.Key),
+            url: await resolveImageUrl(item.Key),
             label: 'Custom'
           }));
       }

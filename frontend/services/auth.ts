@@ -13,6 +13,12 @@ export const registerUser = async (
     if (response.data.token) {
       await secureStorage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+      try {
+        const pushToken = await storage.getItem('expoPushToken');
+        if (pushToken) await registerPushTokenInBackend(pushToken);
+      } catch (err) {
+        console.warn('Failed syncing expo push token on register:', err);
+      }
     }
     return response.data;
   } catch (error: any) {

@@ -147,8 +147,20 @@ async function registerForPushNotificationsAsync() {
     let token;
 
     if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('orders', {
+            name: 'Orders & Deliveries',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#84cc16',
+        });
+        await Notifications.setNotificationChannelAsync('messages', {
+            name: 'Messages',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 100, 50, 100],
+            lightColor: '#2563EB',
+        });
         await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
+            name: 'General',
             importance: Notifications.AndroidImportance.MAX,
             vibrationPattern: [0, 250, 250, 250],
             lightColor: '#FF231F7C',

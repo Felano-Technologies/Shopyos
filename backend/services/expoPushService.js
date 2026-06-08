@@ -2,6 +2,7 @@
 const { Expo } = require('expo-server-sdk');
 const { logger } = require('../config/logger');
 const repositories = require('../db/repositories');
+const { getChannelId, getTtlSeconds } = require('../utils/pushConfig');
 
 class ExpoPushService {
     constructor() {
@@ -36,10 +37,11 @@ class ExpoPushService {
                     to: pushToken,
                     sound: 'default',
                     priority: 'high',
-                    channelId: 'default',
+                    channelId: getChannelId(payload.eventType),
+                    ttl: getTtlSeconds(payload.eventType),
                     title: payload.title,
                     body: payload.body,
-                    data: payload.data, // This is where we pass notificationId, messageId, etc.
+                    data: payload.data || {},
                 });
             }
 
