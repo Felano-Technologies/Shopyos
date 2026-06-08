@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/businessController.unit.test.js
@@ -28,6 +28,7 @@ jest.mock('../../config/cacheInvalidation', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => url || ''),
+  resolveImageUrl: jest.fn(async (url) => url || null),
 }));
 
 jest.mock('../../utils/uploadHelpers', () => ({
@@ -2120,3 +2121,4 @@ describe('BusinessController Additional Coverage', () => {
     });
   });
 });
+

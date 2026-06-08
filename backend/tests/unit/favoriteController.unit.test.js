@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/favoriteController.unit.test.js
@@ -17,6 +17,7 @@ jest.mock('../../config/logger', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => `http://public-url/${url}`),
+  resolveImageUrl: jest.fn(async (url) => url ? `http://public-url/${url}` : null),
 }));
 
 jest.mock('../../db/repositories', () => ({
@@ -282,3 +283,5 @@ describe('FavoriteController Unit Tests', () => {
     });
   });
 });
+
+

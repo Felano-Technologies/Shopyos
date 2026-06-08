@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/productController.unit.test.js
@@ -29,6 +29,7 @@ jest.mock('../../config/cacheInvalidation', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => url || ''),
+  resolveImageUrl: jest.fn(async (url) => url || null),
 }));
 
 jest.mock('../../utils/uploadHelpers', () => ({
@@ -66,6 +67,10 @@ jest.mock('../../db/repositories', () => ({
   },
   stores: {
     findById: jest.fn(),
+  },
+  productVariants: {
+    getByProductId: jest.fn().mockResolvedValue([]),
+    getOptions: jest.fn().mockResolvedValue([]),
   },
 }));
 
@@ -874,3 +879,5 @@ describe('ProductController Unit Tests', () => {
     });
   });
 });
+
+

@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/reviewController.unit.test.js
@@ -21,6 +21,7 @@ jest.mock('../../config/cacheInvalidation', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => `http://public-url/${url}`),
+  resolveImageUrl: jest.fn(async (url) => url ? `http://public-url/${url}` : null),
 }));
 
 const mockDbChain = {
@@ -36,6 +37,7 @@ const mockDbChain = {
   single: jest.fn().mockResolvedValue({ data: null, error: null }),
   rpc: jest.fn().mockResolvedValue({ data: null, error: null }),
   catch: jest.fn().mockResolvedValue(undefined),
+  query: jest.fn().mockResolvedValue({ rows: [] }),
 };
 
 jest.mock('../../db/repositories', () => ({
@@ -917,3 +919,6 @@ describe('ReviewController Unit Tests', () => {
     });
   });
 });
+
+
+
