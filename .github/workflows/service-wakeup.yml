@@ -1,8 +1,8 @@
-name: Service Wakeup (8am UTC)
+name: Service Wakeup (5am UTC)
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: '47 4 * * *'
   workflow_dispatch:
 
 jobs:

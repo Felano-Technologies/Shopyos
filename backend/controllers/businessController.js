@@ -1176,18 +1176,18 @@ const getAllBusinesses = async (req, res, next) => {
       }, {});
     }
 
-    const mapped = storesData.map(s => ({
+    const mapped = await Promise.all(storesData.map(async s => ({
       id: s.id,
       name: s.store_name,
       category: s.category,
-      logo: toPublicUrl(s.logo_url),
+      logo: await resolveImageUrl(s.logo_url) || null,
       rating: s.average_rating || 0,
       reviewCount: s.total_reviews || 0,
       verified: s.is_verified || false,
       isTrusted: s.is_trusted || false,
       ownerId: s.owner_id,
       catalogues: productCountMap[s.id] ?? s.products?.[0]?.count ?? 0
-    }));
+    })));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
@@ -1294,17 +1294,17 @@ const getBusinessReviews = async (req, res, next) => {
     // Combine and format them
     const allReviews = [];
 
-    const formatUser = (userRel) => {
+    const formatUser = async (userRel) => {
       const profiles = userRel?.user_profiles;
       const profile = Array.isArray(profiles) ? profiles[0] : profiles;
       return {
         name: profile?.full_name || 'Anonymous',
-        avatar: toPublicUrl(profile?.avatar_url) || null
+        avatar: await resolveImageUrl(profile?.avatar_url) || null
       };
     };
 
-    (storeReviews || []).forEach(r => {
-      const u = formatUser(r.user);
+    for (const r of (storeReviews || [])) {
+      const u = await formatUser(r.user);
       allReviews.push({
         id: r.id,
         type: 'store',
@@ -1314,12 +1314,12 @@ const getBusinessReviews = async (req, res, next) => {
         user: u.name,
         avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${r.id}`
       });
-    });
+    }
 
     const filteredProductReviews = (productReviews || []).filter(r => r?.products?.store_id === businessId);
 
-    filteredProductReviews.forEach(r => {
-      const u = formatUser(r.user);
+    for (const r of filteredProductReviews) {
+      const u = await formatUser(r.user);
       allReviews.push({
         id: r.id,
         type: 'product',
@@ -1330,7 +1330,7 @@ const getBusinessReviews = async (req, res, next) => {
         user: u.name,
         avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${r.id}`
       });
-    });
+    }
 
     // Sort by date descending
     allReviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
