@@ -1,16 +1,16 @@
 /**
  * Custom hook to manage background tasks based on auth and delivery state.
  *
- * Background tasks (via expo-task-manager) require a DEV or PRODUCTION build.
- * When running in Expo Go the background task will fail with a "Background location
- * has not been configured" error. In that case this hook automatically falls back to
- * a foreground-only polling mode:
- *   - Polls position every 60 s using getCurrentPositionAsync
- *   - Runs the same proximity + location-cache logic in the foreground
- *   - Stops polling when the app goes to background (no native background process)
+ * Two-layer approach (no persistent OS notification for regular users):
+ *  1. TASK_LOCATION_GEOFENCE native task — starts without a foreground service, so
+ *     Android shows no persistent notification. Fires reliably on iOS background;
+ *     on Android it runs best-effort while the app is alive.
+ *  2. Foreground poll (every 60 s) — always runs while the app is active, on all
+ *     builds including Expo Go. Handles reverse-geocoding, backend location sync,
+ *     and proximity notifications while the screen is on.
  *
- * In a real build the native TASK_LOCATION_GEOFENCE task takes over and runs even
- * when the screen is off.
+ * TASK_DRIVER_LOCATION still uses a foreground service (and its notification) but
+ * only for drivers with an active delivery — which is expected and correct.
  */
 
 import { useEffect, useRef } from 'react';
@@ -18,7 +18,8 @@ import { AppState, AppStateStatus } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import Constants from 'expo-constants';
-import { getUserData, getAllStores, storage } from '@/services/api';
+import axios from 'axios';
+import { getUserData, getAllStores, storage, secureStorage, API_URL } from '@/services/api';
 import { useActiveDeliveries } from './useDelivery';
 import {
   ensureBackgroundTasksForUser,
@@ -75,7 +76,19 @@ async function runForegroundGeofenceCheck() {
       }
     } catch { /* non-critical */ }
 
-    // 2. Proximity check
+    // 2. Update backend position
+    try {
+      const userToken = await secureStorage.getItem('userToken');
+      if (userToken) {
+        await axios.put(
+          `${API_URL}auth/location`,
+          { latitude, longitude },
+          { headers: { Authorization: `Bearer ${userToken}` }, timeout: 8000 }
+        );
+      }
+    } catch { /* non-critical */ }
+
+    // 3. Proximity check
     const storeRaw = await storage.getItem('CACHED_STORES');
     if (!storeRaw) return;
     const stores: { id: string; store_name: string; latitude: number | string; longitude: number | string }[] =
@@ -121,7 +134,6 @@ async function runForegroundGeofenceCheck() {
 export const useBackgroundTasks = () => {
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const foregroundPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const isExpoGoMode = useRef(false);
 
   // Fetch user data to determine role and auth status
   const { data: userData } = useQuery({
@@ -171,7 +183,6 @@ export const useBackgroundTasks = () => {
         stopForegroundPoll();
         await stopGeofenceTracking();
         await stopDriverLocationTracking();
-        isExpoGoMode.current = false;
         return;
       }
 
@@ -180,18 +191,13 @@ export const useBackgroundTasks = () => {
       const activeDeliveryId = activeDelivery?.id || null;
       const shareLiveLocation = await getLocationSharingPreference();
 
-      // Try background task first
-      const geofenceResult = await startGeofenceTracking();
+      // Start native background task (best-effort — works reliably on iOS,
+      // foreground-only on Android since we removed the foreground service).
+      await startGeofenceTracking();
 
-      if (geofenceResult.isExpoGo) {
-        // ── Expo Go / no native background support → foreground polling ──────
-        isExpoGoMode.current = true;
-        startForegroundPoll();
-      } else {
-        // ── Native build: background task is now running ─────────────────────
-        isExpoGoMode.current = false;
-        stopForegroundPoll(); // just in case it was running from a previous hot reload
-      }
+      // Always run foreground poll so reverse-geocoding and backend location
+      // updates are reliable on both platforms while the app is active.
+      startForegroundPoll();
 
       // Driver delivery tracking is always attempted as a separate task
       // skipGeofence=true because we already called startGeofenceTracking above
@@ -209,7 +215,7 @@ export const useBackgroundTasks = () => {
   // ── Foreground poll helpers ────────────────────────────────────────────────
   const startForegroundPoll = () => {
     if (foregroundPollRef.current) return; // already running
-    console.log('[BackgroundTasks] Starting foreground geofence poll (Expo Go mode)');
+    console.log('[BackgroundTasks] Starting foreground geofence poll');
     // Run immediately, then every 60 s
     runForegroundGeofenceCheck();
     foregroundPollRef.current = setInterval(runForegroundGeofenceCheck, 60_000);
@@ -229,11 +235,9 @@ export const useBackgroundTasks = () => {
       if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
         console.log('[BackgroundTasks] App foregrounded — flushing location queue');
         await flushQueue();
-        // Resume foreground polling if we're in Expo Go mode
-        if (isExpoGoMode.current) startForegroundPoll();
+        startForegroundPoll();
       } else if (nextAppState.match(/inactive|background/)) {
-        // App going to background — pause foreground poll (it can't run anyway)
-        if (isExpoGoMode.current) stopForegroundPoll();
+        stopForegroundPoll();
       }
       appState.current = nextAppState;
     });

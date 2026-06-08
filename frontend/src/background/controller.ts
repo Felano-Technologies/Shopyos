@@ -119,15 +119,10 @@ export const startGeofenceTracking = async (): Promise<{ success: boolean; messa
 
     await Location.startLocationUpdatesAsync(TASK_LOCATION_GEOFENCE, {
       accuracy: Location.Accuracy.Balanced,
-      distanceInterval: 50,   // 50 m minimum movement before next update
-      timeInterval: 60_000,   // 60 s maximum interval
-      foregroundService: {
-        notificationTitle: 'Shopyos — Nearby Stores',
-        notificationBody: 'Checking for stores near you to send relevant notifications.',
-        notificationColor: '#84cc16',
-      },
+      distanceInterval: 50,
+      timeInterval: 60_000,
       showsBackgroundLocationIndicator: false,
-      pausesUpdatesAutomatically: true, // iOS: pause when stationary (saves battery)
+      pausesUpdatesAutomatically: true,
     });
 
     console.log('[TaskController] Geofence tracking started');
