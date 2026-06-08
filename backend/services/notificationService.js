@@ -3,6 +3,7 @@
 
 const nodemailer = require('nodemailer');
 const axios = require('axios');
+const amqp = require('amqplib');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { emitToUser } = require('../../socket/src/config/socketServer');
@@ -83,12 +84,16 @@ class NotificationService {
         });
       }
 
-      // Send push notification if enabled
+      // Send push notification if enabled — queued through RabbitMQ for observability
       if (preferences.push_enabled && params.push) {
-        const pushResult = await this.sendPushNotification({
+        const queued = await this._publishPushJob({
+          eventType: type,
           userId,
+          notificationId: dbNotification.id,
           title,
           body: message,
+          relatedId,
+          relatedType,
           data: {
             ...(params.push.data || data),
             notificationId: dbNotification.id,
@@ -97,11 +102,26 @@ class NotificationService {
           }
         });
 
-        if (pushResult) {
-          await repositories.notifications.db
-            .from('notifications')
-            .update({ sent_via_push: true })
-            .eq('id', dbNotification.id);
+        // Fallback: call expoPushService directly if RabbitMQ is unavailable
+        if (!queued) {
+          logger.warn('[NotificationService] Push published via direct fallback (no RabbitMQ)');
+          const pushResult = await this.sendPushNotification({
+            userId,
+            title,
+            body: message,
+            data: {
+              ...(params.push.data || data),
+              notificationId: dbNotification.id,
+              relatedType,
+              relatedId
+            }
+          });
+          if (pushResult) {
+            await repositories.notifications.db
+              .from('notifications')
+              .update({ sent_via_push: true })
+              .eq('id', dbNotification.id);
+          }
         }
       }
 
@@ -176,7 +196,40 @@ class NotificationService {
   }
 
   /**
-   * Send push notification (placeholder for FCM/OneSignal integration)
+   * Publish a push notification job to the RabbitMQ push_queue.
+   * Returns true if successfully queued, false if RabbitMQ is unavailable (caller falls back to direct send).
+   * @param {Object} payload - { eventType, userId, notificationId, title, body, relatedId, relatedType, data }
+   */
+  async _publishPushJob(payload) {
+    const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
+    if (!url) {
+      logger.warn('[NotificationService] RABBITMQ_URL not set — push will use direct fallback');
+      return false;
+    }
+    let conn;
+    try {
+      conn = await amqp.connect(url, { heartbeat: 30 });
+      const ch = await conn.createChannel();
+      await ch.assertExchange('notifications_exchange', 'direct', { durable: true });
+      ch.publish(
+        'notifications_exchange',
+        'push',
+        Buffer.from(JSON.stringify(payload)),
+        { persistent: true }
+      );
+      await ch.close();
+      logger.debug(`[NotificationService] Push job queued for user ${payload.userId} (${payload.eventType})`);
+      return true;
+    } catch (err) {
+      logger.error('[NotificationService] Failed to publish push job to RabbitMQ:', err.message);
+      return false;
+    } finally {
+      if (conn) conn.close().catch(() => {});
+    }
+  }
+
+  /**
+   * Send push notification directly via Expo (used as fallback when RabbitMQ is unavailable)
    * @param {Object} pushData - { userId, title, body, data }
    */
   async sendPushNotification(pushData) {

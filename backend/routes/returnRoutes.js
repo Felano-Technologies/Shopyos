@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, isSeller, isAdmin } = require('../middleware/authMiddleware');
+const { protect, seller: isSeller, admin: isAdmin } = require('../middleware/authMiddleware');
 const {
   createReturnRequest,
   getBuyerReturns,
