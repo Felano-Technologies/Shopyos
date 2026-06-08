@@ -88,6 +88,8 @@ export default function AdminLayout() {
         <Tabs.Screen name="audit-logs"          options={{ href: null }} />
         <Tabs.Screen name="categories"          options={{ href: null }} />
         <Tabs.Screen name="ads"                 options={{ href: null }} />
+        <Tabs.Screen name="stores"              options={{ href: null }} />
+        <Tabs.Screen name="user-buyers"         options={{ href: null }} />
         <Tabs.Screen name="driverVerifications" options={{ href: null }} />
         <Tabs.Screen name="driver-verifications" options={{ href: null }} />
         <Tabs.Screen name="store-details"       options={{ href: null }} />

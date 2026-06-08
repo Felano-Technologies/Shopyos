@@ -47,6 +47,7 @@ const paymentMethodRoutes = require('./routes/paymentMethodRoutes');
 const deliveryFeeRoutes = require('./routes/deliveryFeeRoutes');
 const userActionRoutes = require('./routes/userActionRoutes');
 const snapRoutes = require('./routes/snapRoutes');
+const flashSaleRoutes = require('./routes/flashSaleRoutes');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter } = require('./middleware/rateLimiter');
@@ -222,6 +223,7 @@ app.use('/api/v1/payment-methods', paymentMethodRoutes);
 app.use('/api/v1/delivery', deliveryFeeRoutes);
 app.use('/api/v1/user-actions', userActionRoutes);
 app.use('/api/v1/snaps', snapRoutes);
+app.use('/api/v1/flash-sales', flashSaleRoutes);
 
 // Legacy route forwarding for backward compatibility
 const legacyRoutes = {

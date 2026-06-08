@@ -56,6 +56,7 @@ const ProductsScreen = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [compareAtPrice, setCompareAtPrice] = useState('');
   const [stock, setStock] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
@@ -151,6 +152,7 @@ const ProductsScreen = () => {
           description: p.description || '',
           category: p.category || '',
           gender: p.gender || 'Unisex',
+          compareAtPrice: p.compareAtPrice != null ? p.compareAtPrice.toString() : '',
         })));
       }
     } catch (e) { console.error('Failed to fetch products', e); }
@@ -198,7 +200,7 @@ const ProductsScreen = () => {
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const resetForm = () => {
-    setName(''); setPrice(''); setStock(''); setDescription('');
+    setName(''); setPrice(''); setCompareAtPrice(''); setStock(''); setDescription('');
     setImage(null); setEditingId(null); setIsActive(true); setCategory('');
     setGender('Unisex');
     setFormModalVisible(false);
@@ -211,8 +213,8 @@ const ProductsScreen = () => {
   };
 
   const handleEditPress = (item: any) => {
-    setName(item.name); setPrice(item.price); setStock(item.stock);
-    setDescription(item.description); setImage(item.image);
+    setName(item.name); setPrice(item.price); setCompareAtPrice(item.compareAtPrice || '');
+    setStock(item.stock); setDescription(item.description); setImage(item.image);
     setEditingId(item.id); setIsActive(item.isActive); setCategory(item.category);
     setGender(item.gender || 'Unisex');
     setFormModalVisible(true);
@@ -228,6 +230,7 @@ const ProductsScreen = () => {
 
       const productData = {
         storeId: businessId, name, price: parseFloat(price),
+        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
         category, gender, stockQuantity: parseInt(stock), description, isActive,
       };
 
@@ -512,13 +515,22 @@ const ProductsScreen = () => {
                             multiline numberOfLines={3} editable={!isSubmitting}
                           />
                         </View>
-                        {/* Price + Stock */}
+                        {/* Price + Compare-at + Stock */}
                         <View style={[S.inputRow, { marginTop: rs(8), gap: rs(8) }]}>
                           <View style={[S.inputField, { flex: 1 }]}>
                             <Text style={S.currencySymbol}>₵</Text>
                             <TextInput
                               value={price} onChangeText={setPrice}
                               placeholder="Price" keyboardType="numeric"
+                              placeholderTextColor={C.subtle} style={S.inputTxt}
+                              editable={!isSubmitting}
+                            />
+                          </View>
+                          <View style={[S.inputField, { flex: 1 }]}>
+                            <Text style={[S.currencySymbol, { color: '#94A3B8' }]}>₵</Text>
+                            <TextInput
+                              value={compareAtPrice} onChangeText={setCompareAtPrice}
+                              placeholder="Was (optional)" keyboardType="numeric"
                               placeholderTextColor={C.subtle} style={S.inputTxt}
                               editable={!isSubmitting}
                             />

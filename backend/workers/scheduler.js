@@ -389,7 +389,19 @@ function initScheduler() {
     );
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM)');
+  // Every minute: expire flash sales whose ends_at has passed
+  cron.schedule('* * * * *', async () => {
+    try {
+      const expired = await repositories.flashSales.expireEnded();
+      if (expired.length > 0) {
+        logger.info(`[Scheduler] Expired ${expired.length} flash sale(s): ${expired.map(s => s.id).join(', ')}`);
+      }
+    } catch (err) {
+      logger.error('[Scheduler] Flash sale expiry error:', err.message);
+    }
+  });
+
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts };

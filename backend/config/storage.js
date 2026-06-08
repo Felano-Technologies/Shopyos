@@ -126,8 +126,19 @@ const getPresignedReadUrl = async (key, ttl = PRESIGN_TTL_S) => {
 };
 
 // Resolve a stored key (or full URL) to a presigned URL, with in-memory caching.
+// External URLs (Unsplash, CDNs, etc.) that don't belong to this storage bucket
+// pass through as-is — presigning them would produce a broken localhost MinIO URL.
 const resolveImageUrl = async (keyOrUrl) => {
   if (!keyOrUrl) return null;
+
+  // Return external URLs directly — only sign keys that belong to our bucket
+  if (
+    (keyOrUrl.startsWith('http://') || keyOrUrl.startsWith('https://')) &&
+    !keyOrUrl.startsWith(publicBaseUrl)
+  ) {
+    return keyOrUrl;
+  }
+
   const key = extractObjectKey(keyOrUrl);
   if (!key) return null;
 

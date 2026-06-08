@@ -429,7 +429,7 @@ const OrdersScreen = () => {
       {/* FIX 2: explicit spacer between chip strip and first card */}
       <View style={S.chipToCardSpacer} />
 
-      {orderAd && (
+      {orderAd ? (
         <TouchableOpacity
           style={S.ordersAdBanner}
           activeOpacity={0.9}
@@ -450,6 +450,21 @@ const OrdersScreen = () => {
             <Text style={S.ordersAdSub}>Discover hot listings and save on shipping →</Text>
           </View>
         </TouchableOpacity>
+      ) : (
+        <View style={S.ordersAdPlaceholder}>
+          <LinearGradient
+            colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={S.ordersAdContent}>
+            <View style={[S.ordersAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
+              <Text style={[S.ordersAdBadgeTxt, { color: C.muted }]}>ADS</Text>
+            </View>
+            <Text style={[S.ordersAdTitle, { color: C.muted }]}>Your campaign here</Text>
+            <Text style={[S.ordersAdSub, { color: C.subtle }]}>Promote your store to shoppers →</Text>
+          </View>
+        </View>
       )}
 
       {isLoading ? (
@@ -615,6 +630,17 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: rs(2) },
     shadowOpacity: 0.08,
     shadowRadius: rs(6),
+  },
+  ordersAdPlaceholder: {
+    marginHorizontal: rs(14),
+    marginBottom: rs(12),
+    height: rs(74),
+    borderRadius: rs(16),
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(12,21,89,0.1)',
+    borderStyle: 'dashed',
   },
   ordersAdImg: {
     ...StyleSheet.absoluteFillObject,

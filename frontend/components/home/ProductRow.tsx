@@ -1,0 +1,123 @@
+import React, { useEffect, useState } from 'react';
+import {
+  View, Text, FlatList, TouchableOpacity, Image, StyleSheet,
+  ScrollView, Animated,
+} from 'react-native';
+import Skeleton from '@/components/Skeleton';
+import { SectionHeader } from './SectionHeader';
+
+const C = {
+  navy: '#0C1559',
+  lime: '#84cc16',
+  card: '#FFFFFF',
+  body: '#0F172A',
+  subtle: '#94A3B8',
+};
+
+interface Props {
+  title: string;
+  products: any[];
+  loading: boolean;
+  onPressProduct: (item: any) => void;
+  onSeeAll?: () => void;
+  getStoreName?: (item: any) => string;
+}
+
+function defaultStoreName(item: any) {
+  return (
+    item?.store?.store_name || item?.store?.businessName || item?.store?.name ||
+    item?.business?.businessName || item?.store_name || item?.businessName || 'Shopyos'
+  );
+}
+
+export function ProductRow({ title, products, loading, onPressProduct, onSeeAll, getStoreName }: Props) {
+  const [animVals, setAnimVals] = useState<Animated.Value[]>([]);
+  const storeName = getStoreName ?? defaultStoreName;
+
+  useEffect(() => {
+    if (products.length > 0) {
+      const vals = products.map(() => new Animated.Value(0));
+      setAnimVals(vals);
+      Animated.stagger(
+        60,
+        vals.map((v) => Animated.timing(v, { toValue: 1, duration: 360, useNativeDriver: true }))
+      ).start();
+    }
+  }, [products]);
+
+  return (
+    <View style={S.wrap}>
+      <SectionHeader title={title} onSeeAll={onSeeAll} />
+
+      {loading ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.list}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={[S.card, { marginRight: 14 }]}>
+              <Skeleton width={152} height={116} borderRadius={0} />
+              <View style={S.info}>
+                <Skeleton width={90} height={9} style={{ marginBottom: 6 }} />
+                <Skeleton width={120} height={13} style={{ marginBottom: 8 }} />
+                <Skeleton width={64} height={14} />
+              </View>
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={products}
+          keyExtractor={(item) => item._id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={S.list}
+          renderItem={({ item, index }) => (
+            <Animated.View style={{
+              opacity: animVals[index] ?? 1,
+              transform: [{
+                scale: (animVals[index] ?? new Animated.Value(1)).interpolate({
+                  inputRange: [0, 1], outputRange: [0.88, 1],
+                }),
+              }],
+              marginRight: 14,
+            }}>
+              <TouchableOpacity style={S.card} activeOpacity={0.82} onPress={() => onPressProduct(item)}>
+                <Image
+                  source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+                  style={S.img}
+                />
+                <View style={S.info}>
+                  <Text style={S.store} numberOfLines={1}>{storeName(item)}</Text>
+                  <Text style={S.name} numberOfLines={1}>{item.name}</Text>
+                  <Text style={S.price}>₵{Number(item.price || 0).toFixed(2)}</Text>
+                </View>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        />
+      )}
+    </View>
+  );
+}
+
+const S = StyleSheet.create({
+  wrap: { marginBottom: 8 },
+  list: { paddingLeft: 16, paddingBottom: 20, paddingRight: 4 },
+  card: {
+    width: 152,
+    borderRadius: 18,
+    backgroundColor: C.card,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+  },
+  img: { width: '100%', height: 116, resizeMode: 'cover' },
+  info: { padding: 10 },
+  store: {
+    fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.subtle,
+    textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 3,
+  },
+  name: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: 5 },
+  price: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime },
+});
