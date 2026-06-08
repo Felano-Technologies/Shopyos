@@ -91,7 +91,6 @@ export function usePushNotifications() {
             console.log('タップ Notification Tapped:', JSON.stringify(response, null, 2));
             const data = response.notification.request.content.data;
             if (data?.screen === 'messages') {
-                // Deep link to Chat
                 if (data.conversationId) {
                     router.push({
                         pathname: '/chat/conversation',
@@ -104,11 +103,23 @@ export function usePushNotifications() {
                 } else {
                     router.push('/chat');
                 }
-            } else if (data?.screen === 'order') {
-                router.push(`/order/${data.orderId}`);
+            } else if (data?.screen === 'cart') {
+                router.push('/cart');
+            } else if (data?.screen === 'order' && data?.orderId) {
+                router.push(`/order/${data.orderId}` as any);
+            } else if (data?.screen?.startsWith('order/')) {
+                const ordId = data.screen.replace('order/', '');
+                router.push(`/order/${ordId}` as any);
+            } else if (data?.screen === 'product/details' && data?.productId) {
+                router.push({ pathname: '/product/details', params: { id: data.productId } } as any);
+            } else if (data?.screen === 'review' && data?.reviewId) {
+                router.push('/notification');
+            } else if (data?.screen === 'returns' || data?.screen === 'return_request') {
+                router.push('/returns' as any);
             } else if (data?.screen === 'store' && data.storeId) {
-                // Proximity notification tapped → open the store
                 router.push({ pathname: '/stores/details', params: { id: String(data.storeId) } });
+            } else if (data?.screen === 'loyalty') {
+                router.push('/settings/loyaltyPoints' as any);
             } else {
                 router.push('/notification');
             }

@@ -288,6 +288,18 @@ export default function SettingsScreen() {
             label: 'Transaction History',
             onPress: () => router.push('/settings/Transactions')
           })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'star',
+            label: 'Loyalty Points',
+            onPress: () => router.push('/settings/loyaltyPoints')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'refresh-ccw',
+            label: 'My Returns',
+            onPress: () => router.push('/returns')
+          })}
         </View>
         {/* Section: Preferences */}
         <Text style={styles.sectionHeader}>Preferences</Text>

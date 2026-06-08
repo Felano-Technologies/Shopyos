@@ -68,3 +68,5 @@ export {
   createBannerCampaign, getMyBannerCampaigns, getAllBannerCampaigns, updateBannerCampaignStatus,
   getActiveBanners, uploadSnapImage, createSnap, getSnapFeed, viewSnap, deleteSnap,
 } from './advertising';
+
+export { getLoyaltyBalance, getLoyaltyTransactions, validatePromoCode } from './loyalty';

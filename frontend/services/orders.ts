@@ -1,8 +1,8 @@
 import { api, extractErrorMessage } from './client';
 
-export const addToCart = async (productId: string, quantity: number) => {
+export const addToCart = async (productId: string, quantity: number, variantId?: string | null) => {
   try {
-    const response = await api.post('/cart/add', { productId, quantity });
+    const response = await api.post('/cart/add', { productId, quantity, variantId: variantId || undefined });
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
@@ -29,6 +29,8 @@ export const createOrder = async (orderData: {
   paymentMethodId?: string | null;
   buyerLat?: number;
   buyerLng?: number;
+  promoCode?: string;
+  loyaltyPointsToRedeem?: number;
 }) => {
   try {
     const response = await api.post('/orders/create', orderData);
@@ -134,5 +136,48 @@ export const checkIsFavorite = async (productId: string) => {
     return response.data;
   } catch {
     return { isFavorite: false };
+  }
+};
+
+// ─── Return & Refund Requests ─────────────────────────────────────────────────
+
+export const createReturnRequest = async (data: {
+  orderId: string;
+  reason: string;
+  reasonCategory?: string;
+  evidenceImages?: string[];
+}) => {
+  try {
+    const response = await api.post('/returns', data);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getMyReturns = async (params: { page?: number; limit?: number } = {}) => {
+  try {
+    const response = await api.get('/returns/my', { params });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getSellerReturns = async (params: { page?: number; limit?: number; status?: string } = {}) => {
+  try {
+    const response = await api.get('/returns/seller', { params });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const respondToReturn = async (returnId: string, action: 'approve' | 'decline', sellerResponse?: string) => {
+  try {
+    const response = await api.patch(`/returns/${returnId}/respond`, { action, sellerResponse });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };

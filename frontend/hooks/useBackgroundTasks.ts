@@ -149,11 +149,11 @@ export const useBackgroundTasks = () => {
     refetchInterval: 30_000,
   });
 
-  // ── Cache the store list for proximity checks ────────────────────────────
+  // ── Cache the store list and (re)start OS geofencing ────────────────────
   useEffect(() => {
     if (!userData) return;
 
-    const cacheStores = async () => {
+    const cacheStoresAndGeofence = async () => {
       try {
         const res = await getAllStores({ limit: 200 } as any);
         const stores = res.businesses || [];
@@ -164,14 +164,21 @@ export const useBackgroundTasks = () => {
           longitude: s.longitude,
         }));
         await storage.setItem('CACHED_STORES', JSON.stringify(slim));
-        console.log('[BackgroundTasks] Cached', slim.length, 'stores for proximity checks');
+        console.log('[BackgroundTasks] Cached', slim.length, 'stores');
+
+        // (Re)start geofencing with the fresh store list. Calling this after
+        // every cache refresh keeps the monitored regions in sync with new stores.
+        const result = await startGeofenceTracking();
+        if (!result.success && !result.isExpoGo) {
+          console.warn('[BackgroundTasks] Geofencing start failed:', result.message);
+        }
       } catch (err) {
         console.warn('[BackgroundTasks] Failed to cache stores:', err);
       }
     };
 
-    cacheStores();
-    const interval = setInterval(cacheStores, 30 * 60 * 1000);
+    cacheStoresAndGeofence();
+    const interval = setInterval(cacheStoresAndGeofence, 30 * 60 * 1000);
     return () => clearInterval(interval);
   }, [userData, userData?.id]);
 
@@ -191,16 +198,12 @@ export const useBackgroundTasks = () => {
       const activeDeliveryId = activeDelivery?.id || null;
       const shareLiveLocation = await getLocationSharingPreference();
 
-      // Start native background task (best-effort — works reliably on iOS,
-      // foreground-only on Android since we removed the foreground service).
-      await startGeofenceTracking();
-
-      // Always run foreground poll so reverse-geocoding and backend location
-      // updates are reliable on both platforms while the app is active.
+      // Geofencing is started/refreshed by cacheStoresAndGeofence (above) so it
+      // always has up-to-date store regions. Start the foreground poll here so
+      // reverse-geocoding and backend location sync run while the app is active.
       startForegroundPoll();
 
-      // Driver delivery tracking is always attempted as a separate task
-      // skipGeofence=true because we already called startGeofenceTracking above
+      // Handle driver delivery tracking (skipGeofence=true — geofence is managed above)
       await ensureBackgroundTasksForUser({
         role,
         activeDeliveryId,

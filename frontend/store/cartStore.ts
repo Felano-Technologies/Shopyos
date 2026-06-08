@@ -9,6 +9,8 @@ type Product = {
   price: number;
   image: any;
   storeId?: string;
+  variantId?: string | null;
+  variantAttributes?: Record<string, string>;
 };
 
 type CartItem = Product & { quantity: number };
@@ -17,10 +19,13 @@ type CartStore = {
   items: CartItem[];
   cartCount: number;
   addToCart: (product: Product) => void;
-  removeFromCart: (id: string) => void;
-  updateQuantity: (id: string, change: number) => void;
+  removeFromCart: (id: string, variantId?: string | null) => void;
+  updateQuantity: (id: string, change: number, variantId?: string | null) => void;
   clearCart: () => void;
 };
+
+// Each (productId, variantId) pair is a unique line item
+const itemKey = (id: string, variantId?: string | null) => `${id}:${variantId ?? ''}`;
 
 export const useCart = create<CartStore>()(
   persist(
@@ -31,24 +36,31 @@ export const useCart = create<CartStore>()(
       },
       addToCart: (product) =>
         set((state) => {
-          const existing = state.items.find((i) => i.id === product.id);
+          const key = itemKey(product.id, product.variantId);
+          const existing = state.items.find((i) => itemKey(i.id, i.variantId) === key);
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i
+                itemKey(i.id, i.variantId) === key ? { ...i, quantity: i.quantity + 1 } : i
               ),
             };
           }
           return { items: [...state.items, { ...product, quantity: 1 }] };
         }),
-      removeFromCart: (id) =>
-        set((state) => ({ items: state.items.filter((i) => i.id !== id) })),
-      updateQuantity: (id, change) =>
-        set((state) => ({
-          items: state.items.map((i) =>
-            i.id === id ? { ...i, quantity: Math.max(1, i.quantity + change) } : i
-          ),
-        })),
+      removeFromCart: (id, variantId) =>
+        set((state) => {
+          const key = itemKey(id, variantId);
+          return { items: state.items.filter((i) => itemKey(i.id, i.variantId) !== key) };
+        }),
+      updateQuantity: (id, change, variantId) =>
+        set((state) => {
+          const key = itemKey(id, variantId);
+          return {
+            items: state.items.map((i) =>
+              itemKey(i.id, i.variantId) === key ? { ...i, quantity: Math.max(1, i.quantity + change) } : i
+            ),
+          };
+        }),
       clearCart: () => set({ items: [] }),
     }),
     {

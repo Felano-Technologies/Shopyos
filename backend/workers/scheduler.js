@@ -389,6 +389,40 @@ function initScheduler() {
     );
   });
 
+  // Every 15 minutes: abandoned cart recovery push
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      const abandoned = await repositories.carts.getAbandonedCarts(60);
+      if (!abandoned.length) return;
+
+      logger.info(`[Scheduler] Abandoned cart recovery: ${abandoned.length} cart(s)`);
+      const notificationService = require('../services/notificationService');
+
+      for (const cart of abandoned) {
+        const firstItem = cart.cart_items?.[0]?.product;
+        const itemCount = cart.cart_items?.length || 0;
+        const title = 'You left something behind!';
+        const message = itemCount === 1
+          ? `${firstItem?.title || 'An item'} is waiting in your cart.`
+          : `${itemCount} items are waiting in your cart.`;
+
+        await notificationService.sendNotification({
+          userId: cart.user_id,
+          type: 'cart_abandonment',
+          title,
+          message,
+          relatedId: cart.id,
+          relatedType: 'cart',
+          push: { data: { screen: 'cart' } }
+        }).catch(e => logger.error(`[AbandonedCart] notify failed for user ${cart.user_id}:`, e.message));
+
+        await repositories.carts.markAbandonmentNotified(cart.id);
+      }
+    } catch (err) {
+      logger.error('[Scheduler] Abandoned cart sweep error:', err.message);
+    }
+  });
+
   // Every minute: expire flash sales whose ends_at has passed
   cron.schedule('* * * * *', async () => {
     try {

@@ -4,7 +4,8 @@ const {
   createProductReview, createStoreReview, createDriverReview,
   getProductReviews, getStoreReviews, getDriverReviews,
   updateProductReview, deleteReview, getMyReviews, getReviewableProducts,
-  likeReview, getReviewComments, createReviewComment
+  likeReview, getReviewComments, createReviewComment,
+  respondToReview, deleteReviewResponse
 } = require('../controllers/reviewController');
 const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { cacheMiddleware, reviewCacheKey } = require('../middleware/cache');
@@ -41,5 +42,9 @@ router.delete('/:reviewType/:reviewId', deleteReview);
 // Community actions
 router.post('/:reviewId/like', likeReview);
 router.post('/:reviewId/comments', createReviewComment);
+
+// Seller responses
+router.post('/:reviewId/response', respondToReview);
+router.delete('/:reviewId/response', deleteReviewResponse);
 
 module.exports = router;

@@ -285,6 +285,18 @@ const getProductReviews = async (req, res, next) => {
       likedSet = new Set((likedList || []).map(item => item.review_id));
     }
 
+    // Hydrate seller responses — raw SQL because review_responses has no QueryBuilder shim
+    if (reviews.length > 0) {
+      const reviewIds = reviews.map(r => r.id);
+      const { rows: responses } = await repositories.reviews.db.query(
+        `SELECT review_id, seller_id, response_text, created_at
+         FROM review_responses WHERE review_id = ANY($1)`,
+        [reviewIds]
+      );
+      const responseMap = responses.reduce((acc, r) => ({ ...acc, [r.review_id]: r }), {});
+      reviews.forEach(r => { r.seller_response = responseMap[r.id] || null; });
+    }
+
     const mappedReviews = reviews.map(r => {
       const rawProfile = r.user?.user_profiles;
       const userProfile = Array.isArray(rawProfile) ? rawProfile[0] : rawProfile;
@@ -353,6 +365,18 @@ const getStoreReviews = async (req, res, next) => {
         .in('review_id', reviewIds);
       
       likedSet = new Set((likedList || []).map(item => item.review_id));
+    }
+
+    // Hydrate seller responses
+    if (reviews.length > 0) {
+      const reviewIds = reviews.map(r => r.id);
+      const { rows: responses } = await repositories.reviews.db.query(
+        `SELECT review_id, seller_id, response_text, created_at
+         FROM review_responses WHERE review_id = ANY($1)`,
+        [reviewIds]
+      );
+      const responseMap = responses.reduce((acc, r) => ({ ...acc, [r.review_id]: r }), {});
+      reviews.forEach(r => { r.seller_response = responseMap[r.id] || null; });
     }
 
     const mappedReviews = reviews.map(r => {
@@ -805,6 +829,115 @@ const createReviewComment = async (req, res, next) => {
   }
 };
 
+// ─── Seller Review Responses ─────────────────────────────────────────────────
+
+// @route   POST /api/reviews/:reviewId/response
+// @desc    Seller posts a public response to a product or store review
+// @access  Private (Seller)
+const respondToReview = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const { responseText, reviewType = 'product' } = req.body;
+    const sellerId = req.user.id;
+
+    if (!responseText?.trim()) {
+      return res.status(400).json({ success: false, error: 'Response text is required' });
+    }
+
+    const reviewTables = { product: 'product_reviews', store: 'store_reviews' };
+    const table = reviewTables[reviewType];
+    if (!table) {
+      return res.status(400).json({ success: false, error: 'reviewType must be product or store' });
+    }
+
+    // Verify the review exists — raw SQL because the QueryBuilder has no shim for these tables
+    // that exposes individual columns without stripping the select list
+    const { rows: reviewRows } = await repositories.reviews.db.query(
+      `SELECT id, product_id, store_id, buyer_id FROM ${table} WHERE id = $1 AND deleted_at IS NULL`,
+      [reviewId]
+    );
+    const review = reviewRows[0];
+    if (!review) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    // Resolve the store to check seller ownership
+    let storeId = review.store_id;
+    if (!storeId && review.product_id) {
+      const product = await repositories.products.findById(review.product_id, 'store_id');
+      storeId = product?.store_id;
+    }
+    const store = await repositories.stores.findById(storeId);
+    if (!store || store.owner_id !== sellerId) {
+      return res.status(403).json({ success: false, error: 'Not authorised to respond to this review' });
+    }
+
+    // Upsert — one response per review
+    const { rows: existingRows } = await repositories.reviews.db.query(
+      `SELECT id FROM review_responses WHERE review_id = $1 LIMIT 1`,
+      [reviewId]
+    );
+    const existing = existingRows[0];
+
+    let response;
+    if (existing) {
+      const { rows } = await repositories.reviews.db.query(
+        `UPDATE review_responses SET response_text = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+        [responseText.trim(), existing.id]
+      );
+      response = rows[0];
+    } else {
+      const { rows } = await repositories.reviews.db.query(
+        `INSERT INTO review_responses (review_id, seller_id, response_text)
+         VALUES ($1, $2, $3) RETURNING *`,
+        [reviewId, sellerId, responseText.trim()]
+      );
+      response = rows[0];
+
+      // Notify the reviewer via push + in-app
+      await notificationService.sendNotification({
+        userId: review.buyer_id,
+        type: 'seller_review_response',
+        title: 'Seller replied to your review',
+        message: `${store.store_name} responded to your review.`,
+        relatedId: reviewId,
+        relatedType: reviewType === 'product' ? 'product_review' : 'store_review',
+        push: { data: { screen: 'review', reviewId } }
+      }).catch(e => logger.warn('[ReviewResponse] push failed:', e.message));
+    }
+
+    return res.status(200).json({ success: true, data: response });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @route   DELETE /api/reviews/:reviewId/response
+// @desc    Seller removes their response
+// @access  Private (Seller)
+const deleteReviewResponse = async (req, res, next) => {
+  try {
+    const { reviewId } = req.params;
+    const sellerId = req.user.id;
+
+    const { rows } = await repositories.reviews.db.query(
+      `DELETE FROM review_responses WHERE review_id = $1 AND seller_id = $2 RETURNING id`,
+      [reviewId, sellerId]
+    );
+    if (!rows[0]) {
+      return res.status(404).json({ success: false, error: 'Response not found' });
+    }
+
+    return res.status(200).json({ success: true, message: 'Response deleted' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Pull in notificationService and logger for the response handlers above
+const notificationService = require('../services/notificationService');
+const { logger } = require('../config/logger');
+
 module.exports = {
   createProductReview,
   createStoreReview,
@@ -818,5 +951,7 @@ module.exports = {
   getReviewableProducts,
   likeReview,
   getReviewComments,
-  createReviewComment
+  createReviewComment,
+  respondToReview,
+  deleteReviewResponse
 };

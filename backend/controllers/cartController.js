@@ -10,7 +10,7 @@ const repositories = require('../db/repositories');
  */
 const addToCart = async (req, res, next) => {
   try {
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity = 1, variantId = null } = req.body;
     const userId = req.user.id;
 
     // Validate input
@@ -37,13 +37,29 @@ const addToCart = async (req, res, next) => {
       });
     }
 
+    // Resolve variant and effective price
+    let effectivePrice = product.price;
+    let resolvedVariantId = null;
+    if (variantId) {
+      const variant = await repositories.productVariants.findWithProduct(variantId);
+      if (!variant || variant.product_id !== productId) {
+        return res.status(400).json({ success: false, error: 'Variant does not belong to this product' });
+      }
+      if (!variant.is_active || !variant.product_active) {
+        return res.status(400).json({ success: false, error: 'This variant is not available' });
+      }
+      // Variant price overrides base price when set
+      effectivePrice = variant.price != null ? variant.price : product.price;
+      resolvedVariantId = variantId;
+    }
+
     // Check inventory if tracking is enabled
     const inventory = await repositories.products.getInventory(productId);
-    
+
     // Only check stock if inventory exists and tracking is enabled
     if (inventory && inventory.track_inventory) {
       const availableStock = inventory.stock_quantity - (inventory.reserved_quantity || 0);
-      
+
       if (availableStock < quantity) {
         return res.status(400).json({
           success: false,
@@ -53,11 +69,16 @@ const addToCart = async (req, res, next) => {
       }
     }
 
-    // Add to cart (pass product price for price_at_add column)
-    const cartItem = await repositories.carts.addItem(userId, productId, quantity, product.price);
+    // Add to cart (pass effective price and variant for price_at_add column)
+    const cartItem = await repositories.carts.addItem(userId, productId, quantity, effectivePrice, resolvedVariantId);
 
     // Get updated cart with items
     const cart = await repositories.carts.getCartWithItems(userId);
+
+    // Reset abandonment tracking so a new inactivity window starts now
+    setImmediate(() =>
+      repositories.carts.touchLastActivity(userId).catch(() => {})
+    );
 
     res.status(200).json({
       success: true,

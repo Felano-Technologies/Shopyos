@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
@@ -15,6 +15,8 @@ import { useOrders } from '@/hooks/useOrders';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { getActiveBanners, recordAdClick } from '@/services/api';
+import { HeroAd } from '@/components/home/HeroCarousel';
+import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 
 // ─── Responsive helpers ───────────────────────────────────────────────────────
 const { width: SW } = Dimensions.get('window');
@@ -85,18 +87,25 @@ const OrdersScreen = () => {
   const [page,         setPage]         = useState(1);
   const [searchQuery,  setSearchQuery]  = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [orderAd,      setOrderAd]      = useState<any | null>(null);
+  const [orderAds, setOrderAds] = useState<HeroAd[]>([]);
 
   useEffect(() => {
     (async () => {
       try {
         const res = await getActiveBanners();
-        if (res?.banners?.length > 0) {
-          setOrderAd(res.banners[Math.floor(Math.random() * res.banners.length)]);
-        }
+        if (res?.banners?.length > 0) setOrderAds(res.banners);
       } catch { }
     })();
   }, []);
+
+  const handleAdPress = useCallback((ad: HeroAd) => {
+    recordAdClick(ad.id).catch(() => {});
+    if (ad.product?.id) {
+      router.push({ pathname: '/product/details', params: { id: ad.product.id } } as any);
+    } else if (ad.store_id) {
+      router.push({ pathname: '/stores/details', params: { id: ad.store_id } } as any);
+    }
+  }, [router]);
 
 
   const FILTERS = ['All', 'Pending', 'Paid', 'Confirmed', 'In Transit', 'Delivered', 'Cancelled'];
@@ -426,47 +435,6 @@ const OrdersScreen = () => {
         })}
       </ScrollView>
 
-      {/* FIX 2: explicit spacer between chip strip and first card */}
-      <View style={S.chipToCardSpacer} />
-
-      {orderAd ? (
-        <TouchableOpacity
-          style={S.ordersAdBanner}
-          activeOpacity={0.9}
-          onPress={() => {
-            recordAdClick(orderAd.id).catch(() => {});
-            router.push({ pathname: '/stores/details', params: { id: orderAd.store_id } });
-          }}
-        >
-          <Image source={{ uri: orderAd.banner_url }} style={S.ordersAdImg} />
-          <LinearGradient
-            colors={['rgba(12,21,89,0.7)', 'transparent']}
-            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={S.ordersAdContent}>
-            <View style={S.ordersAdBadge}><Text style={S.ordersAdBadgeTxt}>SPONSORED STORE</Text></View>
-            <Text style={S.ordersAdTitle} numberOfLines={1}>{orderAd.title}</Text>
-            <Text style={S.ordersAdSub}>Discover hot listings and save on shipping →</Text>
-          </View>
-        </TouchableOpacity>
-      ) : (
-        <View style={S.ordersAdPlaceholder}>
-          <LinearGradient
-            colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={S.ordersAdContent}>
-            <View style={[S.ordersAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
-              <Text style={[S.ordersAdBadgeTxt, { color: C.muted }]}>ADS</Text>
-            </View>
-            <Text style={[S.ordersAdTitle, { color: C.muted }]}>Your campaign here</Text>
-            <Text style={[S.ordersAdSub, { color: C.subtle }]}>Promote your store to shoppers →</Text>
-          </View>
-        </View>
-      )}
-
       {isLoading ? (
         <OrdersSkeleton />
       ) : (
@@ -476,6 +444,34 @@ const OrdersScreen = () => {
           renderItem={renderOrder}
           contentContainerStyle={[S.listContent, { paddingBottom: listBottomPadding }]}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View>
+              <View style={S.chipToCardSpacer} />
+              {orderAds.length > 0 ? (
+                <CompactAdCarousel ads={orderAds} onAdPress={handleAdPress} />
+              ) : (
+                <View style={S.adPlaceholder}>
+                  <LinearGradient
+                    colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+                    start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <View style={S.adPlaceholderContent}>
+                    <View style={S.adPlaceholderBadge}>
+                      <Text style={S.adPlaceholderBadgeTxt}>ADS</Text>
+                    </View>
+                    <Text style={S.adPlaceholderTitle}>Your campaign here</Text>
+                    <Text style={S.adPlaceholderSub}>Promote your store to thousands of buyers →</Text>
+                  </View>
+                  <View style={S.adPlaceholderDots}>
+                    {[0, 1, 2].map(i => (
+                      <View key={i} style={[S.adPlaceholderDot, i === 0 && S.adPlaceholderDotActive]} />
+                    ))}
+                  </View>
+                </View>
+              )}
+            </View>
+          }
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -615,70 +611,35 @@ const S = StyleSheet.create({
 
   // ── Spacer between chips and first card ───────────────────────────────────
   chipToCardSpacer: {
-    height: rs(12),   // comfortable breathing room
+    height: rs(12),
   },
 
-  ordersAdBanner: {
-    marginHorizontal: rs(14),
+  // ── Ad placeholder (shown when no live campaigns) ─────────────────────────
+  adPlaceholder: {
     marginBottom: rs(12),
-    height: rs(74),
-    borderRadius: rs(16),
-    overflow: 'hidden',
-    position: 'relative',
-    elevation: 3,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) },
-    shadowOpacity: 0.08,
-    shadowRadius: rs(6),
-  },
-  ordersAdPlaceholder: {
-    marginHorizontal: rs(14),
-    marginBottom: rs(12),
-    height: rs(74),
-    borderRadius: rs(16),
-    overflow: 'hidden',
-    position: 'relative',
+    height: rs(80),
     borderWidth: 1,
     borderColor: 'rgba(12,21,89,0.1)',
     borderStyle: 'dashed',
+    overflow: 'hidden',
   },
-  ordersAdImg: {
-    ...StyleSheet.absoluteFillObject,
-    resizeMode: 'cover',
+  adPlaceholderContent: {
+    flex: 1, justifyContent: 'center', paddingHorizontal: rs(24),
   },
-  ordersAdContent: {
-    position: 'absolute',
-    left: rs(14),
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    zIndex: 10,
+  adPlaceholderBadge: {
+    backgroundColor: 'rgba(12,21,89,0.08)', borderRadius: rs(10),
+    paddingHorizontal: rs(8), paddingVertical: rs(3),
+    alignSelf: 'flex-start', marginBottom: rs(8),
   },
-  ordersAdBadge: {
-    backgroundColor: '#84cc16',
-    paddingHorizontal: rs(6),
-    paddingVertical: rs(1.5),
-    borderRadius: rs(4),
-    alignSelf: 'flex-start',
-    marginBottom: rs(2),
+  adPlaceholderBadgeTxt: { fontSize: rf(8), fontFamily: 'Montserrat-Bold', color: C.muted, letterSpacing: 0.5 },
+  adPlaceholderTitle:     { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.muted, marginBottom: rs(2) },
+  adPlaceholderSub:       { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: 'rgba(100,116,139,0.7)' },
+  adPlaceholderDots: {
+    flexDirection: 'row', justifyContent: 'center', gap: 6,
+    position: 'absolute', bottom: rs(10), left: 0, right: 0,
   },
-  ordersAdBadgeTxt: {
-    fontSize: rf(8),
-    fontFamily: 'Montserrat-Bold',
-    color: '#1a2e00',
-  },
-  ordersAdTitle: {
-    fontSize: rf(13),
-    fontFamily: 'Montserrat-Bold',
-    color: '#ffffff',
-    letterSpacing: -0.2,
-  },
-  ordersAdSub: {
-    fontSize: rf(9),
-    fontFamily: 'Montserrat-Medium',
-    color: 'rgba(255,255,255,0.7)',
-    marginTop: rs(1),
-  },
+  adPlaceholderDot:       { width: rs(6),  height: rs(6), borderRadius: rs(3), backgroundColor: 'rgba(12,21,89,0.15)' },
+  adPlaceholderDotActive: { width: rs(24), height: rs(6), borderRadius: rs(3), backgroundColor: 'rgba(12,21,89,0.25)' },
 
   // List
   listContent: { paddingHorizontal: 0 },

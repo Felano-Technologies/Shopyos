@@ -48,6 +48,9 @@ const deliveryFeeRoutes = require('./routes/deliveryFeeRoutes');
 const userActionRoutes = require('./routes/userActionRoutes');
 const snapRoutes = require('./routes/snapRoutes');
 const flashSaleRoutes = require('./routes/flashSaleRoutes');
+const promoRoutes = require('./routes/promoRoutes');
+const loyaltyRoutes = require('./routes/loyaltyRoutes');
+const returnRoutes = require('./routes/returnRoutes');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter } = require('./middleware/rateLimiter');
@@ -224,6 +227,9 @@ app.use('/api/v1/delivery', deliveryFeeRoutes);
 app.use('/api/v1/user-actions', userActionRoutes);
 app.use('/api/v1/snaps', snapRoutes);
 app.use('/api/v1/flash-sales', flashSaleRoutes);
+app.use('/api/v1/promo', promoRoutes);
+app.use('/api/v1/loyalty', loyaltyRoutes);
+app.use('/api/v1/returns', returnRoutes);
 
 // Legacy route forwarding for backward compatibility
 const legacyRoutes = {

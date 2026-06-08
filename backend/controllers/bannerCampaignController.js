@@ -21,27 +21,32 @@ const formatBanners = (obj) => {
   return obj;
 };
 
-const PRICING = {
-  'Home Top Banner': 50,
-  'Search Highlight': 30,
-  'Category Featured': 20,
+// Flat duration-based pricing (GHS)
+const DURATION_PRICING = { 1: 1, 7: 10, 30: 50 };
+
+// Placements randomly assigned by the system at approval time
+const PLACEMENTS = ['Home Top Banner', 'Search Highlight', 'Category Featured'];
+
+const calcCost = (days) => {
+  if (DURATION_PRICING[days] !== undefined) return DURATION_PRICING[days];
+  // prorate: use per-day rate of the weekly tier
+  return Math.round(days * (10 / 7) * 100) / 100;
 };
 
 exports.createCampaign = async (req, res, next) => {
   try {
-    const { title, placement, duration } = req.body;
-    
-    // Get user's store
+    const { title, duration } = req.body;
+
     const storeResults = await repositories.stores.findByOwner(req.user.id);
     const store = Array.isArray(storeResults) ? storeResults[0] : (storeResults?.data?.[0] || storeResults.data);
-    
+
     if (!store) {
       return res.status(404).json({ error: 'No store found for this account. Please create a store first.' });
     }
-    
+
     const store_id = store.id;
 
-    if (!title || !placement || !duration) {
+    if (!title || !duration) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -50,20 +55,18 @@ exports.createCampaign = async (req, res, next) => {
     }
 
     const durationDays = parseInt(duration);
-    const costPerDay = PRICING[placement] || 20;
-    const totalCost = costPerDay * durationDays;
+    const totalCost = calcCost(durationDays);
 
-    // Upload banner to cloudinary
     const uploadResult = await uploadFileToCloudinary(req.file, 'shopyos/banner-campaigns');
 
     const campaign = await repositories.bannerCampaigns.createCampaign({
       store_id,
       title,
-      placement,
+      placement: 'Pending Assignment',
       duration_days: durationDays,
       paid_amount: totalCost,
       status: 'Pending',
-      banner_url: uploadResult.url
+      banner_url: uploadResult.url,
     });
 
     res.status(201).json({ success: true, campaign: formatBanners(campaign) });
@@ -102,14 +105,16 @@ exports.getAllCampaigns = async (req, res, next) => {
 exports.updateCampaignStatus = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body; // 'Approved' or 'Rejected'
+    const { status, reason } = req.body;
 
     let updateData = { status };
+
     if (status === 'Rejected') {
       updateData.rejection_reason = reason;
-    } 
-    // Admin approving only moves it to 'Approved' (Waiting for Payment)
-    // It becomes 'Active' only after verifyPayment
+    } else if (status === 'Approved') {
+      // Randomly assign the placement — sellers don't choose, the system does
+      updateData.placement = PLACEMENTS[Math.floor(Math.random() * PLACEMENTS.length)];
+    }
 
     const updated = await repositories.bannerCampaigns.updateCampaign(id, updateData);
 

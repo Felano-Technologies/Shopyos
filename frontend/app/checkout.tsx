@@ -15,6 +15,7 @@ import { useCart } from '@/store/cartStore';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods, getDeliveryQuote, getProductById,
+  getLoyaltyBalance, validatePromoCode,
 } from '@/services/api';
 
 const C = {
@@ -44,6 +45,17 @@ export default function CheckoutScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [deliveryState, setDeliveryState] = useState('Greater Accra');
   const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
+
+  // Promo code state
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<{ id: string; code: string; discountAmount: number; label: string } | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [isValidatingPromo, setIsValidatingPromo] = useState(false);
+
+  // Loyalty points state
+  const [loyaltyBalance, setLoyaltyBalance] = useState(0);
+  const [loyaltyValue, setLoyaltyValue] = useState(0);
+  const [usePoints, setUsePoints] = useState(false);
 
   // Delivery fee state
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
@@ -108,16 +120,25 @@ export default function CheckoutScreen() {
     })();
   }, [buyerCoords, cartItems, deliveryState]);
 
-  const tax = 1.00; // Flat Buyer Protection Fee
-  const total = subtotal + tax + deliveryFee;
+  const tax = 1.00;
+  const promoDiscount = appliedPromo?.discountAmount ?? 0;
+  const pointsDiscount = usePoints ? loyaltyValue : 0;
+  const totalDiscount = parseFloat((promoDiscount + pointsDiscount).toFixed(2));
+  const total = parseFloat((subtotal + tax + deliveryFee - totalDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
       try {
-        const [profileResponse, paymentResponse] = await Promise.all([
+        const [profileResponse, paymentResponse, loyaltyResponse] = await Promise.all([
           getUserData(),
           getPaymentMethods(),
+          getLoyaltyBalance().catch(() => null),
         ]);
+
+        if (loyaltyResponse?.success) {
+          setLoyaltyBalance(loyaltyResponse.balance);
+          setLoyaltyValue(loyaltyResponse.redeemableValue);
+        }
 
         const profile = profileResponse.user || profileResponse;
         if (profile) {
@@ -151,6 +172,23 @@ export default function CheckoutScreen() {
     })();
   }, []);
 
+  const handleApplyPromo = async () => {
+    const code = promoInput.trim().toUpperCase();
+    if (!code) return;
+    setPromoError(null);
+    setAppliedPromo(null);
+    setIsValidatingPromo(true);
+    try {
+      const res = await validatePromoCode(code, subtotal);
+      setAppliedPromo(res.promo);
+      setPromoInput('');
+    } catch (e: any) {
+      setPromoError(e.message || 'Invalid promo code');
+    } finally {
+      setIsValidatingPromo(false);
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
       CustomInAppToast.show({ type: 'error', title: 'Required Info', message: 'Please provide address and phone number.' });
@@ -172,8 +210,9 @@ export default function CheckoutScreen() {
         deliveryPhone,
         paymentMethod: paymentMethodType,
         paymentMethodId: selectedMethodId,
-        // Pass buyer coordinates so the backend recalculates the fee server-side
         ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
+        ...(appliedPromo && { promoCode: appliedPromo.code }),
+        ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
       });
 
       if (res.success) {
@@ -296,12 +335,90 @@ export default function CheckoutScreen() {
                   <Text style={S.errorText}>Your address is outside this store&apos;s delivery zone.</Text>
                 </View>
               )}
+              {totalDiscount > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={[S.summaryItemName, { color: '#16a34a' }]}>
+                    Discount{appliedPromo ? ` (${appliedPromo.code})` : ''}{usePoints && pointsDiscount > 0 ? `${appliedPromo ? ' + ' : ''}Points` : ''}
+                  </Text>
+                  <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalDiscount.toFixed(2)}</Text>
+                </View>
+              )}
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
                 <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
               </View>
             </View>
+
+            {/* Promo Code */}
+            <Text style={S.sectionTitle}>Promo Code</Text>
+            <View style={S.card}>
+              {appliedPromo ? (
+                <View style={S.promoApplied}>
+                  <Ionicons name="checkmark-circle" size={20} color="#16a34a" />
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={S.promoAppliedCode}>{appliedPromo.code}</Text>
+                    <Text style={S.promoAppliedSub}>{appliedPromo.label} — saving ₵{appliedPromo.discountAmount.toFixed(2)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setAppliedPromo(null)}>
+                    <Ionicons name="close-circle" size={22} color={C.muted} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={S.promoRow}>
+                  <TextInput
+                    style={S.promoInput}
+                    placeholder="Enter promo code"
+                    placeholderTextColor={C.subtle}
+                    value={promoInput}
+                    onChangeText={t => { setPromoInput(t.toUpperCase()); setPromoError(null); }}
+                    autoCapitalize="characters"
+                    returnKeyType="done"
+                    onSubmitEditing={handleApplyPromo}
+                  />
+                  <TouchableOpacity
+                    style={[S.promoBtn, (!promoInput.trim() || isValidatingPromo) && { opacity: 0.5 }]}
+                    onPress={handleApplyPromo}
+                    disabled={!promoInput.trim() || isValidatingPromo}
+                  >
+                    {isValidatingPromo
+                      ? <ActivityIndicator size="small" color="#fff" />
+                      : <Text style={S.promoBtnTxt}>Apply</Text>
+                    }
+                  </TouchableOpacity>
+                </View>
+              )}
+              {promoError && (
+                <Text style={S.promoError}>{promoError}</Text>
+              )}
+            </View>
+
+            {/* Loyalty Points */}
+            {loyaltyBalance > 0 && (
+              <>
+                <Text style={S.sectionTitle}>Loyalty Points</Text>
+                <TouchableOpacity style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
+                  <View style={S.loyaltyRow}>
+                    <View style={S.loyaltyIcon}>
+                      <Ionicons name="star" size={20} color={C.lime} />
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <Text style={S.loyaltyTitle}>{loyaltyBalance} points available</Text>
+                      <Text style={S.loyaltySub}>Worth ₵{loyaltyValue.toFixed(2)} off your order</Text>
+                    </View>
+                    <View style={[S.toggle, usePoints && S.toggleOn]}>
+                      <View style={[S.toggleThumb, usePoints && S.toggleThumbOn]} />
+                    </View>
+                  </View>
+                  {usePoints && (
+                    <View style={S.loyaltySaving}>
+                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                      <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
 
             {/* Delivery Info */}
             <Text style={S.sectionTitle}>Delivery Information</Text>
@@ -488,4 +605,26 @@ const S = StyleSheet.create({
   regionChipTxtActive: { color: '#FFF' },
   errorBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, gap: 8, marginTop: 4 },
   errorText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', flex: 1 },
+
+  // Promo code
+  promoRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  promoInput: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: 'Montserrat-Medium', color: C.body },
+  promoBtn: { backgroundColor: C.navy, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 13, justifyContent: 'center', alignItems: 'center' },
+  promoBtnTxt: { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  promoApplied: { flexDirection: 'row', alignItems: 'center' },
+  promoAppliedCode: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#16a34a' },
+  promoAppliedSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
+  promoError: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', marginTop: 8 },
+
+  // Loyalty points
+  loyaltyRow: { flexDirection: 'row', alignItems: 'center' },
+  loyaltyIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F7FEE7', justifyContent: 'center', alignItems: 'center' },
+  loyaltyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body },
+  loyaltySub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: 2 },
+  loyaltySaving: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, backgroundColor: '#F0FDF4', padding: 8, borderRadius: 8 },
+  loyaltySavingTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: '#16a34a' },
+  toggle: { width: 44, height: 24, borderRadius: 12, backgroundColor: '#E2E8F0', justifyContent: 'center', paddingHorizontal: 2 },
+  toggleOn: { backgroundColor: C.lime },
+  toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', elevation: 2 },
+  toggleThumbOn: { alignSelf: 'flex-end' },
 });

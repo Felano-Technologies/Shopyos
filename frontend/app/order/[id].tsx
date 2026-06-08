@@ -11,9 +11,12 @@ import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cancelOrder, startConversation, confirmDelivery } from '@/services/api';
+import { createReturnRequest } from '@/services/orders';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { queryKeys } from '@/lib/query/keys';
 import { OrderDetailsSkeleton } from '@/components/skeletons/OrderDetailsSkeleton';
+
+const CANCEL_WINDOW_MS = 5 * 60 * 1000;
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -112,11 +115,36 @@ const OrderDetailsScreen = () => {
     onError: (e: any) => Alert.alert('Error', e.message || 'Failed to confirm delivery'),
   });
 
+  const cancelWindowExpired = order
+    ? Date.now() - new Date(order.created_at).getTime() > CANCEL_WINDOW_MS
+    : false;
+
   const handleCancelOrder = () => {
+    if (cancelWindowExpired) {
+      Alert.alert('Cannot Cancel', 'Orders can only be cancelled within 5 minutes of being placed.');
+      return;
+    }
     Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
       { text: 'No', style: 'cancel' },
       { text: 'Yes, Cancel', style: 'destructive', onPress: () => cancelMutation.mutate() },
     ]);
+  };
+
+  const handleRequestReturn = () => {
+    Alert.prompt(
+      'Request Return',
+      'Please describe the reason for your return:',
+      async (reason) => {
+        if (!reason?.trim()) return;
+        try {
+          await createReturnRequest({ orderId: orderId, reason: reason.trim() });
+          Alert.alert('Submitted', 'Your return request has been sent to the seller.');
+        } catch (e: any) {
+          Alert.alert('Error', e.message || 'Failed to submit return request');
+        }
+      },
+      'plain-text'
+    );
   };
 
   const handleConfirmDelivery = () => {
@@ -534,17 +562,27 @@ const OrderDetailsScreen = () => {
           </View>
         </View>
         {/* ── Actions ─────────────────────────────────────────────────────── */}
-        {order.status.toLowerCase() === 'delivered' && (
-          <TouchableOpacity
-            style={S.reviewBtn}
-            onPress={() => router.push(`/review/${order.id}` as any)}
-            activeOpacity={0.88}
-          >
-            <LinearGradient colors={[C.navy, C.navyMid]} style={S.reviewBtnGrad}>
-              <Ionicons name="star-outline" size={rs(18)} color={C.lime} />
-              <Text style={S.reviewBtnTxt}>Leave a Review</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+        {['delivered', 'completed'].includes(order.status.toLowerCase()) && (
+          <View style={{ gap: rs(10) }}>
+            <TouchableOpacity
+              style={S.reviewBtn}
+              onPress={() => router.push(`/review/${order.id}` as any)}
+              activeOpacity={0.88}
+            >
+              <LinearGradient colors={[C.navy, C.navyMid]} style={S.reviewBtnGrad}>
+                <Ionicons name="star-outline" size={rs(18)} color={C.lime} />
+                <Text style={S.reviewBtnTxt}>Leave a Review</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={S.returnBtn}
+              onPress={handleRequestReturn}
+              activeOpacity={0.82}
+            >
+              <Ionicons name="refresh-circle-outline" size={rs(18)} color="#7C3AED" />
+              <Text style={S.returnBtnTxt}>Request Return</Text>
+            </TouchableOpacity>
+          </View>
         )}
         {order.status.toLowerCase() === 'pending' && (
           <View style={{ gap: rs(10) }}>
@@ -563,7 +601,7 @@ const OrderDetailsScreen = () => {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[S.cancelBtn, cancelMutation.isPending && { opacity: 0.65 }]}
+              style={[S.cancelBtn, (cancelMutation.isPending || cancelWindowExpired) && { opacity: 0.5 }]}
               onPress={handleCancelOrder}
               disabled={cancelMutation.isPending}
               activeOpacity={0.82}
@@ -572,8 +610,10 @@ const OrderDetailsScreen = () => {
                 <ActivityIndicator color="#EF4444" />
               ) : (
                 <>
-                  <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
-                  <Text style={S.cancelBtnTxt}>Cancel Order</Text>
+                  <Ionicons name="close-circle-outline" size={rs(18)} color={cancelWindowExpired ? C.muted : '#EF4444'} />
+                  <Text style={[S.cancelBtnTxt, cancelWindowExpired && { color: C.muted }]}>
+                    {cancelWindowExpired ? 'Cancel window expired' : 'Cancel Order'}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -756,6 +796,13 @@ const S = StyleSheet.create({
     gap: rs(8), paddingVertical: rs(16),
   },
   reviewBtnTxt: { color: '#fff', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
+  returnBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: rs(8), backgroundColor: '#F5F3FF',
+    paddingVertical: rs(14), borderRadius: rs(16),
+    borderWidth: 0.5, borderColor: '#DDD6FE', marginBottom: rs(4),
+  },
+  returnBtnTxt: { color: '#7C3AED', fontSize: rf(15), fontFamily: 'Montserrat-Bold' },
   cancelBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
     gap: rs(8), backgroundColor: '#FEF2F2',
