@@ -3,6 +3,7 @@ import { View, StyleSheet, useColorScheme } from 'react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, usePathname } from 'expo-router';
+import { FontFamily, FontSize } from '@/constants/Typography';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import BottomNav from '../components/BottomNav';
@@ -23,22 +24,25 @@ import { ImagePreviewProvider } from '@/context/ImagePreviewContext';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+const toastText1 = { fontSize: FontSize.md, fontFamily: FontFamily.bold, color: '#0F172A' };
+const toastText2 = { fontSize: FontSize.sm, fontFamily: FontFamily.regular, color: '#64748B' };
+
 const toastConfig = {
   success: (props: any) => (
     <BaseToast
       {...props}
       style={{ borderLeftColor: '#84cc16', backgroundColor: '#FFF', borderRadius: 12 }}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' }}
-      text2Style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' }}
+      text1Style={toastText1}
+      text2Style={toastText2}
     />
   ),
   error: (props: any) => (
     <ErrorToast
       {...props}
       style={{ borderLeftColor: '#EF4444', backgroundColor: '#FFF', borderRadius: 12 }}
-      text1Style={{ fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' }}
-      text2Style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' }}
+      text1Style={toastText1}
+      text2Style={toastText2}
     />
   ),
   info: (props: any) => (
@@ -46,8 +50,8 @@ const toastConfig = {
       {...props}
       style={{ borderLeftColor: '#0C1559', backgroundColor: '#FFF', borderRadius: 12 }}
       contentContainerStyle={{ paddingHorizontal: 15 }}
-      text1Style={{ fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' }}
-      text2Style={{ fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' }}
+      text1Style={toastText1}
+      text2Style={toastText2}
     />
   )
 };
@@ -220,8 +224,9 @@ function AppContent() {
 export default function RootLayout() {
   const [loaded] = useFonts({
     'Montserrat-Regular': require('../assets/fonts/Montserrat-Regular.ttf'),
-    'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
     'Montserrat-SemiBold': require('../assets/fonts/Montserrat-SemiBold.ttf'),
+    'Montserrat-Bold': require('../assets/fonts/Montserrat-Bold.ttf'),
+    'Montserrat-Black': require('../assets/fonts/Montserrat-Black.ttf'),
   });
 
   useEffect(() => {

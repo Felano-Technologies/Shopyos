@@ -21,18 +21,37 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useCategories } from '@/hooks/useCategories';
 import { searchProducts } from '@/services/api';
-// Helper for fallback images
-const getFallbackImage = (index: number) => {
-  const images = [
-    require('../../assets/images/search/men cloth.png'),
-    require('../../assets/images/search/womencloth.png'),
-    require('../../assets/images/search/sports.jpg'),
-    require('../../assets/images/search/fooddrinks.png'),
-    require('../../assets/images/search/Arts1.png'),
-    require('../../assets/images/search/bag1.jpg'),
-  ];
-  return images[index % images.length];
+const CATEGORY_IMAGES: Record<string, any> = {
+  'Grocery':         require('../../assets/images/search/fooddrinks.png'),
+  'Footwear':        require('../../assets/images/search/slipper1.png'),
+  'Fashion':         require('../../assets/images/search/womencloth.png'),
+  'Electronics':     require('../../assets/images/search/appliances.jpeg'),
+  'Home':            require('../../assets/images/search/table.jpg'),
+  'Health':          require('../../assets/images/search/supplement.png'),
+  'Art':             require('../../assets/images/search/Arts1.png'),
+  'Accessories':     require('../../assets/images/search/accessories.png'),
+  'Beauty':          require('../../assets/images/search/supplement2.jpg'),
+  'Sports':          require('../../assets/images/search/sports.jpg'),
+  'Home & Kitchen':  require('../../assets/images/search/table2.jpg'),
+  'Kitchen and home':require('../../assets/images/search/table2.jpg'),
+  'Other':           require('../../assets/images/search/arts2.jpeg'),
+  'Sneakers':        require('../../assets/images/search/slipper2.jpg'),
+  'Books':           require('../../assets/images/search/pencil.png'),
+  'Men':             require('../../assets/images/search/men cloth.png'),
+  'Women':           require('../../assets/images/search/womencloth.png'),
 };
+
+const FALLBACK_IMAGES = [
+  require('../../assets/images/search/fooddrinks.png'),
+  require('../../assets/images/search/womencloth.png'),
+  require('../../assets/images/search/sports.jpg'),
+  require('../../assets/images/search/Arts1.png'),
+  require('../../assets/images/search/accessories.png'),
+  require('../../assets/images/search/bag1.jpg'),
+];
+
+const getCategoryImage = (name: string, index: number) =>
+  CATEGORY_IMAGES[name] ?? FALLBACK_IMAGES[index % FALLBACK_IMAGES.length];
 export default function CategoryScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -89,7 +108,7 @@ export default function CategoryScreen() {
   };
   // --- Renderers ---
   const renderCategoryCard = (item: any, index: number) => {
-    const displayImage = item.image_url ? { uri: item.image_url } : getFallbackImage(index);
+    const displayImage = item.image_url ? { uri: item.image_url } : getCategoryImage(item.name || item.title, index);
     
     return (
       <TouchableOpacity

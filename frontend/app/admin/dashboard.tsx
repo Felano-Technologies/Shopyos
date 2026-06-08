@@ -6,49 +6,51 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Image,
 } from 'react-native';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
-import AdminShell, { AdminPanel, AdminSectionHeader } from '@/components/admin/AdminShell';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { adminColors } from '@/components/admin/adminTheme';
 import { getAdminAuditLogs, getAdminDashboard } from '@/services/api';
 
-const ACTION_MAP: Record<string, { icon: any; bg: string; color: string }> = {
-  store_verified: { icon: 'shield-checkmark', bg: '#DBEAFE', color: '#1D4ED8' },
-  store_rejected: { icon: 'close-circle', bg: '#FEE2E2', color: '#DC2626' },
-  user_updated: { icon: 'person', bg: '#FEF3C7', color: '#D97706' },
-  payout_approved: { icon: 'cash', bg: '#DCFCE7', color: '#16A34A' },
-  payout_rejected: { icon: 'close', bg: '#FEE2E2', color: '#DC2626' },
-  order_status_changed: { icon: 'bag-handle', bg: '#EDE9FE', color: '#7C3AED' },
-  report_resolved: { icon: 'flag', bg: '#E0F2FE', color: '#0891B2' },
-  driver_approved: { icon: 'car-sport', bg: '#DCFCE7', color: '#16A34A' },
-  driver_rejected: { icon: 'car-sport', bg: '#FEE2E2', color: '#DC2626' },
-};
-
-const ACTION_GRADIENTS: [string, string][] = [
-  [adminColors.navy, adminColors.navyMid],
-  ['#7C3AED', '#4C1D95'],
-  ['#F59E0B', '#D97706'],
-  ['#10B981', '#047857'],
-];
-
-const CARD_BACKGROUNDS = ['#FFF8E2', '#EEF4FF', '#F2EBFF', '#E6FAFB'];
+// Gradient: top navy → bottom green (matches the hero panel in both screenshots)
+const DARK_GRADIENT = ['#0B2060', '#1A7A3C'] as [string, string];
 
 const FALLBACK_TRANSACTIONS = [
-  { name: 'Surja Sen Das', date: '2026-04-20T08:00:00.000Z', type: 'withdrawal' },
-  { name: 'Washi Bin Majumder', date: '2026-04-21T14:00:00.000Z', type: 'transfer' },
-  { name: 'Ofspace LLC', date: '2026-04-23T18:30:00.000Z', type: 'advertising' },
-  { name: 'Jenny Wilson', date: '2026-04-25T11:10:00.000Z', type: 'commission' },
+  { name: 'Kofi Mensah',  date: '2026-04-20T08:00:00.000Z', type: 'paid',    status: 'Paid',    statusStyle: 'paid'    },
+  { name: 'Ama Owusu',    date: '2026-04-21T14:00:00.000Z', type: 'shipped', status: 'Shipped', statusStyle: 'shipped' },
+  { name: 'Ama Owusu',    date: '2026-04-23T18:30:00.000Z', type: 'pending', status: 'Pending', statusStyle: 'pending' },
 ];
+
+type DashboardStats = {
+  totalUsers: number;
+  totalStores: number;
+  totalOrders: number;
+  totalRevenue: number;
+  ordersGrowth: number;
+  storesGrowth: number;
+  usersGrowth: number;
+  pendingDriverVerifications: number;
+};
+
+type FeedItem = {
+  id?: string | number;
+  action?: string;
+  timestamp?: string;
+  user?: {
+    full_name?: string;
+    email?: string;
+  };
+};
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { isDesktop, isTablet, isMobile } = useAdminBreakpoint();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
     totalStores: 0,
     totalOrders: 0,
@@ -58,7 +60,7 @@ export default function AdminDashboard() {
     usersGrowth: 0,
     pendingDriverVerifications: 0,
   });
-  const [activityFeed, setActivityFeed] = useState<any[]>([]);
+  const [activityFeed, setActivityFeed] = useState<FeedItem[]>([]);
 
   const loadData = useCallback(async () => {
     try {
@@ -96,145 +98,65 @@ export default function AdminDashboard() {
     loadData();
   };
 
-  const statCards = useMemo(
+  // ── Metric cards (2-column grid) ───────────────────────────────────────────
+  const metricCards = useMemo(
     () => [
       {
-        label: 'Users',
-        value: stats.totalUsers,
-        growth: stats.usersGrowth,
-        color: adminColors.blue,
+        label: 'Revenue',
+        value: formatCurrency(stats.totalRevenue),
+        subValue: '+4.04%',
+        subPositive: true,
+        route: '/admin/revenue',
+        icon: 'wallet-outline',
+      },
+      {
+        label: 'Orders',
+        value: stats.totalOrders.toLocaleString(),
+        subValue: '+3.76%',
+        subPositive: true,
+        route: '/admin/orders',
+        icon: 'cart-outline',
+      },
+      {
+        label: 'Customers',
+        value: stats.totalUsers.toLocaleString(),
+        subValue: '+4.04%',
+        subPositive: true,
         route: '/admin/users',
         icon: 'people-outline',
       },
       {
-        label: 'Stores',
-        value: stats.totalStores,
-        growth: stats.storesGrowth,
-        color: adminColors.violet,
-        route: '/admin/stores',
-        icon: 'storefront-outline',
-      },
-      {
-        label: 'Orders',
-        value: stats.totalOrders,
-        growth: stats.ordersGrowth,
-        color: adminColors.amber,
+        label: 'Conversion',
+        value: '3.2%',
+        subValue: '-2.00%',
+        subPositive: false,
         route: '/admin/orders',
-        icon: 'bag-handle-outline',
+        icon: 'eye-outline',
       },
       {
-        label: 'Revenue',
-        value: `₵${Number(stats.totalRevenue || 0).toLocaleString()}`,
-        growth: 24,
-        color: adminColors.green,
-        route: '/admin/revenue',
-        icon: 'wallet-outline',
+        label: 'Driver Verification',
+        value: `${stats.pendingDriverVerifications ?? 0} pending reviews`,
+        subValue: '',
+        subPositive: true,
+        route: '/admin/driverVerifications',
+        icon: 'car-outline',
+      },
+      {
+        label: 'Ads Approval',
+        value: 'Review active campaigns',
+        subValue: '',
+        subPositive: true,
+        route: '/admin/ads',
+        icon: 'image-outline',
       },
     ],
     [stats],
   );
 
-  const quickActions = [
-    {
-      label: 'Driver Verifications',
-      note: `${stats.pendingDriverVerifications ?? 0} pending reviews`,
-      icon: 'car-sport-outline',
-      route: '/admin/driverVerifications',
-    },
-    {
-      label: 'Categories',
-      note: 'Manage storefront taxonomy',
-      icon: 'grid-outline',
-      route: '/admin/categories',
-    },
-    {
-      label: 'Ads Approval',
-      note: 'Review active campaigns',
-      icon: 'megaphone-outline',
-      route: '/admin/ads',
-    },
-    {
-      label: 'Audit Logs',
-      note: 'Track admin activity',
-      icon: 'list-outline',
-      route: '/admin/audit-logs',
-    },
-  ];
-
-  const aside = (
-    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 16 }}>
-      <AdminPanel>
-        <Text style={styles.asideMonth}>This week</Text>
-        <Text style={styles.asideHero}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
-        <Text style={styles.asideMeta}>Platform revenue across all completed payments.</Text>
-        <View style={styles.asideProgressTrack}>
-          <View style={[styles.asideProgressFill, { width: '74%' }]} />
-        </View>
-      </AdminPanel>
-
-      <AdminPanel>
-        <Text style={styles.rightTitle}>Quick KPIs</Text>
-        {statCards.map((item) => (
-          <TouchableOpacity
-            key={item.label}
-            style={styles.rightMetricRow}
-            onPress={() => router.push(item.route as any)}
-          >
-            <View style={[styles.rightMetricIcon, { backgroundColor: `${item.color}18` }]}>
-              <Ionicons name={item.icon as any} size={18} color={item.color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.rightMetricLabel}>{item.label}</Text>
-              <Text style={styles.rightMetricValue}>
-                {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
-              </Text>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </AdminPanel>
-
-      <AdminPanel>
-        <AdminSectionHeader
-          title="Activity Log"
-          action={
-            <TouchableOpacity onPress={() => router.push('/admin/audit-logs' as any)}>
-              <Text style={styles.linkText}>View all</Text>
-            </TouchableOpacity>
-          }
-        />
-        {activityFeed.slice(0, 4).map((item, index) => {
-          const actionConfig = ACTION_MAP[item.action] ?? {
-            icon: 'notifications',
-            bg: '#E2E8F0',
-            color: adminColors.navy,
-          };
-          const actorName = item.user?.full_name || item.user?.email || 'System';
-          return (
-            <View
-              key={item.id ?? index}
-              style={[styles.asideActivityRow, index === activityFeed.slice(0, 4).length - 1 && { borderBottomWidth: 0 }]}
-            >
-              <View style={[styles.asideActivityIcon, { backgroundColor: actionConfig.bg }]}>
-                <Ionicons name={actionConfig.icon} size={16} color={actionConfig.color} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={styles.asideActivityTitle}>{actorName}</Text>
-                <Text numberOfLines={1} style={styles.asideActivityMeta}>
-                  {(item.action || 'updated').replace(/_/g, ' ')}
-                </Text>
-              </View>
-              <Text style={styles.asideActivityTime}>{timeAgo(item.timestamp)}</Text>
-            </View>
-          );
-        })}
-      </AdminPanel>
-    </ScrollView>
-  );
-
   if (loading && !refreshing) {
     return (
       <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color={adminColors.blue} />
+        <ActivityIndicator size="large" color="#1E88E5" />
       </View>
     );
   }
@@ -242,563 +164,603 @@ export default function AdminDashboard() {
   return (
     <>
       <StatusBar style="light" />
-      <AdminShell
-        title="Homepage"
-        subtitle="A responsive command center for operations, revenue, and approvals."
-        onRefresh={onRefresh}
-        aside={aside}
-        scroll
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
-        <LinearGradient colors={[adminColors.navy, adminColors.navyMid]} style={styles.heroPanel}>
-          <View style={[styles.heroRow, !isDesktop && styles.heroRowStack]}>
-            <View style={styles.heroIntro}>
-              <Text style={styles.heroEyebrow}>Marketplace overview</Text>
-              <Text style={[styles.greeting, isMobile && { fontSize: 20 }]}>Hello Admin, good morning</Text>
-              <Text style={styles.greetingSub}>
-                Let&apos;s check marketplace health, clear approvals, and keep Shopyos moving smoothly.
-              </Text>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={styles.canvas}>
+          <ScrollView
+            style={styles.scrollView}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.screen}
+          >
+          {/* ── HERO PANEL ───────────────────────────────────────────────── */}
+          <LinearGradient
+            colors={['#01217B', '#85CC16']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.heroPanel}
+          >
+            <View style={styles.heroTopRow}>
+              <View style={styles.heroBrand}>
+                <Image source={require('@/assets/images/iconwhite.png')} style={styles.brandLogo} />
+              </View>
+
+              <View style={styles.heroIcons}>
+                <TouchableOpacity style={styles.topActionBubble}>
+                  <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
+                  <View style={styles.badgeDot}>
+                    <Text style={styles.badgeText}>2</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.topActionBubble}>
+                  <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
+                  <View style={styles.badgeDot}>
+                    <Text style={styles.badgeText}>2</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.avatarCircle}>
+                  <Text style={styles.avatarLetter}>A</Text>
+                </View>
+              </View>
             </View>
 
-            <TouchableOpacity style={styles.heroRevenueCard} onPress={() => router.push('/admin/revenue' as any)}>
-              <Text style={styles.heroRevenueLabel}>Platform revenue</Text>
-              <Text style={[styles.heroRevenueValue, isMobile && { fontSize: 24 }]}>₵{Number(stats.totalRevenue || 0).toLocaleString()}</Text>
-              <View style={styles.growthPill}>
-                <Feather name="trending-up" size={14} color={adminColors.lime} />
-                <Text style={styles.growthText}>+24% this month</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-        </LinearGradient>
+            {/* Greeting */}
+            <Text style={styles.greeting}>WELCOME BACK ADMIN</Text>
+          </LinearGradient>
 
-        <AdminPanel style={styles.floatingStatsPanel}>
-          <View style={[styles.heroStatsRow, !isDesktop && styles.heroStatsWrap]}>
-            {statCards.slice(0, isDesktop ? 3 : 4).map((item, index) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[
-                  styles.heroStat,
-                  !isDesktop && styles.heroStatMobile,
-                  index < 2 && isDesktop ? styles.heroStatBorder : null,
-                ]}
-                onPress={() => router.push(item.route as any)}
-              >
-                <View style={[styles.heroStatIcon, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
-                </View>
-                <Text style={styles.heroStatLabel}>{item.label}</Text>
-                <Text style={styles.heroStatValue}>
-                  {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
-                </Text>
-                <Text style={[styles.heroStatChange, { color: item.growth >= 0 ? adminColors.green : adminColors.red }]}>
-                  {item.growth >= 0 ? '+' : '-'}
-                  {Math.abs(item.growth)}% this month
-                </Text>
-              </TouchableOpacity>
-            ))}
+          {/* ── PAGE HEADING ─────────────────────────────────────────────── */}
+          <View style={styles.pageHead}>
+            <Text style={styles.pageTitle}>Dashboard</Text>
+            <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
           </View>
-        </AdminPanel>
 
-        <View style={[styles.mainGrid, (!isDesktop || isMobile) && styles.mainGridStack]}>
-          <AdminPanel style={[styles.assetPanel, isDesktop && !isMobile ? styles.assetPanelWide : null]}>
-            <AdminSectionHeader title="My Asset" />
-            <Text style={styles.assetValue}>₵552,221</Text>
-            <Text style={styles.assetGrowth}>+235.21%</Text>
-            <View style={[styles.assetGrid, (isTablet || isMobile) && styles.assetGridTablet]}>
-              {quickActions.map((action, index) => (
+          {/* ── METRIC CARDS GRID — 2 per row ────────────────────────────── */}
+          {[0, 2, 4].map((rowStart) => (
+            <View key={rowStart} style={styles.metricRow}>
+              {metricCards.slice(rowStart, rowStart + 2).map((item) => (
                 <TouchableOpacity
-                  key={action.label}
-                  style={[styles.assetCard, { backgroundColor: CARD_BACKGROUNDS[index % CARD_BACKGROUNDS.length] }]}
-                  onPress={() => router.push(action.route as any)}
+                  key={item.label}
+                  style={styles.metricCardWrap}
+                  onPress={() => router.push(item.route as any)}
+                  activeOpacity={0.85}
                 >
-                  <LinearGradient colors={ACTION_GRADIENTS[index % ACTION_GRADIENTS.length]} style={styles.assetIcon}>
-                    <Ionicons name={action.icon as any} size={20} color="#FFFFFF" />
+                  <LinearGradient
+                    colors={['#081059', '#1498EF']}
+                    style={styles.metricCard}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  >
+                    {/* Icon + Label row */}
+                    <View style={styles.metricHeaderRow}>
+                      <Ionicons name={item.icon as any} size={14} color="#FFFFFF" />
+                      <Text style={styles.metricLabel} numberOfLines={1}>
+                        {item.label}
+                      </Text>
+                    </View>
+
+                    {/* Main value */}
+                    <Text style={styles.metricValue} numberOfLines={2}>
+                      {item.value}
+                    </Text>
+
+                    {/* Growth badge */}
+                    {item.subValue ? (
+                      <View style={styles.metricGrowthRow}>
+                        <View
+                          style={{
+                            width: 18,
+                            height: 18,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transform: [{ rotate: item.subPositive ? '15deg' : '-15deg' }],
+                          }}
+                        >
+                          {/* stacked icons: larger one behind to give a bolder look */}
+                          <Ionicons
+                            name={item.subPositive ? 'arrow-up' : 'arrow-down'}
+                            size={14}
+                            color={item.subPositive ? '#85CC16' : '#e85050'}
+                            style={{ position: 'absolute', opacity: 0.95 }}
+                          />
+                          <Ionicons
+                            name={item.subPositive ? 'arrow-up' : 'arrow-down'}
+                            size={12}
+                            color={item.subPositive ? '#85CC16' : '#e85050'}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.metricGrowth,
+                            { color: item.subPositive ? '#A8E063' : '#e85050' },
+                          ]}
+                        >
+                          {item.subValue}
+                        </Text>
+                      </View>
+                    ) : null}
                   </LinearGradient>
-                  <Text style={styles.assetCardLabel}>{action.label}</Text>
-                  <Text style={styles.assetCardNote}>{action.note}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </AdminPanel>
+          ))}
 
-          <AdminPanel style={styles.todoPanel}>
-            <AdminSectionHeader
-              title="To-do List"
-              action={
-                <TouchableOpacity onPress={() => router.push('/admin/driverVerifications' as any)}>
-                  <Text style={styles.linkText}>View all</Text>
-                </TouchableOpacity>
-              }
-            />
-            {quickActions.map((item, index) => (
-              <TouchableOpacity
-                key={item.label}
-                style={[styles.todoRow, index === quickActions.length - 1 && { borderBottomWidth: 0 }]}
-                onPress={() => router.push(item.route as any)}
-              >
-                <View style={[styles.todoIcon, { backgroundColor: `${adminColors.blue}14` }]}>
-                  <Ionicons name={item.icon as any} size={18} color={adminColors.navy} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.todoTitle}>{item.label}</Text>
-                  <Text style={styles.todoMeta}>{item.note}</Text>
-                </View>
-                <Text style={styles.todoPercent}>{[46, 61, 57, 27][index]}%</Text>
+          {/* ── RECENT ORDERS ─────────────────────────────────────────────── */}
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              {/* Orders icon + title */}
+              <View style={styles.sectionTitleRow}>
+                <Ionicons name="receipt-sharp" size={20} color="#081059" />
+                <Text style={styles.sectionTitle}>Recent orders</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/admin/orders' as any)}>
+                <Text style={styles.sectionLink}>View all</Text>
               </TouchableOpacity>
-            ))}
-          </AdminPanel>
-        </View>
+            </View>
 
-        <AdminPanel style={styles.transactionsPanel}>
-          <AdminSectionHeader title="Transactions" />
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeadCell, styles.nameCell]}>Name</Text>
-            {!isMobile && <Text style={styles.tableHeadCell}>Date</Text>}
-            {!isMobile && <Text style={styles.tableHeadCell}>Type</Text>}
-            <Text style={styles.tableHeadCell}>Status</Text>
-          </View>
-
-          {(activityFeed.length ? activityFeed : FALLBACK_TRANSACTIONS).slice(0, 4).map((item, index) => (
-            <View key={item.id ?? index} style={[styles.tableRow, index === 3 && { borderBottomWidth: 0 }]}>
-              <View style={[styles.tableCell, styles.nameCell]}>
-                <View style={styles.tableAvatar}>
-                  <Text style={styles.tableAvatarText}>
-                    {((item.user?.full_name || item.user?.email || 'S')[0] || 'S').toUpperCase()}
+            {FALLBACK_TRANSACTIONS.map((item, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.orderRow,
+                  index === FALLBACK_TRANSACTIONS.length - 1 && { borderBottomWidth: 0 },
+                ]}
+              >
+                <View>
+                  <Text style={styles.orderId}>#ORD-{5821 - index}</Text>
+                  <Text style={styles.orderMeta}>
+                    {item.name} - {index === 0 ? '2 items' : '1 item'}
                   </Text>
                 </View>
-                <Text numberOfLines={1} style={styles.tableName}>
-                  {item.user?.full_name || item.user?.email || FALLBACK_TRANSACTIONS[index].name}
-                </Text>
+                <View
+                  style={[
+                    styles.statusPill,
+                    item.statusStyle === 'paid'
+                      ? styles.statusPaid
+                      : item.statusStyle === 'shipped'
+                        ? styles.statusShipped
+                        : styles.statusPending,
+                  ]}
+                >
+                  <Text style={styles.statusLabel}>{item.status}</Text>
+                </View>
               </View>
-              {!isMobile && <Text style={styles.tableCellText}>{formatDate(item.timestamp || FALLBACK_TRANSACTIONS[index].date)}</Text>}
-              {!isMobile && <Text style={styles.tableCellText}>{formatAction(item.action || FALLBACK_TRANSACTIONS[index].type)}</Text>}
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{index === 1 ? 'Failed' : 'Success'}</Text>
+            ))}
+          </View>
+
+          {/* ── TOP STORES ────────────────────────────────────────────────── */}
+          <View style={styles.cardSection}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.sectionTitleRow}>
+                {/*
+                  INSERT TOP STORES ICON IMAGE HERE if needed, e.g.:
+                  <Image source={require('@/assets/icons/store-icon.png')} style={styles.sectionIcon} />
+                */}
+                <Ionicons name="storefront-outline" size={20} color="#081059" />
+                <Text style={styles.sectionTitle}>Top Stores</Text>
+              </View>
+              <TouchableOpacity onPress={() => router.push('/admin/stores' as any)}>
+                <Text style={styles.sectionLink}>View all</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Three store rows to match image 2 */}
+            {[
+              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.8' },
+              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.7' },
+              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.6' },
+            ].map((store, index, arr) => (
+              <View
+                key={index}
+                style={[
+                  styles.storeRow,
+                  index < arr.length - 1 && styles.storeRowBorder,
+                ]}
+              >
+                <View>
+                  <Text style={styles.storeName}>{store.name}</Text>
+                  <Text style={styles.storeMeta}>
+                    {store.orders} orders · ${store.revenue.toLocaleString()}
+                  </Text>
+                </View>
+                <View style={styles.storeScore}>
+                  <Text style={styles.storeScoreText}>{store.rating} ★</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {/* ── ALERTS ────────────────────────────────────────────────────── */}
+          <View style={styles.cardSection}>
+            <View style={styles.sectionTitleRow}>
+              <Ionicons name="information-circle-outline" size={20} color="#081059" />
+              <Text style={styles.sectionTitle}>Alerts</Text>
+            </View>
+
+            <View style={styles.alertRow}>
+              {/*
+                INSERT RIDER ICON IMAGE HERE if you have one, e.g.:
+                <Image source={require('@/assets/icons/rider.png')} style={styles.alertIcon} />
+              */}
+              <Ionicons name="bicycle-outline" size={20} color="#000" style={{ marginRight: 8 }} />
+              <View>
+                <Text style={styles.alertTitle}>2 new riders awaiting approval</Text>
+                <Text style={styles.alertSub}>Documents submitted today</Text>
               </View>
             </View>
-          ))}
-        </AdminPanel>
-      </AdminShell>
+          </View>
+          </ScrollView>
+        </View>
+      </SafeAreaView>
     </>
   );
 }
 
-function formatDate(value: string) {
-  try {
-    return new Date(value).toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  } catch {
-    return value;
-  }
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function formatCurrency(value: number) {
+  return `₵${Number(value || 0).toLocaleString()}`;
 }
 
-function formatAction(value: string) {
-  return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function timeAgo(value: string) {
-  if (!value) return 'Now';
-  const diff = Date.now() - new Date(value).getTime();
-  const minutes = Math.floor(diff / 60000);
-  if (minutes < 1) return 'now';
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h`;
-  return `${Math.floor(hours / 24)}d`;
-}
-
+// ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   loadingWrap: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: adminColors.appBg,
+    backgroundColor: '#E9EFFF',
   },
-  heroPanel: {
-    borderRadius: 22,
-    padding: 18,
-    gap: 18,
-  },
-  heroRow: {
-    flexDirection: 'row',
-    gap: 14,
-    alignItems: 'stretch',
-  },
-  heroRowStack: {
-    flexDirection: 'column',
-  },
-  heroIntro: {
+  safeArea: {
     flex: 1,
-    justifyContent: 'center',
+    backgroundColor: '#E9EFFF',
   },
-  heroEyebrow: {
-    color: 'rgba(255,255,255,0.72)',
-    fontSize: 10,
-    fontFamily: 'Montserrat-SemiBold',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 6,
+  canvas: {
+    flex: 1,
+    backgroundColor: '#E9EFFF',
+    paddingHorizontal: 5,
   },
-  greeting: {
-    fontSize: 28,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFFFFF',
-    marginBottom: 6,
+  scrollView: {
+    flex: 1,
   },
-  greetingSub: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: 'rgba(255,255,255,0.78)',
-    fontFamily: 'Montserrat-Regular',
+  screen: {
+    flexGrow: 1,
+    paddingBottom: 220,
+    paddingTop: 0,
   },
-  heroRevenueCard: {
-    // No fixed minWidth — let it fill naturally in stacked mode
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderRadius: 20,
-    padding: 18,
+
+  // ── Hero ──────────────────────────────────────────────────────────────────
+  heroPanel: {
+    borderRadius: 36,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 24,
+    marginBottom: 0,
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
+    gap: 16,
   },
-  heroRevenueLabel: {
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.74)',
-    fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 8,
+  heroTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  heroRevenueValue: {
-    fontSize: 30,
-    color: '#FFFFFF',
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 14,
-  },
-  growthPill: {
-    alignSelf: 'flex-start',
+  heroBrand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: 'rgba(132,204,22,0.14)',
+    flex: 1,
   },
-  growthText: {
-    color: '#E5F7C6',
-    fontSize: 12,
-    fontFamily: 'Montserrat-SemiBold',
+  // If you use an Image logo:
+  brandLogo: {
+    width: 100,
+    height: 28,
+    resizeMode: 'contain',
   },
-  floatingStatsPanel: {
-    marginTop: -14,
-    marginHorizontal: 4,
-    marginBottom: 2,
-    paddingVertical: 10,
-  },
-  heroStatsRow: {
+
+  heroIcons: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginLeft: 'auto',
   },
-  heroStatsWrap: {
+  topActionBubble: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF2323',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontFamily: 'Montserrat-Bold',
+  },
+  avatarCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#E5EEFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    color: '#0B2060',
+    fontSize: 20,
+    fontFamily: 'Montserrat-Bold',
+  },
+  greeting: {
+    fontSize: 22,
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFFFFF',
+    letterSpacing: 0.6,
+    textAlign: 'center',
+    marginTop: 18,
+  },
+
+  // ── Page heading ─────────────────────────────────────────────────────────
+  pageHead: {
+    paddingHorizontal: 8,
+    paddingTop: 18,
+    paddingBottom: 10,
+  },
+  pageTitle: {
+    color: '#081059',
+    fontSize: 24,
+    fontFamily: 'Montserrat-Bold',
+  },
+  pageDate: {
+    color: '#081059',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
+
+  // ── Metric grid ──────────────────────────────────────────────────────────
+  metricGrid: {
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    marginBottom: 4,
+    justifyContent: 'center',
   },
-  heroStat: {
-    flex: 1,
+  metricRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 10,
+  },
+  metricCardWrap: {
+    width: '48.5%',
+  },
+  metricCard: {
+    width: '100%',
+    minHeight: 82,
+    borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 10,
-  },
-  heroStatMobile: {
-    // ~47% so two cards fit side by side on any phone ≥ 320px
-    flexBasis: '47%',
-    flexGrow: 0,
-    backgroundColor: adminColors.surfaceSoft,
-    borderRadius: 16,
-    paddingVertical: 12,
-  },
-  heroStatBorder: {
-    borderRightWidth: 1,
-    borderRightColor: adminColors.border,
-  },
-  heroStatIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  heroStatLabel: {
-    fontSize: 13,
-    color: adminColors.textMuted,
-    fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 6,
-  },
-  heroStatValue: {
-    fontSize: 24,
-    color: adminColors.text,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 6,
-  },
-  heroStatChange: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  mainGrid: {
-    flexDirection: 'row',
-    gap: 18,
-  },
-  mainGridStack: {
-    flexDirection: 'column',
-  },
-  assetPanel: {
-    flex: 1.2,
-  },
-  assetPanelWide: {
-    minHeight: 420,
-  },
-  assetValue: {
-    fontSize: 36,
-    color: adminColors.navy,
-    fontFamily: 'Montserrat-Bold',
-  },
-  assetGrowth: {
-    marginTop: 4,
-    marginBottom: 18,
-    color: adminColors.green,
-    fontSize: 16,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  assetGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  assetGridTablet: {
-    gap: 10,
-  },
-  assetCard: {
-    // Use flexBasis so cards are always 2-per-row on any screen
-    flexBasis: '47%',
-    flexGrow: 1,
-    minHeight: 130,
-    borderRadius: 20,
-    padding: 16,
     justifyContent: 'space-between',
+    overflow: 'hidden',
   },
-  assetIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  assetCardLabel: {
-    color: adminColors.navy,
-    fontSize: 17,
-    fontFamily: 'Montserrat-Bold',
-  },
-  assetCardNote: {
-    color: adminColors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: 'Montserrat-Regular',
-  },
-  todoPanel: {
-    flex: 0.9,
-  },
-  todoRow: {
+  metricHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: adminColors.border,
-  },
-  todoIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  todoTitle: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: adminColors.text,
+    gap: 5,
     marginBottom: 4,
   },
-  todoMeta: {
-    fontSize: 13,
-    color: adminColors.textMuted,
-    fontFamily: 'Montserrat-Regular',
+  metricLabel: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontFamily: 'Montserrat-SemiBold',
+    flexShrink: 1,
   },
-  todoPercent: {
-    color: adminColors.navy,
+  metricValue: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontFamily: 'Montserrat-Bold',
+    lineHeight: 22,
+  },
+  metricGrowthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginTop: 4,
+  },
+  metricGrowth: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+
+  // ── Card sections (orders, stores, alerts) ───────────────────────────────
+  cardSection: {
+    marginTop: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    width: '100%',
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 10,
+  },
+  sectionTitle: {
+    color: '#081059',
     fontSize: 18,
     fontFamily: 'Montserrat-Bold',
   },
-  linkText: {
-    color: adminColors.blue,
+  sectionLink: {
+    color: '#85CC16',
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
   },
-  transactionsPanel: {
-    marginBottom: 10,
+  // If you use an image icon next to section title:
+  sectionIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
   },
-  tableHeader: {
+
+  // ── Order rows ───────────────────────────────────────────────────────────
+  orderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: adminColors.border,
-    paddingBottom: 14,
+    borderBottomColor: '#D9D9D9',
   },
-  tableHeadCell: {
-    flex: 1,
-    color: adminColors.textSoft,
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    textTransform: 'uppercase',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: adminColors.border,
-  },
-  tableCell: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  nameCell: {
-    flex: 1.25,
-  },
-  tableAvatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#DBEAFE',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  tableAvatarText: {
-    color: adminColors.blue,
-    fontFamily: 'Montserrat-Bold',
-  },
-  tableName: {
-    flex: 1,
-    color: adminColors.text,
+  orderId: {
+    color: '#111827',
     fontSize: 14,
     fontFamily: 'Montserrat-SemiBold',
+    marginBottom: 2,
   },
-  tableCellText: {
-    flex: 1,
-    color: adminColors.textMuted,
-    fontSize: 13,
+  orderMeta: {
+    color: '#9CA3AF',
+    fontSize: 12,
     fontFamily: 'Montserrat-Regular',
   },
   statusPill: {
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: '#DCFCE7',
-  },
-  statusPillText: {
-    color: '#047857',
-    fontSize: 12,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  asideMonth: {
-    color: adminColors.textSoft,
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  asideHero: {
-    color: adminColors.navy,
-    fontSize: 30,
-    fontFamily: 'Montserrat-Bold',
-    marginTop: 8,
-    marginBottom: 6,
-  },
-  asideMeta: {
-    color: adminColors.textMuted,
-    fontSize: 13,
-    lineHeight: 18,
-    fontFamily: 'Montserrat-Regular',
-    marginBottom: 16,
-  },
-  asideProgressTrack: {
-    height: 10,
-    borderRadius: 999,
-    backgroundColor: '#E2E8F0',
-    overflow: 'hidden',
-  },
-  asideProgressFill: {
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: adminColors.blue,
-  },
-  rightTitle: {
-    color: adminColors.text,
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 12,
-  },
-  rightMetricRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-  },
-  rightMetricIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rightMetricLabel: {
-    color: adminColors.textMuted,
-    fontSize: 12,
-    fontFamily: 'Montserrat-SemiBold',
+  statusPaid: {
+    backgroundColor: '#B2BF9E',
   },
-  rightMetricValue: {
-    color: adminColors.text,
-    fontSize: 20,
-    fontFamily: 'Montserrat-Bold',
-    marginTop: 2,
+  statusShipped: {
+    backgroundColor: '#87CFFF',
   },
-  asideActivityRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: adminColors.border,
+  statusPending: {
+    backgroundColor: '#D9B889',
   },
-  asideActivityIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  asideActivityTitle: {
-    color: adminColors.text,
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  asideActivityMeta: {
-    color: adminColors.textMuted,
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 2,
-  },
-  asideActivityTime: {
-    color: adminColors.textSoft,
+  statusLabel: {
+    color: '#FFFFFF',
     fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
   },
+
+  // ── Store rows ───────────────────────────────────────────────────────────
+  storeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  storeRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#D9D9D9',
+  },
+  storeName: {
+    color: '#000000',
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+  },
+  storeMeta: {
+    color: '#00000',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
+  storeScore: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#B2BF9E',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 50,
+  },
+  storeScoreText: {
+    color: '#2B4501',
+    fontSize: 11,
+    fontFamily: 'Montserrat-medium',
+  },
+
+  // ── Alert row ────────────────────────────────────────────────────────────
+  alertRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  // If you use an image icon in alerts:
+  alertIcon: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
+    marginRight: 10,
+  },
+  alertTitle: {
+    color: '#111827',
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  alertSub: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
+
+  // ── Bottom tab bar ────────────────────────────────────────────────────────
+  tabBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 72,
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+    paddingBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  tabActiveBubble: {
+    backgroundColor: '#081059',
+    borderRadius: 20,
+    padding: 10,
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Regular',
+    color: '#9CA3AF',
+  },
+  tabLabelActive: {
+    color: '#081059',
+    fontFamily: 'Montserrat-SemiBold',
+  }
 });
+
+

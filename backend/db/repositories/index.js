@@ -26,6 +26,7 @@ const AuditLogRepository = require('./AuditLogRepository');
 const PaymentMethodRepository = require('./PaymentMethodRepository');
 const DriverRepository = require('./DriverRepository');
 const ScheduledNotificationRepository = require('./ScheduledNotificationRepository');
+const FlashSaleRepository = require('./FlashSaleRepository');
 
 
 // Initialize repositories with selected client
@@ -52,6 +53,7 @@ const repositories = {
   paymentMethods: new PaymentMethodRepository(repositoryClient),
   drivers: new DriverRepository(repositoryClient),
   scheduledNotifications: new ScheduledNotificationRepository(repositoryClient),
+  flashSales: new FlashSaleRepository(repositoryClient),
 };
 
 module.exports = repositories;

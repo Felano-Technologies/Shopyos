@@ -123,6 +123,7 @@ class ProductRepository extends BaseRepository {
         )
       `)
       .eq('is_active', true)
+      .eq('is_in_stock', true)
       .is('deleted_at', null)
       .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
 
@@ -167,6 +168,7 @@ class ProductRepository extends BaseRepository {
       .from(this.tableName)
       .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
       .eq('is_active', true)
+      .eq('is_in_stock', true)
       .is('deleted_at', null)
       .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
 

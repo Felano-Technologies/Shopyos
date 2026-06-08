@@ -21,6 +21,7 @@ const createProduct = async (req, res, next) => {
       title,
       description,
       price,
+      compareAtPrice,
       category,
       gender,
       stockQuantity,
@@ -78,6 +79,7 @@ const createProduct = async (req, res, next) => {
       title: title || name,
       description: description || '',
       price: parseFloat(price),
+      compare_at_price: compareAtPrice ? parseFloat(compareAtPrice) : null,
       category: category || 'general',
       gender: gender || 'Unisex',
       sku: sku || null,
@@ -107,6 +109,7 @@ const createProduct = async (req, res, next) => {
         name: product.title,
         description: product.description,
         price: product.price,
+        compareAtPrice: product.compare_at_price,
         category: product.category,
         gender: product.gender,
         images: [],
@@ -360,6 +363,12 @@ const updateProduct = async (req, res, next) => {
     if (updateData.title) mappedData.title = updateData.title;
     if (updateData.description) mappedData.description = updateData.description;
     if (updateData.price) mappedData.price = parseFloat(updateData.price);
+    // Allow clearing compare_at_price by sending null or empty string
+    if (updateData.compareAtPrice !== undefined) {
+      mappedData.compare_at_price = updateData.compareAtPrice
+        ? parseFloat(updateData.compareAtPrice)
+        : null;
+    }
     if (updateData.category) mappedData.category = updateData.category;
     if (updateData.gender) mappedData.gender = updateData.gender;
     if (updateData.sku) mappedData.sku = updateData.sku;
@@ -399,6 +408,7 @@ const updateProduct = async (req, res, next) => {
         name: updated.title,
         description: updated.description,
         price: updated.price,
+        compareAtPrice: updated.compare_at_price,
         category: updated.category,
         gender: updated.gender,
         updatedAt: updated.updated_at,

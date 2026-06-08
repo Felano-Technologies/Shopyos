@@ -258,7 +258,7 @@ export default function SearchScreen() {
     return (
       <View>
         {renderStores()}
-        {searchAd && (
+        {searchAd ? (
           <TouchableOpacity
             style={styles.searchAdBanner}
             activeOpacity={0.9}
@@ -279,6 +279,21 @@ export default function SearchScreen() {
               <Text style={styles.searchAdSub}>Tap to explore store deals →</Text>
             </View>
           </TouchableOpacity>
+        ) : (
+          <View style={styles.searchAdPlaceholder}>
+            <LinearGradient
+              colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+              style={StyleSheet.absoluteFill}
+            />
+            <View style={styles.searchAdContent}>
+              <View style={[styles.searchAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
+                <Text style={[styles.searchAdBadgeTxt, { color: C.muted }]}>ADS</Text>
+              </View>
+              <Text style={[styles.searchAdTitle, { color: C.muted }]}>Your campaign here</Text>
+              <Text style={[styles.searchAdSub, { color: C.subtle }]}>Promote your store to buyers →</Text>
+            </View>
+          </View>
         )}
       </View>
     );
@@ -467,6 +482,45 @@ export default function SearchScreen() {
           ))}
         </View>
       )}
+      {/* Ad campaign slot — always visible in discovery */}
+      {searchAd ? (
+        <TouchableOpacity
+          style={[styles.searchAdBanner, { marginTop: 4 }]}
+          activeOpacity={0.9}
+          onPress={() => {
+            recordAdClick(searchAd.id).catch(() => {});
+            safePush('/stores/details', { id: searchAd.store_id });
+          }}
+        >
+          <Image source={{ uri: searchAd.banner_url }} style={styles.searchAdImg} />
+          <LinearGradient
+            colors={['rgba(12,21,89,0.7)', 'transparent']}
+            start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.searchAdContent}>
+            <View style={styles.searchAdBadge}><Text style={styles.searchAdBadgeTxt}>SPONSORED</Text></View>
+            <Text style={styles.searchAdTitle} numberOfLines={1}>{searchAd.title}</Text>
+            <Text style={styles.searchAdSub}>Tap to explore store deals →</Text>
+          </View>
+        </TouchableOpacity>
+      ) : (
+        <View style={[styles.searchAdPlaceholder, { marginTop: 4 }]}>
+          <LinearGradient
+            colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={styles.searchAdContent}>
+            <View style={[styles.searchAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
+              <Text style={[styles.searchAdBadgeTxt, { color: C.muted }]}>ADS</Text>
+            </View>
+            <Text style={[styles.searchAdTitle, { color: C.muted }]}>Your campaign here</Text>
+            <Text style={[styles.searchAdSub, { color: C.subtle }]}>Promote your store to buyers →</Text>
+          </View>
+        </View>
+      )}
+
       {visibleCategories.length > 0 && (
         <>
           <View style={styles.discDivider} />
@@ -1455,6 +1509,18 @@ catTileFallback: {   // keep for safety, though now unused
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 6,
+  },
+  searchAdPlaceholder: {
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 12,
+    height: 90,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: 'rgba(12,21,89,0.1)',
+    borderStyle: 'dashed',
   },
   searchAdImg: {
     ...StyleSheet.absoluteFillObject,

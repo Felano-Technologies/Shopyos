@@ -33,6 +33,52 @@ import {
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 const { height } = Dimensions.get('window');
+
+function StockIndicator({ qty }: { qty: number | null }) {
+    if (qty === null) return null;
+
+    let color: string, bg: string, icon: string, label: string, barPct: number;
+
+    if (qty === 0) {
+        color = '#94A3B8'; bg = '#F1F5F9'; icon = 'close-circle'; label = 'Out of Stock'; barPct = 0;
+    } else if (qty <= 5) {
+        color = '#EF4444'; bg = '#FEF2F2'; icon = 'alert-circle'; label = `Only ${qty} left!`; barPct = 10;
+    } else if (qty <= 15) {
+        color = '#F97316'; bg = '#FFF7ED'; icon = 'warning'; label = `${qty} items left`; barPct = 30;
+    } else if (qty <= 50) {
+        color = '#EAB308'; bg = '#FEFCE8'; icon = 'checkmark-circle'; label = `${qty} in stock`; barPct = 60;
+    } else {
+        color = '#22C55E'; bg = '#F0FDF4'; icon = 'checkmark-circle'; label = 'In Stock'; barPct = 100;
+    }
+
+    return (
+        <View style={[stockStyles.wrap, { backgroundColor: bg, borderColor: color + '33' }]}>
+            <View style={stockStyles.row}>
+                <Ionicons name={icon as any} size={16} color={color} />
+                <Text style={[stockStyles.label, { color }]}>{label}</Text>
+            </View>
+            {qty > 0 && (
+                <View style={stockStyles.track}>
+                    <View style={[stockStyles.bar, { width: `${barPct}%` as any, backgroundColor: color }]} />
+                </View>
+            )}
+        </View>
+    );
+}
+
+const stockStyles = StyleSheet.create({
+    wrap: {
+        flexDirection: 'column', gap: 8,
+        borderRadius: 12, borderWidth: 1,
+        paddingHorizontal: 14, paddingVertical: 10,
+        marginBottom: 20,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+    label: { fontSize: 13, fontFamily: 'Montserrat-Bold' },
+    track: { height: 5, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
+    bar: { height: '100%', borderRadius: 3 },
+});
+
 export default function ProductDetails() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -61,7 +107,8 @@ export default function ProductDetails() {
         storeImage: null as string | null,
         rating: 0,
         reviewsCount: 0,
-        isTrusted: false
+        isTrusted: false,
+        stockQuantity: null as number | null,
     });
     const fetchProductDetails = useCallback(async () => {
         try {
@@ -81,6 +128,7 @@ setProduct((prev) => ({
                     rating: res.product.average_rating || 0,
                     reviewsCount: res.product.total_reviews || 0,
                     isTrusted: res.product.store?.is_trusted || false,
+                    stockQuantity: res.product.stockQuantity ?? null,
                 }));
             }
         } catch (err) { console.log("Error loading product details", err); }
@@ -168,7 +216,10 @@ setProduct((prev) => ({
             }
         } catch (error: any) { Alert.alert("Error", error.message || "Failed to start chat with seller"); }
     };
+    const isOutOfStock = product.stockQuantity !== null && product.stockQuantity === 0;
+
     const handleAddToCart = () => {
+        if (isOutOfStock) return;
         addToCart({
             id: product.id,
             title: product.title,
@@ -232,6 +283,7 @@ setProduct((prev) => ({
                             <Text style={styles.price}>₵{Number(product.price || 0).toFixed(2)}</Text>
                             {product.oldPrice && <Text style={styles.oldPrice}>₵{Number(product.oldPrice).toFixed(2)}</Text>}
                         </View>
+                        <StockIndicator qty={product.stockQuantity} />
                         <Text style={styles.sectionTitle}>Description</Text>
                         <Text style={styles.description}>{product.description}</Text>
                         {/* Seller Info */}
@@ -287,10 +339,14 @@ setProduct((prev) => ({
                     <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0C1559" />
                     <Text style={styles.chatText}>Chat</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.cartBtn} onPress={handleAddToCart}>
-                    <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.cartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                        <Feather name="shopping-cart" size={20} color="#FFF" />
-                        <Text style={styles.cartText}>Add to Cart</Text>
+                <TouchableOpacity style={styles.cartBtn} onPress={handleAddToCart} disabled={isOutOfStock} activeOpacity={isOutOfStock ? 1 : 0.8}>
+                    <LinearGradient
+                        colors={isOutOfStock ? ['#94A3B8', '#94A3B8'] : ['#0C1559', '#1e3a8a']}
+                        style={styles.cartGradient}
+                        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                    >
+                        <Feather name={isOutOfStock ? 'x-circle' : 'shopping-cart'} size={20} color="#FFF" />
+                        <Text style={styles.cartText}>{isOutOfStock ? 'Out of Stock' : 'Add to Cart'}</Text>
                     </LinearGradient>
                 </TouchableOpacity>
             </View>
