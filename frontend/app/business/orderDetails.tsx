@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Image, Dimensions, Linking, Alert, ActivityIndicator,
+  Image, Dimensions, Linking, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -52,6 +52,7 @@ export default function OrderDetailsScreen() {
   const [loading,       setLoading]       = useState(true);
   const [chatLoading,   setChatLoading]   = useState(false);
   const [updating,      setUpdating]      = useState(false);
+  const [refreshing,    setRefreshing]    = useState(false);
   const [currentStatus, setCurrentStatus] = useState('');
   const fetchOrder = useCallback(async () => {
     try {
@@ -108,6 +109,14 @@ export default function OrderDetailsScreen() {
       setLoading(false);
     }
   }, [id]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchOrder();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchOrder]);
   const handleChat = async (ownerId: string, name: string, avatar: string) => {
     if (chatLoading || !ownerId) return;
     try {
@@ -192,6 +201,14 @@ export default function OrderDetailsScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[S.scroll, { paddingBottom: rs(40) + insets.bottom }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[C.navy]}
+              tintColor={C.navy}
+            />
+          }
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Dimensions, ActivityIndicator, Image, ScrollView,
+  Dimensions, ActivityIndicator, Image, ScrollView, RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
@@ -46,6 +46,16 @@ const EarningsScreen = () => {
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [range, setRange] = useState<Range>('Week');
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      // No remote data to refetch — data is static. Simulate a brief refresh.
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
   if (isChecking || !isVerified) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
@@ -72,6 +82,9 @@ const EarningsScreen = () => {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[S.scroll, { paddingBottom: rs(100) + insets.bottom }]}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} colors={[C.navy]} />
+          }
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient

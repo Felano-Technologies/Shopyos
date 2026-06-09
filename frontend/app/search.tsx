@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
   TouchableOpacity, Dimensions, Image, Keyboard,
-  Pressable, ScrollView, ActivityIndicator, Animated,
+  Pressable, ScrollView, ActivityIndicator, Animated, RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
@@ -94,6 +94,7 @@ export default function SearchScreen() {
   const [sortOpen, setSortOpen] = useState(false);
   const [recentSearches, setRecent] = useState<string[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -201,14 +202,15 @@ export default function SearchScreen() {
     minRating: params.minRating ? parseFloat(String(params.minRating)) : undefined,
   };
   const isActive = query.length >= 2;
-  const { data: allData, isLoading: loadingAll } = useProducts(filters, 50);
-  const { data: searchData, isLoading: loadingSearch } = useProductSearch(query, filters, 50);
-  const { data: storeSearchData } = useStoreSearch(query, 10);
+  const { data: allData, isLoading: loadingAll, refetch: refetchAll } = useProducts(filters, 50);
+  const { data: searchData, isLoading: loadingSearch, refetch: refetchSearch } = useProductSearch(query, filters, 50);
+  const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(query, category, 10);
   const loading = isActive ? loadingSearch : loadingAll;
   const products = isActive
     ? (searchData?.success ? searchData.products : [])
     : (allData?.success ? allData.products : []);
-  const stores = isActive && storeSearchData?.success ? storeSearchData.data : [];
+  const showStores = isActive || !!category;
+  const stores = showStores && storeSearchData?.success ? (storeSearchData.data || storeSearchData.businesses || []) : [];
   // Cross-fade on data / view change
   useEffect(() => {
     Animated.sequence([
@@ -254,6 +256,18 @@ export default function SearchScreen() {
       setAddingId(null);
     }
   };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchAll(),
+        refetchSearch(),
+        refetchStores(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchAll, refetchSearch, refetchStores]);
   // ── Header title ────────────────────────────────────────────────────────────
   const headingTop = isActive ? 'Results for' : 'Discover';
 
@@ -642,7 +656,7 @@ export default function SearchScreen() {
           <View style={styles.hdrArc} />
         </LinearGradient>
         {/* ── Body ────────────────────────────────────────────────────────── */}
-        {(loading && products.length === 0) ? (
+        {(loading && products.length === 0 && !isActive && !category) ? (
           <View style={{ flex: 1 }}><SearchSkeleton /></View>
         ) : (
           <View style={{
@@ -809,6 +823,8 @@ export default function SearchScreen() {
                       renderItem={renderGrid}
                       ListHeaderComponent={renderListHeader}
                       ListEmptyComponent={renderEmpty}
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
                     />
                   ) : (
                     <FlatList
@@ -821,6 +837,8 @@ export default function SearchScreen() {
                       renderItem={renderList}
                       ListHeaderComponent={renderListHeader}
                       ListEmptyComponent={renderEmpty}
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
                     />
                   )}
                 </Animated.View>

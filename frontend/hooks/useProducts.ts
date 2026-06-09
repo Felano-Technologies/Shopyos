@@ -6,7 +6,7 @@
 // refetchOnMount is NOT set here so it inherits the global `false` default.
 // This means navigating back to Home won't re-fetch if data is still fresh.
 
-import { useQuery, useInfiniteQuery, UseQueryOptions } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, keepPreviousData, UseQueryOptions } from '@tanstack/react-query';
 import { productsApi, Product } from '../lib/query/api';
 import { queryKeys, ProductFilters } from '../lib/query/keys';
 
@@ -16,7 +16,7 @@ export const useProducts = (filters?: ProductFilters, limit = 20) => {
     queryFn: () => productsApi.search(undefined, filters, limit, 0),
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
-    // Inherits refetchOnMount: false from global default
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -34,6 +34,7 @@ export const useInfiniteProducts = (filters?: ProductFilters, limit = 20) => {
     initialPageParam: 0,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 };
 
@@ -58,9 +59,8 @@ export const useProductSearch = (
     queryKey: queryKeys.products.search(query, filters),
     queryFn: () => productsApi.search(query, filters, limit, 0),
     enabled: query.length >= 2,
-    // FIX: was 3 min — increased to 5 min to match Redis search cache TTL.
-    // Search results don't change faster than product listings do.
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 };

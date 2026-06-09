@@ -1,5 +1,5 @@
 // app/userProfile.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -37,6 +38,7 @@ export default function UserProfile() {
 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const handleLogout = () => {
     Alert.alert(
@@ -56,35 +58,55 @@ export default function UserProfile() {
     );
   };
 
-  useEffect(() => {
-    const fetchUserDetails = async () => {
-      try {
-        const token = await storage.getItem('userId');
-        if (!token) throw new Error('No auth token found');
+  const fetchUserDetails = useCallback(async () => {
+    try {
+      const token = await storage.getItem('userId');
+      if (!token) throw new Error('No auth token found');
 
-        const response = await getUserData();
-        console.log('Fetched user details:', response);
+      const response = await getUserData();
+      console.log('Fetched user details:', response);
 
-        setUser({
-          name: response.name,
-          email: response.email,
-          avatar_url: response.avatar_url || response.avatar || null,
-          wallet_balance: response.wallet_balance,
-          referral_code: response.referral_code
-        });
-      } catch (error) {
-        console.warn('Failed to fetch user details:', error);
-        Alert.alert(
-          'Error',
-          'Unable to load user details. Please try again later.'
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUserDetails();
+      setUser({
+        name: response.name,
+        email: response.email,
+        avatar_url: response.avatar_url || response.avatar || null,
+        wallet_balance: response.wallet_balance,
+        referral_code: response.referral_code
+      });
+    } catch (error) {
+      console.warn('Failed to fetch user details:', error);
+      Alert.alert(
+        'Error',
+        'Unable to load user details. Please try again later.'
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const token = await storage.getItem('userId');
+      if (!token) throw new Error('No auth token found');
+      const response = await getUserData();
+      setUser({
+        name: response.name,
+        email: response.email,
+        avatar_url: response.avatar_url || response.avatar || null,
+        wallet_balance: response.wallet_balance,
+        referral_code: response.referral_code,
+      });
+    } catch (error) {
+      console.warn('Failed to refresh user details:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserDetails();
+  }, [fetchUserDetails]);
 
   if (loading) {
     return (
@@ -118,7 +140,17 @@ export default function UserProfile() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#4F46E5']}
+            tintColor="#4F46E5"
+          />
+        }
+      >
         {/* Basic Info Card */}
         <View style={[styles.profileCard, { backgroundColor: cardBg }]}>
           <TappableAvatar

@@ -2,7 +2,7 @@
  * MapView wrapper for mobile app
  */
 
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, Polyline, UrlTile, PROVIDER_GOOGLE } from 'react-native-maps';
 
 export default MapView;
-export { Marker, PROVIDER_GOOGLE };
+export { Marker, Polyline, UrlTile, PROVIDER_GOOGLE };

@@ -10,7 +10,8 @@ import {
     Platform,
     Alert,
     Modal,
-    ActivityIndicator
+    ActivityIndicator,
+    RefreshControl
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -92,6 +93,7 @@ export default function ProductDetails() {
     const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null);
     const [activeComments, setActiveComments] = useState<any[]>([]);
     const [commentSubmitting, setCommentSubmitting] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [product, setProduct] = useState({
         id: params.id as string,
         title: params.title as string,
@@ -153,6 +155,18 @@ export default function ProductDetails() {
             if (res.isFavorite) setIsLiked(true);
         } catch (err) { console.log("Error checking favorite status", err); }
     }, [params.id]);
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await Promise.all([
+                fetchProductDetails(),
+                fetchReviews(),
+                checkFavoriteStatus(),
+            ]);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [fetchProductDetails, fetchReviews, checkFavoriteStatus]);
     useEffect(() => {
         if (params.id) {
             fetchProductDetails();
@@ -299,6 +313,9 @@ export default function ProductDetails() {
                     style={styles.detailsScroll}
                     contentContainerStyle={styles.detailsScrollContent}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+                    }
                 >
                     <View style={styles.detailsCard}>
                         <View style={styles.handleBar} />

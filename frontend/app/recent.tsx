@@ -41,6 +41,7 @@ export default function RecentScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSort, setActiveSort] = useState('newest');
   const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // --- Toast Animation State ---
   const [toastMessage, setToastMessage] = useState('');
@@ -50,7 +51,7 @@ export default function RecentScreen() {
 
   // --- TanStack Query Hook ---
   const sortByParam = activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'newest';
-  const { data, isLoading } = useProducts({ sortBy: sortByParam as any }, 50);
+  const { data, isLoading, refetch } = useProducts({ sortBy: sortByParam as any }, 50);
   
   const products: RecentProduct[] = data?.products?.map((p: any) => ({
     id: p._id || p.id,
@@ -116,6 +117,15 @@ export default function RecentScreen() {
   const applySort = (type: string) => {
     setActiveSort(type);
     setModalVisible(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const renderItem = ({ item }: { item: RecentProduct }) => (
@@ -215,6 +225,8 @@ export default function RecentScreen() {
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
           renderItem={renderItem}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <Feather name="box" size={40} color="#CBD5E1" />

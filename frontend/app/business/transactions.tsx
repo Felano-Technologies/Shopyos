@@ -46,6 +46,7 @@ export default function TransactionsScreen() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [filter, setFilter] = useState('All');
   const [searchText, setSearchText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   const { isChecking, isVerified } = useSellerGuard();
 
@@ -60,6 +61,15 @@ export default function TransactionsScreen() {
       setTransactions(res.data);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await loadData();
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -201,7 +211,7 @@ export default function TransactionsScreen() {
                     <ActivityIndicator size="large" color="#0C1559" />
                 </View>
             ) : (
-                <FlatList 
+                <FlatList
                     data={filteredData}
                     keyExtractor={item => item.id}
                     renderItem={renderItem}
@@ -211,6 +221,8 @@ export default function TransactionsScreen() {
                     ]}
                     showsVerticalScrollIndicator={false}
                     ListEmptyComponent={renderEmptyComponent}
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
                 />
             )}
         </View>

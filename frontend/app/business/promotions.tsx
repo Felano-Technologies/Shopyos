@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, 
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Linking
+  ActivityIndicator, Linking, RefreshControl
 } from 'react-native';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -29,6 +29,16 @@ export default function PromotionsScreen() {
   const [duration, setDuration] = useState(DURATION_TIERS[1]); // default: 1 week
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetchCampaigns();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchCampaigns]);
 
   const { reference } = useLocalSearchParams();
   const { data: campaignsData, isLoading: loading, refetch: refetchCampaigns } = useMyCampaigns();
@@ -135,7 +145,13 @@ export default function PromotionsScreen() {
       </LinearGradient>
       {/* --- Tab Content --- */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" colors={['#0C1559']} />
+          }
+        >
           
           {activeTab === 'campaigns' ? (
             <>

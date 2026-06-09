@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
 
@@ -135,16 +135,21 @@ export const useReplyToReview = () => {
     },
   });
 };
-export const useStoreSearch = (query: string, limit = 10) => {
+export const useStoreSearch = (query: string, category?: string | null, limit = 10) => {
   return useQuery({
-    queryKey: queryKeys.stores.search(query),
+    queryKey: [...queryKeys.stores.search(query), category ?? null],
     queryFn: async () => {
-      const response = await ApiService.searchStores({ search: query, limit });
+      const response = await ApiService.searchStores({
+        search: query.length >= 2 ? query : undefined,
+        category: category || undefined,
+        limit,
+      });
       return response;
     },
-    enabled: query.length >= 2,
+    enabled: query.length >= 2 || !!category,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
+    placeholderData: keepPreviousData,
   });
 };
 export const useUpdateBusiness = () => {

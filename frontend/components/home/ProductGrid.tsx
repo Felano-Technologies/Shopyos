@@ -86,7 +86,7 @@ export function ProductGrid({
     }
   });
 
-  const renderProduct = (item: any) => {
+  const renderProduct = (item: any, idx: number) => {
     const productId = String(item._id || item.id || '');
     const isFav = favoriteIds.has(productId);
     const isBusy = favoriteBusyId === productId;
@@ -103,7 +103,7 @@ export function ProductGrid({
 
     return (
       <TouchableOpacity
-        key={item._id}
+        key={`${item._id || item.id || 'p'}-${idx}`}
         style={S.card}
         activeOpacity={0.88}
         onPress={() => onPressProduct(item)}
@@ -214,10 +214,10 @@ export function ProductGrid({
       {title && <SectionHeader title={title} onSeeAll={onSeeAll} />}
       <View style={S.grid}>
         {listItems.length > 0 ? (
-          listItems.map((item) =>
+          listItems.map((item, idx) =>
             item.type === 'ad'
               ? renderAd(item.data, item.key)
-              : renderProduct(item.data)
+              : renderProduct(item.data, idx)
           )
         ) : (
           <View style={S.empty}>

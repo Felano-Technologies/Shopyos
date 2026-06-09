@@ -452,6 +452,33 @@ const addLocationUpdate = async (req, res, next) => {
       notes
     });
 
+    // Push update to the customer watching this delivery + cache latest position
+    try {
+      const { getRedis, cacheSet } = require('../config/redis');
+
+      await cacheSet(`delivery:location:${deliveryId}`, {
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+      }, 120);
+
+      const delivery = await repositories.deliveries.findById(deliveryId);
+      const buyerId = delivery?.order?.buyer_id;
+      if (buyerId) {
+        const redis = getRedis();
+        const channel = process.env.REALTIME_EVENTS_CHANNEL || 'shopyos:realtime:events';
+        if (redis?.status === 'ready') {
+          await redis.publish(channel, JSON.stringify({
+            scope: 'user',
+            userId: buyerId,
+            event: 'delivery:location_update',
+            payload: { deliveryId, latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
+          }));
+        }
+      }
+    } catch (socketErr) {
+      console.error('[addLocationUpdate] Socket/cache emit failed:', socketErr.message);
+    }
+
     res.status(201).json({
       success: true,
       message: 'Location updated',
@@ -540,11 +567,13 @@ const getLatestLocation = async (req, res, next) => {
       });
     }
 
-    const latestLocation = await repositories.deliveries.getLatestLocation(deliveryId);
+    const { cacheGet } = require('../config/redis');
+    const cached = await cacheGet(`delivery:location:${deliveryId}`);
+    const location = cached ?? await repositories.deliveries.getLatestLocation(deliveryId);
 
     res.status(200).json({
       success: true,
-      location: latestLocation
+      location
     });
   } catch (error) {
     next(error);

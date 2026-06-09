@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ export default function DriverEarnings() {
   const [stats, setStats] = useState({ total: 0, completed: 0, earnings: 0 });
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -41,6 +42,15 @@ export default function DriverEarnings() {
       setLoading(false);
     }
   };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   const renderTransaction = ({ item }: { item: any }) => (
     <View style={styles.transItem}>
@@ -118,7 +128,7 @@ export default function DriverEarnings() {
 
         {/* Recent Activity */}
         <Text style={styles.sectionTitle}>Recent Deliveries</Text>
-        {loading ? (
+        {loading && !refreshing ? (
           <ActivityIndicator size="small" color="#0C1559" />
         ) : (
           <FlatList
@@ -128,6 +138,8 @@ export default function DriverEarnings() {
               contentContainerStyle={{ paddingBottom: 40 }}
               showsVerticalScrollIndicator={false}
               ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#64748B' }}>No recent deliveries</Text>}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
           />
         )}
       </View>

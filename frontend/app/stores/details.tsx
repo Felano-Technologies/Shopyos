@@ -15,9 +15,10 @@ import {
   Modal,
   TextInput,
   KeyboardAvoidingView,
-  Platform
+  Platform,
+  RefreshControl,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/MapView';
+import MapView, { Marker, UrlTile } from '@/components/MapView';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -77,6 +78,7 @@ export default function StoreDetailsScreen() {
   const params = useLocalSearchParams();
   const [activeTab, setActiveTab] = useState('Catalogue');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
   // --- Community & Social States ---
@@ -169,6 +171,14 @@ export default function StoreDetailsScreen() {
   useEffect(() => {
     if (params.id) fetchData();
   }, [fetchData, params.id]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchData]);
   // --- Map & Directions Choice Logic ---
   const handleDirections = () => {
     setMapPickerVisible(true);
@@ -384,7 +394,6 @@ export default function StoreDetailsScreen() {
             <Text style={styles.sectionTitle}>Location</Text>
             <View style={styles.mapWrapper}>
               <MapView
-                provider={PROVIDER_GOOGLE}
                 style={styles.map}
                 initialRegion={{
                   latitude: toFiniteCoordinate(store.latitude, DEFAULT_LATITUDE),
@@ -394,6 +403,12 @@ export default function StoreDetailsScreen() {
                 }}
                 scrollEnabled={false}
               >
+                <UrlTile
+                  urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  maximumZ={19}
+                  flipY={false}
+                  zIndex={-1}
+                />
                 <Marker coordinate={{
                   latitude: toFiniteCoordinate(store.latitude, DEFAULT_LATITUDE),
                   longitude: toFiniteCoordinate(store.longitude, DEFAULT_LONGITUDE)
@@ -447,7 +462,13 @@ export default function StoreDetailsScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+        }
+      >
         
         <View style={styles.headerContainer}>
           {store.cover ? (

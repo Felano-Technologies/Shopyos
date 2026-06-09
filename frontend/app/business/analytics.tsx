@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
-  Dimensions, Image, ActivityIndicator, Modal,
+  Dimensions, Image, ActivityIndicator, Modal, RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,6 +76,8 @@ const Analytics = () => {
       });
     }
   };
+
+  const onRefresh = useCallback(() => { refetch(); }, [refetch]);
 
   // ── Safe data merge ────────────────────────────────────────────────────────
   const analytics = {
@@ -185,6 +187,14 @@ const Analytics = () => {
             { useNativeDriver: true }
           )}
           scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={onRefresh}
+              tintColor={C.navy}
+              colors={[C.navy]}
+            />
+          }
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient

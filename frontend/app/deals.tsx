@@ -22,7 +22,17 @@ export default function DealsScreen() {
   const router = useRouter();
   
   // --- TanStack Query Hook ---
-  const { data, isLoading } = useProducts({ sortBy: 'price_asc' });
+  const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc' });
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  };
   
   const deals = data?.products?.map((p: any) => {
     const priceNum = Number(p.price) || 0;
@@ -127,6 +137,8 @@ export default function DealsScreen() {
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
         renderItem={renderDeal}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         ListEmptyComponent={
           <View style={{ alignItems: 'center', marginTop: 50 }}>
             <Text style={{ color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No deals available at the moment.</Text>

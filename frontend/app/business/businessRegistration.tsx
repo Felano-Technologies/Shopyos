@@ -25,7 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
-import MapView, { PROVIDER_GOOGLE } from '@/components/MapView';
+import MapView, { UrlTile } from '@/components/MapView';
 // --- Mock City Data ---
 const CITIES = [
   'Kumasi', 'Accra', 'Tema', 'Tamale', 'Takoradi', 
@@ -371,7 +371,6 @@ export default function BusinessRegistrationScreen() {
         <View style={{ flex: 1 }}>
           <MapView
             ref={mapRef}
-            provider={PROVIDER_GOOGLE}
             style={{ flex: 1 }}
             initialRegion={{
               latitude: tempCoords.latitude,
@@ -382,7 +381,14 @@ export default function BusinessRegistrationScreen() {
             onRegionChangeComplete={(region) => {
               setTempCoords({ latitude: region.latitude, longitude: region.longitude });
             }}
-          />
+          >
+            <UrlTile
+              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+              zIndex={-1}
+            />
+          </MapView>
           
           <View style={styles.mapMarkerFixed} pointerEvents="none">
             <View style={styles.markerCircle}><MaterialCommunityIcons name="store" size={26} color="#FFF" /></View>

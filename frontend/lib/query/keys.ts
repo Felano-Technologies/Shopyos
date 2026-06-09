@@ -69,6 +69,7 @@ export const queryKeys = {
     all: ['stores'] as const,
     lists: () => ['stores', 'list'] as const,
     list: (filters?: StoreFilters) => ['stores', 'list', filters] as const,
+    infinite: (filters?: StoreFilters) => ['stores', 'infinite', filters] as const,
     detail: (id: string) => ['stores', 'detail', id] as const,
     search: (query: string) => ['stores', 'search', query] as const,
   },

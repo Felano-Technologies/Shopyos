@@ -90,7 +90,7 @@ const BottomNav = () => {
 const styles = StyleSheet.create({
   wrapper: {
     position: 'absolute',
-    bottom: Platform.OS === 'ios' ? 35 : 20,
+    bottom: Platform.OS === 'ios' ? 18 : 10,
     left: 0,
     right: 0,
     alignItems: 'center',
@@ -98,21 +98,20 @@ const styles = StyleSheet.create({
   },
   container: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)', 
-    width: width * 0.88, 
-    height: 60, 
+    backgroundColor: '#f0f0f0',
+    width: width * 0.88,
+    height: 60,
     borderRadius: 30,
     paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'rgba(0, 0, 0, 0.1)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-    overflow: 'hidden', // Keeps the gradient inside the rounded corners
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 12,
   },
   navItem: {
     height: 48,
