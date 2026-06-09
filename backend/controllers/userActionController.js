@@ -1,7 +1,7 @@
 // controllers/userActionController.js
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
-const { toPublicUrl } = require('../config/storage');
+const { resolveImageUrl } = require('../config/storage');
 
 // BLOCK USER
 const blockUser = async (req, res, next) => {
@@ -78,17 +78,17 @@ const getBlockedUsers = async (req, res, next) => {
             [blockerId]
         );
 
-        const blockedUsers = (rows || []).map((row) => ({
+        const blockedUsers = await Promise.all((rows || []).map(async (row) => ({
             blocked_id: row.blocked_id,
             created_at: row.created_at,
             blocked_user: row.user_id ? {
                 id: row.user_id,
                 user_profiles: {
                     full_name: row.full_name || null,
-                    avatar_url: toPublicUrl(row.avatar_url)
+                    avatar_url: await resolveImageUrl(row.avatar_url)
                 }
             } : null
-        }));
+        })));
 
         res.status(200).json({ success: true, blockedUsers });
     } catch (error) {

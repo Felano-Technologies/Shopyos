@@ -250,7 +250,7 @@ export default function PromotionsScreen() {
                   <Text style={styles.checkoutLabel}>Duration</Text>
                   <Text style={styles.checkoutValue}>{duration.label}</Text>
                 </View>
-                <View style={styles.checkoutRow} style={{ marginTop: 8 }}>
+                <View style={[styles.checkoutRow, { marginTop: 8 }]}>
                   <Text style={styles.checkoutLabel}>Placement</Text>
                   <Text style={styles.checkoutValue}>Assigned by admin</Text>
                 </View>

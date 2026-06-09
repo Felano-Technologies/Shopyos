@@ -6,6 +6,7 @@ const winston = require('winston');
 const { Expo } = require('expo-server-sdk');
 const { getEmailTemplateByEvent, getSmsTemplateByEvent } = require('../templates');
 const repositories = require('../db/repositories');
+const { getChannelId, getTtlSeconds } = require('../utils/pushConfig');
 
 // Basic worker logger
 const logger = winston.createLogger({
@@ -34,6 +35,13 @@ const emailTransporter = nodemailer.createTransport({
 // Arkesel configuration
 const ARKESEL_API_KEY = process.env.ARKESEL_API_KEY;
 const ARKESEL_SENDER_ID = process.env.ARKESEL_SENDER_ID || 'Shopyos';
+
+// Shared Expo SDK instance (stateless — safe to reuse)
+const expo = new Expo();
+
+// In-memory queue of Expo receipt IDs awaiting FCM delivery confirmation
+const receiptQueue = [];
+let receiptPollerStarted = false;
 
 // Guard so SIGTERM / SIGINT don't trigger the reconnection loop
 let isShuttingDown = false;
@@ -281,7 +289,6 @@ async function handlePush(msg) {
             return true; // Not retryable — user has no tokens
         }
 
-        const expo = new Expo();
         const messages = [];
 
         for (const pushToken of tokens) {
@@ -294,7 +301,8 @@ async function handlePush(msg) {
                 to: pushToken,
                 sound: 'default',
                 priority: 'high',
-                channelId: 'default',
+                channelId: getChannelId(eventType),
+                ttl: getTtlSeconds(eventType),
                 title,
                 body,
                 data: data || {}
@@ -317,13 +325,15 @@ async function handlePush(msg) {
 
         logger.info(`[Push] Sent ${messages.length} push notification(s) to user ${userId} for ${eventType}. Tickets: ${tickets.length}`);
 
-        // Process tickets — clean up stale tokens
+        // Process tickets — update activity, queue receipts, clean up stale tokens
         let anyOk = false;
         for (let i = 0; i < tickets.length; i++) {
             const ticket = tickets[i];
             if (ticket.status === 'ok') {
                 anyOk = true;
-                logger.info(`[Push] ✅ Delivered to token: ${messages[i].to}`);
+                logger.info(`[Push] ✅ Accepted by Expo for token: ${messages[i].to}`);
+                await repositories.notifications.updateTokenLastUsed(messages[i].to);
+                if (ticket.id) receiptQueue.push({ receiptId: ticket.id, token: messages[i].to });
             } else if (ticket.status === 'error') {
                 logger.error(`[Push] ❌ Ticket error for user ${userId}: ${ticket.message}`);
                 if (ticket.details?.error === 'DeviceNotRegistered') {
@@ -353,6 +363,58 @@ async function handlePush(msg) {
         logger.error(`[Push] Failed to send push to user ${userId} for ${eventType}`, details);
         await updateLogStatus(eventType, target, refId, 'FAILED', JSON.stringify(details));
         throw error; // Allow retry
+    }
+}
+
+// ─── Receipt Polling ─────────────────────────────────────────────────────────
+// Expo tickets only confirm acceptance by Expo's servers.
+// Receipts (available ~15 min later) confirm actual FCM delivery.
+
+async function checkReceipts(batch) {
+    const receiptIds   = batch.map(r => r.receiptId);
+    const tokenById    = Object.fromEntries(batch.map(r => [r.receiptId, r.token]));
+
+    const receipts = await expo.getPushNotificationReceiptsAsync(receiptIds);
+
+    for (const [receiptId, receipt] of Object.entries(receipts)) {
+        if (receipt.status !== 'error') continue;
+        logger.warn(`[Push] Receipt error for ${receiptId}: ${receipt.message}`);
+        if (receipt.details?.error === 'DeviceNotRegistered') {
+            const token = tokenById[receiptId];
+            if (token) {
+                await repositories.notifications.removePushToken(token);
+                logger.info(`[Push] Receipt check: removed stale token ${token}`);
+            }
+        }
+    }
+}
+
+async function processReceiptQueue() {
+    if (receiptQueue.length === 0) return;
+    const batch = receiptQueue.splice(0, 300); // Expo max per request
+    try {
+        await checkReceipts(batch);
+    } catch (err) {
+        logger.error('[Push] Receipt poll failed:', err.message);
+        receiptQueue.push(...batch); // Re-enqueue for next cycle
+    }
+}
+
+function startReceiptPoller() {
+    if (receiptPollerStarted) return;
+    receiptPollerStarted = true;
+    setInterval(processReceiptQueue, 20 * 60 * 1000); // Every 20 minutes
+    logger.info('[Push] Receipt poller started (20 min interval)');
+}
+
+// ─── Stale Token Cleanup ──────────────────────────────────────────────────────
+
+async function pruneStaleTokensOnStartup() {
+    try {
+        const count = await repositories.notifications.pruneStaleTokens(60);
+        if (count > 0) logger.info(`[Push] Pruned ${count} stale push token(s) on startup`);
+    } catch (err) {
+        logger.warn('[Push] Stale token pruning failed on startup:', err.message);
     }
 }
 
@@ -403,6 +465,9 @@ async function startWorker() {
         await pushChannel.assertQueue('push_queue', { durable: true });
         await pushChannel.bindQueue('push_queue', 'notifications_exchange', 'push');
         pushChannel.prefetch(10);
+
+        pruneStaleTokensOnStartup();
+        startReceiptPoller();
 
         logger.info('Notification Workers started. Waiting for messages...');
 

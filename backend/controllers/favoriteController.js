@@ -1,6 +1,6 @@
 // controllers/favoriteController.js
 const repositories = require('../db/repositories');
-const { toPublicUrl } = require('../config/storage');
+const { resolveImageUrl } = require('../config/storage');
 
 // @desc    Add product to favorites
 // @route   POST /api/favorites
@@ -92,7 +92,7 @@ const getUserFavorites = async (req, res, next) => {
         const favorites = await repositories.favorites.getUserFavoritesWithProducts(userId);
 
         // Transform to include product data
-        const formattedFavorites = favorites.map(fav => ({
+        const formattedFavorites = await Promise.all(favorites.map(async fav => ({
             id: fav.id,
             productId: fav.product_id,
             addedAt: fav.created_at,
@@ -102,16 +102,16 @@ const getUserFavorites = async (req, res, next) => {
                 price: fav.product.price,
                 description: fav.product.description,
                 category: fav.product.category,
-                images: fav.product.product_images 
-                  ? fav.product.product_images.map(img => toPublicUrl(img.image_url))
+                images: fav.product.product_images
+                  ? await Promise.all(fav.product.product_images.map(img => resolveImageUrl(img.image_url)))
                   : [],
                 store: fav.product.store ? {
                     id: fav.product.store_id,
                     name: fav.product.store.store_name,
-                    logo: toPublicUrl(fav.product.store.logo_url)
+                    logo: await resolveImageUrl(fav.product.store.logo_url)
                 } : null
             } : null
-        }));
+        })));
 
         res.status(200).json({
             success: true,

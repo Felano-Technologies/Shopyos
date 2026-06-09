@@ -1,5 +1,5 @@
 const repositories = require('../db/repositories');
-const { toPublicUrl } = require('../config/storage');
+const { resolveImageUrl } = require('../config/storage');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const { invalidateStore } = require('../config/cacheInvalidation');
@@ -218,10 +218,10 @@ const createBusiness = async (req, res, next) => {
         instagram: store.social_instagram || '',
         facebook: store.social_facebook || ''
       },
-      logo: toPublicUrl(store.logo_url) || '',
-      logo_url: toPublicUrl(store.logo_url) || '',
-      coverImage: toPublicUrl(store.banner_url) || '',
-      banner_url: toPublicUrl(store.banner_url) || '',
+      logo: await resolveImageUrl(store.logo_url) || '',
+      logo_url: await resolveImageUrl(store.logo_url) || '',
+      coverImage: await resolveImageUrl(store.banner_url) || '',
+      banner_url: await resolveImageUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       isActive: store.is_active,
       rating: store.average_rating || 0,
@@ -265,7 +265,7 @@ const getMyBusinesses = async (req, res, next) => {
     console.log(`[MY_BUSINESSES] UserID: ${userId}, Count Found: ${totalCount}, Stores:`, rawStores?.length);
 
     // Format response for backward compatibility
-    const businesses = rawStores.map(store => ({
+    const businesses = await Promise.all(rawStores.map(async store => ({
       _id: store.id,
       owner: userId,
       businessName: store.store_name,
@@ -281,10 +281,10 @@ const getMyBusinesses = async (req, res, next) => {
         instagram: store.social_instagram || '',
         facebook: store.social_facebook || ''
       },
-      logo: toPublicUrl(store.logo_url) || '',
-      logo_url: toPublicUrl(store.logo_url) || '',
-      coverImage: toPublicUrl(store.banner_url) || '',
-      banner_url: toPublicUrl(store.banner_url) || '',
+      logo: await resolveImageUrl(store.logo_url) || '',
+      logo_url: await resolveImageUrl(store.logo_url) || '',
+      coverImage: await resolveImageUrl(store.banner_url) || '',
+      banner_url: await resolveImageUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
@@ -293,7 +293,7 @@ const getMyBusinesses = async (req, res, next) => {
       totalReviews: store.total_reviews || 0,
       createdAt: store.created_at,
       updatedAt: store.updated_at
-    }));
+    })));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
@@ -366,8 +366,8 @@ const getBusinessById = async (req, res, next) => {
         instagram: store.social_instagram || '',
         facebook: store.social_facebook || ''
       },
-      logo: toPublicUrl(store.logo_url) || '',
-      coverImage: toPublicUrl(store.banner_url) || '',
+      logo: await resolveImageUrl(store.logo_url) || '',
+      coverImage: await resolveImageUrl(store.banner_url) || '',
       verificationStatus: store.verification_status,
       rejectionReason: store.rejection_reason || '',
       isActive: store.is_active,
@@ -570,8 +570,8 @@ const updateBusiness = async (req, res, next) => {
         instagram: updatedStore.social_instagram || '',
         facebook: updatedStore.social_facebook || ''
       },
-      logo: toPublicUrl(updatedStore.logo_url) || '',
-      coverImage: toPublicUrl(updatedStore.banner_url) || '',
+      logo: await resolveImageUrl(updatedStore.logo_url) || '',
+      coverImage: await resolveImageUrl(updatedStore.banner_url) || '',
       verificationStatus: updatedStore.verification_status,
       rejectionReason: updatedStore.rejection_reason || '',
       isActive: updatedStore.is_active,
@@ -710,7 +710,7 @@ const uploadLogo = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Logo uploaded successfully',
-      logo: toPublicUrl(result.url)
+      logo: await resolveImageUrl(result.url)
     });
 
   } catch (error) {
@@ -773,7 +773,7 @@ const uploadBanner = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Banner uploaded successfully',
-      banner: toPublicUrl(result.url)
+      banner: await resolveImageUrl(result.url)
     });
 
   } catch (error) {
@@ -1176,18 +1176,18 @@ const getAllBusinesses = async (req, res, next) => {
       }, {});
     }
 
-    const mapped = storesData.map(s => ({
+    const mapped = await Promise.all(storesData.map(async s => ({
       id: s.id,
       name: s.store_name,
       category: s.category,
-      logo: toPublicUrl(s.logo_url),
+      logo: await resolveImageUrl(s.logo_url) || null,
       rating: s.average_rating || 0,
       reviewCount: s.total_reviews || 0,
       verified: s.is_verified || false,
       isTrusted: s.is_trusted || false,
       ownerId: s.owner_id,
       catalogues: productCountMap[s.id] ?? s.products?.[0]?.count ?? 0
-    }));
+    })));
 
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
@@ -1294,17 +1294,17 @@ const getBusinessReviews = async (req, res, next) => {
     // Combine and format them
     const allReviews = [];
 
-    const formatUser = (userRel) => {
+    const formatUser = async (userRel) => {
       const profiles = userRel?.user_profiles;
       const profile = Array.isArray(profiles) ? profiles[0] : profiles;
       return {
         name: profile?.full_name || 'Anonymous',
-        avatar: toPublicUrl(profile?.avatar_url) || null
+        avatar: await resolveImageUrl(profile?.avatar_url) || null
       };
     };
 
-    (storeReviews || []).forEach(r => {
-      const u = formatUser(r.user);
+    for (const r of (storeReviews || [])) {
+      const u = await formatUser(r.user);
       allReviews.push({
         id: r.id,
         type: 'store',
@@ -1314,12 +1314,12 @@ const getBusinessReviews = async (req, res, next) => {
         user: u.name,
         avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${r.id}`
       });
-    });
+    }
 
     const filteredProductReviews = (productReviews || []).filter(r => r?.products?.store_id === businessId);
 
-    filteredProductReviews.forEach(r => {
-      const u = formatUser(r.user);
+    for (const r of filteredProductReviews) {
+      const u = await formatUser(r.user);
       allReviews.push({
         id: r.id,
         type: 'product',
@@ -1330,7 +1330,7 @@ const getBusinessReviews = async (req, res, next) => {
         user: u.name,
         avatar: u.avatar || `https://api.dicebear.com/7.x/avataaars/png?seed=${r.id}`
       });
-    });
+    }
 
     // Sort by date descending
     allReviews.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());

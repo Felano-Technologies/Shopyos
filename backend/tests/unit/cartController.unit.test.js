@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/cartController.unit.test.js
@@ -29,6 +29,7 @@ jest.mock('../../db/repositories', () => ({
     removeItem: jest.fn(),
     clearCart: jest.fn(),
     getCartItemCount: jest.fn(),
+    touchLastActivity: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -149,7 +150,7 @@ describe('CartController Unit Tests', () => {
     await addToCart(req, res, next);
 
     // Assert
-    expect(repositories.carts.addItem).toHaveBeenCalledWith('user-123', 'prod-1', 2, 10.5);
+    expect(repositories.carts.addItem).toHaveBeenCalledWith('user-123', 'prod-1', 2, 10.5, null);
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       success: true,
@@ -357,3 +358,4 @@ describe('CartController Unit Tests', () => {
     expect(res.json).toHaveBeenCalledWith({ success: true, count: 7 });
   });
 });
+

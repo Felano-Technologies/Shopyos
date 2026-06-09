@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/userActionController.unit.test.js
@@ -28,6 +28,7 @@ jest.mock('../../db/repositories', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => url ? `http://mocked-public-url/${url}` : null),
+  resolveImageUrl: jest.fn(async (url) => url ? `http://mocked-public-url/${url}` : null),
 }));
 
 jest.mock('../../config/postgres', () => ({
@@ -374,3 +375,5 @@ describe('UserActionController Unit Tests', () => {
     });
   });
 });
+
+

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh issue *)",
+      "WebFetch(domain:rafizimraanarjunawijaya.medium.com)",
+      "WebFetch(domain:firebase.google.com)",
+      "WebFetch(domain:firebase.blog)",
+      "WebFetch(domain:www.pushwoosh.com)",
+      "WebFetch(domain:www.droidcon.com)"
+    ]
+  }
+}

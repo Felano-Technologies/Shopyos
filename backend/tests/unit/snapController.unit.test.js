@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 
 /**
  * tests/unit/snapController.unit.test.js
@@ -18,6 +18,7 @@ jest.mock('../../config/postgres', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => url ? `http://mocked-public-url/${url}` : null),
+  resolveImageUrl: jest.fn(async (url) => url ? `http://mocked-public-url/${url}` : null),
 }));
 
 const snapController = require('../../controllers/snapController');
@@ -63,7 +64,7 @@ describe('SnapController Unit Tests', () => {
         expect.stringContaining('INSERT INTO snaps'),
         ['store-123', 'snap.jpg', 'Test snap', 'prod-456']
       );
-      expect(storage.toPublicUrl).toHaveBeenCalledWith('snap.jpg');
+      expect(storage.resolveImageUrl).toHaveBeenCalledWith('snap.jpg');
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
@@ -245,3 +246,5 @@ describe('SnapController Unit Tests', () => {
     });
   });
 });
+
+

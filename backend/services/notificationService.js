@@ -3,7 +3,7 @@
 
 const nodemailer = require('nodemailer');
 const axios = require('axios');
-const amqp = require('amqplib');
+const amqpPublisher = require('./amqpPublisher');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { emitToUser } = require('../../socket/src/config/socketServer');
@@ -109,6 +109,7 @@ class NotificationService {
             userId,
             title,
             body: message,
+            eventType: type,
             data: {
               ...(params.push.data || data),
               notificationId: dbNotification.id,
@@ -201,30 +202,13 @@ class NotificationService {
    * @param {Object} payload - { eventType, userId, notificationId, title, body, relatedId, relatedType, data }
    */
   async _publishPushJob(payload) {
-    const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
-    if (!url) {
-      logger.warn('[NotificationService] RABBITMQ_URL not set — push will use direct fallback');
-      return false;
-    }
-    let conn;
     try {
-      conn = await amqp.connect(url, { heartbeat: 30 });
-      const ch = await conn.createChannel();
-      await ch.assertExchange('notifications_exchange', 'direct', { durable: true });
-      ch.publish(
-        'notifications_exchange',
-        'push',
-        Buffer.from(JSON.stringify(payload)),
-        { persistent: true }
-      );
-      await ch.close();
+      await amqpPublisher.publish('push', payload);
       logger.debug(`[NotificationService] Push job queued for user ${payload.userId} (${payload.eventType})`);
       return true;
     } catch (err) {
-      logger.error('[NotificationService] Failed to publish push job to RabbitMQ:', err.message);
+      logger.error('[NotificationService] Failed to publish push job:', err.message);
       return false;
-    } finally {
-      if (conn) conn.close().catch(() => {});
     }
   }
 

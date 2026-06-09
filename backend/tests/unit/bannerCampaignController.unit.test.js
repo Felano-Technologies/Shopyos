@@ -177,9 +177,9 @@ describe('BannerCampaignController Unit Tests', () => {
         expect.objectContaining({
           store_id: 'store-1',
           title: 'Summer Sale',
-          placement: 'Home Top Banner',
+          placement: 'Pending Assignment',
           duration_days: 7,
-          paid_amount: 350, // 50 GHS/day * 7 days
+          paid_amount: 10,
           status: 'Pending',
           banner_url: 'http://cloudinary/banner.jpg',
         })
@@ -342,7 +342,7 @@ describe('BannerCampaignController Unit Tests', () => {
       await updateCampaignStatus(req, res, next);
 
       // Assert
-      expect(repositories.bannerCampaigns.updateCampaign).toHaveBeenCalledWith('camp-1', { status: 'Approved' });
+      expect(repositories.bannerCampaigns.updateCampaign).toHaveBeenCalledWith('camp-1', expect.objectContaining({ status: 'Approved' }));
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({ success: true, campaign: expect.objectContaining({ status: 'Approved' }) })

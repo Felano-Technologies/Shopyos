@@ -6,25 +6,25 @@ const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
 const { emitToConversation } = require('../../socket/src/config/socketServer');
 const aiService = require('../services/aiService');
-const { s3, toPublicUrl, resolveImageUrl } = require('../config/storage');
+const { s3, resolveImageUrl } = require('../config/storage');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
 const { moderateText } = require('../services/moderationService');
 
 const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
-const formatAvatars = (obj) => {
+const formatAvatars = async (obj) => {
   if (!obj) return obj;
   if (obj instanceof Date) return obj.toISOString();
   if (Array.isArray(obj)) {
-    return obj.map(formatAvatars);
+    return Promise.all(obj.map(formatAvatars));
   }
   if (typeof obj === 'object') {
     const formatted = {};
     for (const [key, value] of Object.entries(obj)) {
       if ((key === 'avatar_url' || key === 'avatar') && typeof value === 'string' && value) {
-        formatted[key] = toPublicUrl(value);
+        formatted[key] = await resolveImageUrl(value);
       } else {
-        formatted[key] = formatAvatars(value);
+        formatted[key] = await formatAvatars(value);
       }
     }
     return formatted;
@@ -78,7 +78,7 @@ const startConversation = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      conversation: formatAvatars(details)
+      conversation: await formatAvatars(details)
     });
   } catch (error) {
     next(error);
@@ -102,7 +102,7 @@ const getConversations = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      conversations: formatAvatars(conversations),
+      conversations: await formatAvatars(conversations),
       count: conversations.length
     });
   } catch (error) {
@@ -140,7 +140,7 @@ const getConversationDetails = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      conversation: formatAvatars(conversation)
+      conversation: await formatAvatars(conversation)
     });
   } catch (error) {
     next(error);
@@ -219,17 +219,18 @@ const sendMessage = async (req, res, next) => {
     ]);
 
     const fullMessage = messageWithSender || message;
+    const formattedMessage = await formatAvatars(fullMessage);
 
     // Emit real-time event immediately
     emitToConversation(conversationId, 'message:new', {
-      message: formatAvatars(fullMessage),
+      message: formattedMessage,
       conversationId
     });
 
     // Send response immediately — don't wait for notifications
     res.status(201).json({
       success: true,
-      message: formatAvatars(fullMessage)
+      message: formattedMessage
     });
 
     // Fire-and-forget: send notification to recipient after responding
@@ -274,7 +275,7 @@ const sendMessage = async (req, res, next) => {
             ]);
 
             emitToConversation(conversationId, 'message:new', {
-              message: formatAvatars(botMessageWithSender || botMessage),
+              message: await formatAvatars(botMessageWithSender || botMessage),
               conversationId
             });
 
@@ -332,7 +333,7 @@ const sendMessage = async (req, res, next) => {
               ]);
 
               emitToConversation(conversationId, 'message:new', {
-                message: formatAvatars(botMessageWithSender || botMessage),
+                message: await formatAvatars(botMessageWithSender || botMessage),
                 conversationId
               });
 
@@ -418,7 +419,7 @@ const getMessages = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      messages: formatAvatars(messages),
+      messages: await formatAvatars(messages),
       count: messages.length
     });
   } catch (error) {
@@ -688,7 +689,7 @@ const getStickerPacks = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const { ListObjectsV2Command } = require('@aws-sdk/client-s3');
-    const { s3, toPublicUrl } = require('../config/storage');
+    const { s3 } = require('../config/storage');
 
     // 1. Fetch custom user stickers from S3
     const customPrefix = `stickers/custom/${userId}/`;
@@ -699,13 +700,15 @@ const getStickerPacks = async (req, res, next) => {
         Prefix: customPrefix
       }));
       if (response.Contents) {
-        customStickers = response.Contents
-          .filter(item => item.Size > 0)
-          .map(item => ({
-            id: item.Key.split('/').pop().replace(/\.[^/.]+$/, ""),
-            url: toPublicUrl(item.Key),
-            label: 'Custom'
-          }));
+        customStickers = await Promise.all(
+          response.Contents
+            .filter(item => item.Size > 0)
+            .map(async item => ({
+              id: item.Key.split('/').pop().replace(/\.[^/.]+$/, ""),
+              url: await resolveImageUrl(item.Key),
+              label: 'Custom'
+            }))
+        );
       }
     } catch (s3Err) {
       logger.warn(`Could not list custom stickers for user ${userId}: ${s3Err.message}`);
