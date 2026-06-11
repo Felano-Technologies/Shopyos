@@ -8,7 +8,8 @@ import {
   Image,
   FlatList,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const [showDisclosure, setShowDisclosure] = useState(false);
   const [locationGranted, setLocationGranted] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
   // Verification flags
   const isVerified = profile?.is_verified === true || profile?.is_verified === 1 || profile?.verification_status === 'verified';
   const isPending = !isVerified && !profile?.rejection_reason;
@@ -69,10 +71,10 @@ export default function Dashboard() {
     }
   }, [profile]);
   // --- TanStack Query Hooks ---
-  const { data: statsData } = useDriverStats('today');
+  const { data: statsData, refetch: refetchStats } = useDriverStats('today');
   const stats = statsData?.stats || { total: 0, completed: 0, inProgress: 0, earnings: 0 };
   
-  const { data: activeData } = useActiveDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
+  const { data: activeData, refetch: refetchActive } = useActiveDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
   const activeDeliveries = activeData?.deliveries || [];
   
   const { 
@@ -178,6 +180,25 @@ export default function Dashboard() {
     }
     await goOnline();
   };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchStats(),
+        refetchActive(),
+        refetchAvailable(),
+        getDriverProfile().then((response) => {
+          const fresh = response?.profile || response?.data || response;
+          if (fresh) setProfile(fresh);
+        }),
+      ]);
+    } catch (err) {
+      console.warn('Refresh failed:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchStats, refetchActive, refetchAvailable]);
+
   const handleAccept = async (id: string) => {
     if (!isVerified) {
       CustomInAppToast.show({ 
@@ -383,6 +404,8 @@ export default function Dashboard() {
                 renderItem={({ item }) => <RequestCard item={item} />}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
+                refreshing={refreshing}
+                onRefresh={onRefresh}
               />
             )}
           </View>

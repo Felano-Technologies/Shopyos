@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Image, Dimensions, ScrollView,
+  TextInput, Image, Dimensions, ScrollView, RefreshControl,
   ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
@@ -67,6 +67,7 @@ const ProductsScreen = () => {
   const [categoryModal, setCategoryModal] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearch] = useState('');
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
@@ -164,6 +165,15 @@ const ProductsScreen = () => {
       if (res.success && res.categories) setCategories(res.categories);
     } catch { }
   }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchProducts();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchProducts]);
 
   useEffect(() => {
     if (businessId) {
@@ -311,6 +321,14 @@ const ProductsScreen = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[S.scroll, { paddingBottom: rs(100) + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[C.navy]}
+              tintColor={C.navy}
+            />
+          }
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <LinearGradient

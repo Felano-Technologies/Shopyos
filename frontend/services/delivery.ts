@@ -138,3 +138,47 @@ export const submitDriverVerification = async (formData: FormData) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export const getLatestLocation = async (deliveryId: string) => {
+  try {
+    const response = await api.get(`/deliveries/${deliveryId}/latest-location`);
+    return response.data as { success: boolean; location: { latitude: number; longitude: number } | null };
+  } catch (error: any) {
+    return { success: false, location: null };
+  }
+};
+
+type Coord = { latitude: number; longitude: number };
+
+export async function fetchDrivingRoute(
+  from: Coord,
+  to: Coord
+): Promise<{ coords: Coord[]; durationSecs: number } | null> {
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${from.longitude},${from.latitude};${to.longitude},${to.latitude}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const json = await res.json();
+    if (!json.routes?.length) return null;
+    const route = json.routes[0];
+    return {
+      coords: route.geometry.coordinates.map(([lon, lat]: number[]) => ({ latitude: lat, longitude: lon })),
+      durationSecs: route.duration,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function haversineMetres(a: Coord, b: Coord): number {
+  const R = 6_371_000;
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
+  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((a.latitude * Math.PI) / 180) *
+      Math.cos((b.latitude * Math.PI) / 180) *
+      Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+export { haversineMetres };

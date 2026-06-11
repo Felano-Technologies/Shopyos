@@ -42,7 +42,6 @@ jest.mock('../../utils/uploadHelpers', () => ({
 const mockDbChain = {
   from: jest.fn().mockReturnThis(),
   select: jest.fn().mockReturnThis(),
-  insert: jest.fn().mockReturnThis(),
   update: jest.fn().mockReturnThis(),
   delete: jest.fn().mockReturnThis(),
   eq: jest.fn().mockReturnThis(),
@@ -52,6 +51,16 @@ const mockDbChain = {
   maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
   rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
 };
+
+// insert returns a thenable object so fire-and-forget insert().then().catch() never throws,
+// while still supporting insert().select().single() chaining (select routes back to mockDbChain).
+// mockResolvedValueOnce on insert() overrides this default for tests that need await insert().
+const mockInsertChain = {
+  then: (onFulfilled) => Promise.resolve(undefined).then(onFulfilled),
+  catch: (onRejected) => Promise.resolve(undefined).catch(onRejected),
+  select: jest.fn(() => mockDbChain),
+};
+mockDbChain.insert = jest.fn(() => mockInsertChain);
 
 jest.mock('../../db/repositories', () => ({
   products: {

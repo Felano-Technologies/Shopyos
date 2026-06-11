@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  RefreshControl,
 } from 'react-native';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -33,6 +34,7 @@ export default function PaymentMethodsScreen() {
   const [adding, setAdding] = useState(false);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   // New Method Form State
   const [newMethod, setNewMethod] = useState<{
     type: 'card' | 'momo',
@@ -68,6 +70,27 @@ export default function PaymentMethodsScreen() {
       setLoading(false);
     }
   };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const response = await getPaymentMethods();
+      if (response && response.success) {
+        const mapped = response.data.map((m: any) => ({
+          id: m.id,
+          type: m.type,
+          provider: m.provider,
+          title: m.title,
+          identifier: m.identifier,
+          isDefault: m.is_default,
+        }));
+        setMethods(mapped);
+      }
+    } catch (error) {
+      console.error('Error refreshing payment methods:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
   const handleDelete = (id: string) => {
     Alert.alert("Remove Method", "Are you sure you want to remove this payment method?", [
       { text: "Cancel", style: "cancel" },
@@ -322,6 +345,8 @@ export default function PaymentMethodsScreen() {
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={styles.listContent}
+              refreshing={refreshing}
+              onRefresh={onRefresh}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <MaterialCommunityIcons name="credit-card-plus-outline" size={64} color="#E2E8F0" />

@@ -11,20 +11,23 @@ import {
   Linking,
   Platform,
   LayoutAnimation,
-  UIManager
+  UIManager,
 } from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Location from 'expo-location';
 import { useDeliveryDetails, useUpdateDeliveryStatus, useVerifyDeliveryPin } from '@/hooks/useDelivery';
-import {  startConversation, CustomInAppToast } from '@/services/api';
+import { startConversation, CustomInAppToast } from '@/services/api';
 import {
   startDriverLocationTracking,
   stopDriverLocationTracking,
   isTrackingLocation,
 } from '@/src/background/controller';
-import { useEffect, useState } from 'react';
+import { fetchDrivingRoute, haversineMetres } from '@/services/delivery';
+import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
+import { useEffect, useRef, useState } from 'react';
 
 if (Platform.OS === 'android') {
   if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -40,6 +43,10 @@ export default function ActiveOrderScreen() {
   const deliveryId = params.deliveryId as string;
   const [step, setStep] = useState(0);
   const [pinCode, setPinCode] = useState('');
+  const [driverCoord, setDriverCoord] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [routeCoords, setRouteCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [liveEta, setLiveEta] = useState<number | null>(null);
+  const lastRouteFetchCoord = useRef<{ latitude: number; longitude: number } | null>(null);
   const verifyPinMutation = useVerifyDeliveryPin();
   // --- TanStack Query Hooks ---
   const { data, isLoading } = useDeliveryDetails(deliveryId);
@@ -76,12 +83,49 @@ export default function ActiveOrderScreen() {
       }
     };
     startTracking();
-    // Cleanup: stop tracking only if navigating away without completing
-    // (completion is handled separately in handleProgress)
     return () => {
       // Don't stop here — let the dashboard or delivery completion handle it
     };
   }, [deliveryId]);
+
+  // Foreground position watcher — drives the map pin and live route/ETA
+  useEffect(() => {
+    if (!delivery) return;
+    let watcher: Location.LocationSubscription | null = null;
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') return;
+
+      watcher = await Location.watchPositionAsync(
+        { accuracy: Location.Accuracy.High, distanceInterval: 20 },
+        async (loc) => {
+          const from = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setDriverCoord(from);
+
+          const dest =
+            step <= 1
+              ? { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude }
+              : { latitude: delivery.delivery_latitude, longitude: delivery.delivery_longitude };
+
+          if (!dest.latitude || !dest.longitude) return;
+          if (
+            lastRouteFetchCoord.current &&
+            haversineMetres(lastRouteFetchCoord.current, from) < 50
+          ) return;
+
+          lastRouteFetchCoord.current = from;
+          const result = await fetchDrivingRoute(from, dest as any);
+          if (result) {
+            setRouteCoords(result.coords);
+            setLiveEta(Math.round(result.durationSecs / 60));
+          }
+        }
+      );
+    })();
+
+    return () => { watcher?.remove(); };
+  }, [delivery, step]);
   const handleCall = (phoneNumber: string) => {
     if (!phoneNumber) {
       CustomInAppToast.show({ type: 'error', title: 'No Phone Number', message: 'Could not find a valid phone number for this contact.' });
@@ -180,12 +224,56 @@ export default function ActiveOrderScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      {/* --- MAP PLACEHOLDER --- */}
+      {/* Map */}
       <View style={styles.mapContainer}>
-        <Image
-          source={{ uri: 'https://i.imgur.com/83g2v6z.png' }}
+        <MapView
           style={styles.mapImage}
-        />
+          initialRegion={
+            driverCoord
+              ? { ...driverCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+              : delivery?.pickup_latitude
+              ? { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+              : undefined
+          }
+          showsUserLocation={false}
+        >
+          <UrlTile
+            urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maximumZ={19}
+            flipY={false}
+            zIndex={-1}
+          />
+          {driverCoord && (
+            <Marker coordinate={driverCoord} title="You">
+              <View style={styles.driverPin}>
+                <MaterialIcons name="delivery-dining" size={18} color="#FFF" />
+              </View>
+            </Marker>
+          )}
+          {delivery?.pickup_latitude && (
+            <Marker
+              coordinate={{ latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude }}
+              title="Store"
+            >
+              <View style={styles.storePin}>
+                <MaterialIcons name="storefront" size={16} color="#FFF" />
+              </View>
+            </Marker>
+          )}
+          {delivery?.delivery_latitude && (
+            <Marker
+              coordinate={{ latitude: delivery.delivery_latitude, longitude: delivery.delivery_longitude }}
+              title="Customer"
+            >
+              <View style={styles.customerPin}>
+                <Ionicons name="home" size={16} color="#FFF" />
+              </View>
+            </Marker>
+          )}
+          {routeCoords.length > 1 && (
+            <Polyline coordinates={routeCoords} strokeColor="#0C1559" strokeWidth={4} />
+          )}
+        </MapView>
         <SafeAreaView style={styles.safeMapOverlay}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
@@ -198,7 +286,11 @@ export default function ActiveOrderScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           <View style={styles.statusRow}>
             <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
-            <Text style={styles.timeRemaining}>~ {delivery?.estimated_time || (step === 0 ? '5' : '15')} mins</Text>
+            <Text style={styles.timeRemaining}>
+            {liveEta !== null
+              ? liveEta < 1 ? 'Almost there!' : `~${liveEta} min${liveEta === 1 ? '' : 's'}`
+              : `~ ${delivery?.estimated_time || (step === 0 ? '5' : '15')} mins`}
+          </Text>
           </View>
           {/* Address Info */}
           <View style={styles.locationCard}>
@@ -379,7 +471,23 @@ const styles = StyleSheet.create({
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   // Map Section
   mapContainer: { height: height * 0.45, width: '100%', backgroundColor: '#E2E8F0' },
-  mapImage: { width: '100%', height: '100%', resizeMode: 'cover', opacity: 0.8 },
+  mapImage: { width: '100%', height: '100%' },
+  driverPin: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#A3E635',
+  },
+  storePin: {
+    width: 32, height: 32, borderRadius: 8, backgroundColor: '#16A34A',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  customerPin: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 3, borderColor: '#FFF',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
+  },
   safeMapOverlay: { position: 'absolute', top: 0, left: 20 },
   backBtn: { backgroundColor: '#FFF', padding: 10, borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5, elevation: 3 },
   // Bottom Sheet

@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Dimensions, Image,
+  ActivityIndicator, Dimensions, Image, RefreshControl,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -96,6 +96,17 @@ const NotificationScreen = () => {
 
   // Optimistic local read state
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refetch();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const handleMarkAll = async () => {
     try {
@@ -258,6 +269,8 @@ const NotificationScreen = () => {
             data={flatData}
             keyExtractor={(item) => item.id}
             showsVerticalScrollIndicator={false}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
             contentContainerStyle={[
               S.listContent,
               { paddingBottom: rs(40) + insets.bottom },

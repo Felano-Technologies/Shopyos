@@ -87,12 +87,13 @@ export const SnapsRow = () => {
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
-    backgroundColor: '#E9F0FF',
+    backgroundColor: '#FFFFFF',
   },
   loadingContainer: {
     height: 100,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#FFFFFF',
   },
   listContent: {
     paddingHorizontal: 16,

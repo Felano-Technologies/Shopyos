@@ -6,7 +6,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
-const SLIDE_W = width;
+const H_PAD = 16;
+const SLIDE_W = width - H_PAD * 2;
 const SLIDE_H = 210;
 const AD_DELAY = 4000;
 
@@ -151,12 +152,13 @@ export function HeroCarousel({ ads, onAdPress }: Props) {
 }
 
 const S = StyleSheet.create({
-  wrap: { marginBottom: 14 },
+  wrap: { marginBottom: 14, marginHorizontal: H_PAD },
   slide: {
     width: SLIDE_W,
     height: SLIDE_H,
     backgroundColor: C.navy,
     overflow: 'hidden',
+    borderRadius: 16,
   },
   decorPanel: {
     position: 'absolute', right: -30, top: 0, bottom: 0, width: '55%',

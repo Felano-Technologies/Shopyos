@@ -1,4 +1,4 @@
-import React, {  useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,35 +7,57 @@ import {
   Dimensions,
   Animated,
   Linking,
-  Image
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useQuery } from '@tanstack/react-query';
+import MapView, { Marker, Polyline, UrlTile } from '@/components/MapView';
+import { socketService } from '@/services/socket';
+import { getLatestLocation, fetchDrivingRoute, haversineMetres } from '@/services/delivery';
+
 const { height } = Dimensions.get('window');
+
+type Coord = { latitude: number; longitude: number };
+
 export default function OrderTrackingMap() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  // Real data from params (passed from order details screen)
+
+  const deliveryId = params.deliveryId as string | undefined;
   const deliveryAddress = (params.deliveryAddress as string) || 'Delivery Address';
   const orderNumber = (params.orderNumber as string) || '';
-  // Driver params
   const driverName = params.driverName as string | undefined;
   const driverAvatar = params.driverAvatar as string | undefined;
   const driverPhone = params.driverPhone as string | undefined;
   const driverVehicle = params.driverVehicle as string | undefined;
   const driverPlate = params.driverPlate as string | undefined;
-  // Store params
   const storeName = params.storeName as string | undefined;
   const storeLogo = params.storeLogo as string | undefined;
   const storeCategory = params.storeCategory as string | undefined;
+
+  const customerCoord: Coord | null =
+    params.deliveryLatitude && params.deliveryLongitude
+      ? { latitude: parseFloat(params.deliveryLatitude as string), longitude: parseFloat(params.deliveryLongitude as string) }
+      : null;
+
+  const storeCoord: Coord | null =
+    params.storeLatitude && params.storeLongitude
+      ? { latitude: parseFloat(params.storeLatitude as string), longitude: parseFloat(params.storeLongitude as string) }
+      : null;
+
   const hasDriver = !!driverName;
-  // Animation Values
+
+  const [driverCoord, setDriverCoord] = useState<Coord | null>(null);
+  const [routeCoords, setRouteCoords] = useState<Coord[]>([]);
+  const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
+  const lastRouteFetchCoord = useRef<Coord | null>(null);
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    // Pulse Animation for User Location marker
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, { toValue: 1.5, duration: 1500, useNativeDriver: true }),
@@ -43,53 +65,150 @@ export default function OrderTrackingMap() {
       ])
     ).start();
   }, [pulseAnim]);
+
+  const updateRoute = useCallback(async (from: Coord) => {
+    if (!customerCoord) return;
+    if (
+      lastRouteFetchCoord.current &&
+      haversineMetres(lastRouteFetchCoord.current, from) < 50
+    ) return;
+    lastRouteFetchCoord.current = from;
+    const result = await fetchDrivingRoute(from, customerCoord);
+    if (result) {
+      setRouteCoords(result.coords);
+      setEtaMinutes(Math.round(result.durationSecs / 60));
+    }
+  }, [customerCoord]);
+
+  // Seed initial driver position via TanStack Query (staleTime avoids re-fetch on quick remount)
+  const { data: seedData } = useQuery({
+    queryKey: ['delivery-location', deliveryId],
+    queryFn: () => getLatestLocation(deliveryId!),
+    staleTime: 30_000,
+    enabled: !!deliveryId,
+  });
+
+  useEffect(() => {
+    if (seedData?.location) {
+      const coord: Coord = { latitude: seedData.location.latitude, longitude: seedData.location.longitude };
+      setDriverCoord(coord);
+      updateRoute(coord);
+    }
+  }, [seedData, updateRoute]);
+
+  // Live socket updates
+  useEffect(() => {
+    if (!deliveryId) return;
+    let mounted = true;
+
+    socketService.connect().then((socket) => {
+      if (!mounted) return;
+      socket.on('delivery:location_update', (data: any) => {
+        if (data.deliveryId !== deliveryId) return;
+        const coord: Coord = { latitude: data.latitude, longitude: data.longitude };
+        setDriverCoord(coord);
+        updateRoute(coord);
+      });
+    });
+
+    return () => {
+      mounted = false;
+      socketService.getSocket()?.off('delivery:location_update');
+    };
+  }, [deliveryId, updateRoute]);
+
+  const etaLabel =
+    etaMinutes === null
+      ? null
+      : etaMinutes < 1
+      ? 'Almost here!'
+      : `Driver arriving in ~${etaMinutes} min${etaMinutes === 1 ? '' : 's'}`;
+
+  const mapRegion = customerCoord
+    ? { ...customerCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+    : undefined;
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      {/* --- Full Screen Map Background --- */}
+
+      {/* Full-screen map */}
       <View style={styles.mapContainer}>
-        {/* Map placeholder — replace with <MapView> when ready */}
-        <View style={styles.mapPlaceholder}>
-          <MaterialCommunityIcons name="map-outline" size={64} color="#CBD5E1" />
-          <Text style={styles.mapPlaceholderText}>Map view coming soon</Text>
-        </View>
-        {/* Map Overlay Gradient (Top) */}
+        {mapRegion ? (
+          <MapView style={StyleSheet.absoluteFillObject} initialRegion={mapRegion}>
+            <UrlTile
+              urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maximumZ={19}
+              flipY={false}
+              zIndex={-1}
+            />
+            {driverCoord && (
+              <Marker coordinate={driverCoord} title="Driver">
+                <View style={styles.driverPin}>
+                  <MaterialCommunityIcons name="bike-fast" size={18} color="#FFF" />
+                </View>
+              </Marker>
+            )}
+            {storeCoord && (
+              <Marker coordinate={storeCoord} title="Pickup">
+                <View style={styles.storePin}>
+                  <MaterialCommunityIcons name="storefront-outline" size={16} color="#FFF" />
+                </View>
+              </Marker>
+            )}
+            {customerCoord && (
+              <Marker coordinate={customerCoord} title="Drop-off">
+                <View style={styles.customerPin}>
+                  <Ionicons name="home" size={16} color="#FFF" />
+                </View>
+              </Marker>
+            )}
+            {routeCoords.length > 1 && (
+              <Polyline
+                coordinates={routeCoords}
+                strokeColor="#0C1559"
+                strokeWidth={4}
+              />
+            )}
+          </MapView>
+        ) : (
+          <View style={styles.mapPlaceholder}>
+            <MaterialCommunityIcons name="map-outline" size={64} color="#CBD5E1" />
+            <Text style={styles.mapPlaceholderText}>Loading map…</Text>
+          </View>
+        )}
+
         <LinearGradient
           colors={['rgba(255,255,255,0.9)', 'rgba(255,255,255,0)']}
           style={styles.topGradient}
         />
-        {/* Back Button */}
         <SafeAreaView style={styles.topSafeArea}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#0F172A" />
           </TouchableOpacity>
         </SafeAreaView>
-        {/* Destination Marker (always shown) */}
-        <View style={styles.markersContainer}>
-          <View style={styles.userMarkerContainer}>
-            <Animated.View style={[styles.pulseRing, { transform: [{ scale: pulseAnim }] }]} />
-            <View style={styles.userMarker}>
-              <Ionicons name="home" size={18} color="#FFF" />
-            </View>
-            <View style={styles.markerLabel}>
-              <Text style={styles.markerText}>Drop-off</Text>
-            </View>
-          </View>
-        </View>
       </View>
-      {/* --- Bottom Sheet --- */}
+
+      {/* Bottom sheet */}
       <View style={[styles.bottomSheet, hasDriver ? { height: height * 0.45 } : { height: height * 0.35 }]}>
         <View style={styles.dragHandle} />
-        {/* Status Header */}
+
+        {/* Status header */}
         <View style={styles.statusHeader}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.statusTitle}>
                 {hasDriver ? 'Driver is on the way' : 'Looking for a driver…'}
               </Text>
               {orderNumber ? (
                 <Text style={styles.statusSub}>Order #{orderNumber}</Text>
               ) : null}
+              {etaLabel && (
+                <View style={styles.etaPill}>
+                  <MaterialCommunityIcons name="clock-fast" size={13} color="#16A34A" />
+                  <Text style={styles.etaText}>{etaLabel}</Text>
+                </View>
+              )}
             </View>
             {storeLogo && (
               <View style={styles.storeLogoBadge}>
@@ -101,11 +220,12 @@ export default function OrderTrackingMap() {
             <View style={[styles.progressFill, { width: hasDriver ? '55%' : '25%' }]} />
           </View>
         </View>
+
         <View style={styles.divider} />
-        {/* Driver Card — real or empty state */}
+
+        {/* Driver card */}
         {hasDriver ? (
           <View style={styles.driverCard}>
-            {/* Driver Avatar */}
             <View style={styles.avatarContainer}>
               {driverAvatar ? (
                 <Image source={{ uri: driverAvatar }} style={styles.driverAvatarImg} />
@@ -121,9 +241,7 @@ export default function OrderTrackingMap() {
                 <MaterialCommunityIcons name="bike" size={14} color="#64748B" />
                 <Text style={styles.vehicleText}> {driverVehicle || 'Vehicle'}</Text>
               </View>
-              {driverPlate ? (
-                <Text style={styles.plateText}>{driverPlate}</Text>
-              ) : null}
+              {driverPlate ? <Text style={styles.plateText}>{driverPlate}</Text> : null}
             </View>
             <View style={styles.actionButtons}>
               {driverPhone && (
@@ -149,7 +267,8 @@ export default function OrderTrackingMap() {
             </View>
           </View>
         )}
-        {/* Delivery Details */}
+
+        {/* Delivery details */}
         <View style={styles.deliveryDetails}>
           <View style={styles.detailRow}>
             <View style={styles.iconBox}>
@@ -158,7 +277,9 @@ export default function OrderTrackingMap() {
             <View style={styles.addressBox}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Text style={styles.addressLabel}>Drop-off</Text>
-                {storeName && <Text style={styles.storeTag}>{storeCategory || 'Store'} · {storeName}</Text>}
+                {storeName && (
+                  <Text style={styles.storeTag}>{storeCategory || 'Store'} · {storeName}</Text>
+                )}
               </View>
               <Text style={styles.addressText} numberOfLines={2}>{deliveryAddress}</Text>
             </View>
@@ -168,9 +289,9 @@ export default function OrderTrackingMap() {
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFF' },
-  // Map Layer
   mapContainer: {
     ...StyleSheet.absoluteFillObject,
     height: height * 0.75,
@@ -187,7 +308,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Medium',
     color: '#94A3B8',
   },
-  mapImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   topGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 120 },
   topSafeArea: { position: 'absolute', top: 0, left: 20, zIndex: 10 },
   backBtn: {
@@ -196,28 +316,24 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15, shadowRadius: 5, elevation: 5,
   },
-  // Markers
-  markersContainer: {
-    position: 'absolute', top: '30%', left: '20%', width: '60%', height: '40%',
+  // Map marker pins
+  driverPin: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#A3E635',
   },
-  userMarkerContainer: { position: 'absolute', top: 20, right: 20, alignItems: 'center' },
-  pulseRing: {
-    position: 'absolute', width: 60, height: 60, borderRadius: 30,
-    backgroundColor: 'rgba(12, 21, 89, 0.2)', top: -12,
+  storePin: {
+    width: 32, height: 32, borderRadius: 8, backgroundColor: '#16A34A',
+    justifyContent: 'center', alignItems: 'center',
   },
-  userMarker: {
+  customerPin: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: '#0C1559',
     justifyContent: 'center', alignItems: 'center',
     borderWidth: 3, borderColor: '#FFF',
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3, shadowRadius: 4, elevation: 6, zIndex: 2,
+    shadowOpacity: 0.3, shadowRadius: 4, elevation: 6,
   },
-  markerLabel: {
-    position: 'absolute', top: -38, backgroundColor: '#0C1559',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignItems: 'center',
-  },
-  markerText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
-  // Bottom Sheet
+  // Bottom sheet
   bottomSheet: {
     position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF',
     borderTopLeftRadius: 30, borderTopRightRadius: 30,
@@ -229,15 +345,21 @@ const styles = StyleSheet.create({
     width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2,
     alignSelf: 'center', marginBottom: 20,
   },
-  // Status Section
   statusHeader: { marginBottom: 16 },
   statusTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
-  statusSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 10 },
+  statusSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 6 },
+  etaPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: '#DCFCE7', paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20, alignSelf: 'flex-start', marginBottom: 8,
+  },
+  etaText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#16A34A' },
   progressBar: { height: 4, backgroundColor: '#F1F5F9', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#84cc16', borderRadius: 2 },
   divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 16 },
-  // Real Driver Card
   driverCard: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  avatarContainer: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
+  driverAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   avatarPlaceholder: {
     width: 52, height: 52, borderRadius: 26, backgroundColor: '#E0E7FF',
     justifyContent: 'center', alignItems: 'center',
@@ -252,7 +374,6 @@ const styles = StyleSheet.create({
     width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9',
     justifyContent: 'center', alignItems: 'center',
   },
-  // No-driver empty state
   noDriverCard: {
     flexDirection: 'row', alignItems: 'center',
     backgroundColor: '#F8FAFC', borderRadius: 18,
@@ -265,7 +386,6 @@ const styles = StyleSheet.create({
   },
   noDriverTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 4 },
   noDriverSub: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', lineHeight: 18 },
-  // Delivery Details
   deliveryDetails: { backgroundColor: '#F8FAFC', padding: 14, borderRadius: 16 },
   detailRow: { flexDirection: 'row', alignItems: 'center' },
   iconBox: {
@@ -275,9 +395,6 @@ const styles = StyleSheet.create({
   addressBox: { flex: 1 },
   addressLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginBottom: 2 },
   addressText: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
-  // New Styles
-  avatarContainer: { width: 52, height: 52, borderRadius: 26, overflow: 'hidden' },
-  driverAvatarImg: { width: '100%', height: '100%', resizeMode: 'cover' },
   storeLogoBadge: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' },
   miniLogo: { width: '100%', height: '100%' },
   storeTag: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', backgroundColor: '#ECFCCB', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 },

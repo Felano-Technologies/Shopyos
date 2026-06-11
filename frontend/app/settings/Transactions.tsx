@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Image,
-  StatusBar
+  StatusBar,
+  RefreshControl
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +28,7 @@ export default function SettingsTransactionsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   useEffect(() => {
     fetchTransactions();
   }, []);
@@ -52,6 +54,29 @@ export default function SettingsTransactionsScreen() {
       setLoading(false);
     }
   };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const response = await getMyOrders();
+      if (response && response.success) {
+        const mappedData: Transaction[] = response.orders.map((order: any) => ({
+          id: order.id,
+          title: `Order #${order.order_number}`,
+          type: 'order',
+          amount: parseFloat(order.total_amount),
+          date: order.created_at,
+          status: order.status === 'paid' || order.status === 'completed' ? 'completed' :
+            order.status === 'cancelled' ? 'failed' : 'pending',
+          paymentMethod: order.payments?.[0]?.payment_method || 'Other'
+        }));
+        setTransactions(mappedData);
+      }
+    } catch (error) {
+      console.error('Error refreshing transactions:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
   // Helper to format currency
   const formatCurrency = (amount: number) => {
     return `₵${Math.abs(amount).toFixed(2)}`;
@@ -137,6 +162,9 @@ export default function SettingsTransactionsScreen() {
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+            }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
                 <Image

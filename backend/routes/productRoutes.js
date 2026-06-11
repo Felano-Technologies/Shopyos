@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { protect, hasAnyRole } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, hasAnyRole } = require('../middleware/authMiddleware');
 const upload = require('../middleware/upload');
 const { cacheMiddleware, productCacheKey } = require('../middleware/cache');
 const {
@@ -8,6 +8,7 @@ const {
   updateProduct, deleteProduct, uploadProductImages,
   deleteProductImage, searchProducts
 } = require('../controllers/productController');
+const { getSimilar } = require('../controllers/recommendationController');
 const { validateSearch, validateCreateProduct } = require('../middleware/validators');
 
 router.get('/search', validateSearch, cacheMiddleware(
@@ -17,6 +18,9 @@ router.get('/search', validateSearch, cacheMiddleware(
 router.get('/store/:storeId', cacheMiddleware(
   (req) => productCacheKey.store(req.params.storeId, req.query.page || 1, req.query.limit || 20), 300
 ), getStoreProducts);
+
+// Must be declared before /:id to prevent path ambiguity
+router.get('/:id/recommendations', optionalAuth, getSimilar);
 
 router.get('/:id', cacheMiddleware(
   (req) => productCacheKey.detail(req.params.id), 600

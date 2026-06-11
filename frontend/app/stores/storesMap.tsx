@@ -4,7 +4,7 @@ import {
   Dimensions, ActivityIndicator, FlatList, TextInput,
   ScrollView, Animated,
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/MapView';
+import MapView, { Marker, UrlTile } from '@/components/MapView';
 import Circle from '@/components/MapCircle';
 import * as Location from 'expo-location';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -239,7 +239,6 @@ export default function StoresMap() {
       {/* ── Full-screen map ──────────────────────────────────────────────── */}
       <MapView
         ref={mapRef}
-        provider={PROVIDER_GOOGLE}
         style={S.map}
         initialRegion={{
           latitude:      userCoords?.latitude  ?? 6.6745,
@@ -251,6 +250,12 @@ export default function StoresMap() {
         showsMyLocationButton={false}
         showsCompass={false}
       >
+        <UrlTile
+          urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          maximumZ={19}
+          flipY={false}
+          zIndex={-1}
+        />
         {/* ── Radius circle — visual "coverage zone" like Snapchat ─────── */}
         {userCoords && (
           <Circle

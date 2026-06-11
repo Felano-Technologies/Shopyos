@@ -13,10 +13,9 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useProducts, useInfiniteProducts } from '@/hooks/useProducts';
 import { useFlashSales } from '@/hooks/useFlashSales';
-import { useCategories } from '@/hooks/useCategories';
 import { HomeSkeleton } from '@/components/skeletons/HomeSkeleton';
 import { recordAdClick, storage, CustomInAppToast } from '@/services/api';
-import { useActiveBanners, usePromotedProducts } from '@/hooks/useBanners';
+import { useActiveBanners } from '@/hooks/useBanners';
 import { useProfile } from '@/hooks/useProfile';
 import { useBuyerUnreadCount } from '@/hooks/useChat';
 import { useCart } from '@/store/cartStore';
@@ -33,15 +32,16 @@ import { MidFeedBanner } from '@/components/home/MidFeedBanner';
 import { ProductRow } from '@/components/home/ProductRow';
 import { ProductGrid } from '@/components/home/ProductGrid';
 import { SponsoredAdsRow } from '@/components/home/SponsoredAdsRow';
+import { RecommendedSection } from '@/components/home/RecommendedSection';
 
 const { width } = Dimensions.get('window');
 
 // Show sponsored section when more than this many campaigns are active
-const AD_THRESHOLD = 10;
+const AD_THRESHOLD = 0;
 
 
 const C = {
-  pageBg: '#E9F0FF',
+  pageBg: '#FFFFFF',
   navy: '#0C1559',
   navyMid: '#1e3a8a',
   lime: '#84cc16',
@@ -72,8 +72,6 @@ export default function Home() {
   // ── UI state ─────────────────────────────────────────────────────────────────
   const [locationText, setLocationText] = useState('Locating…');
   const [userName, setUserName] = useState('');
-  const [selectedCat, setSelectedCat] = useState('All');
-  const [ads, setAds] = useState<HeroAd[]>([]);
   const [showStartupSkeleton, setShowStartupSkeleton] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
@@ -91,26 +89,20 @@ export default function Home() {
   );
   const { data: profileData } = useProfile();
   const { data: bannersData } = useActiveBanners();
-  const { data: promotedData } = usePromotedProducts();
-  const { data: notifData } = useUnreadNotificationCount(false);
+const { data: notifData } = useUnreadNotificationCount(false);
   const unreadNotifCount = notifData?.unreadCount ?? 0;
-  const { data: categoriesData } = useCategories();
-
   // ── Product queries ────────────────────────────────────────────────────────────
-  const allCatNames = ['All', ...(categoriesData || []).map((c: any) => c.name)];
-  const categoryFilter = selectedCat !== 'All' ? selectedCat : undefined;
-
   const { data: recentData, isLoading: loadingRecent, refetch: refetchRecent, isRefetching: refetchingRecent } =
-    useProducts({ category: categoryFilter, sortBy: 'newest' }, 10);
+    useProducts({ sortBy: 'newest' }, 10);
   const { data: trendingData, isLoading: loadingTrending, refetch: refetchTrending, isRefetching: refetchingTrending } =
-    useProducts({ category: categoryFilter, sortBy: 'popular' }, 10);
+    useProducts({ sortBy: 'popular' }, 10);
   const { data: dealsData, isLoading: loadingDeals, refetch: refetchDeals, isRefetching: refetchingDeals } =
-    useProducts({ category: categoryFilter, sortBy: 'price_asc' }, 20);
+    useProducts({ sortBy: 'price_asc' }, 20);
   const {
     data: exploreData, isLoading: loadingExplore, refetch: refetchExplore,
     isRefetching: refetchingExplore, fetchNextPage: fetchMoreExplore,
     hasNextPage: hasMoreExplore, isFetchingNextPage: fetchingMoreExplore,
-  } = useInfiniteProducts({ category: categoryFilter }, 24);
+  } = useInfiniteProducts({}, 24);
 
   const loading = loadingRecent || loadingDeals || loadingTrending || loadingExplore;
   const refreshing = refetchingRecent || refetchingDeals || refetchingTrending || refetchingExplore;
@@ -136,8 +128,7 @@ export default function Home() {
   const [layouts, setLayouts] = useState<any>({});
   const refGreeting = useRef<View>(null);
   const refActions = useRef<View>(null);
-  const refCategories = useRef<ScrollView>(null);
-  const refChat = useRef<View>(null);
+const refChat = useRef<View>(null);
   const { startTour, markCompleted, isCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
 
   const measureElement = (ref: any, key: string) => {
@@ -152,8 +143,7 @@ export default function Home() {
     const timer = setTimeout(() => {
       measureElement(refGreeting, 'greeting');
       measureElement(refActions, 'actions');
-      measureElement(refCategories, 'categories');
-      measureElement(refChat, 'chat');
+measureElement(refChat, 'chat');
       const shouldAutoStart = async () => {
         if (onboardingLoading || !user) return;
         if (isCompleted('home')) return;
@@ -171,8 +161,7 @@ export default function Home() {
   const onboardingSteps = [
     { targetLayout: layouts.greeting, title: 'Welcome to Shopyos!', description: "We've personalized your dashboard based on your location and preferences." },
     { targetLayout: layouts.actions, title: 'Easy Access', description: 'Quickly check your cart or see notifications from your favourite stores.' },
-    { targetLayout: layouts.categories, title: 'Shop by Category', description: 'Find exactly what you need by browsing our curated categories.' },
-    { targetLayout: layouts.chat, title: 'Real-time Chat', description: 'Have a question? Chat with sellers instantly to get more details or negotiate.' },
+{ targetLayout: layouts.chat, title: 'Real-time Chat', description: 'Have a question? Chat with sellers instantly to get more details or negotiate.' },
   ].filter(s => !!s.targetLayout);
 
   // ── User name ──────────────────────────────────────────────────────────────────
@@ -181,14 +170,7 @@ export default function Home() {
     setUserName(name.split(' ')[0]);
   }, [profileData, user]);
 
-  // ── Resolve ads array ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    const allBanners = bannersData?.banners || [];
-    if (allBanners.length > 0) { setAds(allBanners); return; }
-    if (bannersData !== undefined) setAds([]);
-  }, [bannersData, promotedData]);
-
-  // ── Location ───────────────────────────────────────────────────────────────────
+// ── Location ───────────────────────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const cachedTxt = await storage.getItem('CACHED_LOCATION_TEXT');
@@ -291,7 +273,7 @@ export default function Home() {
   // ── Quick actions (3 only — avoids duplicating bottom nav or the Chat FAB) ──
   const quickActions: QuickAction[] = [
     { icon: 'flash-outline', label: 'Deals', onPress: () => safePush('/deals'), color: '#EF4444', bg: '#FEF2F2' },
-    { icon: 'heart-outline', label: 'Wishlist', onPress: () => safePush('/favorites'), color: '#7C3AED', bg: '#F3F0FF' },
+    { icon: 'star-outline', label: 'For You', onPress: () => safePush('/for-you'), color: '#0EA5E9', bg: '#F0F9FF' },
     { icon: 'sparkles-outline', label: 'New In', onPress: () => safePush('/recent'), color: '#D97706', bg: '#FFFBEB' },
   ];
 
@@ -403,8 +385,8 @@ export default function Home() {
           <SnapsRow />
 
           {/* Full-bleed hero banner carousel — placeholder when no campaigns are live */}
-          {ads.length > 0 ? (
-            <HeroCarousel ads={ads} onAdPress={handleAdPress} />
+          {activeCampaigns.length > 0 ? (
+            <HeroCarousel ads={activeCampaigns as HeroAd[]} onAdPress={handleAdPress} />
           ) : (
             <View style={S.adPlaceholder}>
               <LinearGradient
@@ -439,28 +421,6 @@ export default function Home() {
             endsAt={flashSale?.endsAt}
             saleTitle={flashSale?.title}
           />
-
-          {/* Category filter chips */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            ref={refCategories}
-            onLayout={() => measureElement(refCategories, 'categories')}
-            contentContainerStyle={S.chipStrip}
-          >
-            {allCatNames.map((cat) => {
-              const on = selectedCat === cat;
-              return (
-                <TouchableOpacity
-                  key={cat}
-                  style={[S.chip, on && S.chipOn]}
-                  onPress={() => setSelectedCat(cat)}
-                >
-                  <Text style={[S.chipTxt, on && S.chipTxtOn]}>{cat}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
 
           {/* Recently Added — horizontal scroll */}
           <ProductRow
@@ -517,6 +477,9 @@ export default function Home() {
             onSeeAll={() => router.push('/search?sortBy=popular' as any)}
             getStoreName={getStoreDisplayName}
           />
+
+          {/* Recommended for You — personalised or trending fallback */}
+          <RecommendedSection />
 
           {/* Deals for You — 2-col grid, first 6 items */}
           <ProductGrid
@@ -650,18 +613,6 @@ const S = StyleSheet.create({
   // Body
   scrollContent: { paddingBottom: 110 },
 
-  // Category chips
-  chipStrip: { paddingHorizontal: 16, paddingVertical: 14, gap: 8, flexDirection: 'row' },
-  chip: {
-    height: 34, paddingHorizontal: 16, borderRadius: 17,
-    borderWidth: 1, borderColor: C.navyMid, backgroundColor: '#fff',
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 1, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2,
-  },
-  chipOn: { backgroundColor: C.lime, borderColor: C.lime },
-  chipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.muted },
-  chipTxtOn: { color: C.limeText },
 
   // Load-more
   loadMoreSpinner: { paddingVertical: 24 },
@@ -689,7 +640,9 @@ const S = StyleSheet.create({
   // Ad campaign placeholder (shown when no live campaigns)
   adPlaceholder: {
     marginBottom: 14,
+    marginHorizontal: 16,
     height: 210,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: 'rgba(12,21,89,0.1)',
     borderStyle: 'dashed',

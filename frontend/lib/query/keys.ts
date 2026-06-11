@@ -69,6 +69,7 @@ export const queryKeys = {
     all: ['stores'] as const,
     lists: () => ['stores', 'list'] as const,
     list: (filters?: StoreFilters) => ['stores', 'list', filters] as const,
+    infinite: (filters?: StoreFilters) => ['stores', 'infinite', filters] as const,
     detail: (id: string) => ['stores', 'detail', id] as const,
     search: (query: string) => ['stores', 'search', query] as const,
   },
@@ -117,6 +118,13 @@ export const queryKeys = {
     conversations: () => ['chat', 'conversations'] as const,
     messages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
     presence: (userId: string) => ['chat', 'presence', userId] as const,
+  },
+
+  recommendations: {
+    all: ['recommendations'] as const,
+    similar: (productId: string) => ['recommendations', 'similar', productId] as const,
+    personalized: () => ['recommendations', 'personalized'] as const,
+    trending: (category?: string) => ['recommendations', 'trending', category] as const,
   },
 };
 

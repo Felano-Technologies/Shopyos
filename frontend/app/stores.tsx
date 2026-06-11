@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   Image, StyleSheet, Dimensions, Keyboard, Pressable,
-  Modal, Switch, Animated, ActivityIndicator,
+  Modal, Switch, Animated, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -46,7 +46,15 @@ export default function StoresScreen() {
   const fadeAnim   = useRef(new Animated.Value(1)).current;
   const isSearching = searchQuery.length > 0;
 
-  const { data: storesData, isLoading: loading, isRefetching: isRefreshing, refetch } = useStores({
+  const {
+    data: storesData,
+    isLoading: loading,
+    isRefetching: isRefreshing,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useStores({
     search:   searchQuery || undefined,
     category: activeCategory !== 'All' ? activeCategory : undefined,
     sortBy:   filterSort,
@@ -54,19 +62,26 @@ export default function StoresScreen() {
   });
 
   const rawStores: any[] = useMemo(() => {
-    if (!storesData?.success) return [];
-    return (storesData.businesses || []).map((b: any) => ({
-      id:          b.id,
-      name:        b.name        || 'Unknown Store',
-      category:    b.category    || 'General',
-      rating:      Number(b.rating || 0),
-      reviewCount: b.reviewCount || 0,
-      logo:        b.logo        || null,
-      catalogues:  b.catalogues  || 0,
-      verified:    b.verified    || false,
-      isTrusted:   b.isTrusted   || false,
-    }));
+    if (!storesData?.pages?.length) return [];
+    return storesData.pages
+      .flatMap((page: any) => page.businesses || [])
+      .map((b: any) => ({
+        id:          b.id,
+        name:        b.name        || 'Unknown Store',
+        category:    b.category    || 'General',
+        rating:      Number(b.rating || 0),
+        reviewCount: b.reviewCount || 0,
+        logo:        b.logo        || null,
+        catalogues:  b.catalogues  || 0,
+        verified:    b.verified    || false,
+        isTrusted:   b.isTrusted   || false,
+      }));
   }, [storesData]);
+
+  const totalStoreCount: number = useMemo(() => {
+    const last = storesData?.pages?.[storesData.pages.length - 1] as any;
+    return last?.pagination?.totalItems ?? rawStores.length;
+  }, [storesData, rawStores.length]);
 
   const stores       = rawStores;
   const popularStores = useMemo(
@@ -135,6 +150,7 @@ export default function StoresScreen() {
   const handleVisitStore = (item: any) => {
     safePush('/stores/details', { id: item.id, name: item.name, category: item.category, logo: item.logo });
   };
+  const onRefresh = () => { refetch(); };
   // ── Popular card — single logo image, verified badge overlaid on it ────────
   const renderPopularCard = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -320,6 +336,21 @@ export default function StoresScreen() {
             keyboardShouldPersistTaps="handled"
             renderItem={renderStoreRow}
             ListEmptyComponent={renderEmpty}
+            onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              isFetchingNextPage
+                ? <ActivityIndicator color={C.navy} style={{ paddingVertical: 16 }} />
+                : null
+            }
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                colors={[C.navy]}
+                tintColor={C.navy}
+              />
+            }
             ListHeaderComponent={
               <>
                 <FlatList
@@ -343,7 +374,7 @@ export default function StoresScreen() {
                 {!isSearching && popularStores.length > 0 && (
                   <>
                     <View style={styles.secHeader} ref={refPopular} onLayout={() => measureElement(refPopular, 'popular')}>
-                      <Text style={styles.secTitle}>Popular Stores</Text>
+                      <Text style={styles.secTitle}>Top Rated</Text>
                       <Text style={styles.secMeta}>{popularStores.length} stores</Text>
                     </View>
                     <FlatList
@@ -363,7 +394,7 @@ export default function StoresScreen() {
                       : 'All Stores'}
                   </Text>
                   {!isSearching && (
-                    <Text style={styles.secMeta}>{stores.length} stores</Text>
+                    <Text style={styles.secMeta}>{totalStoreCount} stores</Text>
                   )}
                 </View>
               </>

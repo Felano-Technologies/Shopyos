@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,8 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
-  FlatList
+  FlatList,
+  RefreshControl
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
@@ -20,6 +21,7 @@ import { useActiveBusiness } from '@/hooks/useBusiness';
 export default function PayoutScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
@@ -48,6 +50,17 @@ export default function PayoutScreen() {
     }
   };
 
+  const onRefresh = useCallback(async () => {
+    if (!activeBusiness) return;
+    setRefreshing(true);
+    try {
+      setBalance(parseFloat(activeBusiness.current_balance || 0));
+      setHasPayoutMethod(!!activeBusiness.payout_method);
+      await fetchHistory(activeBusiness._id);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [activeBusiness]);
 
   // --- Render Item for History ---
   const renderHistoryItem = ({ item }: { item: any }) => (
@@ -95,7 +108,13 @@ export default function PayoutScreen() {
             </View>
           </SafeAreaView>
         </LinearGradient>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0C1559']} tintColor="#0C1559" />
+          }
+        >
           {hasPayoutMethod ? (
             // --- ACTIVE DASHBOARD STATE ---
             <View style={styles.contentContainer}>

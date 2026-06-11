@@ -245,8 +245,16 @@ const getProductById = async (req, res, next) => {
     try {
       await repositories.products.incrementViewCount(id);
     } catch (err) {
-      // Ignore errors for view count increment (it's non-critical)
       logger.warn('Failed to increment view count:', err.message);
+    }
+
+    // Log view event for recommendation personalization (fire-and-forget)
+    if (req.user?.id) {
+      repositories.products.db
+        .from('user_events')
+        .insert({ user_id: req.user.id, product_id: id, event_type: 'view', weight: 1 })
+        .then(() => {})
+        .catch(err => logger.warn('Failed to log view event:', err.message));
     }
 
     // Fetch variants and option metadata in parallel
