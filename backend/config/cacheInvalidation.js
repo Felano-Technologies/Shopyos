@@ -46,6 +46,9 @@ const invalidateOrderProducts = async (items, storeId) => {
     const ops = items.map(item => cacheDel(`shopyos:products:detail:${item.product_id}`));
     if (storeId) ops.push(cacheDelPattern(`shopyos:products:store:${storeId}:*`));
     ops.push(cacheDelPattern('shopyos:products:search:*'));
+    // Recommendation caches for affected products become stale when sales counts change
+    items.forEach(item => ops.push(cacheDel(`shopyos:recommendations:product:${item.product_id}`)));
+    ops.push(cacheDelPattern('shopyos:recommendations:trending:*'));
     await Promise.all(ops);
     logger.debug('Cache invalidated: order products', { itemCount: items.length });
 };

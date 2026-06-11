@@ -423,7 +423,7 @@ describe('useBusiness Hooks Unit Tests', () => {
     // Assert
     expect(useQuery).toHaveBeenCalledWith(
       expect.objectContaining({
-        queryKey: ['stores', 'search', 'shoes'],
+        queryKey: ['stores', 'search', 'shoes', null],
         enabled: true,
         staleTime: 5 * 60 * 1000,
         gcTime: 15 * 60 * 1000,

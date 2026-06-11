@@ -119,6 +119,13 @@ export const queryKeys = {
     messages: (conversationId: string) => ['chat', 'messages', conversationId] as const,
     presence: (userId: string) => ['chat', 'presence', userId] as const,
   },
+
+  recommendations: {
+    all: ['recommendations'] as const,
+    similar: (productId: string) => ['recommendations', 'similar', productId] as const,
+    personalized: () => ['recommendations', 'personalized'] as const,
+    trending: (category?: string) => ['recommendations', 'trending', category] as const,
+  },
 };
 
 export interface ProductFilters {

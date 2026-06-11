@@ -32,6 +32,7 @@ import { MidFeedBanner } from '@/components/home/MidFeedBanner';
 import { ProductRow } from '@/components/home/ProductRow';
 import { ProductGrid } from '@/components/home/ProductGrid';
 import { SponsoredAdsRow } from '@/components/home/SponsoredAdsRow';
+import { RecommendedSection } from '@/components/home/RecommendedSection';
 
 const { width } = Dimensions.get('window');
 
@@ -272,7 +273,7 @@ measureElement(refChat, 'chat');
   // ── Quick actions (3 only — avoids duplicating bottom nav or the Chat FAB) ──
   const quickActions: QuickAction[] = [
     { icon: 'flash-outline', label: 'Deals', onPress: () => safePush('/deals'), color: '#EF4444', bg: '#FEF2F2' },
-    { icon: 'heart-outline', label: 'Wishlist', onPress: () => safePush('/favorites'), color: '#7C3AED', bg: '#F3F0FF' },
+    { icon: 'star-outline', label: 'For You', onPress: () => safePush('/for-you'), color: '#0EA5E9', bg: '#F0F9FF' },
     { icon: 'sparkles-outline', label: 'New In', onPress: () => safePush('/recent'), color: '#D97706', bg: '#FFFBEB' },
   ];
 
@@ -476,6 +477,9 @@ measureElement(refChat, 'chat');
             onSeeAll={() => router.push('/search?sortBy=popular' as any)}
             getStoreName={getStoreDisplayName}
           />
+
+          {/* Recommended for You — personalised or trending fallback */}
+          <RecommendedSection />
 
           {/* Deals for You — 2-col grid, first 6 items */}
           <ProductGrid

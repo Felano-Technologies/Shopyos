@@ -33,6 +33,7 @@ import {
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
+import { SimilarProductsRow } from '../../components/product/SimilarProductsRow';
 const { height } = Dimensions.get('window');
 
 function StockIndicator({ qty }: { qty: number | null }) {
@@ -404,6 +405,8 @@ export default function ProductDetails() {
                             )}
                         </View>
                     </View>
+                    {/* Similar products — renders nothing if list is empty */}
+                    <SimilarProductsRow productId={params.id as string} />
                 </ScrollView>
             </SafeAreaView>
             {/* Bottom Action Bar */}
