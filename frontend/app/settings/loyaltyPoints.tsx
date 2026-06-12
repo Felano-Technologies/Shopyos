@@ -24,8 +24,6 @@ interface LoyaltyTransaction {
   order_number: string | null;
 }
 
-const POINTS_TO_CURRENCY = 100;
-
 export default function LoyaltyPointsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);

@@ -48,7 +48,7 @@ export default function TransactionsScreen() {
   const [searchText, setSearchText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
 
-  const { isChecking, isVerified } = useSellerGuard();
+  const { isChecking } = useSellerGuard();
 
   useEffect(() => {
     loadData();

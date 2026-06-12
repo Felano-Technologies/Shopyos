@@ -7,7 +7,6 @@ import {
   FlatList,
   ImageBackground,
   TouchableOpacity,
-  Dimensions,
   Keyboard,
   ActivityIndicator,
   Pressable

@@ -8,7 +8,6 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
-    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -156,8 +155,9 @@ const ReviewScreen = () => {
                         <View key={item.id} style={[styles.card, { marginBottom: 15 }]}>
                             <View style={styles.productHeader}>
                                 <View style={styles.productImageContainer}>
-                                    <Image
-                                        source={item.product?.product_images?.[0]?.image_url ? { uri: item.product.product_images[0].image_url } : require('../../assets/images/icon.png')}
+                                    <AppImage
+                                        uri={item.product?.product_images?.[0]?.image_url || undefined}
+                                        source={item.product?.product_images?.[0]?.image_url ? undefined : require('../../assets/images/icon.png')}
                                         style={styles.productImage}
                                     />
                                 </View>

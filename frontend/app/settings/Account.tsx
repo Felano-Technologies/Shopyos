@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Dimensions,
   Platform,
   KeyboardAvoidingView,
   ActivityIndicator,
@@ -18,8 +17,6 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-ico
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { getUserData, updateProfile, getPaymentMethods, uploadAvatar, storage } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";

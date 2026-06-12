@@ -102,7 +102,7 @@ describe('ReviewCard Component Tests', () => {
     // and assert its source URI contains the dicebear initials service.
     function findImageUri(node: any): string | null {
       if (!node || typeof node !== 'object') return null;
-      if (node.type === 'Image') return node.props?.source?.uri ?? null;
+      if (node.props?.source?.uri) return node.props.source.uri;
       for (const child of node.children ?? []) {
         const found = findImageUri(child);
         if (found !== null) return found;

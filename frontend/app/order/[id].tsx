@@ -503,8 +503,9 @@ const OrderDetailsScreen = () => {
               return (
                 <View key={item.id}>
                   <View style={S.itemRow}>
-                    <Image
-                      source={imgUri ? { uri: imgUri } : require('../../assets/images/icon.png')}
+                    <AppImage
+                      uri={imgUri || undefined}
+                      source={imgUri ? undefined : require('../../assets/images/icon.png')}
                       style={S.itemImg}
                     />
                     <View style={S.itemInfo}>

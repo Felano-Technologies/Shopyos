@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
   TouchableOpacity, Dimensions, Keyboard,
-  Pressable, ScrollView, ActivityIndicator, Animated, RefreshControl,
+  ScrollView, ActivityIndicator, Animated,
+  Pressable,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -45,15 +46,6 @@ const isFashionCategory = (cat: string | null) => {
   const c = String(cat || '').toLowerCase();
   return c.includes('fashion') || c.includes('footwear') || c.includes('sneaker') || c.includes('accessory') || c.includes('accessories') || c.includes('clothing');
 };
-// Category tile accent colours — one per category slot
-const CAT_ACCENTS = [
-  { bg: '#EEF2FF', text: '#0C1559' },
-  { bg: '#F0FDF4', text: '#166534' },
-  { bg: '#FEF9C3', text: '#713F12' },
-  { bg: '#FCE7F3', text: '#831843' },
-  { bg: '#FFF7ED', text: '#92400E' },
-  { bg: '#F0F9FF', text: '#075985' },
-];
 const SORT_OPTIONS = [
   { label: 'Newest', value: 'newest' },
   { label: 'Price ↑', value: 'price_asc' },
@@ -603,22 +595,6 @@ export default function SearchScreen() {
                   >
                     <Feather name="shopping-bag" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.hdrBtn}
-                    onPress={() =>
-                      safePush('/filter', {
-                        sortBy,
-                        query: query.trim().length > 0 ? query.trim() : undefined,
-                        category: category ?? undefined,
-                        minPrice: params.minPrice ? String(params.minPrice) : undefined,
-                        maxPrice: params.maxPrice ? String(params.maxPrice) : undefined,
-                        minRating: params.minRating ? String(params.minRating) : undefined,
-                        priceRange: params.priceRange ? String(params.priceRange) : undefined,
-                      })
-                    }
-                  >
-                    <Feather name="sliders" size={16} color="rgba(255,255,255,0.8)" />
-                  </TouchableOpacity>
                 </View>
               </View>
               {/* Search pill */}
@@ -669,37 +645,6 @@ export default function SearchScreen() {
               renderDiscovery()
             ) : (
               <View style={{ flex: 1 }}>
-                {/* Category chip strip — only when browsing (not text search) */}
-                {!isActive && (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    style={{ flexGrow: 0, flexShrink: 0 }}
-                    contentContainerStyle={styles.chipStrip}
-                  >
-                    <TouchableOpacity
-                      style={[styles.chip, !category && styles.chipOn]}
-                      onPress={() => setCategory(null)}
-                    >
-                      <Text style={[styles.chipTxt, !category && styles.chipTxtOn]}>All</Text>
-                    </TouchableOpacity>
-                    {visibleCategories.map((cat: any) => {
-                      const on = category === cat.name;
-                      return (
-                        <TouchableOpacity
-                          key={cat.id || cat.name}
-                          style={[styles.chip, on && styles.chipOn]}
-                          onPress={() => setCategory(on ? null : cat.name)}
-                        >
-                          <Text style={[styles.chipTxt, on && styles.chipTxtOn]}>
-                            {cat.name}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-
                 {/* Gender Quick-Filter Strip */}
                 {isFashionCategory(category) && (
                   <View style={styles.genderFilterRow}>
@@ -728,30 +673,20 @@ export default function SearchScreen() {
                     {products.length !== 1 ? 's' : ''}
                   </Text>
                   <View style={styles.toolbarRight}>
-                    {/* Grid / List toggle */}
                     <View style={styles.viewToggle}>
                       <TouchableOpacity
                         style={[styles.vtBtn, viewMode === 'grid' && styles.vtBtnOn]}
                         onPress={() => setViewMode('grid')}
                       >
-                        <MaterialCommunityIcons
-                          name="view-grid-outline"
-                          size={15}
-                          color={viewMode === 'grid' ? '#fff' : C.muted}
-                        />
+                        <MaterialCommunityIcons name="view-grid-outline" size={15} color={viewMode === 'grid' ? '#fff' : C.muted} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.vtBtn, viewMode === 'list' && styles.vtBtnOn]}
                         onPress={() => setViewMode('list')}
                       >
-                        <MaterialCommunityIcons
-                          name="view-list-outline"
-                          size={15}
-                          color={viewMode === 'list' ? '#fff' : C.muted}
-                        />
+                        <MaterialCommunityIcons name="view-list-outline" size={15} color={viewMode === 'list' ? '#fff' : C.muted} />
                       </TouchableOpacity>
                     </View>
-                    {/* Sort */}
                     <TouchableOpacity
                       style={styles.sortBtn}
                       onPress={() => setSortOpen(v => !v)}
@@ -760,47 +695,28 @@ export default function SearchScreen() {
                       <Text style={styles.sortBtnTxt}>
                         {SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}
                       </Text>
-                      <Ionicons
-                        name={sortOpen ? 'chevron-up' : 'chevron-down'}
-                        size={11}
-                        color={C.navy}
-                      />
+                      <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={11} color={C.navy} />
                     </TouchableOpacity>
                   </View>
                 </View>
                 {/* Sort dropdown */}
                 {sortOpen && (
                   <Animated.View
-                    style={[
-                      styles.sortDropdown,
-                      {
-                        opacity: slideAnim,
-                        transform: [{
-                          translateY: slideAnim.interpolate({
-                            inputRange: [0, 1], outputRange: [-8, 0],
-                          }),
-                        }],
-                      },
-                    ]}
+                    style={[styles.sortDropdown, {
+                      opacity: slideAnim,
+                      transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
+                    }]}
                   >
                     {SORT_OPTIONS.map(opt => (
                       <TouchableOpacity
                         key={opt.value}
-                        style={[
-                          styles.sortOption,
-                          sortBy === opt.value && styles.sortOptionOn,
-                        ]}
+                        style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]}
                         onPress={() => { setSortBy(opt.value); setSortOpen(false); }}
                       >
-                        <Text style={[
-                          styles.sortOptionTxt,
-                          sortBy === opt.value && { color: C.navy },
-                        ]}>
+                        <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: C.navy }]}>
                           {opt.label}
                         </Text>
-                        {sortBy === opt.value && (
-                          <Ionicons name="checkmark" size={14} color={C.lime} />
-                        )}
+                        {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={C.lime} />}
                       </TouchableOpacity>
                     ))}
                   </Animated.View>
@@ -1088,6 +1004,53 @@ const styles = StyleSheet.create({
   },
   sortOptionOn: { backgroundColor: 'rgba(132,204,22,0.07)' },
   sortOptionTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C2.body },
+  // ── Filter chip bar ────────────────────────────────────────────────────────
+  filterChipStrip: {
+    paddingHorizontal: 12, paddingVertical: 8, gap: 8,
+    flexDirection: 'row', alignItems: 'center',
+    borderBottomWidth: 1, borderBottomColor: 'rgba(12,21,89,0.06)',
+  },
+  filterChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 20, borderWidth: 1, borderColor: C2.borderMd,
+    backgroundColor: '#fff',
+  },
+  filterChipOn: { backgroundColor: C2.lime, borderColor: C2.lime },
+  filterChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.navy },
+  filterChipTxtOn: { color: C2.limeText },
+  // ── Filter bottom sheet ────────────────────────────────────────────────────
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  filterSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, paddingBottom: 36,
+  },
+  filterSheetHandle: {
+    width: 36, height: 4, borderRadius: 2, backgroundColor: '#E2E8F0',
+    alignSelf: 'center', marginBottom: 16,
+  },
+  filterSheetTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: C2.navy, marginBottom: 14 },
+  filterSheetSubtitle: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C2.muted, marginBottom: 8 },
+  filterSheetRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    paddingVertical: 13, borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  filterSheetRowOn: { backgroundColor: 'rgba(132,204,22,0.07)' },
+  filterSheetRowTxt: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: C2.body },
+  filterChipGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterSheetChip: {
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1, borderColor: C2.borderMd,
+  },
+  filterSheetChipOn: { backgroundColor: C2.lime, borderColor: C2.lime },
+  filterSheetChipTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C2.body },
+  filterSheetChipTxtOn: { color: C2.limeText },
+  filterSheetClear: {
+    marginTop: 20, alignSelf: 'center',
+    paddingHorizontal: 24, paddingVertical: 10,
+    borderRadius: 20, borderWidth: 1, borderColor: C2.borderMd,
+  },
+  filterSheetClearTxt: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: C2.muted },
   // ── Grid ───────────────────────────────────────────────────────────────────
   gridContent: { paddingHorizontal: 14, paddingBottom: 110 },
   gridRow: { justifyContent: 'space-between', marginBottom: 14 },

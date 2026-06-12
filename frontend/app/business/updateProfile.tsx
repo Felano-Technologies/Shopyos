@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Dimensions,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,7 +18,6 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useActiveBusiness, useUpdateBusiness } from '@/hooks/useBusiness';
 const InputField = React.memo(function InputField({

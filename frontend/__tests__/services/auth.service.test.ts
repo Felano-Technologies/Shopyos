@@ -24,6 +24,7 @@ jest.mock('../../services/storage', () => ({
     setItem: jest.fn(),
     removeItem: jest.fn(),
   },
+  clearUserProfileCache: jest.fn(),
 }));
 
 jest.mock('../../services/client', () => ({

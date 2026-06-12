@@ -8,7 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
   ImageSourcePropType,
- Appearance } from 'react-native';
+} from 'react-native';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';

@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   StyleSheet,
   ScrollView,
-  Dimensions,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
@@ -18,7 +17,6 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import * as DocumentPicker from 'expo-document-picker';
 import { businessRegister, getAllCategories, CustomInAppToast } from '@/services/api';

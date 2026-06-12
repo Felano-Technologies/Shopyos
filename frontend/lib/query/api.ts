@@ -49,6 +49,11 @@ export const productsApi = {
       maxPrice: filters?.maxPrice,
       minRating: filters?.minRating,
       sortBy: filters?.sortBy,
+      color: filters?.color,
+      size: filters?.size,
+      material: filters?.material,
+      style: filters?.style,
+      brand: filters?.brand,
       limit,
       offset,
     });

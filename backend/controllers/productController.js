@@ -31,7 +31,8 @@ const createProduct = async (req, res, next) => {
       brand,
       tags,
       variants,
-      variantOptions
+      variantOptions,
+      attributes
     } = req.body;
 
     // Validate required fields
@@ -89,6 +90,7 @@ const createProduct = async (req, res, next) => {
       dimensions: dimensions || null,
       brand: brand || null,
       tags: tags ? (Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim())) : null,
+      attributes: attributes && typeof attributes === 'object' ? attributes : null,
       is_active: true
     });
 
@@ -412,6 +414,11 @@ const updateProduct = async (req, res, next) => {
         ? updateData.tags
         : updateData.tags.split(',').map(t => t.trim());
     }
+    if (updateData.attributes !== undefined) {
+      mappedData.attributes = updateData.attributes && typeof updateData.attributes === 'object'
+        ? updateData.attributes
+        : null;
+    }
 
     // Handle isActive - support boolean and string
     if (updateData.isActive !== undefined) {
@@ -704,7 +711,12 @@ const searchProducts = async (req, res, next) => {
       minRating,
       sortBy = 'relevance',
       limit = 20,
-      offset = 0
+      offset = 0,
+      color,
+      size,
+      material,
+      style,
+      brand
     } = req.query;
 
     // Parse sort options
@@ -747,7 +759,12 @@ const searchProducts = async (req, res, next) => {
       sortBy: sortColumn,
       ascending: sortAscending,
       limit: limitNum,
-      offset: offsetNum
+      offset: offsetNum,
+      color: color || undefined,
+      size: size || undefined,
+      material: material || undefined,
+      style: style || undefined,
+      brand: brand || undefined
     });
 
     // Format response

@@ -6,7 +6,6 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -255,7 +254,7 @@ export default function StoresScreen() {
   // Only show the full skeleton loader during initial boot with NO data
   if (loading && stores.length === 0) {
     return (
-      <View style={{ flex: 1, backgroundColor: C.pageBg }}>
+      <View style={{ flex: 1, backgroundColor: '#fff' }}>
         <StatusBar style="light" />
         <StoresSkeleton />
         <BottomNav />
@@ -482,7 +481,7 @@ export default function StoresScreen() {
   );
 }
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.pageBg },
+  root: { flex: 1, backgroundColor: '#fff' },
   hdrGradient: {
     position: 'relative', paddingBottom: 28, zIndex: 20,
     elevation: 12, shadowColor: C.navy,
@@ -540,7 +539,7 @@ const styles = StyleSheet.create({
   },
   hdrArc: {
     position: 'absolute', bottom: 0, left: 0, right: 0, height: 28,
-    backgroundColor: C.pageBg, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    backgroundColor: '#fff', borderTopLeftRadius: 28, borderTopRightRadius: 28,
   },
   listContent: { paddingBottom: 120 },
   chipStrip: {
@@ -568,8 +567,9 @@ const styles = StyleSheet.create({
   popularCard: {
     width: 148, backgroundColor: C.card, borderRadius: 22,
     overflow: 'hidden', marginRight: 12,
-    elevation: 5, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.09, shadowRadius: 14,
+    borderWidth: 1, borderColor: '#E2E8F0',
+    elevation: 3, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
   },
   // The image wrapper — logo fills this area entirely
   popularImgWrap: {
@@ -624,6 +624,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.card, borderRadius: 20, padding: 13,
     marginHorizontal: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: '#E2E8F0',
     elevation: 3, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
   },

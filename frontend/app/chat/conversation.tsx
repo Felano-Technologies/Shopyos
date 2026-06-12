@@ -20,8 +20,6 @@ import {
   getPresence
 } from '../../services/api';
 import { useMessages, useChatActions } from '@/hooks/useChat';
-import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query/keys';
 import { socketService } from '../../services/socket';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ReportModal } from '../../components/ReportModal';
@@ -91,7 +89,6 @@ export default function ConversationScreen() {
   const { conversationId, chatType = 'buyer', name, avatar, entityId, participantId } = params;
   const { deleteConversation } = useChatActions();
 
-  const queryClient = useQueryClient();
   const {
     data: messages = [],
     isLoading: loading,

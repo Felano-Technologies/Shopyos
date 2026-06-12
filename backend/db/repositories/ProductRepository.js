@@ -83,7 +83,12 @@ class ProductRepository extends BaseRepository {
       sortBy = 'created_at',
       ascending = false,
       limit = 20,
-      offset = 0
+      offset = 0,
+      color,
+      size,
+      material,
+      style,
+      brand
     } = params;
 
     // Only show products from verified stores
@@ -154,6 +159,23 @@ class ProductRepository extends BaseRepository {
       dbQuery = dbQuery.lte('price', maxPrice);
     }
 
+    // Attribute filters — color/size use product_variant_options subquery
+    if (color) {
+      const colorIds = await this._getVariantOptionProductIds('color', color);
+      if (!colorIds.length) return { data: [], count: 0 };
+      dbQuery = dbQuery.in('id', colorIds);
+    }
+    if (size) {
+      const sizeIds = await this._getVariantOptionProductIds('size', size);
+      if (!sizeIds.length) return { data: [], count: 0 };
+      dbQuery = dbQuery.in('id', sizeIds);
+    }
+
+    // Product-level JSONB attribute filters
+    if (material) dbQuery = dbQuery.contains('attributes', { material });
+    if (style)    dbQuery = dbQuery.contains('attributes', { style });
+    if (brand)    dbQuery = dbQuery.ilike('brand', `%${brand}%`);
+
     // Boost promoted products
     dbQuery = dbQuery.order('is_promoted', { ascending: false });
 
@@ -183,6 +205,21 @@ class ProductRepository extends BaseRepository {
     if (gender) countQuery = countQuery.eq('gender', gender);
     if (minPrice !== undefined) countQuery = countQuery.gte('price', minPrice);
     if (maxPrice !== undefined) countQuery = countQuery.lte('price', maxPrice);
+    if (material) countQuery = countQuery.contains('attributes', { material });
+    if (style)    countQuery = countQuery.contains('attributes', { style });
+    if (brand)    countQuery = countQuery.ilike('brand', `%${brand}%`);
+
+    // color / size count filters — reuse same helper (returns null on no-match)
+    if (color) {
+      const matchIds = await this._getVariantOptionProductIds('color', color);
+      if (!matchIds.length) return { data: [], count: 0 };
+      countQuery = countQuery.in('id', matchIds);
+    }
+    if (size) {
+      const matchIds = await this._getVariantOptionProductIds('size', size);
+      if (!matchIds.length) return { data: [], count: 0 };
+      countQuery = countQuery.in('id', matchIds);
+    }
 
     // Run queries concurrently
     const [
@@ -200,6 +237,35 @@ class ProductRepository extends BaseRepository {
       data: data || [],
       count: count || 0
     };
+  }
+
+  /**
+   * Fetch product IDs that have a variant option matching the given value.
+   * @param {string} optionName - e.g. 'color' or 'size'
+   * @param {string} value - the option value to match
+   * @returns {Promise<string[]>}
+   */
+  async _getVariantOptionProductIds(optionName, value) {
+    const { rows } = await this.db.query(
+      `SELECT DISTINCT product_id FROM product_variant_options
+       WHERE option_name = $1 AND $2 = ANY(option_values)`,
+      [optionName, value]
+    );
+    return rows.map(r => r.product_id);
+  }
+
+  /**
+   * Applies a variant-option filter to an existing Supabase query builder.
+   * Returns null (not the query) when no products match, signalling an early-exit.
+   * @param {object} query - Supabase query builder
+   * @param {string} optionName
+   * @param {string} value
+   * @returns {Promise<object|null>}
+   */
+  async _filterByVariantOption(query, optionName, value) {
+    const ids = await this._getVariantOptionProductIds(optionName, value);
+    if (!ids.length) return null;
+    return query.in('id', ids);
   }
 
   /**

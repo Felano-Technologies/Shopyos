@@ -443,7 +443,7 @@ export default function ChatInbox() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: C.pageBg },
+  root: { flex: 1, backgroundColor: '#fff' },
 
   // ── Header ────────────────────────────────────────────────────────────────
   header: {
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 12,
     gap: 8,
-    backgroundColor: C.pageBg,
+    backgroundColor: '#fff',
     borderBottomWidth: 0.5, borderBottomColor: C.borderLight,
   },
   chip: {
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
 
   // ── List ──────────────────────────────────────────────────────────────────
   list: { paddingTop: 4, paddingBottom: 20 },
-  sep: { height: 0.5, backgroundColor: C.borderLight, marginLeft: 82 },
+  sep: { height: 1, backgroundColor: '#E2E8F0', marginLeft: 82 },
 
   row: {
     flexDirection: 'row', alignItems: 'center',

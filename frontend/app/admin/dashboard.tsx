@@ -13,11 +13,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
-import { getAdminAuditLogs, getAdminDashboard } from '@/services/api';
-
-// Gradient: top navy → bottom green (matches the hero panel in both screenshots)
-const DARK_GRADIENT = ['#0B2060', '#1A7A3C'] as [string, string];
+import { getAdminDashboard } from '@/services/api';
 
 const FALLBACK_TRANSACTIONS = [
   { name: 'Kofi Mensah',  date: '2026-04-20T08:00:00.000Z', type: 'paid',    status: 'Paid',    statusStyle: 'paid'    },
@@ -36,15 +32,6 @@ type DashboardStats = {
   pendingDriverVerifications: number;
 };
 
-type FeedItem = {
-  id?: string | number;
-  action?: string;
-  timestamp?: string;
-  user?: {
-    full_name?: string;
-    email?: string;
-  };
-};
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -60,27 +47,13 @@ export default function AdminDashboard() {
     usersGrowth: 0,
     pendingDriverVerifications: 0,
   });
-  const [activityFeed, setActivityFeed] = useState<FeedItem[]>([]);
-
   const loadData = useCallback(async () => {
     try {
-      const [dashRes, auditRes] = await Promise.all([
-        getAdminDashboard(),
-        getAdminAuditLogs({ limit: 8 }).catch(() => ({ logs: [] })),
-      ]);
+      const dashRes = await getAdminDashboard();
 
       if (dashRes?.success && dashRes.stats) {
         setStats(dashRes.stats);
       }
-
-      const logs = Array.isArray(auditRes?.logs)
-        ? auditRes.logs
-        : Array.isArray(auditRes?.data)
-          ? auditRes.data
-          : Array.isArray(auditRes)
-            ? auditRes
-            : [];
-      setActivityFeed(logs);
     } catch (error) {
       console.error('Failed to load admin dashboard', error);
     } finally {
@@ -92,11 +65,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadData();
   }, [loadData]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
 
   // ── Metric cards (2-column grid) ───────────────────────────────────────────
   const metricCards = useMemo(

@@ -108,7 +108,7 @@ const ForgotPasswordScreen = () => {
       {/* Footer Logos */}
       <View style={styles.bottomLogos}>
         <AppImage
-          source={require('../assets/images/icon.png')}
+          source={require('../assets/images/adaptive-icon.png')}
           style={styles.circleLogo}
         />
         <AppImage
@@ -125,7 +125,7 @@ export default ForgotPasswordScreen;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff',
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'flex-start',
   },
@@ -153,14 +153,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderColor: '#84cc16',
-    borderWidth: 1,
-    borderRadius: 25,
-    width: '85%',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 0,
+    borderRadius: 14,
+    width: '90%',
     marginTop: 30,
     paddingHorizontal: 10,
-    height: 45,
+    height: 50,
   },
   icon: {
     marginHorizontal: 8,
@@ -171,11 +170,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   verifyButton: {
-    backgroundColor: '#84cc16',
-    borderRadius: 25,
+    backgroundColor: '#1e3a8a',
+    borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    width: '85%',
+    width: '90%',
     marginTop: 40,
   },
   verifyText: {
@@ -197,8 +196,8 @@ const styles = StyleSheet.create({
     marginLeft: -40,
   },
   brandLogo: {
-    width: 100,
-    height: 40,
+    width: 130,
+    height: 32,
     resizeMode: 'contain',
   },
   successOverlay: {

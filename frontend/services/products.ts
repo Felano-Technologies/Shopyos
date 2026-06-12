@@ -20,6 +20,11 @@ export const searchProducts = async (params: {
   minPrice?: number;
   maxPrice?: number;
   minRating?: number;
+  color?: string;
+  size?: string;
+  material?: string;
+  style?: string;
+  brand?: string;
 }) => {
   try {
     const response = await api.get('/products/search', { params });

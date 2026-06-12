@@ -71,8 +71,6 @@ function AdminTabBar() {
 }
 
 export default function AdminLayout() {
-  const { isDesktop } = useAdminBreakpoint();
-
   return (
     <>
       <Tabs

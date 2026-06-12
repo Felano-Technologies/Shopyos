@@ -11,10 +11,11 @@ interface Props {
 
 export default function AppImage({ uri, source, style, contentFit = 'cover', placeholder }: Props) {
   const resolvedSource = source ?? (uri ? { uri } : null);
+  const isRemote = !!uri && !source;
   return (
     <Image
       source={resolvedSource}
-      style={[{ backgroundColor: '#F1F5F9' }, style]}
+      style={[isRemote && { backgroundColor: '#F1F5F9' }, style]}
       contentFit={contentFit}
       cachePolicy="disk"
       placeholder={placeholder}

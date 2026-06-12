@@ -10,7 +10,6 @@ import {
   Platform,
   ActivityIndicator,
   ScrollView,
-  Dimensions,
   Modal,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -20,7 +19,6 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { verifyBusinessDetails } from '@/services/api';
 type BusinessDetails = {

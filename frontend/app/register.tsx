@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, {  useState } from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions , Appearance } from 'react-native';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Swiper from 'react-native-swiper';
 const { width } = Dimensions.get('window');
 
@@ -60,16 +61,21 @@ const RegisterScreen = () => {
   };
   return (
     <LinearGradient
-      colors={['#EAF0FF', '#F4F6FF']}
+      colors={['#fff', '#fff']}
       style={{ flex: 1 }}
     >
       <StatusBar style="dark" translucent backgroundColor="transparent" />
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
         <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             {/* 🖼️ Top Banner Carousel */}
             <View style={styles.bannerContainer}>
               <Swiper
@@ -81,28 +87,19 @@ const RegisterScreen = () => {
                 activeDotStyle={styles.activeDot}
               >
                 <View style={styles.slide}>
-                  <Image
-                    source={require('../assets/images/customer.jpg')}
-                    style={styles.bannerImage}
-                    resizeMode="cover"
-                  />
+                  <AppImage source={require('../assets/images/customer.jpg')} style={styles.bannerImage} contentFit="cover" />
                 </View>
                 <View style={styles.slide}>
-                  <Image
-                    source={require('../assets/images/seller.jpg')}
-                    style={styles.bannerImage}
-                    resizeMode="cover"
-                  />
+                  <AppImage source={require('../assets/images/seller.jpg')} style={styles.bannerImage} contentFit="cover" />
                 </View>
                 <View style={styles.slide}>
-                  <Image
-                    source={require('../assets/images/driver.jpg')}
-                    style={styles.bannerImage}
-                    resizeMode="cover"
-                  />
+                  <AppImage source={require('../assets/images/driver.jpg')} style={styles.bannerImage} contentFit="cover" />
                 </View>
               </Swiper>
             </View>
+            {/* Form heading */}
+            <Text style={styles.formTitle}>Create your account</Text>
+            <Text style={styles.formSubtitle}>Join thousands of shoppers and sellers on Shopyos</Text>
             {/* 🧾 Input fields */}
             <View style={styles.formContainer}>
               <View style={styles.inputContainer}>
@@ -196,7 +193,6 @@ const RegisterScreen = () => {
                   <Text style={styles.buttonText}>Sign Up</Text>
                 )}
               </TouchableOpacity>
-              <Text style={styles.roleText}>Select your role to continue registration.</Text>
               {/* Register (outlined pill) */}
               <TouchableOpacity
                 style={styles.loginButton}
@@ -207,34 +203,36 @@ const RegisterScreen = () => {
                 </Text>
               </TouchableOpacity>
               <View style={styles.bottomLogos}>
-                <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
-                <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
+                <AppImage source={require('../assets/images/adaptive-icon.png')} style={styles.circleLogo} contentFit="contain" />
+                <AppImage source={require('../assets/images/icondark.png')} style={styles.brandLogo} contentFit="contain" />
               </View>
             </View>
           </ScrollView>
         </Pressable>
       </KeyboardAvoidingView>
+      </SafeAreaView>
     </LinearGradient>
   );
 };
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#e9f0ff' },
-  scrollContent: { flexGrow: 1, alignItems: 'center', paddingVertical: 30 },
-  bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 30 },
+  container: { flex: 1, backgroundColor: '#fff' },
+  scrollContent: { flexGrow: 1, alignItems: 'center', paddingTop: 16, paddingBottom: 40 },
+  bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
-  dot: { backgroundColor: '#ccc', width: 6, height: 6, borderRadius: 3, margin: 3 },
-  activeDot: { backgroundColor: '#1b7c22', width: 6, height: 6, borderRadius: 3, margin: 3 },
-  formContainer: { width: '100%', alignItems: 'center' },
+  dot: { backgroundColor: '#CBD5E1', width: 6, height: 6, borderRadius: 3, margin: 3 },
+  activeDot: { backgroundColor: '#1e3a8a', width: 6, height: 6, borderRadius: 3, margin: 3 },
+  formTitle: { fontSize: 20, fontWeight: '700', color: '#1e3a8a', textAlign: 'center', marginTop: 4, marginBottom: 4 },
+  formSubtitle: { fontSize: 13, color: '#64748B', textAlign: 'center', marginBottom: 16, paddingHorizontal: 24 },
+  formContainer: { width: '100%', alignItems: 'center', paddingHorizontal: 24 },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '90%',
-    backgroundColor: '#fff',
-    borderRadius: 25,
-    borderWidth: 1.2,
-    borderColor: '#A3D977',
-    marginVertical: 8,
+    width: '100%',
+    backgroundColor: '#EEF2FF',
+    borderRadius: 14,
+    borderWidth: 0,
+    marginVertical: 7,
     paddingHorizontal: 16,
     height: 50,
   },
@@ -253,16 +251,16 @@ const styles = StyleSheet.create({
   callingCode: { fontSize: 16, color: '#000', fontWeight: '500' },
   phoneInput: { marginLeft: 4 },
   button: {
-    width: '70%',
+    width: '100%',
     height: 50,
-    backgroundColor: '#7ACB22',
-    borderRadius: 25,
+    backgroundColor: '#1e3a8a',
+    borderRadius: 14,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 20,
   },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '600' },
-  roleText: { marginTop: 20, fontSize: 14, color: '#000', textAlign: 'center', fontWeight: '500' },
+  roleText: { marginTop: 8, fontSize: 12, color: '#94A3B8', textAlign: 'center' },
   bottomLogos: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -287,21 +285,21 @@ const styles = StyleSheet.create({
     marginBottom: -280,
   },
   loginButton: {
-    width: 250,
-    borderRadius: 28,
+    width: '100%',
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#84cc16',
-    paddingVertical: 12,
+    borderColor: '#1e3a8a',
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
+    marginTop: 12,
   },
   loginText: {
     color: '#1e3a8a',
     fontSize: 15,
   },
   loginBold: {
-    color: '#84cc16',
+    color: '#1e3a8a',
     fontWeight: '700',
   },
 });

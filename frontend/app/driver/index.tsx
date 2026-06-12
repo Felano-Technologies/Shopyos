@@ -37,10 +37,10 @@ export default function DriverGatekeeper() {
       <StatusBar style="light" backgroundColor="#0C1559" />
       
       <View style={styles.content}>
-        <Image 
-          source={require('../../assets/images/splash-icon.png')} // Ensure this path is correct
+        <AppImage
+          source={require('../../assets/images/splash-icon.png')}
           style={styles.logo}
-          resizeMode="contain"
+          contentFit="contain"
         />
         <ActivityIndicator size="large" color="#A3E635" style={styles.loader} />
         <Text style={styles.text}>Verifying Driver Profile...</Text>

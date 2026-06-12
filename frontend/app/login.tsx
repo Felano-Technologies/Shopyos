@@ -93,9 +93,10 @@ const LoginScreen = () => {
         <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
           <View style={styles.innerContainer}>
             {/* Logo */}
-            <Image
+            <AppImage
               source={require('../assets/images/icondark.png')}
               style={styles.logo}
+              contentFit="contain"
             />
             {/* Title */}
             <Text style={styles.title}>Sign into your account</Text>
@@ -165,14 +166,8 @@ const LoginScreen = () => {
             </TouchableOpacity>
             {/* Bottom Logos */}
             <View style={styles.bottomLogos}>
-              <Image
-                source={require('../assets/images/icon.png')}
-                style={styles.circleLogo}
-              />
-              <Image
-                source={require('../assets/images/icondark.png')}
-                style={styles.brandLogo}
-              />
+              <AppImage source={require('../assets/images/adaptive-icon.png')} style={styles.circleLogo} contentFit="contain" />
+              <AppImage source={require('../assets/images/icondark.png')} style={styles.brandLogo} contentFit="contain" />
             </View>
           </View>
         </Pressable>
@@ -183,7 +178,7 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff', // pale light-blue like the image
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -228,14 +223,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 28, // pill-like inputs
-    borderWidth: 1.5,
-    borderColor: '#84cc16', // green border like image
+    backgroundColor: '#EEF2FF',
+    borderRadius: 14,
+    borderWidth: 0,
     paddingHorizontal: 16,
-    height: 56,
-    marginVertical: 8,
-    elevation: 2,
+    height: 54,
+    marginVertical: 7,
   },
   input: {
     flex: 1,
@@ -254,10 +247,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   signInButton: {
-    width: 250,
+    width: '100%',
     height: 50,
-    backgroundColor: '#84cc16', // solid green
-    borderRadius: 25, // big pill
+    backgroundColor: '#1e3a8a',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 6,
@@ -272,21 +265,21 @@ const styles = StyleSheet.create({
     textTransform: 'none',
   },
   registerButton: {
-    width: 250,
-    borderRadius: 28,
+    width: '100%',
+    borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: '#84cc16',
-    paddingVertical: 12,
+    borderColor: '#1e3a8a',
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 14,
+    marginTop: 12,
   },
   registerText: {
     color: '#1e3a8a',
     fontSize: 15,
   },
   registerBold: {
-    color: '#84cc16',
+    color: '#1e3a8a',
     fontWeight: '700',
   },
   bottomLogos: {

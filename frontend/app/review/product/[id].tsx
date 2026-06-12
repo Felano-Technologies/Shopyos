@@ -8,7 +8,6 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
-    Dimensions,
     Modal,
 } from 'react-native';
 import AppImage from '@/components/AppImage';

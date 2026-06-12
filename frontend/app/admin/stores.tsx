@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,7 +59,6 @@ function normalizeParam(value: string | string[] | undefined) {
 }
 
 export default function AdminStores() {
-  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[]; ownerId?: string | string[] }>();
   const storeIdParam = normalizeParam(params.id);
   const ownerIdParam = normalizeParam(params.ownerId);
@@ -67,7 +66,7 @@ export default function AdminStores() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
