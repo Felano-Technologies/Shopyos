@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Modal, View, Image, StyleSheet, TouchableOpacity, Text, Dimensions, Platform } from 'react-native';
+import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, Platform } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 
 interface ImagePreviewContextType {
@@ -56,10 +57,10 @@ export const ImagePreviewProvider = ({ children }: { children: ReactNode }) => {
             </TouchableOpacity>
           </View>
           {imageUri && (
-            <Image 
-              source={{ uri: imageUri }} 
-              style={styles.image} 
-              resizeMode="contain" 
+            <AppImage
+              uri={imageUri}
+              style={styles.image}
+              contentFit="contain" 
             />
           )}
         </TouchableOpacity>

@@ -135,6 +135,11 @@ export interface ProductFilters {
   minRating?: number;
   search?: string;
   sortBy?: 'price_asc' | 'price_desc' | 'newest' | 'popular';
+  color?: string;
+  size?: string;
+  material?: string;
+  style?: string;
+  brand?: string;
 }
 
 export interface StoreFilters {

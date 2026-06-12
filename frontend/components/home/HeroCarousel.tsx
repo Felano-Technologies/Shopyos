@@ -1,9 +1,10 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
-  View, Image, TouchableOpacity, ScrollView, StyleSheet,
+  View, TouchableOpacity, ScrollView, StyleSheet,
   Dimensions, NativeSyntheticEvent, NativeScrollEvent, Text,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AppImage from '@/components/AppImage';
 
 const { width } = Dimensions.get('window');
 const H_PAD = 16;
@@ -85,10 +86,9 @@ export function HeroCarousel({ ads, onAdPress }: Props) {
     if (!isFallback && ad.banner_url) {
       return (
         <TouchableOpacity key={ad.id} style={S.slide} activeOpacity={0.9} onPress={() => onAdPress(ad)}>
-          <Image
-            source={{ uri: ad.banner_url || ad.imageUrl || '' }}
+          <AppImage
+            uri={ad.banner_url || ad.imageUrl}
             style={StyleSheet.absoluteFill}
-            resizeMode="cover"
           />
           <LinearGradient
             colors={['rgba(12,21,89,0.78)', 'transparent']}

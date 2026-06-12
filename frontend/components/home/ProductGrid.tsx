@@ -1,8 +1,9 @@
 import React from 'react';
 import {
-  View, Text, TouchableOpacity, Image, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   Dimensions, ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Skeleton from '@/components/Skeleton';
@@ -109,8 +110,8 @@ export function ProductGrid({
         onPress={() => onPressProduct(item)}
       >
         <View style={S.imgWrap}>
-          <Image
-            source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
+          <AppImage
+            uri={item.images?.[0] || 'https://via.placeholder.com/300'}
             style={S.img}
           />
           {/* Favorite button */}
@@ -190,7 +191,7 @@ export function ProductGrid({
     return (
       <TouchableOpacity key={key} style={[S.card, S.adCard]} activeOpacity={0.9}>
         {ad.banner_url ? (
-          <Image source={{ uri: ad.banner_url }} style={S.adImg} resizeMode="cover" />
+          <AppImage uri={ad.banner_url} style={S.adImg} />
         ) : (
           <LinearGradient colors={[C.navy, C.navyMid]} style={S.adImg} />
         )}
@@ -255,7 +256,7 @@ const S = StyleSheet.create({
   adCard: { backgroundColor: C.navy, height: 200 },
   adImg: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },
   imgWrap: { width: '100%', height: 136, position: 'relative' },
-  img: { width: '100%', height: '100%', resizeMode: 'cover' },
+  img: { width: '100%', height: '100%' },
   favBtn: {
     position: 'absolute', top: 9, right: 9,
     width: 28, height: 28, borderRadius: 14,

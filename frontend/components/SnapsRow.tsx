@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { getSnapFeed } from '@/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -68,7 +69,7 @@ export const SnapsRow = () => {
             >
               <View style={styles.imageContainer}>
                 {item.store_logo ? (
-                  <Image source={{ uri: item.store_logo }} style={styles.image} />
+                  <AppImage uri={item.store_logo} style={styles.image} />
                 ) : (
                   <View style={styles.placeholder}>
                     <Ionicons name="storefront" size={24} color="#94A3B8" />
@@ -125,7 +126,6 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
-    resizeMode: 'cover',
   },
   placeholder: {
     width: '100%',

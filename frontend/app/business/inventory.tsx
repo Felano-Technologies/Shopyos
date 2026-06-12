@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Animated, RefreshControl, Image,
+  TextInput, Animated, RefreshControl,
   Dimensions, ScrollView, ActivityIndicator, Modal,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -100,7 +101,7 @@ const Inventory = () => {
       {/* Low-stock accent bar */}
       {item.lowStock && <View style={S.itemAccentBar} />}
 
-      <Image source={item.image} style={S.itemImg} />
+      <AppImage source={item.image} style={S.itemImg} />
 
       <View style={S.itemInfo}>
         <View style={S.itemNameRow}>
@@ -136,7 +137,7 @@ const Inventory = () => {
       <StatusBar style="light" />
 
       <View style={S.watermark}>
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
@@ -164,7 +165,7 @@ const Inventory = () => {
                 activeOpacity={0.85}
               >
                 {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
-                  <Image source={{ uri: activeBusiness.logo_url || activeBusiness.logo }} style={S.storePillLogo} />
+                  <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={S.storePillLogo} />
                 ) : (
                   <View style={S.storePillPlaceholder}>
                     <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
@@ -336,7 +337,7 @@ const Inventory = () => {
                   >
                     <View style={S.switcherLogoWrapper}>
                       {(biz.logo_url || biz.logo) ? (
-                        <Image source={{ uri: biz.logo_url || biz.logo }} style={S.switcherLogo} />
+                        <AppImage uri={biz.logo_url || biz.logo} style={S.switcherLogo} />
                       ) : (
                         <View style={[S.switcherLogo, S.switcherLogoPlaceholder]}>
                           <Text style={S.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
@@ -382,7 +383,7 @@ const S = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
-  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
 
   header: {

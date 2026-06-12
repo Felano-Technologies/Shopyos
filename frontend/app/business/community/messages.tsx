@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  Image, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
   Dimensions,
   TextInput
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useSellerConversations, useChatActions } from '@/hooks/useChat';
@@ -68,7 +68,7 @@ export default function MessagesScreen() {
       onPress={() => openChat(item)}
     >
       <View style={styles.avatarContainer}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <AppImage uri={item.avatar} style={styles.avatar} />
         {item.online && <View style={styles.onlineDot} />}
       </View>
       

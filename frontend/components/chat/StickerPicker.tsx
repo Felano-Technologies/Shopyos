@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, ActivityIndicator, ScrollView } from 'react-native';
+import AppImage from '@/components/AppImage';
 import * as ImagePicker from 'expo-image-picker';
 import { getStickerPacks, createCustomSticker } from '../../services/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -113,7 +114,7 @@ export default function StickerPicker({ onSelectSticker, onClose }: StickerPicke
               onPress={() => setActivePackId(pack.id)}
               style={[styles.tabItem, activePackId === pack.id && styles.activeTab]}
             >
-              <Image source={{ uri: pack.preview }} style={styles.tabIcon} />
+              <AppImage uri={pack.preview} style={styles.tabIcon} />
               <Text style={[styles.tabLabel, activePackId === pack.id && styles.activeTabLabel]}>
                 {pack.name}
               </Text>
@@ -160,7 +161,7 @@ export default function StickerPicker({ onSelectSticker, onClose }: StickerPicke
                 onPress={() => onSelectSticker(item.url, item.label)}
                 style={styles.stickerItem}
               >
-                <Image source={{ uri: item.url }} style={styles.stickerImage} />
+                <AppImage uri={item.url} style={styles.stickerImage} />
               </TouchableOpacity>
             )}
             contentContainerStyle={styles.listContent}

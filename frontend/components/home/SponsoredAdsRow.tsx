@@ -1,7 +1,8 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, Dimensions,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
@@ -40,7 +41,7 @@ export function SponsoredAdsRow({ campaigns, onPress }: Props) {
           >
             {/* Image fills the whole card */}
             {c.banner_url ? (
-              <Image source={{ uri: c.banner_url }} style={S.cardImg} resizeMode="cover" />
+              <AppImage uri={c.banner_url} style={S.cardImg} />
             ) : (
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.cardImg} />
             )}

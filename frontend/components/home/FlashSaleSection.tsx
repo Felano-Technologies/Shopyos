@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Image, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 
 const C = {
   navy: '#0C1559',
@@ -102,10 +103,9 @@ export function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, 
               onPress={() => onPressProduct(item)}
             >
               <View style={S.imgWrap}>
-                <Image
-                  source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+                <AppImage
+                  uri={item.images?.[0]}
                   style={S.img}
-                  resizeMode="cover"
                 />
                 {discountPct !== null && (
                   <View style={S.discBadge}>

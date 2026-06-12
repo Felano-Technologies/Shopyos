@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -14,8 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,7 +59,6 @@ function normalizeParam(value: string | string[] | undefined) {
 }
 
 export default function AdminStores() {
-  const router = useRouter();
   const params = useLocalSearchParams<{ id?: string | string[]; ownerId?: string | string[] }>();
   const storeIdParam = normalizeParam(params.id);
   const ownerIdParam = normalizeParam(params.ownerId);
@@ -67,7 +66,7 @@ export default function AdminStores() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
@@ -226,7 +225,7 @@ export default function AdminStores() {
             <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
               <View style={styles.heroTopRow}>
                 <View style={styles.heroBrand}>
-                  <Image source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
+                  <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
                 </View>
 
                 <View style={styles.heroIcons}>
@@ -294,7 +293,7 @@ export default function AdminStores() {
                   >
                     <View style={styles.resultAvatar}>
                       {store.logo_url ? (
-                        <Image source={{ uri: store.logo_url }} style={styles.resultLogo} />
+                        <AppImage uri={store.logo_url} style={styles.resultLogo} />
                       ) : (
                         <Text style={styles.resultInitial}>{(store.store_name || 'S').charAt(0).toUpperCase()}</Text>
                       )}
@@ -326,7 +325,7 @@ export default function AdminStores() {
                 <View style={styles.brandCard}>
                   <View style={styles.bannerWrap}>
                     {currentStore.banner_url ? (
-                      <Image source={{ uri: currentStore.banner_url }} style={styles.bannerImage} />
+                      <AppImage uri={currentStore.banner_url} style={styles.bannerImage} />
                     ) : (
                       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.bannerFallback} />
                     )}
@@ -336,7 +335,7 @@ export default function AdminStores() {
                   <View style={styles.brandBody}>
                     <View style={styles.logoContainer}>
                       {currentStore.logo_url ? (
-                        <Image source={{ uri: currentStore.logo_url }} style={styles.logo} />
+                        <AppImage uri={currentStore.logo_url} style={styles.logo} />
                       ) : (
                         <View style={styles.logoPlaceholder}>
                           <Text style={styles.logoInitial}>{(currentStore.store_name || 'S').charAt(0).toUpperCase()}</Text>
@@ -479,7 +478,7 @@ export default function AdminStores() {
               showsVerticalScrollIndicator={false}
               contentContainerStyle={styles.zoomWrapper}
             >
-              <Image source={{ uri: viewingDoc || '' }} style={styles.fullDocImage} resizeMode="contain" />
+              <AppImage uri={viewingDoc || ''} style={styles.fullDocImage} contentFit="contain" />
             </ScrollView>
           </View>
         </Modal>

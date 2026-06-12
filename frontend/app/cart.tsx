@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Image, TouchableOpacity, Platform, Dimensions } from 'react-native';
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
+  Animated, PanResponder, Alert,
+} from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
@@ -11,13 +15,137 @@ import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { HeroAd } from '@/components/home/HeroCarousel';
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { getActiveBanners, recordAdClick } from '@/services/api';
+
+type CartItem = {
+  id: string;
+  title: string;
+  price: number;
+  quantity: number;
+  image: string | number;
+  category: string;
+};
+
+type SwipeableProps = {
+  item: CartItem;
+  index: number;
+  refQty: React.RefObject<View>;
+  measureElement: (ref: any, key: string) => void;
+  removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, delta: number) => void;
+};
+
+function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: SwipeableProps) {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const SWIPE_THRESHOLD = -60;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, { dx, dy }) =>
+        Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8,
+      onPanResponderMove: (_, { dx }) => {
+        if (dx < 0) translateX.setValue(Math.max(dx, -90));
+      },
+      onPanResponderRelease: (_, { dx }) => {
+        if (dx < SWIPE_THRESHOLD) {
+          Animated.spring(translateX, { toValue: -90, useNativeDriver: true }).start();
+        } else {
+          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+        }
+      },
+    })
+  ).current;
+
+  const handleDelete = () => {
+    Animated.timing(translateX, { toValue: -500, duration: 220, useNativeDriver: true }).start(() => {
+      removeFromCart(item.id);
+    });
+  };
+
+  const handleDecrement = () => {
+    if (item.quantity === 1) {
+      Alert.alert(
+        'Remove Item',
+        `Remove "${item.title}" from your cart?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => removeFromCart(item.id) },
+        ]
+      );
+    } else {
+      updateQuantity(item.id, -1);
+    }
+  };
+
+  const lineTotal = Number(item.price || 0) * item.quantity;
+
+  return (
+    <View style={styles.swipeContainer}>
+      <View style={styles.deleteBackground}>
+        <TouchableOpacity onPress={handleDelete} style={styles.deleteAction}>
+          <Feather name="trash-2" size={22} color="#FFF" />
+          <Text style={styles.deleteActionText}>Remove</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Animated.View
+        style={[styles.cartItem, { transform: [{ translateX }] }]}
+        {...panResponder.panHandlers}
+      >
+        <AppImage
+          uri={typeof item.image === 'number' ? undefined : item.image}
+          style={styles.itemImage}
+        />
+        <View style={styles.itemDetails}>
+          <View style={styles.titleRow}>
+            <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
+            <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+              <Feather name="trash-2" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.itemCategory}>{item.category}</Text>
+          <View style={styles.priceControlRow}>
+            <View>
+              <Text style={styles.itemPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+              {item.quantity > 1 && (
+                <Text style={styles.itemSubtotal}>× {item.quantity} = ₵{lineTotal.toFixed(2)}</Text>
+              )}
+            </View>
+            <View
+              style={styles.qtyContainer}
+              ref={index === 0 ? refQty : undefined}
+              onLayout={index === 0 ? () => measureElement(refQty, 'qty') : undefined}
+            >
+              <TouchableOpacity
+                style={[styles.qtyBtn, item.quantity === 1 && styles.qtyBtnDanger]}
+                onPress={handleDecrement}
+              >
+                {item.quantity === 1
+                  ? <Feather name="trash-2" size={12} color="#EF4444" />
+                  : <Feather name="minus" size={14} color="#0C1559" />}
+              </TouchableOpacity>
+              <Text style={styles.qtyText}>{item.quantity}</Text>
+              <TouchableOpacity
+                style={[styles.qtyBtn, styles.qtyBtnActive]}
+                onPress={() => updateQuantity(item.id, 1)}
+              >
+                <Feather name="plus" size={14} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  );
+}
+
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const { items: cartItems, removeFromCart, updateQuantity } = useCart();
-  const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [cartAds, setCartAds] = useState<HeroAd[]>([]);
+  const total = subtotal;
 
   useEffect(() => {
     (async () => {
@@ -36,14 +164,16 @@ export default function CartScreen() {
       router.push({ pathname: '/stores/details', params: { id: ad.store_id } } as any);
     }
   }, [router]);
+
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
   }, [navigation]);
-  // --- Onboarding ---
+
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refQty = useRef<View>(null);
   const refCheckout = useRef<View>(null);
+
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -51,6 +181,7 @@ export default function CartScreen() {
       });
     }
   };
+
   useEffect(() => {
     if (cartItems.length > 0) {
       const timer = setTimeout(() => {
@@ -61,6 +192,7 @@ export default function CartScreen() {
       return () => clearTimeout(timer);
     }
   }, [cartItems.length, startTour]);
+
   const onboardingSteps = [
     {
       targetLayout: layouts.qty,
@@ -73,198 +205,168 @@ export default function CartScreen() {
       description: 'Proceed to checkout to choose your delivery and payment options.',
     },
   ].filter(s => !!s.targetLayout);
-  const handleOnboardingComplete = () => {
-    markCompleted('cart');
-  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0C1559" />
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color="#FFF" />
+            </TouchableOpacity>
             <Text style={styles.headerTitle}>My Cart</Text>
-            <View style={styles.cartCountBadge}><Text style={styles.cartCountText}>{cartItems.length}</Text></View>
+            <View style={styles.cartCountBadge}>
+              <Text style={styles.cartCountText}>{cartItems.length}</Text>
+            </View>
           </View>
         </SafeAreaView>
       </LinearGradient>
-      {cartAds.length > 0 ? (
+
+      {cartAds.length > 0 && (
         <CompactAdCarousel ads={cartAds} onAdPress={handleAdPress} />
-      ) : (
-        <View style={styles.adPlaceholder}>
-          <LinearGradient
-            colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.adPlaceholderContent}>
-            <View style={styles.adPlaceholderBadge}>
-              <Text style={styles.adPlaceholderBadgeTxt}>ADS</Text>
-            </View>
-            <Text style={styles.adPlaceholderTitle}>Your campaign here</Text>
-            <Text style={styles.adPlaceholderSub}>Promote your store to thousands of buyers →</Text>
-          </View>
-          <View style={styles.adPlaceholderDots}>
-            {[0, 1, 2].map(i => (
-              <View key={i} style={[styles.adPlaceholderDot, i === 0 && styles.adPlaceholderDotActive]} />
-            ))}
-          </View>
-        </View>
       )}
 
       <FlatList
         data={cartItems}
         keyExtractor={item => item.id}
         renderItem={({ item, index }) => (
-          <View style={styles.cartItem}>
-            <Image source={typeof item.image === 'number' ? item.image : { uri: item.image }} style={styles.itemImage} />
-            <View style={styles.itemDetails}>
-              <View style={styles.titleRow}>
-                <Text style={styles.itemTitle} numberOfLines={1}>{item.title}</Text>
-                <TouchableOpacity onPress={() => removeFromCart(item.id)} style={styles.deleteBtn}><Feather name="trash-2" size={18} color="#EF4444" /></TouchableOpacity>
-              </View>
-              <Text style={styles.itemCategory}>{item.category}</Text>
-              <View style={styles.priceControlRow}>
-                <Text style={styles.itemPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
-                <View 
-                  style={styles.qtyContainer}
-                  ref={index === 0 ? refQty : undefined}
-                  onLayout={index === 0 ? () => measureElement(refQty, 'qty') : undefined}
-                >
-                  <TouchableOpacity style={styles.qtyBtn} onPress={() => updateQuantity(item.id, -1)}><Feather name="minus" size={14} color="#0C1559" /></TouchableOpacity>
-                  <Text style={styles.qtyText}>{item.quantity}</Text>
-                  <TouchableOpacity style={[styles.qtyBtn, styles.qtyBtnActive]} onPress={() => updateQuantity(item.id, 1)}><Feather name="plus" size={14} color="#FFF" /></TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
+          <SwipeableCartItem
+            item={item}
+            index={index}
+            refQty={refQty}
+            measureElement={measureElement}
+            removeFromCart={removeFromCart}
+            updateQuantity={updateQuantity}
+          />
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" /><Text style={styles.emptyText}>Your cart is empty</Text>
-            <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}><Text style={styles.shopBtnText}>Start Shopping</Text></TouchableOpacity>
+            <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" />
+            <Text style={styles.emptyText}>Your cart is empty</Text>
+            <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}>
+              <Text style={styles.shopBtnText}>Start Shopping</Text>
+            </TouchableOpacity>
           </View>
         }
       />
+
       {cartItems.length > 0 && (
         <View style={styles.summaryContainer}>
+          {/* Total + Checkout */}
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Order Total</Text>
-            <Text style={styles.totalValue}>₵{Number(total || 0).toFixed(2)}</Text>
+            <View>
+              <Text style={styles.summaryLabel}>Order Total</Text>
+              <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.checkoutBtn}
+              onPress={() => router.push('/checkout' as any)}
+              ref={refCheckout}
+              onLayout={() => measureElement(refCheckout, 'checkout')}
+            >
+              <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
+                <Text style={styles.checkoutText}>Checkout</Text>
+                <Feather name="arrow-right" size={20} color="#FFF" />
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity 
-            style={styles.checkoutBtn} 
-            onPress={() => router.push('/checkout' as any)}
-            ref={refCheckout}
-            onLayout={() => measureElement(refCheckout, 'checkout')}
-          >
-            <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.checkoutGradient}>
-              <Text style={styles.checkoutText}>Checkout</Text>
-              <Feather name="arrow-right" size={20} color="#FFF" />
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
       )}
-      <SpotlightTour 
-        visible={isTourActive && activeScreen === 'cart'} 
+
+      <SpotlightTour
+        visible={isTourActive && activeScreen === 'cart'}
         steps={onboardingSteps}
-        onComplete={handleOnboardingComplete}
+        onComplete={() => markCompleted('cart')}
       />
     </View>
   );
 }
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  header: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
+  container: { flex: 1, backgroundColor: '#FFF' },
+  header: { paddingBottom: 25 },
   headerSafe: { width: '100%' },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10 },
+  headerRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 10,
+  },
   backBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12 },
   headerTitle: { fontSize: 20, fontFamily: 'Montserrat-Bold', color: '#FFF' },
   cartCountBadge: { backgroundColor: '#A3E635', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   cartCountText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  listContent: { padding: 20, paddingBottom: 150 },
-  cartItem: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, padding: 12, marginBottom: 16, elevation: 2 },
-  itemImage: { width: 85, height: 85, borderRadius: 15, backgroundColor: '#F1F5F9' },
-  itemDetails: { flex: 1, marginLeft: 15, justifyContent: 'space-between' },
+
+  listContent: { paddingVertical: 12, paddingBottom: 200 },
+
+  // Swipe-to-delete
+  swipeContainer: { marginBottom: 10, overflow: 'hidden' },
+  deleteBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#EF4444',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingRight: 8,
+  },
+  deleteAction: { alignItems: 'center', justifyContent: 'center', width: 70, paddingVertical: 12 },
+  deleteActionText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-Bold', marginTop: 4 },
+
+  // Cart item
+  cartItem: {
+    flexDirection: 'row', backgroundColor: '#FFF',
+    padding: 12, elevation: 1,
+    borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+  },
+  itemImage: { width: 95, height: 95, borderRadius: 10, backgroundColor: '#F1F5F9' },
+  itemDetails: { flex: 1, marginLeft: 12, justifyContent: 'space-between' },
   titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  itemTitle: { flex: 1, fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  deleteBtn: { padding: 5, backgroundColor: '#FEF2F2', borderRadius: 8 },
-  itemCategory: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: -2 },
-  priceControlRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  itemPrice: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  qtyContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 4, borderWidth: 1, borderColor: '#F1F5F9' },
-  qtyBtn: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF' },
+  itemTitle: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', lineHeight: 18 },
+  deleteBtn: { padding: 4, backgroundColor: '#FEF2F2', borderRadius: 6, marginLeft: 6 },
+  itemCategory: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 2 },
+  priceControlRow: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'center', marginTop: 6,
+  },
+  itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  itemSubtotal: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 1 },
+  qtyContainer: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
+    borderRadius: 10, padding: 3, borderWidth: 1, borderColor: '#F1F5F9',
+  },
+  qtyBtn: {
+    width: 26, height: 26, borderRadius: 7,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF',
+  },
   qtyBtnActive: { backgroundColor: '#0C1559' },
-  qtyText: { marginHorizontal: 12, fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  summaryContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', elevation: 25 },
-  summaryRow: { flex: 1 },
-  summaryLabel: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  totalValue: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  checkoutBtn: { borderRadius: 18, overflow: 'hidden', flex: 1, marginLeft: 20 },
-  checkoutGradient: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 16, gap: 10 },
+  qtyBtnDanger: { backgroundColor: '#FEF2F2' },
+  qtyText: { marginHorizontal: 10, fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+
+  // Summary panel
+  summaryContainer: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: '#FFF',
+    borderTopWidth: 1, borderTopColor: '#F1F5F9',
+    paddingHorizontal: 20, paddingTop: 16,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    elevation: 25,
+  },
+
+
+  // Total row
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  summaryLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B' },
+  totalValue: { fontSize: 19, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  checkoutBtn: { borderRadius: 10, overflow: 'hidden', flex: 1, marginLeft: 20 },
+  checkoutGradient: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+    paddingVertical: 16, gap: 10,
+  },
   checkoutText: { color: '#FFF', fontSize: 16, fontFamily: 'Montserrat-Bold' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(12, 21, 89, 0.4)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, paddingHorizontal: 24, height: '90%' },
-  handleArea: { width: '100%', alignItems: 'center', paddingVertical: 15 },
-  modalHandle: { width: 40, height: 4, backgroundColor: '#E2E8F0', borderRadius: 2 },
-  modalTitle: { fontSize: 22, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginBottom: 20, textAlign: 'center' },
-  modalSectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', marginBottom: 15 },
-  billContainer: { backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, marginBottom: 10, borderWidth: 1, borderColor: '#F1F5F9' },
-  billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  billLabel: { fontSize: 14, color: '#64748B', fontFamily: 'Montserrat-Medium' },
-  billValue: { fontSize: 14, color: '#0F172A', fontFamily: 'Montserrat-Bold' },
-  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 10 },
-  totalLabelLarge: { fontSize: 18, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-  totalValueLarge: { fontSize: 24, color: '#84cc16', fontFamily: 'Montserrat-Bold' },
-  inputGroup: { marginBottom: 20 },
-  inputLabel: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Bold', marginBottom: 8, marginLeft: 4 },
-  inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', paddingHorizontal: 15 },
-  inputIcon: { marginRight: 10 },
-  modalInput: { flex: 1, paddingVertical: 14, fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 25, marginLeft: 4 },
-  checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  checkboxChecked: { backgroundColor: '#0C1559' },
-  checkboxLabel: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569' },
-  paymentOption: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9' },
-  paymentOptionSelected: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
-  optionIconContainer: { width: 45, height: 45, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center' },
-  optionLabel: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
-  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
-  radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: '#CBD5E1', justifyContent: 'center', alignItems: 'center' },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#0C1559' },
-  savedMethodsContainer: { backgroundColor: '#FFF', borderBottomLeftRadius: 20, borderBottomRightRadius: 20, padding: 10, marginTop: -10, borderWidth: 1, borderColor: '#F1F5F9', borderTopWidth: 0, marginBottom: 5 },
-  savedMethodItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, gap: 10 },
-  savedMethodItemActive: { backgroundColor: '#F7FEE7' },
-  savedMethodText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  savedMethodTextActive: { color: '#0C1559', fontFamily: 'Montserrat-SemiBold' },
-  payButton: { borderRadius: 20, overflow: 'hidden', marginTop: 20, marginBottom: 30 },
-  payGradient: { paddingVertical: 18, alignItems: 'center', justifyContent: 'center' },
-  payButtonText: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+
+  // Empty state
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 },
   emptyText: { fontSize: 18, fontFamily: 'Montserrat-SemiBold', color: '#94A3B8', marginTop: 20, marginBottom: 30 },
   shopBtn: { backgroundColor: '#0C1559', paddingHorizontal: 30, paddingVertical: 15, borderRadius: 20 },
   shopBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold' },
-
-  adPlaceholder: {
-    marginBottom: 12, height: 80,
-    borderWidth: 1, borderColor: 'rgba(12,21,89,0.1)',
-    borderStyle: 'dashed', overflow: 'hidden',
-  },
-  adPlaceholderContent: { flex: 1, justifyContent: 'center', paddingHorizontal: 16 },
-  adPlaceholderBadge: {
-    backgroundColor: 'rgba(12,21,89,0.08)', borderRadius: 4,
-    paddingHorizontal: 6, paddingVertical: 2,
-    alignSelf: 'flex-start', marginBottom: 4,
-  },
-  adPlaceholderBadgeTxt: { fontSize: 8, fontFamily: 'Montserrat-Bold', color: '#64748B', letterSpacing: 0.5 },
-  adPlaceholderTitle:    { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 2 },
-  adPlaceholderSub:      { fontSize: 10, fontFamily: 'Montserrat-Medium', color: 'rgba(100,116,139,0.7)' },
-  adPlaceholderDots: {
-    flexDirection: 'row', justifyContent: 'center', gap: 6,
-    position: 'absolute', bottom: 10, left: 0, right: 0,
-  },
-  adPlaceholderDot:       { width: 6,  height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.15)' },
-  adPlaceholderDotActive: { width: 24, height: 6, borderRadius: 3, backgroundColor: 'rgba(12,21,89,0.25)' },
 });

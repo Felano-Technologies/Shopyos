@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    TouchableOpacity, 
-    ScrollView, 
-    Image, 
-    RefreshControl, 
-    Dimensions, 
-    Modal, 
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    ScrollView,
+    RefreshControl,
+    Dimensions,
+    Modal,
     ActivityIndicator
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { router } from 'expo-router';
 import { storage, secureStorage, logoutUser } from '@/services/api';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -117,7 +117,7 @@ const BusinessDashboard = () => {
     return (
       <View style={styles.headerContainer}>
         {headerBg ? (
-          <Image source={{ uri: headerBg }} style={StyleSheet.absoluteFillObject} />
+          <AppImage uri={headerBg} style={StyleSheet.absoluteFillObject} />
         ) : (
           <LinearGradient colors={[C.navy, C.navyMid]} style={StyleSheet.absoluteFillObject} />
         )}
@@ -128,7 +128,7 @@ const BusinessDashboard = () => {
         
         <View style={styles.headerContentWrapper}>
           <View style={styles.topBar}>
-            <Image source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} resizeMode="contain" />
+            <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} contentFit="contain" />
             <View style={styles.topIcons}>
               <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
                 <Ionicons name="notifications-outline" size={22} color="#FFF" />
@@ -146,7 +146,7 @@ const BusinessDashboard = () => {
           <TouchableOpacity style={styles.businessProfile} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
             <View style={styles.logoWrapper}>
               {(selectedBusiness?.logo_url || selectedBusiness?.logo) ? (
-                <Image source={{ uri: selectedBusiness.logo_url || selectedBusiness.logo }} style={styles.businessLogo} />
+                <AppImage uri={selectedBusiness.logo_url || selectedBusiness.logo} style={styles.businessLogo} />
               ) : (
                 <View style={styles.logoPlaceholder}>
                   <Text style={styles.logoInitial}>{selectedBusiness?.businessName?.charAt(0) || 'B'}</Text>
@@ -248,7 +248,7 @@ const BusinessDashboard = () => {
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.bottomLogos}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+          <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
@@ -441,7 +441,7 @@ const BusinessDashboard = () => {
                   >
                     <View style={styles.switcherLogoWrapper}>
                       {(biz.logo_url || biz.logo) ? (
-                        <Image source={{ uri: biz.logo_url || biz.logo }} style={styles.switcherLogo} />
+                        <AppImage uri={biz.logo_url || biz.logo} style={styles.switcherLogo} />
                       ) : (
                         <View style={[styles.switcherLogo, styles.switcherLogoPlaceholder]}>
                           <Text style={styles.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 120 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
-  fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.08 },
+  fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
     height: 240,
     borderBottomLeftRadius: 35,

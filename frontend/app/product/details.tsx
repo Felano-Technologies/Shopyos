@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    Image,
     TouchableOpacity,
     ScrollView,
     Dimensions,
@@ -11,8 +10,9 @@ import {
     Alert,
     Modal,
     ActivityIndicator,
-    RefreshControl
+    RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -112,6 +112,8 @@ export default function ProductDetails() {
         reviewsCount: 0,
         isTrusted: false,
         stockQuantity: null as number | null,
+        brand: '' as string,
+        attributes: {} as Record<string, string>,
     });
     const [variants, setVariants] = useState<any[]>([]);
     const [variantOptions, setVariantOptions] = useState<any[]>([]);
@@ -136,6 +138,8 @@ export default function ProductDetails() {
                     reviewsCount: res.product.total_reviews || 0,
                     isTrusted: res.product.store?.is_trusted || false,
                     stockQuantity: res.product.stockQuantity ?? null,
+                    brand: res.product.brand || '',
+                    attributes: res.product.attributes || {},
                 }));
                 if (res.product.variantOptions?.length) setVariantOptions(res.product.variantOptions);
                 if (res.product.variants?.length) setVariants(res.product.variants);
@@ -284,19 +288,16 @@ export default function ProductDetails() {
             {/* Background Watermark */}
             <View style={StyleSheet.absoluteFillObject}>
                 <View style={styles.bottomLogos}>
-                    <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+                    <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
             </View>
             <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
                 {/* Header & Image Section (fixed) */}
                 <View style={styles.imageHeaderContainer}>
                     {product.image && (
-                        <Image
-                            source={typeof product.image === 'string' && (product.image.startsWith('http') || product.image.startsWith('file'))
-                                ? { uri: product.image }
-                                : (typeof product.image === 'number' ? product.image : { uri: product.image })}
+                        <AppImage
+                            uri={typeof product.image === 'string' ? product.image : undefined}
                             style={styles.productImage}
-                            resizeMode="cover"
                         />
                     )}
                     <View style={styles.headerOverlay}>
@@ -360,10 +361,28 @@ export default function ProductDetails() {
                         ))}
                         <Text style={styles.sectionTitle}>Description</Text>
                         <Text style={styles.description}>{product.description}</Text>
+                        {/* Product Details */}
+                        {(product.brand || Object.keys(product.attributes).length > 0) && (
+                            <View style={styles.attrSection}>
+                                <Text style={styles.sectionTitle}>Product Details</Text>
+                                {product.brand ? (
+                                    <View style={styles.attrRow}>
+                                        <Text style={styles.attrKey}>Brand</Text>
+                                        <Text style={styles.attrVal}>{product.brand}</Text>
+                                    </View>
+                                ) : null}
+                                {Object.entries(product.attributes).map(([key, val]) => (
+                                    <View key={key} style={styles.attrRow}>
+                                        <Text style={styles.attrKey}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
+                                        <Text style={styles.attrVal}>{String(val)}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                         {/* Seller Info */}
                         <View style={styles.sellerContainer}>
                             <View style={styles.sellerInfo}>
-                                <Image source={{ uri: product.storeImage || 'https://via.placeholder.com/100?text=Store' }} style={styles.sellerAvatar} />
+                                <AppImage uri={product.storeImage || 'https://via.placeholder.com/100?text=Store'} style={styles.sellerAvatar} />
                                 <View>
                                     <Text style={styles.sellerLabel}>Sold by</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -495,6 +514,10 @@ const styles = StyleSheet.create({
     writeReviewText: { color: '#84cc16', fontFamily: 'Montserrat-Bold', fontSize: 13 },
     emptyReviews: { alignItems: 'center', padding: 30, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 20, borderStyle: 'dashed', borderWidth: 1, borderColor: '#CBD5E1' },
     emptyReviewsText: { textAlign: 'center', color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-Medium', marginTop: 10 },
+    attrSection: { marginBottom: 24 },
+    attrRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    attrKey: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
+    attrVal: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', flexShrink: 1, textAlign: 'right', marginLeft: 12 },
     variantSection: { marginBottom: 16 },
     variantLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 8 },
     variantChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -520,5 +543,5 @@ const styles = StyleSheet.create({
     viewCartGradient: { paddingVertical: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
     viewCartText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
     bottomLogos: { position: 'absolute', bottom: 120, left: -20 },
-    fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.05 },
+    fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.03 },
 });

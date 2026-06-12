@@ -8,11 +8,10 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
-    Image,
-    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -104,8 +103,8 @@ const ReviewScreen = () => {
                         <Text style={styles.sectionTitle}>Driver Performance</Text>
                         <View style={styles.card}>
                             <View style={styles.entityHeader}>
-                                <Image
-                                    source={{ uri: driver.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }}
+                                <AppImage
+                                    uri={driver.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver'}
                                     style={styles.avatar}
                                 />
                                 <View style={styles.headerInfo}>
@@ -156,8 +155,9 @@ const ReviewScreen = () => {
                         <View key={item.id} style={[styles.card, { marginBottom: 15 }]}>
                             <View style={styles.productHeader}>
                                 <View style={styles.productImageContainer}>
-                                    <Image
-                                        source={item.product?.product_images?.[0]?.image_url ? { uri: item.product.product_images[0].image_url } : require('../../assets/images/icon.png')}
+                                    <AppImage
+                                        uri={item.product?.product_images?.[0]?.image_url || undefined}
+                                        source={item.product?.product_images?.[0]?.image_url ? undefined : require('../../assets/images/icon.png')}
                                         style={styles.productImage}
                                     />
                                 </View>

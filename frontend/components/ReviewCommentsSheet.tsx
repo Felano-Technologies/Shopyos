@@ -9,10 +9,10 @@ import {
     TextInput,
     KeyboardAvoidingView,
     Platform,
-    Image,
     ActivityIndicator
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { formatDistanceToNow } from 'date-fns';
 
 interface Comment {
@@ -65,7 +65,7 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
                         contentContainerStyle={styles.listPadding}
                         renderItem={({ item }) => (
                             <View style={styles.commentItem}>
-                                <Image source={{ uri: item.user.avatar_url }} style={styles.commentAvatar} />
+                                <AppImage uri={item.user.avatar_url} style={styles.commentAvatar} />
                                 <View style={styles.commentBody}>
                                     <View style={styles.commentHeader}>
                                         <Text style={styles.commentUser}>{item.user.full_name}</Text>

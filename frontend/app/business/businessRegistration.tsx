@@ -7,7 +7,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -19,6 +18,7 @@ import {
   ActivityIndicator,
   Keyboard
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5, FontAwesome } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -81,7 +81,7 @@ const RegistrationField = ({
       <View style={styles.inputWrapper}>
         {isPhone && (
           <View style={styles.flagContainer}>
-             <Image source={{ uri: 'https://flagcdn.com/w40/gh.png' }} style={styles.flag} />
+             <AppImage uri="https://flagcdn.com/w40/gh.png" style={styles.flag} />
              <Text style={styles.phonePrefix}>+233</Text>
              <View style={styles.dividerVertical} />
           </View>
@@ -282,7 +282,7 @@ export default function BusinessRegistrationScreen() {
       <StatusBar style="light" />
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+          <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
@@ -343,7 +343,7 @@ export default function BusinessRegistrationScreen() {
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoList}>
                             {formData.storePhotos.map((uri: string, index: number) => (
                                 <View key={index} style={styles.photoThumbnailContainer}>
-                                    <Image source={{ uri }} style={styles.photoThumbnail} />
+                                    <AppImage uri={uri} style={styles.photoThumbnail} />
                                     <TouchableOpacity style={styles.removePhotoBtn} onPress={() => removeStorePhoto(index)}><Ionicons name="close" size={12} color="#FFF" /></TouchableOpacity>
                                 </View>
                             ))}
@@ -455,7 +455,7 @@ const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   safeArea: { flex: 1 },
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
-  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.08 },
+  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
   headerWrapper: { marginBottom: 20 },
   headerGradient: { paddingBottom: 25, borderBottomLeftRadius: 30, borderBottomRightRadius: 30 },
   headerSafeArea: { paddingHorizontal: 20 },

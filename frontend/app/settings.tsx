@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Switch,
   ScrollView,
   Modal,
@@ -14,10 +13,12 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {  Feather } from '@expo/vector-icons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getUserData, getNotificationPreferences, updateNotificationPreferences, logoutUser, storage, baseURL } from '@/services/api';
 
@@ -47,6 +48,7 @@ const isLocalhostLikeUrl = (value?: string | null) =>
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [username, setUsername] = useState('User');
   const [email, setEmail] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -204,13 +206,14 @@ export default function SettingsScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
       {/* --- HEADER --- */}
-      <View style={styles.headerContainer}>
-        <Image
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.headerContainer}>
+        <View style={styles.hdrGlow1} pointerEvents="none" />
+        <View style={styles.hdrGlow2} pointerEvents="none" />
+        <AppImage
           source={require('../assets/images/splash-icon.png')}
           style={styles.headerWatermark}
         />
-        <SafeAreaView edges={['top', 'left', 'right']}>
-          <View style={styles.headerContent}>
+          <View style={[styles.headerContent, { paddingTop: insets.top + 10 }]}>
             <Text style={styles.screenTitle}>Settings</Text>
             {/* Profile Header (WhatsApp-style) */}
             {isLoading ? (
@@ -254,8 +257,8 @@ export default function SettingsScreen() {
               </View>
             )}
           </View>
-        </SafeAreaView>
-      </View>
+          <View style={styles.hdrArc} />
+      </LinearGradient>
       {/* --- CONTENT --- */}
       <ScrollView
         style={styles.scrollView}
@@ -346,7 +349,7 @@ export default function SettingsScreen() {
             <Feather name="log-out" size={20} color="#EF4444" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
-          <Text style={styles.versionText}>Version 1.0.0</Text>
+          <Text style={styles.versionText}>Version 1.1.0</Text>
         </View>
         {/* Bottom Padding */}
         <View style={{ height: 40 }} />
@@ -397,16 +400,27 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#fff',
   },
   // Header
   headerContainer: {
-    backgroundColor: '#0C1559',
-    paddingBottom: 24,
-    borderBottomLeftRadius: 32,
-    borderBottomRightRadius: 32,
+    paddingBottom: 28,
     overflow: 'hidden',
     position: 'relative',
+  },
+  hdrArc: {
+    position: 'absolute', bottom: 0, left: 0, right: 0, height: 26,
+    backgroundColor: '#fff', borderTopLeftRadius: 26, borderTopRightRadius: 26,
+  },
+  hdrGlow1: {
+    position: 'absolute', top: -30, right: -30,
+    width: 150, height: 150, borderRadius: 75,
+    backgroundColor: 'rgba(132,204,22,0.12)',
+  },
+  hdrGlow2: {
+    position: 'absolute', bottom: -20, left: -10,
+    width: 80, height: 100, borderRadius: 50,
+    backgroundColor: 'rgba(30,58,138,0.5)',
   },
   headerWatermark: {
     position: 'absolute',
@@ -414,7 +428,7 @@ const styles = StyleSheet.create({
     top: -20,
     width: 200,
     height: 200,
-    opacity: 0.1,
+    opacity: 0.03,
     resizeMode: 'contain',
     transform: [{ rotate: '-15deg' }],
   },
@@ -438,6 +452,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.2)',
+    marginBottom: 20,
   },
   avatarContainer: {
     width: 72,
@@ -510,34 +525,31 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 24,
     paddingBottom: 75,
   },
   sectionHeader: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Montserrat-Bold',
-    color: '#64748B',
-    marginBottom: 12,
-    marginTop: 8,
-    marginLeft: 4,
+    color: '#94A3B8',
+    marginBottom: 6,
+    marginTop: 24,
+    paddingHorizontal: 20,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
   },
   sectionCard: {
     backgroundColor: '#FFF',
-    borderRadius: 20,
-    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 16,
+    marginHorizontal: 16,
     marginBottom: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
+    overflow: 'hidden',
   },
   separator: {
     height: 1,
     backgroundColor: '#F1F5F9',
-    marginLeft: 60, // Indent separator to align with text
+    marginLeft: 60,
   },
   // Setting Item
   settingItem: {
@@ -567,6 +579,7 @@ const styles = StyleSheet.create({
   logoutContainer: {
     alignItems: 'center',
     marginTop: 10,
+    paddingHorizontal: 16,
   },
   logoutButton: {
     flexDirection: 'row',

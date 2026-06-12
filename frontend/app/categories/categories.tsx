@@ -7,12 +7,11 @@ import {
   FlatList,
   ImageBackground,
   TouchableOpacity,
-  Dimensions,
-  Image,
   Keyboard,
   ActivityIndicator,
   Pressable
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import BottomNav from '../../components/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -136,7 +135,7 @@ export default function CategoryScreen() {
       activeOpacity={0.9}
       onPress={() => handlePress(item)}
     >
-      <Image source={item.image} style={styles.productImage} />
+      <AppImage source={item.image} style={styles.productImage} />
       <View style={styles.productInfo}>
         <Text style={styles.productTitle} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.productPrice}>₵{item.price.toFixed(2)}</Text>

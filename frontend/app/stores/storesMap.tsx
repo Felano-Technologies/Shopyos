@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, StyleSheet, Text, Image, TouchableOpacity,
+  View, StyleSheet, Text, TouchableOpacity,
   Dimensions, ActivityIndicator, FlatList, TextInput,
   ScrollView, Animated,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import MapView, { Marker, UrlTile } from '@/components/MapView';
 import Circle from '@/components/MapCircle';
 import * as Location from 'expo-location';
@@ -301,10 +302,9 @@ export default function StoresMap() {
                 {/* Marker ring */}
                 <View style={[S.markerRing, isActive && S.markerRingActive]}>
                   {store.logo ? (
-                    <Image
-                      source={{ uri: store.logo }}
+                    <AppImage
+                      uri={store.logo}
                       style={S.markerImg}
-                      resizeMode="cover"
                     />
                   ) : (
                     <View style={[S.markerFallback, { backgroundColor: c1 }]}>
@@ -465,7 +465,7 @@ export default function StoresMap() {
                 >
                   {/* Logo */}
                   {item.logo ? (
-                    <Image source={{ uri: item.logo }} style={S.cardLogo} resizeMode="cover" />
+                    <AppImage uri={item.logo} style={S.cardLogo} />
                   ) : (
                     <View style={[S.cardLogo, S.cardLogoFallback, { backgroundColor: c1 }]}>
                       <Text style={S.cardLogoInitials}>{initials(item.name)}</Text>

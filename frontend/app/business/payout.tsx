@@ -5,11 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
   ActivityIndicator,
   FlatList,
   RefreshControl
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -88,7 +88,7 @@ export default function PayoutScreen() {
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+          <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    opacity: 0.08,
+    opacity: 0.03,
   },
   // Header
   headerContainer: {

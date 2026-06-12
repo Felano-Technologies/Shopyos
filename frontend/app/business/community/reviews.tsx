@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { 
-  View, Text, StyleSheet, FlatList, Image, TouchableOpacity, 
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator 
+import {
+  View, Text, StyleSheet, FlatList, TouchableOpacity,
+  Modal, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useBusinessReviews, useReplyToReview, useActiveBusiness } from '@/hooks/useBusiness';
 
@@ -70,7 +71,7 @@ export default function ReviewsScreen() {
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <Image source={{ uri: item.avatar }} style={styles.avatar} />
+        <AppImage uri={item.avatar} style={styles.avatar} />
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={styles.userName}>{item.user}</Text>
           {item.type === 'product' && item.productName && (

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -202,7 +202,7 @@ export default function AdminOrders() {
             <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
               <View style={styles.heroTopRow}>
                 <View style={styles.heroBrand}>
-                  <Image source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
+                  <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
                 </View>
 
                 <View style={styles.heroIcons}>

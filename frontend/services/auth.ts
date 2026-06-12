@@ -1,5 +1,6 @@
 import { queryClient } from '@/lib/query/client';
 import { api, extractErrorMessage, API_URL, secureStorage, storage } from './client';
+import { cacheUserProfile, clearUserProfileCache } from './storage';
 
 export const registerUser = async (
   name: string,
@@ -73,6 +74,7 @@ export const logoutUser = async () => {
       storage.removeItem('currentBusinessVerificationStatus'),
       storage.removeItem('userRole'),
       storage.removeItem('cart'),
+      clearUserProfileCache(),
     ]);
     try {
       const { socketService } = require('./socket');
@@ -95,6 +97,7 @@ export const loginUser = async (
       try {
         const meResponse = await api.get('/auth/me');
         if (meResponse.data?.id) await storage.setItem('userId', meResponse.data.id);
+        await cacheUserProfile(meResponse.data);
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
       }

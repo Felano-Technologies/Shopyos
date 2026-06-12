@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ActivityIndicator,
-  TextInput, ScrollView, Image
+  TextInput, ScrollView
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { format } from 'date-fns';
@@ -239,7 +240,7 @@ const OrdersScreen = () => {
             <View style={S.storeRow}>
               <View style={S.storeIcon}>
                 {item.storeLogo ? (
-                  <Image source={{ uri: item.storeLogo }} style={S.storeLogoImg} />
+                  <AppImage uri={item.storeLogo} style={S.storeLogoImg} />
                 ) : (
                   <MaterialCommunityIcons name="store-outline" size={rs(14)} color={C.navy} />
                 )}

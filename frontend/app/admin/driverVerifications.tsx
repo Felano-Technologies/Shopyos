@@ -5,8 +5,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Image, Dimensions, ActivityIndicator, RefreshControl,
+  Dimensions, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -117,7 +118,7 @@ export default function DriverVerificationsScreen() {
           <View style={S.cardTop}>
             <View style={S.avatarWrap}>
               {avatar ? (
-                <Image source={{ uri: avatar }} style={S.avatar} />
+                <AppImage uri={avatar} style={S.avatar} />
               ) : (
                 <View style={[S.avatar, S.avatarFallback]}>
                   <Text style={S.avatarInitials}>{initials}</Text>

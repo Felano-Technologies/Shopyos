@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Image, Dimensions, RefreshControl,
+  TextInput, Dimensions, RefreshControl,
   ActivityIndicator, Animated,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -155,7 +156,7 @@ export default function AdminDriverChatList() {
         {/* Avatar */}
         <View style={S.avatarWrap}>
           {item.avatar ? (
-            <Image source={{ uri: item.avatar }} style={S.avatar} />
+            <AppImage uri={item.avatar} style={S.avatar} />
           ) : (
             <View style={[S.avatar, S.avatarFallback]}>
               <Text style={S.avatarText}>{initials(item.driverName)}</Text>

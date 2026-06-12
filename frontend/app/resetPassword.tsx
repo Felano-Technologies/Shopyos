@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TextInput,
   TouchableOpacity,
   Dimensions,
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -75,8 +75,8 @@ const ResetPasswordScreen = () => {
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       {/* Banner */}
-      <Image
-        source={require('../assets/images/reset.png')} // local placeholder
+      <AppImage
+        source={require('../assets/images/reset.png')}
         style={styles.banner}
       />
 
@@ -149,11 +149,11 @@ const ResetPasswordScreen = () => {
 
       {/* Footer Logos */}
       <View style={styles.bottomLogos}>
-        <Image
+        <AppImage
           source={require('../assets/images/icon.png')}
           style={styles.circleLogo}
         />
-        <Image
+        <AppImage
           source={require('../assets/images/icondark.png')}
           style={styles.brandLogo}
         />

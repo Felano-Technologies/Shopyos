@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Image, Dimensions, ScrollView, RefreshControl,
+  TextInput, Dimensions, ScrollView, RefreshControl,
   ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -45,6 +46,31 @@ const isFashionCategory = (cat: string) => {
   return c.includes('fashion') || c.includes('footwear') || c.includes('sneaker') || c.includes('accessory') || c.includes('accessories') || c.includes('clothing');
 };
 
+const isElectronicsCategory = (cat: string) =>
+  String(cat || '').toLowerCase().includes('electron');
+
+const isHomeCategory = (cat: string) => {
+  const c = String(cat || '').toLowerCase();
+  return c.includes('home') || c.includes('kitchen') || c.includes('furniture');
+};
+
+function buildAttributes(vals: { material: string; style: string; connectivity: string }) {
+  const a: Record<string, string> = {};
+  if (vals.material.trim()) a.material = vals.material.trim();
+  if (vals.style.trim())    a.style    = vals.style.trim();
+  if (vals.connectivity.trim()) a.connectivity = vals.connectivity.trim();
+  return Object.keys(a).length ? a : null;
+}
+
+function buildVariantOptions(vals: { color: string; size: string }) {
+  const opts: { option_name: string; option_values: string[] }[] = [];
+  if (vals.color.trim())
+    opts.push({ option_name: 'color', option_values: vals.color.split(',').map(v => v.trim()).filter(Boolean) });
+  if (vals.size.trim())
+    opts.push({ option_name: 'size',  option_values: vals.size.split(',').map(v => v.trim()).filter(Boolean) });
+  return opts;
+}
+
 const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -63,6 +89,12 @@ const ProductsScreen = () => {
   const [isActive, setIsActive] = useState(true);
   const [category, setCategory] = useState('');
   const [gender, setGender] = useState('Unisex');
+  const [attrColor, setAttrColor] = useState('');
+  const [attrSize, setAttrSize] = useState('');
+  const [attrMaterial, setAttrMaterial] = useState('');
+  const [attrStyle, setAttrStyle] = useState('');
+  const [attrBrand, setAttrBrand] = useState('');
+  const [attrConnectivity, setAttrConnectivity] = useState('');
   const [categories, setCategories] = useState<{ id?: string; name: string; count?: number }[]>([]);
   const [categoryModal, setCategoryModal] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
@@ -213,6 +245,8 @@ const ProductsScreen = () => {
     setName(''); setPrice(''); setCompareAtPrice(''); setStock(''); setDescription('');
     setImage(null); setEditingId(null); setIsActive(true); setCategory('');
     setGender('Unisex');
+    setAttrColor(''); setAttrSize(''); setAttrMaterial('');
+    setAttrStyle(''); setAttrBrand(''); setAttrConnectivity('');
     setFormModalVisible(false);
     Keyboard.dismiss();
   };
@@ -227,6 +261,9 @@ const ProductsScreen = () => {
     setStock(item.stock); setDescription(item.description); setImage(item.image);
     setEditingId(item.id); setIsActive(item.isActive); setCategory(item.category);
     setGender(item.gender || 'Unisex');
+    setAttrColor(item.attrColor || ''); setAttrSize(item.attrSize || '');
+    setAttrMaterial(item.attributes?.material || ''); setAttrStyle(item.attributes?.style || '');
+    setAttrBrand(item.brand || ''); setAttrConnectivity(item.attributes?.connectivity || '');
     setFormModalVisible(true);
   };
 
@@ -242,6 +279,9 @@ const ProductsScreen = () => {
         storeId: businessId, name, price: parseFloat(price),
         compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
         category, gender, stockQuantity: parseInt(stock), description, isActive,
+        brand: attrBrand.trim() || null,
+        attributes: buildAttributes({ material: attrMaterial, style: attrStyle, connectivity: attrConnectivity }),
+        variantOptions: buildVariantOptions({ color: attrColor, size: attrSize }),
       };
 
       if (editingId) {
@@ -312,7 +352,7 @@ const ProductsScreen = () => {
       <StatusBar style="light" />
 
       <View style={S.watermark}>
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
@@ -344,7 +384,7 @@ const ProductsScreen = () => {
                 activeOpacity={0.85}
               >
                 {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
-                  <Image source={{ uri: activeBusiness.logo_url || activeBusiness.logo }} style={S.storePillLogo} />
+                  <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={S.storePillLogo} />
                 ) : (
                   <View style={S.storePillPlaceholder}>
                     <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
@@ -470,7 +510,7 @@ const ProductsScreen = () => {
                         onLayout={() => measureElement(refPhoto, 'photo')}
                       >
                         {image ? (
-                          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} />
+                          <AppImage uri={image} style={StyleSheet.absoluteFill} />
                         ) : (
                           <View style={S.imgPlaceholder}>
                             <Feather name="camera" size={rs(22)} color={C.subtle} />
@@ -523,6 +563,69 @@ const ProductsScreen = () => {
                             </View>
                           </View>
                         )}
+                        {/* Attributes */}
+                        <View style={S.genderContainer}>
+                          <Text style={S.genderLabel}>Product Details</Text>
+                          {(isFashionCategory(category) || (!isElectronicsCategory(category) && !isHomeCategory(category))) && (
+                            <View style={[S.inputField, { marginBottom: rs(8) }]}>
+                              <Feather name="droplet" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                              <TextInput
+                                value={attrColor} onChangeText={setAttrColor}
+                                placeholder="Color(s) e.g. Red, Blue" placeholderTextColor={C.subtle}
+                                style={S.inputTxt} editable={!isSubmitting}
+                              />
+                            </View>
+                          )}
+                          {isFashionCategory(category) && (
+                            <View style={[S.inputField, { marginBottom: rs(8) }]}>
+                              <Feather name="maximize-2" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                              <TextInput
+                                value={attrSize} onChangeText={setAttrSize}
+                                placeholder="Size(s) e.g. S, M, L or EU42" placeholderTextColor={C.subtle}
+                                style={S.inputTxt} editable={!isSubmitting}
+                              />
+                            </View>
+                          )}
+                          {(isFashionCategory(category) || isHomeCategory(category)) && (
+                            <View style={[S.inputField, { marginBottom: rs(8) }]}>
+                              <Feather name="box" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                              <TextInput
+                                value={attrMaterial} onChangeText={setAttrMaterial}
+                                placeholder="Material e.g. Cotton, Leather" placeholderTextColor={C.subtle}
+                                style={S.inputTxt} editable={!isSubmitting}
+                              />
+                            </View>
+                          )}
+                          {(isFashionCategory(category) || isHomeCategory(category)) && (
+                            <View style={[S.inputField, { marginBottom: rs(8) }]}>
+                              <Feather name="sliders" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                              <TextInput
+                                value={attrStyle} onChangeText={setAttrStyle}
+                                placeholder="Style e.g. Casual, Modern" placeholderTextColor={C.subtle}
+                                style={S.inputTxt} editable={!isSubmitting}
+                              />
+                            </View>
+                          )}
+                          {isElectronicsCategory(category) && (
+                            <View style={[S.inputField, { marginBottom: rs(8) }]}>
+                              <Feather name="wifi" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                              <TextInput
+                                value={attrConnectivity} onChangeText={setAttrConnectivity}
+                                placeholder="Connectivity e.g. Bluetooth 5.0" placeholderTextColor={C.subtle}
+                                style={S.inputTxt} editable={!isSubmitting}
+                              />
+                            </View>
+                          )}
+                          <View style={S.inputField}>
+                            <Feather name="award" size={rs(14)} color={C.muted} style={S.inputIcon} />
+                            <TextInput
+                              value={attrBrand} onChangeText={setAttrBrand}
+                              placeholder="Brand (optional)" placeholderTextColor={C.subtle}
+                              style={S.inputTxt} editable={!isSubmitting}
+                            />
+                          </View>
+                        </View>
+
                         {/* Description */}
                         <View style={[S.inputField, { height: rs(76), alignItems: 'flex-start', paddingTop: rs(10), marginTop: rs(8) }]}>
                           <Feather name="file-text" size={rs(14)} color={C.muted} style={[S.inputIcon, { marginTop: rs(2) }]} />
@@ -646,7 +749,7 @@ const ProductsScreen = () => {
                       onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
                     >
                       {item.image ? (
-                        <Image source={{ uri: item.image }} style={S.productImg} />
+                        <AppImage uri={item.image} style={S.productImg} />
                       ) : (
                         <View style={[S.productImg, S.productImgFallback]}>
                           <Feather name="package" size={rs(18)} color={C.muted} />
@@ -743,7 +846,7 @@ const ProductsScreen = () => {
                     >
                       <View style={S.switcherLogoWrapper}>
                         {(biz.logo_url || biz.logo) ? (
-                          <Image source={{ uri: biz.logo_url || biz.logo }} style={S.switcherLogo} />
+                          <AppImage uri={biz.logo_url || biz.logo} style={S.switcherLogo} />
                         ) : (
                           <View style={[S.switcherLogo, S.switcherLogoPlaceholder]}>
                             <Text style={S.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
@@ -829,7 +932,7 @@ const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark: { position: 'absolute', bottom: 20, left: -20 },
-  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
 
   header: {

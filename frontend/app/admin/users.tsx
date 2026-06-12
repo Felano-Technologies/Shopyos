@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -59,7 +59,7 @@ export default function AdminUsers() {
           >
             <View style={styles.heroTopRow}>
               <View style={styles.heroBrand}>
-                <Image source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
+                <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
               </View>
               <View style={styles.heroIcons}>
                 <TouchableOpacity style={styles.topActionBubble}>

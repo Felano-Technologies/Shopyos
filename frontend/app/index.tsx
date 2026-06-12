@@ -6,6 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getUserData, secureStorage } from '@/services/api';
+import { cacheUserProfile, getCachedUserProfile } from '@/services/storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -111,18 +112,28 @@ const IndexScreen = () => {
       }),
     ]).start();
 
+    const routeForUser = (user: any) => {
+      const role = user.role?.toLowerCase();
+      if (user.requiresRoleSelection || !role || role === 'none') return '/role';
+      if (role === 'customer' || role === 'buyer') return '/home';
+      if (role === 'seller') return '/business/dashboard';
+      if (role === 'driver') return '/driver';
+      if (role === 'admin') return '/admin/dashboard';
+      return '/home';
+    };
+
     const authCheckPromise = async () => {
       try {
         const token = await secureStorage.getItem('userToken');
         if (!token) return '/getstarted';
+        const cached = await getCachedUserProfile();
+        if (cached) {
+          getUserData().then(cacheUserProfile).catch(() => {});
+          return routeForUser(cached);
+        }
         const user = await getUserData();
-        const role = user.role?.toLowerCase();
-        if (user.requiresRoleSelection || !role || role === 'none') return '/role';
-        if (role === 'customer' || role === 'buyer') return '/home';
-        if (role === 'seller') return '/business/dashboard';
-        if (role === 'driver') return '/driver';
-        if (role === 'admin') return '/admin/dashboard';
-        return '/home';
+        await cacheUserProfile(user);
+        return routeForUser(user);
       } catch (error) {
         console.warn('Startup Auth Check Failed:', error);
         return '/getstarted';
@@ -130,7 +141,9 @@ const IndexScreen = () => {
     };
 
     const runStartup = async () => {
-      const minWaitPromise = new Promise((resolve) => setTimeout(resolve, 2000));
+      const cached = await getCachedUserProfile();
+      const minWait = cached ? 800 : 2000;
+      const minWaitPromise = new Promise((resolve) => setTimeout(resolve, minWait));
       const [nextRoute] = await Promise.all([authCheckPromise(), minWaitPromise]);
       Animated.timing(fadeOutAnim, {
         toValue: 0,

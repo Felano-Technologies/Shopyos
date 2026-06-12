@@ -4,12 +4,12 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   Animated,
   Dimensions,
   ScrollView,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 const { width } = Dimensions.get('window');
 const GetStartedScreen = () => {
@@ -48,7 +48,7 @@ const GetStartedScreen = () => {
         contentContainerStyle={styles.carousel}
       >
         {carouselImages.map((img, index) => (
-          <Image key={index} source={img} style={styles.carouselImage} />
+          <AppImage key={index} source={img} style={styles.carouselImage} />
         ))}
       </Animated.ScrollView>
       {/* Indicator Dots */}
@@ -78,8 +78,8 @@ const GetStartedScreen = () => {
       </View>
       {/* Bottom Logo */}
       <View style={styles.bottomLogos}>
-        <Image source={require('../assets/images/icon.png')} style={styles.circleLogo} />
-        <Image source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
+        <AppImage source={require('../assets/images/adaptive-icon.png')} style={styles.circleLogo} />
+        <AppImage source={require('../assets/images/icondark.png')} style={styles.brandLogo} />
         </View>
       </View>
   );
@@ -87,7 +87,7 @@ const GetStartedScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff',
+    backgroundColor: '#fff',
     alignItems: 'center',
   },
   carousel: {
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
   },
   createButton: {
-    backgroundColor: '#84cc16',
+    backgroundColor: '#1e3a8a',
     borderRadius: 25,
     paddingVertical: 14,
     alignItems: 'center',
@@ -148,8 +148,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   loginLink: {
-    borderWidth: 1,
-    borderColor: '#84cc16',
+    borderWidth: 1.5,
+    borderColor: '#1e3a8a',
     borderRadius: 25,
     paddingVertical: 14,
     alignItems: 'center',
@@ -183,9 +183,8 @@ const styles = StyleSheet.create({
     marginLeft: -40,
   },
   brandLogo: {
-    width: 90,
-    height: 30,
-    resizeMode: 'contain',
+    width: 130,
+    height: 32,
   },
   bottomBrand: {
     color: '#1e3a8a',

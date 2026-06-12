@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
+  TextInput, KeyboardAvoidingView, Platform,
   ActivityIndicator, Linking, RefreshControl
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { initializeBannerPayment, verifyBannerPayment } from '@/services/api';
 import { useMyCampaigns, useCreateCampaign } from '@/hooks/useBusiness';
@@ -28,7 +28,7 @@ export default function PromotionsScreen() {
   const [adTitle, setAdTitle] = useState('');
   const [duration, setDuration] = useState(DURATION_TIERS[1]); // default: 1 week
   const [bannerUri, setBannerUri] = useState<string | null>(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [, setPaymentLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -252,7 +252,7 @@ export default function PromotionsScreen() {
                 onPress={handlePickImage}
               >
                 {bannerUri ? (
-                  <Image source={{ uri: bannerUri }} style={{ width: '100%', height: '100%', borderRadius: 20 }} resizeMode="cover" />
+                  <AppImage uri={bannerUri} style={{ width: '100%', height: '100%', borderRadius: 20 }} />
                 ) : (
                   <>
                     <Feather name="upload-cloud" size={32} color="#94A3B8" />

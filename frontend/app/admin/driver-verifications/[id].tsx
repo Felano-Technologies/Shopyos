@@ -4,9 +4,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, Dimensions, ActivityIndicator, Alert, Modal,
+  Dimensions, ActivityIndicator, Alert, Modal,
   TextInput, Linking,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -272,7 +273,7 @@ export default function DriverVerificationDetailScreen() {
               {/* Avatar */}
               <View style={S.profileAvatarWrap}>
                 {avatar ? (
-                  <Image source={{ uri: avatar }} style={S.profileAvatar} />
+                  <AppImage uri={avatar} style={S.profileAvatar} />
                 ) : (
                   <View style={[S.profileAvatar, S.profileAvatarFallback]}>
                     <Text style={S.profileInitials}>{initials}</Text>
@@ -400,10 +401,9 @@ export default function DriverVerificationDetailScreen() {
                   activeOpacity={0.88}
                   onPress={() => setPreviewUri(doc.uri)}
                 >
-                  <Image
-                    source={{ uri: doc.uri }}
+                  <AppImage
+                    uri={doc.uri}
                     style={S.docImage}
-                    resizeMode="cover"
                   />
                   <View style={S.docImageOverlay}>
                     <View style={S.docImageOverlayPill}>
@@ -538,10 +538,10 @@ export default function DriverVerificationDetailScreen() {
             <Ionicons name="close" size={rs(22)} color="#fff" />
           </TouchableOpacity>
           {previewUri && (
-            <Image
-              source={{ uri: previewUri }}
+            <AppImage
+              uri={previewUri}
               style={S.previewImage}
-              resizeMode="contain"
+              contentFit="contain"
             />
           )}
         </View>

@@ -6,12 +6,12 @@ import {
   ScrollView,
   TextInput,
   TouchableOpacity,
-  Image,
   Modal,
   Platform,
   KeyboardAvoidingView,
   ActivityIndicator
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -258,7 +258,7 @@ export default function DriverVerification() {
     <TouchableOpacity style={[styles.uploadBox, imageUri ? styles.uploadBoxSuccess : {}]} onPress={onPress} activeOpacity={0.7}>
         {imageUri ? (
             <View style={styles.uploadedContent}>
-                <Image source={{ uri: imageUri }} style={styles.previewImage} />
+                <AppImage uri={imageUri} style={styles.previewImage} />
                 <View style={styles.overlay}>
                     <Ionicons name="checkmark-circle" size={32} color="#FFF" />
                     <Text style={styles.changeText}>Tap to change</Text>
@@ -430,7 +430,7 @@ export default function DriverVerification() {
                 */}
                 <TouchableOpacity onPress={handleTakeProfilePhoto} style={styles.photoWrapper}>
                     {profilePhoto ? (
-                        <Image source={{ uri: profilePhoto }} style={styles.profilePhoto} />
+                        <AppImage uri={profilePhoto} style={styles.profilePhoto} />
                     ) : (
                         <View style={styles.photoPlaceholder}>
                             <Ionicons name="camera" size={40} color="#94A3B8" />

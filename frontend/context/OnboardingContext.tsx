@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { getUserData, updateOnboardingState, secureStorage } from '../services/api';
+import { cacheUserProfile, getCachedUserProfile } from '../services/storage';
 
 interface OnboardingState {
   [key: string]: boolean;
@@ -50,20 +51,25 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const loadOnboardingState = async () => {
     setIsLoading(true);
     try {
-      const userData = await getUserData();
-      if (userData) {
-        setUser(userData);
-        if (userData.onboarding_state) {
-          setOnboardingState(userData.onboarding_state);
-        }
-        return userData.onboarding_state;
+      const cached = await getCachedUserProfile();
+      if (cached) {
+        setUser(cached);
+        setOnboardingState(cached.onboarding_state ?? {});
       }
+      getUserData()
+        .then(fresh => {
+          cacheUserProfile(fresh);
+          setUser(fresh);
+          setOnboardingState(fresh.onboarding_state ?? {});
+        })
+        .catch(() => {});
+      return cached?.onboarding_state ?? null;
     } catch (error) {
       console.warn('Failed to load onboarding state:', error);
+      return null;
     } finally {
       setIsLoading(false);
     }
-    return null;
   };
 
   const startTour = async (screen: string) => {

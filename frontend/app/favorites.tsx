@@ -5,10 +5,10 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -87,8 +87,8 @@ export default function FavoritesScreen() {
       onPress={() => handleProductPress(item)}
     >
       <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
+        <AppImage
+          uri={item.images?.[0] || 'https://via.placeholder.com/300'}
           style={styles.image}
         />
         <TouchableOpacity

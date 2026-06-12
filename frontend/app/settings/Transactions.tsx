@@ -6,10 +6,10 @@ import {
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
   StatusBar,
   RefreshControl
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
@@ -167,10 +167,10 @@ export default function SettingsTransactionsScreen() {
             }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Image
+                <AppImage
                   source={require('../../assets/images/icon.png')}
                   style={{ width: 80, height: 80, opacity: 0.3, marginBottom: 15 }}
-                  resizeMode="contain"
+                  contentFit="contain"
                 />
                 <Text style={styles.emptyText}>No transactions yet</Text>
               </View>

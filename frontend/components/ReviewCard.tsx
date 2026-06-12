@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -27,8 +28,8 @@ export const ReviewCard = ({ review, onLike, onComment }: ReviewCardProps) => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Image
-                    source={{ uri: review.user?.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(review.user?.full_name || 'User')}` }}
+                <AppImage
+                    uri={review.user?.avatar_url || `https://api.dicebear.com/7.x/initials/png?seed=${encodeURIComponent(review.user?.full_name || 'User')}`}
                     style={styles.avatar}
                 />
                 <View style={styles.userInfo}>

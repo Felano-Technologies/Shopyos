@@ -1,8 +1,9 @@
 import React, {  useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Alert, Image, Dimensions, Switch, ActivityIndicator,
+  Alert, Dimensions, Switch, ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -112,7 +113,7 @@ export default function BusinessSettingsScreen() {
       <StatusBar style="light" />
       {/* Watermark */}
       <View style={S.watermark}>
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
@@ -148,7 +149,7 @@ export default function BusinessSettingsScreen() {
                   {/* Avatar */}
                   <View style={S.avatarWrap}>
                     {businessData?.logo_url ? (
-                      <Image source={{ uri: businessData.logo_url }} style={S.avatar} />
+                      <AppImage uri={businessData.logo_url} style={S.avatar} />
                     ) : (
                       <View style={[S.avatar, S.avatarFallback]}>
                         <Text style={S.avatarInitials}>{initials}</Text>
@@ -282,7 +283,7 @@ const S = StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
-  watermarkImg: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.07 },
+  watermarkImg: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {

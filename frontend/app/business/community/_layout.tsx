@@ -1,7 +1,8 @@
 // app/business/community/_layout.tsx
 import React, { useState } from 'react';
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Dimensions } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useRouter, withLayoutContext } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -45,7 +46,7 @@ export default function CommunityLayout() {
               activeOpacity={0.85}
             >
               {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
-                <Image source={{ uri: activeBusiness.logo_url || activeBusiness.logo }} style={styles.storeLogo} />
+                <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={styles.storeLogo} />
               ) : (
                 <View style={[styles.storeLogo, styles.storeLogoPlaceholder]}>
                   <Text style={styles.storeLogoInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
@@ -131,7 +132,7 @@ export default function CommunityLayout() {
                   >
                     <View style={styles.switcherLogoWrapper}>
                       {(biz.logo_url || biz.logo) ? (
-                        <Image source={{ uri: biz.logo_url || biz.logo }} style={styles.switcherLogo} />
+                        <AppImage uri={biz.logo_url || biz.logo} style={styles.switcherLogo} />
                       ) : (
                         <View style={[styles.switcherLogo, styles.switcherLogoPlaceholder]}>
                           <Text style={styles.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>

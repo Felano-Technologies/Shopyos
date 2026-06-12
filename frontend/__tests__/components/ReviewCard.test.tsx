@@ -23,6 +23,15 @@ jest.mock('date-fns', () => ({
   formatDistanceToNow: jest.fn(() => '2 days'),
 }));
 
+jest.mock('@/components/AppImage', () => {
+  const React = require('react');
+  const { Image } = require('react-native');
+  return ({ uri, source, style }: any) => {
+    const resolvedSource = source ?? (uri ? { uri } : null);
+    return React.createElement(Image, { source: resolvedSource, style });
+  };
+});
+
 // ── Imports ─────────────────────────────────────────────────────────────────
 
 import React from 'react';

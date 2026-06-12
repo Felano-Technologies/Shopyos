@@ -9,18 +9,16 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Image,
   ScrollView,
-  Dimensions,
   Modal,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { verifyBusinessDetails } from '@/services/api';
 type BusinessDetails = {
@@ -120,7 +118,7 @@ const BusinessVerification = () => {
       {/* Watermark Background */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.watermarkContainer}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+          <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -139,7 +137,7 @@ const BusinessVerification = () => {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.logoSection}>
             <TouchableOpacity onPress={handleUploadLogo} style={styles.logoCircle}>
-              {details.logo ? <Image source={{ uri: details.logo }} style={styles.logoImage} /> : <Feather name="camera" size={28} color="#0C1559" />}
+              {details.logo ? <AppImage uri={details.logo} style={styles.logoImage} /> : <Feather name="camera" size={28} color="#0C1559" />}
               <View style={styles.editBadge}><Feather name="edit-2" size={12} color="#FFF" /></View>
             </TouchableOpacity>
             <Text style={styles.logoText}>Business Brand Logo</Text>
@@ -242,7 +240,7 @@ const BusinessVerification = () => {
 };
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
-  watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.04 },
+  watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.03 },
   fadedLogo: { width: 300, height: 300, resizeMode: 'contain' },
   header: { paddingBottom: 25, borderBottomLeftRadius: 35, borderBottomRightRadius: 35, elevation: 10 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 },

@@ -5,13 +5,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   Switch,
-  Image,
   FlatList,
   Dimensions,
   ActivityIndicator,
   RefreshControl
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -306,8 +306,8 @@ export default function Dashboard() {
           )}
           <View style={styles.headerTop}>
             <View style={styles.profileRow}>
-              <Image
-                source={{ uri: user?.avatar_url || `https://api.dicebear.com/9.x/fun-emoji/png?seed=${user?.name || 'Driver'}` }}
+              <AppImage
+                uri={user?.avatar_url || `https://api.dicebear.com/9.x/fun-emoji/png?seed=${user?.name || 'Driver'}`}
                 style={styles.avatar}
               />
               <View>

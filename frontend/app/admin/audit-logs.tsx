@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, FlatList, TouchableOpacity,
-    TextInput, ActivityIndicator, RefreshControl, Image
+    TextInput, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -79,7 +80,7 @@ export default function AdminAuditLogs() {
             {/* --- BACKGROUND WATERMARK --- */}
             <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
                 <View style={styles.watermarkContainer}>
-                    <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+                    <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
             </View>
 
@@ -192,7 +193,7 @@ export default function AdminAuditLogs() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
-    watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.04 },
+    watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.03 },
     fadedLogo: { width: 300, height: 300, resizeMode: 'contain' },
     
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },

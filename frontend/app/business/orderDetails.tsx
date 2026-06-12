@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Image, Dimensions, Linking, Alert, ActivityIndicator, RefreshControl,
+  Dimensions, Linking, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -305,7 +306,7 @@ export default function OrderDetailsScreen() {
               <View style={S.customerRow}>
                 <View style={S.avatar}>
                    {order.customer.avatar ? (
-                      <Image source={{ uri: order.customer.avatar }} style={S.avatarImg} />
+                      <AppImage uri={order.customer.avatar} style={S.avatarImg} />
                    ) : (
                       <Text style={S.avatarTxt}>{order.customer.name.charAt(0)}</Text>
                    )}
@@ -355,7 +356,7 @@ export default function OrderDetailsScreen() {
                   <View style={S.customerRow}>
                      <View style={S.avatar}>
                         {order.driver.avatar ? (
-                           <Image source={{ uri: order.driver.avatar }} style={S.avatarImg} />
+                           <AppImage uri={order.driver.avatar} style={S.avatarImg} />
                         ) : (
                            <Ionicons name="person" size={rs(22)} color={C.navy} />
                         )}
@@ -390,7 +391,7 @@ export default function OrderDetailsScreen() {
               {order.items.map((item: any, i: number) => (
                 <View key={item.id}>
                   <View style={S.itemRow}>
-                    <Image source={item.image} style={S.itemImg} />
+                    <AppImage source={item.image} style={S.itemImg} />
                     <View style={{ flex: 1 }}>
                       <Text style={S.itemName} numberOfLines={1}>{item.name}</Text>
                       <Text style={S.itemMeta}>₵{item.price.toFixed(2)} × {item.quantity}</Text>

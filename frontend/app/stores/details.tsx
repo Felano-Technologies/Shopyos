@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   FlatList,
@@ -18,6 +17,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import MapView, { Marker, UrlTile } from '@/components/MapView';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -339,7 +339,7 @@ export default function StoreDetailsScreen() {
               columnWrapperStyle={{ justifyContent: 'space-between' }}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.productCard} onPress={() => router.push({ pathname: '/product/details', params: { id: item._id } })}>
-                  <Image source={item.images?.[0] ? { uri: item.images[0] } : require('../../assets/images/icon.png')} style={styles.productImage} />
+                  <AppImage uri={item.images?.[0] || undefined} source={item.images?.[0] ? undefined : require('../../assets/images/icon.png')} style={styles.productImage} />
                   <View style={styles.productInfo}>
                     <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
                     <Text style={styles.productPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
@@ -414,7 +414,7 @@ export default function StoreDetailsScreen() {
                   longitude: toFiniteCoordinate(store.longitude, DEFAULT_LONGITUDE)
                 }}>
                     <View style={styles.customMarker}>
-                        {store.logo && <Image source={store.logo} style={styles.markerLogo} />}
+                        {store.logo && <AppImage source={store.logo} style={styles.markerLogo} />}
                     </View>
                 </Marker>
               </MapView>
@@ -472,7 +472,7 @@ export default function StoreDetailsScreen() {
         
         <View style={styles.headerContainer}>
           {store.cover ? (
-            <Image source={store.cover} style={styles.coverImage} />
+            <AppImage source={store.cover} style={styles.coverImage} />
           ) : (
             <LinearGradient colors={['#1d4ed8', '#1e3a8a', '#0f172a']} style={styles.coverImage} />
           )}
@@ -499,7 +499,7 @@ export default function StoreDetailsScreen() {
         </View>
         <View style={styles.profileSection}>
           <View style={styles.logoWrapper}>
-            {store.logo ? <Image source={store.logo} style={styles.storeLogo} /> : <View style={[styles.storeLogo, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="storefront-outline" size={32} color="#94A3B8" /></View>}
+            {store.logo ? <AppImage source={store.logo} style={styles.storeLogo} /> : <View style={[styles.storeLogo, { backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' }]}><Ionicons name="storefront-outline" size={32} color="#94A3B8" /></View>}
             {store.isTrusted && (
               <View style={styles.verifiedBadge}><MaterialCommunityIcons name="check-decagram" size={16} color="#FFF" /></View>
             )}

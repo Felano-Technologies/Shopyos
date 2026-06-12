@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Switch,
   ScrollView,
-  Image,
   Alert,
   LayoutAnimation,
   Platform,
   UIManager,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -246,7 +246,7 @@ export default function SecurityPrivacySettings() {
       {/* Watermark */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.watermarkWrap}>
-          <Image
+          <AppImage
             source={require('../../assets/images/splash-icon.png')}
             style={styles.fadedLogo}
           />
@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
 
   watermarkWrap: { position: 'absolute', bottom: 20, left: -20 },
-  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.06 },
+  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
 
   // Header
   headerWrapper: { marginBottom: 10 },

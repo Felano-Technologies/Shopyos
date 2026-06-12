@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
-  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -12,6 +11,7 @@ import {
   Animated,
   TextInput
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -135,7 +135,7 @@ export default function RecentScreen() {
       onPress={() => handleProductPress(item)}
     >
       <View style={styles.imageContainer}>
-        <Image source={item.image} style={styles.productImage} />
+        <AppImage source={item.image} style={styles.productImage} />
         <View style={styles.newBadge}>
           <Text style={styles.newText}>NEW</Text>
         </View>
@@ -175,7 +175,7 @@ export default function RecentScreen() {
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image
+          <AppImage
             source={require('../assets/images/splash-icon.png')}
             style={styles.fadedLogo}
           />
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    opacity: 0.08,
+    opacity: 0.03,
   },
 
   // Header
