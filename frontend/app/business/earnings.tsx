@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Dimensions, ActivityIndicator, Image, ScrollView, RefreshControl,
+  Dimensions, ActivityIndicator, ScrollView, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LineChart } from 'react-native-chart-kit';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -76,7 +77,7 @@ const EarningsScreen = () => {
     <View style={S.root}>
       <StatusBar style="light" />
       <View style={S.watermark}>
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
@@ -93,7 +94,7 @@ const EarningsScreen = () => {
           >
             <View style={S.hdrGlow} pointerEvents="none" />
             <View style={S.hdrRow}>
-              <Image source={require('../../assets/images/iconwhite.png')} style={S.logo} resizeMode="contain" />
+              <AppImage source={require('../../assets/images/iconwhite.png')} style={S.logo} contentFit="contain" />
             </View>
             <Text style={S.hdrTitle}>Earnings</Text>
             <Text style={S.hdrSub}>Your income at a glance</Text>
@@ -173,7 +174,7 @@ const S = StyleSheet.create({
   root:   { flex: 1, backgroundColor: C.bg },
   centred:{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
-  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
   header: {
     paddingHorizontal: rs(20), paddingBottom: rs(28), position: 'relative',

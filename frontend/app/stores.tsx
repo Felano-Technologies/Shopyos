@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  Image, StyleSheet, Dimensions, Keyboard, Pressable,
+  StyleSheet, Dimensions, Keyboard, Pressable,
   Modal, Switch, Animated, ActivityIndicator, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { safePush } from '@/lib/navigation';
@@ -161,10 +162,9 @@ export default function StoresScreen() {
       {/* Single image block — logo fills the top, gradient fades it into the card */}
       <View style={styles.popularImgWrap}>
         {item.logo ? (
-          <Image
-            source={{ uri: item.logo }}
+          <AppImage
+            uri={item.logo}
             style={styles.popularLogo}
-            resizeMode="cover"
           />
         ) : (
           // Fallback: coloured block with initials
@@ -207,7 +207,7 @@ export default function StoresScreen() {
       onPress={() => handleVisitStore(item)}
     >
       {item.logo
-        ? <Image source={{ uri: item.logo }} style={styles.storeRowLogo} />
+        ? <AppImage uri={item.logo} style={styles.storeRowLogo} />
         : <View style={[styles.storeRowLogo, styles.storeRowLogoFallback]}>
             <Text style={styles.storeRowLogoTxt}>{initials(item.name)}</Text>
           </View>

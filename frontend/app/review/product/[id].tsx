@@ -8,10 +8,10 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
-    Image,
     Dimensions,
     Modal,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -124,7 +124,7 @@ const ProductReviewScreen = () => {
                     <View style={styles.card}>
                         <View style={styles.productInfo}>
                             <View style={styles.productImageContainer}>
-                                <Image
+                                <AppImage
                                     source={product?.images?.[0] ? { uri: product.images[0] } : require('../../../assets/images/icon.png')}
                                     style={styles.productImage}
                                 />

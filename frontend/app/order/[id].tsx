@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  Image, Dimensions, ActivityIndicator, Alert, Linking,
+  Dimensions, ActivityIndicator, Alert, Linking,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -383,8 +384,8 @@ const OrderDetailsScreen = () => {
           <View style={S.section}>
             <Text style={S.sectionLbl}>Your Driver</Text>
             <View style={S.card}>
-              <Image
-                source={{ uri: driver.user_profiles?.avatar_url || `https://api.dicebear.com/9.x/adventurer/png?seed=${driver.id}` }}
+              <AppImage
+                uri={driver.user_profiles?.avatar_url || `https://api.dicebear.com/9.x/adventurer/png?seed=${driver.id}`}
                 style={S.driverAvatar}
               />
               <View style={S.driverInfo}>
@@ -422,7 +423,7 @@ const OrderDetailsScreen = () => {
           <View style={S.card}>
             <View style={[S.storeIconWrap, { backgroundColor: '#EEF2FF' }]}>
               {order.store?.logo || order.store?.logo_url ? (
-                <Image source={{ uri: order.store.logo || order.store.logo_url }} style={S.storeLogo} />
+                <AppImage uri={order.store.logo || order.store.logo_url} style={S.storeLogo} />
               ) : (
                 <MaterialCommunityIcons name="store" size={rs(22)} color={C.navy} />
               )}

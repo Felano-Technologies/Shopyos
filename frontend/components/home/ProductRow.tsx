@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, Image, StyleSheet,
+  View, Text, FlatList, TouchableOpacity, StyleSheet,
   ScrollView, Animated,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import Skeleton from '@/components/Skeleton';
 import { SectionHeader } from './SectionHeader';
 
@@ -80,8 +81,8 @@ export function ProductRow({ title, products, loading, onPressProduct, onSeeAll,
               marginRight: 14,
             }}>
               <TouchableOpacity style={S.card} activeOpacity={0.82} onPress={() => onPressProduct(item)}>
-                <Image
-                  source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+                <AppImage
+                  uri={item.images?.[0] || 'https://via.placeholder.com/150'}
                   style={S.img}
                 />
                 <View style={S.info}>
@@ -112,7 +113,7 @@ const S = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 10,
   },
-  img: { width: '100%', height: 116, resizeMode: 'cover' },
+  img: { width: '100%', height: 116 },
   info: { padding: 10 },
   store: {
     fontSize: 9, fontFamily: 'Montserrat-Bold', color: C.subtle,

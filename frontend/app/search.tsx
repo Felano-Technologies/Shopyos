@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
-  TouchableOpacity, Dimensions, Image, Keyboard,
+  TouchableOpacity, Dimensions, Keyboard,
   Pressable, ScrollView, ActivityIndicator, Animated, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '../components/BottomNav';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -320,8 +321,8 @@ export default function SearchScreen() {
               onPress={() => safePush('/stores/details', { id: store.id, name: store.name, logo: store.logo })}
             >
               <View style={styles.storeLogoWrap}>
-                <Image
-                  source={{ uri: store.logo || 'https://via.placeholder.com/60' }}
+                <AppImage
+                  uri={store.logo || 'https://via.placeholder.com/60'}
                   style={styles.storeLogo}
                 />
                 {store.verified && (
@@ -345,8 +346,8 @@ export default function SearchScreen() {
       onPress={() => handleProductPress(item)}
     >
       <View style={styles.gridImgWrap}>
-        <Image
-          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
+        <AppImage
+          uri={item.images?.[0] || 'https://via.placeholder.com/300'}
           style={styles.gridImg}
         />
         <TouchableOpacity style={styles.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
@@ -387,8 +388,8 @@ export default function SearchScreen() {
       activeOpacity={0.88}
       onPress={() => handleProductPress(item)}
     >
-      <Image
-        source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
+      <AppImage
+        uri={item.images?.[0] || 'https://via.placeholder.com/300'}
         style={styles.featImg}
       />
       <View style={styles.featInfo}>
@@ -421,8 +422,8 @@ export default function SearchScreen() {
         activeOpacity={0.85}
         onPress={() => handleProductPress(item)}
       >
-        <Image
-          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/300' }}
+        <AppImage
+          uri={item.images?.[0] || 'https://via.placeholder.com/300'}
           style={styles.listImg}
         />
         <View style={styles.listInfo}>
@@ -522,10 +523,9 @@ export default function SearchScreen() {
                   >
                     <View style={styles.catTileInner}>
                       {catImg ? (
-                        <Image
+                        <AppImage
                           source={catImg}
                           style={styles.catTileBgImg}
-                          resizeMode="cover"
                         />
                       ) : (
                         <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' }]} />

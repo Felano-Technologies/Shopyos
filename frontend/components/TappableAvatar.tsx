@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, StyleProp, ViewStyle, ImageStyle } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useImagePreview } from '@/context/ImagePreviewContext';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -77,10 +78,9 @@ export default function TappableAvatar({
         ]}
       >
         {uri ? (
-          <Image
-            source={{ uri }}
+          <AppImage
+            uri={uri}
             style={[styles.image, { borderRadius }, imageStyle]}
-            resizeMode="cover"
           />
         ) : (
           <Text

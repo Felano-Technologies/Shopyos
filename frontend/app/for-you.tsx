@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -27,8 +27,8 @@ function ProductCard({ item, onPress, onAddToCart }: { item: any; onPress: () =>
   return (
     <TouchableOpacity style={S.card} activeOpacity={0.9} onPress={onPress}>
       <View style={S.imageContainer}>
-        <Image
-          source={{ uri: item.images?.[0] || 'https://via.placeholder.com/150' }}
+        <AppImage
+          uri={item.images?.[0]}
           style={S.productImage}
         />
         <View style={S.forYouBadge}>

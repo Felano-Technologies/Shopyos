@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Image, Dimensions, ScrollView, RefreshControl,
+  TextInput, Dimensions, ScrollView, RefreshControl,
   ActivityIndicator, Switch, Modal, Pressable, Alert, Keyboard,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -312,7 +313,7 @@ const ProductsScreen = () => {
       <StatusBar style="light" />
 
       <View style={S.watermark}>
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
@@ -344,7 +345,7 @@ const ProductsScreen = () => {
                 activeOpacity={0.85}
               >
                 {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
-                  <Image source={{ uri: activeBusiness.logo_url || activeBusiness.logo }} style={S.storePillLogo} />
+                  <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={S.storePillLogo} />
                 ) : (
                   <View style={S.storePillPlaceholder}>
                     <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
@@ -470,7 +471,7 @@ const ProductsScreen = () => {
                         onLayout={() => measureElement(refPhoto, 'photo')}
                       >
                         {image ? (
-                          <Image source={{ uri: image }} style={StyleSheet.absoluteFill} />
+                          <AppImage uri={image} style={StyleSheet.absoluteFill} />
                         ) : (
                           <View style={S.imgPlaceholder}>
                             <Feather name="camera" size={rs(22)} color={C.subtle} />
@@ -646,7 +647,7 @@ const ProductsScreen = () => {
                       onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
                     >
                       {item.image ? (
-                        <Image source={{ uri: item.image }} style={S.productImg} />
+                        <AppImage uri={item.image} style={S.productImg} />
                       ) : (
                         <View style={[S.productImg, S.productImgFallback]}>
                           <Feather name="package" size={rs(18)} color={C.muted} />
@@ -743,7 +744,7 @@ const ProductsScreen = () => {
                     >
                       <View style={S.switcherLogoWrapper}>
                         {(biz.logo_url || biz.logo) ? (
-                          <Image source={{ uri: biz.logo_url || biz.logo }} style={S.switcherLogo} />
+                          <AppImage uri={biz.logo_url || biz.logo} style={S.switcherLogo} />
                         ) : (
                           <View style={[S.switcherLogo, S.switcherLogoPlaceholder]}>
                             <Text style={S.switcherLogoInitial}>{biz.businessName?.charAt(0) || 'B'}</Text>
@@ -829,7 +830,7 @@ const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
   watermark: { position: 'absolute', bottom: 20, left: -20 },
-  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.07 },
+  watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
 
   header: {

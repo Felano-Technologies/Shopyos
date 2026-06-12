@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Image, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Modal, Dimensions } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -26,10 +27,9 @@ export default function MediaMessage({ url, mimeType, isMe }: MediaMessageProps)
         >
           {/* Video Placeholder/Thumbnail */}
           <View style={styles.videoThumbnail}>
-            <Image
-              source={{ uri: url }}
+            <AppImage
+              uri={url}
               style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
               onLoadEnd={() => setLoading(false)}
             />
             <View style={styles.playButtonWrapper}>
@@ -80,10 +80,9 @@ export default function MediaMessage({ url, mimeType, isMe }: MediaMessageProps)
         style={[styles.mediaWrapper, isMe ? styles.meBorder : styles.otherBorder]}
         activeOpacity={0.8}
       >
-        <Image
-          source={{ uri: url }}
+        <AppImage
+          uri={url}
           style={styles.image}
-          resizeMode="cover"
           onLoadStart={() => setLoading(true)}
           onLoadEnd={() => setLoading(false)}
         />
@@ -109,10 +108,10 @@ export default function MediaMessage({ url, mimeType, isMe }: MediaMessageProps)
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
 
-          <Image
-            source={{ uri: url }}
+          <AppImage
+            uri={url}
             style={styles.fullscreenImage}
-            resizeMode="contain"
+            contentFit="contain"
           />
         </View>
       </Modal>

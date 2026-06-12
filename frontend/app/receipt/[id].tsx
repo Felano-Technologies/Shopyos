@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Dimensions, Share, Image, Alert,
+  ActivityIndicator, Dimensions, Share, Alert,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -247,10 +248,10 @@ export default function ReceiptScreen() {
             <View style={S.headBand}>
               <View style={S.headGlow} pointerEvents="none" />
               <View style={S.headLogoRow}>
-                <Image
+                <AppImage
                   source={require('../../assets/images/iconwhite.png')}
                   style={S.appLogo}
-                  resizeMode="contain"
+                  contentFit="contain"
                 />
                 <View style={S.paidPill}>
                   <Ionicons name="checkmark-circle" size={rs(11)} color={C.limeText} />

@@ -1,14 +1,14 @@
 // app/category/details.tsx
 import React from 'react';
 import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  Image, 
-  TouchableOpacity, 
-  Dimensions 
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Dimensions
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -50,7 +50,7 @@ export default function CategoryDetailsScreen() {
         params: { ...item }
       })}
     >
-      <Image source={item.image} style={styles.image} />
+      <AppImage source={item.image} style={styles.image} />
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.price}>₵{item.price.toFixed(2)}</Text>

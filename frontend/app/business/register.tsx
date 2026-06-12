@@ -8,11 +8,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   ScrollView,
-  Image,
   Dimensions,
   Platform,
   KeyboardAvoidingView,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    opacity: 0.08,
+    opacity: 0.03,
   },
   headerContainer: {
     paddingTop: 60,
@@ -473,7 +473,7 @@ const BusinessSetupScreen = () => {
               {/* Cover Image */}
               <TouchableOpacity style={styles.coverUpload} onPress={() => pickImage('cover')}>
                 {coverImage ? (
-                  <Image source={{ uri: coverImage }} style={styles.uploadedCover} />
+                  <AppImage uri={coverImage} style={styles.uploadedCover} />
                 ) : (
                   <View style={styles.uploadPlaceholder}>
                     <Feather name="image" size={32} color="#94A3B8" />
@@ -486,7 +486,7 @@ const BusinessSetupScreen = () => {
               <View style={styles.logoRow}>
                 <TouchableOpacity style={styles.logoUpload} onPress={() => pickImage('logo')}>
                   {logo ? (
-                    <Image source={{ uri: logo }} style={styles.uploadedLogo} />
+                    <AppImage uri={logo} style={styles.uploadedLogo} />
                   ) : (
                     <View style={styles.logoPlaceholder}>
                       <Feather name="camera" size={24} color="#94A3B8" />

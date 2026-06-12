@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, Modal, Image, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform
+  TextInput, Modal, ActivityIndicator, Dimensions, KeyboardAvoidingView, Platform
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -117,7 +118,7 @@ export default function AdminAds() {
       </View>
       <View style={styles.cardBody}>
         <TouchableOpacity style={styles.bannerPreview} onPress={() => setPreviewImage(item.banner_url)}>
-          <Image source={{ uri: item.banner_url }} style={styles.bannerImg} />
+          <AppImage uri={item.banner_url} style={styles.bannerImg} />
           <View style={styles.zoomOverlay}>
             <Feather name="zoom-in" size={16} color="#FFF" />
           </View>
@@ -236,7 +237,7 @@ export default function AdminAds() {
             </TouchableOpacity>
           </SafeAreaView>
           <View style={styles.previewContent}>
-            <Image source={{ uri: previewImage || '' }} style={styles.fullImage} resizeMode="contain" />
+            <AppImage uri={previewImage || ''} style={styles.fullImage} contentFit="contain" />
           </View>
         </View>
       </Modal>

@@ -8,11 +8,11 @@ import {
     TextInput,
     ActivityIndicator,
     Alert,
-    Image,
     Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -104,8 +104,8 @@ const ReviewScreen = () => {
                         <Text style={styles.sectionTitle}>Driver Performance</Text>
                         <View style={styles.card}>
                             <View style={styles.entityHeader}>
-                                <Image
-                                    source={{ uri: driver.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver' }}
+                                <AppImage
+                                    uri={driver.user_profiles?.avatar_url || 'https://api.dicebear.com/9.x/adventurer/png?seed=Driver'}
                                     style={styles.avatar}
                                 />
                                 <View style={styles.headerInfo}>

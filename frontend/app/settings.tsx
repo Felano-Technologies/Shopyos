@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Switch,
   ScrollView,
   Modal,
@@ -14,6 +13,7 @@ import {
   Animated,
   ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import {  Feather } from '@expo/vector-icons';
@@ -205,7 +205,7 @@ export default function SettingsScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
       {/* --- HEADER --- */}
       <View style={styles.headerContainer}>
-        <Image
+        <AppImage
           source={require('../assets/images/splash-icon.png')}
           style={styles.headerWatermark}
         />
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
     top: -20,
     width: 200,
     height: 200,
-    opacity: 0.1,
+    opacity: 0.03,
     resizeMode: 'contain',
     transform: [{ rotate: '-15deg' }],
   },

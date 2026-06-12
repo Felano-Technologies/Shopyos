@@ -3,12 +3,12 @@ import React, { useMemo } from 'react';
 import {
   View,
   Text,
-  Image,
   FlatList,
   StyleSheet,
   SafeAreaView,
   useColorScheme,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSearchParams } from 'expo-router/build/hooks';
@@ -110,7 +110,7 @@ export default function CategoryDetailScreen() {
           contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => (
             <View style={[styles.productCard, { backgroundColor: cardBackground }]}>
-              <Image source={item.image} style={styles.productImage} />
+              <AppImage source={item.image} style={styles.productImage} />
               <View style={styles.productInfo}>
                 <Text
                   style={[styles.productTitle, { color: primaryText }]}

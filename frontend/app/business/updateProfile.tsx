@@ -9,11 +9,11 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
-  Dimensions
+  Dimensions,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -167,7 +167,7 @@ const BusinessUpdateScreen = () => {
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image
+          <AppImage
             source={require('../../assets/images/splash-icon.png')}
             style={styles.fadedLogo}
           />
@@ -203,7 +203,7 @@ const BusinessUpdateScreen = () => {
              {/* Cover Image */}
              <TouchableOpacity style={styles.coverWrapper} onPress={() => pickImage('cover')}>
                 {coverImage ? (
-                    <Image source={{ uri: coverImage }} style={styles.coverImage} />
+                    <AppImage uri={coverImage} style={styles.coverImage} />
                 ) : (
                     <View style={styles.coverPlaceholder}>
                         <Ionicons name="image-outline" size={32} color="#94A3B8" />
@@ -217,7 +217,7 @@ const BusinessUpdateScreen = () => {
              {/* Logo */}
              <TouchableOpacity style={styles.logoWrapper} onPress={() => pickImage('logo')}>
                 {logo ? (
-                    <Image source={{ uri: logo }} style={styles.logoImage} />
+                    <AppImage uri={logo} style={styles.logoImage} />
                 ) : (
                     <View style={styles.logoPlaceholder}>
                         <Text style={styles.logoInitial}>{formData.businessName.charAt(0) || 'B'}</Text>
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    opacity: 0.08,
+    opacity: 0.03,
   },
   // Header
   headerContainer: {

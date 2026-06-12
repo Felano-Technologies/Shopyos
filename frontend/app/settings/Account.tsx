@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   TextInput,
@@ -14,6 +13,7 @@ import {
   Modal,
   FlatList
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -86,12 +86,10 @@ const ProfileField = ({
         <View style={styles.iconArea}>{renderIcon()}</View>
         {isPhone && (
           <View style={styles.flagContainer}>
-            <Image
-              source={{
-                uri: detectedPrefix === '+1'
-                  ? 'https://flagcdn.com/w40/us.png'
-                  : 'https://flagcdn.com/w40/gh.png'
-              }}
+            <AppImage
+              uri={detectedPrefix === '+1'
+                ? 'https://flagcdn.com/w40/us.png'
+                : 'https://flagcdn.com/w40/gh.png'}
               style={styles.flag}
             />
             <Text style={styles.phonePrefix}>{detectedPrefix}</Text>
@@ -488,10 +486,9 @@ export default function AccountScreen() {
                     setShowAvatarModal(false);
                   }}
                 >
-                  <Image
-                    source={{ uri: item }}
+                  <AppImage
+                    uri={item}
                     style={styles.avatarImage}
-                    resizeMode="cover"
                   />
                   {userData.avatar === item && (
                     <View style={styles.checkmark}>

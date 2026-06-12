@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Linking
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -54,7 +54,7 @@ export default function ContactUsScreen() {
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image
+          <AppImage
             source={require('../../assets/images/splash-icon.png')}
             style={styles.fadedLogo}
           />
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    opacity: 0.08,
+    opacity: 0.03,
   },
 
   // Header

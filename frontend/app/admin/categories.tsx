@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   TextInput, ActivityIndicator, Alert, Modal,
-  Dimensions, RefreshControl, Image,
+  Dimensions, RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -200,7 +201,7 @@ export default function AdminCategories() {
 
       {/* Watermark */}
       <View style={S.watermark} pointerEvents="none">
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -301,7 +302,7 @@ export default function AdminCategories() {
 
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  watermark: { position: 'absolute', bottom: -50, right: -50, opacity: 0.05 },
+  watermark: { position: 'absolute', bottom: -50, right: -50, opacity: 0.03 },
   watermarkImg: { width: 300, height: 300, resizeMode: 'contain' },
   header: {
     paddingBottom: rs(28),

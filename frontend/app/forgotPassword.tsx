@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TextInput,
   TouchableOpacity,
   Dimensions,
@@ -11,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -44,8 +44,8 @@ const ForgotPasswordScreen = () => {
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
       {/* Banner Image */}
-      <Image
-        source={require('../assets/images/forgotpassword.png')} // local placeholder image
+      <AppImage
+        source={require('../assets/images/forgotpassword.png')}
         style={styles.banner}
       />
 
@@ -107,11 +107,11 @@ const ForgotPasswordScreen = () => {
 
       {/* Footer Logos */}
       <View style={styles.bottomLogos}>
-        <Image
+        <AppImage
           source={require('../assets/images/icon.png')}
           style={styles.circleLogo}
         />
-        <Image
+        <AppImage
           source={require('../assets/images/icondark.png')}
           style={styles.brandLogo}
         />

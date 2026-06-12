@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
   ScrollView,
   FlatList,
@@ -18,6 +17,7 @@ import {
   Platform,
   RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import MapView, { Marker, UrlTile } from '@/components/MapView';
 import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';

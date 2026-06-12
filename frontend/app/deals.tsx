@@ -2,12 +2,12 @@ import React from 'react';
 import {
   View,
   Text,
-  Image,
   FlatList,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -72,7 +72,7 @@ export default function DealsScreen() {
     >
       {/* Image Section */}
       <View style={styles.imageContainer}>
-        <Image source={item.image} style={styles.dealImage} />
+        <AppImage source={item.image} style={styles.dealImage} />
         
         {/* Tag (Hot/Limited) */}
         {item.tag && (

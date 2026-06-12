@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useRouter } from 'expo-router';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -63,7 +64,7 @@ export default function CreateSnapScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.previewImage} />
+            <AppImage uri={imageUri} style={styles.previewImage} />
           ) : (
             <View style={styles.placeholder}>
               <Ionicons name="camera-outline" size={48} color="#94A3B8" />
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 24,
   },
-  previewImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  previewImage: { width: '100%', height: '100%' },
   placeholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   placeholderTxt: { marginTop: 12, fontSize: 15, fontFamily: 'Montserrat-Medium', color: '#64748B' },
   inputContainer: { marginBottom: 20 },

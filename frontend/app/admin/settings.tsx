@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  Image,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -110,7 +110,7 @@ export default function AdminSettings() {
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
               {profileImage ? (
-                <Image source={{ uri: profileImage }} style={styles.profileAvatarImage} />
+                <AppImage uri={profileImage} style={styles.profileAvatarImage} />
               ) : (
                 <View style={styles.profileAvatar}>
                   <Text style={styles.profileInitial}>{profileInitial}</Text>

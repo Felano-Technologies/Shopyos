@@ -21,6 +21,21 @@ export const storage = {
   },
 };
 
+const USER_CACHE_KEY = 'cachedUserProfile';
+
+export async function cacheUserProfile(user: any): Promise<void> {
+  await storage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+}
+
+export async function getCachedUserProfile(): Promise<any | null> {
+  const raw = await storage.getItem(USER_CACHE_KEY);
+  return raw ? JSON.parse(raw) : null;
+}
+
+export async function clearUserProfileCache(): Promise<void> {
+  await storage.removeItem(USER_CACHE_KEY);
+}
+
 /**
  * SecureStore wrapper (encrypted)
  * Note: On Web, this falls back to localStorage (not encrypted)

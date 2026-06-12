@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, SectionList,
-  Image, Dimensions, ActivityIndicator,
+  Dimensions, ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -182,7 +183,7 @@ export default function NotificationsScreen() {
 
       {/* Watermark */}
       <View style={S.watermark}>
-        <Image source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
@@ -253,7 +254,7 @@ const S = StyleSheet.create({
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
-  watermarkImg: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.07 },
+  watermarkImg: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
 
   // Header
   header: {

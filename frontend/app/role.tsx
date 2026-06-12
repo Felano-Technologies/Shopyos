@@ -5,11 +5,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   ScrollView,
   ActivityIndicator,
   ImageSourcePropType,
  Appearance } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -42,7 +42,7 @@ const RoleCard = ({
     onPress={() => onSelect(role.id)}
     activeOpacity={0.9} // Increased opacity so it doesn't fade too much on press
   >
-    <Image source={role.image} style={styles.roleImage} />
+    <AppImage source={role.image} style={styles.roleImage} />
     {/* Optional: Add an overlay to highlight the image itself slightly */}
     {isSelected && <View style={styles.selectedOverlay} />}
   </TouchableOpacity>
@@ -108,7 +108,7 @@ const RoleSelectionScreen = () => {
           contentContainerStyle={styles.scrollContainer}
         >
           {/* Logo */}
-          <Image
+          <AppImage
             source={require('../assets/images/icondark.png')}
             style={styles.logo}
           />
@@ -147,11 +147,11 @@ const RoleSelectionScreen = () => {
           </TouchableOpacity>
           {/* Bottom Logos */}
           <View style={styles.bottomLogos}>
-            <Image
+            <AppImage
               source={require('../assets/images/icon.png')}
               style={styles.circleLogo}
             />
-            <Image
+            <AppImage
               source={require('../assets/images/icondark.png')}
               style={styles.brandLogo}
             />

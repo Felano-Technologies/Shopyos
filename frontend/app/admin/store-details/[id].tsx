@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    View, Text, StyleSheet, ScrollView, TouchableOpacity, 
-    Image, Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform, 
+import {
+    View, Text, StyleSheet, ScrollView, TouchableOpacity,
+    Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform,
     Linking
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -103,7 +104,7 @@ const handleContactMerchant = (email: string) => {
             
             {store?.banner_url ? (
                 <View style={styles.header}>
-                    <Image source={{ uri: store.banner_url }} style={StyleSheet.absoluteFill} />
+                    <AppImage uri={store.banner_url} style={StyleSheet.absoluteFill} />
                     <LinearGradient colors={['rgba(12, 21, 89, 0.8)', 'rgba(30, 58, 138, 0.5)']} style={StyleSheet.absoluteFill} />
                     <SafeAreaView edges={['top']}>
                         <View style={styles.headerRow}>
@@ -132,7 +133,7 @@ const handleContactMerchant = (email: string) => {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.brandCard}>
                     <View style={styles.logoContainer}>
-                        {store?.logo_url ? <Image source={{ uri: store.logo_url }} style={styles.logo} /> : 
+                        {store?.logo_url ? <AppImage uri={store.logo_url} style={styles.logo} /> :
                         <View style={styles.logoPlaceholder}><Text style={styles.logoInitial}>{store?.store_name?.charAt(0)}</Text></View>}
                     </View>
                     <Text style={styles.storeName}>{store?.store_name}</Text>
@@ -222,10 +223,10 @@ const handleContactMerchant = (email: string) => {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.zoomWrapper}
                     >
-                        <Image 
-                            source={{ uri: viewingDoc || '' }} 
-                            style={styles.fullDocImage} 
-                            resizeMode="contain" 
+                        <AppImage
+                            uri={viewingDoc || ''}
+                            style={styles.fullDocImage}
+                            contentFit="contain"
                         />
                     </ScrollView>
                 </View>

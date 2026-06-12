@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  Image,
   Dimensions,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -50,10 +50,10 @@ const OtpVerificationScreen = () => {
         <ScrollView contentContainerStyle={styles.scroll}>
           {/* Banner */}
           <View style={styles.bannerContainer}>
-            <Image
-              source={require('../assets/images/otp.png')} 
+            <AppImage
+              source={require('../assets/images/otp.png')}
               style={styles.banner}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
 
@@ -101,15 +101,15 @@ const OtpVerificationScreen = () => {
 
           {/* Footer Logo */}
           <View style={styles.footer}>
-            <Image
-              source={require('../assets/images/icon.png')} // left circle logo
+            <AppImage
+              source={require('../assets/images/icon.png')}
               style={styles.footerCircle}
-              resizeMode="contain"
+              contentFit="contain"
             />
-            <Image
-              source={require('../assets/images/icondark.png')} // Shopyos text logo
+            <AppImage
+              source={require('../assets/images/icondark.png')}
               style={styles.footerLogo}
-              resizeMode="contain"
+              contentFit="contain"
             />
           </View>
         </ScrollView>

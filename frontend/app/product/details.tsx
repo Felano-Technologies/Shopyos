@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    Image,
     TouchableOpacity,
     ScrollView,
     Dimensions,
@@ -11,8 +10,9 @@ import {
     Alert,
     Modal,
     ActivityIndicator,
-    RefreshControl
+    RefreshControl,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -284,19 +284,16 @@ export default function ProductDetails() {
             {/* Background Watermark */}
             <View style={StyleSheet.absoluteFillObject}>
                 <View style={styles.bottomLogos}>
-                    <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+                    <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
             </View>
             <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
                 {/* Header & Image Section (fixed) */}
                 <View style={styles.imageHeaderContainer}>
                     {product.image && (
-                        <Image
-                            source={typeof product.image === 'string' && (product.image.startsWith('http') || product.image.startsWith('file'))
-                                ? { uri: product.image }
-                                : (typeof product.image === 'number' ? product.image : { uri: product.image })}
+                        <AppImage
+                            uri={typeof product.image === 'string' ? product.image : undefined}
                             style={styles.productImage}
-                            resizeMode="cover"
                         />
                     )}
                     <View style={styles.headerOverlay}>
@@ -363,7 +360,7 @@ export default function ProductDetails() {
                         {/* Seller Info */}
                         <View style={styles.sellerContainer}>
                             <View style={styles.sellerInfo}>
-                                <Image source={{ uri: product.storeImage || 'https://via.placeholder.com/100?text=Store' }} style={styles.sellerAvatar} />
+                                <AppImage uri={product.storeImage || 'https://via.placeholder.com/100?text=Store'} style={styles.sellerAvatar} />
                                 <View>
                                     <Text style={styles.sellerLabel}>Sold by</Text>
                                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
@@ -520,5 +517,5 @@ const styles = StyleSheet.create({
     viewCartGradient: { paddingVertical: 14, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 },
     viewCartText: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold' },
     bottomLogos: { position: 'absolute', bottom: 120, left: -20 },
-    fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.05 },
+    fadedLogo: { width: 200, height: 200, resizeMode: 'contain', opacity: 0.03 },
 });

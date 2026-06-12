@@ -5,10 +5,10 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   TextInput
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -155,7 +155,7 @@ export default function TransactionsScreen() {
       {/* Background Watermark */}
       <View style={StyleSheet.absoluteFillObject}>
         <View style={styles.bottomLogos}>
-          <Image source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
+          <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
 
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
 
   // Background
   bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
-  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.08 },
+  fadedLogo: { width: 150, height: 150, resizeMode: 'contain', opacity: 0.03 },
 
   // Header
   headerContainer: {

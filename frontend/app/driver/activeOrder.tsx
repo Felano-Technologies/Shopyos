@@ -4,7 +4,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Dimensions,
-  Image,
   ScrollView,
   ActivityIndicator,
   TextInput,
@@ -14,6 +13,7 @@ import {
   UIManager,
 } from 'react-native';
 import { Ionicons, FontAwesome5, Feather, MaterialIcons } from '@expo/vector-icons';
+import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -326,8 +326,8 @@ export default function ActiveOrderScreen() {
           {/* Store Contact */}
           <View style={styles.contactRow}>
             <View style={styles.customerInfo}>
-              <Image
-                source={{ uri: storeDetails?.logo_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Store' }}
+              <AppImage
+                uri={storeDetails?.logo_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Store'}
                 style={styles.customerImg}
               />
               <View>
@@ -359,8 +359,8 @@ export default function ActiveOrderScreen() {
           {/* Customer Contact */}
           <View style={styles.contactRow}>
             <View style={styles.customerInfo}>
-              <Image
-                source={{ uri: buyerProfile?.avatar_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah' }}
+              <AppImage
+                uri={buyerProfile?.avatar_url || 'https://api.dicebear.com/9.x/avataaars/png?seed=Sarah'}
                 style={styles.customerImg}
               />
               <View>

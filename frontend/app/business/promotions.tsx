@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, Image, Dimensions, KeyboardAvoidingView, Platform,
+  TextInput, Dimensions, KeyboardAvoidingView, Platform,
   ActivityIndicator, Linking, RefreshControl
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -252,7 +253,7 @@ export default function PromotionsScreen() {
                 onPress={handlePickImage}
               >
                 {bannerUri ? (
-                  <Image source={{ uri: bannerUri }} style={{ width: '100%', height: '100%', borderRadius: 20 }} resizeMode="cover" />
+                  <AppImage uri={bannerUri} style={{ width: '100%', height: '100%', borderRadius: 20 }} />
                 ) : (
                   <>
                     <Feather name="upload-cloud" size={32} color="#94A3B8" />

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Image, TouchableWithoutFeedback, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableWithoutFeedback, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -127,7 +128,7 @@ export default function SnapViewer() {
       ) : (
         <>
           {/* Background Media */}
-          <Image source={{ uri: currentSnap.media_url }} style={styles.media} resizeMode="cover" />
+          <AppImage uri={currentSnap.media_url} style={styles.media} />
 
           {/* Top Gradient for text readability */}
           <LinearGradient colors={['rgba(0,0,0,0.6)', 'transparent']} style={styles.topGradient} />
@@ -150,7 +151,7 @@ export default function SnapViewer() {
           <View style={[styles.header, { top: (insets.top || 10) + 15 }]}>
             <View style={styles.storeInfo}>
               {currentStore.store_logo ? (
-                <Image source={{ uri: currentStore.store_logo }} style={styles.avatar} />
+                <AppImage uri={currentStore.store_logo} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, { backgroundColor: '#334155', justifyContent: 'center', alignItems: 'center' }]}>
                   <Ionicons name="storefront" size={16} color="#FFF" />

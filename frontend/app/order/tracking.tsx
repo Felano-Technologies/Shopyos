@@ -7,8 +7,8 @@ import {
   Dimensions,
   Animated,
   Linking,
-  Image,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -212,7 +212,7 @@ export default function OrderTrackingMap() {
             </View>
             {storeLogo && (
               <View style={styles.storeLogoBadge}>
-                <Image source={{ uri: storeLogo }} style={styles.miniLogo} />
+                <AppImage uri={storeLogo} style={styles.miniLogo} />
               </View>
             )}
           </View>
@@ -228,7 +228,7 @@ export default function OrderTrackingMap() {
           <View style={styles.driverCard}>
             <View style={styles.avatarContainer}>
               {driverAvatar ? (
-                <Image source={{ uri: driverAvatar }} style={styles.driverAvatarImg} />
+                <AppImage uri={driverAvatar} style={styles.driverAvatarImg} />
               ) : (
                 <View style={styles.avatarPlaceholder}>
                   <Ionicons name="person" size={26} color="#0C1559" />

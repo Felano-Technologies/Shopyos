@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, FlatList, StyleSheet, TouchableOpacity,
-  Image, Text, Alert, TextInput, Modal, ActivityIndicator, Pressable,
+  Text, Alert, TextInput, Modal, ActivityIndicator, Pressable,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useBuyerConversations, useChatActions } from '@/hooks/useChat';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -231,7 +232,7 @@ export default function ChatInbox() {
         {/* Avatar */}
         <View style={styles.avatarWrap}>
           {item.avatar
-            ? <Image source={{ uri: item.avatar }} style={styles.avatar} />
+            ? <AppImage uri={item.avatar} style={styles.avatar} />
             : <View style={styles.avatarFallback}>
                 <Text style={styles.avatarLetters}>{initials(item.name)}</Text>
               </View>
@@ -410,7 +411,7 @@ export default function ChatInbox() {
                     activeOpacity={0.7}
                   >
                     {item.logo ? (
-                      <Image source={{ uri: item.logo }} style={styles.modalAvatar} />
+                      <AppImage uri={item.logo} style={styles.modalAvatar} />
                     ) : (
                       <View style={styles.modalAvatarFallback}>
                         <Text style={styles.modalAvatarLetters}>{initials(item.name)}</Text>

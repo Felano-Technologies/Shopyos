@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  Image, Dimensions, Modal, Pressable, Alert,
+  Dimensions, Modal, Pressable, Alert,
   Clipboard, Vibration, ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -560,12 +561,12 @@ export default function ConversationScreen() {
           <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
             {!isMe && (
               displayAvatar
-                ? <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+                ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
                 : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
             )}
             <View>
               <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
-                <Image source={{ uri: item.attachment_url }} style={styles.stickerImage} />
+                <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
               </TouchableOpacity>
               <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
                 <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
@@ -593,7 +594,7 @@ export default function ConversationScreen() {
         <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
           {!isMe && (
             displayAvatar
-              ? <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+              ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
               : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
           )}
           <TouchableOpacity
@@ -664,7 +665,7 @@ export default function ConversationScreen() {
           <TouchableOpacity style={styles.headerCenter} activeOpacity={0.8}>
             <View style={styles.hdrAvatarWrap}>
               {displayAvatar
-                ? <Image source={{ uri: displayAvatar }} style={styles.hdrAvatar} />
+                ? <AppImage uri={displayAvatar} style={styles.hdrAvatar} />
                 : <View style={styles.hdrAvatarFallback}><Text style={styles.hdrAvatarTxt}>{initials(displayName)}</Text></View>
               }
               {isOnline && <View style={styles.hdrOnline} />}
@@ -715,7 +716,7 @@ export default function ConversationScreen() {
             ListFooterComponent={isBotTyping ? (
               <View style={styles.typingRow}>
                 {displayAvatar ? (
-                  <Image source={{ uri: displayAvatar }} style={styles.msgAvatar} />
+                  <AppImage uri={displayAvatar} style={styles.msgAvatar} />
                 ) : (
                   <View style={[styles.msgAvatarFallback, { backgroundColor: C.navyDeep }]}>
                     <Text style={[styles.msgAvatarTxt, { color: '#fff' }]}>{initials(displayName)}</Text>
@@ -943,7 +944,7 @@ const styles = StyleSheet.create({
 
   // Sticker
   stickerBubble: { padding: 4 },
-  stickerImage: { width: 140, height: 140, resizeMode: 'contain' },
+  stickerImage: { width: 140, height: 140 },
 
   // System notice
   systemNoticeRow: { alignItems: 'center', marginVertical: 4 },

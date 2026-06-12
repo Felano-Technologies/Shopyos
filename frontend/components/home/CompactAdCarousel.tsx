@@ -1,8 +1,9 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
-  View, Image, TouchableOpacity, ScrollView, StyleSheet,
+  View, TouchableOpacity, ScrollView, StyleSheet,
   Dimensions, NativeSyntheticEvent, NativeScrollEvent, Text,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { HeroAd } from './HeroCarousel';
 
@@ -73,7 +74,7 @@ export function CompactAdCarousel({ ads, onAdPress }: Props) {
             onPress={() => onAdPress(ad)}
           >
             {ad.banner_url ? (
-              <Image source={{ uri: ad.banner_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <AppImage uri={ad.banner_url} style={StyleSheet.absoluteFill} />
             ) : (
               <LinearGradient colors={ad.gradient || ['#0C1559', '#1e3a8a']} style={StyleSheet.absoluteFill} />
             )}

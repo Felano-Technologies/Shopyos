@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import {
-  View, Text, Image, TouchableOpacity, StyleSheet, Animated,
+  View, Text, TouchableOpacity, StyleSheet, Animated,
   RefreshControl, Dimensions, ScrollView, ActivityIndicator,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import BottomNav from '@/components/BottomNav';
 import { useRouter } from 'expo-router';
@@ -310,7 +311,7 @@ measureElement(refChat, 'chat');
           <View style={S.hdrGlow1} pointerEvents="none" />
           <View style={S.hdrGlow2} pointerEvents="none" />
           <View style={S.headerWatermark} pointerEvents="none">
-            <Image source={require('../assets/images/splash-icon.png')} style={S.headerWatermarkImg} />
+            <AppImage source={require('../assets/images/splash-icon.png')} style={S.headerWatermarkImg} />
           </View>
 
           <View
@@ -567,7 +568,7 @@ const S = StyleSheet.create({
   },
   headerWatermark: {
     position: 'absolute', left: -30, bottom: -10,
-    width: 132, height: 132, justifyContent: 'center', alignItems: 'center', opacity: 0.1,
+    width: 132, height: 132, justifyContent: 'center', alignItems: 'center', opacity: 0.03,
   },
   headerWatermarkImg: { width: 100, height: 100, resizeMode: 'contain' },
   hdrGlow1: {

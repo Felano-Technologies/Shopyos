@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   FlatList,
   RefreshControl,
   ScrollView,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import AppImage from '@/components/AppImage';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -476,7 +476,7 @@ export default function AdminNotificationsScreen() {
             <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
               <View style={styles.heroTopRow}>
                 <View style={styles.heroBrand}>
-                  <Image source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
+                  <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
                 </View>
 
                 <View style={styles.heroIcons}>
