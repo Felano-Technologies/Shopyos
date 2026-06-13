@@ -20,8 +20,8 @@ const MAX_LIMIT     = 20;
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function clampLimit(raw) {
-  const n = parseInt(raw, 10);
-  if (isNaN(n) || n < 1) return DEFAULT_LIMIT;
+  const n = Number.parseInt(raw, 10);
+  if (Number.isNaN(n) || n < 1) return DEFAULT_LIMIT;
   return Math.min(n, MAX_LIMIT);
 }
 

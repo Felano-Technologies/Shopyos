@@ -2,7 +2,7 @@ const repositories = require('../db/repositories');
 const { toPublicUrl } = require('../config/storage');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 const { logger } = require('../config/logger');
 const { cacheSet, cacheDel } = require('../config/redis');
 const rabbitMQService = require('../services/rabbitmq');
@@ -123,7 +123,7 @@ const register = async (req, res, next) => {
         referrer_id: referredById,
         referred_id: user.id,
         status: 'pending',
-        reward_amount: 20.00
+        reward_amount: 20
       });
     }
 
@@ -236,7 +236,7 @@ const refreshAccessToken = async (req, res, next) => {
     }
 
     const user = await repositories.users.findById(storedToken.user_id);
-    if (!user || !user.is_active) return res.status(401).json({ error: 'Account not found or deactivated' });
+    if (!user?.is_active) return res.status(401).json({ error: 'Account not found or deactivated' });
 
     await repositories.users.db
       .from('refresh_tokens')
@@ -613,8 +613,8 @@ const updateUserLocation = async (req, res, next) => {
 
     // Update user profile with location
     await repositories.userProfiles.updateByUserId(userId, {
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude)
+      latitude: Number.parseFloat(latitude),
+      longitude: Number.parseFloat(longitude)
     });
 
     res.status(200).json({ success: true, message: 'Location updated successfully' });

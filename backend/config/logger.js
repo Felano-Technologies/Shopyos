@@ -36,7 +36,7 @@ class MemoryTransport extends winston.Transport {
     log(info, callback) {
         setImmediate(() => { this.emit('logged', info); });
         const reqId = info.requestId ? ` [${info.requestId.substring(0, 8)}]` : '';
-        const metaStr = Object.keys(info).filter(k => !['level', 'message', 'timestamp', 'requestId', 'stack'].includes(k)).length > 0
+        const metaStr = Object.keys(info).some(k => !['level', 'message', 'timestamp', 'requestId', 'stack'].includes(k))
             ? ` ${JSON.stringify(info, (key, value) => ['level', 'message', 'timestamp', 'requestId', 'stack'].includes(key) ? undefined : value)}`
             : '';
         const stack = info.stack ? `\n${info.stack}` : '';

@@ -105,7 +105,7 @@ class BaseRepository {
 
     // Apply pagination
     if (limit) dataQuery = dataQuery.limit(limit);
-    if (offset !== undefined) dataQuery = dataQuery.range(offset, offset + (limit || 10) - 1);
+    if (offset != null) dataQuery = dataQuery.range(offset, offset + (limit || 10) - 1);
 
     const [
       { data, error },

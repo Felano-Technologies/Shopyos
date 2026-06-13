@@ -1,4 +1,4 @@
-const { getPool } = require('../../config/postgres');
+﻿const { getPool } = require('../../config/postgres');
 
 const toPgError = (error, notFound = false) => {
   if (!error) return null;
@@ -298,7 +298,7 @@ class QueryBuilder {
 
         const { clause, values } = this._whereClause();
         const params = [...setValues, ...values];
-        const shiftedClause = clause.replace(/\$(\d+)/g, (_, i) => `$${parseInt(i, 10) + setValues.length}`);
+        const shiftedClause = clause.replace(/\$(\d+)/g, (_, i) => `$${Number.parseInt(i, 10) + setValues.length}`);
 
         const sql = `UPDATE ${this.tableName} SET ${setSql}${shiftedClause} RETURNING *`;
         const result = await db.query(sql, params);

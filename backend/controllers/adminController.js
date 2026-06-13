@@ -34,7 +34,7 @@ const getDashboard = async (req, res, next) => {
         totalUsers: s.total_users || 0,
         totalStores: s.total_stores || 0,
         totalOrders: s.total_orders || 0,
-        totalRevenue: parseFloat(s.total_revenue) || 0,
+        totalRevenue: Number.parseFloat(s.total_revenue) || 0,
         pendingPayouts: 0,
         activePromotions: 0,
         pendingDriverVerifications: s.pending_driver_verifications || 0,
@@ -55,8 +55,8 @@ const getAllUsers = async (req, res, next) => {
     const { limit, offset, role, accountStatus, search } = req.query;
 
     const users = await repositories.admin.getAllUsers({
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0,
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0,
       role,
       accountStatus,
       search
@@ -66,8 +66,8 @@ const getAllUsers = async (req, res, next) => {
       success: true,
       users,
       pagination: {
-        limit: parseInt(limit) || 50,
-        offset: parseInt(offset) || 0
+        limit: Number.parseInt(limit) || 50,
+        offset: Number.parseInt(offset) || 0
       }
     });
   } catch (error) {
@@ -179,8 +179,8 @@ const getAllStores = async (req, res, next) => {
     const { limit, offset, verificationStatus, search, id } = req.query;
 
     const stores = await repositories.admin.getAllStores({
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0,
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0,
       verificationStatus,
       search,
       id
@@ -190,8 +190,8 @@ const getAllStores = async (req, res, next) => {
       success: true,
       stores,
       pagination: {
-        limit: parseInt(limit) || 50,
-        offset: parseInt(offset) || 0
+        limit: Number.parseInt(limit) || 50,
+        offset: Number.parseInt(offset) || 0
       }
     });
   } catch (error) {
@@ -353,16 +353,16 @@ const getAllReports = async (req, res, next) => {
     const reports = await repositories.reports.getAllReports({
       status,
       reportedType,
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0
     });
 
     res.status(200).json({
       success: true,
       reports,
       pagination: {
-        limit: parseInt(limit) || 50,
-        offset: parseInt(offset) || 0
+        limit: Number.parseInt(limit) || 50,
+        offset: Number.parseInt(offset) || 0
       }
     });
   } catch (error) {
@@ -449,16 +449,16 @@ const getAuditLogs = async (req, res, next) => {
       entityType,
       startDate,
       endDate,
-      limit: parseInt(limit) || 100,
-      offset: parseInt(offset) || 0
+      limit: Number.parseInt(limit) || 100,
+      offset: Number.parseInt(offset) || 0
     });
 
     res.status(200).json({
       success: true,
       logs,
       pagination: {
-        limit: parseInt(limit) || 100,
-        offset: parseInt(offset) || 0
+        limit: Number.parseInt(limit) || 100,
+        offset: Number.parseInt(offset) || 0
       }
     });
   } catch (error) {
@@ -497,8 +497,8 @@ const getAllPayouts = async (req, res, next) => {
       where: status ? { status } : {},
       orderBy: 'created_at',
       ascending: false,
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0
     });
 
     res.status(200).json({
@@ -548,8 +548,8 @@ const getAllOrders = async (req, res, next) => {
   try {
     const { status, search, limit, offset } = req.query;
     const orders = await repositories.admin.getAllOrders({
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0,
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0,
       status,
       search,
     });
@@ -575,7 +575,7 @@ const getAllEscrows = async (req, res, next) => {
 
     query = query
       .order('updated_at', { ascending: false })
-      .range(parseInt(offset) || 0, (parseInt(offset) || 0) + (parseInt(limit) || 50) - 1);
+      .range(Number.parseInt(offset) || 0, (Number.parseInt(offset) || 0) + (Number.parseInt(limit) || 50) - 1);
 
     const { data: escrows, error } = await query;
     if (error) throw error;
@@ -683,10 +683,10 @@ const getRevenue = async (req, res, next) => {
   try {
     const { limit, offset } = req.query;
     const transactions = await repositories.admin.getRevenueTransactions({
-      limit: parseInt(limit) || 50,
-      offset: parseInt(offset) || 0,
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0,
     });
-    const total = transactions.reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+    const total = transactions.reduce((sum, t) => sum + Number.parseFloat(t.amount || 0), 0);
     res.status(200).json({ success: true, transactions, total });
   } catch (error) {
     next(error);

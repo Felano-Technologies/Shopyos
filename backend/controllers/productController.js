@@ -1,4 +1,4 @@
-const repositories = require('../db/repositories');
+﻿const repositories = require('../db/repositories');
 const { resolveImageUrl } = require('../config/storage');
 const {
   uploadMultipleFilesToCloudinary,
@@ -7,6 +7,15 @@ const {
 } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const { invalidateProduct } = require('../config/cacheInvalidation');
+
+async function persistProductVariants(productId, variants, variantOptions) {
+  if (!Array.isArray(variants) || !variants.length) return [[], []];
+  const createdVariants = await repositories.productVariants.replaceVariants(productId, variants);
+  const createdOptions = Array.isArray(variantOptions) && variantOptions.length
+    ? await repositories.productVariants.replaceOptions(productId, variantOptions)
+    : [];
+  return [createdVariants, createdOptions];
+}
 
 // @desc    Create a new product
 // @route   POST /api/products
@@ -71,25 +80,29 @@ const createProduct = async (req, res, next) => {
         success: false,
         error: 'Free listing limit reached.',
         code: 'LISTING_FEE_REQUIRED',
-        message: 'Pay a one-time ₵50 platform fee to unlock unlimited listings.',
+        message: 'Pay a one-time â‚µ50 platform fee to unlock unlimited listings.',
         paymentUrl: '/api/v1/payments/listing-fee/initialize'
       });
     }
 
     // Create product
+    let parsedTags = null;
+    if (tags) {
+      parsedTags = Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim());
+    }
     const product = await repositories.products.create({
       store_id: storeId,
       title: title || name,
       description: description || '',
-      price: parseFloat(price),
-      compare_at_price: compareAtPrice ? parseFloat(compareAtPrice) : null,
+      price: Number.parseFloat(price),
+      compare_at_price: compareAtPrice ? Number.parseFloat(compareAtPrice) : null,
       category: category || 'general',
       gender: gender || 'Unisex',
       sku: sku || null,
-      weight_kg: weight ? parseFloat(weight) : null,
+      weight_kg: weight ? Number.parseFloat(weight) : null,
       dimensions: dimensions || null,
       brand: brand || null,
-      tags: tags ? (Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim())) : null,
+      tags: parsedTags,
       attributes: attributes && typeof attributes === 'object' ? attributes : null,
       is_active: true
     });
@@ -99,22 +112,13 @@ const createProduct = async (req, res, next) => {
       .from('inventory')
       .insert({
         product_id: product.id,
-        quantity: stockQuantity ? parseInt(stockQuantity) : 0,
+        quantity: stockQuantity ? Number.parseInt(stockQuantity) : 0,
         reserved_quantity: 0,
         low_stock_threshold: 10
       });
 
     // Persist variants and option metadata if provided
-    let createdVariants = [];
-    let createdOptions = [];
-    if (Array.isArray(variants) && variants.length > 0) {
-      [createdVariants, createdOptions] = await Promise.all([
-        repositories.productVariants.replaceVariants(product.id, variants),
-        Array.isArray(variantOptions) && variantOptions.length > 0
-          ? repositories.productVariants.replaceOptions(product.id, variantOptions)
-          : Promise.resolve([])
-      ]);
-    }
+    const [createdVariants, createdOptions] = await persistProductVariants(product.id, variants, variantOptions);
 
     res.status(201).json({
       success: true,
@@ -153,16 +157,16 @@ const getStoreProducts = async (req, res, next) => {
 
     // Only expose products from verified stores to the public
     const store = await repositories.stores.findById(storeId);
-    if (!store || !store.is_verified) {
+    if (!store?.is_verified) {
       return res.status(200).json({
         success: true,
         data: [],
-        pagination: { totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: parseInt(limit), hasNext: false, hasPrev: false, sortConfig: null }
+        pagination: { totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: Number.parseInt(limit), hasNext: false, hasPrev: false, sortConfig: null }
       });
     }
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     const { data: rawProducts, count: totalCount } = await repositories.products.findByStore(storeId, {
       limit: limitNum,
@@ -330,7 +334,7 @@ const getCategories = async (req, res, next) => {
     const counts = {};
     if (productCounts && !countError) {
       productCounts.forEach(p => {
-        counts[p.category] = parseInt(p.product_count, 10);
+        counts[p.category] = Number.parseInt(p.product_count, 10);
       });
     }
 
@@ -360,6 +364,37 @@ const getCategories = async (req, res, next) => {
     next(error);
   }
 };
+
+function buildProductUpdateData(updateData) {
+  const d = {};
+  if (updateData.name)        d.title = updateData.name;
+  if (updateData.title)       d.title = updateData.title;
+  if (updateData.description) d.description = updateData.description;
+  if (updateData.price)       d.price = Number.parseFloat(updateData.price);
+  if (updateData.compareAtPrice !== undefined) {
+    d.compare_at_price = updateData.compareAtPrice ? Number.parseFloat(updateData.compareAtPrice) : null;
+  }
+  if (updateData.category)   d.category = updateData.category;
+  if (updateData.gender)     d.gender = updateData.gender;
+  if (updateData.sku)        d.sku = updateData.sku;
+  if (updateData.brand)      d.brand = updateData.brand;
+  if (updateData.weight)     d.weight_kg = Number.parseFloat(updateData.weight);
+  if (updateData.dimensions) d.dimensions = updateData.dimensions;
+  if (updateData.tags) {
+    d.tags = Array.isArray(updateData.tags)
+      ? updateData.tags
+      : updateData.tags.split(',').map(t => t.trim());
+  }
+  if (updateData.attributes !== undefined) {
+    d.attributes = updateData.attributes && typeof updateData.attributes === 'object'
+      ? updateData.attributes
+      : null;
+  }
+  if (updateData.isActive !== undefined) {
+    d.is_active = String(updateData.isActive) === 'true';
+  }
+  return d;
+}
 
 // @desc    Update product
 // @route   PUT /api/products/:id
@@ -391,39 +426,7 @@ const updateProduct = async (req, res, next) => {
       });
     }
 
-    // Map fields
-    const mappedData = {};
-    if (updateData.name) mappedData.title = updateData.name;
-    if (updateData.title) mappedData.title = updateData.title;
-    if (updateData.description) mappedData.description = updateData.description;
-    if (updateData.price) mappedData.price = parseFloat(updateData.price);
-    // Allow clearing compare_at_price by sending null or empty string
-    if (updateData.compareAtPrice !== undefined) {
-      mappedData.compare_at_price = updateData.compareAtPrice
-        ? parseFloat(updateData.compareAtPrice)
-        : null;
-    }
-    if (updateData.category) mappedData.category = updateData.category;
-    if (updateData.gender) mappedData.gender = updateData.gender;
-    if (updateData.sku) mappedData.sku = updateData.sku;
-    if (updateData.brand) mappedData.brand = updateData.brand;
-    if (updateData.weight) mappedData.weight_kg = parseFloat(updateData.weight);
-    if (updateData.dimensions) mappedData.dimensions = updateData.dimensions;
-    if (updateData.tags) {
-      mappedData.tags = Array.isArray(updateData.tags)
-        ? updateData.tags
-        : updateData.tags.split(',').map(t => t.trim());
-    }
-    if (updateData.attributes !== undefined) {
-      mappedData.attributes = updateData.attributes && typeof updateData.attributes === 'object'
-        ? updateData.attributes
-        : null;
-    }
-
-    // Handle isActive - support boolean and string
-    if (updateData.isActive !== undefined) {
-      mappedData.is_active = String(updateData.isActive) === 'true';
-    }
+    const mappedData = buildProductUpdateData(updateData);
 
     logger.debug('Mapped update data', { productId: id, fields: Object.keys(mappedData) });
 
@@ -437,7 +440,7 @@ const updateProduct = async (req, res, next) => {
     if (updateData.stockQuantity !== undefined) {
       await repositories.products.db
         .from('inventory')
-        .update({ quantity: parseInt(updateData.stockQuantity) })
+        .update({ quantity: Number.parseInt(updateData.stockQuantity) })
         .eq('product_id', id);
     }
 
@@ -449,7 +452,7 @@ const updateProduct = async (req, res, next) => {
       await repositories.productVariants.replaceOptions(id, updateData.variantOptions);
     }
 
-    // Price drop alert — fan-out push to users who favourited this product.
+    // Price drop alert â€” fan-out push to users who favourited this product.
     // setImmediate so the seller's response is never blocked by fan-out latency.
     if (mappedData.price !== undefined && updated.price < oldPrice) {
       setImmediate(async () => {
@@ -466,7 +469,7 @@ const updateProduct = async (req, res, next) => {
               userId: f.user_id,
               type: 'price_drop',
               title: 'Price dropped on your wishlist!',
-              message: `${updated.title} dropped from ₵${oldPrice} to ₵${updated.price}.`,
+              message: `${updated.title} dropped from â‚µ${oldPrice} to â‚µ${updated.price}.`,
               relatedId: id,
               relatedType: 'product',
               push: { data: { screen: 'product/details', productId: id } }
@@ -746,16 +749,16 @@ const searchProducts = async (req, res, next) => {
     }
     // If relevance and query exists, repo handles it (usually) or defaults to rank
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     const { data: rawProducts, count: totalCount } = await repositories.products.search({
       query,
       category,
       gender,
-      minPrice: minPrice ? parseFloat(minPrice) : undefined,
-      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
-      minRating: minRating ? parseFloat(minRating) : undefined,
+      minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined,
+      minRating: minRating ? Number.parseFloat(minRating) : undefined,
       sortBy: sortColumn,
       ascending: sortAscending,
       limit: limitNum,

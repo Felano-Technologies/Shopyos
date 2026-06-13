@@ -1,4 +1,4 @@
-// controllers/messagingController.js
+﻿// controllers/messagingController.js
 // Messaging system controller
 
 const repositories = require('../db/repositories');
@@ -96,8 +96,8 @@ const getConversations = async (req, res, next) => {
     const { limit = 50, offset = 0 } = req.query;
 
     const conversations = await repositories.conversations.getUserConversations(userId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: Number.parseInt(limit),
+      offset: Number.parseInt(offset)
     });
 
     res.status(200).json({
@@ -152,13 +152,75 @@ const getConversationDetails = async (req, res, next) => {
  * @desc    Send a message
  * @access  Private
  */
+async function handleBotInterceptor(conversationId, userId, finalContent, isModerated) {
+  if (isModerated) {
+    logger.info('[Shopyos Bot] Skipping bot response for moderated REST message.');
+    return;
+  }
+  try {
+    const history = await repositories.messages.getConversationMessages(conversationId, { limit: 10 });
+    history.reverse();
+    const { reply, isEscalation } = await aiService.generateBotReply(userId, finalContent, history);
+    const botMessage = await repositories.messages.sendMessage({
+      conversationId, senderId: SUPPORT_BOT_ID, content: reply, messageType: 'text'
+    });
+    const [, { data: botMessageWithSender }] = await Promise.all([
+      repositories.conversations.updateLastActivity(conversationId),
+      repositories.messages.db.from('messages')
+        .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
+        .eq('id', botMessage.id).single()
+    ]);
+    emitToConversation(conversationId, 'message:new', {
+      message: await formatAvatars(botMessageWithSender || botMessage), conversationId
+    });
+    await notificationService.sendNotification({
+      userId, type: 'new_message', title: 'Shopyos Bot', message: reply.substring(0, 100),
+      relatedId: conversationId, relatedType: 'conversation',
+      data: { conversationId, messageId: botMessage.id },
+      push: { data: { screen: 'messages', conversationId, messageId: botMessage.id } }
+    }).catch(notifErr => { logger.error('Failed to notify user of support bot message:', notifErr); });
+    if (isEscalation) {
+      logger.info(`[Shopyos Bot] Escalation triggered for conversation ${conversationId}`);
+      emitToConversation(conversationId, 'conversation:escalated', { conversationId });
+    }
+  } catch (botErr) {
+    logger.error('[Shopyos Bot] Error replying:', botErr);
+    emitToConversation(conversationId, 'bot:stop_typing', { conversationId });
+    try {
+      const fallbackText = "I'm having a bit of trouble connecting right now. Let me pass you to a human agent. [ESCALATE]";
+      const botMessage = await repositories.messages.sendMessage({
+        conversationId, senderId: SUPPORT_BOT_ID, content: fallbackText, messageType: 'text'
+      });
+      const [, { data: botMessageWithSender }] = await Promise.all([
+        repositories.conversations.updateLastActivity(conversationId),
+        repositories.messages.db.from('messages')
+          .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
+          .eq('id', botMessage.id).single()
+      ]);
+      emitToConversation(conversationId, 'message:new', {
+        message: await formatAvatars(botMessageWithSender || botMessage), conversationId
+      });
+      logger.info(`[Shopyos Bot] Graceful fallback escalation triggered for conversation ${conversationId}`);
+    } catch (fallbackErr) {
+      logger.error('[Shopyos Bot] Error sending graceful fallback message:', fallbackErr);
+    }
+  }
+}
+
+function resolveSenderName(messageWithSender) {
+  if (!messageWithSender?.sender?.user_profiles) return 'Someone';
+  const profiles = messageWithSender.sender.user_profiles;
+  const profile = Array.isArray(profiles) ? profiles[0] : profiles;
+  return profile?.full_name || 'Someone';
+}
+
 const sendMessage = async (req, res, next) => {
   try {
     const { conversationId } = req.params;
     const { content, messageType = 'text', attachmentUrl, attachmentMeta, replyToMessageId } = req.body;
     const userId = req.user.id;
 
-    // Validate input — content only required for text messages
+    // Validate input â€” content only required for text messages
     if (messageType === 'text' && (!content || content.trim() === '')) {
       return res.status(400).json({
         success: false,
@@ -227,7 +289,7 @@ const sendMessage = async (req, res, next) => {
       conversationId
     });
 
-    // Send response immediately — don't wait for notifications
+    // Send response immediately â€” don't wait for notifications
     res.status(201).json({
       success: true,
       message: formattedMessage
@@ -243,123 +305,19 @@ const sendMessage = async (req, res, next) => {
           ? conversation.participant2_id
           : conversation.participant1_id;
 
-        // ─── AI CHATBOT INTERCEPTOR ──────────────────────────────────────────
         if (recipientId === SUPPORT_BOT_ID) {
-          if (isModerated) {
-            logger.info(`[Shopyos Bot] Skipping bot response for moderated REST message.`);
-            return;
-          }
-          try {
-            // Fetch recent history (e.g. last 10 messages)
-            const history = await repositories.messages.getConversationMessages(conversationId, { limit: 10 });
-            // Reverse so oldest is first
-            history.reverse();
-            
-            const { reply, isEscalation } = await aiService.generateBotReply(userId, finalContent, history);
-            
-            // Save bot reply
-            const botMessage = await repositories.messages.sendMessage({
-              conversationId,
-              senderId: SUPPORT_BOT_ID,
-              content: reply,
-              messageType: 'text'
-            });
-
-            const [, { data: botMessageWithSender }] = await Promise.all([
-              repositories.conversations.updateLastActivity(conversationId),
-              repositories.messages.db
-                .from('messages')
-                .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
-                .eq('id', botMessage.id)
-                .single()
-            ]);
-
-            emitToConversation(conversationId, 'message:new', {
-              message: await formatAvatars(botMessageWithSender || botMessage),
-              conversationId
-            });
-
-            // Send push and in-app notification for the bot's reply
-            await notificationService.sendNotification({
-              userId: userId,
-              type: 'new_message',
-              title: 'Shopyos Bot',
-              message: reply.substring(0, 100),
-              relatedId: conversationId,
-              relatedType: 'conversation',
-              data: {
-                conversationId,
-                messageId: botMessage.id
-              },
-              push: {
-                data: {
-                  screen: 'messages',
-                  conversationId,
-                  messageId: botMessage.id
-                }
-              }
-            }).catch(notifErr => {
-              logger.error('Failed to notify user of support bot message:', notifErr);
-            });
-
-            if (isEscalation) {
-              logger.info(`[Shopyos Bot] Escalation triggered for conversation ${conversationId}`);
-              // Emit special event or notify admins
-              emitToConversation(conversationId, 'conversation:escalated', { conversationId });
-            }
-          } catch (botErr) {
-            logger.error('[Shopyos Bot] Error replying:', botErr);
-            
-            // Emit stop typing immediately
-            emitToConversation(conversationId, 'bot:stop_typing', { conversationId });
-
-            // Gracefully send fallback escalation reply to the user so they are not left hanging
-            try {
-              const fallbackText = "I'm having a bit of trouble connecting right now. Let me pass you to a human agent. [ESCALATE]";
-              const botMessage = await repositories.messages.sendMessage({
-                conversationId,
-                senderId: SUPPORT_BOT_ID,
-                content: fallbackText,
-                messageType: 'text'
-              });
-
-              const [, { data: botMessageWithSender }] = await Promise.all([
-                repositories.conversations.updateLastActivity(conversationId),
-                repositories.messages.db
-                  .from('messages')
-                  .select('*, sender:sender_id(id, user_profiles(full_name, avatar_url))')
-                  .eq('id', botMessage.id)
-                  .single()
-              ]);
-
-              emitToConversation(conversationId, 'message:new', {
-                message: await formatAvatars(botMessageWithSender || botMessage),
-                conversationId
-              });
-
-              logger.info(`[Shopyos Bot] Graceful fallback escalation triggered for conversation ${conversationId}`);
-            } catch (fallbackErr) {
-              logger.error('[Shopyos Bot] Error sending graceful fallback message:', fallbackErr);
-            }
-          }
-          return; // Skip standard push notification to the bot
+          await handleBotInterceptor(conversationId, userId, finalContent, isModerated);
+          return;
         }
-        // ─────────────────────────────────────────────────────────────────────
 
-        let senderName = 'Someone';
-        if (messageWithSender?.sender?.user_profiles) {
-          const profile = Array.isArray(messageWithSender.sender.user_profiles)
-            ? messageWithSender.sender.user_profiles[0]
-            : messageWithSender.sender.user_profiles;
-          if (profile) senderName = profile.full_name || senderName;
-        }
+        const senderName = resolveSenderName(messageWithSender);
 
         const previewMap = {
           text: finalContent?.substring(0, 50),
-          image: '📷 Photo',
-          video: '🎥 Video',
-          voice: '🎙️ Voice note',
-          sticker: finalContent || '😊 Sticker',
+          image: 'ðŸ“· Photo',
+          video: 'ðŸŽ¥ Video',
+          voice: 'ðŸŽ™ï¸ Voice note',
+          sticker: finalContent || 'ðŸ˜Š Sticker',
         };
         const notificationContent = previewMap[messageType] || 'New message';
 
@@ -412,8 +370,8 @@ const getMessages = async (req, res, next) => {
     }
 
     const messages = await repositories.messages.getConversationMessages(conversationId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: Number.parseInt(limit),
+      offset: Number.parseInt(offset),
       beforeMessageId
     });
 
@@ -509,7 +467,7 @@ const searchMessages = async (req, res, next) => {
     const messages = await repositories.messages.searchMessages(
       conversationId,
       q.trim(),
-      parseInt(limit)
+      Number.parseInt(limit)
     );
 
     res.status(200).json({
@@ -610,8 +568,8 @@ const uploadChatMedia = async (req, res, next) => {
     }
 
     // Upload to S3/MinIO
-    const crypto = require('crypto');
-    const path = require('path');
+    const crypto = require('node:crypto');
+    const path = require('node:path');
 
     const ext = path.extname(req.file.originalname).toLowerCase() || '';
     const random = crypto.randomBytes(6).toString('hex');
@@ -801,8 +759,8 @@ const createCustomSticker = async (req, res, next) => {
       });
     }
 
-    const crypto = require('crypto');
-    const path = require('path');
+    const crypto = require('node:crypto');
+    const path = require('node:path');
 
     const ext = path.extname(req.file.originalname).toLowerCase() || '.png';
     const random = crypto.randomBytes(6).toString('hex');

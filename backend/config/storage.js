@@ -4,8 +4,9 @@
 const { S3Client, PutObjectCommand, DeleteObjectCommand, HeadBucketCommand, GetObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const sharp = require('sharp');
-const path = require('path');
-const crypto = require('crypto');
+const path = require('node:path');
+const crypto = require('node:crypto');
+const fs = require('node:fs');
 
 const endpoint = process.env.STORAGE_ENDPOINT;
 const region = process.env.STORAGE_REGION;
@@ -68,11 +69,11 @@ const parseInputToBuffer = (input) => {
   }
 
   if (typeof input !== 'string') {
-    throw new Error('Unsupported input format for uploadImage');
+    throw new TypeError('Unsupported input format for uploadImage');
   }
 
   if (input.startsWith('data:')) {
-    const matches = input.match(/^data:(.*?);base64,(.*)$/);
+    const matches = /^data:(.*?);base64,(.*)$/.exec(input);
     if (!matches) throw new Error('Invalid data URI format');
     const mimeType = matches[1];
     const base64Data = matches[2];
@@ -81,9 +82,13 @@ const parseInputToBuffer = (input) => {
     return { buffer, mimeType, extension };
   }
 
-  const fs = require('fs');
-  const fileBuffer = fs.readFileSync(input);
-  const extension = path.extname(input);
+  const allowedBase = path.resolve(process.env.UPLOAD_TEMP_DIR || '/tmp');
+  const resolvedPath = path.resolve(input);
+  if (!resolvedPath.startsWith(allowedBase + path.sep) && resolvedPath !== allowedBase) {
+    throw new TypeError('File path outside allowed directory');
+  }
+  const fileBuffer = fs.readFileSync(resolvedPath);
+  const extension = path.extname(resolvedPath);
   return { buffer: fileBuffer, mimeType: 'application/octet-stream', extension };
 };
 

@@ -88,16 +88,26 @@ const {
   getAllUsers,
   getUserStats,
   updateUserStatus,
+  updateUserRole,
   getAllStores,
   verifyStore,
+  updateStoreStatus,
+  getAllReports,
+  getReportDetails,
+  updateReportStatus,
   getAllPayouts,
   updatePayoutStatus,
   getAllOrders,
   getRevenue,
   getDriverVerifications,
+  getDriverVerificationDetails,
   approveDriverVerification,
   rejectDriverVerification,
   getAuditLogs,
+  getEntityHistory,
+  getAllEscrows,
+  refundEscrow,
+  releaseEscrow,
 } = require('../../controllers/adminController');
 
 function mockReq(overrides = {}) {
@@ -1428,6 +1438,235 @@ describe('AdminController Unit Tests', () => {
 
       // Assert
       expect(next).toHaveBeenCalledWith(dbError);
+    });
+  });
+
+  // ── updateUserRole ──────────────────────────────────────────────────
+  describe('updateUserRole', () => {
+    test('test_updateUserRole_invalidRole_returns400', async () => {
+      const req = mockReq({ params: { userId: 'u-1' }, body: { role: 'superuser' } });
+      const res = mockRes();
+      await updateUserRole(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Invalid role' });
+    });
+
+    test('test_updateUserRole_validRole_updatesAndReturns200', async () => {
+      const updatedUser = { id: 'u-1', role: 'seller' };
+      repositories.admin.updateUserRole.mockResolvedValueOnce(updatedUser);
+      const req = mockReq({ params: { userId: 'u-1' }, body: { role: 'seller' } });
+      const res = mockRes();
+      await updateUserRole(req, res, jest.fn());
+      expect(repositories.admin.updateUserRole).toHaveBeenCalledWith('u-1', 'seller');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, user: updatedUser }));
+    });
+
+    test('test_updateUserRole_repoThrows_callsNext', async () => {
+      repositories.admin.updateUserRole.mockRejectedValueOnce(new Error('DB error'));
+      const next = jest.fn();
+      await updateUserRole(mockReq({ params: { userId: 'u-1' }, body: { role: 'driver' } }), mockRes(), next);
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  // ── updateStoreStatus ───────────────────────────────────────────────
+  describe('updateStoreStatus', () => {
+    test('test_updateStoreStatus_invalidStatus_returns400', async () => {
+      const req = mockReq({ params: { storeId: 's-1' }, body: { status: 'deleted' } });
+      const res = mockRes();
+      await updateStoreStatus(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Invalid status' });
+    });
+
+    test('test_updateStoreStatus_validStatus_returns200', async () => {
+      const store = { id: 's-1', status: 'suspended' };
+      repositories.admin.updateStoreStatus.mockResolvedValueOnce(store);
+      const req = mockReq({ params: { storeId: 's-1' }, body: { status: 'suspended' } });
+      const res = mockRes();
+      await updateStoreStatus(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, store }));
+    });
+  });
+
+  // ── getAllReports ────────────────────────────────────────────────────
+  describe('getAllReports', () => {
+    test('test_getAllReports_returnsReportsWithPagination', async () => {
+      const reports = [{ id: 'r-1' }];
+      repositories.reports.getAllReports.mockResolvedValueOnce(reports);
+      const req = mockReq({ query: { limit: '10', offset: '0' } });
+      const res = mockRes();
+      await getAllReports(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, reports, pagination: { limit: 10, offset: 0 } });
+    });
+
+    test('test_getAllReports_repoThrows_callsNext', async () => {
+      repositories.reports.getAllReports.mockRejectedValueOnce(new Error('DB'));
+      const next = jest.fn();
+      await getAllReports(mockReq(), mockRes(), next);
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  // ── getReportDetails ─────────────────────────────────────────────────
+  describe('getReportDetails', () => {
+    test('test_getReportDetails_returnsReport', async () => {
+      const report = { id: 'r-1', status: 'pending' };
+      repositories.reports.getReportDetails.mockResolvedValueOnce(report);
+      const req = mockReq({ params: { reportId: 'r-1' } });
+      const res = mockRes();
+      await getReportDetails(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, report });
+    });
+  });
+
+  // ── updateReportStatus ───────────────────────────────────────────────
+  describe('updateReportStatus', () => {
+    test('test_updateReportStatus_invalidStatus_returns400', async () => {
+      const req = mockReq({ params: { reportId: 'r-1' }, body: { status: 'archived' } });
+      const res = mockRes();
+      await updateReportStatus(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Invalid status' });
+    });
+
+    test('test_updateReportStatus_validStatus_returns200', async () => {
+      const report = { id: 'r-1', status: 'resolved' };
+      repositories.reports.updateReportStatus.mockResolvedValueOnce(report);
+      const req = mockReq({ params: { reportId: 'r-1' }, body: { status: 'resolved', resolution: 'handled' } });
+      const res = mockRes();
+      await updateReportStatus(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, report }));
+    });
+  });
+
+  // ── getEntityHistory ─────────────────────────────────────────────────
+  describe('getEntityHistory', () => {
+    test('test_getEntityHistory_returnsHistory', async () => {
+      const history = [{ action: 'verify_store' }];
+      repositories.auditLogs.getEntityHistory.mockResolvedValueOnce(history);
+      const req = mockReq({ params: { entityType: 'store', entityId: 's-1' } });
+      const res = mockRes();
+      await getEntityHistory(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, history });
+    });
+
+    test('test_getEntityHistory_repoThrows_callsNext', async () => {
+      repositories.auditLogs.getEntityHistory.mockRejectedValueOnce(new Error('DB'));
+      const next = jest.fn();
+      await getEntityHistory(mockReq({ params: { entityType: 'order', entityId: 'o-1' } }), mockRes(), next);
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
+  // ── getDriverVerificationDetails ─────────────────────────────────────
+  describe('getDriverVerificationDetails', () => {
+    test('test_getDriverVerificationDetails_notFound_returns404', async () => {
+      repositories.admin.getDriverVerificationDetails.mockResolvedValueOnce(null);
+      const req = mockReq({ params: { id: 'drv-1' } });
+      const res = mockRes();
+      await getDriverVerificationDetails(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Driver not found' });
+    });
+
+    test('test_getDriverVerificationDetails_found_returns200', async () => {
+      const driver = { id: 'drv-1', name: 'Kofi' };
+      repositories.admin.getDriverVerificationDetails.mockResolvedValueOnce(driver);
+      const req = mockReq({ params: { id: 'drv-1' } });
+      const res = mockRes();
+      await getDriverVerificationDetails(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, driver });
+    });
+  });
+
+  // ── refundEscrow ─────────────────────────────────────────────────────
+  describe('refundEscrow', () => {
+    test('test_refundEscrow_orderNotFound_returns404', async () => {
+      repositories.orders.findById.mockResolvedValueOnce(null);
+      const req = mockReq({ params: { id: 'ord-1' }, body: { reason: 'test' } });
+      const res = mockRes();
+      await refundEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    test('test_refundEscrow_wrongEscrowStatus_returns400', async () => {
+      repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'RELEASED' });
+      const req = mockReq({ params: { id: 'ord-1' }, body: {} });
+      const res = mockRes();
+      await refundEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Order is not in an escrow holding state' }));
+    });
+
+    test('test_refundEscrow_concurrentUpdate_returns409', async () => {
+      repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'HELD' });
+      const chainMock = { update: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), select: jest.fn().mockResolvedValue({ data: [], error: null }) };
+      repositories.orders.db.from.mockReturnValueOnce(chainMock);
+      const req = mockReq({ params: { id: 'ord-1' }, body: {} });
+      const res = mockRes();
+      await refundEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(409);
+    });
+
+    test('test_refundEscrow_success_returns200', async () => {
+      repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'HELD' });
+      const updated = { id: 'ord-1', escrow_status: 'REFUNDED' };
+      const chainMock = { update: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), in: jest.fn().mockReturnThis(), select: jest.fn().mockResolvedValue({ data: [updated], error: null }) };
+      repositories.orders.db.from.mockReturnValueOnce(chainMock);
+      const req = mockReq({ params: { id: 'ord-1' }, body: { reason: 'dispute resolved' } });
+      const res = mockRes();
+      await refundEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, order: updated }));
+    });
+  });
+
+  // ── releaseEscrow ─────────────────────────────────────────────────────
+  describe('releaseEscrow', () => {
+    test('test_releaseEscrow_orderNotFound_returns404', async () => {
+      repositories.orders.findById.mockResolvedValueOnce(null);
+      const req = mockReq({ params: { id: 'ord-1' }, body: {} });
+      const res = mockRes();
+      await releaseEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    test('test_releaseEscrow_wrongEscrowStatus_returns400', async () => {
+      repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'REFUNDED' });
+      const req = mockReq({ params: { id: 'ord-1' }, body: {} });
+      const res = mockRes();
+      await releaseEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test('test_releaseEscrow_rpcFails_returns400', async () => {
+      repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'HELD' });
+      const rpcMock = { rpc: jest.fn().mockResolvedValue({ data: { success: false, error: 'Already released' }, error: null }) };
+      repositories.orders.db.rpc = jest.fn().mockResolvedValue({ data: { success: false, error: 'Already released' }, error: null });
+      const req = mockReq({ params: { id: 'ord-1' }, body: {} });
+      const res = mockRes();
+      await releaseEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test('test_releaseEscrow_success_returns200', async () => {
+      repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'HELD' });
+      repositories.orders.db.rpc = jest.fn().mockResolvedValue({ data: { success: true }, error: null });
+      const updatedOrder = { id: 'ord-1', escrow_status: 'RELEASED' };
+      repositories.orders.getOrderDetails.mockResolvedValueOnce(updatedOrder);
+      const req = mockReq({ params: { id: 'ord-1' }, body: { reason: 'delivered' } });
+      const res = mockRes();
+      await releaseEscrow(req, res, jest.fn());
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, order: updatedOrder }));
     });
   });
 });

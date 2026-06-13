@@ -6,7 +6,7 @@ const repositories = require('../db/repositories');
  */
 const requireStore = async (req, res, next) => {
     try {
-        if (!req.user || !req.user.id) {
+        if (!req.user?.id) {
             return res.status(401).json({ success: false, error: 'Not authorized' });
         }
 

@@ -14,7 +14,7 @@ async function initializeSocketBridge(httpServer, logger) {
   try {
     const { getRedis } = require('./redis');
     const redis = getRedis();
-    if (redis && redis.status === 'ready') {
+    if (redis?.status === 'ready') {
       const pubClient = redis.duplicate();
       const subClient = redis.duplicate();
       await Promise.all([pubClient.connect(), subClient.connect()]);

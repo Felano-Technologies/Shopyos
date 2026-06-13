@@ -49,7 +49,7 @@ const addToCart = async (req, res, next) => {
         return res.status(400).json({ success: false, error: 'This variant is not available' });
       }
       // Variant price overrides base price when set
-      effectivePrice = variant.price != null ? variant.price : product.price;
+      effectivePrice = variant.price ?? product.price;
       resolvedVariantId = variantId;
     }
 
@@ -57,7 +57,7 @@ const addToCart = async (req, res, next) => {
     const inventory = await repositories.products.getInventory(productId);
 
     // Only check stock if inventory exists and tracking is enabled
-    if (inventory && inventory.track_inventory) {
+    if (inventory?.track_inventory) {
       const availableStock = inventory.stock_quantity - (inventory.reserved_quantity || 0);
 
       if (availableStock < quantity) {
@@ -70,7 +70,7 @@ const addToCart = async (req, res, next) => {
     }
 
     // Add to cart (pass effective price and variant for price_at_add column)
-    const cartItem = await repositories.carts.addItem(userId, productId, quantity, effectivePrice, resolvedVariantId);
+    const cartItem = await repositories.carts.addItem(userId, productId, effectivePrice, quantity, resolvedVariantId);
 
     // Get updated cart with items
     const cart = await repositories.carts.getCartWithItems(userId);

@@ -1,9 +1,9 @@
-const { getPool } = require('../config/postgres');
+﻿const { getPool } = require('../config/postgres');
 
 /**
  * @route  POST /api/v1/promo/validate
  * @desc   Validate a promo code against the current subtotal and user.
- *         Returns the discount amount if valid. Does NOT mark the code as used —
+ *         Returns the discount amount if valid. Does NOT mark the code as used â€”
  *         that happens inside orderController after order creation.
  * @access Private
  */
@@ -37,10 +37,10 @@ const validatePromoCode = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'This promo code has reached its usage limit' });
     }
 
-    if (parseFloat(subtotal) < parseFloat(promo.min_order)) {
+    if (Number.parseFloat(subtotal) < Number.parseFloat(promo.min_order)) {
       return res.status(400).json({
         success: false,
-        error: `Minimum order of ₵${parseFloat(promo.min_order).toFixed(2)} required for this code`,
+        error: `Minimum order of â‚µ${Number.parseFloat(promo.min_order).toFixed(2)} required for this code`,
       });
     }
 
@@ -55,11 +55,11 @@ const validatePromoCode = async (req, res, next) => {
 
     let discountAmount =
       promo.type === 'percentage'
-        ? (parseFloat(subtotal) * parseFloat(promo.value)) / 100
-        : parseFloat(promo.value);
+        ? (Number.parseFloat(subtotal) * Number.parseFloat(promo.value)) / 100
+        : Number.parseFloat(promo.value);
 
-    discountAmount = Math.min(discountAmount, parseFloat(subtotal));
-    discountAmount = parseFloat(discountAmount.toFixed(2));
+    discountAmount = Math.min(discountAmount, Number.parseFloat(subtotal));
+    discountAmount = Number.parseFloat(discountAmount.toFixed(2));
 
     return res.json({
       success: true,
@@ -67,12 +67,12 @@ const validatePromoCode = async (req, res, next) => {
         id: promo.id,
         code: promo.code.toUpperCase(),
         type: promo.type,
-        value: parseFloat(promo.value),
+        value: Number.parseFloat(promo.value),
         discountAmount,
         label:
           promo.type === 'percentage'
-            ? `${parseFloat(promo.value)}% off`
-            : `₵${parseFloat(promo.value).toFixed(2)} off`,
+            ? `${Number.parseFloat(promo.value)}% off`
+            : `â‚µ${Number.parseFloat(promo.value).toFixed(2)} off`,
       },
     });
   } catch (error) {

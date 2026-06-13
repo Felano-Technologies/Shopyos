@@ -9,7 +9,7 @@
  * Conforms to guidelines/test.md.
  */
 
-const path = require('path');
+const path = require('node:path');
 
 // ── Module under test ──────────────────────────────────────────────────────
 const upload = require('../../middleware/upload');

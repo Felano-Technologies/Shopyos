@@ -1,10 +1,10 @@
-// backend/scripts/fix_seller_roles.js
+﻿// backend/scripts/fix_seller_roles.js
 // Script to ensure all store owners have the 'seller' role assigned.
 // Uses PG directly to match the project's backend setup.
 
 const { Pool } = require('pg');
 const dotenv = require('dotenv');
-const path = require('path');
+const path = require('node:path');
 
 // Load environment variables
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -15,7 +15,7 @@ const pool = new Pool({
 });
 
 async function fixRoles() {
-  console.log('🔍 Starting Seller Role Fix...');
+  console.log('ðŸ” Starting Seller Role Fix...');
 
   const client = await pool.connect();
   try {
@@ -23,7 +23,7 @@ async function fixRoles() {
 
     // 1. Get all stores and their owners
     const { rows: stores } = await client.query('SELECT owner_id, store_name FROM stores');
-    console.log(`📋 Found ${stores.length} stores.`);
+    console.log(`ðŸ“‹ Found ${stores.length} stores.`);
 
     // 2. Get the seller role ID
     const { rows: roles } = await client.query("SELECT id FROM roles WHERE name = 'seller'");
@@ -31,7 +31,7 @@ async function fixRoles() {
       throw new Error("Role 'seller' not found in database.");
     }
     const sellerRoleId = roles[0].id;
-    console.log(`✅ Seller Role ID: ${sellerRoleId}`);
+    console.log(`âœ… Seller Role ID: ${sellerRoleId}`);
 
     let fixedCount = 0;
     let skippedCount = 0;
@@ -46,7 +46,7 @@ async function fixRoles() {
       );
 
       if (existing.length === 0) {
-        console.log(`➕ Assigning 'seller' role to owner of "${store.store_name}"...`);
+        console.log(`âž• Assigning 'seller' role to owner of "${store.store_name}"...`);
         await client.query(
           'INSERT INTO user_roles (user_id, role_id, is_active) VALUES ($1, $2, TRUE) ON CONFLICT (user_id, role_id) DO UPDATE SET is_active = TRUE',
           [userId, sellerRoleId]
@@ -58,14 +58,14 @@ async function fixRoles() {
     }
 
     await client.query('COMMIT');
-    console.log('\n✨ Fix Complete!');
-    console.log(`🚀 Roles Assigned/Updated: ${fixedCount}`);
-    console.log(`⏩ Already Correct: ${skippedCount}`);
-    console.log('\n💡 IMPORTANT: If you are still seeing "Access Denied" in the app, please log out and log back in.');
+    console.log('\nâœ¨ Fix Complete!');
+    console.log(`ðŸš€ Roles Assigned/Updated: ${fixedCount}`);
+    console.log(`â© Already Correct: ${skippedCount}`);
+    console.log('\nðŸ’¡ IMPORTANT: If you are still seeing "Access Denied" in the app, please log out and log back in.');
 
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('💥 Critical Error:', error.message);
+    console.error('ðŸ’¥ Critical Error:', error.message);
   } finally {
     client.release();
     await pool.end();

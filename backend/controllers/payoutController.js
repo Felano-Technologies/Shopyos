@@ -1,4 +1,4 @@
-// controllers/payoutController.js
+﻿// controllers/payoutController.js
 const repositories = require('../db/repositories');
 const paystackService = require('../services/paystackService');
 
@@ -20,7 +20,7 @@ const requestPayout = async (req, res, next) => {
         if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
 
         // Check balance
-        const currentBalance = parseFloat(store.current_balance || 0);
+        const currentBalance = Number.parseFloat(store.current_balance || 0);
         if (amount > currentBalance) {
             return res.status(400).json({ success: false, error: 'Insufficient balance' });
         }
@@ -105,12 +105,12 @@ const processPayout = async (req, res, next) => {
             
             // Refund the store balance
             const store = await repositories.stores.findById(payout.store_id);
-            const newBalance = parseFloat(store.current_balance || 0) + parseFloat(payout.amount);
+            const newBalance = Number.parseFloat(store.current_balance || 0) + Number.parseFloat(payout.amount);
             await repositories.stores.update(store.id, { current_balance: newBalance });
             
             await repositories.stores.db.from('balance_logs').insert({
                 store_id: store.id,
-                amount: parseFloat(payout.amount),
+                amount: Number.parseFloat(payout.amount),
                 transaction_type: 'adjustment',
                 notes: 'Payout refund due to rejection',
                 balance_after: newBalance

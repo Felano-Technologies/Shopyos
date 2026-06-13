@@ -1,5 +1,5 @@
-// controllers/paymentController.js
-const crypto = require('crypto');
+﻿// controllers/paymentController.js
+const crypto = require('node:crypto');
 const axios = require('axios');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
@@ -7,7 +7,7 @@ const { logger } = require('../config/logger');
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
 
-// ── Helpers ──────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const paystackHeaders = () => ({
     Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
@@ -58,7 +58,7 @@ const fulfillPayment = async (orderId, paystackData) => {
             user_id: order.buyer_id,
             type: 'order_placed',
             title: 'Payment Confirmed',
-            message: `Payment of ₵${amountPaid.toFixed(2)} for order #${order.order_number} confirmed.`,
+            message: `Payment of â‚µ${amountPaid.toFixed(2)} for order #${order.order_number} confirmed.`,
             data: { orderId: order.id, orderNumber: order.order_number, amount: amountPaid }
         }).catch(err => logger.error('Notification failed', { error: err.message }));
     }
@@ -67,7 +67,7 @@ const fulfillPayment = async (orderId, paystackData) => {
     return true;
 };
 
-// ── Initialize Payment ──────────────────────────────────────────
+// â”€â”€ Initialize Payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * @route   POST /api/v1/payments/initialize
@@ -77,6 +77,24 @@ const fulfillPayment = async (orderId, paystackData) => {
  * channel can be: 'card', 'mobile_money', or omitted (Paystack default picker)
  * For MoMo: pass momoPhone and momoProvider (mtn, vod, tgo)
  */
+async function resolvePaymentEmail(clientEmail, order, userRepo) {
+    if (clientEmail) return clientEmail;
+    if (order.buyer?.email) return order.buyer.email;
+    const user = await userRepo.findById(order.buyer_id);
+    return user?.email;
+}
+
+function applyChannelConfig(payload, channel, momoPhone, momoProvider) {
+    if (channel === 'mobile_money') {
+        payload.channels = ['mobile_money'];
+        if (momoPhone && momoProvider) {
+            payload.mobile_money = { phone: momoPhone, provider: momoProvider };
+        }
+    } else if (channel === 'card') {
+        payload.channels = ['card'];
+    }
+}
+
 const initializePayment = async (req, res, next) => {
     try {
         const { orderId, email: clientEmail, channel, momoPhone, momoProvider } = req.body;
@@ -91,7 +109,6 @@ const initializePayment = async (req, res, next) => {
             return res.status(404).json({ success: false, error: 'Order not found' });
         }
 
-        // Verify the order belongs to this user
         if (order.buyer_id !== req.user.id) {
             return res.status(403).json({ success: false, error: 'You cannot pay for this order' });
         }
@@ -103,24 +120,16 @@ const initializePayment = async (req, res, next) => {
             .eq('order_id', orderId)
             .single();
 
-        if (existingPayment && existingPayment.status === 'completed') {
+        if (existingPayment?.status === 'completed') {
             return res.status(400).json({ success: false, error: 'This order has already been paid' });
         }
 
-        // Resolve email
-        let email = clientEmail;
-        if (!email) {
-            if (order.buyer?.email) email = order.buyer.email;
-            else {
-                const user = await repositories.users.findById(order.buyer_id);
-                email = user?.email;
-            }
-        }
+        const email = await resolvePaymentEmail(clientEmail, order, repositories.users);
         if (!email) {
             return res.status(400).json({ success: false, error: 'Customer email is required' });
         }
 
-        const totalAmount = parseFloat(order.total_amount);
+        const totalAmount = Number.parseFloat(order.total_amount);
         const amountInPesewas = Math.round(totalAmount * 100);
 
         // Build Paystack payload
@@ -137,20 +146,7 @@ const initializePayment = async (req, res, next) => {
             }
         };
 
-        // Channel-specific config
-        if (channel === 'mobile_money') {
-            payload.channels = ['mobile_money'];
-
-            if (momoPhone && momoProvider) {
-                payload.mobile_money = {
-                    phone: momoPhone,
-                    provider: momoProvider // mtn, vod, tgo
-                };
-            }
-        } else if (channel === 'card') {
-            payload.channels = ['card'];
-        }
-        // If no channel specified, Paystack shows all available options
+        applyChannelConfig(payload, channel, momoPhone, momoProvider);
 
         const response = await axios.post(
             `${PAYSTACK_BASE_URL}/transaction/initialize`,
@@ -201,7 +197,7 @@ const initializePayment = async (req, res, next) => {
     }
 };
 
-// ── Verify Payment ──────────────────────────────────────────────
+// â”€â”€ Verify Payment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * @route   GET /api/v1/payments/verify/:reference
@@ -257,14 +253,14 @@ const verifyPayment = async (req, res, next) => {
             });
         }
     } catch (error) {
-        if (error.response && error.response.status === 404) {
+        if (error.response?.status === 404) {
             return res.status(404).json({ success: false, error: 'Transaction reference not found' });
         }
         next(error);
     }
 };
 
-// ── Webhook Handler ─────────────────────────────────────────────
+// â”€â”€ Webhook Handler â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * @route   POST /api/v1/payments/webhook
@@ -321,11 +317,11 @@ const handleWebhook = async (req, res) => {
         res.status(200).send('OK');
     } catch (error) {
         logger.error('Webhook processing error', { error: error.message });
-        res.status(200).send('OK'); // Still 200 — we log the error and handle manually
+        res.status(200).send('OK'); // Still 200 â€” we log the error and handle manually
     }
 };
 
-// ── Charge Authorization (for recurring / saved cards) ──────────
+// â”€â”€ Charge Authorization (for recurring / saved cards) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 /**
  * @route   POST /api/v1/payments/charge
@@ -359,7 +355,7 @@ const chargeAuthorization = async (req, res, next) => {
             email = user?.email;
         }
 
-        const totalAmount = parseFloat(order.total_amount);
+        const totalAmount = Number.parseFloat(order.total_amount);
         const amountInPesewas = Math.round(totalAmount * 100);
 
         const response = await axios.post(
@@ -414,7 +410,7 @@ const initializeListingFee = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'Listing fee already paid for this store' });
         }
 
-        const amountInPesewas = 50 * 100; // ₵50
+        const amountInPesewas = 50 * 100; // â‚µ50
 
         const payload = {
             email,

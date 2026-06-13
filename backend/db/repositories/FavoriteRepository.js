@@ -51,12 +51,10 @@ class FavoriteRepository extends BaseRepository {
             const product = fav?.product;
             const store = product?.store;
             return Boolean(
-                product &&
-                product.is_active === true &&
-                product.deleted_at == null &&
-                store &&
-                store.is_active === true &&
-                store.is_verified === true
+                product?.is_active === true &&
+                product?.deleted_at == null &&
+                store?.is_active === true &&
+                store?.is_verified === true
             );
         });
     }

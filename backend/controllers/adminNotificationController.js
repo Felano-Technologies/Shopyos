@@ -14,8 +14,8 @@ exports.getScheduledNotifications = async (req, res) => {
 
     const [data, total] = await Promise.all([
       repositories.scheduledNotifications.listForAdmin({
-        limit: parseInt(limit, 10),
-        offset: parseInt(offset, 10),
+        limit: Number.parseInt(limit, 10),
+        offset: Number.parseInt(offset, 10),
         status,
         campaign_type
       }),
@@ -52,11 +52,11 @@ exports.createScheduledNotification = async (req, res) => {
     }
 
     const scheduledDate = new Date(scheduled_at);
-    if (isNaN(scheduledDate) || scheduledDate <= new Date()) {
+    if (Number.isNaN(scheduledDate.valueOf()) || scheduledDate <= new Date()) {
       return res.status(400).json({ success: false, message: 'scheduled_at must be a valid future date' });
     }
 
-    if (recipient_type === 'specific' && (!recipient_ids || !recipient_ids.length)) {
+    if (recipient_type === 'specific' && !recipient_ids?.length) {
       return res.status(400).json({ success: false, message: 'recipient_ids required when targeting specific users' });
     }
 

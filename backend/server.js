@@ -1,12 +1,12 @@
-const express = require('express');
+﻿const express = require('express');
 const http = require('http');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const compression = require('compression');
 const cors = require('cors');
-const path = require('path');
+const path = require('node:path');
 const cookieParser = require('cookie-parser');
-const { randomUUID } = require('crypto');
+const { randomUUID } = require('node:crypto');
 
 dotenv.config();
 
@@ -309,7 +309,7 @@ process.on('uncaughtException', (error) => {
   gracefulShutdown('uncaughtException');
 });
 
-// Log but don't crash — a single rejected promise shouldn't kill the server
+// Log but don't crash â€” a single rejected promise shouldn't kill the server
 process.on('unhandledRejection', (reason) => {
   logger.error('Unhandled Rejection', {
     reason: reason instanceof Error ? reason.message : reason,

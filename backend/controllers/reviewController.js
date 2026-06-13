@@ -1,4 +1,4 @@
-// controllers/reviewController.js
+﻿// controllers/reviewController.js
 // Reviews and ratings management controller
 
 const repositories = require('../db/repositories');
@@ -51,7 +51,7 @@ const createProductReview = async (req, res, next) => {
         });
       }
     } else {
-      // No orderId provided — check if user has ANY delivered order containing this product
+      // No orderId provided â€” check if user has ANY delivered order containing this product
       const { data: userOrders } = await repositories.orders.db
         .from('orders')
         .select('id, order_items!inner(product_id)')
@@ -138,7 +138,7 @@ const createStoreReview = async (req, res, next) => {
         });
       }
     } else {
-      // No orderId provided — check if user has ANY delivered order from this store
+      // No orderId provided â€” check if user has ANY delivered order from this store
       const { data: userOrders } = await repositories.orders.db
         .from('orders')
         .select('id')
@@ -257,13 +257,13 @@ const getProductReviews = async (req, res, next) => {
     const { productId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     const { data: reviews, count: totalCount } = await repositories.reviews.getProductReviews(productId, {
       limit: limitNum,
       offset: offsetNum,
-      rating: rating ? parseInt(rating) : null
+      rating: rating ? Number.parseInt(rating) : null
     });
 
     // Get rating stats
@@ -285,7 +285,7 @@ const getProductReviews = async (req, res, next) => {
       likedSet = new Set((likedList || []).map(item => item.review_id));
     }
 
-    // Hydrate seller responses — raw SQL because review_responses has no QueryBuilder shim
+    // Hydrate seller responses â€” raw SQL because review_responses has no QueryBuilder shim
     if (reviews.length > 0) {
       const reviewIds = reviews.map(r => r.id);
       const { rows: responses } = await repositories.reviews.db.query(
@@ -339,13 +339,13 @@ const getStoreReviews = async (req, res, next) => {
     const { storeId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     const { data: reviews, count: totalCount } = await repositories.reviews.getStoreReviews(storeId, {
       limit: limitNum,
       offset: offsetNum,
-      rating: rating ? parseInt(rating) : null
+      rating: rating ? Number.parseInt(rating) : null
     });
 
     // Get rating stats
@@ -421,13 +421,13 @@ const getDriverReviews = async (req, res, next) => {
     const { driverId } = req.params;
     const { limit = 20, offset = 0, rating } = req.query;
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     const { data: reviews, count: totalCount } = await repositories.reviews.getDriverReviews(driverId, {
       limit: limitNum,
       offset: offsetNum,
-      rating: rating ? parseInt(rating) : null
+      rating: rating ? Number.parseInt(rating) : null
     });
 
     // Get rating stats
@@ -594,8 +594,8 @@ const getMyReviews = async (req, res, next) => {
       });
     }
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
     const ascending = order === 'asc';
 
     const { data: reviews, count: totalCount } = await repositories.reviews.getUserReviews(userId, type, {
@@ -635,8 +635,8 @@ const getReviewableProducts = async (req, res, next) => {
     const userId = req.user.id;
     const { limit = 20, offset = 0 } = req.query;
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     const { data: reviewableProducts, count: totalCount } = await repositories.reviews.getReviewableProducts(userId, {
       limit: limitNum,
@@ -779,7 +779,7 @@ const createReviewComment = async (req, res, next) => {
     const { text } = req.body;
     const userId = req.user.id;
 
-    if (!text || !text.trim()) {
+    if (!text?.trim()) {
       return res.status(400).json({ success: false, error: 'Comment text is required' });
     }
 
@@ -829,7 +829,7 @@ const createReviewComment = async (req, res, next) => {
   }
 };
 
-// ─── Seller Review Responses ─────────────────────────────────────────────────
+// â”€â”€â”€ Seller Review Responses â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // @route   POST /api/reviews/:reviewId/response
 // @desc    Seller posts a public response to a product or store review
@@ -850,7 +850,7 @@ const respondToReview = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'reviewType must be product or store' });
     }
 
-    // Verify the review exists — raw SQL because the QueryBuilder has no shim for these tables
+    // Verify the review exists â€” raw SQL because the QueryBuilder has no shim for these tables
     // that exposes individual columns without stripping the select list
     const { rows: reviewRows } = await repositories.reviews.db.query(
       `SELECT id, product_id, store_id, buyer_id FROM ${table} WHERE id = $1 AND deleted_at IS NULL`,
@@ -872,7 +872,7 @@ const respondToReview = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Not authorised to respond to this review' });
     }
 
-    // Upsert — one response per review
+    // Upsert â€” one response per review
     const { rows: existingRows } = await repositories.reviews.db.query(
       `SELECT id FROM review_responses WHERE review_id = $1 LIMIT 1`,
       [reviewId]

@@ -20,7 +20,7 @@ class CategoryController {
 
             // Map counts to category names for O(1) lookup
             const countMap = (catCounts || []).reduce((acc, curr) => {
-                acc[curr.category] = parseInt(curr.product_count);
+                acc[curr.category] = Number.parseInt(curr.product_count);
                 return acc;
             }, {});
 

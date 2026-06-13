@@ -46,7 +46,7 @@ class UserProfileRepository extends BaseRepository {
       .single();
 
     // If no row exists (PGRST116), the DB trigger might not have run. Gracefully insert it.
-    if (error && error.code === 'PGRST116') {
+    if (error?.code === 'PGRST116') {
       const { data: insertedData, error: insertError } = await this.db
         .from(this.tableName)
         .insert({

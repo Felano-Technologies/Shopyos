@@ -1,4 +1,4 @@
-// db/repositories/PromotedProductRepository.js
+﻿// db/repositories/PromotedProductRepository.js
 // Repository for managing promoted products (advertising system)
 
 const BaseRepository = require('./BaseRepository');
@@ -75,10 +75,10 @@ class PromotedProductRepository extends BaseRepository {
       results = results.filter(p => p.product?.category === category);
     }
     if (minPrice !== undefined) {
-      results = results.filter(p => parseFloat(p.product.price) >= minPrice);
+      results = results.filter(p => Number.parseFloat(p.product.price) >= minPrice);
     }
     if (maxPrice !== undefined) {
-      results = results.filter(p => parseFloat(p.product.price) <= maxPrice);
+      results = results.filter(p => Number.parseFloat(p.product.price) <= maxPrice);
     }
 
     return await transformImageUrlsAsync(results);
@@ -223,9 +223,9 @@ class PromotedProductRepository extends BaseRepository {
     return {
       impressions: data.impressions,
       clicks: data.clicks,
-      spent: parseFloat(data.spent_amount),
-      budget: parseFloat(data.budget),
-      remaining: parseFloat(data.budget) - parseFloat(data.spent_amount),
+      spent: Number.parseFloat(data.spent_amount),
+      budget: Number.parseFloat(data.budget),
+      remaining: Number.parseFloat(data.budget) - Number.parseFloat(data.spent_amount),
       ctr: ctr.toFixed(2),
       avgCostPerClick: avgCostPerClick.toFixed(2),
       avgCostPerImpression: avgCostPerImpression.toFixed(4),
@@ -259,7 +259,7 @@ class PromotedProductRepository extends BaseRepository {
    * @returns {Promise<number>} Number of campaigns paused
    */
   async pauseExpiredCampaigns() {
-    // This method requires a 'status' column — skip gracefully if not available
+    // This method requires a 'status' column â€” skip gracefully if not available
     const now = new Date().toISOString();
 
     try {

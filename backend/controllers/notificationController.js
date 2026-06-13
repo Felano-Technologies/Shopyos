@@ -1,4 +1,4 @@
-// controllers/notificationController.js
+﻿// controllers/notificationController.js
 // Controller for notification management
 
 const repositories = require('../db/repositories');
@@ -14,8 +14,8 @@ const getNotifications = async (req, res, next) => {
     const { limit = 20, offset = 0, unreadOnly = false } = req.query;
 
     const notifications = await repositories.notifications.getUserNotifications(userId, {
-      limit: parseInt(limit),
-      offset: parseInt(offset),
+      limit: Number.parseInt(limit),
+      offset: Number.parseInt(offset),
       unreadOnly: unreadOnly === 'true'
     });
 
@@ -26,9 +26,9 @@ const getNotifications = async (req, res, next) => {
       notifications,
       unreadCount,
       pagination: {
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: notifications.length === parseInt(limit)
+        limit: Number.parseInt(limit),
+        offset: Number.parseInt(offset),
+        hasMore: notifications.length === Number.parseInt(limit)
       }
     });
   } catch (error) {
@@ -216,8 +216,8 @@ const getNotificationsByType = async (req, res, next) => {
     const { limit = 20, offset = 0 } = req.query;
 
     const notifications = await repositories.notifications.getNotificationsByType(userId, type, {
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: Number.parseInt(limit),
+      offset: Number.parseInt(offset)
     });
 
     res.status(200).json({
