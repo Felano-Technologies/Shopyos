@@ -326,36 +326,7 @@ async function handlePush(msg) {
         logger.info(`[Push] Sent ${messages.length} push notification(s) to user ${userId} for ${eventType}. Tickets: ${tickets.length}`);
 
         // Process tickets — update activity, queue receipts, clean up stale tokens
-        let anyOk = false;
-        for (let i = 0; i < tickets.length; i++) {
-            const ticket = tickets[i];
-            if (ticket.status === 'ok') {
-                anyOk = true;
-                logger.info(`[Push] ✅ Accepted by Expo for token: ${messages[i].to}`);
-                await repositories.notifications.updateTokenLastUsed(messages[i].to);
-                if (ticket.id) receiptQueue.push({ receiptId: ticket.id, token: messages[i].to });
-            } else if (ticket.status === 'error') {
-                logger.error(`[Push] ❌ Ticket error for user ${userId}: ${ticket.message}`);
-                if (ticket.details?.error === 'DeviceNotRegistered') {
-                    await repositories.notifications.removePushToken(messages[i].to);
-                    logger.info(`[Push] Removed stale token: ${messages[i].to}`);
-                }
-            }
-        }
-
-        if (anyOk) {
-            await updateLogStatus(eventType, target, refId, 'SENT');
-            // Mark the in-app notification record as push-delivered
-            if (notificationId) {
-                await repositories.notifications.db
-                    .from('notifications')
-                    .update({ sent_via_push: true })
-                    .eq('id', notificationId);
-            }
-        } else {
-            await updateLogStatus(eventType, target, refId, 'FAILED', 'All Expo tickets returned errors');
-        }
-
+        await _processTickets(tickets, messages, userId, eventType, target, refId, notificationId);
         return true;
 
     } catch (error) {
@@ -363,6 +334,36 @@ async function handlePush(msg) {
         logger.error(`[Push] Failed to send push to user ${userId} for ${eventType}`, details);
         await updateLogStatus(eventType, target, refId, 'FAILED', JSON.stringify(details));
         throw error; // Allow retry
+    }
+}
+
+async function _processTickets(tickets, messages, userId, eventType, target, refId, notificationId) {
+    let anyOk = false;
+    for (let i = 0; i < tickets.length; i++) {
+        const ticket = tickets[i];
+        if (ticket.status === 'ok') {
+            anyOk = true;
+            logger.info(`[Push] ✅ Accepted by Expo for token: ${messages[i].to}`);
+            await repositories.notifications.updateTokenLastUsed(messages[i].to);
+            if (ticket.id) receiptQueue.push({ receiptId: ticket.id, token: messages[i].to });
+        } else if (ticket.status === 'error') {
+            logger.error(`[Push] ❌ Ticket error for user ${userId}: ${ticket.message}`);
+            if (ticket.details?.error === 'DeviceNotRegistered') {
+                await repositories.notifications.removePushToken(messages[i].to);
+                logger.info(`[Push] Removed stale token: ${messages[i].to}`);
+            }
+        }
+    }
+    if (anyOk) {
+        await updateLogStatus(eventType, target, refId, 'SENT');
+        if (notificationId) {
+            await repositories.notifications.db
+                .from('notifications')
+                .update({ sent_via_push: true })
+                .eq('id', notificationId);
+        }
+    } else {
+        await updateLogStatus(eventType, target, refId, 'FAILED', 'All Expo tickets returned errors');
     }
 }
 

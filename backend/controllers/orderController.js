@@ -58,7 +58,7 @@ async function validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng) {
 
 async function processStoreOrder({ storeId, items, cart, req, userId, validatedPromo, validatedLoyaltyPoints, pool }) {
   const deliveryState = req.body.deliveryState || 'Greater Accra';
-  const { buyerLat, buyerLng, deliveryAddress, deliveryCity, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack' } = req.body;
+  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack' } = req.body;
 
   let subtotal = 0;
   const orderItems = items.map(item => {

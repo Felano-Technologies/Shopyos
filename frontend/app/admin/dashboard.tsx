@@ -15,6 +15,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAdminDashboard } from '@/services/api';
 
+function getStatusStyle(statusStyle: string) {
+  if (statusStyle === 'paid') return styles.statusPaid;
+  if (statusStyle === 'shipped') return styles.statusShipped;
+  return styles.statusPending;
+}
+
 const FALLBACK_TRANSACTIONS = [
   { name: 'Kofi Mensah',  date: '2026-04-20T08:00:00.000Z', type: 'paid',    status: 'Paid',    statusStyle: 'paid'    },
   { name: 'Ama Owusu',    date: '2026-04-21T14:00:00.000Z', type: 'shipped', status: 'Shipped', statusStyle: 'shipped' },
@@ -267,7 +273,7 @@ export default function AdminDashboard() {
 
             {FALLBACK_TRANSACTIONS.map((item, index) => (
               <View
-                key={index}
+                key={item.type}
                 style={[
                   styles.orderRow,
                   index === FALLBACK_TRANSACTIONS.length - 1 && { borderBottomWidth: 0 },
@@ -280,14 +286,7 @@ export default function AdminDashboard() {
                   </Text>
                 </View>
                 <View
-                  style={[
-                    styles.statusPill,
-                    item.statusStyle === 'paid'
-                      ? styles.statusPaid
-                      : item.statusStyle === 'shipped'
-                        ? styles.statusShipped
-                        : styles.statusPending,
-                  ]}
+                  style={[styles.statusPill, getStatusStyle(item.statusStyle)]}
                 >
                   <Text style={styles.statusLabel}>{item.status}</Text>
                 </View>
@@ -318,7 +317,7 @@ export default function AdminDashboard() {
               { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.6' },
             ].map((store, index, arr) => (
               <View
-                key={index}
+                key={store.rating}
                 style={[
                   styles.storeRow,
                   index < arr.length - 1 && styles.storeRowBorder,

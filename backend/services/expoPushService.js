@@ -66,28 +66,27 @@ class ExpoPushService {
             }
 
             console.log(`📡 [ExpoPushService] Delivery finished. Tickets received: ${tickets.length}`);
-            // 4. (Optional) Check receipts later. For simple robust handling, we check tickets here to clean up unregistered tokens.
-            for (let i = 0; i < tickets.length; i++) {
-                const ticket = tickets[i];
-                if (ticket.status === 'ok') {
-                    console.log(`✅ [ExpoPushService] Successfully sent to token: ${messages[i].to}`);
-                }
-                if (ticket.status === 'error') {
-                    logger.error(`Error sending to device: ${ticket.message}`);
-                    if (ticket.details && ticket.details.error === 'DeviceNotRegistered') {
-                        // The user uninstalled the app or app data was cleared. 
-                        // Cleanup the token from our DB.
-                        const tokenToRemove = messages[i].to;
-                        await repositories.notifications.removePushToken(tokenToRemove);
-                    }
-                }
-            }
+            await this._processTickets(tickets, messages);
 
             return true;
 
         } catch (error) {
             logger.error('ExpoPushService error:', error);
             return false;
+        }
+    }
+    async _processTickets(tickets, messages) {
+        for (let i = 0; i < tickets.length; i++) {
+            const ticket = tickets[i];
+            if (ticket.status === 'ok') {
+                console.log(`✅ [ExpoPushService] Successfully sent to token: ${messages[i].to}`);
+            }
+            if (ticket.status === 'error') {
+                logger.error(`Error sending to device: ${ticket.message}`);
+                if (ticket.details?.error === 'DeviceNotRegistered') {
+                    await repositories.notifications.removePushToken(messages[i].to);
+                }
+            }
         }
     }
 }

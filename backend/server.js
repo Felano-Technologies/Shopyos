@@ -1,5 +1,5 @@
 ﻿const express = require('express');
-const http = require('http');
+const http = require('node:http');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const compression = require('compression');

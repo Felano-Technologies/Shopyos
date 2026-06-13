@@ -2,11 +2,11 @@ const amqp = require('amqplib');
 const { logger } = require('../config/logger');
 
 class RabbitMQService {
-    constructor() {
-        this.connection = null;
-        this.channel = null;
-        this.exchangeName = 'notifications_exchange';
-    }
+    connection = null;
+    channel = null;
+    exchangeName = 'notifications_exchange';
+
+    constructor() {}
 
     async connect() {
         try {

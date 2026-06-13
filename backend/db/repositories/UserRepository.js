@@ -53,7 +53,8 @@ class UserRepository extends BaseRepository {
 
     // Create associated profile (trigger handles this in DB)
     // Return user without password_hash
-    const { password_hash: _password_hash, ...userWithoutPassword } = user;
+    const userWithoutPassword = { ...user };
+    delete userWithoutPassword.password_hash;
     return userWithoutPassword;
   }
 

@@ -2,7 +2,7 @@
 // Automated verification script for Driver Availability Range Notifications
 
 require('dotenv').config({ path: '../.env' });
-const assert = require('assert');
+const assert = require('node:assert');
 const repositories = require('../db/repositories');
 const { getPool } = require('../config/postgres');
 const orderController = require('../controllers/orderController');
@@ -178,8 +178,10 @@ async function testNotifications() {
     // Verify they targeted our matched driver
     const targetPush = notificationCalls.push.find(n => n.userId === driver.user_id);
     assert.ok(targetPush, 'Driver should receive push notification');
-    assert.match(targetPush.title, /New Delivery Request/);
-    assert.strictEqual(targetPush.data.deliveryId, existingDelivery.id);
+    if (targetPush) {
+      assert.match(targetPush.title, /New Delivery Request/);
+      assert.strictEqual(targetPush.data.deliveryId, existingDelivery.id);
+    }
 
     console.log('\nðŸŽ‰ ALL NOTIFICATION DISPATCH VERIFICATIONS PASSED SUCCESSFULLY!');
 

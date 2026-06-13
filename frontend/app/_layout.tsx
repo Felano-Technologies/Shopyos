@@ -56,6 +56,13 @@ const toastConfig = {
   )
 };
 
+function getScreenBg(colorScheme: string | null | undefined, isIndexRoute: boolean, isHomeRoute: boolean): string {
+  if (colorScheme === 'dark') return '#000000';
+  if (isIndexRoute) return '#061f65';
+  if (isHomeRoute) return '#E9F0FF';
+  return '#FFFFFF';
+}
+
 // Inner component that uses hooks requiring QueryClient
 function AppContent() {
   const colorScheme = useColorScheme();
@@ -78,13 +85,7 @@ function AppContent() {
   const navTheme = colorScheme === 'dark' ? DarkTheme : DefaultTheme;
   const isIndexRoute = pathname === '/' || pathname === '/index';
   const isHomeRoute = pathname === '/home';
-  const screenBg = colorScheme === 'dark'
-    ? '#000000'
-    : isIndexRoute
-      ? '#061f65'
-      : isHomeRoute
-      ? '#E9F0FF'
-      : '#FFFFFF';
+  const screenBg = getScreenBg(colorScheme, isIndexRoute, isHomeRoute);
 
   // --- CUSTOMER NAV LOGIC ---
   const mainCustomerTabs = ['/home', '/stores', '/search', '/settings', '/order'];

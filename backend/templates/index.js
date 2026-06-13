@@ -153,7 +153,8 @@ const getWelcomeTemplates = (role, name, _phone) => {
 //  ROLE SELECTED
 // ─────────────────────────────────────────────────────────────────────────────
 const getRoleSelectedTemplates = (role, name) => {
-    const roleLabel = role === 'seller' ? 'Seller' : role === 'driver' ? 'Driver' : role === 'admin' ? 'Admin' : 'Buyer';
+    const innerRoleLabel = role === 'driver' ? 'Driver' : role === 'admin' ? 'Admin' : 'Buyer';
+    const roleLabel = role === 'seller' ? 'Seller' : innerRoleLabel;
     const displayName = safe(name, 'there');
 
     return {
@@ -295,6 +296,7 @@ const getBusinessVerificationResultTemplates = (data = {}) => {
     const status = safe(data.status, '').toLowerCase();
     const approved = status === 'verified' || status === 'approved';
     const reason = safe(data.reason, '');
+    const reasonHtml = reason ? `<p><strong>Reason:</strong> ${reason}</p>` : '';
 
     return {
         email: {
@@ -314,7 +316,7 @@ const getBusinessVerificationResultTemplates = (data = {}) => {
                     : `
                         <p>${badge('Not Approved', '#dc2626')}</p><br/>
                         <p>Unfortunately, your verification request for <strong>${businessName}</strong> was not approved at this time.</p>
-                        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+                        ${reasonHtml}
                         ${divider}
                         <p style="font-size:14px;color:#64748b;">Please review the feedback above, update your documents, and resubmit. Contact support if you need help.</p>
                       `,
@@ -382,6 +384,7 @@ const getDriverVerificationResultTemplates = (data = {}) => {
     const status = safe(data.status, '').toLowerCase();
     const approved = status === 'verified' || status === 'approved';
     const reason = safe(data.reason, '');
+    const driverReasonHtml = reason ? `<p><strong>Reason:</strong> ${reason}</p>` : '';
 
     return {
         email: {
@@ -400,7 +403,7 @@ const getDriverVerificationResultTemplates = (data = {}) => {
                         <p>${badge('Not Approved', '#dc2626')}</p><br/>
                         <p>Hi <strong>${driverName}</strong>,</p>
                         <p>Unfortunately, your driver verification was not approved at this time.</p>
-                        ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+                        ${driverReasonHtml}
                         ${divider}
                         <p style="font-size:14px;color:#64748b;">Please review the feedback, update any required documents, and resubmit your verification.</p>
                       `,

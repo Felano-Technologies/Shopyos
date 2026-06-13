@@ -16,7 +16,7 @@ let _cache = null; // { year, holidays: [{ date, localName, name }] }
  * @returns {Promise<Array>}
  */
 async function getHolidaysForYear(year) {
-  if (_cache && _cache.year === year) return _cache.holidays;
+  if (_cache?.year === year) return _cache.holidays;
 
   try {
     const { data } = await axios.get(`${NAGER_BASE}/PublicHolidays/${year}/GH`, { timeout: 8000 });

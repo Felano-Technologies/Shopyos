@@ -25,7 +25,10 @@ export default function AdminAuditLogs() {
             if (isRefresh) setRefreshing(true);
             else setLoading(true);
             const res = await getAdminAuditLogs({ limit: 100 });
-            const data = Array.isArray(res?.logs) ? res.logs : (Array.isArray(res) ? res : []);
+            let data: any[];
+            if (Array.isArray(res?.logs)) data = res.logs;
+            else if (Array.isArray(res)) data = res;
+            else data = [];
             setLogs(data);
         } catch (err: any) {
             CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load logs' });
@@ -144,7 +147,7 @@ export default function AdminAuditLogs() {
                                         <View style={[styles.actionBadge, { backgroundColor: theme.bg }]}>
                                             <Feather name={theme.icon as any} size={12} color={theme.color} />
                                             <Text style={[styles.actionTag, { color: theme.color }]}>
-                                                {(item.action || '').replace(/_/g, ' ').toUpperCase()}
+                                                {(item.action || '').replaceAll('_', ' ').toUpperCase()}
                                             </Text>
                                         </View>
                                         <Text style={styles.logDate}>{formatDate(item.timestamp || item.created_at)}</Text>

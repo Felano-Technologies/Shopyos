@@ -365,34 +365,34 @@ const getCategories = async (req, res, next) => {
   }
 };
 
+function _resolveCompareAtPrice(val) {
+  return val ? Number.parseFloat(val) : null;
+}
+
+function _resolveTags(tags) {
+  return Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim());
+}
+
+function _resolveAttributes(attributes) {
+  return attributes && typeof attributes === 'object' ? attributes : null;
+}
+
 function buildProductUpdateData(updateData) {
   const d = {};
   if (updateData.name)        d.title = updateData.name;
   if (updateData.title)       d.title = updateData.title;
   if (updateData.description) d.description = updateData.description;
   if (updateData.price)       d.price = Number.parseFloat(updateData.price);
-  if (updateData.compareAtPrice !== undefined) {
-    d.compare_at_price = updateData.compareAtPrice ? Number.parseFloat(updateData.compareAtPrice) : null;
-  }
+  if (updateData.compareAtPrice !== undefined) d.compare_at_price = _resolveCompareAtPrice(updateData.compareAtPrice);
   if (updateData.category)   d.category = updateData.category;
   if (updateData.gender)     d.gender = updateData.gender;
   if (updateData.sku)        d.sku = updateData.sku;
   if (updateData.brand)      d.brand = updateData.brand;
   if (updateData.weight)     d.weight_kg = Number.parseFloat(updateData.weight);
   if (updateData.dimensions) d.dimensions = updateData.dimensions;
-  if (updateData.tags) {
-    d.tags = Array.isArray(updateData.tags)
-      ? updateData.tags
-      : updateData.tags.split(',').map(t => t.trim());
-  }
-  if (updateData.attributes !== undefined) {
-    d.attributes = updateData.attributes && typeof updateData.attributes === 'object'
-      ? updateData.attributes
-      : null;
-  }
-  if (updateData.isActive !== undefined) {
-    d.is_active = String(updateData.isActive) === 'true';
-  }
+  if (updateData.tags)                    d.tags = _resolveTags(updateData.tags);
+  if (updateData.attributes !== undefined) d.attributes = _resolveAttributes(updateData.attributes);
+  if (updateData.isActive !== undefined)  d.is_active = String(updateData.isActive) === 'true';
   return d;
 }
 

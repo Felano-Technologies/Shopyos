@@ -74,7 +74,7 @@ const bcrypt = require('bcryptjs');
 const { getPool } = require('../config/postgres');
 
 // â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const PASSWORD = 'Password123!';
+const PASSWORD = 'Password123!'; // NOSONAR
 const SUPPORT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -257,7 +257,7 @@ async function seed() {
               'info@techhub.gh', '+233302000010',
               '15 Ring Road Central', 'Accra', 'Greater Accra', 'Ghana', 'Electronics',
               5.5916, -0.1969,
-              TRUE, TRUE, 4.5, 32, 'free', 'verified', 5.00, 2.00, 50.00)
+              TRUE, TRUE, 4.5, 32, 'free', 'verified', 5, 2, 50)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [kofiId]);
@@ -273,7 +273,7 @@ async function seed() {
               'hello@abenafashions.gh', '+233322001010',
               '42 Adum Market', 'Kumasi', 'Ashanti', 'Ghana', 'Fashion',
               6.6935, -1.6168,
-              TRUE, TRUE, 4.8, 58, 'free', 'verified', 10.00, 0.00, 100.00)
+              TRUE, TRUE, 4.8, 58, 'free', 'verified', 10, 0, 100)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [abenaId]);
@@ -289,7 +289,7 @@ async function seed() {
               'yaw@yawfresh.gh', '+233244000005',
               '7 Tema Community 1', 'Tema', 'Greater Accra', 'Ghana', 'Grocery',
               5.6698, -0.0166,
-              TRUE, TRUE, 4.6, 21, 'free', 'verified', 3.00, 1.50, 20.00)
+              TRUE, TRUE, 4.6, 21, 'free', 'verified', 3, 1.5, 20)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [yawId]);
@@ -388,7 +388,7 @@ async function seed() {
       rating: 4.9, reviewCount: 17, stock: 30,
     });
 
-    const agbada1Id = await insertProduct(storeIds.fashion, {
+    await insertProduct(storeIds.fashion, {
       title: 'Men\'s Ankara Agbada Set', slug: 'mens-ankara-agbada',
       desc: 'Three-piece traditional agbada in bold ankara print. Perfect for special occasions.',
       price: 380, category: 'Fashion',
@@ -396,7 +396,7 @@ async function seed() {
       rating: 4.7, reviewCount: 9, stock: 20,
     });
 
-    const sneakersId = await insertProduct(storeIds.fashion, {
+    await insertProduct(storeIds.fashion, {
       title: 'Canvas Slip-On Sneakers', slug: 'canvas-slip-on-sneakers',
       desc: 'Comfortable, breathable canvas upper with cushioned insole. Sizes 36â€“45.',
       price: 95, compareAt: 130, category: 'Fashion',
@@ -405,7 +405,7 @@ async function seed() {
     });
 
     // Yaw Fresh products
-    const tomatoId = await insertProduct(storeIds.grocery, {
+    await insertProduct(storeIds.grocery, {
       title: 'Fresh Tomatoes (1 crate)', slug: 'fresh-tomatoes-crate',
       desc: 'Locally sourced, farm-fresh tomatoes. Ideal for soups and stews.',
       price: 65, category: 'Grocery',
@@ -439,7 +439,7 @@ async function seed() {
     await assignRole(db, seller5Id, roleMap.seller);
     const seller6Id = await insertUser(db, { email: 'freshharvestgh@test.com', name: 'Kofi Acheampong', phone: '+233244000012', city: 'Kumasi', lat: 6.7, lng: -1.62 });
     await assignRole(db, seller6Id, roleMap.seller);
-    const seller7Id = await insertUser(db, { email: 'glowbeautygh@test.com', name: 'Efua Asante', phone: '+233244000013', city: 'Accra', lat: 5.56, lng: -0.20 });
+    const seller7Id = await insertUser(db, { email: 'glowbeautygh@test.com', name: 'Efua Asante', phone: '+233244000013', city: 'Accra', lat: 5.56, lng: -0.2 });
     await assignRole(db, seller7Id, roleMap.seller);
     const seller8Id = await insertUser(db, { email: 'fitnesszonegh@test.com', name: 'Kwesi Boateng', phone: '+233244000014', city: 'Accra', lat: 5.58, lng: -0.22 });
     await assignRole(db, seller8Id, roleMap.seller);
@@ -450,9 +450,9 @@ async function seed() {
     const seller11Id = await insertUser(db, { email: 'autopartsgh@test.com', name: 'Yaw Asante', phone: '+233244000017', city: 'Accra', lat: 5.55, lng: -0.21 });
     await assignRole(db, seller11Id, roleMap.seller);
 
-    const buyer3Id = await insertUser(db, { email: 'abena.buyer@test.com', name: 'Abena Forson', phone: '+233244000018', city: 'Accra', lat: 5.59, lng: -0.20 });
+    const buyer3Id = await insertUser(db, { email: 'abena.buyer@test.com', name: 'Abena Forson', phone: '+233244000018', city: 'Accra', lat: 5.59, lng: -0.2 });
     await assignRole(db, buyer3Id, roleMap.buyer);
-    const buyer4Id = await insertUser(db, { email: 'kofi.buyer@test.com', name: 'Kofi Mensah', phone: '+233244000019', city: 'Kumasi', lat: 6.70, lng: -1.63 });
+    const buyer4Id = await insertUser(db, { email: 'kofi.buyer@test.com', name: 'Kofi Mensah', phone: '+233244000019', city: 'Kumasi', lat: 6.7, lng: -1.63 });
     await assignRole(db, buyer4Id, roleMap.buyer);
     console.log('   âœ… Additional sellers & buyers created\n');
 
@@ -473,14 +473,14 @@ async function seed() {
       return s.id;
     };
 
-    const accraTechId   = await insertStore(seller4Id,  { name: 'Accra Tech Mall',       slug: 'accra-tech-mall',       desc: 'Premier destination for gadgets, laptops, phones and smart home devices.',         email: 'info@accratechmall.gh',    phone: '+233302000020', address: '5 Cantonments Road',    city: 'Accra',  state: 'Greater Accra', category: 'Electronics',      lat: 5.6037, lng: -0.187,  rating: 4.6, reviews: 87,  baseFee: 8.00,  perKm: 2.50, maxKm: 40 });
-    const kumasiFashId  = await insertStore(seller5Id,  { name: 'Kumasi Fashion House',   slug: 'kumasi-fashion-house',  desc: 'Authentic African prints, bespoke tailoring and modern styles.',                    email: 'info@kumasifashion.gh',    phone: '+233322002020', address: '18 Kejetia Market',     city: 'Kumasi', state: 'Ashanti',       category: 'Fashion',          lat: 6.6885, lng: -1.6244, rating: 4.7, reviews: 124, baseFee: 10.00, perKm: 0.00, maxKm: 80 });
-    const freshHarvId   = await insertStore(seller6Id,  { name: 'Fresh Harvest Kumasi',   slug: 'fresh-harvest-kumasi',  desc: 'Farm-to-table groceries, organic produce and traditional Ghanaian staples.',        email: 'hello@freshharvestgh.gh',  phone: '+233322003030', address: '3 Bantama Market',      city: 'Kumasi', state: 'Ashanti',       category: 'Grocery',          lat: 6.70,   lng: -1.62,   rating: 4.5, reviews: 66,  baseFee: 5.00,  perKm: 1.50, maxKm: 25 });
-    const glowBeautyId  = await insertStore(seller7Id,  { name: 'Glow Beauty Ghana',      slug: 'glow-beauty-ghana',     desc: 'Natural and organic beauty products rooted in African heritage.',                   email: 'info@glowbeauty.gh',       phone: '+233302004040', address: '22 Osu Oxford Street',  city: 'Accra',  state: 'Greater Accra', category: 'Health & Beauty',  lat: 5.56,   lng: -0.20,   rating: 4.8, reviews: 201, baseFee: 6.00,  perKm: 2.00, maxKm: 35 });
-    const fitnessZoneId = await insertStore(seller8Id,  { name: 'Fitness Zone Accra',     slug: 'fitness-zone-accra',    desc: 'Sports equipment, supplements and activewear for every fitness level.',              email: 'info@fitnesszone.gh',      phone: '+233302005050', address: '9 Liberation Road',     city: 'Accra',  state: 'Greater Accra', category: 'Sports & Fitness', lat: 5.58,   lng: -0.22,   rating: 4.4, reviews: 53,  baseFee: 7.00,  perKm: 2.00, maxKm: 40 });
-    const homeStyleId   = await insertStore(seller9Id,  { name: 'HomeStyle Accra',        slug: 'homestyle-accra',       desc: 'Quality home furnishings, kitchenware and dÃ©cor to make your house a home.',       email: 'info@homestyleaccra.gh',   phone: '+233302006060', address: '12 Spintex Road',       city: 'Accra',  state: 'Greater Accra', category: 'Home & Garden',    lat: 5.67,   lng: -0.01,   rating: 4.5, reviews: 78,  baseFee: 9.00,  perKm: 2.50, maxKm: 45 });
-    const littleStarsId = await insertStore(seller10Id, { name: 'Little Stars Kids',      slug: 'little-stars-kids',     desc: 'Safe, fun and educational toys, clothing and gear for babies and children.',        email: 'hello@littlestars.gh',     phone: '+233302007070', address: '8 East Legon Avenue',   city: 'Accra',  state: 'Greater Accra', category: 'Baby & Kids',      lat: 5.61,   lng: -0.19,   rating: 4.9, reviews: 145, baseFee: 6.00,  perKm: 2.00, maxKm: 35 });
-    const autoPartsId   = await insertStore(seller11Id, { name: 'AutoParts Ghana',        slug: 'autoparts-ghana',       desc: 'Genuine spare parts, accessories and care products for all vehicle brands.',       email: 'info@autopartsgh.gh',      phone: '+233302008080', address: '31 Graphic Road',       city: 'Accra',  state: 'Greater Accra', category: 'Automotive',       lat: 5.55,   lng: -0.21,   rating: 4.3, reviews: 42,  baseFee: 10.00, perKm: 3.00, maxKm: 50 });
+    const accraTechId   = await insertStore(seller4Id,  { name: 'Accra Tech Mall',       slug: 'accra-tech-mall',       desc: 'Premier destination for gadgets, laptops, phones and smart home devices.',         email: 'info@accratechmall.gh',    phone: '+233302000020', address: '5 Cantonments Road',    city: 'Accra',  state: 'Greater Accra', category: 'Electronics',      lat: 5.6037, lng: -0.187,  rating: 4.6, reviews: 87,  baseFee: 8,  perKm: 2.5, maxKm: 40 });
+    const kumasiFashId  = await insertStore(seller5Id,  { name: 'Kumasi Fashion House',   slug: 'kumasi-fashion-house',  desc: 'Authentic African prints, bespoke tailoring and modern styles.',                    email: 'info@kumasifashion.gh',    phone: '+233322002020', address: '18 Kejetia Market',     city: 'Kumasi', state: 'Ashanti',       category: 'Fashion',          lat: 6.6885, lng: -1.6244, rating: 4.7, reviews: 124, baseFee: 10, perKm: 0, maxKm: 80 });
+    const freshHarvId   = await insertStore(seller6Id,  { name: 'Fresh Harvest Kumasi',   slug: 'fresh-harvest-kumasi',  desc: 'Farm-to-table groceries, organic produce and traditional Ghanaian staples.',        email: 'hello@freshharvestgh.gh',  phone: '+233322003030', address: '3 Bantama Market',      city: 'Kumasi', state: 'Ashanti',       category: 'Grocery',          lat: 6.7,   lng: -1.62,   rating: 4.5, reviews: 66,  baseFee: 5,  perKm: 1.5, maxKm: 25 });
+    const glowBeautyId  = await insertStore(seller7Id,  { name: 'Glow Beauty Ghana',      slug: 'glow-beauty-ghana',     desc: 'Natural and organic beauty products rooted in African heritage.',                   email: 'info@glowbeauty.gh',       phone: '+233302004040', address: '22 Osu Oxford Street',  city: 'Accra',  state: 'Greater Accra', category: 'Health & Beauty',  lat: 5.56,   lng: -0.2,   rating: 4.8, reviews: 201, baseFee: 6,  perKm: 2, maxKm: 35 });
+    const fitnessZoneId = await insertStore(seller8Id,  { name: 'Fitness Zone Accra',     slug: 'fitness-zone-accra',    desc: 'Sports equipment, supplements and activewear for every fitness level.',              email: 'info@fitnesszone.gh',      phone: '+233302005050', address: '9 Liberation Road',     city: 'Accra',  state: 'Greater Accra', category: 'Sports & Fitness', lat: 5.58,   lng: -0.22,   rating: 4.4, reviews: 53,  baseFee: 7,  perKm: 2, maxKm: 40 });
+    const homeStyleId   = await insertStore(seller9Id,  { name: 'HomeStyle Accra',        slug: 'homestyle-accra',       desc: 'Quality home furnishings, kitchenware and dÃ©cor to make your house a home.',       email: 'info@homestyleaccra.gh',   phone: '+233302006060', address: '12 Spintex Road',       city: 'Accra',  state: 'Greater Accra', category: 'Home & Garden',    lat: 5.67,   lng: -0.01,   rating: 4.5, reviews: 78,  baseFee: 9,  perKm: 2.5, maxKm: 45 });
+    const littleStarsId = await insertStore(seller10Id, { name: 'Little Stars Kids',      slug: 'little-stars-kids',     desc: 'Safe, fun and educational toys, clothing and gear for babies and children.',        email: 'hello@littlestars.gh',     phone: '+233302007070', address: '8 East Legon Avenue',   city: 'Accra',  state: 'Greater Accra', category: 'Baby & Kids',      lat: 5.61,   lng: -0.19,   rating: 4.9, reviews: 145, baseFee: 6,  perKm: 2, maxKm: 35 });
+    const autoPartsId   = await insertStore(seller11Id, { name: 'AutoParts Ghana',        slug: 'autoparts-ghana',       desc: 'Genuine spare parts, accessories and care products for all vehicle brands.',       email: 'info@autopartsgh.gh',      phone: '+233302008080', address: '31 Graphic Road',       city: 'Accra',  state: 'Greater Accra', category: 'Automotive',       lat: 5.55,   lng: -0.21,   rating: 4.3, reviews: 42,  baseFee: 10, perKm: 3, maxKm: 50 });
     console.log('   âœ… Additional stores created (8 new)\n');
 
     // â”€â”€ 8D. Bulk Products (~85 items across 8 new stores) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -604,7 +604,7 @@ async function seed() {
          delivery_latitude, delivery_longitude,
          paid_at, confirmed_at, escrow_status)
       VALUES ('SH-0001', $1, $2, 'completed',
-              2200.00, 0, 15.00, 2215.00, 'GHS',
+              2200, 0, 15, 2215, 'GHS',
               '24 Labadi Road', 'Accra', 'Ghana',
               5.5502, -0.2174,
               NOW() - INTERVAL '5 days',
@@ -616,7 +616,7 @@ async function seed() {
 
     await db.query(`
       INSERT INTO order_items (order_id, product_id, product_title, quantity, price, subtotal)
-      VALUES ($1, $2, 'Samsung Galaxy A54 5G', 1, 2200.00, 2200.00)
+      VALUES ($1, $2, 'Samsung Galaxy A54 5G', 1, 2200, 2200)
     `, [order1.id, phone1Id]);
 
     const { rows: [order2] } = await db.query(`
@@ -627,7 +627,7 @@ async function seed() {
          delivery_latitude, delivery_longitude,
          paid_at, escrow_status)
       VALUES ('SH-0002', $1, $2, 'paid',
-              280.00, 0, 10.00, 290.00, 'GHS',
+              280, 0, 10, 290, 'GHS',
               '7 Ahensan Estate', 'Kumasi', 'Ghana',
               6.6885, -1.6244,
               NOW() - INTERVAL '1 day',
@@ -638,7 +638,7 @@ async function seed() {
 
     await db.query(`
       INSERT INTO order_items (order_id, product_id, product_title, quantity, price, subtotal)
-      VALUES ($1, $2, 'Kente Print Wrap Dress', 1, 280.00, 280.00)
+      VALUES ($1, $2, 'Kente Print Wrap Dress', 1, 280, 280)
     `, [order2.id, kente1Id]);
 
     const { rows: [order3] } = await db.query(`
@@ -648,7 +648,7 @@ async function seed() {
          delivery_address_line1, delivery_city, delivery_country,
          delivery_latitude, delivery_longitude)
       VALUES ('SH-0003', $1, $2, 'pending',
-              405.00, 0, 12.00, 417.00, 'GHS',
+              405, 0, 12, 417, 'GHS',
               '24 Labadi Road', 'Accra', 'Ghana',
               5.5502, -0.2174)
       ON CONFLICT (order_number) DO UPDATE SET status = EXCLUDED.status
@@ -658,8 +658,8 @@ async function seed() {
     await db.query(`
       INSERT INTO order_items (order_id, product_id, product_title, quantity, price, subtotal)
       VALUES
-        ($1, $2, 'Ghana Jasmine Rice (25kg)', 1, 320.00, 320.00),
-        ($1, $3, 'Pure Red Palm Oil (5L)', 1, 85.00, 85.00)
+        ($1, $2, 'Ghana Jasmine Rice (25kg)', 1, 320, 320),
+        ($1, $3, 'Pure Red Palm Oil (5L)', 1, 85, 85)
     `, [order3.id, riceId, palmoilId]);
 
     console.log('   âœ… Orders created\n');
@@ -676,7 +676,7 @@ async function seed() {
       VALUES ($1, $2, 'delivered',
               '15 Ring Road Central, Accra', 5.5916, -0.1969,
               '24 Labadi Road, Accra', 5.5502, -0.2174,
-              5.2, 15.00, 10.00,
+              5.2, 15, 10,
               NOW() - INTERVAL '5 days',
               NOW() - INTERVAL '5 days' + INTERVAL '30 minutes',
               NOW() - INTERVAL '5 days' + INTERVAL '1 hour')
@@ -810,8 +810,8 @@ async function seed() {
     await db.query(`
       INSERT INTO banner_campaigns (store_id, title, placement, duration_days, paid_amount, status, banner_url, start_date, end_date)
       VALUES 
-        ($1, 'Back to School Sale', 'home_hero', 7, 150.00, 'Active', 'https://images.unsplash.com/photo-1509062522246-3755977927d7', NOW(), NOW() + INTERVAL '7 days'),
-        ($2, 'Kente Collection 2026', 'category_sidebar', 14, 250.00, 'Active', 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b', NOW(), NOW() + INTERVAL '14 days')
+        ($1, 'Back to School Sale', 'home_hero', 7, 150, 'Active', 'https://images.unsplash.com/photo-1509062522246-3755977927d7', NOW(), NOW() + INTERVAL '7 days'),
+        ($2, 'Kente Collection 2026', 'category_sidebar', 14, 250, 'Active', 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b', NOW(), NOW() + INTERVAL '14 days')
       ON CONFLICT DO NOTHING
     `, [storeIds.tech, storeIds.fashion]);
     console.log('   âœ… Banner campaigns created\n');

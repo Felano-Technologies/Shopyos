@@ -2,7 +2,7 @@
 // Automated verification script for Delivery PIN flow and role boundaries
 
 require('dotenv').config({ path: '../.env' });
-const assert = require('assert');
+const assert = require('node:assert');
 const repositories = require('../db/repositories');
 const { getPool } = require('../config/postgres');
 const orderController = require('../controllers/orderController');
