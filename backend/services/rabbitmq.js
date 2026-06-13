@@ -6,8 +6,6 @@ class RabbitMQService {
     channel = null;
     exchangeName = 'notifications_exchange';
 
-    constructor() {}
-
     async connect() {
         try {
             const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;

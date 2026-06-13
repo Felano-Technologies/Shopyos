@@ -26,7 +26,7 @@ type AdCardProps = {
   actionLoading: string | null;
 };
 
-function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: AdCardProps) {
+function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: Readonly<AdCardProps>) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>

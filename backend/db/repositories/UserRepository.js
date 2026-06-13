@@ -358,7 +358,7 @@ class UserRepository extends BaseRepository {
     // Check if any active role matches the required name
     return userWithRoles.some(ur => {
        const role = ur.roles || ur.role;
-       return role?.name && role.name.toLowerCase() === roleName.toLowerCase();
+       return role?.name?.toLowerCase() === roleName.toLowerCase();
     });
   }
   /**
@@ -375,7 +375,7 @@ class UserRepository extends BaseRepository {
     const adminIds = (adminRoles || [])
       .filter(ur => {
         const role = ur.roles || ur.role;
-        return role?.name && role.name.toLowerCase() === 'admin';
+        return role?.name?.toLowerCase() === 'admin';
       })
       .map(ur => ur.user_id);
 

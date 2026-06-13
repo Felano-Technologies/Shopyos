@@ -30,7 +30,7 @@ class AmqpPublisher {
     if (!this._connectPromise) {
       this._connectPromise = this._doConnect().finally(() => { this._connectPromise = null; });
     }
-    await this._connectPromise;
+    if (this._connectPromise) await this._connectPromise;
   }
 
   _reset() {

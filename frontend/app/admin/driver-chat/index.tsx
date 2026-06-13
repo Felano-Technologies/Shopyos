@@ -212,6 +212,11 @@ export default function AdminDriverChatList() {
       </TouchableOpacity>
     );
   };
+  const emptyBodyText = searchQuery
+    ? 'No drivers match your search.'
+    : filter === 'all'
+      ? 'Driver conversations will appear here.'
+      : `No ${filter} drivers right now.`;
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -309,13 +314,7 @@ export default function AdminDriverChatList() {
                   <MaterialCommunityIcons name="chat-outline" size={rs(42)} color={C.navy} />
                 </View>
                 <Text style={S.emptyTitle}>No conversations</Text>
-                <Text style={S.emptyBody}>
-                  {searchQuery
-                    ? 'No drivers match your search.'
-                    : filter === 'all'
-                      ? 'Driver conversations will appear here.'
-                      : `No ${filter} drivers right now.`}
-                </Text>
+                <Text style={S.emptyBody}>{emptyBodyText}</Text>
               </View>
             }
           />
