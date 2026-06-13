@@ -130,7 +130,7 @@ export default function ConversationScreen() {
   const formatLastSeen = (iso: string | null): string => {
     if (!iso) return '';
     const d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     const diffMins = Math.floor((Date.now() - d.getTime()) / 60000);
     if (diffMins < 1) return 'Last seen just now';
     if (diffMins < 60) return `Last seen ${diffMins}m ago`;
@@ -208,9 +208,9 @@ export default function ConversationScreen() {
   // Active conversation tracking for push suppression
   useEffect(() => {
     if (conversationId) {
-      (global as any).activeConversationId = conversationId;
+      (globalThis as any).activeConversationId = conversationId;
     }
-    return () => { (global as any).activeConversationId = null; };
+    return () => { (globalThis as any).activeConversationId = null; };
   }, [conversationId]);
 
   // Mark unread on initial load
@@ -529,57 +529,56 @@ export default function ConversationScreen() {
 
   // ---- Message bubble renderer ----
 
+  const renderModeratedBubble = (item: MessageItem, index: number) => (
+    <>
+      {showDate(index) && (
+        <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
+      )}
+      <View style={styles.systemNoticeRow}>
+        <View style={styles.systemNoticePill}>
+          <Ionicons name="shield-checkmark-outline" size={14} color="#EF4444" style={{ marginRight: 6 }} />
+          <Text style={styles.systemNoticeText}>{item.content}</Text>
+        </View>
+      </View>
+    </>
+  );
+
+  const renderStickerBubble = (item: MessageItem, index: number, isMe: boolean) => (
+    <>
+      {showDate(index) && (
+        <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
+      )}
+      <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
+        {!isMe && (
+          displayAvatar
+            ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
+            : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
+        )}
+        <View>
+          <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
+            <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
+          </TouchableOpacity>
+          <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
+            <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+            {isMe && !item.failed && (
+              <Ionicons
+                name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
+                size={13}
+                color={item.pending ? C.mutedText : item.is_read ? C.limeTick : C.mutedText}
+              />
+            )}
+          </View>
+        </View>
+      </View>
+    </>
+  );
+
   const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
     const isMe = item.sender_id === currentUserId;
     const isSticker = item.message_type === 'sticker';
 
-    if (item.is_moderated) {
-      return (
-        <>
-          {showDate(index) && (
-            <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
-          )}
-          <View style={styles.systemNoticeRow}>
-            <View style={styles.systemNoticePill}>
-              <Ionicons name="shield-checkmark-outline" size={14} color="#EF4444" style={{ marginRight: 6 }} />
-              <Text style={styles.systemNoticeText}>{item.content}</Text>
-            </View>
-          </View>
-        </>
-      );
-    }
-
-    if (isSticker) {
-      return (
-        <>
-          {showDate(index) && (
-            <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
-          )}
-          <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
-            {!isMe && (
-              displayAvatar
-                ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
-                : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
-            )}
-            <View>
-              <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
-                <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
-              </TouchableOpacity>
-              <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
-                <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
-                {isMe && !item.failed && (
-                  <Ionicons
-                    name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
-                    size={13}
-                    color={item.pending ? C.mutedText : item.is_read ? C.limeTick : C.mutedText}
-                  />
-                )}
-              </View>
-            </View>
-          </View>
-        </>
-      );
-    }
+    if (item.is_moderated) return renderModeratedBubble(item, index);
+    if (isSticker) return renderStickerBubble(item, index, isMe);
 
     const hasMedia = item.message_type === 'image' || item.message_type === 'video' || item.message_type === 'voice';
 
@@ -647,6 +646,8 @@ export default function ConversationScreen() {
   }, [currentUserId, displayAvatar, displayName, showDate, fmtDate, fmtTime, renderReplyPreview]);
 
   // ---- Root render ----
+  const offlineStatusText = lastSeen ? formatLastSeen(lastSeen) : (chatType === 'buyer' ? 'Official Store' : 'Customer');
+  const hdrStatusText = isOnline ? 'Online' : offlineStatusText;
 
   return (
     <View style={styles.root}>
@@ -669,13 +670,7 @@ export default function ConversationScreen() {
             </View>
             <View>
               <Text style={styles.hdrName} numberOfLines={1}>{displayName}</Text>
-              <Text style={styles.hdrStatus}>
-                {isOnline
-                  ? 'Online'
-                  : lastSeen
-                    ? formatLastSeen(lastSeen)
-                    : chatType === 'buyer' ? 'Official Store' : 'Customer'}
-              </Text>
+              <Text style={styles.hdrStatus}>{hdrStatusText}</Text>
             </View>
           </TouchableOpacity>
 

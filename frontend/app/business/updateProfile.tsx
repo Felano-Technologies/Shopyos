@@ -123,8 +123,8 @@ const BusinessUpdateScreen = () => {
       return;
     }
     try {
-      const logoInput = logoChanged ? logo : logo;
-      const coverImageInput = coverChanged ? coverImage : coverImage;
+      const logoInput = logo;
+      const coverImageInput = coverImage;
       const updateData = {
         ...formData,
         store_name: formData.businessName, // Ensure compatibility with backend mapping

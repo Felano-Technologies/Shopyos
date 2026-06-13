@@ -2,6 +2,14 @@
 // Phase 5 — Task 5.2 & 5.3: Performance monitoring with cache hit/miss metrics
 
 const { logger } = require('../config/logger');
+const {
+    httpRequestsTotal,
+    httpRequestDuration,
+    httpActiveRequests,
+    cacheHitsTotal,
+    cacheMissesTotal,
+    normalizeRoute
+} = require('../config/metrics');
 
 // ── In-memory counters (reset on restart — that's fine for single-instance) ──
 const metrics = {
@@ -43,14 +51,17 @@ const performanceMiddleware = (req, res, next) => {
     const startTime = process.hrtime.bigint();
     metrics.requests.total++;
     metrics.requests.active++;
+    httpActiveRequests.inc();
 
     // When response finishes
     const onFinish = () => {
         metrics.requests.active--;
+        httpActiveRequests.dec();
         cleanup();
 
         const durationNs = Number(process.hrtime.bigint() - startTime);
         const durationMs = Math.round(durationNs / 1e6);
+        const durationSec = durationNs / 1e9;
 
         // Status code tracking
         const code = String(res.statusCode);
@@ -70,6 +81,12 @@ const performanceMiddleware = (req, res, next) => {
         else if (durationMs < 1000) metrics.responseTimes.buckets['500to1000ms']++;
         else metrics.responseTimes.buckets['over1000ms']++;
 
+        // Prometheus metrics
+        const route = normalizeRoute(req);
+        const labels = { method: req.method, route, status_code: code };
+        httpRequestsTotal.inc(labels);
+        httpRequestDuration.observe(labels, durationSec);
+
         // Slow query logging
         if (durationMs > SLOW_THRESHOLD_MS) {
             metrics.responseTimes.slowQueries++;
@@ -87,10 +104,13 @@ const performanceMiddleware = (req, res, next) => {
         const cacheHeader = res.getHeader('X-Cache');
         if (cacheHeader === 'HIT') {
             metrics.cache.hits++;
+            cacheHitsTotal.inc();
         } else if (cacheHeader === 'MISS') {
             metrics.cache.misses++;
+            cacheMissesTotal.inc();
         } else if (cacheHeader === 'HIT_AFTER_WAIT') {
             metrics.cache.hitsAfterWait++;
+            cacheHitsTotal.inc();
         }
 
         // Memory warning
@@ -102,6 +122,7 @@ const performanceMiddleware = (req, res, next) => {
 
     const onClose = () => {
         metrics.requests.active--;
+        httpActiveRequests.dec();
         cleanup();
     };
 

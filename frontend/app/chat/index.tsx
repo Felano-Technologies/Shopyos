@@ -131,8 +131,8 @@ export default function ChatInbox() {
       if (res.success) {
         setSellers(res.businesses || []);
       }
-    } catch (err) {
-      console.error('Error fetching sellers for chat', err);
+    } catch {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load sellers.' });
     } finally {
       setSellersLoading(false);
     }
@@ -191,29 +191,7 @@ export default function ChatInbox() {
   const initials = (name: string) =>
     (name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  // ── Empty state ──────────────────────────────────────────────────────────────
-  const renderEmpty = () => (
-    <View style={styles.emptyWrap}>
-      <View style={styles.emptyCircle}>
-        {buyerConversations.length > 0
-          ? <MaterialCommunityIcons name="text-box-search-outline" size={34} color={C.navyMid} />
-          : <Ionicons name="chatbubbles-outline" size={34} color={C.navyMid} />}
-      </View>
-      <Text style={styles.emptyTitle}>
-        {buyerConversations.length > 0 ? 'No results' : 'No messages yet'}
-      </Text>
-      <Text style={styles.emptyBody}>
-        {buyerConversations.length > 0
-          ? 'Try a different search or filter.'
-          : 'Your conversations with sellers will appear here.'}
-      </Text>
-      {buyerConversations.length === 0 && (
-        <TouchableOpacity style={styles.browseBtn} onPress={() => router.push('/home')}>
-          <Text style={styles.browseBtnText}>Browse Products</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  const hasConversations = buyerConversations.length > 0;
 
   // ── Conversation row ─────────────────────────────────────────────────────────
   const renderItem = ({ item }: { item: any }) => {
@@ -330,7 +308,7 @@ export default function ChatInbox() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={[styles.list, displayList.length === 0 && { flex: 1 }]}
-        ListEmptyComponent={renderEmpty}
+        ListEmptyComponent={() => <ChatEmpty hasConversations={hasConversations} onBrowse={() => router.push('/home')} />}
         showsVerticalScrollIndicator={false}
         ItemSeparatorComponent={() => <View style={styles.sep} />}
       />
@@ -405,33 +383,7 @@ export default function ChatInbox() {
                   </View>
                 )}
                 renderItem={({ item }) => (
-                  <TouchableOpacity
-                    style={styles.modalRow}
-                    onPress={() => startChatWithSeller(item)}
-                    activeOpacity={0.7}
-                  >
-                    {item.logo ? (
-                      <AppImage uri={item.logo} style={styles.modalAvatar} />
-                    ) : (
-                      <View style={styles.modalAvatarFallback}>
-                        <Text style={styles.modalAvatarLetters}>{initials(item.name)}</Text>
-                      </View>
-                    )}
-                    <View style={styles.modalRowBody}>
-                      <View style={styles.modalRowTop}>
-                        <Text style={styles.modalSellerName} numberOfLines={1}>{item.name}</Text>
-                        {item.isTrusted && (
-                          <View style={styles.modalVerifiedBadge}>
-                            <Ionicons name="checkmark" size={8} color="#fff" />
-                          </View>
-                        )}
-                      </View>
-                      <Text style={styles.modalSellerCat}>{item.category}</Text>
-                    </View>
-                    <View style={styles.chatActionBtn}>
-                      <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.navyDeep} />
-                    </View>
-                  </TouchableOpacity>
+                  <SellerRow item={item} onPress={startChatWithSeller} getInitials={initials} />
                 )}
               />
             )}
@@ -775,3 +727,67 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+
+type ChatEmptyProps = Readonly<{
+  hasConversations: boolean;
+  onBrowse: () => void;
+}>;
+
+const ChatEmpty = ({ hasConversations, onBrowse }: ChatEmptyProps) => (
+  <View style={styles.emptyWrap}>
+    <View style={styles.emptyCircle}>
+      {hasConversations
+        ? <MaterialCommunityIcons name="text-box-search-outline" size={34} color={C.navyMid} />
+        : <Ionicons name="chatbubbles-outline" size={34} color={C.navyMid} />}
+    </View>
+    <Text style={styles.emptyTitle}>
+      {hasConversations ? 'No results' : 'No messages yet'}
+    </Text>
+    <Text style={styles.emptyBody}>
+      {hasConversations
+        ? 'Try a different search or filter.'
+        : 'Your conversations with sellers will appear here.'}
+    </Text>
+    {!hasConversations && (
+      <TouchableOpacity style={styles.browseBtn} onPress={onBrowse}>
+        <Text style={styles.browseBtnText}>Browse Products</Text>
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
+type SellerRowProps = Readonly<{
+  item: any;
+  onPress: (item: any) => void;
+  getInitials: (name: string) => string;
+}>;
+
+const SellerRow = ({ item, onPress, getInitials }: SellerRowProps) => (
+  <TouchableOpacity
+    style={styles.modalRow}
+    onPress={() => onPress(item)}
+    activeOpacity={0.7}
+  >
+    {item.logo ? (
+      <AppImage uri={item.logo} style={styles.modalAvatar} />
+    ) : (
+      <View style={styles.modalAvatarFallback}>
+        <Text style={styles.modalAvatarLetters}>{getInitials(item.name)}</Text>
+      </View>
+    )}
+    <View style={styles.modalRowBody}>
+      <View style={styles.modalRowTop}>
+        <Text style={styles.modalSellerName} numberOfLines={1}>{item.name}</Text>
+        {item.isTrusted && (
+          <View style={styles.modalVerifiedBadge}>
+            <Ionicons name="checkmark" size={8} color="#fff" />
+          </View>
+        )}
+      </View>
+      <Text style={styles.modalSellerCat}>{item.category}</Text>
+    </View>
+    <View style={styles.chatActionBtn}>
+      <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.navyDeep} />
+    </View>
+  </TouchableOpacity>
+);
