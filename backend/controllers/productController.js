@@ -437,7 +437,7 @@ const updateProduct = async (req, res, next) => {
     const updated = await repositories.products.update(id, mappedData);
 
     // Update inventory if provided
-    if (updateData.stockQuantity !== undefined) {
+    if (updateData.stockQuantity != null) {
       await repositories.products.db
         .from('inventory')
         .update({ quantity: Number.parseInt(updateData.stockQuantity) })
@@ -735,16 +735,9 @@ const searchProducts = async (req, res, next) => {
     } else if (sortBy === 'rating') {
       sortColumn = 'average_rating';
       sortAscending = false;
-    } else if (sortBy === 'newest') {
-      sortColumn = 'created_at';
-      sortAscending = false;
     } else if (sortBy === 'popular') {
       // Use canonical schema column for popularity sorting
       sortColumn = 'total_sales';
-      sortAscending = false;
-    } else if (sortBy === 'relevance' && !query) {
-      // If relevance but no query, fallback to newest
-      sortColumn = 'created_at';
       sortAscending = false;
     }
     // If relevance and query exists, repo handles it (usually) or defaults to rank

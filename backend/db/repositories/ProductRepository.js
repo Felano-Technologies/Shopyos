@@ -91,152 +91,78 @@ class ProductRepository extends BaseRepository {
       brand
     } = params;
 
-    // Only show products from verified stores
-    const { data: verifiedStores } = await this.db
-      .from('stores')
-      .select('id')
-      .eq('is_verified', true)
-      .eq('is_active', true);
-    let verifiedStoreIds = (verifiedStores || []).map(s => s.id);
+    const verifiedStoreIds = await this._getVerifiedStoreIds(minRating);
+    const storeFilter = verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000'];
+    const filterOpts = { query, category, gender, minPrice, maxPrice, material, style, brand };
 
-    if (minRating !== undefined) {
-      const { data: ratedStores, error: ratedStoresError } = await this.db
-        .from('stores')
-        .select('id')
-        .eq('is_verified', true)
-        .eq('is_active', true)
-        .gte('average_rating', minRating);
-
-      if (ratedStoresError) throw ratedStoresError;
-
-      const ratedStoreIds = new Set((ratedStores || []).map(s => s.id));
-      verifiedStoreIds = verifiedStoreIds.filter(id => ratedStoreIds.has(id));
-    }
-
-    let dbQuery = this.db
-      .from(this.tableName)
-      .select(`
-        *,
-        stores:store_id (
-          id,
-          store_name,
-          slug
-        ),
-        product_images (
-          image_url,
-          is_primary
-        )
-      `)
-      .eq('is_active', true)
-      .eq('is_in_stock', true)
-      .is('deleted_at', null)
-      .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
-
-    // Partial search - match each word individually with ilike
-    if (query) {
-      const searchTerms = query.trim().split(/\s+/).filter(Boolean);
-      for (const term of searchTerms) {
-        const pattern = `%${term}%`;
-        dbQuery = dbQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
-      }
-    }
-
-    // Filter by category
-    if (category) {
-      dbQuery = dbQuery.ilike('category', String(category).trim());
-    }
-
-    // Filter by gender
-    if (gender) {
-      dbQuery = dbQuery.eq('gender', gender);
-    }
-
-    // Price range filter
-    if (minPrice !== undefined) {
-      dbQuery = dbQuery.gte('price', minPrice);
-    }
-    if (maxPrice !== undefined) {
-      dbQuery = dbQuery.lte('price', maxPrice);
-    }
-
-    // Attribute filters — color/size use product_variant_options subquery
     if (color) {
       const colorIds = await this._getVariantOptionProductIds('color', color);
       if (!colorIds.length) return { data: [], count: 0 };
-      dbQuery = dbQuery.in('id', colorIds);
+      filterOpts.colorIds = colorIds;
     }
     if (size) {
       const sizeIds = await this._getVariantOptionProductIds('size', size);
       if (!sizeIds.length) return { data: [], count: 0 };
-      dbQuery = dbQuery.in('id', sizeIds);
+      filterOpts.sizeIds = sizeIds;
     }
 
-    // Product-level JSONB attribute filters
-    if (material) dbQuery = dbQuery.contains('attributes', { material });
-    if (style)    dbQuery = dbQuery.contains('attributes', { style });
-    if (brand)    dbQuery = dbQuery.ilike('brand', `%${brand}%`);
+    let dbQuery = this._applySearchFilters(
+      this.db.from(this.tableName)
+        .select('*, stores:store_id (id, store_name, slug), product_images (image_url, is_primary)')
+        .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter),
+      filterOpts
+    );
+    dbQuery = dbQuery.order('is_promoted', { ascending: false }).order(sortBy, { ascending }).range(offset, offset + limit - 1);
 
-    // Boost promoted products
-    dbQuery = dbQuery.order('is_promoted', { ascending: false });
+    const countQuery = this._applySearchFilters(
+      this.db.from(this.tableName)
+        .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
+        .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter),
+      filterOpts
+    );
 
-    // Apply sorting
-    dbQuery = dbQuery.order(sortBy, { ascending });
-
-    // Pagination
-    dbQuery = dbQuery.range(offset, offset + limit - 1);
-
-    // Get total count for pagination metadata
-    let countQuery = this.db
-      .from(this.tableName)
-      .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
-      .eq('is_active', true)
-      .eq('is_in_stock', true)
-      .is('deleted_at', null)
-      .in('store_id', verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000']);
-
-    if (query) {
-      const searchTerms = query.trim().split(/\s+/).filter(Boolean);
-      for (const term of searchTerms) {
-        const pattern = `%${term}%`;
-        countQuery = countQuery.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
-      }
-    }
-    if (category) countQuery = countQuery.ilike('category', String(category).trim());
-    if (gender) countQuery = countQuery.eq('gender', gender);
-    if (minPrice !== undefined) countQuery = countQuery.gte('price', minPrice);
-    if (maxPrice !== undefined) countQuery = countQuery.lte('price', maxPrice);
-    if (material) countQuery = countQuery.contains('attributes', { material });
-    if (style)    countQuery = countQuery.contains('attributes', { style });
-    if (brand)    countQuery = countQuery.ilike('brand', `%${brand}%`);
-
-    // color / size count filters — reuse same helper (returns null on no-match)
-    if (color) {
-      const matchIds = await this._getVariantOptionProductIds('color', color);
-      if (!matchIds.length) return { data: [], count: 0 };
-      countQuery = countQuery.in('id', matchIds);
-    }
-    if (size) {
-      const matchIds = await this._getVariantOptionProductIds('size', size);
-      if (!matchIds.length) return { data: [], count: 0 };
-      countQuery = countQuery.in('id', matchIds);
-    }
-
-    // Run queries concurrently
-    const [
-      { data, error },
-      { count, error: countError }
-    ] = await Promise.all([
-      dbQuery,
-      countQuery
-    ]);
+    const [{ data, error }, { count, error: countError }] = await Promise.all([dbQuery, countQuery]);
 
     if (error) throw error;
     if (countError) throw countError;
 
-    return {
-      data: data || [],
-      count: count || 0
-    };
+    return { data: data || [], count: count || 0 };
+  }
+
+  async _getVerifiedStoreIds(minRating) {
+    const { data: verifiedStores } = await this.db
+      .from('stores').select('id').eq('is_verified', true).eq('is_active', true);
+    let verifiedStoreIds = (verifiedStores || []).map(s => s.id);
+
+    if (minRating != null) {
+      const { data: ratedStores, error: ratedStoresError } = await this.db
+        .from('stores').select('id').eq('is_verified', true).eq('is_active', true).gte('average_rating', minRating);
+      if (ratedStoresError) throw ratedStoresError;
+      const ratedStoreIds = new Set((ratedStores || []).map(s => s.id));
+      verifiedStoreIds = verifiedStoreIds.filter(id => ratedStoreIds.has(id));
+    }
+
+    return verifiedStoreIds;
+  }
+
+  _applySearchFilters(q, { query, category, gender, minPrice, maxPrice, material, style, brand, colorIds, sizeIds }) {
+    if (query) {
+      const searchTerms = query.trim().split(/\s+/).filter(Boolean);
+      for (const term of searchTerms) {
+        const pattern = `%${term}%`;
+        q = q.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
+      }
+    }
+    if (category) q = q.ilike('category', String(category).trim());
+    if (gender) q = q.eq('gender', gender);
+    if (minPrice != null) q = q.gte('price', minPrice);
+    if (maxPrice != null) q = q.lte('price', maxPrice);
+    if (material) q = q.contains('attributes', { material });
+    if (style) q = q.contains('attributes', { style });
+    if (brand) q = q.ilike('brand', `%${brand}%`);
+    if (colorIds) q = q.in('id', colorIds);
+    if (sizeIds) q = q.in('id', sizeIds);
+    return q;
   }
 
   /**
