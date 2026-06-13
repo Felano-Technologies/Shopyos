@@ -6,6 +6,91 @@ const { invalidateStore } = require('../config/cacheInvalidation');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
 
+// --- Helpers for createBusiness ---
+
+const _validateBusinessFields = (body) => {
+  const { businessName, description, category, address, city, country, phone } = body;
+  if (!businessName || !description || !category || !address || !city || !country || !phone) {
+    return 'Please fill all required fields';
+  }
+  return null;
+};
+
+const _uploadBusinessFiles = async (req, fileUrls) => {
+  const processFile = (fieldName, folder) => {
+    if (req.files[fieldName]?.[0]) {
+      return uploadFileToCloudinary(req.files[fieldName][0], folder)
+        .then(result => { fileUrls[fieldName] = result.url; });
+    }
+    return Promise.resolve();
+  };
+
+  await Promise.all([
+    processFile('logo', 'shopyos/store-logos'),
+    processFile('logo_url', 'shopyos/store-logos'),
+    processFile('coverImage', 'shopyos/store-banners'),
+    processFile('banner', 'shopyos/store-banners'),
+    processFile('banner_url', 'shopyos/store-banners'),
+    processFile('businessCert', 'shopyos/store-documents'),
+    processFile('businessLicense', 'shopyos/store-documents'),
+    processFile('proofOfBank', 'shopyos/store-documents')
+  ]);
+
+  if (fileUrls.logo_url && !fileUrls.logo) fileUrls.logo = fileUrls.logo_url;
+  if (fileUrls.banner && !fileUrls.coverImage) fileUrls.coverImage = fileUrls.banner;
+  if (fileUrls.banner_url && !fileUrls.coverImage) fileUrls.coverImage = fileUrls.banner_url;
+};
+
+const _ensureSellerRole = async (userId) => {
+  const hasSellerRole = await repositories.roles.userHasRole(userId, 'seller');
+  if (!hasSellerRole) {
+    const sellerRole = await repositories.roles.findByName('seller');
+    if (sellerRole) {
+      await repositories.roles.assignRoleToUser(userId, sellerRole.id);
+    }
+  }
+  // Clear auth cache so middleware picks up new role
+  const { cacheDel } = require('../config/redis');
+  await cacheDel(`shopyos:users:${userId}:auth`);
+};
+
+const _notifyVerificationSubmitted = async (store, user, userId) => {
+  await notificationService.notifyAdminsVerificationRequest(store.id, 'store', store.store_name);
+
+  const ownerProfile = await repositories.userProfiles.findByUserId(userId);
+  if (user?.email) {
+    rabbitMQService.publishMessage('email', {
+      eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+      userId,
+      role: 'seller',
+      email: user.email,
+      referenceId: store.id,
+      templateData: {
+        businessName: store.store_name,
+        ownerName: ownerProfile?.full_name || 'Business Owner',
+        audience: 'owner'
+      }
+    });
+  }
+
+  const admins = await repositories.users.getAdmins();
+  (admins || []).forEach((admin) => {
+    if (admin?.email) {
+      rabbitMQService.publishMessage('email', {
+        eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+        userId: admin.id,
+        role: 'admin',
+        email: admin.email,
+        referenceId: store.id,
+        templateData: {
+          businessName: store.store_name,
+          audience: 'admin'
+        }
+      });
+    }
+  });
+};
+
 const createBusiness = async (req, res, next) => {
   try {
     const userId = req.user.id;
@@ -31,26 +116,21 @@ const createBusiness = async (req, res, next) => {
     } = req.body;
 
     // Validate required fields
-    if (!businessName || !description || !category || !address || !city || !country || !phone) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please fill all required fields'
-      });
+    const validationError = _validateBusinessFields(req.body);
+    if (validationError) {
+      return res.status(400).json({ success: false, error: validationError });
     }
 
     // Check if user exists
     const user = await repositories.users.findById(userId);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
 
     // Check if business name already exists for this user
     const existingStoresResult = await repositories.stores.findByOwner(userId);
     const existingStores = Array.isArray(existingStoresResult) ? existingStoresResult : (existingStoresResult?.data || []);
-    
+
     if (existingStores.length >= 3) {
       return res.status(400).json({
         success: false,
@@ -63,10 +143,7 @@ const createBusiness = async (req, res, next) => {
     );
 
     if (nameExists) {
-      return res.status(400).json({
-        success: false,
-        error: 'You already have a business with this name'
-      });
+      return res.status(400).json({ success: false, error: 'You already have a business with this name' });
     }
 
     // Generate slug from business name
@@ -87,28 +164,7 @@ const createBusiness = async (req, res, next) => {
 
     if (req.files) {
       try {
-        const processFile = (fieldName, folder) => {
-          if (req.files[fieldName] && req.files[fieldName][0]) {
-            return uploadFileToCloudinary(req.files[fieldName][0], folder)
-              .then(result => { fileUrls[fieldName] = result.url; });
-          }
-          return Promise.resolve();
-        };
-
-        await Promise.all([
-          processFile('logo', 'shopyos/store-logos'),
-          processFile('logo_url', 'shopyos/store-logos'),
-          processFile('coverImage', 'shopyos/store-banners'),
-          processFile('banner', 'shopyos/store-banners'),
-          processFile('banner_url', 'shopyos/store-banners'),
-          processFile('businessCert', 'shopyos/store-documents'),
-          processFile('businessLicense', 'shopyos/store-documents'),
-          processFile('proofOfBank', 'shopyos/store-documents')
-        ]);
-
-        if (fileUrls.logo_url && !fileUrls.logo) fileUrls.logo = fileUrls.logo_url;
-        if (fileUrls.banner && !fileUrls.coverImage) fileUrls.coverImage = fileUrls.banner;
-        if (fileUrls.banner_url && !fileUrls.coverImage) fileUrls.coverImage = fileUrls.banner_url;
+        await _uploadBusinessFiles(req, fileUrls);
       } catch (uploadError) {
         logger.error('Error uploading business files:', uploadError);
         return res.status(500).json({ success: false, error: 'Failed to upload documents' });
@@ -144,60 +200,15 @@ const createBusiness = async (req, res, next) => {
       is_active: true
     });
 
-    // Ensure user has the seller role
-    const hasSellerRole = await repositories.roles.userHasRole(userId, 'seller');
-    if (!hasSellerRole) {
-      const sellerRole = await repositories.roles.findByName('seller');
-      if (sellerRole) {
-        await repositories.roles.assignRoleToUser(userId, sellerRole.id);
-        // Import of auth middleware at top of file needed or just use repositories
-        // But invalidateUserAuthCache is in middleware. Let's use cacheDel directly if needed or just repositories.
-      }
-    }
-    // Clear auth cache so middleware picks up new role
-    const { cacheDel } = require('../config/redis');
-    await cacheDel(`shopyos:users:${userId}:auth`);
+    // Ensure user has the seller role and clear auth cache
+    await _ensureSellerRole(userId);
 
-    // Notify admins
+    // Notify admins if verification documents were submitted
     const hasVerificationDocs = fileUrls.businessCert || fileUrls.businessLicense || fileUrls.proofOfBank;
     if (hasVerificationDocs) {
-      await notificationService.notifyAdminsVerificationRequest(store.id, 'store', store.store_name);
-
-      const ownerProfile = await repositories.userProfiles.findByUserId(userId);
-      if (user?.email) {
-        rabbitMQService.publishMessage('email', {
-          eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
-          userId,
-          role: 'seller',
-          email: user.email,
-          referenceId: store.id,
-          templateData: {
-            businessName: store.store_name,
-            ownerName: ownerProfile?.full_name || 'Business Owner',
-            audience: 'owner'
-          }
-        });
-      }
-
-      const admins = await repositories.users.getAdmins();
-      (admins || []).forEach((admin) => {
-        if (admin?.email) {
-          rabbitMQService.publishMessage('email', {
-            eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
-            userId: admin.id,
-            role: 'admin',
-            email: admin.email,
-            referenceId: store.id,
-            templateData: {
-              businessName: store.store_name,
-              audience: 'admin'
-            }
-          });
-        }
-      });
+      await _notifyVerificationSubmitted(store, user, userId);
     }
 
-    // Get store with owner details
     // Format response for backward compatibility
     const response = {
       _id: store.id,
@@ -334,14 +345,6 @@ const getBusinessById = async (req, res, next) => {
     }
 
     // Verify ownership removed to allow public viewing
-    /*
-    if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this business'
-      });
-    }
-    */
 
     // Get store with details
     const storeWithDetails = await repositories.stores.getStoreDetails(businessId);
@@ -394,6 +397,129 @@ const getBusinessById = async (req, res, next) => {
   }
 };
 
+// --- Helpers for updateBusiness ---
+
+const _uploadUpdateFiles = async (req, mappedData) => {
+  const processFile = (fieldName, folder) => {
+    if (req.files[fieldName]?.[0]) {
+      return uploadFileToCloudinary(req.files[fieldName][0], folder)
+        .then(result => { mappedData[fieldName] = result.url; });
+    }
+    return Promise.resolve();
+  };
+
+  await Promise.all([
+    processFile('logo', 'shopyos/store-logos'),
+    processFile('logo_url', 'shopyos/store-logos'),
+    processFile('coverImage', 'shopyos/store-banners'),
+    processFile('banner', 'shopyos/store-banners'),
+    processFile('banner_url', 'shopyos/store-banners'),
+    processFile('businessCert', 'shopyos/store-documents'),
+    processFile('businessLicense', 'shopyos/store-documents'),
+    processFile('proofOfBank', 'shopyos/store-documents')
+  ]);
+
+  // Map resulting URLs to the database column names if they were uploaded
+  if (mappedData.logo) mappedData.logo_url = mappedData.logo;
+  if (mappedData.coverImage) mappedData.banner_url = mappedData.coverImage;
+  if (mappedData.banner) mappedData.banner_url = mappedData.banner;
+  if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
+  if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
+  if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;
+
+  // Clean up temporary mapped fields before database update
+  delete mappedData.logo;
+  delete mappedData.logo_url;
+  delete mappedData.coverImage;
+  delete mappedData.banner;
+  delete mappedData.banner_url;
+  delete mappedData.businessCert;
+  delete mappedData.businessLicense;
+  delete mappedData.proofOfBank;
+};
+
+const _mapUpdateFields = (updateData, mappedData) => {
+  if (updateData.businessName) mappedData.store_name = updateData.businessName;
+  if (updateData.description) mappedData.description = updateData.description;
+  if (updateData.category) mappedData.category = updateData.category;
+  if (updateData.phone) mappedData.phone = updateData.phone;
+  if (updateData.email) mappedData.email = updateData.email;
+  if (updateData.address) mappedData.address_line1 = updateData.address;
+  if (updateData.city) mappedData.city = updateData.city;
+  if (updateData.country) mappedData.country = updateData.country;
+  if (updateData.website) mappedData.website_url = updateData.website;
+  if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
+  if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
+
+  // Support direct URL updates if provided in body (fallback if no file was uploaded)
+  const isRemoteUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
+  if (updateData.logo && isRemoteUrl(updateData.logo) && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
+  if (updateData.logo_url && isRemoteUrl(updateData.logo_url) && !mappedData.logo_url) mappedData.logo_url = updateData.logo_url;
+  if (updateData.coverImage && isRemoteUrl(updateData.coverImage) && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
+  if (updateData.banner && isRemoteUrl(updateData.banner) && !mappedData.banner_url) mappedData.banner_url = updateData.banner;
+  if (updateData.banner_url && isRemoteUrl(updateData.banner_url) && !mappedData.banner_url) mappedData.banner_url = updateData.banner_url;
+  if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
+  if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
+  if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;
+
+  // Legal & Verification Fields
+  if (updateData.registrationNumber) mappedData.registration_number = updateData.registrationNumber;
+  if (updateData.taxId) mappedData.tax_id = updateData.taxId;
+  if (updateData.bankName) mappedData.bank_name = updateData.bankName;
+  if (updateData.accountName) mappedData.account_name = updateData.accountName;
+  if (updateData.accountNumber) mappedData.account_number = updateData.accountNumber;
+  if (updateData.verificationStatus) mappedData.verification_status = updateData.verificationStatus;
+  if (updateData.rejectionReason) mappedData.rejection_reason = updateData.rejectionReason;
+  if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;
+
+  // Update slug if business name changed
+  if (mappedData.store_name) {
+    mappedData.slug = mappedData.store_name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      + '-' + Date.now();
+  }
+};
+
+const _notifyUpdateVerificationDocs = async (updatedStore, userId) => {
+  await notificationService.notifyAdminsVerificationRequest(updatedStore.id, 'store', updatedStore.store_name);
+
+  const owner = await repositories.users.findById(userId);
+  const ownerProfile = await repositories.userProfiles.findByUserId(userId);
+  if (owner?.email) {
+    rabbitMQService.publishMessage('email', {
+      eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+      userId,
+      role: 'seller',
+      email: owner.email,
+      referenceId: updatedStore.id,
+      templateData: {
+        businessName: updatedStore.store_name,
+        ownerName: ownerProfile?.full_name || 'Business Owner',
+        audience: 'owner'
+      }
+    });
+  }
+
+  const admins = await repositories.users.getAdmins();
+  (admins || []).forEach((admin) => {
+    if (admin?.email) {
+      rabbitMQService.publishMessage('email', {
+        eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
+        userId: admin.id,
+        role: 'admin',
+        email: admin.email,
+        referenceId: updatedStore.id,
+        templateData: {
+          businessName: updatedStore.store_name,
+          audience: 'admin'
+        }
+      });
+    }
+  });
+};
+
 // @desc    Update business
 // @route   PUT /api/business/update/:id
 // @access  Private
@@ -407,17 +533,11 @@ const updateBusiness = async (req, res, next) => {
     const store = await repositories.stores.findById(businessId);
 
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Business not found'
-      });
+      return res.status(404).json({ success: false, error: 'Business not found' });
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this business'
-      });
+      return res.status(403).json({ success: false, error: 'Not authorized to update this business' });
     }
 
     // Map old field names to new schema
@@ -426,89 +546,14 @@ const updateBusiness = async (req, res, next) => {
     // Process uploaded files using Cloudinary if present
     if (req.files) {
       try {
-        const processFile = (fieldName, folder) => {
-          if (req.files[fieldName] && req.files[fieldName][0]) {
-            return uploadFileToCloudinary(req.files[fieldName][0], folder)
-              .then(result => { mappedData[fieldName] = result.url; });
-          }
-          return Promise.resolve();
-        };
-
-        await Promise.all([
-          processFile('logo', 'shopyos/store-logos'),
-          processFile('logo_url', 'shopyos/store-logos'),
-          processFile('coverImage', 'shopyos/store-banners'),
-          processFile('banner', 'shopyos/store-banners'),
-          processFile('banner_url', 'shopyos/store-banners'),
-          processFile('businessCert', 'shopyos/store-documents'),
-          processFile('businessLicense', 'shopyos/store-documents'),
-          processFile('proofOfBank', 'shopyos/store-documents')
-        ]);
-        
-        // Map resulting URLs to the database column names if they were uploaded
-        if (mappedData.logo) mappedData.logo_url = mappedData.logo;
-        if (mappedData.coverImage) mappedData.banner_url = mappedData.coverImage;
-        if (mappedData.banner) mappedData.banner_url = mappedData.banner;
-        if (mappedData.businessCert) mappedData.business_cert_url = mappedData.businessCert;
-        if (mappedData.businessLicense) mappedData.business_license_url = mappedData.businessLicense;
-        if (mappedData.proofOfBank) mappedData.proof_of_bank_url = mappedData.proofOfBank;
-        
-        // Clean up temporary mapped fields before database update
-        delete mappedData.logo;
-        delete mappedData.logo_url;
-        delete mappedData.coverImage;
-        delete mappedData.banner;
-        delete mappedData.banner_url;
-        delete mappedData.businessCert;
-        delete mappedData.businessLicense;
-        delete mappedData.proofOfBank;
+        await _uploadUpdateFiles(req, mappedData);
       } catch (uploadError) {
         logger.error('Error uploading business files during update:', uploadError);
         return res.status(500).json({ success: false, error: 'Failed to upload documents' });
       }
     }
 
-    if (updateData.businessName) mappedData.store_name = updateData.businessName;
-    if (updateData.description) mappedData.description = updateData.description;
-    if (updateData.category) mappedData.category = updateData.category;
-    if (updateData.phone) mappedData.phone = updateData.phone;
-    if (updateData.email) mappedData.email = updateData.email;
-    if (updateData.address) mappedData.address_line1 = updateData.address;
-    if (updateData.city) mappedData.city = updateData.city;
-    if (updateData.country) mappedData.country = updateData.country;
-    if (updateData.website) mappedData.website_url = updateData.website;
-    if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
-    if (updateData.facebook) mappedData.social_facebook = updateData.facebook;
-    
-    // Support direct URL updates if provided in body (fallback if no file was uploaded)
-    const isRemoteUrl = (value) => typeof value === 'string' && /^https?:\/\//i.test(value);
-    if (updateData.logo && isRemoteUrl(updateData.logo) && !mappedData.logo_url) mappedData.logo_url = updateData.logo;
-    if (updateData.logo_url && isRemoteUrl(updateData.logo_url) && !mappedData.logo_url) mappedData.logo_url = updateData.logo_url;
-    if (updateData.coverImage && isRemoteUrl(updateData.coverImage) && !mappedData.banner_url) mappedData.banner_url = updateData.coverImage;
-    if (updateData.banner && isRemoteUrl(updateData.banner) && !mappedData.banner_url) mappedData.banner_url = updateData.banner;
-    if (updateData.banner_url && isRemoteUrl(updateData.banner_url) && !mappedData.banner_url) mappedData.banner_url = updateData.banner_url;
-    if (updateData.businessCert && !mappedData.business_cert_url) mappedData.business_cert_url = updateData.businessCert;
-    if (updateData.businessLicense && !mappedData.business_license_url) mappedData.business_license_url = updateData.businessLicense;
-    if (updateData.proofOfBank && !mappedData.proof_of_bank_url) mappedData.proof_of_bank_url = updateData.proofOfBank;
-    
-    // Legal & Verification Fields
-    if (updateData.registrationNumber) mappedData.registration_number = updateData.registrationNumber;
-    if (updateData.taxId) mappedData.tax_id = updateData.taxId;
-    if (updateData.bankName) mappedData.bank_name = updateData.bankName;
-    if (updateData.accountName) mappedData.account_name = updateData.accountName;
-    if (updateData.accountNumber) mappedData.account_number = updateData.accountNumber;
-    if (updateData.verificationStatus) mappedData.verification_status = updateData.verificationStatus;
-    if (updateData.rejectionReason) mappedData.rejection_reason = updateData.rejectionReason;
-    if (updateData.isActive !== undefined) mappedData.is_active = updateData.isActive;
-
-    // Update slug if business name changed
-    if (mappedData.store_name) {
-      mappedData.slug = mappedData.store_name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '')
-        + '-' + Date.now();
-    }
+    _mapUpdateFields(updateData, mappedData);
 
     // Update store
     const updatedStore = await repositories.stores.update(businessId, mappedData);
@@ -516,41 +561,7 @@ const updateBusiness = async (req, res, next) => {
     // If verification documents were uploaded, notify admins
     const hasNewDocs = mappedData.business_cert_url || mappedData.business_license_url || mappedData.proof_of_bank_url;
     if (hasNewDocs) {
-      await notificationService.notifyAdminsVerificationRequest(updatedStore.id, 'store', updatedStore.store_name);
-
-      const owner = await repositories.users.findById(userId);
-      const ownerProfile = await repositories.userProfiles.findByUserId(userId);
-      if (owner?.email) {
-        rabbitMQService.publishMessage('email', {
-          eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
-          userId,
-          role: 'seller',
-          email: owner.email,
-          referenceId: updatedStore.id,
-          templateData: {
-            businessName: updatedStore.store_name,
-            ownerName: ownerProfile?.full_name || 'Business Owner',
-            audience: 'owner'
-          }
-        });
-      }
-
-      const admins = await repositories.users.getAdmins();
-      (admins || []).forEach((admin) => {
-        if (admin?.email) {
-          rabbitMQService.publishMessage('email', {
-            eventType: 'BUSINESS_VERIFICATION_SUBMITTED',
-            userId: admin.id,
-            role: 'admin',
-            email: admin.email,
-            referenceId: updatedStore.id,
-            templateData: {
-              businessName: updatedStore.store_name,
-              audience: 'admin'
-            }
-          });
-        }
-      });
+      await _notifyUpdateVerificationDocs(updatedStore, userId);
     }
 
     // Format response for backward compatibility
@@ -842,9 +853,9 @@ const getBusinessDashboard = async (req, res, next) => {
       chartLabels.push(days[d.getDay()]);
     }
 
-    const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'];
-    const completedStatuses = ['delivered', 'completed'];
-    
+    const paidStatuses = new Set(['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit']);
+    const completedStatuses = new Set(['delivered', 'completed']);
+
     // 1. Calculate All-Time Revenue Breakdown from stats
     let totalRevenue = 0;
     let pendingRevenue = 0;
@@ -852,10 +863,10 @@ const getBusinessDashboard = async (req, res, next) => {
     (revenueStats || []).forEach(stat => {
       const status = (stat.status || '').toLowerCase();
       const amount = Number.parseFloat(stat.total || 0);
-      
-      if (completedStatuses.includes(status)) {
+
+      if (completedStatuses.has(status)) {
         totalRevenue += amount;
-      } else if (paidStatuses.includes(status)) {
+      } else if (paidStatuses.has(status)) {
         pendingRevenue += amount;
       } else if (status === 'refunded') {
         totalRevenue -= amount;
@@ -867,11 +878,11 @@ const getBusinessDashboard = async (req, res, next) => {
     // 2. Process chart data (Weekly Sales)
     allOrders.forEach(order => {
       const orderDate = new Date(order.created_at);
-      const dayIndex = 6 - Math.floor((new Date().getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const dayIndex = 6 - Math.floor((Date.now() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
+
       if (dayIndex >= 0 && dayIndex <= 6) {
         const status = (order.status || '').toLowerCase();
-        if (paidStatuses.includes(status)) {
+        if (paidStatuses.has(status)) {
           chartData[dayIndex] += Number.parseFloat(order.total_amount || 0);
         } else if (status === 'refunded') {
           chartData[dayIndex] -= Number.parseFloat(order.total_amount || 0);
@@ -954,8 +965,8 @@ const getBusinessAnalytics = async (req, res, next) => {
     // Optimization: In a real app, join products table or store category in order_items. 
     // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
 
-    const paidStatuses = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'];
-    const completedStatuses = ['delivered', 'completed'];
+    const paidStatuses = new Set(['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit']);
+    const completedStatuses = new Set(['delivered', 'completed']);
 
     let totalRevenue = 0;
     let pendingRevenue = 0;
@@ -965,10 +976,10 @@ const getBusinessAnalytics = async (req, res, next) => {
     (revenueStats || []).forEach(stat => {
       const status = (stat.status || '').toLowerCase();
       const amount = Number.parseFloat(stat.total || 0);
-      
-      if (completedStatuses.includes(status)) {
+
+      if (completedStatuses.has(status)) {
         totalRevenue += amount;
-      } else if (paidStatuses.includes(status)) {
+      } else if (paidStatuses.has(status)) {
         pendingRevenue += amount;
       } else if (status === 'refunded') {
         totalRevenue -= amount;
@@ -977,8 +988,8 @@ const getBusinessAnalytics = async (req, res, next) => {
 
     filteredOrders.forEach(order => {
       const status = (order.status || '').toLowerCase();
-      
-      if (completedStatuses.includes(status)) {
+
+      if (completedStatuses.has(status)) {
         totalOrders += 1;
       }
 
@@ -1011,7 +1022,7 @@ const getBusinessAnalytics = async (req, res, next) => {
         const dayRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
-            return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && paidStatuses.includes(o.status.toLowerCase());
+            return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && paidStatuses.has(o.status.toLowerCase());
           })
           .reduce((sum, o) => {
              const amt = Number.parseFloat(o.total_amount || 0);
@@ -1031,7 +1042,7 @@ const getBusinessAnalytics = async (req, res, next) => {
         const wkRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
-            return od >= startWk && od <= endWk && paidStatuses.includes(o.status.toLowerCase());
+            return od >= startWk && od <= endWk && paidStatuses.has(o.status.toLowerCase());
           })
           .reduce((sum, o) => {
              const amt = Number.parseFloat(o.total_amount || 0);
@@ -1049,7 +1060,7 @@ const getBusinessAnalytics = async (req, res, next) => {
         const mthRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
-            return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear() && paidStatuses.includes(o.status.toLowerCase());
+            return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear() && paidStatuses.has(o.status.toLowerCase());
           })
           .reduce((sum, o) => {
              const amt = Number.parseFloat(o.total_amount || 0);

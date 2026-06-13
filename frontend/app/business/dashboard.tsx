@@ -192,15 +192,15 @@ const BusinessDashboard = () => {
   // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
     const checkAuthAndShowModal = async () => {
-      if (!loading && !isLoadingBusinesses && !isRefetchingBusinesses) {
-        // Only show the modal if we are actually logged in
-        const token = await secureStorage.getItem('userToken');
-        if (!token) return;
-        if (!selectedBusiness) {
-          setShowNoBusinessModal(true);
-        } else {
-          setShowNoBusinessModal(false);
-        }
+      const isStillLoading = loading || isLoadingBusinesses || isRefetchingBusinesses;
+      if (isStillLoading) return;
+      // Only show the modal if we are actually logged in
+      const token = await secureStorage.getItem('userToken');
+      if (!token) return;
+      if (!selectedBusiness) {
+        setShowNoBusinessModal(true);
+      } else {
+        setShowNoBusinessModal(false);
       }
     };
     
@@ -232,7 +232,7 @@ const BusinessDashboard = () => {
   }
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0, totalRevenue: 0, pendingRevenue: 0, balance: 0, followers: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
-  const chartData = (dashboardData?.chartData && dashboardData.chartData[timeframe]) || { labels: [], datasets: [{ data: [0] }] };
+  const chartData = dashboardData?.chartData?.[timeframe] || { labels: [], datasets: [{ data: [0] }] };
     // Show a blank loading screen while the guard checks storage.
   // This prevents a flash of protected content for unverified sellers.
   if (isChecking || !isVerified) {
@@ -314,7 +314,11 @@ const BusinessDashboard = () => {
                   <Text style={styles.cardTitle}>Sales Performance</Text>
                   <Text style={styles.cardSubtitle}>Revenue tracking</Text>
                 </View>
-                <TouchableOpacity onPress={() => setTimeframe(t => t === 'weekly' ? 'monthly' : t === 'monthly' ? 'yearly' : 'weekly')}>
+                <TouchableOpacity onPress={() => setTimeframe((t) => {
+                  if (t === 'weekly') return 'monthly';
+                  if (t === 'monthly') return 'yearly';
+                  return 'weekly';
+                })}>
                   <View style={styles.timeToggle}>
                     <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
                     <Feather name="chevron-down" size={14} color="#64748B" />

@@ -58,6 +58,36 @@ function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function extractStoreArray(res: any): Store[] {
+  if (Array.isArray(res?.stores)) return res.stores;
+  if (Array.isArray(res?.data)) return res.data;
+  if (Array.isArray(res)) return res;
+  return [];
+}
+
+function applyStoreResults(
+  normalized: Store[],
+  storeIdParam: string | undefined,
+  ownerIdParam: string | undefined,
+  setSelectedStore: (s: Store | null) => void,
+  setSearchResults: (s: Store[]) => void,
+) {
+  if (storeIdParam) {
+    const match = normalized.find((store) => store.id === storeIdParam || store._id === storeIdParam);
+    setSelectedStore(match || normalized[0] || null);
+    setSearchResults([]);
+    return;
+  }
+  if (ownerIdParam) {
+    const match = normalized.find((store) => store.owner?.id === ownerIdParam);
+    setSelectedStore(match || null);
+    setSearchResults(match ? [] : normalized.filter((store) => store.owner?.id === ownerIdParam));
+    return;
+  }
+  setSearchResults(normalized);
+  setSelectedStore(normalized.length === 1 ? normalized[0] : null);
+}
+
 export default function AdminStores() {
   const params = useLocalSearchParams<{ id?: string | string[]; ownerId?: string | string[] }>();
   const storeIdParam = normalizeParam(params.id);
@@ -66,7 +96,7 @@ export default function AdminStores() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-  const [, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
@@ -92,25 +122,8 @@ export default function AdminStores() {
           limit: 100,
         });
 
-        const data = Array.isArray(res?.stores) ? res.stores : Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
-        const normalized = data as Store[];
-
-        if (storeIdParam) {
-          const match = normalized.find((store) => store.id === storeIdParam || store._id === storeIdParam);
-          setSelectedStore(match || normalized[0] || null);
-          setSearchResults([]);
-          return;
-        }
-
-        if (ownerIdParam) {
-          const match = normalized.find((store) => store.owner?.id === ownerIdParam);
-          setSelectedStore(match || null);
-          setSearchResults(match ? [] : normalized.filter((store) => store.owner?.id === ownerIdParam));
-          return;
-        }
-
-        setSearchResults(normalized);
-        setSelectedStore(normalized.length === 1 ? normalized[0] : null);
+        const normalized = extractStoreArray(res);
+        applyStoreResults(normalized, storeIdParam, ownerIdParam, setSelectedStore, setSearchResults);
       } catch (error: any) {
         CustomInAppToast.show({
           type: 'error',
@@ -167,9 +180,17 @@ export default function AdminStores() {
     try {
       setActionLoading(true);
       await adminVerifyStore(storeId, status, rejectReason);
+      let toastTitle: string;
+      if (status === 'verified') {
+        toastTitle = 'Approved';
+      } else if (status === 'rejected') {
+        toastTitle = 'Rejected';
+      } else {
+        toastTitle = 'Updated';
+      }
       CustomInAppToast.show({
         type: 'success',
-        title: status === 'verified' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Updated',
+        title: toastTitle,
         message: `${currentStore.store_name || 'Store'} has been processed.`,
       });
       setRejectModal(false);
@@ -197,17 +218,18 @@ export default function AdminStores() {
     );
   };
 
-  const actionLabel = currentStore?.verification_status === 'verified'
-    ? 'Revoke approval'
-    : currentStore?.verification_status === 'rejected'
-      ? 'Re-approve'
-      : 'Approve Store';
-
-  const actionStatus = currentStore?.verification_status === 'verified'
-    ? 'pending'
-    : currentStore?.verification_status === 'rejected'
-      ? 'verified'
-      : 'verified';
+  let actionLabel: string;
+  let actionStatus: 'verified' | 'rejected' | 'pending';
+  if (currentStore?.verification_status === 'verified') {
+    actionLabel = 'Revoke approval';
+    actionStatus = 'pending';
+  } else if (currentStore?.verification_status === 'rejected') {
+    actionLabel = 'Re-approve';
+    actionStatus = 'verified';
+  } else {
+    actionLabel = 'Approve Store';
+    actionStatus = 'verified';
+  }
 
   return (
     <>
@@ -310,17 +332,7 @@ export default function AdminStores() {
               </View>
             )}
 
-            {!currentStore ? (
-              <View style={styles.emptyPrompt}>
-                <View style={styles.emptyPromptIcon}>
-                  <Ionicons name="storefront-outline" size={34} color="#0A2EA8" />
-                </View>
-                <Text style={styles.emptyPromptTitle}>Store details will appear here</Text>
-                <Text style={styles.emptyPromptText}>
-                  Click a seller in Users, or search for a store or owner above.
-                </Text>
-              </View>
-            ) : (
+            {currentStore ? (
               <>
                 <View style={styles.brandCard}>
                   <View style={styles.bannerWrap}>
@@ -346,16 +358,21 @@ export default function AdminStores() {
                       <Text style={styles.storeName}>{currentStore.store_name || 'Unnamed Store'}</Text>
                       <Text style={styles.ownerLine}>{currentStore.owner?.full_name || 'Unknown owner'}</Text>
                     </View>
-                    <View style={[
-                      styles.statusBadge,
-                      currentStore.verification_status === 'verified'
-                        ? styles.statusVerified
-                        : currentStore.verification_status === 'rejected'
-                          ? styles.statusRejected
-                          : styles.statusPending,
-                    ]}>
-                      <Text style={styles.statusText}>{(currentStore.verification_status || 'pending').toUpperCase()}</Text>
-                    </View>
+                    {(() => {
+                      let statusStyle;
+                      if (currentStore.verification_status === 'verified') {
+                        statusStyle = styles.statusVerified;
+                      } else if (currentStore.verification_status === 'rejected') {
+                        statusStyle = styles.statusRejected;
+                      } else {
+                        statusStyle = styles.statusPending;
+                      }
+                      return (
+                        <View style={[styles.statusBadge, statusStyle]}>
+                          <Text style={styles.statusText}>{(currentStore.verification_status || 'pending').toUpperCase()}</Text>
+                        </View>
+                      );
+                    })()}
                   </View>
                 </View>
 
@@ -432,6 +449,16 @@ export default function AdminStores() {
                   </View>
                 ) : null}
               </>
+            ) : (
+              <View style={styles.emptyPrompt}>
+                <View style={styles.emptyPromptIcon}>
+                  <Ionicons name="storefront-outline" size={34} color="#0A2EA8" />
+                </View>
+                <Text style={styles.emptyPromptTitle}>Store details will appear here</Text>
+                <Text style={styles.emptyPromptText}>
+                  Click a seller in Users, or search for a store or owner above.
+                </Text>
+              </View>
             )}
           </ScrollView>
         </View>
@@ -528,7 +555,7 @@ function DetailItem({ label, value, icon, isLink, onPress }: any) {
         <Text style={styles.detailLabel}>{label}</Text>
         <Text style={[styles.detailValue, isLink && styles.linkText]}>{value || 'N/A'}</Text>
       </View>
-      {isLink ? <Ionicons name={'external-link' as any} size={12} color="#3B82F6" /> : null}
+      {isLink ? <Ionicons name="external-link" size={12} color="#3B82F6" /> : null}
     </TouchableOpacity>
   );
 }

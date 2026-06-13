@@ -73,7 +73,7 @@ export default function AdminRevenue() {
             {summary.map((item) => (
               <AdminPanel key={item.label} style={styles.summaryCard}>
                 <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
-                  <Ionicons name={item.icon as any} size={18} color={item.color} />
+                  <Ionicons name={item.icon} size={18} color={item.color} />
                 </View>
                 <Text style={styles.summaryLabel}>{item.label}</Text>
                 <Text style={styles.summaryValue}>{item.value}</Text>
@@ -120,7 +120,7 @@ export default function AdminRevenue() {
                       </Text>
                       <Text style={styles.itemSub}>{formatDate(item.created_at)}</Text>
                     </View>
-                    <Text style={styles.itemPrice}>+₵{parseFloat(item.amount || 0).toFixed(2)}</Text>
+                    <Text style={styles.itemPrice}>+₵{Number.parseFloat(item.amount || 0).toFixed(2)}</Text>
                   </View>
                 )}
                 ListEmptyComponent={

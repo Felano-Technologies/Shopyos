@@ -129,7 +129,7 @@ export default function AdminNotificationsScreen() {
       Alert.alert('No channel', 'Enable at least one channel.');
       return;
     }
-    const mins = parseInt(scheduleIn, 10);
+    const mins = Number.parseInt(scheduleIn, 10);
     if (Number.isNaN(mins) || mins < 1) {
       Alert.alert('Invalid time', 'Enter a number of minutes >= 1.');
       return;
@@ -161,20 +161,17 @@ export default function AdminNotificationsScreen() {
   };
 
   const handleCancel = (id: string) => {
+    const confirmCancel = async () => {
+      try {
+        await api.delete(`/admin/scheduled-notifications/${id}`);
+        setBroadcasts((previous) => previous.filter((broadcast) => broadcast.id !== id));
+      } catch {
+        Alert.alert('Error', 'Could not cancel notification');
+      }
+    };
     Alert.alert('Cancel broadcast?', 'This cannot be undone.', [
       { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, cancel',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.delete(`/admin/scheduled-notifications/${id}`);
-            setBroadcasts((previous) => previous.filter((broadcast) => broadcast.id !== id));
-          } catch {
-            Alert.alert('Error', 'Could not cancel notification');
-          }
-        },
-      },
+      { text: 'Yes, cancel', style: 'destructive', onPress: confirmCancel },
     ]);
   };
 
@@ -317,7 +314,7 @@ export default function AdminNotificationsScreen() {
               style={styles.varChip}
               onPress={() => setMessage((previous) => previous + (previous.length && !previous.endsWith(' ') ? ' ' : '') + tag)}
             >
-              <Text style={styles.varChipText}>+ {tag.replace(/\{|\}/g, '')}</Text>
+              <Text style={styles.varChipText}>+ {tag.replace(/[{}]/g, '')}</Text>
             </TouchableOpacity>
           ))}
         </View>

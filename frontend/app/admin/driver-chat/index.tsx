@@ -212,11 +212,12 @@ export default function AdminDriverChatList() {
       </TouchableOpacity>
     );
   };
+  const emptyBodyTextForFilter = filter === 'all'
+    ? 'Driver conversations will appear here.'
+    : `No ${filter} drivers right now.`;
   const emptyBodyText = searchQuery
     ? 'No drivers match your search.'
-    : filter === 'all'
-      ? 'Driver conversations will appear here.'
-      : `No ${filter} drivers right now.`;
+    : emptyBodyTextForFilter;
   return (
     <View style={S.root}>
       <StatusBar style="light" />

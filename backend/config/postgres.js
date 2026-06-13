@@ -11,7 +11,7 @@ const getSslConfig = () => {
   }
 
   if (['false', '0', 'no', 'off', 'disable', 'disabled'].includes(raw)) {
-    return false;
+    return null;
   }
 
   if (['true', '1', 'yes', 'on', 'require', 'enabled'].includes(raw)) {

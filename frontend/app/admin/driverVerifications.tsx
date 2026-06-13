@@ -48,6 +48,27 @@ const FILTERS: { key: FilterType; label: string }[] = [
   { key: 'rejected', label: 'Rejected' },
 ];
 
+function DriverListSeparator() {
+  return <View style={{ height: rs(12) }} />;
+}
+
+type DriverListEmptyProps = { filter: FilterType };
+function DriverListEmpty({ filter }: DriverListEmptyProps) {
+  return (
+    <View style={S.emptyWrap}>
+      <View style={S.emptyCircle}>
+        <Feather name="user-check" size={rs(34)} color={C.navy} />
+      </View>
+      <Text style={S.emptyTitle}>No {filter === 'all' ? '' : filter} applications</Text>
+      <Text style={S.emptySub}>
+        {filter === 'pending'
+          ? 'All driver applications have been reviewed.'
+          : 'Driver applications will appear here.'}
+      </Text>
+    </View>
+  );
+}
+
 export default function DriverVerificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -267,23 +288,11 @@ export default function DriverVerificationsScreen() {
               S.listContent,
               { paddingBottom: rs(40) + insets.bottom },
             ]}
-            ItemSeparatorComponent={() => <View style={{ height: rs(12) }} />}
+            ItemSeparatorComponent={DriverListSeparator}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} />
             }
-            ListEmptyComponent={() => (
-              <View style={S.emptyWrap}>
-                <View style={S.emptyCircle}>
-                  <Feather name="user-check" size={rs(34)} color={C.navy} />
-                </View>
-                <Text style={S.emptyTitle}>No {filter === 'all' ? '' : filter} applications</Text>
-                <Text style={S.emptySub}>
-                  {filter === 'pending'
-                    ? 'All driver applications have been reviewed.'
-                    : 'Driver applications will appear here.'}
-                </Text>
-              </View>
-            )}
+            ListEmptyComponent={<DriverListEmpty filter={filter} />}
           />
         )}
       </SafeAreaView>

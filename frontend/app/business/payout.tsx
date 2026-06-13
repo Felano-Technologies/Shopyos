@@ -31,7 +31,7 @@ export default function PayoutScreen() {
   useEffect(() => {
     if (activeBusiness) {
       const store = activeBusiness;
-      setBalance(parseFloat(store.current_balance || 0));
+      setBalance(Number.parseFloat(store.current_balance || 0));
       setHasPayoutMethod(!!store.payout_method);
       fetchHistory(store._id);
     }

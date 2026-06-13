@@ -64,7 +64,8 @@ export default function AdminOrders() {
         if (searchQuery.trim()) params.search = searchQuery.trim();
 
         const res = await getAdminOrders(params);
-        const data = Array.isArray(res?.orders) ? res.orders : Array.isArray(res) ? res : [];
+        const fallbackData = Array.isArray(res) ? res : [];
+        const data = Array.isArray(res?.orders) ? res.orders : fallbackData;
         setOrders(data);
       } catch (error: any) {
         CustomInAppToast.show({
@@ -241,7 +242,7 @@ export default function AdminOrders() {
                 {summary.map((item) => (
                   <View key={item.label} style={styles.summaryCard}>
                     <View style={[styles.summaryIcon, { backgroundColor: `${item.color}18` }]}>
-                      <Ionicons name={item.icon as any} size={16} color={item.color} />
+                      <Ionicons name={item.icon} size={16} color={item.color} />
                     </View>
                     <Text style={styles.summaryLabel}>{item.label}</Text>
                     <Text style={styles.summaryValue}>{item.value.toLocaleString()}</Text>

@@ -166,8 +166,8 @@ async function testNotifications() {
     const existingDelivery = await repositories.deliveries.findByOrderId(orderId);
     assert.ok(existingDelivery, 'Delivery record should have been automatically created');
     assert.strictEqual(existingDelivery.status, 'unassigned', 'Delivery status should be unassigned');
-    assert.strictEqual(Number(existingDelivery.delivery_fee), 10.00, 'Delivery fee should match order');
-    assert.strictEqual(Number(existingDelivery.driver_earnings), 8.50, 'Driver earnings should be 85% of delivery fee');
+    assert.strictEqual(Number(existingDelivery.delivery_fee), 10, 'Delivery fee should match order');
+    assert.strictEqual(Number(existingDelivery.driver_earnings), 8.5, 'Driver earnings should be 85% of delivery fee');
     console.log(`âœ… Auto-created delivery details verified: Fee=â‚µ${existingDelivery.delivery_fee}, Earnings=â‚µ${existingDelivery.driver_earnings}`);
 
     // Verify mock notifications got called

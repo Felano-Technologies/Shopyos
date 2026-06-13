@@ -64,15 +64,15 @@ export default function DeliverySettingsScreen() {
 
   const handleSave = async () => {
     if (!storeId) return;
-    if (isNaN(Number(baseFee)) || Number(baseFee) < 0) {
+    if (Number.isNaN(Number(baseFee)) || Number(baseFee) < 0) {
       CustomInAppToast.show({ type: 'error', title: 'Invalid Input', message: 'Base fee must be a valid positive number.' });
       return;
     }
-    if (isNaN(Number(perKmFee)) || Number(perKmFee) < 0) {
+    if (Number.isNaN(Number(perKmFee)) || Number(perKmFee) < 0) {
       CustomInAppToast.show({ type: 'error', title: 'Invalid Input', message: 'Per KM fee must be a valid positive number.' });
       return;
     }
-    if (!noLimit && (isNaN(Number(maxKm)) || Number(maxKm) <= 0)) {
+    if (!noLimit && (Number.isNaN(Number(maxKm)) || Number(maxKm) <= 0)) {
       CustomInAppToast.show({ type: 'error', title: 'Invalid Input', message: 'Max delivery distance must be a valid positive number.' });
       return;
     }

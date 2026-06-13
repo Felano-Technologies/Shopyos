@@ -498,8 +498,8 @@ const updateProductReview = async (req, res, next) => {
     // Update review
     const updatedReview = await repositories.reviews.updateProductReview(reviewId, {
       rating: rating || existingReview.rating,
-      reviewText: reviewText !== undefined ? reviewText : existingReview.review_text,
-      images: images !== undefined ? images : existingReview.images
+      reviewText: reviewText === undefined ? existingReview.review_text : reviewText,
+      images: images === undefined ? existingReview.images : images
     });
 
     await invalidateReviews(existingReview.product_id, null);
