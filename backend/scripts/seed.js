@@ -1,25 +1,25 @@
-/**
+﻿/**
  * Shopyos Database Seeder
  * Run: node scripts/seed.js
  *
  * Test accounts (password for all: Password123!)
- *  admin@shopyos.com      — Admin
- *  kwame@test.com         — Buyer
- *  ama@test.com           — Buyer
- *  kofi.sells@test.com    — Seller (TechHub Accra)
- *  abena.fashions@test.com— Seller (Abena Fashions)
- *  yaw.foods@test.com     — Seller (Yaw's Fresh Groceries)
- *  driver@test.com        — Driver
+ *  admin@shopyos.com      â€” Admin
+ *  kwame@test.com         â€” Buyer
+ *  ama@test.com           â€” Buyer
+ *  kofi.sells@test.com    â€” Seller (TechHub Accra)
+ *  abena.fashions@test.comâ€” Seller (Abena Fashions)
+ *  yaw.foods@test.com     â€” Seller (Yaw's Fresh Groceries)
+ *  driver@test.com        â€” Driver
  */
 
 // Load root docker .env first (has POSTGRES_USER/PASSWORD/DB), then backend .env
 // This lets the seed run from the host against the Docker Postgres on localhost.
-const path = require('path');
+const path = require('node:path');
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });       // root .env (docker vars)
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') }); // backend .env (fills unset vars)
 
 // When running from the host machine, the Docker DB is on localhost:5432.
-// Inside Docker, DATABASE_URL would use "db" as host — but we're running locally.
+// Inside Docker, DATABASE_URL would use "db" as host â€” but we're running locally.
 // Build the correct host-side DATABASE_URL if it still points to Supabase or a remote host.
 if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('supabase') || process.env.DATABASE_URL.includes('.co')) {
   const {
@@ -29,55 +29,55 @@ if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('supabase') |
     DB_PORT = '5432',
   } = process.env;
   process.env.DATABASE_URL = `postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:${DB_PORT}/${POSTGRES_DB}`;
-  console.log('ℹ️  DATABASE_URL overridden to local Docker Postgres:', process.env.DATABASE_URL);
+  console.log('â„¹ï¸  DATABASE_URL overridden to local Docker Postgres:', process.env.DATABASE_URL);
 }
 
 
-// ─── PRODUCTION GUARD ─────────────────────────────────────────────────────────
+// â”€â”€â”€ PRODUCTION GUARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // This script MUST NEVER run against a production database.
 // It is blocked by three independent checks:
 //   1. NODE_ENV must not be 'production'
 //   2. DATABASE_URL must not point to a Sevalla/production host
 //   3. The explicit ALLOW_SEED flag must be set to 'true'
-// ─────────────────────────────────────────────────────────────────────────────
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const NODE_ENV = (process.env.NODE_ENV || '').toLowerCase();
 const DB_URL   = (process.env.DATABASE_URL || '').toLowerCase();
 const ALLOW    = (process.env.ALLOW_SEED   || '').toLowerCase();
 
-// Check 1 — NODE_ENV
+// Check 1 â€” NODE_ENV
 if (NODE_ENV === 'production') {
-  console.error('❌  BLOCKED: Seed script cannot run when NODE_ENV=production.');
+  console.error('âŒ  BLOCKED: Seed script cannot run when NODE_ENV=production.');
   process.exit(1);
 }
 
-// Check 2 — Database URL must not point to a production/Sevalla host
+// Check 2 â€” Database URL must not point to a production/Sevalla host
 const PROD_DB_PATTERNS = ['sevalla', '.sevalla.com', 'render.com', 'railway.app', 'heroku', 'neon.tech', 'supabase.co'];
 if (PROD_DB_PATTERNS.some(p => DB_URL.includes(p))) {
-  console.error('❌  BLOCKED: DATABASE_URL appears to point to a production database.');
+  console.error('âŒ  BLOCKED: DATABASE_URL appears to point to a production database.');
   console.error('   If this is genuinely a dev DB on that host, set ALLOW_SEED=true explicitly.');
   process.exit(1);
 }
 
-// Check 3 — Explicit opt-in flag (prevents accidental runs)
+// Check 3 â€” Explicit opt-in flag (prevents accidental runs)
 if (ALLOW !== 'true') {
-  console.error('❌  BLOCKED: ALLOW_SEED env var is not set to "true".');
+  console.error('âŒ  BLOCKED: ALLOW_SEED env var is not set to "true".');
   console.error('   To run the seeder locally, set ALLOW_SEED=true in your .env file.');
   process.exit(1);
 }
 
-console.log('✅  Environment checks passed. Running seed on:', DB_URL.split('@')[1] || DB_URL);
-console.log('⚠️  NODE_ENV:', NODE_ENV || '(not set)');
+console.log('âœ…  Environment checks passed. Running seed on:', DB_URL.split('@')[1] || DB_URL);
+console.log('âš ï¸  NODE_ENV:', NODE_ENV || '(not set)');
 console.log('');
 
 const bcrypt = require('bcryptjs');
 const { getPool } = require('../config/postgres');
 
-// ─── Constants ──────────────────────────────────────────────────────────────
-const PASSWORD = 'Password123!';
+// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const PASSWORD = 'Password123!'; // NOSONAR
 const SUPPORT_USER_ID = '00000000-0000-0000-0000-000000000001';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const hash = (pw) => bcrypt.hash(pw, 10);
 
 async function query(sql, params = []) {
@@ -110,17 +110,17 @@ async function assignRole(db, userId, roleId) {
   );
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 async function seed() {
   const pool = getPool();
   const db = await pool.connect();
-  console.log('🌱 Starting seed...\n');
+  console.log('ðŸŒ± Starting seed...\n');
 
   try {
     await db.query('BEGIN');
 
-    // ── 1. Roles ─────────────────────────────────────────────────────────────
-    console.log('📌 Upserting roles...');
+    // â”€â”€ 1. Roles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Upserting roles...');
     await db.query(`
       INSERT INTO roles (name, display_name, description) VALUES
         ('buyer',  'Buyer',  'Can browse and purchase products'),
@@ -131,10 +131,10 @@ async function seed() {
     `);
     const { rows: roleRows } = await db.query('SELECT id, name FROM roles');
     const roleMap = Object.fromEntries(roleRows.map(r => [r.name, r.id]));
-    console.log('   ✅ Roles ready\n');
+    console.log('   âœ… Roles ready\n');
 
-    // ── 2. Support system user (Shopyos Bot) ──────────────────────────────────
-    console.log('📌 Creating Shopyos Bot...');
+    // â”€â”€ 2. Support system user (Shopyos Bot) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating Shopyos Bot...');
     const pw = await hash('NOT_A_LOGIN_PASSWORD_DO_NOT_USE');
     await db.query(`
       INSERT INTO users (id, email, password_hash, email_verified, is_active)
@@ -146,10 +146,10 @@ async function seed() {
       WHERE user_id = $1
     `, [SUPPORT_USER_ID, 'Shopyos Bot', '+233000000000', 'Accra', 'Ghana']);
     await assignRole(db, SUPPORT_USER_ID, roleMap.admin);
-    console.log('   ✅ Shopyos Bot ready\n');
+    console.log('   âœ… Shopyos Bot ready\n');
 
-    // ── 3. Admin user ─────────────────────────────────────────────────────────
-    console.log('📌 Creating admin...');
+    // â”€â”€ 3. Admin user â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating admin...');
     const adminEmail = process.env.ADMIN_EMAIL || 'admin@shopyos.com';
     const adminPassword = process.env.ADMIN_PASSWORD || PASSWORD;
     
@@ -163,10 +163,10 @@ async function seed() {
       lng: -0.187,
     });
     await assignRole(db, adminId, roleMap.admin);
-    console.log('   ✅ Admin created:', adminId, '\n');
+    console.log('   âœ… Admin created:', adminId, '\n');
 
-    // ── 4. Buyers ─────────────────────────────────────────────────────────────
-    console.log('📌 Creating buyers...');
+    // â”€â”€ 4. Buyers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating buyers...');
     const kwameId = await insertUser(db, {
       email: 'kwame@test.com',
       name: 'Kwame Mensah',
@@ -186,10 +186,10 @@ async function seed() {
       lng: -1.6244,
     });
     await assignRole(db, amaId, roleMap.buyer);
-    console.log('   ✅ Buyers created\n');
+    console.log('   âœ… Buyers created\n');
 
-    // ── 5. Sellers ────────────────────────────────────────────────────────────
-    console.log('📌 Creating sellers...');
+    // â”€â”€ 5. Sellers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating sellers...');
     const kofiId = await insertUser(db, {
       email: 'kofi.sells@test.com',
       name: 'Kofi Asante',
@@ -219,10 +219,10 @@ async function seed() {
       lng: -0.0166,
     });
     await assignRole(db, yawId, roleMap.seller);
-    console.log('   ✅ Sellers created\n');
+    console.log('   âœ… Sellers created\n');
 
-    // ── 6. Driver ─────────────────────────────────────────────────────────────
-    console.log('📌 Creating driver...');
+    // â”€â”€ 6. Driver â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating driver...');
     const driverId = await insertUser(db, {
       email: 'driver@test.com',
       name: 'Emmanuel Tetteh',
@@ -242,10 +242,10 @@ async function seed() {
               TRUE, TRUE, 4.7)
       ON CONFLICT (user_id) DO NOTHING
     `, [driverId]);
-    console.log('   ✅ Driver created\n');
+    console.log('   âœ… Driver created\n');
 
-    // ── 7. Stores ─────────────────────────────────────────────────────────────
-    console.log('📌 Creating stores...');
+    // â”€â”€ 7. Stores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating stores...');
     const { rows: [store1] } = await db.query(`
       INSERT INTO stores
         (owner_id, store_name, slug, description, email, phone,
@@ -253,11 +253,11 @@ async function seed() {
          latitude, longitude, is_verified, is_active, average_rating, total_reviews,
          listing_tier, verification_status, delivery_base_fee, delivery_per_km_fee, delivery_max_km)
       VALUES ($1, 'TechHub Accra', 'techhub-accra',
-              'Your one-stop shop for all things electronics — phones, laptops, accessories, and more.',
+              'Your one-stop shop for all things electronics â€” phones, laptops, accessories, and more.',
               'info@techhub.gh', '+233302000010',
               '15 Ring Road Central', 'Accra', 'Greater Accra', 'Ghana', 'Electronics',
               5.5916, -0.1969,
-              TRUE, TRUE, 4.5, 32, 'free', 'verified', 5.00, 2.00, 50.00)
+              TRUE, TRUE, 4.5, 32, 'free', 'verified', 5, 2, 50)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [kofiId]);
@@ -273,7 +273,7 @@ async function seed() {
               'hello@abenafashions.gh', '+233322001010',
               '42 Adum Market', 'Kumasi', 'Ashanti', 'Ghana', 'Fashion',
               6.6935, -1.6168,
-              TRUE, TRUE, 4.8, 58, 'free', 'verified', 10.00, 0.00, 100.00)
+              TRUE, TRUE, 4.8, 58, 'free', 'verified', 10, 0, 100)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [abenaId]);
@@ -289,7 +289,7 @@ async function seed() {
               'yaw@yawfresh.gh', '+233244000005',
               '7 Tema Community 1', 'Tema', 'Greater Accra', 'Ghana', 'Grocery',
               5.6698, -0.0166,
-              TRUE, TRUE, 4.6, 21, 'free', 'verified', 3.00, 1.50, 20.00)
+              TRUE, TRUE, 4.6, 21, 'free', 'verified', 3, 1.5, 20)
       ON CONFLICT (slug) DO UPDATE SET store_name = EXCLUDED.store_name
       RETURNING id
     `, [yawId]);
@@ -299,10 +299,10 @@ async function seed() {
       fashion: store2.id,
       grocery: store3.id,
     };
-    console.log('   ✅ Stores created\n');
+    console.log('   âœ… Stores created\n');
 
-    // ── 8. Products (TechHub) ─────────────────────────────────────────────────
-    console.log('📌 Creating products...');
+    // â”€â”€ 8. Products (TechHub) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating products...');
 
     const insertProduct = async (storeId, data) => {
       // Manual check for existing slug since DB doesn't have unique constraint
@@ -371,7 +371,7 @@ async function seed() {
       rating: 4.8, reviewCount: 22, stock: 25,
     });
 
-    const chargerPadId = await insertProduct(storeIds.tech, {
+    await insertProduct(storeIds.tech, {
       title: 'Anker Wireless Charging Pad 15W', slug: 'anker-wireless-charger-15w',
       desc: 'Fast wireless charging for all Qi-enabled devices. Slim and compact design.',
       price: 120, category: 'Electronics', brand: 'Anker',
@@ -388,7 +388,7 @@ async function seed() {
       rating: 4.9, reviewCount: 17, stock: 30,
     });
 
-    const agbada1Id = await insertProduct(storeIds.fashion, {
+    await insertProduct(storeIds.fashion, {
       title: 'Men\'s Ankara Agbada Set', slug: 'mens-ankara-agbada',
       desc: 'Three-piece traditional agbada in bold ankara print. Perfect for special occasions.',
       price: 380, category: 'Fashion',
@@ -396,16 +396,16 @@ async function seed() {
       rating: 4.7, reviewCount: 9, stock: 20,
     });
 
-    const sneakersId = await insertProduct(storeIds.fashion, {
+    await insertProduct(storeIds.fashion, {
       title: 'Canvas Slip-On Sneakers', slug: 'canvas-slip-on-sneakers',
-      desc: 'Comfortable, breathable canvas upper with cushioned insole. Sizes 36–45.',
+      desc: 'Comfortable, breathable canvas upper with cushioned insole. Sizes 36â€“45.',
       price: 95, compareAt: 130, category: 'Fashion',
       imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400',
       rating: 4.2, reviewCount: 43, stock: 60,
     });
 
     // Yaw Fresh products
-    const tomatoId = await insertProduct(storeIds.grocery, {
+    await insertProduct(storeIds.grocery, {
       title: 'Fresh Tomatoes (1 crate)', slug: 'fresh-tomatoes-crate',
       desc: 'Locally sourced, farm-fresh tomatoes. Ideal for soups and stews.',
       price: 65, category: 'Grocery',
@@ -429,17 +429,17 @@ async function seed() {
       rating: 4.6, reviewCount: 19, stock: 90,
     });
 
-    console.log('   ✅ Products created\n');
+    console.log('   âœ… Products created\n');
 
-    // ── 8B. Additional Sellers & Buyers ──────────────────────────────────────
-    console.log('📌 Creating additional sellers & buyers...');
+    // â”€â”€ 8B. Additional Sellers & Buyers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating additional sellers & buyers...');
     const seller4Id = await insertUser(db, { email: 'accratech@test.com', name: 'Fiifi Mensah', phone: '+233244000010', city: 'Accra', lat: 5.6037, lng: -0.187 });
     await assignRole(db, seller4Id, roleMap.seller);
     const seller5Id = await insertUser(db, { email: 'kumasifashion@test.com', name: 'Akosua Amponsah', phone: '+233244000011', city: 'Kumasi', lat: 6.6885, lng: -1.6244 });
     await assignRole(db, seller5Id, roleMap.seller);
     const seller6Id = await insertUser(db, { email: 'freshharvestgh@test.com', name: 'Kofi Acheampong', phone: '+233244000012', city: 'Kumasi', lat: 6.7, lng: -1.62 });
     await assignRole(db, seller6Id, roleMap.seller);
-    const seller7Id = await insertUser(db, { email: 'glowbeautygh@test.com', name: 'Efua Asante', phone: '+233244000013', city: 'Accra', lat: 5.56, lng: -0.20 });
+    const seller7Id = await insertUser(db, { email: 'glowbeautygh@test.com', name: 'Efua Asante', phone: '+233244000013', city: 'Accra', lat: 5.56, lng: -0.2 });
     await assignRole(db, seller7Id, roleMap.seller);
     const seller8Id = await insertUser(db, { email: 'fitnesszonegh@test.com', name: 'Kwesi Boateng', phone: '+233244000014', city: 'Accra', lat: 5.58, lng: -0.22 });
     await assignRole(db, seller8Id, roleMap.seller);
@@ -450,14 +450,14 @@ async function seed() {
     const seller11Id = await insertUser(db, { email: 'autopartsgh@test.com', name: 'Yaw Asante', phone: '+233244000017', city: 'Accra', lat: 5.55, lng: -0.21 });
     await assignRole(db, seller11Id, roleMap.seller);
 
-    const buyer3Id = await insertUser(db, { email: 'abena.buyer@test.com', name: 'Abena Forson', phone: '+233244000018', city: 'Accra', lat: 5.59, lng: -0.20 });
+    const buyer3Id = await insertUser(db, { email: 'abena.buyer@test.com', name: 'Abena Forson', phone: '+233244000018', city: 'Accra', lat: 5.59, lng: -0.2 });
     await assignRole(db, buyer3Id, roleMap.buyer);
-    const buyer4Id = await insertUser(db, { email: 'kofi.buyer@test.com', name: 'Kofi Mensah', phone: '+233244000019', city: 'Kumasi', lat: 6.70, lng: -1.63 });
+    const buyer4Id = await insertUser(db, { email: 'kofi.buyer@test.com', name: 'Kofi Mensah', phone: '+233244000019', city: 'Kumasi', lat: 6.7, lng: -1.63 });
     await assignRole(db, buyer4Id, roleMap.buyer);
-    console.log('   ✅ Additional sellers & buyers created\n');
+    console.log('   âœ… Additional sellers & buyers created\n');
 
-    // ── 8C. Additional Stores ─────────────────────────────────────────────────
-    console.log('📌 Creating additional stores...');
+    // â”€â”€ 8C. Additional Stores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating additional stores...');
     const insertStore = async (ownerId, d) => {
       const { rows: [s] } = await db.query(`
         INSERT INTO stores
@@ -473,18 +473,18 @@ async function seed() {
       return s.id;
     };
 
-    const accraTechId   = await insertStore(seller4Id,  { name: 'Accra Tech Mall',       slug: 'accra-tech-mall',       desc: 'Premier destination for gadgets, laptops, phones and smart home devices.',         email: 'info@accratechmall.gh',    phone: '+233302000020', address: '5 Cantonments Road',    city: 'Accra',  state: 'Greater Accra', category: 'Electronics',      lat: 5.6037, lng: -0.187,  rating: 4.6, reviews: 87,  baseFee: 8.00,  perKm: 2.50, maxKm: 40 });
-    const kumasiFashId  = await insertStore(seller5Id,  { name: 'Kumasi Fashion House',   slug: 'kumasi-fashion-house',  desc: 'Authentic African prints, bespoke tailoring and modern styles.',                    email: 'info@kumasifashion.gh',    phone: '+233322002020', address: '18 Kejetia Market',     city: 'Kumasi', state: 'Ashanti',       category: 'Fashion',          lat: 6.6885, lng: -1.6244, rating: 4.7, reviews: 124, baseFee: 10.00, perKm: 0.00, maxKm: 80 });
-    const freshHarvId   = await insertStore(seller6Id,  { name: 'Fresh Harvest Kumasi',   slug: 'fresh-harvest-kumasi',  desc: 'Farm-to-table groceries, organic produce and traditional Ghanaian staples.',        email: 'hello@freshharvestgh.gh',  phone: '+233322003030', address: '3 Bantama Market',      city: 'Kumasi', state: 'Ashanti',       category: 'Grocery',          lat: 6.70,   lng: -1.62,   rating: 4.5, reviews: 66,  baseFee: 5.00,  perKm: 1.50, maxKm: 25 });
-    const glowBeautyId  = await insertStore(seller7Id,  { name: 'Glow Beauty Ghana',      slug: 'glow-beauty-ghana',     desc: 'Natural and organic beauty products rooted in African heritage.',                   email: 'info@glowbeauty.gh',       phone: '+233302004040', address: '22 Osu Oxford Street',  city: 'Accra',  state: 'Greater Accra', category: 'Health & Beauty',  lat: 5.56,   lng: -0.20,   rating: 4.8, reviews: 201, baseFee: 6.00,  perKm: 2.00, maxKm: 35 });
-    const fitnessZoneId = await insertStore(seller8Id,  { name: 'Fitness Zone Accra',     slug: 'fitness-zone-accra',    desc: 'Sports equipment, supplements and activewear for every fitness level.',              email: 'info@fitnesszone.gh',      phone: '+233302005050', address: '9 Liberation Road',     city: 'Accra',  state: 'Greater Accra', category: 'Sports & Fitness', lat: 5.58,   lng: -0.22,   rating: 4.4, reviews: 53,  baseFee: 7.00,  perKm: 2.00, maxKm: 40 });
-    const homeStyleId   = await insertStore(seller9Id,  { name: 'HomeStyle Accra',        slug: 'homestyle-accra',       desc: 'Quality home furnishings, kitchenware and décor to make your house a home.',       email: 'info@homestyleaccra.gh',   phone: '+233302006060', address: '12 Spintex Road',       city: 'Accra',  state: 'Greater Accra', category: 'Home & Garden',    lat: 5.67,   lng: -0.01,   rating: 4.5, reviews: 78,  baseFee: 9.00,  perKm: 2.50, maxKm: 45 });
-    const littleStarsId = await insertStore(seller10Id, { name: 'Little Stars Kids',      slug: 'little-stars-kids',     desc: 'Safe, fun and educational toys, clothing and gear for babies and children.',        email: 'hello@littlestars.gh',     phone: '+233302007070', address: '8 East Legon Avenue',   city: 'Accra',  state: 'Greater Accra', category: 'Baby & Kids',      lat: 5.61,   lng: -0.19,   rating: 4.9, reviews: 145, baseFee: 6.00,  perKm: 2.00, maxKm: 35 });
-    const autoPartsId   = await insertStore(seller11Id, { name: 'AutoParts Ghana',        slug: 'autoparts-ghana',       desc: 'Genuine spare parts, accessories and care products for all vehicle brands.',       email: 'info@autopartsgh.gh',      phone: '+233302008080', address: '31 Graphic Road',       city: 'Accra',  state: 'Greater Accra', category: 'Automotive',       lat: 5.55,   lng: -0.21,   rating: 4.3, reviews: 42,  baseFee: 10.00, perKm: 3.00, maxKm: 50 });
-    console.log('   ✅ Additional stores created (8 new)\n');
+    const accraTechId   = await insertStore(seller4Id,  { name: 'Accra Tech Mall',       slug: 'accra-tech-mall',       desc: 'Premier destination for gadgets, laptops, phones and smart home devices.',         email: 'info@accratechmall.gh',    phone: '+233302000020', address: '5 Cantonments Road',    city: 'Accra',  state: 'Greater Accra', category: 'Electronics',      lat: 5.6037, lng: -0.187,  rating: 4.6, reviews: 87,  baseFee: 8,  perKm: 2.5, maxKm: 40 });
+    const kumasiFashId  = await insertStore(seller5Id,  { name: 'Kumasi Fashion House',   slug: 'kumasi-fashion-house',  desc: 'Authentic African prints, bespoke tailoring and modern styles.',                    email: 'info@kumasifashion.gh',    phone: '+233322002020', address: '18 Kejetia Market',     city: 'Kumasi', state: 'Ashanti',       category: 'Fashion',          lat: 6.6885, lng: -1.6244, rating: 4.7, reviews: 124, baseFee: 10, perKm: 0, maxKm: 80 });
+    const freshHarvId   = await insertStore(seller6Id,  { name: 'Fresh Harvest Kumasi',   slug: 'fresh-harvest-kumasi',  desc: 'Farm-to-table groceries, organic produce and traditional Ghanaian staples.',        email: 'hello@freshharvestgh.gh',  phone: '+233322003030', address: '3 Bantama Market',      city: 'Kumasi', state: 'Ashanti',       category: 'Grocery',          lat: 6.7,   lng: -1.62,   rating: 4.5, reviews: 66,  baseFee: 5,  perKm: 1.5, maxKm: 25 });
+    const glowBeautyId  = await insertStore(seller7Id,  { name: 'Glow Beauty Ghana',      slug: 'glow-beauty-ghana',     desc: 'Natural and organic beauty products rooted in African heritage.',                   email: 'info@glowbeauty.gh',       phone: '+233302004040', address: '22 Osu Oxford Street',  city: 'Accra',  state: 'Greater Accra', category: 'Health & Beauty',  lat: 5.56,   lng: -0.2,   rating: 4.8, reviews: 201, baseFee: 6,  perKm: 2, maxKm: 35 });
+    const fitnessZoneId = await insertStore(seller8Id,  { name: 'Fitness Zone Accra',     slug: 'fitness-zone-accra',    desc: 'Sports equipment, supplements and activewear for every fitness level.',              email: 'info@fitnesszone.gh',      phone: '+233302005050', address: '9 Liberation Road',     city: 'Accra',  state: 'Greater Accra', category: 'Sports & Fitness', lat: 5.58,   lng: -0.22,   rating: 4.4, reviews: 53,  baseFee: 7,  perKm: 2, maxKm: 40 });
+    const homeStyleId   = await insertStore(seller9Id,  { name: 'HomeStyle Accra',        slug: 'homestyle-accra',       desc: 'Quality home furnishings, kitchenware and dÃ©cor to make your house a home.',       email: 'info@homestyleaccra.gh',   phone: '+233302006060', address: '12 Spintex Road',       city: 'Accra',  state: 'Greater Accra', category: 'Home & Garden',    lat: 5.67,   lng: -0.01,   rating: 4.5, reviews: 78,  baseFee: 9,  perKm: 2.5, maxKm: 45 });
+    const littleStarsId = await insertStore(seller10Id, { name: 'Little Stars Kids',      slug: 'little-stars-kids',     desc: 'Safe, fun and educational toys, clothing and gear for babies and children.',        email: 'hello@littlestars.gh',     phone: '+233302007070', address: '8 East Legon Avenue',   city: 'Accra',  state: 'Greater Accra', category: 'Baby & Kids',      lat: 5.61,   lng: -0.19,   rating: 4.9, reviews: 145, baseFee: 6,  perKm: 2, maxKm: 35 });
+    const autoPartsId   = await insertStore(seller11Id, { name: 'AutoParts Ghana',        slug: 'autoparts-ghana',       desc: 'Genuine spare parts, accessories and care products for all vehicle brands.',       email: 'info@autopartsgh.gh',      phone: '+233302008080', address: '31 Graphic Road',       city: 'Accra',  state: 'Greater Accra', category: 'Automotive',       lat: 5.55,   lng: -0.21,   rating: 4.3, reviews: 42,  baseFee: 10, perKm: 3, maxKm: 50 });
+    console.log('   âœ… Additional stores created (8 new)\n');
 
-    // ── 8D. Bulk Products (~85 items across 8 new stores) ─────────────────────
-    console.log('📌 Seeding bulk products...');
+    // â”€â”€ 8D. Bulk Products (~85 items across 8 new stores) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Seeding bulk products...');
     const bulkProducts = [
       // Accra Tech Mall (12)
       { store: accraTechId,   title: 'Apple MacBook Air M2 13"',           slug: 'apple-macbook-air-m2-13',        desc: '8-core CPU, 8GB RAM, 256GB SSD. Thin, light, fanless.',                            price: 8500, compareAt: 9200, category: 'Electronics', brand: 'Apple',      imageUrl: 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=400', rating: 4.9, reviewCount: 42, stock: 12 },
@@ -498,21 +498,21 @@ async function seed() {
       { store: accraTechId,   title: 'JBL Charge 5 Bluetooth Speaker',     slug: 'jbl-charge-5-speaker',           desc: 'IP67 waterproof, 20h battery, built-in power bank.',                               price:  680, compareAt:  750, category: 'Electronics', brand: 'JBL',        imageUrl: 'https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400', rating: 4.5, reviewCount: 38, stock: 30 },
       { store: accraTechId,   title: 'Samsung Galaxy S24 256GB',           slug: 'samsung-galaxy-s24-256gb',       desc: 'Snapdragon 8 Gen 3, 50MP triple camera, 7 years of Android updates.',               price: 6200,                  category: 'Electronics', brand: 'Samsung',    imageUrl: 'https://images.unsplash.com/photo-1610945265064-0e34e5519bbf?w=400', rating: 4.7, reviewCount: 21, stock: 15 },
       { store: accraTechId,   title: 'Xiaomi Redmi Note 13 Pro',           slug: 'xiaomi-redmi-note-13-pro',       desc: '200MP camera, 5000mAh battery, 120Hz AMOLED display.',                             price: 1800,                  category: 'Electronics', brand: 'Xiaomi',     imageUrl: 'https://images.unsplash.com/photo-1601784551446-20c9e07cdbdb?w=400', rating: 4.4, reviewCount: 19, stock: 28 },
-      { store: accraTechId,   title: 'TP-Link AX3000 Wi-Fi 6 Router',      slug: 'tplink-ax3000-wifi6',            desc: 'Dual-band, OFDMA, covers up to 250m². Fast and reliable home Wi-Fi.',              price:  480,                  category: 'Electronics', brand: 'TP-Link',    imageUrl: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400', rating: 4.3, reviewCount: 28, stock: 20 },
+      { store: accraTechId,   title: 'TP-Link AX3000 Wi-Fi 6 Router',      slug: 'tplink-ax3000-wifi6',            desc: 'Dual-band, OFDMA, covers up to 250mÂ². Fast and reliable home Wi-Fi.',              price:  480,                  category: 'Electronics', brand: 'TP-Link',    imageUrl: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=400', rating: 4.3, reviewCount: 28, stock: 20 },
 
       // Kumasi Fashion House (12)
-      { store: kumasiFashId,  title: 'Batik Summer Wrap Dress',            slug: 'batik-summer-wrap-dress',        desc: 'Flowing batik-print in bold tropical colours. Sizes 8–16.',                        price:  195,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400', rating: 4.8, reviewCount: 31, stock: 40 },
-      { store: kumasiFashId,  title: 'African Print Blazer',               slug: 'african-print-blazer',           desc: 'Tailored blazer in vivid Ankara print. Sizes XS–3XL.',                             price:  340, compareAt:  420, category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1592878904946-b3cd8ae243d0?w=400', rating: 4.6, reviewCount: 14, stock: 25 },
-      { store: kumasiFashId,  title: 'Kente Silk Scarf',                   slug: 'kente-silk-scarf',               desc: 'Pure silk scarf featuring traditional kente woven patterns. 180×90cm.',            price:  120,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400', rating: 4.9, reviewCount: 22, stock: 50 },
+      { store: kumasiFashId,  title: 'Batik Summer Wrap Dress',            slug: 'batik-summer-wrap-dress',        desc: 'Flowing batik-print in bold tropical colours. Sizes 8â€“16.',                        price:  195,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=400', rating: 4.8, reviewCount: 31, stock: 40 },
+      { store: kumasiFashId,  title: 'African Print Blazer',               slug: 'african-print-blazer',           desc: 'Tailored blazer in vivid Ankara print. Sizes XSâ€“3XL.',                             price:  340, compareAt:  420, category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1592878904946-b3cd8ae243d0?w=400', rating: 4.6, reviewCount: 14, stock: 25 },
+      { store: kumasiFashId,  title: 'Kente Silk Scarf',                   slug: 'kente-silk-scarf',               desc: 'Pure silk scarf featuring traditional kente woven patterns. 180Ã—90cm.',            price:  120,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177331693ae?w=400', rating: 4.9, reviewCount: 22, stock: 50 },
       { store: kumasiFashId,  title: 'Wide-Leg Linen Trousers',            slug: 'wide-leg-linen-trousers',        desc: 'Breathable linen trousers in earthy tones. Perfect for Accra heat.',                price:  145,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=400', rating: 4.5, reviewCount: 27, stock: 35 },
       { store: kumasiFashId,  title: 'Distressed Denim Jacket',            slug: 'distressed-denim-jacket',        desc: 'Modern denim jacket with Ankara patch pockets. Unisex sizing.',                    price:  280, compareAt:  350, category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1548126032-079a0fb0099d?w=400', rating: 4.4, reviewCount: 18, stock: 22 },
       { store: kumasiFashId,  title: 'Adinkra Symbol Graphic Tee',         slug: 'adinkra-graphic-tee',            desc: '100% organic cotton tee printed with Adinkra symbols and meanings.',                price:   75,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1583743814966-8936f5b7be1a?w=400', rating: 4.7, reviewCount: 64, stock:100 },
       { store: kumasiFashId,  title: 'Handmade Beaded Necklace Set',       slug: 'handmade-beaded-necklace-set',   desc: 'Set of 3 necklaces in multicolour Krobo glass beads.',                             price:  110,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?w=400', rating: 4.9, reviewCount: 47, stock: 60 },
-      { store: kumasiFashId,  title: 'Leather Slip-On Sandals',            slug: 'leather-slip-on-sandals',        desc: 'Genuine leather with padded insole. Sizes 36–46.',                                 price:  165, compareAt:  200, category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400', rating: 4.6, reviewCount: 33, stock: 45 },
+      { store: kumasiFashId,  title: 'Leather Slip-On Sandals',            slug: 'leather-slip-on-sandals',        desc: 'Genuine leather with padded insole. Sizes 36â€“46.',                                 price:  165, compareAt:  200, category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400', rating: 4.6, reviewCount: 33, stock: 45 },
       { store: kumasiFashId,  title: 'Woven Straw Beach Hat',              slug: 'woven-straw-beach-hat',          desc: 'Hand-woven natural straw hat. One size with adjustable inner band.',                price:   55,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1572307480813-ceb0e59d8325?w=400', rating: 4.3, reviewCount: 29, stock: 70 },
-      { store: kumasiFashId,  title: "Men's Dashiki Shirt",                slug: 'mens-dashiki-shirt',             desc: 'Classic V-neck dashiki in bold geometric prints. Sizes S–4XL.',                    price:   95,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', rating: 4.8, reviewCount: 56, stock: 80 },
+      { store: kumasiFashId,  title: "Men's Dashiki Shirt",                slug: 'mens-dashiki-shirt',             desc: 'Classic V-neck dashiki in bold geometric prints. Sizes Sâ€“4XL.',                    price:   95,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400', rating: 4.8, reviewCount: 56, stock: 80 },
       { store: kumasiFashId,  title: 'Tie-Dye Oversized Hoodie',           slug: 'tie-dye-oversized-hoodie',       desc: 'Soft fleece hoodie with unique hand-dyed pattern. Unisex.',                        price:  160, compareAt:  200, category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1556821840-3a63f15732ce?w=400', rating: 4.5, reviewCount: 24, stock: 40 },
-      { store: kumasiFashId,  title: 'Kaftan Maxi Dress',                  slug: 'kaftan-maxi-dress',              desc: 'Flowy kaftan in bold mixed-print fabric. Free size XS–2XL.',                       price:  220,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=400', rating: 4.7, reviewCount: 38, stock: 30 },
+      { store: kumasiFashId,  title: 'Kaftan Maxi Dress',                  slug: 'kaftan-maxi-dress',              desc: 'Flowy kaftan in bold mixed-print fabric. Free size XSâ€“2XL.',                       price:  220,                  category: 'Fashion',                          imageUrl: 'https://images.unsplash.com/photo-1601924994987-69e26d50dc26?w=400', rating: 4.7, reviewCount: 38, stock: 30 },
 
       // Fresh Harvest Kumasi (10)
       { store: freshHarvId,   title: 'Garden Eggs (5kg)',                  slug: 'garden-eggs-5kg',                desc: 'Fresh, locally grown garden eggs. Great for stews and soups.',                     price:   28,                  category: 'Grocery',                          imageUrl: 'https://images.unsplash.com/photo-1576045057995-568f588f82fb?w=400', rating: 4.4, reviewCount: 19, stock:200 },
@@ -539,11 +539,11 @@ async function seed() {
       { store: glowBeautyId,  title: 'Hair Growth Scalp Oil 60ml',         slug: 'hair-growth-scalp-oil-60ml',     desc: 'Rosemary and castor oil blend to stimulate hair growth.',                          price:   80, compareAt:  100, category: 'Health & Beauty',                  imageUrl: 'https://images.unsplash.com/photo-1617897903246-719242758050?w=400', rating: 4.7, reviewCount: 67, stock:100 },
 
       // Fitness Zone Accra (10)
-      { store: fitnessZoneId, title: 'Adjustable Dumbbell Set 5–25kg',     slug: 'adjustable-dumbbell-set',        desc: 'Dial-select dumbbells replacing 9 pairs. Includes rack stand.',                   price: 1800, compareAt: 2200, category: 'Sports & Fitness', brand: 'PowerBlock',imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400', rating: 4.7, reviewCount: 23, stock: 15 },
-      { store: fitnessZoneId, title: 'Premium Yoga Mat 6mm',               slug: 'premium-yoga-mat-6mm',           desc: 'Non-slip TPE foam mat with alignment lines. 183×61cm.',                            price:  180, compareAt:  220, category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=400', rating: 4.6, reviewCount: 41, stock: 50 },
-      { store: fitnessZoneId, title: 'Resistance Bands Set (5 bands)',     slug: 'resistance-bands-set-5',         desc: 'Latex-free, 5 resistance levels from 5–45kg equivalent.',                         price:   95,                  category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400', rating: 4.5, reviewCount: 58, stock: 80 },
+      { store: fitnessZoneId, title: 'Adjustable Dumbbell Set 5â€“25kg',     slug: 'adjustable-dumbbell-set',        desc: 'Dial-select dumbbells replacing 9 pairs. Includes rack stand.',                   price: 1800, compareAt: 2200, category: 'Sports & Fitness', brand: 'PowerBlock',imageUrl: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=400', rating: 4.7, reviewCount: 23, stock: 15 },
+      { store: fitnessZoneId, title: 'Premium Yoga Mat 6mm',               slug: 'premium-yoga-mat-6mm',           desc: 'Non-slip TPE foam mat with alignment lines. 183Ã—61cm.',                            price:  180, compareAt:  220, category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1599901860904-17e6ed7083a0?w=400', rating: 4.6, reviewCount: 41, stock: 50 },
+      { store: fitnessZoneId, title: 'Resistance Bands Set (5 bands)',     slug: 'resistance-bands-set-5',         desc: 'Latex-free, 5 resistance levels from 5â€“45kg equivalent.',                         price:   95,                  category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=400', rating: 4.5, reviewCount: 58, stock: 80 },
       { store: fitnessZoneId, title: 'Whey Protein Powder 2kg',            slug: 'whey-protein-powder-2kg',        desc: '24g protein per serving. Chocolate and vanilla flavours.',                         price:  480, compareAt:  560, category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400', rating: 4.4, reviewCount: 35, stock: 40 },
-      { store: fitnessZoneId, title: 'Mesh Running Trainer',               slug: 'mesh-running-trainer',           desc: 'Breathable mesh upper, cushioned midsole. Sizes 38–46.',                           price:  280, compareAt:  350, category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', rating: 4.5, reviewCount: 44, stock: 60 },
+      { store: fitnessZoneId, title: 'Mesh Running Trainer',               slug: 'mesh-running-trainer',           desc: 'Breathable mesh upper, cushioned midsole. Sizes 38â€“46.',                           price:  280, compareAt:  350, category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400', rating: 4.5, reviewCount: 44, stock: 60 },
       { store: fitnessZoneId, title: 'Speed Jump Rope',                    slug: 'speed-jump-rope',                desc: 'Aluminium handles, ball-bearing spin, 3m adjustable cable.',                      price:   45,                  category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=400', rating: 4.3, reviewCount: 29, stock:100 },
       { store: fitnessZoneId, title: 'Insulated Water Bottle 1L',          slug: 'insulated-water-bottle-1l',      desc: 'Double-wall stainless steel. Cold 24h, hot 12h.',                                  price:   75,                  category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=400', rating: 4.7, reviewCount: 82, stock:120 },
       { store: fitnessZoneId, title: 'Deep Tissue Foam Roller',            slug: 'deep-tissue-foam-roller',        desc: 'High-density EVA foam, 33cm, for post-workout muscle recovery.',                   price:   90,                  category: 'Sports & Fitness',                 imageUrl: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400', rating: 4.4, reviewCount: 26, stock: 45 },
@@ -558,30 +558,30 @@ async function seed() {
       { store: homeStyleId,   title: 'Bamboo Cutting Board Set (3 pcs)',   slug: 'bamboo-cutting-board-set-3pcs',  desc: 'Small, medium, large bamboo boards with juice grooves.',                          price:   90,                  category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=400', rating: 4.4, reviewCount: 36, stock: 60 },
       { store: homeStyleId,   title: 'Stainless Steel Electric Kettle 1.7L',slug:'stainless-steel-kettle-1-7l',   desc: '1500W, auto shut-off, boil-dry protection, BPA-free.',                             price:  140, compareAt:  180, category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1556742111-a301076d9d18?w=400', rating: 4.5, reviewCount: 43, stock: 50 },
       { store: homeStyleId,   title: 'Blender 1000W Stainless Jar',        slug: 'blender-1000w-stainless-jar',    desc: '5-speed + pulse, 1.5L stainless jar. Great for smoothies and soups.',              price:  280, compareAt:  320, category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=400', rating: 4.4, reviewCount: 31, stock: 25 },
-      { store: homeStyleId,   title: 'Blackout Curtains Set 2 Panels',     slug: 'blackout-curtains-set-2-panels', desc: '100% light-blocking, thermal insulated. 140×250cm per panel.',                    price:  195,                  category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=400', rating: 4.6, reviewCount: 28, stock: 40 },
+      { store: homeStyleId,   title: 'Blackout Curtains Set 2 Panels',     slug: 'blackout-curtains-set-2-panels', desc: '100% light-blocking, thermal insulated. 140Ã—250cm per panel.',                    price:  195,                  category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=400', rating: 4.6, reviewCount: 28, stock: 40 },
       { store: homeStyleId,   title: 'LED Desk Lamp with USB Charging',    slug: 'led-desk-lamp-usb-charging',     desc: '3 brightness levels, 5 colour modes, wireless charging base.',                    price:  160, compareAt:  200, category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400', rating: 4.7, reviewCount: 52, stock: 45 },
       { store: homeStyleId,   title: 'Wooden Wall Clock 40cm',             slug: 'wooden-wall-clock-40cm',         desc: 'Silent sweep movement, minimal scandi design. Battery included.',                  price:   95,                  category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1563861826100-9cb868fdbe1c?w=400', rating: 4.5, reviewCount: 37, stock: 55 },
-      { store: homeStyleId,   title: 'Air Purifier with HEPA Filter',      slug: 'air-purifier-hepa-filter',       desc: 'True HEPA + activated carbon, covers 30m², quiet 25dB night mode.',               price:  480,                  category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400', rating: 4.6, reviewCount: 19, stock: 18 },
+      { store: homeStyleId,   title: 'Air Purifier with HEPA Filter',      slug: 'air-purifier-hepa-filter',       desc: 'True HEPA + activated carbon, covers 30mÂ², quiet 25dB night mode.',               price:  480,                  category: 'Home & Garden',                    imageUrl: 'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=400', rating: 4.6, reviewCount: 19, stock: 18 },
 
       // Little Stars Kids (10)
       { store: littleStarsId, title: 'Wooden Educational Blocks (50 pcs)', slug: 'wooden-educational-blocks-50pcs',desc: 'Non-toxic paint, alphabet and number blocks for ages 2+.',                       price:   90,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1558877385-81a1c7e67d72?w=400', rating: 4.9, reviewCount: 61, stock: 80 },
-      { store: littleStarsId, title: 'Kids Balance Bicycle 14"',           slug: 'kids-balance-bicycle-14',        desc: 'No-pedal balance bike for ages 2–5. Adjustable seat, lightweight.',                price:  320, compareAt:  400, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1571188654248-7a89213915f7?w=400', rating: 4.8, reviewCount: 29, stock: 20 },
+      { store: littleStarsId, title: 'Kids Balance Bicycle 14"',           slug: 'kids-balance-bicycle-14',        desc: 'No-pedal balance bike for ages 2â€“5. Adjustable seat, lightweight.',                price:  320, compareAt:  400, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1571188654248-7a89213915f7?w=400', rating: 4.8, reviewCount: 29, stock: 20 },
       { store: littleStarsId, title: 'Plush Elephant Stuffed Toy',         slug: 'plush-elephant-stuffed-toy',     desc: 'Super-soft plush, 40cm. Hypoallergenic fill. Machine washable.',                  price:   75,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400', rating: 4.9, reviewCount: 88, stock:100 },
-      { store: littleStarsId, title: 'Colouring & Activity Book Set (5)',  slug: 'colouring-activity-book-set-5',  desc: '5 themed colouring books with 120+ pages each. Ages 3–8.',                        price:   55,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400', rating: 4.7, reviewCount: 47, stock:150 },
+      { store: littleStarsId, title: 'Colouring & Activity Book Set (5)',  slug: 'colouring-activity-book-set-5',  desc: '5 themed colouring books with 120+ pages each. Ages 3â€“8.',                        price:   55,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=400', rating: 4.7, reviewCount: 47, stock:150 },
       { store: littleStarsId, title: 'Building Blocks 250pcs',             slug: 'building-blocks-250pcs',         desc: 'Compatible with major brick brands. Includes starter guide.',                     price:  120, compareAt:  150, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1558861095-8c5e04a22f8b?w=400', rating: 4.7, reviewCount: 54, stock: 70 },
       { store: littleStarsId, title: 'Kids School Backpack (Dinosaur)',    slug: 'kids-school-backpack-dinosaur',  desc: 'Water-resistant, padded back, reflective strip. Fits A4 books.',                  price:   85,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400', rating: 4.6, reviewCount: 36, stock: 60 },
-      { store: littleStarsId, title: 'Baby Onesie Gift Set 3-Pack (0–6mo)',slug: 'baby-onesie-gift-set-3pack',     desc: '100% organic cotton, snap buttons. 3 colour patterns.',                           price:   65,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400', rating: 4.9, reviewCount: 72, stock:120 },
-      { store: littleStarsId, title: 'Waterproof Play Mat 180×200cm',      slug: 'waterproof-play-mat-180x200',    desc: 'Thick foam, reversible pattern, easy wipe-clean surface.',                        price:  150, compareAt:  190, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400', rating: 4.7, reviewCount: 41, stock: 35 },
+      { store: littleStarsId, title: 'Baby Onesie Gift Set 3-Pack (0â€“6mo)',slug: 'baby-onesie-gift-set-3pack',     desc: '100% organic cotton, snap buttons. 3 colour patterns.',                           price:   65,                  category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=400', rating: 4.9, reviewCount: 72, stock:120 },
+      { store: littleStarsId, title: 'Waterproof Play Mat 180Ã—200cm',      slug: 'waterproof-play-mat-180x200',    desc: 'Thick foam, reversible pattern, easy wipe-clean surface.',                        price:  150, compareAt:  190, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=400', rating: 4.7, reviewCount: 41, stock: 35 },
       { store: littleStarsId, title: 'Video Baby Monitor 3.5" Screen',     slug: 'video-baby-monitor-3-5',         desc: '720p camera, 300m range, night vision, temperature display.',                     price:  380, compareAt:  450, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1590599145008-e4ec48675cd1?w=400', rating: 4.5, reviewCount: 18, stock: 15 },
-      { store: littleStarsId, title: "Kids' Learning Tablet 7\"",          slug: 'kids-learning-tablet-7',         desc: 'Kid-proof case, 1000+ educational apps pre-loaded. Ages 3–12.',                   price:  280, compareAt:  350, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1544244015-0df4cec50d83?w=400', rating: 4.4, reviewCount: 32, stock: 25 },
+      { store: littleStarsId, title: "Kids' Learning Tablet 7\"",          slug: 'kids-learning-tablet-7',         desc: 'Kid-proof case, 1000+ educational apps pre-loaded. Ages 3â€“12.',                   price:  280, compareAt:  350, category: 'Baby & Kids',                      imageUrl: 'https://images.unsplash.com/photo-1544244015-0df4cec50d83?w=400', rating: 4.4, reviewCount: 32, stock: 25 },
 
       // AutoParts Ghana (10)
       { store: autoPartsId,   title: 'Universal Car Floor Mats (4-piece)', slug: 'universal-car-floor-mats-4pcs',  desc: 'All-weather rubber mats, anti-slip. Fits most sedan and SUV models.',              price:   95,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400', rating: 4.3, reviewCount: 27, stock: 80 },
-      { store: autoPartsId,   title: 'Digital Tyre Pressure Gauge',        slug: 'digital-tyre-pressure-gauge',    desc: 'LCD display, 0–100 PSI range, backlit for night use.',                            price:   45,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=400', rating: 4.4, reviewCount: 33, stock:100 },
+      { store: autoPartsId,   title: 'Digital Tyre Pressure Gauge',        slug: 'digital-tyre-pressure-gauge',    desc: 'LCD display, 0â€“100 PSI range, backlit for night use.',                            price:   45,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=400', rating: 4.4, reviewCount: 33, stock:100 },
       { store: autoPartsId,   title: '2000A Jump Starter Power Pack',      slug: 'jump-starter-2000a',             desc: 'Starts 8L petrol or 6L diesel. 20000mAh power bank + torch.',                    price:  380, compareAt:  450, category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1580274455191-1c62238fa333?w=400', rating: 4.6, reviewCount: 21, stock: 20 },
-      { store: autoPartsId,   title: 'Adjustable Phone Car Mount',         slug: 'adjustable-phone-car-mount',     desc: 'Air-vent clip, 360° rotation, fits phones 4–7 inches.',                           price:   35,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1619771914272-e3e0af78e0df?w=400', rating: 4.2, reviewCount: 56, stock:150 },
+      { store: autoPartsId,   title: 'Adjustable Phone Car Mount',         slug: 'adjustable-phone-car-mount',     desc: 'Air-vent clip, 360Â° rotation, fits phones 4â€“7 inches.',                           price:   35,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1619771914272-e3e0af78e0df?w=400', rating: 4.2, reviewCount: 56, stock:150 },
       { store: autoPartsId,   title: 'Total Quartz Engine Oil 5W30 5L',    slug: 'total-quartz-5w30-5l',           desc: 'Fully synthetic, API SN/CF. Suitable for petrol and diesel engines.',              price:  285,                  category: 'Automotive', brand: 'Total',      imageUrl: 'https://images.unsplash.com/photo-1545262810-77515befe149?w=400', rating: 4.7, reviewCount: 44, stock: 60 },
-      { store: autoPartsId,   title: 'Dash Camera Full HD 1080p',          slug: 'dash-camera-full-hd-1080p',      desc: '170° wide angle, loop recording, motion detection, night vision.',                 price:  220, compareAt:  280, category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400', rating: 4.5, reviewCount: 29, stock: 40 },
+      { store: autoPartsId,   title: 'Dash Camera Full HD 1080p',          slug: 'dash-camera-full-hd-1080p',      desc: '170Â° wide angle, loop recording, motion detection, night vision.',                 price:  220, compareAt:  280, category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400', rating: 4.5, reviewCount: 29, stock: 40 },
       { store: autoPartsId,   title: 'Leatherette Seat Cover Set (5-pc)',  slug: 'leatherette-seat-cover-set-5pcs',desc: 'Full set front and rear. Universal fit, easy install.',                           price:  340, compareAt:  420, category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400', rating: 4.4, reviewCount: 16, stock: 25 },
       { store: autoPartsId,   title: 'Smart Battery Charger 12V/24V',      slug: 'smart-battery-charger-12v-24v',  desc: '10A multi-stage charger with desulfation mode. LED status display.',               price:  180,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400', rating: 4.3, reviewCount: 19, stock: 30 },
       { store: autoPartsId,   title: 'Car Wash & Polish Kit (6-piece)',     slug: 'car-wash-polish-kit-6pcs',       desc: 'Foam gun, mitt, clay bar, compound, polish and wax included.',                    price:  165,                  category: 'Automotive',                       imageUrl: 'https://images.unsplash.com/photo-1601362840469-51e4d8d58785?w=400', rating: 4.5, reviewCount: 24, stock: 45 },
@@ -591,10 +591,10 @@ async function seed() {
     for (const p of bulkProducts) {
       await insertProduct(p.store, p);
     }
-    console.log(`   ✅ ${bulkProducts.length} bulk products created\n`);
+    console.log(`   âœ… ${bulkProducts.length} bulk products created\n`);
 
-    // ── 9. Orders ─────────────────────────────────────────────────────────────
-    console.log('📌 Creating sample orders...');
+    // â”€â”€ 9. Orders â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating sample orders...');
 
     const { rows: [order1] } = await db.query(`
       INSERT INTO orders
@@ -604,7 +604,7 @@ async function seed() {
          delivery_latitude, delivery_longitude,
          paid_at, confirmed_at, escrow_status)
       VALUES ('SH-0001', $1, $2, 'completed',
-              2200.00, 0, 15.00, 2215.00, 'GHS',
+              2200, 0, 15, 2215, 'GHS',
               '24 Labadi Road', 'Accra', 'Ghana',
               5.5502, -0.2174,
               NOW() - INTERVAL '5 days',
@@ -616,7 +616,7 @@ async function seed() {
 
     await db.query(`
       INSERT INTO order_items (order_id, product_id, product_title, quantity, price, subtotal)
-      VALUES ($1, $2, 'Samsung Galaxy A54 5G', 1, 2200.00, 2200.00)
+      VALUES ($1, $2, 'Samsung Galaxy A54 5G', 1, 2200, 2200)
     `, [order1.id, phone1Id]);
 
     const { rows: [order2] } = await db.query(`
@@ -627,7 +627,7 @@ async function seed() {
          delivery_latitude, delivery_longitude,
          paid_at, escrow_status)
       VALUES ('SH-0002', $1, $2, 'paid',
-              280.00, 0, 10.00, 290.00, 'GHS',
+              280, 0, 10, 290, 'GHS',
               '7 Ahensan Estate', 'Kumasi', 'Ghana',
               6.6885, -1.6244,
               NOW() - INTERVAL '1 day',
@@ -638,7 +638,7 @@ async function seed() {
 
     await db.query(`
       INSERT INTO order_items (order_id, product_id, product_title, quantity, price, subtotal)
-      VALUES ($1, $2, 'Kente Print Wrap Dress', 1, 280.00, 280.00)
+      VALUES ($1, $2, 'Kente Print Wrap Dress', 1, 280, 280)
     `, [order2.id, kente1Id]);
 
     const { rows: [order3] } = await db.query(`
@@ -648,7 +648,7 @@ async function seed() {
          delivery_address_line1, delivery_city, delivery_country,
          delivery_latitude, delivery_longitude)
       VALUES ('SH-0003', $1, $2, 'pending',
-              405.00, 0, 12.00, 417.00, 'GHS',
+              405, 0, 12, 417, 'GHS',
               '24 Labadi Road', 'Accra', 'Ghana',
               5.5502, -0.2174)
       ON CONFLICT (order_number) DO UPDATE SET status = EXCLUDED.status
@@ -658,14 +658,14 @@ async function seed() {
     await db.query(`
       INSERT INTO order_items (order_id, product_id, product_title, quantity, price, subtotal)
       VALUES
-        ($1, $2, 'Ghana Jasmine Rice (25kg)', 1, 320.00, 320.00),
-        ($1, $3, 'Pure Red Palm Oil (5L)', 1, 85.00, 85.00)
+        ($1, $2, 'Ghana Jasmine Rice (25kg)', 1, 320, 320),
+        ($1, $3, 'Pure Red Palm Oil (5L)', 1, 85, 85)
     `, [order3.id, riceId, palmoilId]);
 
-    console.log('   ✅ Orders created\n');
+    console.log('   âœ… Orders created\n');
 
-    // ── 10. Deliveries ────────────────────────────────────────────────────────
-    console.log('📌 Creating deliveries...');
+    // â”€â”€ 10. Deliveries â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating deliveries...');
     await db.query(`
       INSERT INTO deliveries
         (order_id, driver_id, status,
@@ -676,16 +676,16 @@ async function seed() {
       VALUES ($1, $2, 'delivered',
               '15 Ring Road Central, Accra', 5.5916, -0.1969,
               '24 Labadi Road, Accra', 5.5502, -0.2174,
-              5.2, 15.00, 10.00,
+              5.2, 15, 10,
               NOW() - INTERVAL '5 days',
               NOW() - INTERVAL '5 days' + INTERVAL '30 minutes',
               NOW() - INTERVAL '5 days' + INTERVAL '1 hour')
       ON CONFLICT (order_id) DO NOTHING
     `, [order1.id, driverId]);
-    console.log('   ✅ Deliveries created\n');
+    console.log('   âœ… Deliveries created\n');
 
-    // ── 11. Reviews ───────────────────────────────────────────────────────────
-    console.log('📌 Creating reviews...');
+    // â”€â”€ 11. Reviews â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating reviews...');
     await db.query(`
       INSERT INTO product_reviews
         (product_id, order_id, buyer_id, rating, review_text, is_verified_purchase)
@@ -702,10 +702,10 @@ async function seed() {
               'TechHub is the best! Great prices, fast shipping, and excellent customer service.')
       ON CONFLICT DO NOTHING
     `, [storeIds.tech, order1.id, kwameId]);
-    console.log('   ✅ Reviews created\n');
+    console.log('   âœ… Reviews created\n');
 
-    // ── 12. Conversations & Messages ──────────────────────────────────────────
-    console.log('📌 Creating conversations...');
+    // â”€â”€ 12. Conversations & Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating conversations...');
     // Manual check for conversation by order_id
     let conv1Id;
     const { rows: existingConv } = await db.query(
@@ -733,7 +733,7 @@ async function seed() {
       [conv1Id, kwameId, 'Hello! I just ordered the Samsung A54. When will it be ready?'],
       [conv1Id, kofiId, 'Hi Kwame! Your order is confirmed and will be dispatched within 2 hours.'],
       [conv1Id, kwameId, 'Perfect, thank you! Will I get a tracking update?'],
-      [conv1Id, kofiId, 'Yes, you\'ll receive a notification once the driver picks it up. 🚀'],
+      [conv1Id, kofiId, 'Yes, you\'ll receive a notification once the driver picks it up. ðŸš€'],
     ];
     for (const [convId, senderId, content] of msgs) {
       await db.query(
@@ -743,15 +743,15 @@ async function seed() {
         [convId, senderId, content]
       );
     }
-    console.log('   ✅ Conversations & messages created\n');
+    console.log('   âœ… Conversations & messages created\n');
 
-    // ── 13. Notifications ─────────────────────────────────────────────────────
-    console.log('📌 Creating notifications...');
+    // â”€â”€ 13. Notifications â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating notifications...');
     await db.query(`
       INSERT INTO notifications (user_id, type, title, message, is_read)
       VALUES
-        ($1, 'order_confirmed', 'Order Confirmed ✅', 'Your order #SH-0001 has been confirmed by TechHub Accra.', TRUE),
-        ($1, 'order_delivered', 'Order Delivered 🎉', 'Your Samsung Galaxy A54 has been delivered. Enjoy!', TRUE),
+        ($1, 'order_confirmed', 'Order Confirmed âœ…', 'Your order #SH-0001 has been confirmed by TechHub Accra.', TRUE),
+        ($1, 'order_delivered', 'Order Delivered ðŸŽ‰', 'Your Samsung Galaxy A54 has been delivered. Enjoy!', TRUE),
         ($1, 'order_confirmed', 'Order Received', 'Yaw Fresh Groceries received your order #SH-0003.', FALSE)
       ON CONFLICT DO NOTHING
     `, [kwameId]);
@@ -759,41 +759,41 @@ async function seed() {
     await db.query(`
       INSERT INTO notifications (user_id, type, title, message, is_read)
       VALUES
-        ($1, 'new_order', 'New Order! 🛍️', 'You have a new order #SH-0002 for Kente Print Wrap Dress.', FALSE)
+        ($1, 'new_order', 'New Order! ðŸ›ï¸', 'You have a new order #SH-0002 for Kente Print Wrap Dress.', FALSE)
       ON CONFLICT DO NOTHING
     `, [abenaId]);
-    console.log('   ✅ Notifications created\n');
+    console.log('   âœ… Notifications created\n');
 
-    // ── 14. Favorites ─────────────────────────────────────────────────────────
-    console.log('📌 Creating favorites...');
+    // â”€â”€ 14. Favorites â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating favorites...');
     await db.query(`
       INSERT INTO favorites (user_id, product_id)
       VALUES ($1, $2), ($1, $3), ($1, $4)
       ON CONFLICT DO NOTHING
     `, [kwameId, laptopId, earbudsId, kente1Id]);
-    console.log('   ✅ Favorites created\n');
+    console.log('   âœ… Favorites created\n');
 
-    // ── 15. Referral codes ────────────────────────────────────────────────────
-    console.log('📌 Creating referral codes...');
+    // â”€â”€ 15. Referral codes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating referral codes...');
     await db.query(`UPDATE user_profiles SET referral_code = 'KWAME2026' WHERE user_id = $1`, [kwameId]);
     await db.query(`UPDATE user_profiles SET referral_code = 'AMA2026' WHERE user_id = $1`, [amaId]);
     await db.query(`UPDATE user_profiles SET referral_code = 'KOFI2026' WHERE user_id = $1`, [kofiId]);
-    console.log('   ✅ Referral codes created\n');
+    console.log('   âœ… Referral codes created\n');
 
-    // ── 16. Quick Snaps ───────────────────────────────────────────────────────
-    console.log('📌 Creating quick snaps...');
+    // â”€â”€ 16. Quick Snaps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating quick snaps...');
     await db.query(`
       INSERT INTO snaps (store_id, product_id, media_url, caption, expires_at)
       VALUES 
         ($1, $2, 'https://images.unsplash.com/photo-1517336714731-489689fd1ca8', 'MacBook Air M2 back in stock!', NOW() + INTERVAL '23 hours'),
         ($3, $4, 'https://images.unsplash.com/photo-1588359410707-1601736b4904', 'Kente Dress limited edition', NOW() + INTERVAL '22 hours'),
-        ($5, NULL, 'https://images.unsplash.com/photo-1504674900247-0877df9cc836', 'Fresh fruits just arrived 🍎', NOW() + INTERVAL '24 hours')
+        ($5, NULL, 'https://images.unsplash.com/photo-1504674900247-0877df9cc836', 'Fresh fruits just arrived ðŸŽ', NOW() + INTERVAL '24 hours')
       ON CONFLICT DO NOTHING
     `, [storeIds.tech, laptopId, storeIds.fashion, kente1Id, storeIds.grocery]);
-    console.log('   ✅ Quick snaps created\n');
+    console.log('   âœ… Quick snaps created\n');
 
-    // ── 17. User Events (Recommendations) ─────────────────────────────────────
-    console.log('📌 Creating user events...');
+    // â”€â”€ 17. User Events (Recommendations) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating user events...');
     await db.query(`
       INSERT INTO user_events (user_id, product_id, event_type, weight)
       VALUES 
@@ -803,21 +803,21 @@ async function seed() {
         ($4, $5, 'view', 1)
       ON CONFLICT DO NOTHING
     `, [kwameId, laptopId, earbudsId, amaId, phone1Id]);
-    console.log('   ✅ User events created\n');
+    console.log('   âœ… User events created\n');
 
-    // ── 18. Banner Campaigns ──────────────────────────────────────────────────
-    console.log('📌 Creating banner campaigns...');
+    // â”€â”€ 18. Banner Campaigns â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating banner campaigns...');
     await db.query(`
       INSERT INTO banner_campaigns (store_id, title, placement, duration_days, paid_amount, status, banner_url, start_date, end_date)
       VALUES 
-        ($1, 'Back to School Sale', 'home_hero', 7, 150.00, 'Active', 'https://images.unsplash.com/photo-1509062522246-3755977927d7', NOW(), NOW() + INTERVAL '7 days'),
-        ($2, 'Kente Collection 2026', 'category_sidebar', 14, 250.00, 'Active', 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b', NOW(), NOW() + INTERVAL '14 days')
+        ($1, 'Back to School Sale', 'home_hero', 7, 150, 'Active', 'https://images.unsplash.com/photo-1509062522246-3755977927d7', NOW(), NOW() + INTERVAL '7 days'),
+        ($2, 'Kente Collection 2026', 'category_sidebar', 14, 250, 'Active', 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b', NOW(), NOW() + INTERVAL '14 days')
       ON CONFLICT DO NOTHING
     `, [storeIds.tech, storeIds.fashion]);
-    console.log('   ✅ Banner campaigns created\n');
+    console.log('   âœ… Banner campaigns created\n');
 
-    // ── 19. User Reports & Blocks ─────────────────────────────────────────────
-    console.log('📌 Creating reports and blocks...');
+    // â”€â”€ 19. User Reports & Blocks â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ“Œ Creating reports and blocks...');
     await db.query(`
       INSERT INTO user_blocks (blocker_id, blocked_id)
       VALUES ($1, $2) ON CONFLICT DO NOTHING
@@ -829,14 +829,14 @@ async function seed() {
         ($1, $2, 'user', 'Harassment', 'The driver was rude during delivery', 'pending')
       ON CONFLICT DO NOTHING
     `, [kwameId, driverId]);
-    console.log('   ✅ Reports and blocks created\n');
+    console.log('   âœ… Reports and blocks created\n');
 
     await db.query('COMMIT');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('✅  Seed complete! Test accounts:');
+    console.log('â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”');
+    console.log('âœ…  Seed complete! Test accounts:');
     console.log('');
     console.log('   Role     Email                      Password');
-    console.log('   ──────   ──────────────────────     ─────────────');
+    console.log('   â”€â”€â”€â”€â”€â”€   â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€     â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€');
     console.log(`   Admin    ${adminEmail.padEnd(26)} ${adminPassword}`);
     console.log('   Buyer    kwame@test.com              Password123!');
     console.log('   Buyer    ama@test.com                Password123!');
@@ -852,11 +852,11 @@ async function seed() {
     console.log('   Seller   littlestarsgh@test.com      Password123!');
     console.log('   Seller   autopartsgh@test.com        Password123!');
     console.log('   Driver   driver@test.com             Password123!');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”');
 
   } catch (err) {
     await db.query('ROLLBACK');
-    console.error('\n❌ Seed failed:', err.message);
+    console.error('\nâŒ Seed failed:', err.message);
     console.error(err.stack);
     process.exit(1);
   } finally {

@@ -1,5 +1,5 @@
-// controllers/loyaltyTransactionsController.js
-// Thin handler — delegates to LoyaltyRepository for the ledger query.
+﻿// controllers/loyaltyTransactionsController.js
+// Thin handler â€” delegates to LoyaltyRepository for the ledger query.
 
 const repositories = require('../db/repositories');
 
@@ -9,8 +9,8 @@ const repositories = require('../db/repositories');
 const getLoyaltyTransactions = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limitNum;
+    const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
+    const offset = (Math.max(Number.parseInt(page) || 1, 1) - 1) * limitNum;
 
     const { data, count } = await repositories.loyalty.getTransactions(req.user.id, {
       limit: limitNum,

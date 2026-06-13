@@ -1,4 +1,4 @@
-// db/repositories/ReviewRepository.js
+﻿// db/repositories/ReviewRepository.js
 // Data access layer for product_reviews, store_reviews, and driver_reviews tables
 
 const BaseRepository = require('./BaseRepository');
@@ -83,7 +83,7 @@ class ReviewRepository extends BaseRepository {
       await this.db
         .from('stores')
         .update({
-          average_rating: parseFloat((sum / allRatings.length).toFixed(2)),
+          average_rating: Number.parseFloat((sum / allRatings.length).toFixed(2)),
           total_reviews: allRatings.length
         })
         .eq('id', reviewData.storeId);
@@ -248,7 +248,7 @@ class ReviewRepository extends BaseRepository {
     }, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 });
 
     return {
-      averageRating: parseFloat(averageRating.toFixed(2)),
+      averageRating: Number.parseFloat(averageRating.toFixed(2)),
       totalReviews,
       ratingDistribution
     };
@@ -280,7 +280,7 @@ class ReviewRepository extends BaseRepository {
     const averageRating = sum / totalReviews;
 
     return {
-      averageRating: parseFloat(averageRating.toFixed(2)),
+      averageRating: Number.parseFloat(averageRating.toFixed(2)),
       totalReviews
     };
   }
@@ -311,7 +311,7 @@ class ReviewRepository extends BaseRepository {
     const averageRating = sum / totalReviews;
 
     return {
-      averageRating: parseFloat(averageRating.toFixed(2)),
+      averageRating: Number.parseFloat(averageRating.toFixed(2)),
       totalReviews
     };
   }

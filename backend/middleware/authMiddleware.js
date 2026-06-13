@@ -30,7 +30,11 @@ const protect = async (req, res, next) => {
     const cacheKey = `shopyos:users:${userId}:auth`;
     let userData = await cacheGet(cacheKey);
 
-    if (!userData) {
+    if (userData) {
+      logger.debug('Auth Middleware: Found user in cache', {
+        userId
+      });
+    } else {
       const [user, userWithRoles] = await Promise.all([
         repositories.users.findById(userId),
         repositories.users.getUserWithRoles(userId)
@@ -54,15 +58,11 @@ const protect = async (req, res, next) => {
           .filter(Boolean)
       };
 
-      logger.debug('Auth Middleware: Fetched user data from DB', { 
+      logger.debug('Auth Middleware: Fetched user data from DB', {
         userId
       });
 
       await cacheSet(cacheKey, userData, USER_CACHE_TTL);
-    } else {
-      logger.debug('Auth Middleware: Found user in cache', { 
-        userId
-      });
     }
 
     req.user = userData;

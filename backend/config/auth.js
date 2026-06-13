@@ -1,4 +1,4 @@
-const crypto = require('crypto');
+const crypto = require('node:crypto');
 
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 7;

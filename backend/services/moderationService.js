@@ -36,8 +36,7 @@ function normalizeText(text) {
 
   // 1. Perform character substitutions (e.g. '@' -> 'a', '$' -> 's')
   let substituted = '';
-  for (let i = 0; i < normalized.length; i++) {
-    const char = normalized[i];
+  for (const char of normalized) {
     substituted += SUBSTITUTION_MAP[char] || char;
   }
   normalized = substituted;
@@ -60,7 +59,7 @@ function containsProfanity(rawText) {
 
   // Test 1: Check original text using word boundaries to avoid false positives (e.g. "class", "associate")
   for (const word of PROFANITY_WORDS) {
-    const regex = new RegExp(`\\b${word}\\w*\\b`, 'i');
+    const regex = new RegExp(String.raw`\b${word}\w*\b`, 'i');
     if (regex.test(textLower)) {
       logger.info(`[Moderation] Profanity detected via T1 (word boundary match): "${word}"`);
       return true;

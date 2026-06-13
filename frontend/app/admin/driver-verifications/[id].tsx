@@ -46,7 +46,7 @@ function safeDate(val: any, fallback = '—') {
   if (!val) return fallback;
   try {
     const d = new Date(val);
-    if (isNaN(d.getTime())) return fallback;
+    if (Number.isNaN(d.getTime())) return fallback;
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   } catch { return fallback; }
 }

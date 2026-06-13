@@ -6,8 +6,8 @@ const getSslConfig = () => {
   const raw = (process.env.PG_SSL || '').trim().toLowerCase();
 
   if (!raw) {
-    // Leave undefined so node-postgres can rely on DATABASE_URL params/defaults.
-    return undefined;
+    // Leave null so node-postgres can rely on DATABASE_URL params/defaults.
+    return null;
   }
 
   if (['false', '0', 'no', 'off', 'disable', 'disabled'].includes(raw)) {
@@ -19,7 +19,7 @@ const getSslConfig = () => {
   }
 
   // Unknown value: fail open to default behavior.
-  return undefined;
+  return null;
 };
 
 const getPool = () => {
@@ -30,8 +30,8 @@ const getPool = () => {
     throw new Error('DATABASE_URL is required');
   }
 
-  const min = parseInt(process.env.PG_POOL_MIN || '2', 10);
-  const max = parseInt(process.env.PG_POOL_MAX || '10', 10);
+  const min = Number.parseInt(process.env.PG_POOL_MIN || '2', 10);
+  const max = Number.parseInt(process.env.PG_POOL_MAX || '10', 10);
 
   const config = {
     connectionString: databaseUrl,
@@ -40,7 +40,7 @@ const getPool = () => {
   };
 
   const sslConfig = getSslConfig();
-  if (sslConfig !== undefined) {
+  if (sslConfig !== null) {
     config.ssl = sslConfig;
   }
 

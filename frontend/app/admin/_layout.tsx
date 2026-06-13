@@ -72,11 +72,10 @@ function AdminTabBar() {
 
 export default function AdminLayout() {
   return (
-    <>
-      <Tabs
-        tabBar={() => <AdminTabBar />}
-        screenOptions={{ headerShown: false }}
-      >
+    <Tabs
+      tabBar={AdminTabBar}
+      screenOptions={{ headerShown: false }}
+    >
         <Tabs.Screen name="dashboard" />
         <Tabs.Screen name="orders" />
         <Tabs.Screen name="users" />
@@ -94,7 +93,6 @@ export default function AdminLayout() {
         <Tabs.Screen name="driver-chat"         options={{ href: null }} />
         <Tabs.Screen name="notifications"        options={{ href: null }} />
       </Tabs>
-    </>
   );
 }
 

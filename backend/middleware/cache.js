@@ -1,8 +1,8 @@
-const crypto = require('crypto');
+﻿const crypto = require('node:crypto');
 const { cacheGet, cacheSet, acquireLock, releaseLock } = require('../config/redis');
 
 const hashParams = (params) => {
-    const sorted = JSON.stringify(params, Object.keys(params).sort());
+    const sorted = JSON.stringify(params, Object.keys(params).sort((a, b) => a.localeCompare(b)));
     return crypto.createHash('md5').update(sorted).digest('hex').substring(0, 12);
 };
 
@@ -20,7 +20,7 @@ const cacheMiddleware = (keyGenerator, ttlSeconds = 300) => {
                 return res.status(200).json(cached);
             }
         } catch {
-            // Cache down — fall through to DB
+            // Cache down â€” fall through to DB
         }
 
         res.setHeader('X-Cache', 'MISS');
@@ -30,7 +30,7 @@ const cacheMiddleware = (keyGenerator, ttlSeconds = 300) => {
         const gotLock = await acquireLock(lockKey, 10);
 
         if (!gotLock) {
-            // Another request is populating the cache — wait and retry
+            // Another request is populating the cache â€” wait and retry
             for (let i = 0; i < 3; i++) {
                 await new Promise(r => setTimeout(r, 100));
                 const retryData = await cacheGet(cacheKey);

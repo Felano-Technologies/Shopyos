@@ -1,4 +1,4 @@
-const repositories = require('../db/repositories');
+﻿const repositories = require('../db/repositories');
 const { resolveImageUrl } = require('../config/storage');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
@@ -251,8 +251,8 @@ const getMyBusinesses = async (req, res, next) => {
     const userId = req.user.id;
 
     const { limit, offset } = req.query;
-    const limitNum = parseInt(limit || 20);
-    const offsetNum = parseInt(offset || 0);
+    const limitNum = Number.parseInt(limit || 20);
+    const offsetNum = Number.parseInt(offset || 0);
 
     const { data: rawStores, count: totalCount } = await repositories.stores.findAll({
       where: { owner_id: userId },
@@ -851,7 +851,7 @@ const getBusinessDashboard = async (req, res, next) => {
 
     (revenueStats || []).forEach(stat => {
       const status = (stat.status || '').toLowerCase();
-      const amount = parseFloat(stat.total || 0);
+      const amount = Number.parseFloat(stat.total || 0);
       
       if (completedStatuses.includes(status)) {
         totalRevenue += amount;
@@ -872,9 +872,9 @@ const getBusinessDashboard = async (req, res, next) => {
       if (dayIndex >= 0 && dayIndex <= 6) {
         const status = (order.status || '').toLowerCase();
         if (paidStatuses.includes(status)) {
-          chartData[dayIndex] += parseFloat(order.total_amount || 0);
+          chartData[dayIndex] += Number.parseFloat(order.total_amount || 0);
         } else if (status === 'refunded') {
-          chartData[dayIndex] -= parseFloat(order.total_amount || 0);
+          chartData[dayIndex] -= Number.parseFloat(order.total_amount || 0);
         }
       }
     });
@@ -887,7 +887,7 @@ const getBusinessDashboard = async (req, res, next) => {
         completedOrders,
         totalRevenue,
         pendingRevenue,
-        balance: parseFloat(store.current_balance || 0),
+        balance: Number.parseFloat(store.current_balance || 0),
         followers: followersCount
       },
       recentOrders: recentOrders.map(order => ({
@@ -964,7 +964,7 @@ const getBusinessAnalytics = async (req, res, next) => {
 
     (revenueStats || []).forEach(stat => {
       const status = (stat.status || '').toLowerCase();
-      const amount = parseFloat(stat.total || 0);
+      const amount = Number.parseFloat(stat.total || 0);
       
       if (completedStatuses.includes(status)) {
         totalRevenue += amount;
@@ -1014,7 +1014,7 @@ const getBusinessAnalytics = async (req, res, next) => {
             return od.getDate() === d.getDate() && od.getMonth() === d.getMonth() && paidStatuses.includes(o.status.toLowerCase());
           })
           .reduce((sum, o) => {
-             const amt = parseFloat(o.total_amount || 0);
+             const amt = Number.parseFloat(o.total_amount || 0);
              return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
           }, 0);
         chartData.push(dayRevenue);
@@ -1034,7 +1034,7 @@ const getBusinessAnalytics = async (req, res, next) => {
             return od >= startWk && od <= endWk && paidStatuses.includes(o.status.toLowerCase());
           })
           .reduce((sum, o) => {
-             const amt = parseFloat(o.total_amount || 0);
+             const amt = Number.parseFloat(o.total_amount || 0);
              return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
           }, 0);
         chartData.push(wkRevenue);
@@ -1052,7 +1052,7 @@ const getBusinessAnalytics = async (req, res, next) => {
             return od.getMonth() === d.getMonth() && od.getFullYear() === d.getFullYear() && paidStatuses.includes(o.status.toLowerCase());
           })
           .reduce((sum, o) => {
-             const amt = parseFloat(o.total_amount || 0);
+             const amt = Number.parseFloat(o.total_amount || 0);
              return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
           }, 0);
         chartData.push(mthRevenue);
@@ -1089,8 +1089,8 @@ const getAllBusinesses = async (req, res, next) => {
   try {
     const { search, category, sortBy = 'rating', limit = 20, offset = 0 } = req.query;
 
-    const limitNum = parseInt(limit);
-    const offsetNum = parseInt(offset);
+    const limitNum = Number.parseInt(limit);
+    const offsetNum = Number.parseInt(offset);
 
     // Sort allowlist
     const sortConfig = {
@@ -1116,7 +1116,7 @@ const getAllBusinesses = async (req, res, next) => {
         products:products(count)
       `)
       .eq('is_active', true)
-      // Use the authoritative status column — the is_verified boolean may lag
+      // Use the authoritative status column â€” the is_verified boolean may lag
       // if the sync step in verifyStore() ever fails.
       .eq('verification_status', 'verified');
 

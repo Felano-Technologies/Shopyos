@@ -1,4 +1,4 @@
-// db/repositories/ProductVariantRepository.js
+﻿// db/repositories/ProductVariantRepository.js
 // Data access layer for product_variants and product_variant_options tables.
 // All cross-table queries use raw SQL since these tables have no JOIN shim.
 
@@ -81,9 +81,9 @@ class ProductVariantRepository extends BaseRepository {
           productId,
           v.sku || null,
           JSON.stringify(attrs),
-          v.price != null ? parseFloat(v.price) : null,
-          v.compare_at_price != null ? parseFloat(v.compare_at_price) : null,
-          parseInt(v.stock_quantity) || 0,
+          v.price != null ? Number.parseFloat(v.price) : null,
+          v.compare_at_price != null ? Number.parseFloat(v.compare_at_price) : null,
+          Number.parseInt(v.stock_quantity) || 0,
           v.image_url || null
         ]
       );
@@ -106,14 +106,15 @@ class ProductVariantRepository extends BaseRepository {
     const results = [];
     for (let i = 0; i < options.length; i++) {
       const opt = options[i];
-      if (!opt.option_name || !Array.isArray(opt.option_values)) continue;
-      const { rows } = await this.db.query(
-        `INSERT INTO product_variant_options (product_id, option_name, option_values, display_order)
-         VALUES ($1, $2, $3, $4)
-         RETURNING *`,
-        [productId, opt.option_name.toLowerCase(), opt.option_values, opt.display_order ?? i]
-      );
-      if (rows[0]) results.push(rows[0]);
+      if (opt.option_name && Array.isArray(opt.option_values)) {
+        const { rows } = await this.db.query(
+          `INSERT INTO product_variant_options (product_id, option_name, option_values, display_order)
+           VALUES ($1, $2, $3, $4)
+           RETURNING *`,
+          [productId, opt.option_name.toLowerCase(), opt.option_values, opt.display_order ?? i]
+        );
+        if (rows[0]) results.push(rows[0]);
+      }
     }
     return results;
   }

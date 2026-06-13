@@ -438,7 +438,7 @@ describe('PaymentController Unit Tests', () => {
   // ── handleWebhook ─────────────────────────────────────────────────
   test('test_handleWebhook_invalidSignature_returns401Unauthorized', async () => {
     // Arrange — provide a hash that was signed with a different secret
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const body = { event: 'charge.success', data: {} };
     const wrongHash = crypto
       .createHmac('sha512', 'wrong-secret')
@@ -461,7 +461,7 @@ describe('PaymentController Unit Tests', () => {
 
   test('test_handleWebhook_validSignatureChargeSuccessForOrder_processesPaymentAndReturns200', async () => {
     // Arrange — compute a valid HMAC using the test secret set above
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const secret = process.env.PAYSTACK_SECRET_KEY;
     const body = {
       event: 'charge.success',
@@ -502,7 +502,7 @@ describe('PaymentController Unit Tests', () => {
 
   test('test_handleWebhook_chargeSuccessForListingFee_updatesStoreTierAndReturns200', async () => {
     // Arrange
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const secret = process.env.PAYSTACK_SECRET_KEY;
     const body = {
       event: 'charge.success',
@@ -539,7 +539,7 @@ describe('PaymentController Unit Tests', () => {
 
   test('test_handleWebhook_chargeSuccessMissingOrderId_respondsOkWithoutProcessing', async () => {
     // Arrange
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const secret = process.env.PAYSTACK_SECRET_KEY;
     const body = {
       event: 'charge.success',
@@ -571,7 +571,7 @@ describe('PaymentController Unit Tests', () => {
 
   test('test_handleWebhook_unhandledEvent_respondsOkWithoutSideEffects', async () => {
     // Arrange
-    const crypto = require('crypto');
+    const crypto = require('node:crypto');
     const secret = process.env.PAYSTACK_SECRET_KEY;
     const body = { event: 'transfer.success', data: { reference: 'ref_transfer' } };
     const validHash = crypto

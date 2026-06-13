@@ -7,11 +7,9 @@ const { logger } = require('../config/logger');
 const EXCHANGE = 'notifications_exchange';
 
 class AmqpPublisher {
-  constructor() {
-    this._conn           = null;
-    this._channel        = null;
-    this._connectPromise = null;
-  }
+  _conn           = null;
+  _channel        = null;
+  _connectPromise = null;
 
   async _doConnect() {
     const url = process.env.RABBITMQ_URL || process.env.CLOUDAMQP_URL;
@@ -32,7 +30,7 @@ class AmqpPublisher {
     if (!this._connectPromise) {
       this._connectPromise = this._doConnect().finally(() => { this._connectPromise = null; });
     }
-    await this._connectPromise;
+    if (this._connectPromise) await this._connectPromise;
   }
 
   _reset() {

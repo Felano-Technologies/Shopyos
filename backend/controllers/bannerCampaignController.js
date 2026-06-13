@@ -54,7 +54,7 @@ exports.createCampaign = async (req, res, next) => {
       return res.status(400).json({ error: 'Banner image is required' });
     }
 
-    const durationDays = parseInt(duration);
+    const durationDays = Number.parseInt(duration);
     const totalCost = calcCost(durationDays);
 
     const uploadResult = await uploadFileToCloudinary(req.file, 'shopyos/banner-campaigns');

@@ -53,7 +53,8 @@ class UserRepository extends BaseRepository {
 
     // Create associated profile (trigger handles this in DB)
     // Return user without password_hash
-    const { password_hash: _, ...userWithoutPassword } = user;
+    const userWithoutPassword = { ...user };
+    delete userWithoutPassword.password_hash;
     return userWithoutPassword;
   }
 
@@ -357,7 +358,7 @@ class UserRepository extends BaseRepository {
     // Check if any active role matches the required name
     return userWithRoles.some(ur => {
        const role = ur.roles || ur.role;
-       return role && role.name && role.name.toLowerCase() === roleName.toLowerCase();
+       return role?.name?.toLowerCase() === roleName.toLowerCase();
     });
   }
   /**
@@ -374,7 +375,7 @@ class UserRepository extends BaseRepository {
     const adminIds = (adminRoles || [])
       .filter(ur => {
         const role = ur.roles || ur.role;
-        return role && role.name && role.name.toLowerCase() === 'admin';
+        return role?.name?.toLowerCase() === 'admin';
       })
       .map(ur => ur.user_id);
 

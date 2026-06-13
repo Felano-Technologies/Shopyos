@@ -58,7 +58,7 @@ exports.generateBotReply = async (userId, newMessage, history = []) => {
       
       const isEscalation = rawReply.includes('[ESCALATE]');
       // Strip the escalation tag before showing it to the user
-      const finalReply = rawReply.replace(/\[ESCALATE\]/g, '').trim();
+      const finalReply = rawReply.replaceAll('[ESCALATE]', '').trim();
 
       logger.info(`[Shopyos Bot] Successfully generated reply using model: ${modelName}`);
       return {

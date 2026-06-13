@@ -1,8 +1,8 @@
-// middleware/upload.js
+﻿// middleware/upload.js
 // Multer configuration for handling file uploads
 
 const multer = require('multer');
-const path = require('path');
+const path = require('node:path');
 
 // Configure memory storage (files stored in memory as Buffer)
 // Better for Cloudinary uploads as we don't need to save to disk

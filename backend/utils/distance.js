@@ -1,5 +1,5 @@
-// utils/distance.js
-// Haversine formula — calculates straight-line distance between two GPS coordinates.
+﻿// utils/distance.js
+// Haversine formula â€” calculates straight-line distance between two GPS coordinates.
 // Accurate enough for delivery fee estimates without any external API calls.
 
 const EARTH_RADIUS_KM = 6371;
@@ -33,9 +33,9 @@ function haversineKm(lat1, lon1, lat2, lon2) {
  * @returns {{ fee: number|null, withinRange: boolean, distanceKm: number }}
  */
 function calculateDeliveryFee(store, distanceKm) {
-    const baseFee = parseFloat(store.delivery_base_fee) || 0;
-    const perKmFee = parseFloat(store.delivery_per_km_fee) || 0;
-    const maxKm = store.delivery_max_km ? parseFloat(store.delivery_max_km) : null;
+    const baseFee = Number.parseFloat(store.delivery_base_fee) || 0;
+    const perKmFee = Number.parseFloat(store.delivery_per_km_fee) || 0;
+    const maxKm = store.delivery_max_km ? Number.parseFloat(store.delivery_max_km) : null;
 
     const withinRange = maxKm === null || distanceKm <= maxKm;
     const rawFee = Math.round((baseFee + distanceKm * perKmFee) * 100) / 100;

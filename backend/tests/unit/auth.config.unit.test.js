@@ -110,7 +110,7 @@ describe('auth.config Unit Tests', () => {
       // Arrange — SHA-256("abc") = ba7816bf8f01cfea414140de5dae2ec73b00361bbef0469348423f656b8a0f7c... wait,
       // the correct value is: ba7816bf8f01cfea414140de5dae2ec73b00361bbef0469348423f656b8a09a7 — use
       // Node's own crypto to derive the expected value once, then assert equality
-      const crypto = require('crypto');
+      const crypto = require('node:crypto');
       const expected = crypto.createHash('sha256').update('test-known-token').digest('hex');
       // Act
       const result = hashToken('test-known-token');

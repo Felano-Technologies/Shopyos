@@ -39,7 +39,7 @@ async function getAdminDriverConversations(): Promise<any[]> {
 function formatTime(ts: string): string {
   try {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     if (isToday(d))     return format(d, 'h:mm a');
     if (isYesterday(d)) return 'Yesterday';
     return format(d, 'MMM d');
@@ -54,6 +54,18 @@ const STATUS_COLORS: Record<string, { bg: string; text: string; dot: string }> =
   offline: { bg: '#F1F5F9', text: '#64748B', dot: '#94A3B8' },
   busy:    { bg: '#FEF3C7', text: '#92400E', dot: '#F59E0B' },
 };
+function getVehicleIcon(vehicleType: string): string {
+  if (vehicleType === 'Car') return 'car';
+  if (vehicleType === 'Bicycle') return 'bicycle';
+  return 'motorbike';
+}
+
+function getFilterLabel(f: string, totalUnread: number): string {
+  if (f === 'all') return 'All';
+  if (f === 'unread') return totalUnread > 0 ? `Unread (${totalUnread})` : 'Unread';
+  return 'Online';
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  CONVERSATIONS LIST SCREEN
 // ─────────────────────────────────────────────────────────────────────────────
@@ -128,10 +140,9 @@ export default function AdminDriverChatList() {
     const matchSearch = !searchQuery ||
       c.driverName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.driverPhone?.includes(searchQuery);
-    const matchFilter =
-      filter === 'all'    ? true :
-      filter === 'unread' ? c.unread > 0 :
-      filter === 'online' ? c.status === 'online' : true;
+    let matchFilter = true;
+    if (filter === 'unread') matchFilter = c.unread > 0;
+    else if (filter === 'online') matchFilter = c.status === 'online';
     return matchSearch && matchFilter;
   });
   const totalUnread = conversations.reduce((acc, c) => acc + (c.unread || 0), 0);
@@ -189,7 +200,7 @@ export default function AdminDriverChatList() {
           {/* Vehicle chip */}
           <View style={S.vehicleChip}>
             <MaterialCommunityIcons
-              name={item.vehicleType === 'Car' ? 'car' : item.vehicleType === 'Bicycle' ? 'bicycle' : 'motorbike'}
+              name={getVehicleIcon(item.vehicleType) as any}
               size={rs(10)} color={C.muted}
             />
             <Text style={S.vehicleTxt}>{item.vehicleType}</Text>
@@ -201,6 +212,11 @@ export default function AdminDriverChatList() {
       </TouchableOpacity>
     );
   };
+  const emptyBodyText = searchQuery
+    ? 'No drivers match your search.'
+    : filter === 'all'
+      ? 'Driver conversations will appear here.'
+      : `No ${filter} drivers right now.`;
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -259,7 +275,7 @@ export default function AdminDriverChatList() {
       <View style={S.filterStrip}>
         {(['all', 'unread', 'online'] as const).map((f) => {
           const on = filter === f;
-          const label = f === 'all' ? 'All' : f === 'unread' ? `Unread${totalUnread > 0 ? ` (${totalUnread})` : ''}` : 'Online';
+          const label = getFilterLabel(f, totalUnread);
           return (
             <TouchableOpacity
               key={f}
@@ -298,13 +314,7 @@ export default function AdminDriverChatList() {
                   <MaterialCommunityIcons name="chat-outline" size={rs(42)} color={C.navy} />
                 </View>
                 <Text style={S.emptyTitle}>No conversations</Text>
-                <Text style={S.emptyBody}>
-                  {searchQuery
-                    ? 'No drivers match your search.'
-                    : filter !== 'all'
-                      ? `No ${filter} drivers right now.`
-                      : 'Driver conversations will appear here.'}
-                </Text>
+                <Text style={S.emptyBody}>{emptyBodyText}</Text>
               </View>
             }
           />

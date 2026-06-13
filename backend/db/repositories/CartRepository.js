@@ -86,7 +86,7 @@ class CartRepository extends BaseRepository {
    * @param {number} price - The product price at the time of adding
    * @returns {Promise<Object>}
    */
-  async addItem(userId, productId, quantity = 1, price, variantId = null) {
+  async addItem(userId, productId, price, quantity = 1, variantId = null) {
     // Get or create cart
     const cart = await this.getOrCreateCart(userId);
 
@@ -257,7 +257,7 @@ class CartRepository extends BaseRepository {
   async getCartTotal(userId) {
     const cartWithItems = await this.getCartWithItems(userId);
 
-    if (!cartWithItems || !cartWithItems.cart_items || cartWithItems.cart_items.length === 0) {
+    if (!cartWithItems?.cart_items || cartWithItems.cart_items.length === 0) {
       return {
         subtotal: 0,
         itemCount: 0,

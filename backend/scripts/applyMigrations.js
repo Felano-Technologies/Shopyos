@@ -1,8 +1,8 @@
-require('dotenv').config();
+﻿require('dotenv').config();
 
-const fs = require('fs');
-const path = require('path');
-const crypto = require('crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const crypto = require('node:crypto');
 const { getPool } = require('../config/postgres');
 
 const pool = getPool();
@@ -72,12 +72,12 @@ async function applyMigrationFile(client, fileName) {
   const sqlTrimmed = sql.trim();
 
   if (!sqlTrimmed) {
-    console.log(`⚪ Skipping empty migration: ${fileName}`);
+    console.log(`âšª Skipping empty migration: ${fileName}`);
     return;
   }
 
   const hash = checksum(sql);
-  console.log(`➡️  Applying migration: ${fileName}`);
+  console.log(`âž¡ï¸  Applying migration: ${fileName}`);
 
   try {
     await client.query('BEGIN');
@@ -87,7 +87,7 @@ async function applyMigrationFile(client, fileName) {
       [fileName, hash]
     );
     await client.query('COMMIT');
-    console.log(`✅ Applied: ${fileName}`);
+    console.log(`âœ… Applied: ${fileName}`);
   } catch (error) {
     await client.query('ROLLBACK');
     throw new Error(`Migration failed for ${fileName}: ${error.message}`);
@@ -99,7 +99,7 @@ async function run() {
 
   try {
     console.log('==================================================');
-    console.log('🛠️  Shopyos SQL Migration Runner');
+    console.log('ðŸ› ï¸  Shopyos SQL Migration Runner');
     console.log('==================================================');
 
     await client.query('SELECT pg_advisory_lock($1)', [LOCK_KEY]);
@@ -123,7 +123,7 @@ async function run() {
             'Do not edit old migrations; add a new migration file instead.'
           );
         }
-        console.log(`⏭️  Already applied: ${fileName}`);
+        console.log(`â­ï¸  Already applied: ${fileName}`);
         continue;
       }
 
@@ -132,7 +132,7 @@ async function run() {
     }
 
     console.log('--------------------------------------------------');
-    console.log(`✨ Migration run complete. New migrations applied: ${appliedCount}`);
+    console.log(`âœ¨ Migration run complete. New migrations applied: ${appliedCount}`);
     console.log('--------------------------------------------------');
   } finally {
     await client.query('SELECT pg_advisory_unlock($1)', [LOCK_KEY]).catch(() => {});
@@ -142,6 +142,6 @@ async function run() {
 }
 
 run().catch((error) => {
-  console.error('❌ Migration runner failed:', error.message || error);
+  console.error('âŒ Migration runner failed:', error.message || error);
   process.exit(1);
 });

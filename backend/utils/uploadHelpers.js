@@ -103,9 +103,7 @@ const replaceImage = async (oldPublicId, newFile, folder = 'shopyos') => {
 const validateImage = (file, maxSize = 5 * 1024 * 1024) => {
   const errors = [];
 
-  if (!file) {
-    errors.push('No file provided');
-  } else {
+  if (file) {
     // Check file size
     if (file.size > maxSize) {
       errors.push(`File size exceeds ${maxSize / (1024 * 1024)}MB limit`);
@@ -116,6 +114,8 @@ const validateImage = (file, maxSize = 5 * 1024 * 1024) => {
     if (!allowedTypes.includes(file.mimetype)) {
       errors.push('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed');
     }
+  } else {
+    errors.push('No file provided');
   }
 
   return {

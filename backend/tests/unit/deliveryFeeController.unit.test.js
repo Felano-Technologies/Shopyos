@@ -128,7 +128,7 @@ describe('DeliveryFeeController Unit Tests', () => {
     // Same-region cap: Math.max(15, Math.min(10, 30)) = 15
     expect(callArg.quote.deliveryFee).toBe(15);
     expect(callArg.quote.distanceKm).toBeNull();
-    expect(callArg.quote.note).toBe('Location not provided — using base fee');
+    expect(callArg.quote.note).toBe('Location not provided – using base fee');
   });
 
   test('test_getDeliveryQuote_withCoordinatesWithinRange_returnsCalculatedFee', async () => {

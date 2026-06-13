@@ -93,10 +93,10 @@ const getPromotedProducts = async (req, res, next) => {
     const { limit, category, minPrice, maxPrice } = req.query;
 
     const promotedProducts = await repositories.promotedProducts.getActivePromotions({
-      limit: parseInt(limit) || 20,
+      limit: Number.parseInt(limit) || 20,
       category,
-      minPrice: minPrice ? parseFloat(minPrice) : undefined,
-      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined
+      minPrice: minPrice ? Number.parseFloat(minPrice) : undefined,
+      maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined
     });
 
     res.status(200).json({
@@ -131,8 +131,8 @@ const getMyCampaigns = async (req, res, next) => {
       stores.map(store => 
         repositories.promotedProducts.getStoreCampaigns(store.id, {
           status,
-          limit: parseInt(limit) || 20,
-          offset: parseInt(offset) || 0
+          limit: Number.parseInt(limit) || 20,
+          offset: Number.parseInt(offset) || 0
         })
       )
     );

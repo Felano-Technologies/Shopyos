@@ -17,12 +17,73 @@ import {
 const { width, height } = Dimensions.get('window');
 type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
 const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
+
+type AdCardProps = {
+  item: any;
+  onPreview: (url: string) => void;
+  onRejectPress: (item: any) => void;
+  onApprove: (id: string) => void;
+  actionLoading: string | null;
+};
+
+function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: Readonly<AdCardProps>) {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardHeader}>
+        <View style={styles.storeInfo}>
+          <MaterialCommunityIcons name="storefront-outline" size={16} color="#0C1559" />
+          <Text style={styles.storeName}>{item.store?.store_name || 'Unknown Store'}</Text>
+        </View>
+        <Text style={styles.dateText}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</Text>
+      </View>
+      <View style={styles.cardBody}>
+        <TouchableOpacity style={styles.bannerPreview} onPress={() => onPreview(item.banner_url)}>
+          <AppImage uri={item.banner_url} style={styles.bannerImg} />
+          <View style={styles.zoomOverlay}>
+            <Feather name="zoom-in" size={16} color="#FFF" />
+          </View>
+        </TouchableOpacity>
+        <View style={styles.adDetails}>
+          <Text style={styles.adTitle} numberOfLines={1}>{item.title}</Text>
+          <View style={styles.detailRow}>
+            <Feather name="layout" size={12} color="#64748B" />
+            <Text style={styles.detailText}>{item.placement}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Feather name="clock" size={12} color="#64748B" />
+            <Text style={styles.detailText}>{item.duration_days} Days</Text>
+          </View>
+          <View style={styles.paidBadge}>
+            <Text style={styles.paidText}>Paid: ₵{item.paid_amount}</Text>
+          </View>
+        </View>
+      </View>
+      {item.status === 'Pending' && (
+        <View style={styles.actions}>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.rejectBtn]}
+            onPress={() => onRejectPress(item)}
+          >
+            <Text style={styles.rejectText}>Reject Ad</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.actionBtn, styles.approveBtn]}
+            onPress={() => onApprove(item.id)}
+            disabled={actionLoading === item.id}
+          >
+            {actionLoading === item.id ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.approveText}>Approve Ad</Text>}
+          </TouchableOpacity>
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function AdminAds() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   
   const [ads, setAds] = useState<any[]>([]);
-  const [, setLoading] = useState(true);
   const [filter, setFilter] = useState<AdStatus>('Pending');
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -34,7 +95,6 @@ export default function AdminAds() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const fetchAds = async () => {
     try {
-      setLoading(true);
       const res = await getAllBannerCampaigns();
       if (res.success) {
         setAds(res.campaigns || []);
@@ -46,8 +106,6 @@ export default function AdminAds() {
         title: 'Fetch Error',
         message: 'Failed to load ad campaigns. Please try again.'
       });
-    } finally {
-      setLoading(false);
     }
   };
   useEffect(() => {
@@ -107,57 +165,6 @@ export default function AdminAds() {
       setActionLoading(null);
     }
   };
-  const AdCard = ({ item }: { item: any }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.storeInfo}>
-          <MaterialCommunityIcons name="storefront-outline" size={16} color="#0C1559" />
-          <Text style={styles.storeName}>{item.store?.store_name || 'Unknown Store'}</Text>
-        </View>
-        <Text style={styles.dateText}>{item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</Text>
-      </View>
-      <View style={styles.cardBody}>
-        <TouchableOpacity style={styles.bannerPreview} onPress={() => setPreviewImage(item.banner_url)}>
-          <AppImage uri={item.banner_url} style={styles.bannerImg} />
-          <View style={styles.zoomOverlay}>
-            <Feather name="zoom-in" size={16} color="#FFF" />
-          </View>
-        </TouchableOpacity>
-        
-        <View style={styles.adDetails}>
-          <Text style={styles.adTitle} numberOfLines={1}>{item.title}</Text>
-          <View style={styles.detailRow}>
-            <Feather name="layout" size={12} color="#64748B" />
-            <Text style={styles.detailText}>{item.placement}</Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Feather name="clock" size={12} color="#64748B" />
-            <Text style={styles.detailText}>{item.duration_days} Days</Text>
-          </View>
-          <View style={styles.paidBadge}>
-            <Text style={styles.paidText}>Paid: ₵{item.paid_amount}</Text>
-          </View>
-        </View>
-      </View>
-      {item.status === 'Pending' && (
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={[styles.actionBtn, styles.rejectBtn]} 
-            onPress={() => { setTargetAd(item); setRejectModal(true); }}
-          >
-            <Text style={styles.rejectText}>Reject Ad</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionBtn, styles.approveBtn]} 
-            onPress={() => handleApprove(item.id)}
-            disabled={actionLoading === item.id}
-          >
-            {actionLoading === item.id ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.approveText}>Approve Ad</Text>}
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -216,7 +223,15 @@ export default function AdminAds() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        renderItem={({ item }) => <AdCard item={item} />}
+        renderItem={({ item }) => (
+          <AdCard
+            item={item}
+            onPreview={setPreviewImage}
+            onRejectPress={(ad) => { setTargetAd(ad); setRejectModal(true); }}
+            onApprove={handleApprove}
+            actionLoading={actionLoading}
+          />
+        )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>

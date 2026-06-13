@@ -1,9 +1,9 @@
-const { getPool } = require('../config/postgres');
+﻿const { getPool } = require('../config/postgres');
 
 // Conversion constants
-const POINTS_PER_CURRENCY_UNIT = 1;   // earn 1 pt per ₵1 spent
-const POINTS_TO_CURRENCY = 100;        // 100 pts = ₵1 discount
-const MAX_REDEEM_PERCENT = 0.20;       // can redeem at most 20% of subtotal
+const POINTS_PER_CURRENCY_UNIT = 1;   // earn 1 pt per â‚µ1 spent
+const POINTS_TO_CURRENCY = 100;        // 100 pts = â‚µ1 discount
+const MAX_REDEEM_PERCENT = 0.2;       // can redeem at most 20% of subtotal
 
 /**
  * @route  GET /api/v1/loyalty/balance
@@ -20,7 +20,7 @@ const getBalance = async (req, res, next) => {
 
     const balance = rows[0]?.balance ?? 0;
     const lifetimeEarned = rows[0]?.lifetime_earned ?? 0;
-    const redeemableValue = parseFloat((balance / POINTS_TO_CURRENCY).toFixed(2));
+    const redeemableValue = Number.parseFloat((balance / POINTS_TO_CURRENCY).toFixed(2));
 
     return res.json({ success: true, balance, lifetimeEarned, redeemableValue });
   } catch (error) {
@@ -30,11 +30,11 @@ const getBalance = async (req, res, next) => {
 
 /**
  * Credit loyalty points after a successful order.
- * Earns 1 point per ₵1 of subtotal (fractions ignored).
- * Intended to be called from orderController — not a route handler.
+ * Earns 1 point per â‚µ1 of subtotal (fractions ignored).
+ * Intended to be called from orderController â€” not a route handler.
  */
 const creditPoints = async (userId, orderId, subtotal, pool) => {
-  const points = Math.floor(parseFloat(subtotal) * POINTS_PER_CURRENCY_UNIT);
+  const points = Math.floor(Number.parseFloat(subtotal) * POINTS_PER_CURRENCY_UNIT);
   if (points <= 0) return;
 
   await pool.query(
@@ -56,7 +56,7 @@ const creditPoints = async (userId, orderId, subtotal, pool) => {
 
 /**
  * Deduct redeemed loyalty points after a successful order.
- * Intended to be called from orderController — not a route handler.
+ * Intended to be called from orderController â€” not a route handler.
  */
 const deductPoints = async (userId, orderId, points, pool) => {
   if (points <= 0) return;
@@ -71,20 +71,20 @@ const deductPoints = async (userId, orderId, points, pool) => {
   await pool.query(
     `INSERT INTO loyalty_transactions (user_id, order_id, type, points, description)
      VALUES ($1, $2, 'redeem', $3, $4)`,
-    [userId, orderId, -points, `Redeemed ${points} pts (₵${(points / POINTS_TO_CURRENCY).toFixed(2)} off)`]
+    [userId, orderId, -points, `Redeemed ${points} pts (â‚µ${(points / POINTS_TO_CURRENCY).toFixed(2)} off)`]
   );
 };
 
 /**
  * Compute how much discount a points redemption is worth and validate the amount
  * against the user's balance and the 20% cap.
- * Returns { validPoints, discountAmount } — both may be adjusted downward.
+ * Returns { validPoints, discountAmount } â€” both may be adjusted downward.
  */
 const calcPointsDiscount = (requestedPoints, userBalance, subtotal) => {
   const maxByBalance = Math.min(requestedPoints, userBalance);
   const maxByCap = Math.floor((subtotal * MAX_REDEEM_PERCENT) * POINTS_TO_CURRENCY);
   const validPoints = Math.max(0, Math.min(maxByBalance, maxByCap));
-  const discountAmount = parseFloat((validPoints / POINTS_TO_CURRENCY).toFixed(2));
+  const discountAmount = Number.parseFloat((validPoints / POINTS_TO_CURRENCY).toFixed(2));
   return { validPoints, discountAmount };
 };
 
@@ -104,7 +104,7 @@ const getLoyaltyTransactions = async (req, res, next) => {
        WHERE lt.user_id = $1
        ORDER BY lt.created_at DESC
        LIMIT $2 OFFSET $3`,
-      [req.user.id, parseInt(limit), parseInt(offset)]
+      [req.user.id, Number.parseInt(limit), Number.parseInt(offset)]
     );
     return res.json({ success: true, transactions: rows });
   } catch (error) {

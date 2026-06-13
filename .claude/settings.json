@@ -6,7 +6,8 @@
       "WebFetch(domain:firebase.google.com)",
       "WebFetch(domain:firebase.blog)",
       "WebFetch(domain:www.pushwoosh.com)",
-      "WebFetch(domain:www.droidcon.com)"
+      "WebFetch(domain:www.droidcon.com)",
+      "Bash(npm test *)"
     ]
   }
 }

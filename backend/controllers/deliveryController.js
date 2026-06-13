@@ -1,4 +1,4 @@
-// controllers/deliveryController.js
+﻿// controllers/deliveryController.js
 // Delivery tracking and management controller
 
 const repositories = require('../db/repositories');
@@ -96,8 +96,8 @@ const getAvailableDeliveries = async (req, res, next) => {
     const { limit = 20, offset = 0 } = req.query;
 
     const deliveries = await repositories.deliveries.getAvailableDeliveries({
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: Number.parseInt(limit),
+      offset: Number.parseInt(offset)
     });
 
     res.status(200).json({
@@ -177,8 +177,8 @@ const getMyDeliveries = async (req, res, next) => {
 
     const deliveries = await repositories.deliveries.getDriverDeliveries(driverId, {
       status,
-      limit: parseInt(limit),
-      offset: parseInt(offset)
+      limit: Number.parseInt(limit),
+      offset: Number.parseInt(offset)
     });
 
     res.status(200).json({
@@ -447,8 +447,8 @@ const addLocationUpdate = async (req, res, next) => {
 
     // Add location update
     const locationUpdate = await repositories.deliveries.addLocationUpdate(deliveryId, {
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
+      latitude: Number.parseFloat(latitude),
+      longitude: Number.parseFloat(longitude),
       notes
     });
 
@@ -457,8 +457,8 @@ const addLocationUpdate = async (req, res, next) => {
       const { getRedis, cacheSet } = require('../config/redis');
 
       await cacheSet(`delivery:location:${deliveryId}`, {
-        latitude: parseFloat(latitude),
-        longitude: parseFloat(longitude),
+        latitude: Number.parseFloat(latitude),
+        longitude: Number.parseFloat(longitude),
       }, 120);
 
       const delivery = await repositories.deliveries.findById(deliveryId);
@@ -471,7 +471,7 @@ const addLocationUpdate = async (req, res, next) => {
             scope: 'user',
             userId: buyerId,
             event: 'delivery:location_update',
-            payload: { deliveryId, latitude: parseFloat(latitude), longitude: parseFloat(longitude) }
+            payload: { deliveryId, latitude: Number.parseFloat(latitude), longitude: Number.parseFloat(longitude) }
           }));
         }
       }
@@ -523,7 +523,7 @@ const getLocationUpdates = async (req, res, next) => {
 
     const locationUpdates = await repositories.deliveries.getLocationUpdates(
       deliveryId,
-      parseInt(limit)
+      Number.parseInt(limit)
     );
 
     res.status(200).json({

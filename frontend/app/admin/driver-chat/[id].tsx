@@ -59,6 +59,22 @@ const QUICK_REPLIES = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+function renderMessageStatus(item: any) {
+  if (item.pending) {
+    return <ActivityIndicator size={rs(10)} color={C.muted} style={{ marginLeft: rs(4) }} />;
+  }
+  if (item.failed) {
+    return <Ionicons name="alert-circle" size={rs(12)} color="#EF4444" style={{ marginLeft: rs(3) }} />;
+  }
+  return (
+    <Ionicons
+      name={item.read ? 'checkmark-done' : 'checkmark'}
+      size={rs(13)} color={item.read ? C.lime : C.muted}
+      style={{ marginLeft: rs(3) }}
+    />
+  );
+}
+
 function initials(name: string): string {
   return (name || 'D').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 }
@@ -66,7 +82,7 @@ function initials(name: string): string {
 function formatBubbleTime(ts: string): string {
   try {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     return format(d, 'h:mm a');
   } catch { return ''; }
 }
@@ -74,7 +90,7 @@ function formatBubbleTime(ts: string): string {
 function formatDateSeparator(ts: string): string {
   try {
     const d = new Date(ts);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     if (isToday(d))     return 'Today';
     if (isYesterday(d)) return 'Yesterday';
     return format(d, 'MMMM d, yyyy');
@@ -242,19 +258,7 @@ export default function AdminDriverChatThread() {
             {/* Time + status row */}
             <View style={[S.bubbleMeta, isAdmin ? S.bubbleMetaRight : S.bubbleMetaLeft]}>
               <Text style={S.bubbleTime}>{formatBubbleTime(item.timestamp)}</Text>
-              {isAdmin && (
-                item.pending ? (
-                  <ActivityIndicator size={rs(10)} color={C.muted} style={{ marginLeft: rs(4) }} />
-                ) : item.failed ? (
-                  <Ionicons name="alert-circle" size={rs(12)} color="#EF4444" style={{ marginLeft: rs(3) }} />
-                ) : (
-                  <Ionicons
-                    name={item.read ? 'checkmark-done' : 'checkmark'}
-                    size={rs(13)} color={item.read ? C.lime : C.muted}
-                    style={{ marginLeft: rs(3) }}
-                  />
-                )
-              )}
+              {isAdmin && renderMessageStatus(item)}
             </View>
           </View>
 
@@ -365,9 +369,9 @@ export default function AdminDriverChatThread() {
       <Animated.View style={[S.quickPanel, { height: quickHeight, overflow: 'hidden' }]}>
         <Text style={S.quickLabel}>Quick Replies</Text>
         <View style={S.quickGrid}>
-          {QUICK_REPLIES.map((qr, i) => (
+          {QUICK_REPLIES.map((qr) => (
             <TouchableOpacity
-              key={i}
+              key={qr}
               style={S.quickChip}
               onPress={() => handleSend(qr)}
             >

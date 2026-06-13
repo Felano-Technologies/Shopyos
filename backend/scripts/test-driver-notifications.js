@@ -1,8 +1,8 @@
-// scripts/test-driver-notifications.js
+﻿// scripts/test-driver-notifications.js
 // Automated verification script for Driver Availability Range Notifications
 
 require('dotenv').config({ path: '../.env' });
-const assert = require('assert');
+const assert = require('node:assert');
 const repositories = require('../db/repositories');
 const { getPool } = require('../config/postgres');
 const orderController = require('../controllers/orderController');
@@ -25,11 +25,11 @@ const makeMockRes = () => {
 };
 
 async function testNotifications() {
-  console.log('🏁 Starting Driver Range Notifications integration test...\n');
+  console.log('ðŸ Starting Driver Range Notifications integration test...\n');
   const db = getPool();
 
   // 1. Fetch test driver, store, and buyer
-  console.log('🔍 Fetching test driver and store...');
+  console.log('ðŸ” Fetching test driver and store...');
   const { rows: stores } = await db.query("SELECT id, owner_id, store_name, latitude, longitude FROM stores LIMIT 1");
   if (stores.length === 0) {
     throw new Error('Please run npm run seed first to populate stores!');
@@ -62,18 +62,18 @@ async function testNotifications() {
   }
 
   const driver = drivers[0];
-  console.log(`ℹ️ Original Driver state: Name=${driver.full_name}, Verified=${driver.is_verified}, Available=${driver.is_available}, Lat=${driver.latitude}, Lng=${driver.longitude}`);
+  console.log(`â„¹ï¸ Original Driver state: Name=${driver.full_name}, Verified=${driver.is_verified}, Available=${driver.is_available}, Lat=${driver.latitude}, Lng=${driver.longitude}`);
 
   // Force-update the driver's profile to be verified, online, and close to the store coordinates
   // Store coordinates:
-  const storeLat = parseFloat(store.latitude || 6.6935);
-  const storeLng = parseFloat(store.longitude || -1.6168);
+  const storeLat = Number.parseFloat(store.latitude || 6.6935);
+  const storeLng = Number.parseFloat(store.longitude || -1.6168);
   
   // Set driver coordinates ~3 km away
   const driverLat = storeLat + 0.02;
   const driverLng = storeLng + 0.02;
 
-  console.log(`⚙️ Force-updating driver profile to be online/verified at (${driverLat}, ${driverLng}) within 10 km range of store (${storeLat}, ${storeLng})...`);
+  console.log(`âš™ï¸ Force-updating driver profile to be online/verified at (${driverLat}, ${driverLng}) within 10 km range of store (${storeLat}, ${storeLng})...`);
   
   await db.query(`
     UPDATE driver_profiles 
@@ -94,7 +94,7 @@ async function testNotifications() {
     JOIN user_profiles p ON d.user_id = p.user_id
   `);
   
-  console.log(`ℹ️ Total drivers in DB: ${allDrivers.length}`);
+  console.log(`â„¹ï¸ Total drivers in DB: ${allDrivers.length}`);
   allDrivers.forEach(d => {
     console.log(`   - ${d.full_name}: Verified=${d.is_verified}, Available=${d.is_available}`);
   });
@@ -112,25 +112,25 @@ async function testNotifications() {
 
   notificationService.sendPushNotification = async (params) => {
     notificationCalls.push.push(params);
-    console.log(`📲 [Mock Push] Sent to user ${params.userId}: "${params.title}" - ${params.body}`);
+    console.log(`ðŸ“² [Mock Push] Sent to user ${params.userId}: "${params.title}" - ${params.body}`);
     return true;
   };
 
   notificationService.sendEmail = async (params) => {
     notificationCalls.email.push(params);
-    console.log(`✉️ [Mock Email] Sent to ${params.to}: "${params.subject}"`);
+    console.log(`âœ‰ï¸ [Mock Email] Sent to ${params.to}: "${params.subject}"`);
     return true;
   };
 
   notificationService.sendSMS = async (params) => {
     notificationCalls.sms.push(params);
-    console.log(`💬 [Mock SMS] Sent to ${params.to}: "${params.message}"`);
+    console.log(`ðŸ’¬ [Mock SMS] Sent to ${params.to}: "${params.message}"`);
     return true;
   };
 
   try {
     // 2. Create a test order in "confirmed" status
-    console.log('\n📦 Creating test order in DB...');
+    console.log('\nðŸ“¦ Creating test order in DB...');
     const { rows: orders } = await db.query(`
       INSERT INTO orders (
         order_number, buyer_id, store_id, status, subtotal, tax, delivery_fee, total_amount, 
@@ -143,10 +143,10 @@ async function testNotifications() {
 
     const orderId = orders[0].id;
     const orderNumber = orders[0].order_number;
-    console.log(`✅ Order created: ${orderNumber} (ID: ${orderId})`);
+    console.log(`âœ… Order created: ${orderNumber} (ID: ${orderId})`);
 
     // 3. Mark the order as ready_for_pickup
-    console.log('\n🔄 Transitioning order status to "ready_for_pickup" to trigger notifications...');
+    console.log('\nðŸ”„ Transitioning order status to "ready_for_pickup" to trigger notifications...');
     const req = {
       params: { orderId },
       body: { status: 'ready_for_pickup' },
@@ -157,10 +157,10 @@ async function testNotifications() {
     await orderController.updateOrderStatus(req, res, () => {});
 
     assert.strictEqual(res.statusCode, 200, 'Order update to ready_for_pickup should succeed');
-    console.log('✅ Order marked ready_for_pickup successfully.');
+    console.log('âœ… Order marked ready_for_pickup successfully.');
 
     // 4. Verify the automatic delivery was created and notifications were dispatched
-    console.log('\n🔬 Verifying notifications were dispatched to matching drivers...');
+    console.log('\nðŸ”¬ Verifying notifications were dispatched to matching drivers...');
     
     // Check if delivery was created
     const existingDelivery = await repositories.deliveries.findByOrderId(orderId);
@@ -168,7 +168,7 @@ async function testNotifications() {
     assert.strictEqual(existingDelivery.status, 'unassigned', 'Delivery status should be unassigned');
     assert.strictEqual(Number(existingDelivery.delivery_fee), 10.00, 'Delivery fee should match order');
     assert.strictEqual(Number(existingDelivery.driver_earnings), 8.50, 'Driver earnings should be 85% of delivery fee');
-    console.log(`✅ Auto-created delivery details verified: Fee=₵${existingDelivery.delivery_fee}, Earnings=₵${existingDelivery.driver_earnings}`);
+    console.log(`âœ… Auto-created delivery details verified: Fee=â‚µ${existingDelivery.delivery_fee}, Earnings=â‚µ${existingDelivery.driver_earnings}`);
 
     // Verify mock notifications got called
     assert.ok(notificationCalls.push.length > 0, 'Should trigger push notification');
@@ -178,13 +178,15 @@ async function testNotifications() {
     // Verify they targeted our matched driver
     const targetPush = notificationCalls.push.find(n => n.userId === driver.user_id);
     assert.ok(targetPush, 'Driver should receive push notification');
-    assert.match(targetPush.title, /New Delivery Request/);
-    assert.strictEqual(targetPush.data.deliveryId, existingDelivery.id);
+    if (targetPush) {
+      assert.match(targetPush.title, /New Delivery Request/);
+      assert.strictEqual(targetPush.data.deliveryId, existingDelivery.id);
+    }
 
-    console.log('\n🎉 ALL NOTIFICATION DISPATCH VERIFICATIONS PASSED SUCCESSFULLY!');
+    console.log('\nðŸŽ‰ ALL NOTIFICATION DISPATCH VERIFICATIONS PASSED SUCCESSFULLY!');
 
     // Cleanup
-    console.log('\n🧹 Cleaning up test records from DB...');
+    console.log('\nðŸ§¹ Cleaning up test records from DB...');
     await db.query('DELETE FROM deliveries WHERE id = $1', [existingDelivery.id]);
     await db.query('DELETE FROM orders WHERE id = $1', [orderId]);
     
@@ -200,7 +202,7 @@ async function testNotifications() {
       SET latitude = $1, longitude = $2 
       WHERE user_id = $3
     `, [driver.latitude, driver.longitude, driver.user_id]);
-    console.log('✅ Cleanup completed successfully.');
+    console.log('âœ… Cleanup completed successfully.');
 
   } catch (err) {
     // Restore original functions
@@ -219,6 +221,6 @@ async function testNotifications() {
 testNotifications()
   .then(() => process.exit(0))
   .catch(err => {
-    console.error('\n❌ Integration Test Failed:', err);
+    console.error('\nâŒ Integration Test Failed:', err);
     process.exit(1);
   });

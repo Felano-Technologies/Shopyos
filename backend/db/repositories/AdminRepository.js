@@ -461,22 +461,26 @@ class AdminRepository extends BaseRepository {
       ORDER BY dp.created_at DESC
     `);
 
-    return Promise.all(rows.map(async d => ({
-      ...d,
-      full_name:          d.full_name   || 'Unknown',
-      email:              d.email       || 'Unknown',
-      phone:              d.phone       || 'Unknown',
-      avatar_url:         await resolveImageUrl(d.avatar_url),
-      status:             d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-      verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-      license_image:      await resolveImageUrl(d.license_image_url),
-      insurance_image:    await resolveImageUrl(d.insurance_doc_url),
-      id_image:           await resolveImageUrl(d.national_id_url),
-      vehicle_reg_image:  await resolveImageUrl(d.vehicle_reg_url),
-      roadworthy_image:   await resolveImageUrl(d.roadworthy_url),
-      vehicle_plate:      d.license_plate,
-    })));
+    return Promise.all(rows.map(async d => {
+      const driverVerificationStatus = d.rejection_reason ? 'rejected' : 'pending';
+      return {
+        ...d,
+        full_name:          d.full_name   || 'Unknown',
+        email:              d.email       || 'Unknown',
+        phone:              d.phone       || 'Unknown',
+        avatar_url:         await resolveImageUrl(d.avatar_url),
+        status:             d.is_verified ? 'verified' : driverVerificationStatus,
+        verification_status: d.is_verified ? 'verified' : driverVerificationStatus,
+        license_image:      await resolveImageUrl(d.license_image_url),
+        insurance_image:    await resolveImageUrl(d.insurance_doc_url),
+        id_image:           await resolveImageUrl(d.national_id_url),
+        vehicle_reg_image:  await resolveImageUrl(d.vehicle_reg_url),
+        roadworthy_image:   await resolveImageUrl(d.roadworthy_url),
+        vehicle_plate:      d.license_plate,
+      };
+    }));
   }
+
 
   /**
    * Get single driver verification details
@@ -504,6 +508,7 @@ class AdminRepository extends BaseRepository {
     if (!rows.length) return null;
     const d = rows[0];
 
+    const driverVerificationStatus = d.rejection_reason ? 'rejected' : 'pending';
     return {
       ...d,
       user_profiles: {
@@ -515,8 +520,8 @@ class AdminRepository extends BaseRepository {
         country:      d.country,
       },
       email:              d.email,
-      status:             d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
-      verification_status: d.is_verified ? 'verified' : (d.rejection_reason ? 'rejected' : 'pending'),
+      status:             d.is_verified ? 'verified' : driverVerificationStatus,
+      verification_status: d.is_verified ? 'verified' : driverVerificationStatus,
       license_image:      await resolveImageUrl(d.license_image_url),
       insurance_image:    await resolveImageUrl(d.insurance_doc_url),
       id_image:           await resolveImageUrl(d.national_id_url),

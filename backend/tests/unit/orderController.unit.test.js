@@ -726,8 +726,8 @@ describe('OrderController Unit Tests', () => {
   describe('createOrder — additional branches', () => {
     // line 125-128: second out-of-range check inside per-store loop
     test('test_createOrder_storeOutOfRangeInPerStoreLoop_returns400', async () => {
-      // Arrange — first (validation pass) call returns withinRange:true,
-      // second (per-store fee calculation) call returns withinRange:false.
+      // Arrange — upfront validateStoreDeliveryRanges call returns withinRange:false,
+      // so createOrder returns 400 before any per-store processing.
       const mockCart = {
         cart_items: [
           { product_id: 'p-1', quantity: 1, products: { store_id: 'store-1', price: 20, title: 'X' } },
@@ -743,10 +743,7 @@ describe('OrderController Unit Tests', () => {
         owner_id: 'seller-id',
       };
       repositories.carts.getCartWithItems.mockResolvedValueOnce(mockCart);
-      // validation-pass loop: withinRange true
-      repositories.stores.findById.mockResolvedValueOnce(mockStore);
-      distanceUtil.calculateDeliveryFee.mockReturnValueOnce({ fee: null, withinRange: true });
-      // per-store loop: withinRange false
+      // upfront validation: withinRange false → out-of-range
       repositories.stores.findById.mockResolvedValueOnce(mockStore);
       distanceUtil.calculateDeliveryFee.mockReturnValueOnce({ fee: null, withinRange: false });
 

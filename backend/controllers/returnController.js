@@ -1,11 +1,11 @@
-// controllers/returnController.js
+﻿// controllers/returnController.js
 // Full return & refund flow: buyer creates request, seller responds, admin resolves.
 
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const { logger } = require('../config/logger');
 
-// ─── Buyer ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Buyer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // @route   POST /api/v1/returns
 // @desc    Buyer submits a return request
@@ -70,8 +70,8 @@ const createReturnRequest = async (req, res, next) => {
 const getBuyerReturns = async (req, res, next) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limitNum;
+    const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
+    const offset = (Math.max(Number.parseInt(page) || 1, 1) - 1) * limitNum;
 
     const { data, count } = await repositories.returns.getBuyerReturns(req.user.id, { limit: limitNum, offset });
     const totalPages = Math.ceil(count / limitNum);
@@ -87,7 +87,7 @@ const getBuyerReturns = async (req, res, next) => {
   }
 };
 
-// ─── Seller ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Seller â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // @route   GET /api/v1/returns/seller
 // @desc    Seller lists return requests for their store
@@ -95,8 +95,8 @@ const getBuyerReturns = async (req, res, next) => {
 const getSellerReturns = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limitNum;
+    const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
+    const offset = (Math.max(Number.parseInt(page) || 1, 1) - 1) * limitNum;
 
     const { data, count } = await repositories.returns.getSellerReturns(
       req.user.id,
@@ -161,7 +161,7 @@ const sellerRespondToReturn = async (req, res, next) => {
   }
 };
 
-// ─── Admin ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 // @route   GET /api/v1/returns/admin
 // @desc    Admin lists all return requests
@@ -169,8 +169,8 @@ const sellerRespondToReturn = async (req, res, next) => {
 const getAdminReturns = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, status } = req.query;
-    const limitNum = Math.min(parseInt(limit) || 20, 100);
-    const offset = (Math.max(parseInt(page) || 1, 1) - 1) * limitNum;
+    const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
+    const offset = (Math.max(Number.parseInt(page) || 1, 1) - 1) * limitNum;
 
     const { data, count } = await repositories.returns.getAdminReturns(
       status || null,
@@ -214,7 +214,7 @@ const adminActOnReturn = async (req, res, next) => {
     const updated = await repositories.returns.update(returnId, {
       status: newStatus,
       admin_notes: adminNotes?.trim() || null,
-      refund_amount: refundAmount ? parseFloat(refundAmount) : null,
+      refund_amount: refundAmount ? Number.parseFloat(refundAmount) : null,
       resolved_at: isResolved ? new Date().toISOString() : null
     });
 
@@ -223,7 +223,7 @@ const adminActOnReturn = async (req, res, next) => {
         userId: returnReq.buyer_id,
         type: 'refund_issued',
         title: 'Refund issued',
-        message: `₵${refundAmount} has been refunded for your return request.`,
+        message: `â‚µ${refundAmount} has been refunded for your return request.`,
         relatedId: returnId,
         relatedType: 'return_request',
         push: { data: { screen: `order/${returnReq.order_id}` } }
