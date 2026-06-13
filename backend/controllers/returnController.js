@@ -143,13 +143,17 @@ const sellerRespondToReturn = async (req, res, next) => {
       seller_response: sellerResponse?.trim() || null
     });
 
+    const notificationType = action === 'approve' ? 'return_approved' : 'return_declined';
+    const notificationTitle = action === 'approve' ? 'Return approved' : 'Return declined';
+    const declineReason = sellerResponse ? ` Reason: ${sellerResponse}` : '';
+    const notificationMessage = action === 'approve'
+      ? 'Your return request has been approved. A refund will be processed shortly.'
+      : `Your return request was declined.${declineReason}`;
     await notificationService.sendNotification({
       userId: returnReq.buyer_id,
-      type: action === 'approve' ? 'return_approved' : 'return_declined',
-      title: action === 'approve' ? 'Return approved' : 'Return declined',
-      message: action === 'approve'
-        ? 'Your return request has been approved. A refund will be processed shortly.'
-        : `Your return request was declined.${sellerResponse ? ` Reason: ${sellerResponse}` : ''}`,
+      type: notificationType,
+      title: notificationTitle,
+      message: notificationMessage,
       relatedId: returnId,
       relatedType: 'return_request',
       push: { data: { screen: `order/${returnReq.order_id}` } }

@@ -28,11 +28,11 @@ const fetchTransactions = async () => {
         resolve({ data: [] });
       } else {
         const mockData = [
-          { id: '1', title: 'Order #2034 Payment', type: 'sale', amount: 450.00, date: 'Feb 07, 2026', time: '10:45 AM', status: 'Success' },
-          { id: '2', title: 'Weekly Payout', type: 'payout', amount: -1200.00, date: 'Feb 01, 2026', time: '09:00 AM', status: 'Success' },
-          { id: '3', title: 'Order #2033 Payment', type: 'sale', amount: 85.50, date: 'Jan 30, 2026', time: '02:15 PM', status: 'Success' },
-          { id: '4', title: 'Refund: Order #2010', type: 'refund', amount: -120.00, date: 'Jan 28, 2026', time: '11:30 AM', status: 'Completed' },
-          { id: '5', title: 'Order #2032 Payment', type: 'sale', amount: 210.00, date: 'Jan 28, 2026', time: '09:10 AM', status: 'Success' },
+          { id: '1', title: 'Order #2034 Payment', type: 'sale', amount: 450, date: 'Feb 07, 2026', time: '10:45 AM', status: 'Success' },
+          { id: '2', title: 'Weekly Payout', type: 'payout', amount: -1200, date: 'Feb 01, 2026', time: '09:00 AM', status: 'Success' },
+          { id: '3', title: 'Order #2033 Payment', type: 'sale', amount: 85.5, date: 'Jan 30, 2026', time: '02:15 PM', status: 'Success' },
+          { id: '4', title: 'Refund: Order #2010', type: 'refund', amount: -120, date: 'Jan 28, 2026', time: '11:30 AM', status: 'Completed' },
+          { id: '5', title: 'Order #2032 Payment', type: 'sale', amount: 210, date: 'Jan 28, 2026', time: '09:10 AM', status: 'Success' },
         ];
         resolve({ data: mockData });
       }

@@ -19,15 +19,15 @@ const { width } = Dimensions.get('window');
 // --- Mock Master Product Database ---
 // Ideally, this comes from an API or a shared Context/Store
 const ALL_DB_PRODUCTS = [
-  { id: '1', title: 'Nike Air Force 1', price: 175.0, image: require('../../assets/images/products/nike.jpg'), category: 'Footwear' },
-  { id: '2', title: 'Running Sneakers', price: 120.0, image: require('../../assets/images/categories/sneakers.jpg'), category: 'Footwear' },
-  { id: '3', title: 'Travel Backpack', price: 85.0, image: require('../../assets/images/search/bag1.jpg'), category: 'Bags' },
-  { id: '4', title: 'The Dad Artwork', price: 250.0, image: require('../../assets/images/products/artwork2.jpg'), category: 'Arts & Craft' },
-  { id: '5', title: 'Modern Coffee Table', price: 450.0, image: require('../../assets/images/search/table2.jpg'), category: 'Home' },
-  { id: '6', title: 'Sony Headset', price: 299.0, image: require('../../assets/images/categories/headset.jpg'), category: 'Accessories' },
-  { id: '7', title: 'Denim Jacket', price: 150.0, image: require('../../assets/images/categories/jacket.jpg'), category: 'Men' },
-  { id: '8', title: 'Summer Dress', price: 90.0, image: require('../../assets/images/featured/feat1.jpg'), category: 'Women' },
-  { id: '9', title: 'Protein Powder', price: 60.0, image: require('../../assets/images/search/supplement2.jpg'), category: 'Fitness' },
+  { id: '1', title: 'Nike Air Force 1', price: 175, image: require('../../assets/images/products/nike.jpg'), category: 'Footwear' },
+  { id: '2', title: 'Running Sneakers', price: 120, image: require('../../assets/images/categories/sneakers.jpg'), category: 'Footwear' },
+  { id: '3', title: 'Travel Backpack', price: 85, image: require('../../assets/images/search/bag1.jpg'), category: 'Bags' },
+  { id: '4', title: 'The Dad Artwork', price: 250, image: require('../../assets/images/products/artwork2.jpg'), category: 'Arts & Craft' },
+  { id: '5', title: 'Modern Coffee Table', price: 450, image: require('../../assets/images/search/table2.jpg'), category: 'Home' },
+  { id: '6', title: 'Sony Headset', price: 299, image: require('../../assets/images/categories/headset.jpg'), category: 'Accessories' },
+  { id: '7', title: 'Denim Jacket', price: 150, image: require('../../assets/images/categories/jacket.jpg'), category: 'Men' },
+  { id: '8', title: 'Summer Dress', price: 90, image: require('../../assets/images/featured/feat1.jpg'), category: 'Women' },
+  { id: '9', title: 'Protein Powder', price: 60, image: require('../../assets/images/search/supplement2.jpg'), category: 'Fitness' },
 ];
 
 export default function CategoryDetailsScreen() {

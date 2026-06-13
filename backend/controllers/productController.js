@@ -454,7 +454,7 @@ const updateProduct = async (req, res, next) => {
 
     // Price drop alert â€” fan-out push to users who favourited this product.
     // setImmediate so the seller's response is never blocked by fan-out latency.
-    if (mappedData.price !== undefined && updated.price < oldPrice) {
+    if (updated.price < oldPrice) {
       setImmediate(async () => {
         try {
           const { rows: fans } = await repositories.products.db.query(
@@ -731,14 +731,11 @@ const searchProducts = async (req, res, next) => {
       sortAscending = true;
     } else if (sortBy === 'price_desc') {
       sortColumn = 'price';
-      sortAscending = false;
     } else if (sortBy === 'rating') {
       sortColumn = 'average_rating';
-      sortAscending = false;
     } else if (sortBy === 'popular') {
       // Use canonical schema column for popularity sorting
       sortColumn = 'total_sales';
-      sortAscending = false;
     }
     // If relevance and query exists, repo handles it (usually) or defaults to rank
 

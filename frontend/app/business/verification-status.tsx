@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import * as Haptics from 'expo-haptics';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    ScrollView, 
-    TouchableOpacity, 
-    ActivityIndicator, 
-    Modal, 
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    ActivityIndicator,
+    Modal,
     Dimensions,
-    Animated 
+    Animated
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -17,9 +17,22 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useActiveBusiness } from '@/hooks/useBusiness';
-import { Audio } from 'expo-av'; // --- NEW IMPORT ---
+import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
+
+async function playSuccessSound(setSound: (s: Audio.Sound | null) => void) {
+    try {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const { sound } = await Audio.Sound.createAsync(
+            require('../../assets/sounds/notification.wav')
+        );
+        setSound(sound);
+        await sound.playAsync();
+    } catch (error) {
+        console.warn('Playback error:', error);
+    }
+}
 
 export default function VerificationStatus() {
     const { activeBusiness: business, refetch, isLoading } = useActiveBusiness();
@@ -29,20 +42,6 @@ export default function VerificationStatus() {
     const [scaleAnim] = useState(new Animated.Value(0));
     const [sound, setSound] = useState<Audio.Sound | null>(null);
 
-    // --- NEW: SOUND & HAPTIC LOGIC ---
-    async function playSuccessSound() {
-        try {
-            await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            const { sound } = await Audio.Sound.createAsync(
-                require('../../assets/sounds/notification.wav')
-            );
-            setSound(sound);
-            await sound.playAsync();
-        } catch (error) {
-            console.warn('Playback error:', error);
-        }
-    }
-
     // Cleanup sound when component unmounts
     useEffect(() => {
         return sound ? () => { sound.unloadAsync(); } : undefined;
@@ -51,7 +50,7 @@ export default function VerificationStatus() {
     const handleCheckStatus = async () => {
         setChecking(true);
         setShowStatusModal(true);
-        
+
         Animated.spring(scaleAnim, {
             toValue: 1,
             useNativeDriver: true,
@@ -60,13 +59,12 @@ export default function VerificationStatus() {
         }).start();
 
         const result = await refetch();
-        
+
         setTimeout(async () => {
             setChecking(false);
-            // If the status is now verified, play the sound!
             const updatedBiz = result.data?.businesses?.find((b: any) => b._id === business?._id);
             if (updatedBiz?.verificationStatus === 'verified') {
-                await playSuccessSound();
+                await playSuccessSound(setSound);
             }
         }, 1500);
     };
@@ -78,39 +76,45 @@ export default function VerificationStatus() {
     const isRejected = business.verificationStatus === 'rejected';
     const isVerified = business.verificationStatus === 'verified';
 
+    const iconName = isPending ? 'time-outline' : isRejected ? 'close-circle-outline' : 'checkmark-circle-outline';
+    const iconColor = isPending ? '#D97706' : isRejected ? '#DC2626' : '#16A34A';
+    const titleText = isPending ? 'Awaiting Approval' : isRejected ? 'Verification Rejected' : 'Verified!';
+    const subtitleText = isPending
+        ? 'Your business is currently under review. You can access the full platform once an admin approves your store.'
+        : isRejected
+        ? 'Your business verification was rejected. Please review the reason below and resubmit your details.'
+        : 'Congratulations! Your business has been approved by our administrators.';
+    const badgeIconName = isPending ? 'hourglass-outline' : isRejected ? 'alert-circle-outline' : 'checkmark-circle';
+    const badgeIconColor = isPending ? '#92400E' : isRejected ? '#991B1B' : '#15803D';
+    const badgeText = isPending ? 'Status: Under Review' : isRejected ? 'Status: Rejected' : 'Status: Verified';
+    const updateBtnIconName = isPending ? 'document-text-outline' : 'refresh-outline';
+    const updateBtnText = isPending ? 'Update Application' : 'Resubmit Details';
+
     return (
         <View style={styles.mainContainer}>
             <StatusBar style="dark" />
             <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAFC' }} edges={['top', 'left', 'right']}>
                 <ScrollView contentContainerStyle={styles.lockoutScroll} showsVerticalScrollIndicator={false}>
-                    
+
                     <View style={[styles.iconCircle, isRejected && styles.iconCircleRejected]}>
                         <Ionicons
-                            name={isPending ? 'time-outline' : isRejected ? 'close-circle-outline' : 'checkmark-circle-outline'}
+                            name={iconName}
                             size={52}
-                            color={isPending ? '#D97706' : isRejected ? '#DC2626' : '#16A34A'}
+                            color={iconColor}
                         />
                     </View>
 
-                    <Text style={styles.title}>
-                        {isPending ? 'Awaiting Approval' : isRejected ? 'Verification Rejected' : 'Verified!'}
-                    </Text>
-                    <Text style={styles.subtitle}>
-                        {isPending
-                            ? 'Your business is currently under review. You can access the full platform once an admin approves your store.'
-                            : isRejected 
-                            ? 'Your business verification was rejected. Please review the reason below and resubmit your details.'
-                            : 'Congratulations! Your business has been approved by our administrators.'}
-                    </Text>
+                    <Text style={styles.title}>{titleText}</Text>
+                    <Text style={styles.subtitle}>{subtitleText}</Text>
 
                     <View style={[styles.statusBadge, isRejected && styles.badgeRejected, isVerified && styles.badgeVerified]}>
-                        <Ionicons 
-                            name={isPending ? 'hourglass-outline' : isRejected ? 'alert-circle-outline' : 'checkmark-circle'} 
-                            size={14} 
-                            color={isPending ? '#92400E' : isRejected ? '#991B1B' : '#15803D'} 
+                        <Ionicons
+                            name={badgeIconName}
+                            size={14}
+                            color={badgeIconColor}
                         />
                         <Text style={[styles.badgeText, isRejected && { color: '#991B1B' }, isVerified && { color: '#15803D' }]}>
-                            {isPending ? 'Status: Under Review' : isRejected ? 'Status: Rejected' : 'Status: Verified'}
+                            {badgeText}
                         </Text>
                     </View>
 
@@ -126,9 +130,9 @@ export default function VerificationStatus() {
                             ? ['Submit your business details', 'Admin reviews your application', 'Get approved & go live']
                             : ['Review the rejection reason above', 'Update your business information', 'Resubmit for admin review']
                         ).map((step, i) => (
-                            <View key={i} style={styles.stepRow}>
-                                <View style={[styles.stepNum, (i === 0 || (isVerified && i <= 2)) && styles.stepNumActive]}>
-                                    {isVerified && i < 3 ? (
+                            <View key={step} style={styles.stepRow}>
+                                <View style={[styles.stepNum, (i === 0 || isVerified) && styles.stepNumActive]}>
+                                    {isVerified ? (
                                          <Ionicons name="checkmark" size={14} color="#FFF" />
                                     ) : (
                                         <Text style={styles.stepNumText}>{i + 1}</Text>
@@ -144,8 +148,8 @@ export default function VerificationStatus() {
                         onPress={() => router.push(`/business/verification?businessId=${business._id}` as any)}
                     >
                         <LinearGradient colors={['#0C1559', '#1e40af']} style={styles.btnGradient}>
-                            <Ionicons name={isPending ? 'document-text-outline' : 'refresh-outline'} size={18} color="#FFF" />
-                            <Text style={styles.btnText}>{isPending ? 'Update Application' : 'Resubmit Details'}</Text>
+                            <Ionicons name={updateBtnIconName} size={18} color="#FFF" />
+                            <Text style={styles.btnText}>{updateBtnText}</Text>
                         </LinearGradient>
                     </TouchableOpacity>
 
@@ -175,8 +179,8 @@ export default function VerificationStatus() {
                                 </View>
                                 <Text style={[styles.modalInfoTitle, { color: '#16A34A' }]}>Congratulations!</Text>
                                 <Text style={styles.modalInfoSub}>Your store is now active. You have full access to the dashboard.</Text>
-                                
-                                <TouchableOpacity 
+
+                                <TouchableOpacity
                                     style={[styles.modalBtn, { backgroundColor: '#16A34A' }]}
                                     onPress={() => {
                                         setShowStatusModal(false);
@@ -194,7 +198,7 @@ export default function VerificationStatus() {
                                 </View>
                                 <Text style={styles.modalInfoTitle}>Still Under Review</Text>
                                 <Text style={styles.modalInfoSub}>Our team is carefully vetting your documents. Hang tight!</Text>
-                                <TouchableOpacity 
+                                <TouchableOpacity
                                     style={styles.modalBtn}
                                     onPress={() => setShowStatusModal(false)}
                                 >
@@ -209,7 +213,6 @@ export default function VerificationStatus() {
     );
 }
 
-// ... styles remain the same from the previous code block ...
 const styles = StyleSheet.create({
     mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
     lockoutScroll: { flexGrow: 1, alignItems: 'center', paddingHorizontal: 24, paddingTop: 40, paddingBottom: 40 },
@@ -242,7 +245,7 @@ const styles = StyleSheet.create({
     modalInfoSub: { fontSize: 14, color: '#64748B', textAlign: 'center', marginTop: 10, lineHeight: 20, fontFamily: 'Montserrat-Medium' },
     modalBtn: { backgroundColor: '#0C1559', width: '100%', paddingVertical: 15, borderRadius: 15, marginTop: 25, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
     modalBtnText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 15 },
-    
+
     pendingCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#FEF3C7', justifyContent: 'center', alignItems: 'center' },
     successCircle: { width: 100, height: 100, borderRadius: 50, backgroundColor: '#16A34A', justifyContent: 'center', alignItems: 'center' },
     confettiContainer: { position: 'relative' },

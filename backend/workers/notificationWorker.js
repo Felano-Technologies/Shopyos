@@ -155,7 +155,8 @@ async function handleEmail(msg) {
         return true;
     }
 
-    if (await checkOrLogIdempotency(eventType, target, refId)) {
+    const emailAlreadyProcessed = await checkOrLogIdempotency(eventType, target, refId);
+    if (emailAlreadyProcessed) {
         return true; // Already processed
     }
 
@@ -213,7 +214,8 @@ async function handleSMS(msg) {
         throw err;
     }
 
-    if (await checkOrLogIdempotency(eventType, target, refId)) {
+    const smsAlreadyProcessed = await checkOrLogIdempotency(eventType, target, refId);
+    if (smsAlreadyProcessed) {
         return true; // Already processed
     }
 
@@ -275,7 +277,8 @@ async function handlePush(msg) {
         return true;
     }
 
-    if (await checkOrLogIdempotency(eventType, target, refId)) {
+    const pushAlreadyProcessed = await checkOrLogIdempotency(eventType, target, refId);
+    if (pushAlreadyProcessed) {
         return true; // Already processed
     }
 

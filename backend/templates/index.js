@@ -153,7 +153,8 @@ const getWelcomeTemplates = (role, name, _phone) => {
 //  ROLE SELECTED
 // ─────────────────────────────────────────────────────────────────────────────
 const getRoleSelectedTemplates = (role, name) => {
-    const innerRoleLabel = role === 'driver' ? 'Driver' : role === 'admin' ? 'Admin' : 'Buyer';
+    const nonSellerRoleLabel = role === 'admin' ? 'Admin' : 'Buyer';
+    const innerRoleLabel = role === 'driver' ? 'Driver' : nonSellerRoleLabel;
     const roleLabel = role === 'seller' ? 'Seller' : innerRoleLabel;
     const displayName = safe(name, 'there');
 

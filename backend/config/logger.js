@@ -68,6 +68,18 @@ logger.getMemoryLogs = () => memoryLogs;
 
 logger.withContext = (context) => logger.child(context);
 
+if (process.env.LOKI_HOST) {
+    const LokiTransport = require('winston-loki');
+    logger.add(new LokiTransport({
+        host: process.env.LOKI_HOST,
+        labels: { app: 'shopyos', env: process.env.NODE_ENV || 'development' },
+        json: true,
+        format: winston.format.json(),
+        replaceTimestamp: true,
+        onConnectionError: (err) => console.error('Loki transport error:', err.message)
+    }));
+}
+
 const httpLogMiddleware = (req, res, next) => {
     const start = Date.now();
     const originalEnd = res.end;

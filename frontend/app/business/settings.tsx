@@ -63,51 +63,6 @@ export default function BusinessSettingsScreen() {
       },
     ]);
   };
-  // ── Reusable setting row ───────────────────────────────────────────────────
-  const SettingRow = ({
-    icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false, disabled = false,
-  }: {
-    icon: any; iconColor: string; iconBg: string; label: string;
-    onPress?: () => void; value?: boolean; isToggle?: boolean; isDanger?: boolean;
-    disabled?: boolean;
-  }) => (
-    <TouchableOpacity
-      style={[S.settingRow, disabled && S.settingRowDisabled]}
-      onPress={isToggle ? undefined : (disabled ? handleRestrictedAction : onPress)}
-      activeOpacity={isToggle ? 1 : 0.72}
-    >
-      <View style={S.settingLeft}>
-        <View style={[S.settingIconWrap, { backgroundColor: disabled ? '#E2E8F0' : iconBg }]}>
-          <Ionicons name={icon} size={rs(18)} color={disabled ? C.subtle : iconColor} />
-        </View>
-        <Text style={[S.settingLabel, isDanger && { color: '#EF4444' }, disabled && { color: C.subtle }]}>{label}</Text>
-      </View>
-      {isToggle ? (
-        <Switch
-          value={value}
-          onValueChange={() => {
-            if (disabled) {
-              handleRestrictedAction();
-              return;
-            }
-            setNotificationsOn((v) => !v);
-          }}
-          disabled={disabled}
-          trackColor={{ false: '#E2E8F0', true: C.navy }}
-          thumbColor="#fff"
-          ios_backgroundColor="#E2E8F0"
-        />
-      ) : (
-        <Ionicons name={disabled ? 'lock-closed-outline' : 'chevron-forward'} size={rs(16)} color={isDanger ? '#EF4444' : C.subtle} />
-      )}
-    </TouchableOpacity>
-  );
-  // ── Group wrapper ──────────────────────────────────────────────────────────
-  const SettingGroup = ({ children }: { children: React.ReactNode }) => (
-    <View style={S.group}>{children}</View>
-  );
-  // ── Divider ───────────────────────────────────────────────────────────────
-  const Divider = () => <View style={S.divider} />;
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -209,6 +164,8 @@ export default function BusinessSettingsScreen() {
                 label="Business Registration"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/businessRegistration' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
               <Divider />
               <SettingRow
@@ -216,6 +173,8 @@ export default function BusinessSettingsScreen() {
                 label="Delivery Settings"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/deliverySettings' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
               <Divider />
               <SettingRow
@@ -223,6 +182,8 @@ export default function BusinessSettingsScreen() {
                 label="Payout Methods"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/payout' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
               <Divider />
               <SettingRow
@@ -230,6 +191,8 @@ export default function BusinessSettingsScreen() {
                 label="Transaction History"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/transactions' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
             </SettingGroup>
             {/* Preferences */}
@@ -240,6 +203,8 @@ export default function BusinessSettingsScreen() {
                 label="Push Notifications"
                 disabled={!isBusinessVerified}
                 isToggle value={notificationsOn}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
               <Divider />
               <SettingRow
@@ -247,6 +212,8 @@ export default function BusinessSettingsScreen() {
                 label="Security & Privacy"
                 disabled={!isBusinessVerified}
                 onPress={() => {}}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
             </SettingGroup>
             {/* Support */}
@@ -257,6 +224,8 @@ export default function BusinessSettingsScreen() {
                 label="Help Center"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/helpCenter' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
               <Divider />
               <SettingRow
@@ -264,6 +233,8 @@ export default function BusinessSettingsScreen() {
                 label="Contact Support"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/contactUs' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
               />
             </SettingGroup>
             {/* Log out */}
@@ -288,7 +259,7 @@ const S = StyleSheet.create({
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {
     paddingHorizontal: rs(20),
-    paddingBottom: rs(90), 
+    paddingBottom: rs(90),
     position: 'relative',
     elevation: 10, shadowColor: C.navy,
     shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
@@ -420,3 +391,57 @@ const S = StyleSheet.create({
   logoutTxt: { fontSize: rf(15), fontFamily: 'Montserrat-Bold', color: '#EF4444' },
   version:   { textAlign: 'center', color: C.subtle, fontSize: rf(12), fontFamily: 'Montserrat-Regular', marginBottom: rs(10) },
 });
+
+// ── Module-level reusable components ──────────────────────────────────────────
+type SettingRowProps = Readonly<{
+  icon: any; iconColor: string; iconBg: string; label: string;
+  onPress?: () => void; value?: boolean; isToggle?: boolean; isDanger?: boolean;
+  disabled?: boolean;
+  onRestrictedAction: () => void;
+  onNotificationToggle: () => void;
+}>;
+
+const SettingRow = ({
+  icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false, disabled = false,
+  onRestrictedAction, onNotificationToggle,
+}: SettingRowProps) => {
+  const handlePress = isToggle ? undefined : (disabled ? onRestrictedAction : onPress);
+  return (
+    <TouchableOpacity
+      style={[S.settingRow, disabled && S.settingRowDisabled]}
+      onPress={handlePress}
+      activeOpacity={isToggle ? 1 : 0.72}
+    >
+      <View style={S.settingLeft}>
+        <View style={[S.settingIconWrap, { backgroundColor: disabled ? '#E2E8F0' : iconBg }]}>
+          <Ionicons name={icon} size={rs(18)} color={disabled ? C.subtle : iconColor} />
+        </View>
+        <Text style={[S.settingLabel, isDanger && { color: '#EF4444' }, disabled && { color: C.subtle }]}>{label}</Text>
+      </View>
+      {isToggle ? (
+        <Switch
+          value={value}
+          onValueChange={() => {
+            if (disabled) {
+              onRestrictedAction();
+              return;
+            }
+            onNotificationToggle();
+          }}
+          disabled={disabled}
+          trackColor={{ false: '#E2E8F0', true: C.navy }}
+          thumbColor="#fff"
+          ios_backgroundColor="#E2E8F0"
+        />
+      ) : (
+        <Ionicons name={disabled ? 'lock-closed-outline' : 'chevron-forward'} size={rs(16)} color={isDanger ? '#EF4444' : C.subtle} />
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const SettingGroup = ({ children }: Readonly<{ children: React.ReactNode }>) => (
+  <View style={S.group}>{children}</View>
+);
+
+const Divider = () => <View style={S.divider} />;

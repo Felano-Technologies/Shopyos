@@ -291,9 +291,10 @@ const verifyStore = async (req, res, next) => {
       userAgent: req.headers['user-agent']
     });
 
+    const storeStatusMessage = status === 'verified' ? 'approved' : status === 'rejected' ? 'rejected' : 'updated';
     res.status(200).json({
       success: true,
-      message: `Store ${status === 'verified' ? 'approved' : status === 'rejected' ? 'rejected' : 'updated'} successfully`,
+      message: `Store ${storeStatusMessage} successfully`,
       store
     });
   } catch (error) {

@@ -230,7 +230,7 @@ const ProductsScreen = () => {
 
   // ── Derived stats ─────────────────────────────────────────────────────────
   const totalProducts = products.length;
-  const portfolioValue = products.reduce((s, p) => s + (parseFloat(p.price) || 0) * (parseInt(p.stock) || 0), 0);
+  const portfolioValue = products.reduce((s, p) => s + (Number.parseFloat(p.price) || 0) * (Number.parseInt(p.stock) || 0), 0);
   const filteredProducts = products.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
   const ITEMS_PER_PAGE = 5;
@@ -276,9 +276,9 @@ const ProductsScreen = () => {
       if (!businessId) { Alert.alert('Error', 'No active business found'); return; }
 
       const productData = {
-        storeId: businessId, name, price: parseFloat(price),
-        compareAtPrice: compareAtPrice ? parseFloat(compareAtPrice) : null,
-        category, gender, stockQuantity: parseInt(stock), description, isActive,
+        storeId: businessId, name, price: Number.parseFloat(price),
+        compareAtPrice: compareAtPrice ? Number.parseFloat(compareAtPrice) : null,
+        category, gender, stockQuantity: Number.parseInt(stock), description, isActive,
         brand: attrBrand.trim() || null,
         attributes: buildAttributes({ material: attrMaterial, style: attrStyle, connectivity: attrConnectivity }),
         variantOptions: buildVariantOptions({ color: attrColor, size: attrSize }),
@@ -759,7 +759,7 @@ const ProductsScreen = () => {
                       <View style={S.productInfo}>
                         <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
                         <View style={S.productMeta}>
-                          <Text style={S.productPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
+                          <Text style={S.productPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
                           {isFashionCategory(item.category) && (
                             <View style={S.genderBadge}><Text style={S.genderBadgeTxt}>{item.gender}</Text></View>
                           )}
@@ -908,9 +908,9 @@ const ProductsScreen = () => {
               </TouchableOpacity>
             </View>
             <ScrollView showsVerticalScrollIndicator style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
-              {categories.map((cat, i) => (
+              {categories.map((cat) => (
                 <TouchableOpacity
-                  key={i}
+                  key={cat.id || cat.name}
                   style={S.catItem}
                   onPress={() => { setCategory(cat.name); setCategoryModal(false); }}
                 >

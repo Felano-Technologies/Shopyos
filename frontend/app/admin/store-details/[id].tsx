@@ -14,6 +14,29 @@ import { CustomInAppToast } from "@/components/InAppToastHost";
 import { getAdminStores, adminVerifyStore } from '@/services/api';
 import Skeleton from '@/components/Skeleton';
 const { width, height } = Dimensions.get('window');
+
+type DetailItemProps = { label: string; value?: string; icon: string; isLink?: boolean; onPress?: () => void };
+function DetailItem({ label, value, icon, isLink, onPress }: DetailItemProps) {
+    return (
+        <TouchableOpacity
+            style={styles.detailRow}
+            disabled={!isLink}
+            onPress={onPress}
+        >
+            <View style={styles.detailIconBg}>
+                <Feather name={icon as any} size={14} color={isLink ? "#3B82F6" : "#0C1559"} />
+            </View>
+            <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>{label}</Text>
+                <Text style={[styles.detailValue, isLink && styles.linkText]}>
+                    {value || 'N/A'}
+                </Text>
+            </View>
+            {isLink && <Feather name="external-link" size={12} color="#3B82F6" />}
+        </TouchableOpacity>
+    );
+}
+
 export default function StoreVerificationDetails() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -64,24 +87,6 @@ const handleContactMerchant = (email: string) => {
             CustomInAppToast.show({ type: 'error', title: 'Invalid URL', message: 'Could not open the website.' });
         });
     };
-    const DetailItem = ({ label, value, icon, isLink, onPress }: any) => (
-        <TouchableOpacity 
-            style={styles.detailRow} 
-            disabled={!isLink} 
-            onPress={onPress}
-        >
-            <View style={styles.detailIconBg}>
-                <Feather name={icon} size={14} color={isLink ? "#3B82F6" : "#0C1559"} />
-            </View>
-            <View style={{ flex: 1 }}>
-                <Text style={styles.detailLabel}>{label}</Text>
-                <Text style={[styles.detailValue, isLink && styles.linkText]}>
-                    {value || 'N/A'}
-                </Text>
-            </View>
-            {isLink && <Feather name="external-link" size={12} color="#3B82F6" />}
-        </TouchableOpacity>
-    );
     if (loading) {
         return (
             <View style={styles.container}>
@@ -183,8 +188,8 @@ const handleContactMerchant = (email: string) => {
                             if (docs.length === 0) {
                                 return <Text style={{ fontSize: 13, color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No verification documents uploaded.</Text>;
                             }
-                            return docs.map((doc, index) => (
-                                <TouchableOpacity key={index} style={styles.docCard} onPress={() => setViewingDoc(doc.url)}>
+                            return docs.map((doc) => (
+                                <TouchableOpacity key={doc.type} style={styles.docCard} onPress={() => setViewingDoc(doc.url)}>
                                     <MaterialCommunityIcons 
                                         name={doc.type === 'bank' ? 'bank' : 'file-certificate'} 
                                         size={32} color="#0C1559" 

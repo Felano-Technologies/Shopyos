@@ -32,52 +32,59 @@ const CITIES = [
   'Cape Coast', 'Sunyani', 'Koforidua', 'Ho', 'Wa', 'Bolgatanga'
 ];
 // --- REUSABLE FIELD COMPONENT ---
-const RegistrationField = ({ 
-  icon, 
-  library = "Ionicons", 
-  value, 
-  onChangeText, 
+function renderFieldIcon(icon: string, library: string) {
+  const color = "#64748B";
+  const size = 20;
+  if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={size} color={color} />;
+  if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={16} color={color} />;
+  if (library === "FontAwesome") return <FontAwesome name={icon} size={18} color={color} />;
+  if (library === "Feather") return <Feather name={icon} size={size} color={color} />;
+  return <Ionicons name={icon} size={size} color={color} />;
+}
+
+function getFieldDisplayValue(value: any, placeholder: string, isUpload: boolean, isMap: boolean, isDropdown: boolean): string {
+  if (isUpload) return value ? "Document Attached ✓" : placeholder;
+  if (isMap) return value ? "Coordinates Set ✓" : placeholder;
+  if (isDropdown && !value) return placeholder;
+  return value;
+}
+
+function getFieldTextColor(value: any, isUpload: boolean, isMap: boolean, isDropdown: boolean): string {
+  if (isUpload) return value ? "#16A34A" : "#94A3B8";
+  if (isMap) return value ? "#16A34A" : "#94A3B8";
+  if (isDropdown && !value) return "#94A3B8";
+  return '#0F172A';
+}
+
+function renderActionIcon(loading: boolean, isMap: boolean, isUpload: boolean, isAdd: boolean, value: any) {
+  if (loading) return <ActivityIndicator size="small" color="#0C1559" />;
+  if (isMap) return <MaterialCommunityIcons name="map-marker-outline" size={22} color={value ? "#16A34A" : "#0C1559"} />;
+  if (isUpload) return <Feather name={value ? "check" : "upload-cloud"} size={20} color={value ? "#16A34A" : "#0C1559"} />;
+  if (isAdd) return <Feather name="plus-circle" size={20} color="#0C1559" />;
+  return <Feather name="chevron-down" size={20} color="#94A3B8" />;
+}
+
+const RegistrationField = ({
+  icon,
+  library = "Ionicons",
+  value,
+  onChangeText,
   placeholder,
-  isPhone = false, 
-  isCountry = false, 
+  isPhone = false,
+  isCountry = false,
   isDropdown = false,
   isUpload = false,
   isAdd = false,
-  isMap = false, 
+  isMap = false,
   onAction,
   disabled = false,
-  loading = false 
+  loading = false
 }: any) => {
-  
-  const renderIcon = () => {
-    const color = "#64748B"; 
-    const size = 20;
-    if (library === "MaterialCommunityIcons") return <MaterialCommunityIcons name={icon} size={size} color={color} />;
-    if (library === "FontAwesome5") return <FontAwesome5 name={icon} size={16} color={color} />;
-    if (library === "FontAwesome") return <FontAwesome name={icon} size={18} color={color} />;
-    if (library === "Feather") return <Feather name={icon} size={size} color={color} />;
-    return <Ionicons name={icon} size={size} color={color} />;
-  };
-  let displayValue = value;
-  let textColor = '#0F172A';
-  if (isUpload) {
-      if (value) {
-          displayValue = "Document Attached ✓";
-          textColor = "#16A34A"; 
-      } else {
-          displayValue = placeholder;
-          textColor = "#94A3B8"; 
-      }
-  } else if (isMap) {
-      displayValue = value ? "Coordinates Set ✓" : placeholder;
-      textColor = value ? "#16A34A" : "#94A3B8";
-  } else if (isDropdown && !value) {
-      displayValue = placeholder;
-      textColor = "#94A3B8";
-  }
+  const displayValue = getFieldDisplayValue(value, placeholder, isUpload, isMap, isDropdown);
+  const textColor = getFieldTextColor(value, isUpload, isMap, isDropdown);
   return (
     <View style={styles.inputContainer}>
-      <View style={styles.inputIconBox}>{renderIcon()}</View>
+      <View style={styles.inputIconBox}>{renderFieldIcon(icon, library)}</View>
       <View style={styles.inputWrapper}>
         {isPhone && (
           <View style={styles.flagContainer}>
@@ -106,17 +113,7 @@ const RegistrationField = ({
       </View>
       {(isUpload || isAdd || isDropdown || isMap) && (
           <TouchableOpacity style={styles.actionBtn} onPress={onAction} disabled={loading}>
-              {loading ? (
-                  <ActivityIndicator size="small" color="#0C1559" />
-              ) : isMap ? (
-                  <MaterialCommunityIcons name="map-marker-outline" size={22} color={value ? "#16A34A" : "#0C1559"} />
-              ) : isUpload ? (
-                  <Feather name={value ? "check" : "upload-cloud"} size={20} color={value ? "#16A34A" : "#0C1559"} />
-              ) : isAdd ? (
-                  <Feather name="plus-circle" size={20} color="#0C1559" />
-              ) : (
-                  <Feather name="chevron-down" size={20} color="#94A3B8" />
-              )}
+              {renderActionIcon(loading, isMap, isUpload, isAdd, value)}
           </TouchableOpacity>
       )}
     </View>
@@ -342,7 +339,7 @@ export default function BusinessRegistrationScreen() {
                     {formData.storePhotos.length > 0 && (
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoList}>
                             {formData.storePhotos.map((uri: string, index: number) => (
-                                <View key={index} style={styles.photoThumbnailContainer}>
+                                <View key={uri || index} style={styles.photoThumbnailContainer}>
                                     <AppImage uri={uri} style={styles.photoThumbnail} />
                                     <TouchableOpacity style={styles.removePhotoBtn} onPress={() => removeStorePhoto(index)}><Ionicons name="close" size={12} color="#FFF" /></TouchableOpacity>
                                 </View>

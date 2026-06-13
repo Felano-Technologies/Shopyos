@@ -20,6 +20,16 @@ const DURATION_TIERS = [
   { days: 30, label: '1 Month', price: 50 },
 ];
 
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'Active': return { color: '#059669', bg: '#D1FAE5' };
+    case 'Pending': return { color: '#D97706', bg: '#FEF3C7' };
+    case 'Completed': return { color: '#64748B', bg: '#F1F5F9' };
+    case 'Rejected': return { color: '#DC2626', bg: '#FEE2E2' };
+    default: return { color: '#64748B', bg: '#F1F5F9' };
+  }
+}
+
 export default function PromotionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -28,7 +38,7 @@ export default function PromotionsScreen() {
   const [adTitle, setAdTitle] = useState('');
   const [duration, setDuration] = useState(DURATION_TIERS[1]); // default: 1 week
   const [bannerUri, setBannerUri] = useState<string | null>(null);
-  const [, setPaymentLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -67,15 +77,6 @@ export default function PromotionsScreen() {
   const handlePickImage = async () => {
     const uri = await showImagePicker({ allowsEditing: true, aspect: [10.8, 4], quality: 1 });
     if (uri) setBannerUri(uri);
-  };
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Active': return { color: '#059669', bg: '#D1FAE5' };
-      case 'Pending': return { color: '#D97706', bg: '#FEF3C7' };
-      case 'Completed': return { color: '#64748B', bg: '#F1F5F9' };
-      case 'Rejected': return { color: '#DC2626', bg: '#FEE2E2' };
-      default: return { color: '#64748B', bg: '#F1F5F9' };
-    }
   };
   const handleSubmit = () => {
     if (!adTitle || !bannerUri) return;
@@ -164,7 +165,7 @@ export default function PromotionsScreen() {
                 </View>
                 <View style={styles.statCard}>
                   <Feather name="pie-chart" size={20} color="#0C1559" />
-                  <Text style={styles.statValue}>₵{campaigns.reduce((acc, c) => (['Active', 'Completed'].includes(c.status) ? acc + parseFloat(c.paid_amount || 0) : acc), 0)}</Text>
+                  <Text style={styles.statValue}>₵{campaigns.reduce((acc, c) => (['Active', 'Completed'].includes(c.status) ? acc + Number.parseFloat(c.paid_amount || 0) : acc), 0)}</Text>
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>

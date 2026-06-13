@@ -32,6 +32,8 @@ const C = {
   subtle:  '#94A3B8',
 };
 
+const InventoryItemSeparator = () => <View style={{ height: rs(10) }} />;
+
 const CATEGORIES = ['All', 'Sneakers', 'Electronics', 'Clothing', 'Art'];
 const SORT_OPTIONS = ['name', 'stock', 'price'] as const;
 
@@ -47,7 +49,7 @@ const Inventory = () => {
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [selectedCat, setSelectedCat] = useState('All');
-  const [searchQuery,  setSearch]      = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [sortBy,       setSortBy]      = useState<'name' | 'stock' | 'price'>('name');
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
@@ -69,7 +71,7 @@ const Inventory = () => {
     category: p.category || 'General',
     sku:      p.sku || 'N/A',
     stock:    p.stockQuantity || 0,
-    price:    parseFloat(p.price),
+    price:    Number.parseFloat(p.price),
     lowStock: (p.stockQuantity || 0) < 10,
     image:    p.images?.length > 0 ? { uri: p.images[0] } : require('../../assets/images/icon.png'),
   }));
@@ -214,8 +216,8 @@ const Inventory = () => {
               { icon: 'layers-outline',color: '#059669', bg: '#D1FAE5', label: 'Stock',     value: totalStock },
               { icon: 'warning-outline',color:'#DC2626', bg: '#FEE2E2', label: 'Low Stock', value: lowCount   },
               { icon: 'cash-outline',  color: '#D97706', bg: '#FEF3C7', label: 'Value',     value: `₵${totalValue.toLocaleString()}` },
-            ].map((s, i) => (
-              <View key={i} style={S.statCard}>
+            ].map((s) => (
+              <View key={s.label} style={S.statCard}>
                 <View style={[S.statIcon, { backgroundColor: s.bg }]}>
                   <Ionicons name={s.icon as any} size={rs(18)} color={s.color} />
                 </View>
@@ -237,7 +239,7 @@ const Inventory = () => {
                 onChangeText={setSearch}
               />
               {searchQuery.length > 0 && (
-                <TouchableOpacity onPress={() => setSearch('')}>
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
                   <Ionicons name="close-circle" size={rs(16)} color={C.subtle} />
                 </TouchableOpacity>
               )}
@@ -283,19 +285,21 @@ const Inventory = () => {
           <View style={S.listWrap}>
             <Text style={S.listHeader}>Items ({sorted.length})</Text>
 
-            {isLoading ? (
+            {isLoading && (
               <View style={S.loadingWrap}>
                 <ActivityIndicator size="large" color={C.navy} />
               </View>
-            ) : sorted.length > 0 ? (
+            )}
+            {!isLoading && sorted.length > 0 && (
               <FlatList
                 data={sorted}
                 keyExtractor={(i) => i.id}
                 renderItem={renderItem}
                 scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={{ height: rs(10) }} />}
+                ItemSeparatorComponent={InventoryItemSeparator}
               />
-            ) : (
+            )}
+            {!isLoading && sorted.length === 0 && (
               <View style={S.emptyWrap}>
                 <View style={S.emptyCircle}>
                   <Ionicons name="cube-outline" size={rs(36)} color={C.navy} />

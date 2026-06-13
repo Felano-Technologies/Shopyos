@@ -63,7 +63,7 @@ export default function OrderDetailsScreen() {
         const mappedItems = (o.order_items || []).map((i: any) => ({
           id:       i._id || i.id,
           name:     i.product_title || 'Product',
-          price:    parseFloat(i.price || 0),
+          price:    Number.parseFloat(i.price || 0),
           quantity: i.quantity,
           image:    i.product?.product_images?.[0]?.image_url
             ? { uri: i.product.product_images[0].image_url }
@@ -92,11 +92,11 @@ export default function OrderDetailsScreen() {
           } : null,
           items: mappedItems,
           payment: {
-            subtotal:      parseFloat(o.subtotal || o.subtotal_amount || 0),
-            tax:           parseFloat(o.tax || 0),
-            deliveryFee:   parseFloat(o.delivery_fee || 0),
-            discount:      parseFloat(o.discount || 0),
-            total:         parseFloat(o.total_amount || 0),
+            subtotal:      Number.parseFloat(o.subtotal || o.subtotal_amount || 0),
+            tax:           Number.parseFloat(o.tax || 0),
+            deliveryFee:   Number.parseFloat(o.delivery_fee || 0),
+            discount:      Number.parseFloat(o.discount || 0),
+            total:         Number.parseFloat(o.total_amount || 0),
             method:        o.payments?.[0]?.payment_method || 'MoMo / Card',
             paymentStatus: o.payments?.[0]?.status || 'pending',
           },
@@ -176,7 +176,7 @@ export default function OrderDetailsScreen() {
       
       queryClient.invalidateQueries({ queryKey: queryKeys.business.all });
       
-      CustomInAppToast.show({ type: 'success', title: 'Status updated', message: `Order is now ${newStatus.replace(/_/g, ' ')}` });
+      CustomInAppToast.show({ type: 'success', title: 'Status updated', message: `Order is now ${newStatus.replaceAll('_', ' ')}` });
     } catch (e: any) {
       Alert.alert('Update failed', e.message);
     } finally {

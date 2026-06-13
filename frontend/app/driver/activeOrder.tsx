@@ -221,6 +221,14 @@ export default function ActiveOrderScreen() {
   }
   const buyerProfile = delivery.order?.buyer?.user_profiles;
   const storeDetails = delivery.order?.store;
+  const initialRegion = driverCoord
+    ? { ...driverCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+    : delivery.pickup_latitude
+    ? { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+    : undefined;
+  const etaDisplay = liveEta === null
+    ? `~ ${delivery.estimated_time || (step === 0 ? '5' : '15')} mins`
+    : liveEta < 1 ? 'Almost there!' : `~${liveEta} min${liveEta === 1 ? '' : 's'}`;
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -228,13 +236,7 @@ export default function ActiveOrderScreen() {
       <View style={styles.mapContainer}>
         <MapView
           style={styles.mapImage}
-          initialRegion={
-            driverCoord
-              ? { ...driverCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
-              : delivery?.pickup_latitude
-              ? { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
-              : undefined
-          }
+          initialRegion={initialRegion}
           showsUserLocation={false}
         >
           <UrlTile
@@ -250,7 +252,7 @@ export default function ActiveOrderScreen() {
               </View>
             </Marker>
           )}
-          {delivery?.pickup_latitude && (
+          {delivery.pickup_latitude && (
             <Marker
               coordinate={{ latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude }}
               title="Store"
@@ -260,7 +262,7 @@ export default function ActiveOrderScreen() {
               </View>
             </Marker>
           )}
-          {delivery?.delivery_latitude && (
+          {delivery.delivery_latitude && (
             <Marker
               coordinate={{ latitude: delivery.delivery_latitude, longitude: delivery.delivery_longitude }}
               title="Customer"
@@ -286,11 +288,7 @@ export default function ActiveOrderScreen() {
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
           <View style={styles.statusRow}>
             <Text style={styles.statusTitle}>{ORDER_STEPS[step]}</Text>
-            <Text style={styles.timeRemaining}>
-            {liveEta !== null
-              ? liveEta < 1 ? 'Almost there!' : `~${liveEta} min${liveEta === 1 ? '' : 's'}`
-              : `~ ${delivery?.estimated_time || (step === 0 ? '5' : '15')} mins`}
-          </Text>
+            <Text style={styles.timeRemaining}>{etaDisplay}</Text>
           </View>
           {/* Address Info */}
           <View style={styles.locationCard}>
@@ -415,7 +413,7 @@ export default function ActiveOrderScreen() {
           <View style={styles.orderSummary}>
             <Text style={styles.summaryTitle}>Order Details #{delivery.order?.order_number}</Text>
             {delivery.order?.order_items?.map((item: any, index: number) => (
-              <View key={index} style={styles.orderItem}>
+              <View key={item.id || String(index)} style={styles.orderItem}>
                 <Text style={styles.qty}>{item.quantity}x</Text>
                 <Text style={styles.itemName}>{item.product_title}</Text>
                 <Text style={styles.itemPrice}>₵{(Number(item.price || item.unit_price || 0) * item.quantity).toFixed(2)}</Text>

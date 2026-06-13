@@ -23,7 +23,7 @@ export default function MessagesScreen() {
  
   // Refresh when screen focuses 
   React.useEffect(() => {
-    refresh && refresh();
+    refresh?.();
   }, [refresh]);
 
   // --- NEW: Search and Filter States ---

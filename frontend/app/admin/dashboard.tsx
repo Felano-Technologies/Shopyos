@@ -195,7 +195,7 @@ export default function AdminDashboard() {
                 <TouchableOpacity
                   key={item.label}
                   style={styles.metricCardWrap}
-                  onPress={() => router.push(item.route as any)}
+                  onPress={() => router.push(item.route)}
                   activeOpacity={0.85}
                 >
                   <LinearGradient
@@ -206,7 +206,7 @@ export default function AdminDashboard() {
                   >
                     {/* Icon + Label row */}
                     <View style={styles.metricHeaderRow}>
-                      <Ionicons name={item.icon as any} size={14} color="#FFFFFF" />
+                      <Ionicons name={item.icon} size={14} color="#FFFFFF" />
                       <Text style={styles.metricLabel} numberOfLines={1}>
                         {item.label}
                       </Text>

@@ -39,7 +39,7 @@ const addToCart = async (req, res, next) => {
 
     // Resolve variant and effective price
     let effectivePrice = product.price;
-    let resolvedVariantId = null;
+    let resolvedVariantId = variantId || null;
     if (variantId) {
       const variant = await repositories.productVariants.findWithProduct(variantId);
       if (!variant || variant.product_id !== productId) {
@@ -50,7 +50,6 @@ const addToCart = async (req, res, next) => {
       }
       // Variant price overrides base price when set
       effectivePrice = variant.price ?? product.price;
-      resolvedVariantId = variantId;
     }
 
     // Check inventory if tracking is enabled

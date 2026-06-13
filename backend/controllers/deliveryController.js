@@ -253,6 +253,104 @@ const getDeliveryDetails = async (req, res, next) => {
   }
 };
 
+const _VALID_DELIVERY_STATUSES = [
+  'pending', 'assigned', 'picked_up', 'in_transit',
+  'delivered', 'failed', 'cancelled'
+];
+
+async function _notifyPickedUp(order, driverId, updatedDelivery, verificationPin) {
+  if (!order || order.buyer_id === driverId) return;
+  await notificationService.sendNotification({
+    userId: order.buyer_id,
+    type: 'order_picked_up',
+    title: 'Order Picked Up',
+    message: `Your order #${order.order_number} has been picked up. Give this PIN to the driver upon delivery: ${verificationPin}`,
+    relatedId: order.id,
+    relatedType: 'order',
+    data: { orderId: order.id, status: 'in_transit', verificationPin },
+    push: { data: { screen: 'order', orderId: order.id } }
+  });
+
+  const buyer = await repositories.users.findById(order.buyer_id);
+  if (buyer?.email) {
+    rabbitMQService.publishMessage('email', {
+      eventType: 'ORDER_PICKED_UP',
+      userId: order.buyer_id,
+      email: buyer.email,
+      templateData: { orderNumber: order.order_number, verificationPin }
+    });
+  }
+
+  const buyerProfile = await repositories.userProfiles.findByUserId(order.buyer_id);
+  const buyerPhone = order.delivery_phone || buyerProfile?.phone;
+  if (buyerPhone) {
+    rabbitMQService.publishMessage('sms', {
+      eventType: 'ORDER_PICKED_UP',
+      userId: order.buyer_id,
+      phone: buyerPhone,
+      templateData: { orderNumber: order.order_number, verificationPin }
+    });
+  }
+}
+
+async function _handlePickedUp(order, driverId, updatedDelivery) {
+  const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
+  await repositories.orders.db.from('orders')
+    .update({
+      status: 'in_transit',
+      verification_pin: verificationPin,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', updatedDelivery.order_id);
+  await _notifyPickedUp(order, driverId, updatedDelivery, verificationPin);
+}
+
+async function _handleDelivered(order, driverId, updatedDelivery) {
+  await repositories.orders.updateStatus(updatedDelivery.order_id, 'delivered');
+  if (!order || order.buyer_id === driverId) return;
+  await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
+  const buyer = await repositories.users.findById(order.buyer_id);
+  if (buyer?.email) {
+    rabbitMQService.publishMessage('email', {
+      eventType: 'ORDER_DELIVERED',
+      userId: order.buyer_id,
+      role: 'buyer',
+      email: buyer.email,
+      referenceId: order.id,
+      templateData: { orderId: order.order_number, amount: order.total_amount }
+    });
+  }
+}
+
+async function _handleFailedOrCancelled(order, driverId, status, updatedDelivery) {
+  if (!order || order.buyer_id === driverId) return;
+  const title = status === 'failed' ? 'Delivery Failed' : 'Delivery Cancelled';
+  await notificationService.sendNotification({
+    userId: order.buyer_id,
+    type: 'delivery_issue',
+    title,
+    message: `There was an issue with your order #${order.order_number}. Please contact support.`,
+    relatedId: updatedDelivery.id,
+    relatedType: 'delivery',
+    data: { orderId: order.id, deliveryId: updatedDelivery.id, status },
+    push: { data: { screen: 'order', orderId: order.id } }
+  });
+}
+
+async function _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery) {
+  if (status === 'picked_up') {
+    await _handlePickedUp(order, driverId, updatedDelivery);
+  } else if (status === 'in_transit') {
+    if (order && order.buyer_id !== driverId) {
+      await notificationService.sendOrderNotification(order.buyer_id, order, 'in_transit');
+    }
+  } else if (status === 'delivered') {
+    await _handleDelivered(order, driverId, updatedDelivery);
+  } else if (status === 'failed' || status === 'cancelled') {
+    await _handleFailedOrCancelled(order, driverId, status, updatedDelivery);
+  }
+}
+
 /**
  * @route   PUT /api/deliveries/:deliveryId/status
  * @desc    Update delivery status
@@ -264,21 +362,14 @@ const updateDeliveryStatus = async (req, res, next) => {
     const { status } = req.body;
     const driverId = req.user.id;
 
-    // Validate status
-    const validStatuses = [
-      'pending', 'assigned', 'picked_up', 'in_transit',
-      'delivered', 'failed', 'cancelled'
-    ];
-
-    if (!validStatuses.includes(status)) {
+    if (!_VALID_DELIVERY_STATUSES.includes(status)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid status',
-        validStatuses
+        validStatuses: _VALID_DELIVERY_STATUSES
       });
     }
 
-    // Verify driver owns delivery
     const isOwner = await repositories.deliveries.verifyDriverOwnership(deliveryId, driverId);
     if (!isOwner) {
       return res.status(403).json({
@@ -295,117 +386,10 @@ const updateDeliveryStatus = async (req, res, next) => {
       });
     }
 
-    // Update status
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
-
-    // Get order details for notifications
     const order = await repositories.orders.findById(updatedDelivery.order_id);
 
-    // Update order status based on delivery status
-    if (status === 'picked_up') {
-      // Generate 6-digit verification PIN
-      const verificationPin = Math.floor(100000 + Math.random() * 900000).toString();
-      
-      // Update order status and save PIN
-      await repositories.orders.db.from('orders')
-        .update({ 
-          status: 'in_transit', 
-          verification_pin: verificationPin,
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', updatedDelivery.order_id);
-
-      // Notify customer that order has been picked up and provide PIN
-      if (order && order.buyer_id !== driverId) {
-        await notificationService.sendNotification({
-          userId: order.buyer_id,
-          type: 'order_picked_up',
-          title: 'Order Picked Up',
-          message: `Your order #${order.order_number} has been picked up. Give this PIN to the driver upon delivery: ${verificationPin}`,
-          relatedId: order.id,
-          relatedType: 'order',
-          data: { 
-            orderId: order.id, 
-            status: 'in_transit',
-            verificationPin
-          },
-          push: { data: { screen: 'order', orderId: order.id } }
-        });
-
-        // Also send via Email/SMS queue
-        const buyer = await repositories.users.findById(order.buyer_id);
-        if (buyer?.email) {
-          rabbitMQService.publishMessage('email', {
-            eventType: 'ORDER_PICKED_UP',
-            userId: order.buyer_id,
-            email: buyer.email,
-            templateData: {
-              orderNumber: order.order_number,
-              verificationPin
-            }
-          });
-        }
-
-        const buyerProfile = await repositories.userProfiles.findByUserId(order.buyer_id);
-        const buyerPhone = order.delivery_phone || buyerProfile?.phone;
-        if (buyerPhone) {
-          rabbitMQService.publishMessage('sms', {
-            eventType: 'ORDER_PICKED_UP',
-            userId: order.buyer_id,
-            phone: buyerPhone,
-            templateData: {
-              orderNumber: order.order_number,
-              verificationPin
-            }
-          });
-        }
-      }
-    } else if (status === 'in_transit') {
-      // Notify customer that driver is on the way (if driver is not the buyer)
-      if (order && order.buyer_id !== driverId) {
-        await notificationService.sendOrderNotification(order.buyer_id, order, 'in_transit');
-      }
-    } else if (status === 'delivered') {
-      await repositories.orders.updateStatus(updatedDelivery.order_id, 'delivered');
-
-      // Notify customer that order has been delivered (if driver is not the buyer)
-      if (order && order.buyer_id !== driverId) {
-        await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
-
-        const buyer = await repositories.users.findById(order.buyer_id);
-        if (buyer?.email) {
-          rabbitMQService.publishMessage('email', {
-            eventType: 'ORDER_DELIVERED',
-            userId: order.buyer_id,
-            role: 'buyer',
-            email: buyer.email,
-            referenceId: order.id,
-            templateData: {
-              orderId: order.order_number,
-              amount: order.total_amount
-            }
-          });
-        }
-      }
-    } else if (status === 'failed' || status === 'cancelled') {
-      // Notify customer of delivery issue (if driver is not the buyer)
-      if (order && order.buyer_id !== driverId) {
-        await notificationService.sendNotification({
-          userId: order.buyer_id,
-          type: 'delivery_issue',
-          title: status === 'failed' ? 'Delivery Failed' : 'Delivery Cancelled',
-          message: `There was an issue with your order #${order.order_number}. Please contact support.`,
-          relatedId: updatedDelivery.id,
-          relatedType: 'delivery',
-          data: {
-            orderId: order.id,
-            deliveryId: updatedDelivery.id,
-            status: status
-          },
-          push: { data: { screen: 'order', orderId: order.id } }
-        });
-      }
-    }
+    await _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery);
 
     res.status(200).json({
       success: true,
@@ -656,7 +640,7 @@ const getDriverStats = async (req, res, next) => {
     const stats = await repositories.deliveries.getDriverStats(driverId, startDate, endDate);
 
     // Calculate earnings (placeholder: 15 per completed delivery)
-    const earnings = stats.completed * 15.0;
+    const earnings = stats.completed * 15;
 
     res.status(200).json({
       success: true,

@@ -172,10 +172,6 @@ class QueryBuilder {
     return this;
   }
 
-  then(resolve, reject) {
-    return this.execute().then(resolve, reject);
-  }
-
   _whereClause() {
     const clauses = [];
     const values = [];
@@ -249,6 +245,11 @@ class QueryBuilder {
     } catch (error) {
       return { data: null, error: toPgError(error) };
     }
+  }
+
+  // NOSONAR: intentional thenable — allows `await queryBuilder` throughout the codebase
+  then(resolve, reject) {
+    return this.execute().then(resolve, reject);
   }
 
   async _executeInsertUpsert(db) {

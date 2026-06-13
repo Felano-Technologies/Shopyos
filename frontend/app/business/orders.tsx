@@ -65,6 +65,22 @@ const MAP_STATUS = (s: string): { label: FilterType; color: string; bg: string; 
 
 const FILTERS: FilterType[] = ['All', 'Awaiting Payment', 'Processing', 'Delivered', 'Cancelled'];
 
+const OrderListSeparator = () => <View style={{ height: rs(12) }} />;
+
+const OrderListEmpty = ({ filter }: { filter: FilterType }) => (
+  <View style={S.emptyWrap}>
+    <View style={S.emptyCircle}>
+      <Feather name="inbox" size={rs(36)} color={C.navy} />
+    </View>
+    <Text style={S.emptyTitle}>No {filter === 'All' ? '' : filter} orders</Text>
+    <Text style={S.emptySub}>
+      {filter === 'All'
+        ? 'Orders from your store will appear here.'
+        : `You have no ${filter.toLowerCase()} orders right now.`}
+    </Text>
+  </View>
+);
+
 const OrdersScreen = () => {
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const insets = useSafeAreaInsets();
@@ -86,7 +102,7 @@ const OrdersScreen = () => {
       orderNumber:  o.order_number,
       customerName: o.buyer?.user_profiles?.full_name || 'Guest',
       itemsCount:   o.order_items?.length || 0,
-      totalAmount:  parseFloat(o.total_amount || 0),
+      totalAmount:  Number.parseFloat(o.total_amount || 0),
       date:         o.created_at,
       status:       o.status,
       displayStatus: MAP_STATUS(o.status).label,
@@ -166,19 +182,19 @@ const OrdersScreen = () => {
   };
 
   // Stats
-  const paidStatuses    = ['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit'];
-  const completedStatuses = ['delivered', 'completed'];
+  const paidStatuses    = new Set(['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit']);
+  const completedStatuses = new Set(['delivered', 'completed']);
   
   const earnedRevenue   = orders.reduce((s, o) => {
     const st = (o.status || '').toLowerCase();
-    if (completedStatuses.includes(st)) return s + o.totalAmount;
+    if (completedStatuses.has(st)) return s + o.totalAmount;
     if (st === 'refunded') return s - o.totalAmount;
     return s;
   }, 0);
 
   const pendingRevenue  = orders.reduce((s, o) => {
     const st = (o.status || '').toLowerCase();
-    if (paidStatuses.includes(st)) return s + o.totalAmount;
+    if (paidStatuses.has(st)) return s + o.totalAmount;
     return s;
   }, 0);
   const totalOrders     = orders.length;
@@ -389,20 +405,8 @@ const OrdersScreen = () => {
                 keyExtractor={(item) => item.id}
                 renderItem={renderOrder}
                 scrollEnabled={false}
-                ItemSeparatorComponent={() => <View style={{ height: rs(12) }} />}
-                ListEmptyComponent={() => (
-                  <View style={S.emptyWrap}>
-                    <View style={S.emptyCircle}>
-                      <Feather name="inbox" size={rs(36)} color={C.navy} />
-                    </View>
-                    <Text style={S.emptyTitle}>No {filter === 'All' ? '' : filter} orders</Text>
-                    <Text style={S.emptySub}>
-                      {filter === 'All'
-                        ? 'Orders from your store will appear here.'
-                        : `You have no ${filter.toLowerCase()} orders right now.`}
-                    </Text>
-                  </View>
-                )}
+                ItemSeparatorComponent={OrderListSeparator}
+                ListEmptyComponent={<OrderListEmpty filter={filter} />}
               />
             </View>
           </ScrollView>

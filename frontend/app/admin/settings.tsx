@@ -74,7 +74,7 @@ export default function AdminSettings() {
         const role = user?.role || user?.account_type || 'Super Administrator';
         const avatar = user?.avatar_url || user?.avatar || null;
         setProfileName(name);
-        setProfileRole(String(role).replace(/_/g, ' ').replace(/\b\w/g, (m: string) => m.toUpperCase()));
+        setProfileRole(String(role).replaceAll('_', ' ').replace(/\b\w/g, (m: string) => m.toUpperCase()));
         setProfileImage(avatar);
       } catch {
         // Keep defaults if profile fetch fails.

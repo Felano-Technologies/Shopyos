@@ -16,6 +16,7 @@ validateEnv();
 const { logger, httpLogMiddleware } = require('./config/logger');
 const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
 const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
+const { register } = require('./config/metrics');
 const { initializeSocketBridge } = require('./config/socketBridge');
 const { getPool } = require('./config/postgres');
 
@@ -157,14 +158,10 @@ app.get('/health', async (req, res) => {
   });
 });
 
-// Detailed metrics endpoint (for internal monitoring)
+// Prometheus metrics endpoint — scraped by Prometheus every 15s
 app.get('/metrics', async (req, res) => {
-  const appMetrics = getMetrics();
-  res.status(200).json({
-    success: true,
-    ...appMetrics,
-    redis: await redisHealthCheck()
-  });
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 app.get('/api/v1/system/logs', (req, res) => {

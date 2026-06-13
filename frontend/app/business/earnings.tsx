@@ -38,9 +38,9 @@ const RANGE_LABELS: Record<Range, string[]> = {
   Quarter: ['Q1', 'Q2', 'Q3'],
 };
 const EARNING_ITEMS = [
-  { id: 'e1', label: 'Orders', icon: 'cart-outline',      iconBg: '#DBEAFE', iconColor: '#1E40AF', amount: 30, value: 650.0,  trend: '+12%', up: true  },
+  { id: 'e1', label: 'Orders', icon: 'cart-outline',      iconBg: '#DBEAFE', iconColor: '#1E40AF', amount: 30, value: 650,    trend: '+12%', up: true  },
   { id: 'e2', label: 'Tips',   icon: 'gift-outline',      iconBg: '#DCFCE7', iconColor: '#15803D', amount: 12, value: 180.5,  trend: '+5%',  up: true  },
-  { id: 'e3', label: 'Refunds',icon: 'return-down-back',  iconBg: '#FEE2E2', iconColor: '#B91C1C', amount: 3,  value: -60.0,  trend: '-2%',  up: false },
+  { id: 'e3', label: 'Refunds',icon: 'return-down-back',  iconBg: '#FEE2E2', iconColor: '#B91C1C', amount: 3,  value: -60,    trend: '-2%',  up: false },
 ];
 const EarningsScreen = () => {
   const insets = useSafeAreaInsets();

@@ -34,6 +34,19 @@ const C = {
   subtle:  '#94A3B8',
 };
 
+function getTimeframeLabel(p: 'week' | 'month' | 'year'): string {
+  if (p === 'week') return 'Weekly';
+  if (p === 'month') return 'Monthly';
+  return 'Yearly';
+}
+
+function getRankBadgeColor(i: number, navyColor: string): string {
+  if (i === 0) return '#EAB308';
+  if (i === 1) return '#94A3B8';
+  if (i === 2) return '#B45309';
+  return navyColor;
+}
+
 // ─── Safe default — every field pre-filled so no access can ever be undefined ─
 const EMPTY_ANALYTICS = {
   chart: {
@@ -97,16 +110,15 @@ const Analytics = () => {
   };
 
   useEffect(() => {
-    if (!isLoading && isVerified) {
-      const timer = setTimeout(() => {
-        measureElement(refToggle, 'toggle');
-        measureElement(refTrend, 'trend');
-        measureElement(refStats, 'stats');
-        if (analytics.topProducts.length > 0) measureElement(refTopProducts, 'products');
-        startTour('business_analytics');
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
+    if (isLoading || !isVerified) return;
+    const timer = setTimeout(() => {
+      measureElement(refToggle, 'toggle');
+      measureElement(refTrend, 'trend');
+      measureElement(refStats, 'stats');
+      if (analytics.topProducts.length > 0) measureElement(refTopProducts, 'products');
+      startTour('business_analytics');
+    }, 1500);
+    return () => clearTimeout(timer);
   }, [isLoading, isVerified, analytics.topProducts.length, startTour]);
 
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
@@ -261,7 +273,7 @@ const Analytics = () => {
                     onPress={() => setTimeframe(p)}
                   >
                     <Text style={[S.toggleTxt, on && S.toggleTxtOn]}>
-                      {p === 'week' ? 'Weekly' : p === 'month' ? 'Monthly' : 'Yearly'}
+                      {getTimeframeLabel(p)}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -359,18 +371,13 @@ const Analytics = () => {
             <Text style={S.secTitle}>Top Products</Text>
             {analytics.topProducts.length > 0 ? (
               analytics.topProducts.map((p: any, i: number) => (
-                <View 
-                  key={i} 
+                <View
+                  key={p.name ?? i}
                   style={S.productCard}
                   ref={i === 0 ? refTopProducts : undefined}
                   onLayout={i === 0 ? () => measureElement(refTopProducts, 'products') : undefined}
                 >
-                  <View style={[S.rankBadge, {
-                    backgroundColor:
-                      i === 0 ? '#EAB308' :
-                      i === 1 ? '#94A3B8' :
-                      i === 2 ? '#B45309' : C.navy,
-                  }]}>
+                  <View style={[S.rankBadge, { backgroundColor: getRankBadgeColor(i, C.navy) }]}>
                     <Text style={S.rankTxt}>{i + 1}</Text>
                   </View>
                   <View style={{ flex: 1, marginLeft: rs(12) }}>

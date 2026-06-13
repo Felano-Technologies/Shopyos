@@ -59,7 +59,7 @@ const InputField = ({ label, icon, value, onChange, placeholder, required = fals
 const BusinessVerification = () => {
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
   const [loading, setLoading] = useState(false);
-  const [, setUploading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [details, setDetails] = useState<BusinessDetails>({
     ownerName: '',

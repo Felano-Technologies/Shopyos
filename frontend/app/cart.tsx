@@ -34,7 +34,7 @@ type SwipeableProps = {
   updateQuantity: (id: string, delta: number) => void;
 };
 
-function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: SwipeableProps) {
+function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<SwipeableProps>) {
   const translateX = useRef(new Animated.Value(0)).current;
   const SWIPE_THRESHOLD = -60;
 

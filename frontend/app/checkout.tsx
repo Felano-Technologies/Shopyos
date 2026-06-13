@@ -120,11 +120,11 @@ export default function CheckoutScreen() {
     })();
   }, [buyerCoords, cartItems, deliveryState]);
 
-  const tax = 1.00;
+  const tax = 1;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const pointsDiscount = usePoints ? loyaltyValue : 0;
-  const totalDiscount = parseFloat((promoDiscount + pointsDiscount).toFixed(2));
-  const total = parseFloat((subtotal + tax + deliveryFee - totalDiscount).toFixed(2));
+  const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
+  const total = Number.parseFloat((subtotal + tax + deliveryFee - totalDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
@@ -229,56 +229,7 @@ export default function CheckoutScreen() {
   };
 
 
-  const PaymentOption = ({ type, icon, label, sub }: { type: 'momo' | 'card'; icon: any; label: string; sub: string }) => {
-    const isSelected = paymentMethodType === type;
-    const filteredSaved = savedMethods.filter((m) => m.type === type);
-
-    return (
-      <View style={{ marginBottom: 12 }}>
-        <TouchableOpacity
-          style={[S.paymentOption, isSelected && S.paymentOptionSelected]}
-          onPress={() => {
-            setPaymentMethodType(type);
-            const def = filteredSaved.find((m) => m.is_default) || filteredSaved[0];
-            setSelectedMethodId(def?.id ?? null);
-          }}
-        >
-          <View style={[S.optionIcon, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-            <MaterialCommunityIcons name={icon} size={22} color={isSelected ? '#FFF' : C.navy} />
-          </View>
-          <View style={{ flex: 1, marginLeft: 14 }}>
-            <Text style={[S.optionLabel, isSelected && { color: '#FFF' }]}>{label}</Text>
-            <Text style={[S.optionSub, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
-          </View>
-          <View style={[S.radioOuter, isSelected && { borderColor: '#FFF' }]}>
-            {isSelected && <View style={S.radioInner} />}
-          </View>
-        </TouchableOpacity>
-
-        {isSelected && filteredSaved.length > 0 && (
-          <View style={S.savedBox}>
-            {filteredSaved.map((m) => (
-              <TouchableOpacity
-                key={m.id}
-                style={[S.savedItem, selectedMethodId === m.id && S.savedItemActive]}
-                onPress={() => setSelectedMethodId(m.id)}
-              >
-                <Ionicons
-                  name={selectedMethodId === m.id ? 'checkmark-circle' : 'ellipse-outline'}
-                  size={18}
-                  color={selectedMethodId === m.id ? '#A3E635' : C.muted}
-                />
-                <Text style={[S.savedTxt, selectedMethodId === m.id && S.savedTxtActive]}>
-                  {m.title} ({m.type === 'card' ? `**** ${m.identifier.slice(-4)}` : m.identifier})
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-      </View>
-    );
-  };
-
+  const showAddressNudge = !prefilled.address && !deliveryAddress;
   return (
     <View style={S.container}>
       <StatusBar style="light" />
@@ -482,7 +433,7 @@ export default function CheckoutScreen() {
                   ))}
                 </ScrollView>
               </View>
-              {!prefilled.address && !deliveryAddress && (
+              {showAddressNudge && (
                 <TouchableOpacity
                   style={S.profileNudge}
                   onPress={() => router.push('/settings/Account' as any)}
@@ -501,8 +452,16 @@ export default function CheckoutScreen() {
 
             {/* Payment Method */}
             <Text style={S.sectionTitle}>Payment Method</Text>
-            <PaymentOption type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money" />
-            <PaymentOption type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX" />
+            <PaymentOption
+              type="momo" icon="cellphone-nfc" label="Mobile Money" sub="MTN, Telecel, AT Money"
+              paymentMethodType={paymentMethodType} savedMethods={savedMethods}
+              selectedMethodId={selectedMethodId} onSelectType={setPaymentMethodType} onSelectMethodId={setSelectedMethodId}
+            />
+            <PaymentOption
+              type="card" icon="credit-card-outline" label="Bank Card" sub="Visa, Mastercard, AMEX"
+              paymentMethodType={paymentMethodType} savedMethods={savedMethods}
+              selectedMethodId={selectedMethodId} onSelectType={setPaymentMethodType} onSelectMethodId={setSelectedMethodId}
+            />
 
             {/* Status Messages for User */}
             {!isFetchingFee && isWithinRange === false && (
@@ -628,3 +587,69 @@ const S = StyleSheet.create({
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', elevation: 2 },
   toggleThumbOn: { alignSelf: 'flex-end' },
 });
+
+type PaymentOptionProps = Readonly<{
+  type: 'momo' | 'card';
+  icon: any;
+  label: string;
+  sub: string;
+  paymentMethodType: 'momo' | 'card';
+  savedMethods: any[];
+  selectedMethodId: string | null;
+  onSelectType: (type: 'momo' | 'card') => void;
+  onSelectMethodId: (id: string | null) => void;
+}>;
+
+const PaymentOption = ({
+  type, icon, label, sub,
+  paymentMethodType, savedMethods, selectedMethodId,
+  onSelectType, onSelectMethodId,
+}: PaymentOptionProps) => {
+  const isSelected = paymentMethodType === type;
+  const filteredSaved = savedMethods.filter((m) => m.type === type);
+
+  return (
+    <View style={{ marginBottom: 12 }}>
+      <TouchableOpacity
+        style={[S.paymentOption, isSelected && S.paymentOptionSelected]}
+        onPress={() => {
+          onSelectType(type);
+          const def = filteredSaved.find((m) => m.is_default) || filteredSaved[0];
+          onSelectMethodId(def?.id ?? null);
+        }}
+      >
+        <View style={[S.optionIcon, isSelected && { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+          <MaterialCommunityIcons name={icon} size={22} color={isSelected ? '#FFF' : C.navy} />
+        </View>
+        <View style={{ flex: 1, marginLeft: 14 }}>
+          <Text style={[S.optionLabel, isSelected && { color: '#FFF' }]}>{label}</Text>
+          <Text style={[S.optionSub, isSelected && { color: 'rgba(255,255,255,0.7)' }]}>{sub}</Text>
+        </View>
+        <View style={[S.radioOuter, isSelected && { borderColor: '#FFF' }]}>
+          {isSelected && <View style={S.radioInner} />}
+        </View>
+      </TouchableOpacity>
+
+      {isSelected && filteredSaved.length > 0 && (
+        <View style={S.savedBox}>
+          {filteredSaved.map((m) => (
+            <TouchableOpacity
+              key={m.id}
+              style={[S.savedItem, selectedMethodId === m.id && S.savedItemActive]}
+              onPress={() => onSelectMethodId(m.id)}
+            >
+              <Ionicons
+                name={selectedMethodId === m.id ? 'checkmark-circle' : 'ellipse-outline'}
+                size={18}
+                color={selectedMethodId === m.id ? '#A3E635' : C.muted}
+              />
+              <Text style={[S.savedTxt, selectedMethodId === m.id && S.savedTxtActive]}>
+                {m.title} ({m.type === 'card' ? `**** ${m.identifier.slice(-4)}` : m.identifier})
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+};

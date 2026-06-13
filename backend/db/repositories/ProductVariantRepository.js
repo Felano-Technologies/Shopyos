@@ -81,8 +81,8 @@ class ProductVariantRepository extends BaseRepository {
           productId,
           v.sku || null,
           JSON.stringify(attrs),
-          v.price != null ? Number.parseFloat(v.price) : null,
-          v.compare_at_price != null ? Number.parseFloat(v.compare_at_price) : null,
+          v.price == null ? null : Number.parseFloat(v.price),
+          v.compare_at_price == null ? null : Number.parseFloat(v.compare_at_price),
           Number.parseInt(v.stock_quantity) || 0,
           v.image_url || null
         ]

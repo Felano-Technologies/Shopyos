@@ -62,7 +62,8 @@ export default function AdminBuyers() {
         if (searchQuery.trim()) params.search = searchQuery.trim();
 
         const res = await getAdminUsers(params);
-        const data = Array.isArray(res?.users) ? res.users : Array.isArray(res) ? res : [];
+        const fallbackData = Array.isArray(res) ? res : [];
+        const data = Array.isArray(res?.users) ? res.users : fallbackData;
         setBuyers(data);
       } catch (error: any) {
         CustomInAppToast.show({

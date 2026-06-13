@@ -31,7 +31,7 @@ export default function PayoutScreen() {
   useEffect(() => {
     if (activeBusiness) {
       const store = activeBusiness;
-      setBalance(parseFloat(store.current_balance || 0));
+      setBalance(Number.parseFloat(store.current_balance || 0));
       setHasPayoutMethod(!!store.payout_method);
       fetchHistory(store._id);
     }
@@ -54,7 +54,7 @@ export default function PayoutScreen() {
     if (!activeBusiness) return;
     setRefreshing(true);
     try {
-      setBalance(parseFloat(activeBusiness.current_balance || 0));
+      setBalance(Number.parseFloat(activeBusiness.current_balance || 0));
       setHasPayoutMethod(!!activeBusiness.payout_method);
       await fetchHistory(activeBusiness._id);
     } finally {
@@ -72,7 +72,7 @@ export default function PayoutScreen() {
           <Text style={styles.historyStatus}>{item.status.toUpperCase()}</Text>
         </View>
       </View>
-      <Text style={styles.historyAmount}>₵{parseFloat(item.amount).toFixed(2)}</Text>
+      <Text style={styles.historyAmount}>₵{Number.parseFloat(item.amount).toFixed(2)}</Text>
     </View>
   );
   if (isChecking || isLoadingBusinesses || loading) {

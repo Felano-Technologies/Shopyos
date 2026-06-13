@@ -27,8 +27,8 @@ const ReviewsScreen = () => {
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [, setLoading] = useState(true);
-  const [, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { isVerified } = useSellerGuard();
   const { activeBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
@@ -90,7 +90,7 @@ const ReviewsScreen = () => {
                 <Text style={[styles.reviewerName, { color: primaryText }]}>{item.customerName}</Text>
                 <View style={styles.ratingRow}>
                   {Array.from({ length: item.rating }).map((_, i) => (
-                    <Ionicons key={i} name="star" size={16} color="#FACC15" />
+                    <Ionicons key={`star-${i}`} name="star" size={16} color="#FACC15" />
                   ))}
                 </View>
               </View>

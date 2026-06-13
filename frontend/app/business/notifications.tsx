@@ -51,6 +51,18 @@ const getIcon = (type: string) => {
   return ICON_CFG[t] ?? ICON_CFG.info;
 };
 
+function NotificationsEmpty() {
+  return (
+    <View style={S.emptyWrap}>
+      <View style={S.emptyCircle}>
+        <Feather name="bell-off" size={rs(34)} color={C.navy} />
+      </View>
+      <Text style={S.emptyTitle}>All caught up</Text>
+      <Text style={S.emptySub}>No notifications right now. Check back later.</Text>
+    </View>
+  );
+}
+
 export default function NotificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -232,15 +244,7 @@ export default function NotificationsScreen() {
             contentContainerStyle={[S.listContent, { paddingBottom: rs(40) + insets.bottom }]}
             stickySectionHeadersEnabled={false}
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={() => (
-              <View style={S.emptyWrap}>
-                <View style={S.emptyCircle}>
-                  <Feather name="bell-off" size={rs(34)} color={C.navy} />
-                </View>
-                <Text style={S.emptyTitle}>All caught up</Text>
-                <Text style={S.emptySub}>No notifications right now. Check back later.</Text>
-              </View>
-            )}
+            ListEmptyComponent={NotificationsEmpty}
           />
         )}
       </SafeAreaView>
