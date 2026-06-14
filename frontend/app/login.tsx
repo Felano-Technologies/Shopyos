@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import React, {  useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions , Appearance } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -9,76 +9,60 @@ import { loginUser } from '@/services/api';
 import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
 
+async function getDeviceLocation(): Promise<{ latitude: number; longitude: number }> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3000));
+      const location: any = await Promise.race([locationPromise, timeoutPromise]);
+      if (location?.coords) {
+        return { latitude: location.coords.latitude, longitude: location.coords.longitude };
+      }
+    }
+  } catch {
+    console.log('Location access denied or unavailable');
+  }
+  return { latitude: 0, longitude: 0 };
+}
+
+function navigateByRole(role: string | undefined) {
+  const userRole = role?.toLowerCase();
+  if (userRole === 'customer' || userRole === 'buyer') {
+    router.push('/home');
+  } else if (userRole === 'seller') {
+    router.push('/business/dashboard');
+  } else if (userRole === 'driver') {
+    router.push('/driver');
+  } else if (userRole === 'admin') {
+    router.push('/admin/dashboard');
+  }
+}
+
 const LoginScreen = () => {
   const { refresh } = useOnboarding();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Handle Sign In
   const handleLogin = async () => {
     try {
       setLoading(true);
-      // Get device location
-      let latitude = 0;
-      let longitude = 0;
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status === 'granted') {
-          // Add a 3-second timeout to prevent the app from hanging forever if GPS is slow
-          const locationPromise = Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 3000));
-          
-          const location: any = await Promise.race([locationPromise, timeoutPromise]);
-          if (location && location.coords) {
-            latitude = location.coords.latitude;
-            longitude = location.coords.longitude;
-          }
-        }
-      } catch {
-        console.log('Location access denied or unavailable');
-      }
+      const { latitude, longitude } = await getDeviceLocation();
       const response = await loginUser(email, password, latitude, longitude);
-      if (response.message === "Login successful") {
-        CustomInAppToast.show({
-          type: 'success',
-          title: 'Login Successful 😊',
-          message: 'Welcome back! 🎉',
-        });
-        
-        // Refresh onboarding state for the newly logged-in user
+      if (response.message === 'Login successful') {
+        CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
         await refresh();
-        
-        // Check if user needs to select a role (using the needsRole flag from API)
         if (response.needsRole) {
-          // User has no role assigned, redirect to role selection
           router.push('/role');
         } else {
-          // User has a role, proceed with normal navigation
-          const userRole = response.role?.toLowerCase();
-          if (userRole === 'customer' || userRole === 'buyer') {
-            router.push("/home");
-          } else if (userRole === 'seller') {
-            router.push("/business/dashboard");
-          } else if (userRole === 'driver') {
-            router.push("/driver");
-          } else if (userRole === 'admin') {
-            router.push("/admin/dashboard");
-          }
+          navigateByRole(response.role);
         }
       } else {
-        CustomInAppToast.show({
-          type: 'error',
-          title: 'Login Failed ❌',
-          message: response.message || 'Please try again.',
-        });
+        CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
       }
     } catch (error: any) {
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Sign In Failed ⚠️',
-        message: error.message || 'Something went wrong.',
-      });
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error.message || 'Something went wrong.' });
     } finally {
       setLoading(false);
     }

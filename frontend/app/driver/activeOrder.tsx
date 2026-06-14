@@ -221,14 +221,21 @@ export default function ActiveOrderScreen() {
   }
   const buyerProfile = delivery.order?.buyer?.user_profiles;
   const storeDetails = delivery.order?.store;
-  const initialRegion = driverCoord
-    ? { ...driverCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
-    : delivery.pickup_latitude
-    ? { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
-    : undefined;
-  const etaDisplay = liveEta === null
-    ? `~ ${delivery.estimated_time || (step === 0 ? '5' : '15')} mins`
-    : liveEta < 1 ? 'Almost there!' : `~${liveEta} min${liveEta === 1 ? '' : 's'}`;
+  let initialRegion: { latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number } | undefined;
+  if (driverCoord) {
+    initialRegion = { ...driverCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+  } else if (delivery.pickup_latitude) {
+    initialRegion = { latitude: delivery.pickup_latitude, longitude: delivery.pickup_longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 };
+  }
+  let etaDisplay: string;
+  if (liveEta === null) {
+    const defaultTime = step === 0 ? '5' : '15';
+    etaDisplay = `~ ${delivery.estimated_time || defaultTime} mins`;
+  } else if (liveEta < 1) {
+    etaDisplay = 'Almost there!';
+  } else {
+    etaDisplay = `~${liveEta} min${liveEta === 1 ? '' : 's'}`;
+  }
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -399,7 +406,7 @@ export default function ActiveOrderScreen() {
                 <TextInput
                   style={styles.pinInput}
                   value={pinCode}
-                  onChangeText={(val) => setPinCode(val.replace(/[^0-9]/g, ''))}
+                  onChangeText={(val) => setPinCode(val.replace(/\D/g, ''))}
                   placeholder="• • • • • •"
                   placeholderTextColor="#94A3B8"
                   maxLength={6}

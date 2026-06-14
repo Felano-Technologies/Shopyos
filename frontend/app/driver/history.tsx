@@ -34,7 +34,7 @@ export default function DriverHistory() {
           date: new Date(d.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }),
           time: new Date(d.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }),
           restaurant: d.order?.store?.store_name || d.pickup_address || 'Unknown Store',
-          earnings: d.status === 'delivered' ? Number(d.delivery_fee || 15.0) : 0,
+          earnings: d.status === 'delivered' ? Number(d.delivery_fee || 15) : 0,
           status: d.status.charAt(0).toUpperCase() + d.status.slice(1).replace('_', ' '),
           orderId: `#${d.order?.order_number || 'N/A'}`
         })));
@@ -59,15 +59,31 @@ export default function DriverHistory() {
     const isCancelled = item.status.toLowerCase().includes('cancel') || item.status.toLowerCase().includes('fail');
     const isCompleted = item.status.toLowerCase() === 'delivered' || item.status.toLowerCase() === 'completed';
 
+    let badgeStyle: object;
+    if (isCompleted) {
+      badgeStyle = styles.statusCompleted;
+    } else if (isCancelled) {
+      badgeStyle = styles.statusCancelled;
+    } else {
+      badgeStyle = { backgroundColor: '#E2E8F0' };
+    }
+    let textStyle: object;
+    if (isCompleted) {
+      textStyle = styles.textCompleted;
+    } else if (isCancelled) {
+      textStyle = styles.textCancelled;
+    } else {
+      textStyle = { color: '#64748B' };
+    }
     return (
       <TouchableOpacity style={styles.card} activeOpacity={0.7}>
         {/* Top Row: Icon + Restaurant + Price */}
         <View style={styles.cardTop}>
             <View style={styles.iconBox}>
-                <MaterialIcons 
-                    name={isCancelled ? "cancel" : "restaurant"} 
-                    size={20} 
-                    color={isCancelled ? "#EF4444" : "#0C1559"} 
+                <MaterialIcons
+                    name={isCancelled ? "cancel" : "restaurant"}
+                    size={20}
+                    color={isCancelled ? "#EF4444" : "#0C1559"}
                 />
             </View>
             <View style={{ flex: 1 }}>
@@ -89,8 +105,8 @@ export default function DriverHistory() {
                 <Text style={styles.timestamp}>{item.date} • {item.time}</Text>
             </View>
 
-            <View style={[styles.statusBadge, isCompleted ? styles.statusCompleted : (isCancelled ? styles.statusCancelled : { backgroundColor: '#E2E8F0' })]}>
-                <Text style={[styles.statusText, isCompleted ? styles.textCompleted : (isCancelled ? styles.textCancelled : { color: '#64748B' })]}>
+            <View style={[styles.statusBadge, badgeStyle]}>
+                <Text style={[styles.statusText, textStyle]}>
                     {item.status}
                 </Text>
             </View>

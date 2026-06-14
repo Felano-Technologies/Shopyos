@@ -23,7 +23,7 @@ const CARD_WIDTH = (width - 44) / 2;
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-function ProductCard({ item, onPress, onAddToCart }: { item: any; onPress: () => void; onAddToCart: () => void }) {
+function ProductCard({ item, onPress, onAddToCart }: Readonly<{ item: any; onPress: () => void; onAddToCart: () => void }>) {
   return (
     <TouchableOpacity style={S.card} activeOpacity={0.9} onPress={onPress}>
       <View style={S.imageContainer}>
@@ -81,7 +81,7 @@ function GridSkeleton() {
   return (
     <View style={S.skeletonGrid}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <Animated.View key={i} style={[S.skeletonCard, { opacity }]}>
+        <Animated.View key={'sk-' + i} style={[S.skeletonCard, { opacity }]}>
           <View style={S.skeletonImg} />
           <View style={S.skeletonLine} />
           <View style={[S.skeletonLine, { width: '60%' }]} />
@@ -101,7 +101,7 @@ export default function ForYouScreen() {
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
   const { data: personalized, isLoading: loadingPersonalized, refetch: refetchPersonalized } = usePersonalizedRecommendations();
-  const { data: trending, isLoading: loadingTrending, refetch: refetchTrending } = useTrendingRecommendations(undefined);
+  const { data: trending, refetch: refetchTrending } = useTrendingRecommendations();
 
   const isLoading = loadingPersonalized;
   const source: string = personalized?.source || trending?.source || 'trending';

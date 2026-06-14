@@ -18,6 +18,7 @@ jest.mock('../../config/logger', () => ({
 function mockReq(overrides = {}) {
   return {
     method: 'GET',
+    path: '/api/v1/products',
     originalUrl: '/api/v1/products',
     ip: '127.0.0.1',
     requestId: 'test-req-id',

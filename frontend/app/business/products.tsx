@@ -185,7 +185,7 @@ const ProductsScreen = () => {
           description: p.description || '',
           category: p.category || '',
           gender: p.gender || 'Unisex',
-          compareAtPrice: p.compareAtPrice != null ? p.compareAtPrice.toString() : '',
+          compareAtPrice: p.compareAtPrice == null ? '' : p.compareAtPrice.toString(),
         })));
       }
     } catch (e) { console.error('Failed to fetch products', e); }
@@ -743,43 +743,15 @@ const ProductsScreen = () => {
                   scrollEnabled={false}
                   ItemSeparatorComponent={() => <View style={{ height: rs(10) }} />}
                   renderItem={({ item, index }) => (
-                    <View 
-                      style={S.productRow}
-                      ref={index === 0 ? refFirstItem : undefined}
-                      onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
-                    >
-                      {item.image ? (
-                        <AppImage uri={item.image} style={S.productImg} />
-                      ) : (
-                        <View style={[S.productImg, S.productImgFallback]}>
-                          <Feather name="package" size={rs(18)} color={C.muted} />
-                        </View>
-                      )}
-
-                      <View style={S.productInfo}>
-                        <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
-                        <View style={S.productMeta}>
-                          <Text style={S.productPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
-                          {isFashionCategory(item.category) && (
-                            <View style={S.genderBadge}><Text style={S.genderBadgeTxt}>{item.gender}</Text></View>
-                          )}
-                          <View style={[S.activeDot, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
-                          <Text style={[S.activeTxt, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
-                            {item.isActive ? 'Active' : 'Inactive'}
-                          </Text>
-                        </View>
-                        <Text style={S.productStock}>Stock: {item.stock}</Text>
-                      </View>
-
-                      <View style={S.productActions}>
-                        <TouchableOpacity style={S.actionBtn} onPress={() => handleEditPress(item)} disabled={isSubmitting}>
-                          <Feather name="edit-2" size={rs(15)} color={C.muted} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[S.actionBtn, S.deleteBtn]} onPress={() => removeProduct(item.id)} disabled={isSubmitting}>
-                          <Feather name="trash-2" size={rs(15)} color="#EF4444" />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
+                    <ProductRow
+                      item={item}
+                      index={index}
+                      refFirstItem={refFirstItem}
+                      measureElement={measureElement}
+                      handleEditPress={handleEditPress}
+                      removeProduct={removeProduct}
+                      isSubmitting={isSubmitting}
+                    />
                   )}
                 />
 
@@ -1346,5 +1318,55 @@ const S = StyleSheet.create({
     marginLeft: rs(12),
   },
 });
+
+type ProductRowProps = Readonly<{
+  item: any;
+  index: number;
+  refFirstItem: React.RefObject<View>;
+  measureElement: (ref: any, key: string) => void;
+  handleEditPress: (item: any) => void;
+  removeProduct: (id: string) => void;
+  isSubmitting: boolean;
+}>;
+
+const ProductRow = ({ item, index, refFirstItem, measureElement, handleEditPress, removeProduct, isSubmitting }: ProductRowProps) => (
+  <View
+    style={S.productRow}
+    ref={index === 0 ? refFirstItem : undefined}
+    onLayout={index === 0 ? () => measureElement(refFirstItem, 'list') : undefined}
+  >
+    {item.image ? (
+      <AppImage uri={item.image} style={S.productImg} />
+    ) : (
+      <View style={[S.productImg, S.productImgFallback]}>
+        <Feather name="package" size={rs(18)} color={C.muted} />
+      </View>
+    )}
+
+    <View style={S.productInfo}>
+      <Text style={S.productName} numberOfLines={1}>{item.name}</Text>
+      <View style={S.productMeta}>
+        <Text style={S.productPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+        {isFashionCategory(item.category) && (
+          <View style={S.genderBadge}><Text style={S.genderBadgeTxt}>{item.gender}</Text></View>
+        )}
+        <View style={[S.activeDot, { backgroundColor: item.isActive ? '#15803D' : '#EF4444' }]} />
+        <Text style={[S.activeTxt, { color: item.isActive ? '#15803D' : '#EF4444' }]}>
+          {item.isActive ? 'Active' : 'Inactive'}
+        </Text>
+      </View>
+      <Text style={S.productStock}>Stock: {item.stock}</Text>
+    </View>
+
+    <View style={S.productActions}>
+      <TouchableOpacity style={S.actionBtn} onPress={() => handleEditPress(item)} disabled={isSubmitting}>
+        <Feather name="edit-2" size={rs(15)} color={C.muted} />
+      </TouchableOpacity>
+      <TouchableOpacity style={[S.actionBtn, S.deleteBtn]} onPress={() => removeProduct(item.id)} disabled={isSubmitting}>
+        <Feather name="trash-2" size={rs(15)} color="#EF4444" />
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 export default ProductsScreen;

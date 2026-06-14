@@ -48,13 +48,13 @@ const GetStartedScreen = () => {
         contentContainerStyle={styles.carousel}
       >
         {carouselImages.map((img, index) => (
-          <AppImage key={index} source={img} style={styles.carouselImage} />
+          <AppImage key={'slide-' + index} source={img} style={styles.carouselImage} />
         ))}
       </Animated.ScrollView>
       {/* Indicator Dots */}
       <View style={styles.dotsContainer}>
         {carouselImages.map((_, i) => (
-          <View key={i} style={[styles.dot]} />
+          <View key={'dot-' + i} style={[styles.dot]} />
         ))}
       </View>
       <Text style={styles.subtitle}>

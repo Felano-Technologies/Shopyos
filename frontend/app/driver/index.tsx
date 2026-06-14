@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useRouter, Stack } from 'expo-router';

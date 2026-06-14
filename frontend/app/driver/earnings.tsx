@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,7 +32,7 @@ export default function DriverEarnings() {
           id: d.id || d._id,
           title: `Delivery #${d.order?.order_number || 'N/A'}`,
           time: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          amount: d.status === 'delivered' ? (d.delivery_fee || 15.0) : 0,
+          amount: d.status === 'delivered' ? (d.delivery_fee || 15) : 0,
           type: d.status === 'delivered' ? 'credit' : 'debit'
         })));
       }
@@ -114,7 +114,7 @@ export default function DriverEarnings() {
                     // If no data today, make all bars zero height to show "empty" state
                     const barHeight = stats.total > 0 ? (80 * factor) : 4; 
                     return (
-                        <View key={index} style={styles.barContainer}>
+                        <View key={String(factor)} style={styles.barContainer}>
                             <View style={[
                                 styles.bar, 
                                 { height: barHeight, opacity: stats.total > 0 ? 1 : 0.2 }
