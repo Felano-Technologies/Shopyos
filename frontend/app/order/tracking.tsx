@@ -23,6 +23,22 @@ const { height } = Dimensions.get('window');
 
 type Coord = { latitude: number; longitude: number };
 
+async function computeAndSetRoute(
+  from: Coord,
+  customerCoord: Coord,
+  lastRef: React.MutableRefObject<Coord | null>,
+  setRouteCoords: (coords: Coord[]) => void,
+  setEtaMinutes: (mins: number) => void,
+) {
+  if (lastRef.current && haversineMetres(lastRef.current, from) < 50) return;
+  lastRef.current = from;
+  const result = await fetchDrivingRoute(from, customerCoord);
+  if (result) {
+    setRouteCoords(result.coords);
+    setEtaMinutes(Math.round(result.durationSecs / 60));
+  }
+}
+
 export default function OrderTrackingMap() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -41,12 +57,12 @@ export default function OrderTrackingMap() {
 
   const customerCoord: Coord | null =
     params.deliveryLatitude && params.deliveryLongitude
-      ? { latitude: parseFloat(params.deliveryLatitude as string), longitude: parseFloat(params.deliveryLongitude as string) }
+      ? { latitude: Number.parseFloat(params.deliveryLatitude as string), longitude: Number.parseFloat(params.deliveryLongitude as string) }
       : null;
 
   const storeCoord: Coord | null =
     params.storeLatitude && params.storeLongitude
-      ? { latitude: parseFloat(params.storeLatitude as string), longitude: parseFloat(params.storeLongitude as string) }
+      ? { latitude: Number.parseFloat(params.storeLatitude as string), longitude: Number.parseFloat(params.storeLongitude as string) }
       : null;
 
   const hasDriver = !!driverName;
@@ -68,16 +84,7 @@ export default function OrderTrackingMap() {
 
   const updateRoute = useCallback(async (from: Coord) => {
     if (!customerCoord) return;
-    if (
-      lastRouteFetchCoord.current &&
-      haversineMetres(lastRouteFetchCoord.current, from) < 50
-    ) return;
-    lastRouteFetchCoord.current = from;
-    const result = await fetchDrivingRoute(from, customerCoord);
-    if (result) {
-      setRouteCoords(result.coords);
-      setEtaMinutes(Math.round(result.durationSecs / 60));
-    }
+    await computeAndSetRoute(from, customerCoord, lastRouteFetchCoord, setRouteCoords, setEtaMinutes);
   }, [customerCoord]);
 
   // Seed initial driver position via TanStack Query (staleTime avoids re-fetch on quick remount)
@@ -96,33 +103,39 @@ export default function OrderTrackingMap() {
     }
   }, [seedData, updateRoute]);
 
+  const handleLocationUpdate = useCallback((data: any) => {
+    if (data.deliveryId !== deliveryId) return;
+    const coord: Coord = { latitude: data.latitude, longitude: data.longitude };
+    setDriverCoord(coord);
+    updateRoute(coord);
+  }, [deliveryId, updateRoute]);
+
   // Live socket updates
   useEffect(() => {
     if (!deliveryId) return;
     let mounted = true;
-
     socketService.connect().then((socket) => {
       if (!mounted) return;
-      socket.on('delivery:location_update', (data: any) => {
-        if (data.deliveryId !== deliveryId) return;
-        const coord: Coord = { latitude: data.latitude, longitude: data.longitude };
-        setDriverCoord(coord);
-        updateRoute(coord);
-      });
+      socket.on('delivery:location_update', handleLocationUpdate);
     });
-
     return () => {
       mounted = false;
       socketService.getSocket()?.off('delivery:location_update');
     };
-  }, [deliveryId, updateRoute]);
+  }, [deliveryId, handleLocationUpdate]);
 
-  const etaLabel =
-    etaMinutes === null
-      ? null
-      : etaMinutes < 1
-      ? 'Almost here!'
-      : `Driver arriving in ~${etaMinutes} min${etaMinutes === 1 ? '' : 's'}`;
+  const bottomSheetHeight = hasDriver ? height * 0.45 : height * 0.35;
+  const statusTitle = hasDriver ? 'Driver is on the way' : 'Looking for a driver…';
+  const progressFillWidth = hasDriver ? '55%' : '25%';
+
+  let etaLabel: string | null;
+  if (etaMinutes === null) {
+    etaLabel = null;
+  } else if (etaMinutes < 1) {
+    etaLabel = 'Almost here!';
+  } else {
+    etaLabel = `Driver arriving in ~${etaMinutes} min${etaMinutes === 1 ? '' : 's'}`;
+  }
 
   const mapRegion = customerCoord
     ? { ...customerCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
@@ -190,16 +203,14 @@ export default function OrderTrackingMap() {
       </View>
 
       {/* Bottom sheet */}
-      <View style={[styles.bottomSheet, hasDriver ? { height: height * 0.45 } : { height: height * 0.35 }]}>
+      <View style={[styles.bottomSheet, { height: bottomSheetHeight }]}>
         <View style={styles.dragHandle} />
 
         {/* Status header */}
         <View style={styles.statusHeader}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.statusTitle}>
-                {hasDriver ? 'Driver is on the way' : 'Looking for a driver…'}
-              </Text>
+              <Text style={styles.statusTitle}>{statusTitle}</Text>
               {orderNumber ? (
                 <Text style={styles.statusSub}>Order #{orderNumber}</Text>
               ) : null}
@@ -217,7 +228,7 @@ export default function OrderTrackingMap() {
             )}
           </View>
           <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: hasDriver ? '55%' : '25%' }]} />
+            <View style={[styles.progressFill, { width: progressFillWidth }]} />
           </View>
         </View>
 

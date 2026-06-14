@@ -40,7 +40,7 @@ function safeFormat(value: any, pattern: string, fallback = '—'): string {
   if (!value) return fallback;
   try {
     const d = new Date(value);
-    if (isNaN(d.getTime())) return fallback;
+    if (Number.isNaN(d.getTime())) return fallback;
     return format(d, pattern);
   } catch {
     return fallback;
@@ -86,17 +86,17 @@ export default function ReceiptScreen() {
   const delivery            = order?.deliveries?.[0];
 
   const itemsSubtotal: number = items.reduce(
-    (s: number, i: any) => s + parseFloat(i.price || 0) * (i.quantity || 1), 0
+    (s: number, i: any) => s + Number.parseFloat(i.price || 0) * (i.quantity || 1), 0
   );
-  const deliveryFee: number = parseFloat(order?.delivery_fee ?? delivery?.delivery_fee ?? 0);
-  const serviceFee: number  = parseFloat(order?.service_fee  ?? 0);
-  const tax: number         = parseFloat(order?.tax_amount   ?? 0);
-  const discount: number    = parseFloat(order?.discount ?? order?.discount_amount ?? 0);
+  const deliveryFee: number = Number.parseFloat(order?.delivery_fee ?? delivery?.delivery_fee ?? 0);
+  const serviceFee: number  = Number.parseFloat(order?.service_fee  ?? 0);
+  const tax: number         = Number.parseFloat(order?.tax_amount   ?? 0);
+  const discount: number    = Number.parseFloat(order?.discount ?? order?.discount_amount ?? 0);
   const grandTotal: number  =
     order?.total_amount
-      ? parseFloat(order.total_amount)
+      ? Number.parseFloat(order.total_amount)
       : payment?.amount
-        ? parseFloat(payment.amount)
+        ? Number.parseFloat(payment.amount)
         : itemsSubtotal + deliveryFee + serviceFee + tax - discount;
 
   const buyerName = (() => {
@@ -304,7 +304,7 @@ export default function ReceiptScreen() {
                   <Text style={S.itemQty}>{item.quantity}×</Text>
                   <Text style={S.itemName} numberOfLines={2}>{item.product_title}</Text>
                   <Text style={S.itemPrice}>
-                    ₵{(parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                    ₵{(Number.parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
                   </Text>
                 </View>
               ))}

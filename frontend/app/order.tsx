@@ -61,7 +61,7 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
 };
 
 const getStatusConfig = (status: string): StatusConfig =>
-  STATUS_CONFIG[status.toLowerCase().replace(/_/g, ' ')] ?? {
+  STATUS_CONFIG[status.toLowerCase().replaceAll('_', ' ')] ?? {
     color: '#6B7280', bg: '#F3F4F6', bar: '#9CA3AF', timelineStep: 0, label: status,
   };
 
@@ -113,7 +113,7 @@ const OrdersScreen = () => {
 
   const statusParam = activeFilter === 'All'
     ? undefined
-    : activeFilter.toLowerCase().replace(/ /g, '_');
+    : activeFilter.toLowerCase().replaceAll(' ', '_');
 
   const { data, isLoading, refetch, isRefetching, isFetching } =
     useOrders(statusParam, page, PAGE_SIZE);
@@ -127,7 +127,7 @@ const OrdersScreen = () => {
     const orderObj = {
       id:          o.id,
       orderNumber: o.order_number,
-      totalAmount: o.total_amount ? parseFloat(o.total_amount) : 0,
+      totalAmount: o.total_amount ? Number.parseFloat(o.total_amount) : 0,
       date:        o.created_at,
       status:      o.status ?? 'unknown',
       itemsCount:  o.order_items?.length ?? 0,
@@ -292,7 +292,7 @@ const OrdersScreen = () => {
       (n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1
     );
     const withEllipsis = visible.reduce<(number | string)[]>((acc, n, i, arr) => {
-      if (i > 0 && (n as number) - (arr[i - 1] as number) > 1) acc.push('…');
+      if (i > 0 && n - arr[i - 1] > 1) acc.push('…');
       acc.push(n);
       return acc;
     }, []);
@@ -300,7 +300,7 @@ const OrdersScreen = () => {
     return (
       <View style={S.pagination}>
         <Text style={S.pageInfo}>
-          {totalItems} order{totalItems !== 1 ? 's' : ''} · Page {page} of {totalPages}
+          {totalItems} order{totalItems === 1 ? '' : 's'} · Page {page} of {totalPages}
         </Text>
         <View style={S.pageControls}>
           <TouchableOpacity
@@ -318,7 +318,7 @@ const OrdersScreen = () => {
               <TouchableOpacity
                 key={n}
                 style={[S.pageNum, page === n && S.pageNumOn]}
-                onPress={() => setPage(n as number)}
+                onPress={() => setPage(Number(n))}
                 disabled={isFetching}
               >
                 <Text style={[S.pageNumTxt, page === n && S.pageNumTxtOn]}>{n}</Text>

@@ -11,10 +11,48 @@ import {
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
 import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDriverAvailability, logoutUser } from '@/services/api';
-import * as ImagePicker from 'expo-image-picker';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
 // removed useCloudinaryUpload import
+function SettingRow({ icon, label, value, onPress }: Readonly<{ icon: any; label: string; value?: string; onPress?: () => void }>) {
+  return (
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.rowLeft}>
+        <View style={styles.iconCircle}>
+          <Feather name={icon} size={20} color="#0C1559" />
+        </View>
+        <Text style={styles.rowLabel}>{label}</Text>
+      </View>
+      <View style={styles.rowRight}>
+        <Text style={styles.rowValue}>{value}</Text>
+        <Feather name="chevron-right" size={18} color="#94A3B8" />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function ToggleRow({ icon, label, value, onToggle, description }: Readonly<{ icon: any; label: string; value: boolean; onToggle: (v: boolean) => void; description?: string }>) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowLeft}>
+        <View style={styles.iconCircle}>
+          <Feather name={icon} size={20} color="#0C1559" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowLabel}>{label}</Text>
+          {description && <Text style={styles.rowDescription}>{description}</Text>}
+        </View>
+      </View>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
+        thumbColor={value ? '#0C1559' : '#CBD5E1'}
+      />
+    </View>
+  );
+}
+
 export default function DriverSettings() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -119,45 +157,12 @@ export default function DriverSettings() {
         message: 'You have been successfully logged out.'
       });
       router.replace('/login');
-    } catch (error) {
+    } catch {
       router.replace('/login');
     } finally {
       setLogoutLoading(false);
     }
   };
-  const SettingRow = ({ icon, label, value, onPress }: any) => (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.7}>
-      <View style={styles.rowLeft}>
-        <View style={styles.iconCircle}>
-          <Feather name={icon} size={20} color="#0C1559" />
-        </View>
-        <Text style={styles.rowLabel}>{label}</Text>
-      </View>
-      <View style={styles.rowRight}>
-        <Text style={styles.rowValue}>{value}</Text>
-        <Feather name="chevron-right" size={18} color="#94A3B8" />
-      </View>
-    </TouchableOpacity>
-  );
-  const ToggleRow = ({ icon, label, value, onToggle, description }: any) => (
-    <View style={styles.row}>
-      <View style={styles.rowLeft}>
-        <View style={styles.iconCircle}>
-          <Feather name={icon} size={20} color="#0C1559" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowLabel}>{label}</Text>
-          {description && <Text style={styles.rowDescription}>{description}</Text>}
-        </View>
-      </View>
-      <Switch
-        value={value}
-        onValueChange={onToggle}
-        trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
-        thumbColor={value ? '#0C1559' : '#CBD5E1'}
-      />
-    </View>
-  );
   return (
     <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0C1559" />

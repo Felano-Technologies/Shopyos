@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Dimensions, RefreshControl,
+  ActivityIndicator, Dimensions,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,7 +60,7 @@ function dateLabel(value: any): string {
   if (!value) return '';
   try {
     const d = new Date(value);
-    if (isNaN(d.getTime())) return '';
+    if (Number.isNaN(d.getTime())) return '';
     if (isToday(d))      return format(d, 'h:mm a');
     if (isYesterday(d)) return 'Yesterday';
     return format(d, 'MMM dd');
@@ -72,7 +72,7 @@ function groupNotifications(notifications: any[]): { title: string; data: any[] 
   const today: any[] = [], yesterday: any[] = [], earlier: any[] = [];
   notifications.forEach((n) => {
     const d = new Date(n.created_at);
-    if (isNaN(d.getTime())) { earlier.push(n); return; }
+    if (Number.isNaN(d.getTime())) { earlier.push(n); return; }
     if (isToday(d))         today.push(n);
     else if (isYesterday(d)) yesterday.push(n);
     else                     earlier.push(n);

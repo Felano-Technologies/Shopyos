@@ -36,7 +36,7 @@ import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
 import { SimilarProductsRow } from '../../components/product/SimilarProductsRow';
 const { height } = Dimensions.get('window');
 
-function StockIndicator({ qty }: { qty: number | null }) {
+function StockIndicator({ qty }: Readonly<{ qty: number | null }>) {
     if (qty === null) return null;
 
     let color: string, bg: string, icon: string, label: string, barPct: number;
@@ -81,6 +81,14 @@ const stockStyles = StyleSheet.create({
     bar: { height: '100%', borderRadius: 3 },
 });
 
+function resolveVariant(variants: any[], attrs: Record<string, string>): any {
+    if (!variants.length) return null;
+    return variants.find((v) => {
+        const vAttrs: Record<string, string> = v.attributes || {};
+        return Object.entries(attrs).every(([k, val]) => vAttrs[k] === val);
+    }) ?? null;
+}
+
 export default function ProductDetails() {
     const router = useRouter();
     const params = useLocalSearchParams();
@@ -99,8 +107,8 @@ export default function ProductDetails() {
         id: params.id as string,
         title: params.title as string,
         category: params.category as string,
-        price: params.price ? parseFloat(params.price as string) : 0,
-        oldPrice: params.oldPrice ? parseFloat(params.oldPrice as string) : null,
+        price: params.price ? Number.parseFloat(params.price as string) : 0,
+        oldPrice: params.oldPrice ? Number.parseFloat(params.oldPrice as string) : null,
         description: (params.description as string) || "",
         sellerName: "",
         sellerPhone: "",
@@ -118,7 +126,7 @@ export default function ProductDetails() {
     const [variants, setVariants] = useState<any[]>([]);
     const [variantOptions, setVariantOptions] = useState<any[]>([]);
     const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
-    const [selectedVariant, setSelectedVariant] = useState<any | null>(null);
+    const [selectedVariant, setSelectedVariant] = useState<any>(null);
     const fetchProductDetails = useCallback(async () => {
         try {
             const res = await getProductById(params.id as string);
@@ -241,28 +249,18 @@ export default function ProductDetails() {
             }
         } catch (error: any) { Alert.alert("Error", error.message || "Failed to start chat with seller"); }
     };
-    // Resolve which variant (if any) matches the current attribute selection
-    const resolveVariant = useCallback((attrs: Record<string, string>) => {
-        if (!variants.length) return null;
-        return variants.find((v) => {
-            const vAttrs: Record<string, string> = v.attributes || {};
-            return Object.entries(attrs).every(([k, val]) => vAttrs[k] === val);
-        }) || null;
-    }, [variants]);
-
     const handleAttributeSelect = (optionName: string, value: string) => {
         const next = { ...selectedAttributes, [optionName]: value };
         setSelectedAttributes(next);
-        setSelectedVariant(resolveVariant(next));
+        setSelectedVariant(resolveVariant(variants, next));
     };
 
-    const effectivePrice = selectedVariant?.price != null ? selectedVariant.price : product.price;
+    const effectivePrice = selectedVariant?.price ?? product.price;
     const isOutOfStock = selectedVariant
         ? selectedVariant.stock_quantity === 0
-        : (product.stockQuantity !== null && product.stockQuantity === 0);
+        : product.stockQuantity === 0;
     // Require all options to be selected before allowing add-to-cart when variants exist
-    const allOptionsSelected = variantOptions.length === 0 ||
-        variantOptions.every((opt) => selectedAttributes[opt.option_name]);
+    const allOptionsSelected = variantOptions.every((opt) => selectedAttributes[opt.option_name]);
 
     const handleAddToCart = () => {
         if (isOutOfStock) return;
@@ -282,6 +280,34 @@ export default function ProductDetails() {
         });
         setSuccessModalVisible(true);
     };
+    let cartBtnText: string;
+    if (isOutOfStock) {
+        cartBtnText = 'Out of Stock';
+    } else if (allOptionsSelected) {
+        cartBtnText = 'Add to Cart';
+    } else {
+        cartBtnText = 'Select Options';
+    }
+    let reviewContent: React.ReactNode;
+    if (reviewsLoading) {
+        reviewContent = <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />;
+    } else if (reviews.length > 0) {
+        reviewContent = reviews.map((item) => (
+            <ReviewCard
+                key={item.id}
+                review={item}
+                onLike={handleLikeReview}
+                onComment={handleOpenComments}
+            />
+        ));
+    } else {
+        reviewContent = (
+            <View style={styles.emptyReviews}>
+                <Feather name="message-square" size={32} color="#CBD5E1" />
+                <Text style={styles.emptyReviewsText}>No reviews yet. Be the first to share your experience!</Text>
+            </View>
+        );
+    }
     return (
         <View style={styles.container}>
             <StatusBar style="light" />
@@ -405,23 +431,7 @@ export default function ProductDetails() {
                                     <Text style={styles.writeReviewText}>Write a Review</Text>
                                 </TouchableOpacity>
                             </View>
-                            {reviewsLoading ? (
-                                <ActivityIndicator color="#0C1559" style={{ marginTop: 20 }} />
-                            ) : reviews.length > 0 ? (
-                                reviews.map((item) => (
-                                    <ReviewCard
-                                        key={item.id}
-                                        review={item}
-                                        onLike={handleLikeReview}
-                                        onComment={handleOpenComments}
-                                    />
-                                ))
-                            ) : (
-                                <View style={styles.emptyReviews}>
-                                    <Feather name="message-square" size={32} color="#CBD5E1" />
-                                    <Text style={styles.emptyReviewsText}>No reviews yet. Be the first to share your experience!</Text>
-                                </View>
-                            )}
+                            {reviewContent}
                         </View>
                     </View>
                     {/* Similar products — renders nothing if list is empty */}
@@ -442,7 +452,7 @@ export default function ProductDetails() {
                     >
                         <Feather name={isOutOfStock ? 'x-circle' : 'shopping-cart'} size={20} color="#FFF" />
                         <Text style={styles.cartText}>
-                            {isOutOfStock ? 'Out of Stock' : !allOptionsSelected ? 'Select Options' : 'Add to Cart'}
+                            {cartBtnText}
                         </Text>
                     </LinearGradient>
                 </TouchableOpacity>

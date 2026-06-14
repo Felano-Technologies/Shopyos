@@ -65,6 +65,68 @@ function getStoreDisplayName(item: any) {
   );
 }
 
+async function updateLocationDisplay(profileData: any, setLocation: (txt: string) => void) {
+  const cachedTxt = await storage.getItem('CACHED_LOCATION_TEXT');
+  const cachedCoordsStr = await storage.getItem('CACHED_LOCATION_COORDS');
+  if (cachedTxt) setLocation(cachedTxt);
+
+  let liveCoords: { latitude: number; longitude: number } | null = null;
+  const { status } = await Location.requestForegroundPermissionsAsync();
+  if (status === 'granted') {
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      liveCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+    } catch { }
+  }
+
+  if (!liveCoords && profileData?.city) {
+    const txt = profileData.city + (profileData.country ? `, ${profileData.country}` : '');
+    setLocation(txt);
+    await storage.setItem('CACHED_LOCATION_TEXT', txt);
+    return;
+  }
+
+  if (liveCoords) {
+    let shouldGeocode = !cachedTxt;
+    if (cachedCoordsStr) {
+      try {
+        const cc = JSON.parse(cachedCoordsStr);
+        if (Math.abs(cc.latitude - liveCoords.latitude) > 0.005 || Math.abs(cc.longitude - liveCoords.longitude) > 0.005)
+          shouldGeocode = true;
+      } catch { }
+    } else shouldGeocode = true;
+    if (shouldGeocode) {
+      try {
+        const [info] = await Location.reverseGeocodeAsync(liveCoords);
+        if (info) {
+          const cityName = info.city ?? info.region ?? info.country ?? 'Unknown';
+          const txt = `${cityName}${info.country ? `, ${info.country}` : ''}`;
+          setLocation(txt);
+          await storage.setItem('CACHED_LOCATION_TEXT', txt);
+          await storage.setItem('CACHED_LOCATION_COORDS', JSON.stringify(liveCoords));
+        }
+      } catch { }
+    }
+  } else if (!cachedTxt) setLocation('Location unavailable');
+}
+
+async function checkAndStartTour(
+  onboardingLoading: boolean,
+  user: any,
+  isCompleted: (key: string) => boolean,
+  markCompleted: (key: string) => void,
+  startTour: (key: string) => void,
+) {
+  if (onboardingLoading || !user) return;
+  if (isCompleted('home')) return;
+  const createdDate = new Date(user.created_at || Date.now());
+  if (createdDate < new Date('2026-04-01') && (user.role === 'buyer' || user.role === 'customer')) {
+    markCompleted('home');
+    return;
+  }
+  startTour('home');
+}
+
 export default function Home() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -144,17 +206,8 @@ const refChat = useRef<View>(null);
     const timer = setTimeout(() => {
       measureElement(refGreeting, 'greeting');
       measureElement(refActions, 'actions');
-measureElement(refChat, 'chat');
-      const shouldAutoStart = async () => {
-        if (onboardingLoading || !user) return;
-        if (isCompleted('home')) return;
-        const createdDate = new Date(user.created_at || Date.now());
-        if (createdDate < new Date('2026-04-01') && (user.role === 'buyer' || user.role === 'customer')) {
-          markCompleted('home'); return;
-        }
-        startTour('home');
-      };
-      shouldAutoStart();
+      measureElement(refChat, 'chat');
+      checkAndStartTour(onboardingLoading, user, isCompleted, markCompleted, startTour);
     }, 1500);
     return () => clearTimeout(timer);
   }, [markCompleted, onboardingLoading, startTour, user, isCompleted]);
@@ -173,47 +226,7 @@ measureElement(refChat, 'chat');
 
 // ── Location ───────────────────────────────────────────────────────────────────
   useEffect(() => {
-    (async () => {
-      const cachedTxt = await storage.getItem('CACHED_LOCATION_TEXT');
-      const cachedCoordsStr = await storage.getItem('CACHED_LOCATION_COORDS');
-      if (cachedTxt) setLocationText(cachedTxt);
-
-      let liveCoords: { latitude: number; longitude: number } | null = null;
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        try {
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-          liveCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-        } catch { }
-      }
-      if (!liveCoords && profileData?.city) {
-        const txt = profileData.city + (profileData.country ? `, ${profileData.country}` : '');
-        setLocationText(txt);
-        await storage.setItem('CACHED_LOCATION_TEXT', txt);
-        return;
-      }
-      if (liveCoords) {
-        let shouldGeocode = !cachedTxt;
-        if (cachedCoordsStr) {
-          try {
-            const cc = JSON.parse(cachedCoordsStr);
-            if (Math.abs(cc.latitude - liveCoords.latitude) > 0.005 || Math.abs(cc.longitude - liveCoords.longitude) > 0.005)
-              shouldGeocode = true;
-          } catch { }
-        } else shouldGeocode = true;
-        if (shouldGeocode) {
-          try {
-            const [info] = await Location.reverseGeocodeAsync(liveCoords);
-            if (info) {
-              const txt = `${info.city ?? info.region ?? info.country ?? 'Unknown'}${info.country ? `, ${info.country}` : ''}`;
-              setLocationText(txt);
-              await storage.setItem('CACHED_LOCATION_TEXT', txt);
-              await storage.setItem('CACHED_LOCATION_COORDS', JSON.stringify(liveCoords));
-            }
-          } catch { }
-        }
-      } else if (!cachedTxt) setLocationText('Location unavailable');
-    })();
+    updateLocationDisplay(profileData, setLocationText);
   }, [profileData]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────────
@@ -231,7 +244,7 @@ measureElement(refChat, 'chat');
     try {
       addToCart({
         id: item._id, title: item.name, category: item.category || 'General',
-        price: parseFloat(item.price) || 0,
+        price: Number.parseFloat(item.price) || 0,
         image: item.images?.[0] || 'https://via.placeholder.com/300',
         storeId: item.store_id || item.business_id || item.store?._id || item.store?.id,
       });

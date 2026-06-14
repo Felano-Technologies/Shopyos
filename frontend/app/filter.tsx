@@ -50,6 +50,30 @@ const RATING_OPTIONS = [
   { label: '5★',   value: '5'   },
 ];
 
+function buildActiveFilters(category: string, pricePreset: string, rating: string, sortBy: string) {
+  const filters: { key: string; label: string }[] = [];
+  if (category !== 'All') filters.push({ key: 'category', label: category });
+  if (pricePreset !== 'any') {
+    const p = PRICE_PRESETS.find(x => x.value === pricePreset);
+    if (p) filters.push({ key: 'price', label: p.label });
+  }
+  if (rating !== 'any') filters.push({ key: 'rating', label: `${rating}★+` });
+  if (sortBy !== 'newest') {
+    const s = SORT_OPTIONS.find(x => x.value === sortBy);
+    if (s) filters.push({ key: 'sort', label: s.label });
+  }
+  return filters;
+}
+
+type Setter = (v: string) => void;
+
+function applyRemoveFilter(key: string, setCategory: Setter, setPreset: Setter, setRating: Setter, setSortBy: Setter) {
+  if (key === 'category') setCategory('All');
+  if (key === 'price')    setPreset('any');
+  if (key === 'rating')   setRating('any');
+  if (key === 'sort')     setSortBy('newest');
+}
+
 export default function FilterScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -63,25 +87,7 @@ export default function FilterScreen() {
   const [pricePreset, setPreset]  = useState<string>(String(params.priceRange || 'any'));
   const [rating,    setRating]    = useState<string>(String(params.minRating || 'any'));
 
-  // ── Derived active filters for the badge strip ────────────────────────────
-  const activeFilters: { key: string; label: string }[] = [];
-  if (category !== 'All') activeFilters.push({ key: 'category', label: category });
-  if (pricePreset !== 'any') {
-    const p = PRICE_PRESETS.find(x => x.value === pricePreset);
-    if (p) activeFilters.push({ key: 'price', label: p.label });
-  }
-  if (rating !== 'any') activeFilters.push({ key: 'rating', label: `${rating}★+` });
-  if (sortBy !== 'newest') {
-    const s = SORT_OPTIONS.find(x => x.value === sortBy);
-    if (s) activeFilters.push({ key: 'sort', label: s.label });
-  }
-
-  const removeFilter = (key: string) => {
-    if (key === 'category') setCategory('All');
-    if (key === 'price')    setPreset('any');
-    if (key === 'rating')   setRating('any');
-    if (key === 'sort')     setSortBy('newest');
-  };
+  const activeFilters = buildActiveFilters(category, pricePreset, rating, sortBy);
 
   // ── Apply / Reset ─────────────────────────────────────────────────────────
   const applyFilters = () => {
@@ -94,7 +100,7 @@ export default function FilterScreen() {
         minPrice:  preset?.min,
         maxPrice:  preset?.max,
         priceRange: pricePreset,
-        minRating: rating !== 'any' ? rating : undefined,
+        minRating: rating === 'any' ? undefined : rating,
         query: params.query ? String(params.query) : undefined,
       } as any,
     });
@@ -137,7 +143,7 @@ export default function FilterScreen() {
               <TouchableOpacity
                 key={f.key}
                 style={styles.activeBadge}
-                onPress={() => removeFilter(f.key)}
+                onPress={() => applyRemoveFilter(f.key, setCategory, setPreset, setRating, setSortBy)}
               >
                 <Text style={styles.activeBadgeTxt}>{f.label}</Text>
                 <View style={styles.badgeX}>

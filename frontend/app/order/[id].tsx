@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Dimensions, ActivityIndicator, Alert, Linking,
@@ -23,29 +23,31 @@ const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
+const pl = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 const formatStoreAge = (createdAtString?: string) => {
   if (!createdAtString) return 'Joined recently';
   const createdDate = new Date(createdAtString);
-  if (isNaN(createdDate.getTime())) return 'Joined recently';
-  
+  if (Number.isNaN(createdDate.getTime())) return 'Joined recently';
   const now = new Date();
-  const diffTime = Math.abs(now.getTime() - createdDate.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
-  if (diffDays < 30) {
-    return 'Joined this month';
-  } else if (diffDays < 365) {
-    const months = Math.floor(diffDays / 30);
-    return `Joined ${months} ${months === 1 ? 'month' : 'months'} ago`;
-  } else {
-    const years = Math.floor(diffDays / 365);
-    const months = Math.floor((diffDays % 365) / 30);
-    if (months === 0) {
-      return `Joined ${years} ${years === 1 ? 'year' : 'years'} ago`;
-    }
-    return `Joined ${years} ${years === 1 ? 'year' : 'years'} and ${months} ${months === 1 ? 'month' : 'months'} ago`;
-  }
+  const diffDays = Math.ceil(Math.abs(now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 30) return 'Joined this month';
+  if (diffDays < 365) return `Joined ${pl(Math.floor(diffDays / 30), 'month')} ago`;
+  const years = Math.floor(diffDays / 365);
+  const months = Math.floor((diffDays % 365) / 30);
+  if (months === 0) return `Joined ${pl(years, 'year')} ago`;
+  return `Joined ${pl(years, 'year')} and ${pl(months, 'month')} ago`;
 };
+
+async function submitReturnRequest(orderId: string, reason: string | undefined) {
+  if (!reason?.trim()) return;
+  try {
+    await createReturnRequest({ orderId, reason: reason.trim() });
+    Alert.alert('Submitted', 'Your return request has been sent to the seller.');
+  } catch (e: any) {
+    Alert.alert('Error', e.message || 'Failed to submit return request');
+  }
+}
 const C = {
   bg: '#F8FAFC',
   navy: '#0C1559',
@@ -89,8 +91,8 @@ const OrderDetailsScreen = () => {
 
   const orderId = id as string;
   const { data: orderRaw, isLoading: loading } = useOrderDetail(orderId, {
-    refetchInterval: (query) => {
-      const status = (query.state.data as any)?.status?.toLowerCase() ?? '';
+    refetchInterval: (query: any) => {
+      const status = (query.state.data as { status?: string })?.status?.toLowerCase() ?? '';
       return ['delivered', 'cancelled', 'failed'].includes(status) ? false : 10_000;
     },
   });
@@ -132,28 +134,9 @@ const OrderDetailsScreen = () => {
   };
 
   const handleRequestReturn = () => {
-    Alert.prompt(
-      'Request Return',
-      'Please describe the reason for your return:',
-      async (reason) => {
-        if (!reason?.trim()) return;
-        try {
-          await createReturnRequest({ orderId: orderId, reason: reason.trim() });
-          Alert.alert('Submitted', 'Your return request has been sent to the seller.');
-        } catch (e: any) {
-          Alert.alert('Error', e.message || 'Failed to submit return request');
-        }
-      },
-      'plain-text'
-    );
+    Alert.prompt('Request Return', 'Please describe the reason for your return:', (reason) => submitReturnRequest(orderId, reason), 'plain-text');
   };
 
-  const handleConfirmDelivery = () => {
-    Alert.alert('Confirm Delivery', 'Have you received your order? This will release payment to the seller.', [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes, I received it', style: 'default', onPress: () => confirmMutation.mutate() },
-    ]);
-  };
   const [chatLoading, setChatLoading] = useState(false);
   const handleChat = async (ownerId: string, storeName: string, logoUrl: string, type: 'buyer' | 'seller' = 'buyer', entityId?: string) => {
     if (chatLoading || !ownerId) return;
@@ -220,15 +203,15 @@ const OrderDetailsScreen = () => {
   // ── Grand total calculation ─────────────────────────────────────────────────
   // Priority: sum from order_items (most accurate) → total_amount field → payment amount
   const itemsSubtotal: number = (order.order_items ?? []).reduce(
-    (sum: number, i: any) => sum + parseFloat(i.price || 0) * (i.quantity || 1), 0
+    (sum: number, i: any) => sum + Number.parseFloat(i.price || 0) * (i.quantity || 1), 0
   );
-  const deliveryFee: number = parseFloat(order.delivery_fee || 0);
-  const taxAmount: number = parseFloat(order.tax || 0);
-  const discount: number = parseFloat(order.discount || 0);
+  const deliveryFee: number = Number.parseFloat(order.delivery_fee || 0);
+  const taxAmount: number = Number.parseFloat(order.tax || 0);
+  const discount: number = Number.parseFloat(order.discount || 0);
   // Use total_amount from backend if present, otherwise compute from items
   const grandTotal: number =
     order.total_amount
-      ? parseFloat(order.total_amount)
+      ? Number.parseFloat(order.total_amount)
       : itemsSubtotal + deliveryFee + taxAmount - discount;
   // Date string
   let dateStr = '';
@@ -513,7 +496,7 @@ const OrderDetailsScreen = () => {
                       <Text style={S.itemQty}>Qty: {item.quantity}</Text>
                     </View>
                     <Text style={S.itemPrice}>
-                      ₵{(parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                      ₵{(Number.parseFloat(item.price || 0) * (item.quantity || 1)).toFixed(2)}
                     </Text>
                   </View>
                   {idx < (order.order_items.length - 1) && <View style={S.itemDivider} />}

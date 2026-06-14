@@ -67,7 +67,7 @@ const OtpVerificationScreen = () => {
           <View style={styles.otpContainer}>
             {otp.map((digit, index) => (
               <TextInput
-                key={index}
+                key={'otp-' + index}
                 ref={(ref) => { inputs.current[index] = ref!; }}
                 style={styles.otpInput}
                 keyboardType="numeric"

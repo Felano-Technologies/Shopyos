@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated, Appearance } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated } from 'react-native';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,9 +14,70 @@ const { width, height } = Dimensions.get('window');
 // Set to `false` (or remove) before shipping to production.
 const DEV_FORCE_SHOW_UPDATE = false;
 
-const IndexScreen = () => {
-  const colorScheme = Appearance.getColorScheme();
+function routeForUser(user: any): string {
+  const role = user.role?.toLowerCase();
+  if (user.requiresRoleSelection || !role || role === 'none') return '/role';
+  if (role === 'customer' || role === 'buyer') return '/home';
+  if (role === 'seller') return '/business/dashboard';
+  if (role === 'driver') return '/driver';
+  if (role === 'admin') return '/admin/dashboard';
+  return '/home';
+}
 
+async function authCheckPromise(): Promise<string> {
+  try {
+    const token = await secureStorage.getItem('userToken');
+    if (!token) return '/getstarted';
+    const cached = await getCachedUserProfile();
+    if (cached) {
+      getUserData().then(cacheUserProfile).catch(() => {});
+      return routeForUser(cached);
+    }
+    const user = await getUserData();
+    await cacheUserProfile(user);
+    return routeForUser(user);
+  } catch (error) {
+    console.warn('Startup Auth Check Failed:', error);
+    return '/getstarted';
+  }
+}
+
+async function runUpdateCheck(
+  updateBannerOpacity: Animated.Value,
+  setUpdateStatusText: (text: string) => void,
+  setIsUpdating: (updating: boolean) => void,
+) {
+  if (__DEV__) {
+    setUpdateStatusText('Checking for updates…');
+    setTimeout(() => {
+      setUpdateStatusText('App is up to date ✓');
+      setTimeout(() => {
+        Animated.timing(updateBannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }).start();
+      }, 800);
+    }, 1800);
+    return;
+  }
+  if (!Updates.isEmbeddedLaunch) return;
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      setUpdateStatusText('Downloading update…');
+      await Updates.fetchUpdateAsync();
+      setUpdateStatusText('Restarting…');
+      await Updates.reloadAsync();
+    } else {
+      setUpdateStatusText('App is up to date ✓');
+      setTimeout(() => {
+        Animated.timing(updateBannerOpacity, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => setIsUpdating(false));
+      }, 600);
+    }
+  } catch (error) {
+    console.warn('OTA Update Check failed:', error);
+    Animated.timing(updateBannerOpacity, { toValue: 0, duration: 400, useNativeDriver: true }).start(() => setIsUpdating(false));
+  }
+}
+
+const IndexScreen = () => {
   // In production: block until OTA check finishes if this is an embedded launch.
   // In dev: always start as false (we simulate via DEV_FORCE_SHOW_UPDATE).
   const [isUpdating, setIsUpdating] = useState(
@@ -34,50 +95,7 @@ const IndexScreen = () => {
 
   // --- OTA Update Check ---
   useEffect(() => {
-    const runUpdateCheck = async () => {
-      if (__DEV__) {
-        // In dev: just show the banner for 2s so it's testable, then proceed.
-        setUpdateStatusText('Checking for updates…');
-        setTimeout(() => {
-          setUpdateStatusText('App is up to date ✓');
-          setTimeout(() => {
-            Animated.timing(updateBannerOpacity, {
-              toValue: 0,
-              duration: 500,
-              useNativeDriver: true,
-            }).start();
-          }, 800);
-        }, 1800);
-        return;
-      }
-      if (!Updates.isEmbeddedLaunch) return;
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          setUpdateStatusText('Downloading update…');
-          await Updates.fetchUpdateAsync();
-          setUpdateStatusText('Restarting…');
-          await Updates.reloadAsync();
-        } else {
-          setUpdateStatusText('App is up to date ✓');
-          setTimeout(() => {
-            Animated.timing(updateBannerOpacity, {
-              toValue: 0,
-              duration: 500,
-              useNativeDriver: true,
-            }).start(() => setIsUpdating(false));
-          }, 600);
-        }
-      } catch (error) {
-        console.warn('OTA Update Check failed:', error);
-        Animated.timing(updateBannerOpacity, {
-          toValue: 0,
-          duration: 400,
-          useNativeDriver: true,
-        }).start(() => setIsUpdating(false));
-      }
-    };
-    runUpdateCheck();
+    runUpdateCheck(updateBannerOpacity, setUpdateStatusText, setIsUpdating);
   }, []);
 
   // --- Animated dots for "Checking…" text ---
@@ -111,34 +129,6 @@ const IndexScreen = () => {
         useNativeDriver: true,
       }),
     ]).start();
-
-    const routeForUser = (user: any) => {
-      const role = user.role?.toLowerCase();
-      if (user.requiresRoleSelection || !role || role === 'none') return '/role';
-      if (role === 'customer' || role === 'buyer') return '/home';
-      if (role === 'seller') return '/business/dashboard';
-      if (role === 'driver') return '/driver';
-      if (role === 'admin') return '/admin/dashboard';
-      return '/home';
-    };
-
-    const authCheckPromise = async () => {
-      try {
-        const token = await secureStorage.getItem('userToken');
-        if (!token) return '/getstarted';
-        const cached = await getCachedUserProfile();
-        if (cached) {
-          getUserData().then(cacheUserProfile).catch(() => {});
-          return routeForUser(cached);
-        }
-        const user = await getUserData();
-        await cacheUserProfile(user);
-        return routeForUser(user);
-      } catch (error) {
-        console.warn('Startup Auth Check Failed:', error);
-        return '/getstarted';
-      }
-    };
 
     const runStartup = async () => {
       const cached = await getCachedUserProfile();

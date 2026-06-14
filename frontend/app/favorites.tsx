@@ -66,7 +66,7 @@ export default function FavoritesScreen() {
         id: item.id || item._id,
         title: item.name,
         category: item.category || 'General',
-        price: parseFloat(item.price) || 0,
+        price: Number.parseFloat(item.price) || 0,
         image: item.images?.[0] || 'https://via.placeholder.com/300',
         storeId: item.store_id || item.business_id || item.store?._id || item.store?.id || item.businessId
       });
@@ -102,7 +102,7 @@ export default function FavoritesScreen() {
       
       <View style={styles.content}>
         <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.price}>₵{parseFloat(item.price).toFixed(2)}</Text>
+        <Text style={styles.price}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
         
         <TouchableOpacity
           style={styles.addToCartBtn}

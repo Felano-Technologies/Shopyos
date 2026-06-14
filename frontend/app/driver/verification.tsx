@@ -20,6 +20,30 @@ import * as ImagePicker from 'expo-image-picker';
 import { getUserData, submitDriverVerification, getDriverProfile, CustomInAppToast, logoutUser } from '@/services/api';
 
 
+function UploadBox({ label, imageUri, onPress }: Readonly<{ label: string; imageUri: string | null; onPress: () => void }>) {
+  return (
+    <TouchableOpacity style={[styles.uploadBox, imageUri ? styles.uploadBoxSuccess : {}]} onPress={onPress} activeOpacity={0.7}>
+      {imageUri ? (
+        <View style={styles.uploadedContent}>
+          <AppImage uri={imageUri} style={styles.previewImage} />
+          <View style={styles.overlay}>
+            <Ionicons name="checkmark-circle" size={32} color="#FFF" />
+            <Text style={styles.changeText}>Tap to change</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.placeholderContent}>
+          <View style={styles.iconCircle}>
+            <Feather name="upload-cloud" size={24} color="#0C1559" />
+          </View>
+          <Text style={styles.uploadLabel}>{label}</Text>
+          <Text style={styles.uploadSub}>Tap to upload image</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export default function DriverVerification() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -248,33 +272,11 @@ export default function DriverVerification() {
         message: 'You have been successfully logged out.'
       });
       router.replace('/login');
-    } catch (error) {
+    } catch {
       router.replace('/login');
     }
   };
 
-  // --- REUSABLE UPLOAD BOX ---
-  const UploadBox = ({ label, imageUri, onPress }: { label: string, imageUri: string | null, onPress: () => void }) => (
-    <TouchableOpacity style={[styles.uploadBox, imageUri ? styles.uploadBoxSuccess : {}]} onPress={onPress} activeOpacity={0.7}>
-        {imageUri ? (
-            <View style={styles.uploadedContent}>
-                <AppImage uri={imageUri} style={styles.previewImage} />
-                <View style={styles.overlay}>
-                    <Ionicons name="checkmark-circle" size={32} color="#FFF" />
-                    <Text style={styles.changeText}>Tap to change</Text>
-                </View>
-            </View>
-        ) : (
-            <View style={styles.placeholderContent}>
-                <View style={styles.iconCircle}>
-                    <Feather name="upload-cloud" size={24} color="#0C1559" />
-                </View>
-                <Text style={styles.uploadLabel}>{label}</Text>
-                <Text style={styles.uploadSub}>Tap to upload image</Text>
-            </View>
-        )}
-    </TouchableOpacity>
-  );
 
   // --- PENDING VIEW ---
   if (viewState === 'pending') {

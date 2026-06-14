@@ -13,7 +13,6 @@ import {
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { requestPasswordReset } from '@/services/api';
 import LottieView from 'lottie-react-native';
 

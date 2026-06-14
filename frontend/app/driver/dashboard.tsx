@@ -8,7 +8,6 @@ import {
   FlatList,
   Dimensions,
   ActivityIndicator,
-  RefreshControl
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
@@ -30,6 +29,67 @@ import {
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
+function RequestCard({ item, isPending, onAccept }: Readonly<{ item: any; isPending: boolean; onAccept: (id: string) => void }>) {
+  return (
+    <View style={styles.requestCard}>
+      <View style={styles.cardHeader}>
+        <View style={styles.priceTag}>
+          <Text style={styles.priceText}>₵{Number(item.price || 0).toFixed(2)}</Text>
+        </View>
+        <Text style={styles.distanceText}>Request Nearby</Text>
+      </View>
+      <View style={styles.routeContainer}>
+        <View style={styles.timeline}>
+          <View style={styles.dot} />
+          <View style={styles.line} />
+          <View style={[styles.dot, { backgroundColor: '#A3E635' }]} />
+        </View>
+        <View style={styles.addresses}>
+          <View style={styles.addressBlock}>
+            <Text style={styles.addressLabel}>Pick Up</Text>
+            <Text style={styles.addressTitle} numberOfLines={1}>{item.restaurant}</Text>
+          </View>
+          <View style={[styles.addressBlock, { marginTop: 15 }]}>
+            <Text style={styles.addressLabel}>Drop Off</Text>
+            <Text style={styles.addressTitle} numberOfLines={1}>{item.destination}</Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.cardFooter}>
+        <View style={styles.itemBadge}>
+          <Feather name="package" size={14} color="#64748B" />
+          <Text style={styles.itemText}>{item.items} Items</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.acceptBtn, isPending && { opacity: 0.7 }]}
+          onPress={() => onAccept(item.id)}
+          disabled={isPending}
+        >
+          {isPending ? <ActivityIndicator size="small" color="#A3E635" /> : <Text style={styles.acceptText}>Accept Order</Text>}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+function ActiveMissionCard({ delivery, onPress }: Readonly<{ delivery: any; onPress: () => void }>) {
+  return (
+    <TouchableOpacity style={styles.activeCard} onPress={onPress}>
+      <LinearGradient colors={['#A3E635', '#84cc16']} style={styles.activeGradient}>
+        <View style={styles.activeHeader}>
+          <Text style={styles.activeBadge}>ACTIVE MISSION</Text>
+          <Ionicons name="chevron-forward" size={18} color="#0C1559" />
+        </View>
+        <Text style={styles.activeTitle}>Ongoing Delivery to {delivery.order?.buyer?.full_name || 'Customer'}</Text>
+        <View style={styles.activeFooter}>
+          <Text style={styles.activeStatus}>{delivery.status.replace('_', ' ').toUpperCase()}</Text>
+          <Text style={styles.activeOrderNum}>#{delivery.order?.order_number}</Text>
+        </View>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const { profile: initialProfile, isChecking } = useDriverGuard();
@@ -87,7 +147,7 @@ export default function Dashboard() {
     id: d.id || d._id,
     restaurant: d.order?.store?.store_name || d.pickup_address || 'Store',
     destination: d.delivery_address || d.order?.delivery_address || 'Destination',
-    price: Number(d.delivery_fee || 15.0),
+    price: Number(d.delivery_fee || 15),
     distance: d.distance ? `${Number(d.distance).toFixed(1)} km` : `${(Math.random() * 4 + 1).toFixed(1)} km`,
     time: d.estimated_time || `${Math.floor(Math.random() * 15 + 10)} mins`,
     items: d.order?.order_items?.length || 1
@@ -227,64 +287,14 @@ export default function Dashboard() {
       });
     }
   };
-  const RequestCard = ({ item }: { item: any }) => (
-    <View style={styles.requestCard}>
-      <View style={styles.cardHeader}>
-        <View style={styles.priceTag}>
-          <Text style={styles.priceText}>₵{Number(item.price || 0).toFixed(2)}</Text>
-        </View>
-        <Text style={styles.distanceText}>Request Nearby</Text>
-      </View>
-      <View style={styles.routeContainer}>
-        <View style={styles.timeline}>
-          <View style={styles.dot} />
-          <View style={styles.line} />
-          <View style={[styles.dot, { backgroundColor: '#A3E635' }]} />
-        </View>
-        <View style={styles.addresses}>
-          <View style={styles.addressBlock}>
-            <Text style={styles.addressLabel}>Pick Up</Text>
-            <Text style={styles.addressTitle} numberOfLines={1}>{item.restaurant}</Text>
-          </View>
-          <View style={[styles.addressBlock, { marginTop: 15 }]}>
-            <Text style={styles.addressLabel}>Drop Off</Text>
-            <Text style={styles.addressTitle} numberOfLines={1}>{item.destination}</Text>
-          </View>
-        </View>
-      </View>
-      <View style={styles.cardFooter}>
-        <View style={styles.itemBadge}>
-          <Feather name="package" size={14} color="#64748B" />
-          <Text style={styles.itemText}>{item.items} Items</Text>
-        </View>
-        <TouchableOpacity
-          style={[styles.acceptBtn, assignDriverMutation.isPending && { opacity: 0.7 }]}
-          onPress={() => handleAccept(item.id)}
-          disabled={assignDriverMutation.isPending}
-        >
-          {assignDriverMutation.isPending ? <ActivityIndicator size="small" color="#A3E635" /> : <Text style={styles.acceptText}>Accept Order</Text>}
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-  const ActiveMissionCard = ({ delivery }: { delivery: any }) => (
-    <TouchableOpacity
-      style={styles.activeCard}
-      onPress={() => router.push({ pathname: '/driver/activeOrder', params: { deliveryId: delivery.id } } as any)}
-    >
-      <LinearGradient colors={['#A3E635', '#84cc16']} style={styles.activeGradient}>
-        <View style={styles.activeHeader}>
-          <Text style={styles.activeBadge}>ACTIVE MISSION</Text>
-          <Ionicons name="chevron-forward" size={18} color="#0C1559" />
-        </View>
-        <Text style={styles.activeTitle}>Ongoing Delivery to {delivery.order?.buyer?.full_name || 'Customer'}</Text>
-        <View style={styles.activeFooter}>
-          <Text style={styles.activeStatus}>{delivery.status.replace('_', ' ').toUpperCase()}</Text>
-          <Text style={styles.activeOrderNum}>#{delivery.order?.order_number}</Text>
-        </View>
-      </LinearGradient>
-    </TouchableOpacity>
-  );
+  let verificationBannerText: string;
+  if (isRejected) {
+    verificationBannerText = 'Application rejected. Tap to see why.';
+  } else if (isPending) {
+    verificationBannerText = 'Verification in progress. It will be done soon.';
+  } else {
+    verificationBannerText = 'Complete your verification to start earning.';
+  }
   return (
     <View style={styles.container}>
       <StatusBar style="light" backgroundColor="#0C1559" />
@@ -298,9 +308,7 @@ export default function Dashboard() {
               onPress={() => router.push('/driver/verification')}
             >
               <Feather name="shield" size={16} color="#0C1559" />
-              <Text style={styles.verificationText}>
-                {isRejected ? 'Application rejected. Tap to see why.' : (isPending ? 'Verification in progress. It will be done soon.' : 'Complete your verification to start earning.')}
-              </Text>
+              <Text style={styles.verificationText}>{verificationBannerText}</Text>
               <Feather name="chevron-right" size={14} color="#0C1559" />
             </TouchableOpacity>
           )}
@@ -352,24 +360,19 @@ export default function Dashboard() {
       </View>
       {/* --- CONTENT --- */}
       <View style={styles.contentContainer}>
-        {!isOnline ? (
-          <View style={styles.offlineState}>
-            <View style={styles.offlineIconCircle}>
-              <MaterialCommunityIcons name="motorbike-off" size={60} color="#94A3B8" />
-            </View>
-            <Text style={styles.offlineTitle}>You are currently offline</Text>
-            <Text style={styles.offlineSub}>Go online to start receiving delivery requests nearby.</Text>
-            <TouchableOpacity style={styles.goOnlineBtn} onPress={toggleOnline}>
-              <Text style={styles.goOnlineText}>GO ONLINE</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
+        {isOnline ? (
           <View style={{ flex: 1 }}>
             {/* Active Order if any */}
             {activeDeliveries.length > 0 && (
               <View style={{ marginBottom: 20 }}>
                 <Text style={styles.sectionTitle}>Current Task</Text>
-                {activeDeliveries.map((d: any) => <ActiveMissionCard key={d.id} delivery={d} />)}
+                {activeDeliveries.map((d: any) => (
+                  <ActiveMissionCard
+                    key={d.id}
+                    delivery={d}
+                    onPress={() => router.push({ pathname: '/driver/activeOrder', params: { deliveryId: d.id } } as any)}
+                  />
+                ))}
               </View>
             )}
             <View style={styles.sectionHeader}>
@@ -401,13 +404,24 @@ export default function Dashboard() {
               <FlatList
                 data={requests}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => <RequestCard item={item} />}
+                renderItem={({ item }) => <RequestCard item={item} isPending={assignDriverMutation.isPending} onAccept={handleAccept} />}
                 contentContainerStyle={{ paddingBottom: 100 }}
                 showsVerticalScrollIndicator={false}
                 refreshing={refreshing}
                 onRefresh={onRefresh}
               />
             )}
+          </View>
+        ) : (
+          <View style={styles.offlineState}>
+            <View style={styles.offlineIconCircle}>
+              <MaterialCommunityIcons name="motorbike-off" size={60} color="#94A3B8" />
+            </View>
+            <Text style={styles.offlineTitle}>You are currently offline</Text>
+            <Text style={styles.offlineSub}>Go online to start receiving delivery requests nearby.</Text>
+            <TouchableOpacity style={styles.goOnlineBtn} onPress={toggleOnline}>
+              <Text style={styles.goOnlineText}>GO ONLINE</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>

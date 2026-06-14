@@ -39,7 +39,12 @@ export default function PaymentProcessingScreen() {
 
 
             // Determine channel from method param
-            const channel = method === 'momo' ? 'mobile_money' : method === 'card' ? 'card' : undefined;
+            let channel: string | undefined;
+            if (method === 'momo') {
+              channel = 'mobile_money';
+            } else if (method === 'card') {
+              channel = 'card';
+            }
 
             const initRes = await initializePayment({
                 orderId: id,
@@ -177,74 +182,77 @@ export default function PaymentProcessingScreen() {
         outputRange: ['0%', '100%'],
     });
 
+    let statusView: React.JSX.Element;
+    if (status === 'success') {
+        statusView = (
+            <View style={styles.center}>
+                <View style={styles.successCircle}>
+                    <Ionicons name="checkmark" size={60} color="#FFF" />
+                </View>
+                <Text style={styles.title}>Payment Success!</Text>
+                <Text style={styles.subtitle}>Your transaction was successful. We are now processing your order.</Text>
+                <TouchableOpacity
+                    style={styles.doneBtn}
+                    onPress={() => router.replace(`/order/${id}` as any)}
+                >
+                    <Text style={styles.doneBtnText}>Track My Order</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    } else if (status === 'failed') {
+        statusView = (
+            <View style={styles.center}>
+                <View style={[styles.successCircle, { backgroundColor: '#EF4444' }]}>
+                    <Ionicons name="close" size={60} color="#FFF" />
+                </View>
+                <Text style={styles.title}>Payment Failed</Text>
+                <Text style={styles.subtitle}>
+                    {errorMessage || "We couldn't verify your payment. If you were debited, please contact support."}
+                </Text>
+                <TouchableOpacity
+                    style={[styles.doneBtn, { backgroundColor: '#0C1559', marginBottom: 12 }]}
+                    onPress={() => handleInitialize()}
+                >
+                    <Text style={styles.doneBtnText}>Try Again</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.doneBtn, { backgroundColor: '#64748B' }]}
+                    onPress={() => router.back()}
+                >
+                    <Text style={styles.doneBtnText}>Return to Cart</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    } else {
+        statusView = (
+            <View style={styles.center}>
+                <View style={styles.iconContainer}>
+                    <MaterialCommunityIcons
+                        name={getIcon()}
+                        size={50}
+                        color="#0C1559"
+                    />
+                </View>
+                <Text style={styles.statusText}>{getProcessingText()}</Text>
+                <View style={styles.progressBarBg}>
+                    <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
+                </View>
+                {(status === 'waiting' || status === 'verifying') && (
+                    <TouchableOpacity style={styles.retryBtn} onPress={() => paymentRef && handleVerify(paymentRef)}>
+                        <Text style={styles.retryText}>I&apos;ve finished paying</Text>
+                    </TouchableOpacity>
+                )}
+                <Text style={styles.info}>Secure transaction powered by Paystack</Text>
+            </View>
+        );
+    }
+
     return (
         <View style={styles.container}>
             <StatusBar style="dark" />
 
             <View style={styles.card}>
-                {status === 'success' ? (
-                    <View style={styles.center}>
-                        <View style={styles.successCircle}>
-                            <Ionicons name="checkmark" size={60} color="#FFF" />
-                        </View>
-                        <Text style={styles.title}>Payment Success!</Text>
-                        <Text style={styles.subtitle}>Your transaction was successful. We are now processing your order.</Text>
-
-                        <TouchableOpacity
-                            style={styles.doneBtn}
-                            onPress={() => router.replace(`/order/${id}` as any)}
-                        >
-                            <Text style={styles.doneBtnText}>Track My Order</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : status === 'failed' ? (
-                    <View style={styles.center}>
-                        <View style={[styles.successCircle, { backgroundColor: '#EF4444' }]}>
-                            <Ionicons name="close" size={60} color="#FFF" />
-                        </View>
-                        <Text style={styles.title}>Payment Failed</Text>
-                        <Text style={styles.subtitle}>
-                            {errorMessage || "We couldn't verify your payment. If you were debited, please contact support."}
-                        </Text>
-
-                        <TouchableOpacity
-                            style={[styles.doneBtn, { backgroundColor: '#0C1559', marginBottom: 12 }]}
-                            onPress={() => handleInitialize()}
-                        >
-                            <Text style={styles.doneBtnText}>Try Again</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.doneBtn, { backgroundColor: '#64748B' }]}
-                            onPress={() => router.back()}
-                        >
-                            <Text style={styles.doneBtnText}>Return to Cart</Text>
-                        </TouchableOpacity>
-                    </View>
-                ) : (
-                    <View style={styles.center}>
-                        <View style={styles.iconContainer}>
-                            <MaterialCommunityIcons
-                                name={getIcon()}
-                                size={50}
-                                color="#0C1559"
-                            />
-                        </View>
-                        <Text style={styles.statusText}>{getProcessingText()}</Text>
-
-                        <View style={styles.progressBarBg}>
-                            <Animated.View style={[styles.progressBarFill, { width: progressWidth }]} />
-                        </View>
-
-                        {(status === 'waiting' || status === 'verifying') && (
-                            <TouchableOpacity style={styles.retryBtn} onPress={() => paymentRef && handleVerify(paymentRef)}>
-                                <Text style={styles.retryText}>I&apos;ve finished paying</Text>
-                            </TouchableOpacity>
-                        )}
-
-                        <Text style={styles.info}>Secure transaction powered by Paystack</Text>
-                    </View>
-                )}
+                {statusView}
             </View>
         </View>
     );
