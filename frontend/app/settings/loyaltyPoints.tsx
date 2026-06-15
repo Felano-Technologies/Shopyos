@@ -24,6 +24,79 @@ interface LoyaltyTransaction {
   order_number: string | null;
 }
 
+function ListHeader({ balance, redeemableValue, lifetimeEarned }: Readonly<{
+  balance: number;
+  redeemableValue: number;
+  lifetimeEarned: number;
+}>) {
+  return (
+    <View>
+      {/* Balance Card */}
+      <View style={styles.balanceCard}>
+        <View style={styles.balanceTop}>
+          <Feather name="star" size={20} color="#FBBF24" />
+          <Text style={styles.balanceLabel}>Your Points Balance</Text>
+        </View>
+        <Text style={styles.balancePoints}>{balance.toLocaleString()}</Text>
+        <Text style={styles.balanceSubtitle}>points</Text>
+
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>₵{redeemableValue.toFixed(2)}</Text>
+            <Text style={styles.statLabel}>Redeemable Value</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.statBox}>
+            <Text style={styles.statValue}>{lifetimeEarned.toLocaleString()}</Text>
+            <Text style={styles.statLabel}>Lifetime Earned</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* How it works */}
+      <View style={styles.howCard}>
+        <Text style={styles.howTitle}>How it works</Text>
+        <View style={styles.howRow}>
+          <View style={[styles.howIcon, { backgroundColor: '#EEF2FF' }]}>
+            <Feather name="shopping-bag" size={16} color="#4F46E5" />
+          </View>
+          <Text style={styles.howText}>Earn 1 point for every ₵1 you spend</Text>
+        </View>
+        <View style={styles.howRow}>
+          <View style={[styles.howIcon, { backgroundColor: '#FEF9C3' }]}>
+            <Feather name="tag" size={16} color="#CA8A04" />
+          </View>
+          <Text style={styles.howText}>100 points = ₵1 off at checkout</Text>
+        </View>
+        <View style={styles.howRow}>
+          <View style={[styles.howIcon, { backgroundColor: '#DCFCE7' }]}>
+            <Feather name="percent" size={16} color="#16A34A" />
+          </View>
+          <Text style={styles.howText}>Redeem up to 20% of your order total</Text>
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Transaction History</Text>
+    </View>
+  );
+}
+
+function ListEmpty() {
+  return (
+    <View style={styles.emptyContainer}>
+      <Feather name="star" size={48} color="#CBD5E1" />
+      <Text style={styles.emptyTitle}>No transactions yet</Text>
+      <Text style={styles.emptySubtitle}>Start shopping to earn loyalty points</Text>
+    </View>
+  );
+}
+
+function ListFooter({ loadingMore }: Readonly<{ loadingMore: boolean }>) {
+  return loadingMore ? (
+    <ActivityIndicator size="small" color="#0C1559" style={{ marginVertical: 16 }} />
+  ) : null;
+}
+
 export default function LoyaltyPointsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -114,70 +187,6 @@ export default function LoyaltyPointsScreen() {
     );
   };
 
-  const ListHeader = () => (
-    <View>
-      {/* Balance Card */}
-      <View style={styles.balanceCard}>
-        <View style={styles.balanceTop}>
-          <Feather name="star" size={20} color="#FBBF24" />
-          <Text style={styles.balanceLabel}>Your Points Balance</Text>
-        </View>
-        <Text style={styles.balancePoints}>{balance.toLocaleString()}</Text>
-        <Text style={styles.balanceSubtitle}>points</Text>
-
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>₵{redeemableValue.toFixed(2)}</Text>
-            <Text style={styles.statLabel}>Redeemable Value</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statBox}>
-            <Text style={styles.statValue}>{lifetimeEarned.toLocaleString()}</Text>
-            <Text style={styles.statLabel}>Lifetime Earned</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* How it works */}
-      <View style={styles.howCard}>
-        <Text style={styles.howTitle}>How it works</Text>
-        <View style={styles.howRow}>
-          <View style={[styles.howIcon, { backgroundColor: '#EEF2FF' }]}>
-            <Feather name="shopping-bag" size={16} color="#4F46E5" />
-          </View>
-          <Text style={styles.howText}>Earn 1 point for every ₵1 you spend</Text>
-        </View>
-        <View style={styles.howRow}>
-          <View style={[styles.howIcon, { backgroundColor: '#FEF9C3' }]}>
-            <Feather name="tag" size={16} color="#CA8A04" />
-          </View>
-          <Text style={styles.howText}>100 points = ₵1 off at checkout</Text>
-        </View>
-        <View style={styles.howRow}>
-          <View style={[styles.howIcon, { backgroundColor: '#DCFCE7' }]}>
-            <Feather name="percent" size={16} color="#16A34A" />
-          </View>
-          <Text style={styles.howText}>Redeem up to 20% of your order total</Text>
-        </View>
-      </View>
-
-      <Text style={styles.sectionTitle}>Transaction History</Text>
-    </View>
-  );
-
-  const ListEmpty = () => (
-    <View style={styles.emptyContainer}>
-      <Feather name="star" size={48} color="#CBD5E1" />
-      <Text style={styles.emptyTitle}>No transactions yet</Text>
-      <Text style={styles.emptySubtitle}>Start shopping to earn loyalty points</Text>
-    </View>
-  );
-
-  const ListFooter = () =>
-    loadingMore ? (
-      <ActivityIndicator size="small" color="#0C1559" style={{ marginVertical: 16 }} />
-    ) : null;
-
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
@@ -211,9 +220,9 @@ export default function LoyaltyPointsScreen() {
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={renderTransaction}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={() => <ListHeader balance={balance} redeemableValue={redeemableValue} lifetimeEarned={lifetimeEarned} />}
         ListEmptyComponent={ListEmpty}
-        ListFooterComponent={ListFooter}
+        ListFooterComponent={() => <ListFooter loadingMore={loadingMore} />}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         onEndReached={handleLoadMore}

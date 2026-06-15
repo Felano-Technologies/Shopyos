@@ -24,14 +24,14 @@ export default function TappableAvatar({
   onEditPress,
   style,
   imageStyle,
-}: TappableAvatarProps) {
+}: Readonly<TappableAvatarProps>) {
   const { showPreview } = useImagePreview();
 
   const getInitials = (name: string) => {
     if (!name) return 'U';
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
-    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    return (parts[0].charAt(0) + parts.at(-1)!.charAt(0)).toUpperCase();
   };
 
   const displayInitials = fallbackText || getInitials(label);
@@ -39,7 +39,7 @@ export default function TappableAvatar({
 
   // Curated premium background color palettes based on first letter
   const getBackgroundColor = (char: string) => {
-    const code = char.charCodeAt(0) % 5;
+    const code = (char.codePointAt(0) ?? 0) % 5;
     const palettes = [
       '#0C1559', // Deep Royal Blue
       '#84cc16', // Lime Green
@@ -51,7 +51,7 @@ export default function TappableAvatar({
   };
 
   const getTextColor = (char: string) => {
-    const code = char.charCodeAt(0) % 5;
+    const code = (char.codePointAt(0) ?? 0) % 5;
     return code === 1 ? '#0C1559' : '#FFF'; // Lime green gets deep dark text for contrast
   };
 

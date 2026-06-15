@@ -52,7 +52,7 @@ function DriverListSeparator() {
   return <View style={{ height: rs(12) }} />;
 }
 
-type DriverListEmptyProps = { filter: FilterType };
+type DriverListEmptyProps = Readonly<{ filter: FilterType }>;
 function DriverListEmpty({ filter }: DriverListEmptyProps) {
   return (
     <View style={S.emptyWrap}>

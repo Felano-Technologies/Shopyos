@@ -50,14 +50,17 @@ export default function RecentScreen() {
   const slideAnim = useRef(new Animated.Value(50)).current;
 
   // --- TanStack Query Hook ---
-  const sortByParam = activeSort === 'low_high' ? 'price_asc' : activeSort === 'high_low' ? 'price_desc' : 'newest';
+  let sortByParam: string;
+  if (activeSort === 'low_high') sortByParam = 'price_asc';
+  else if (activeSort === 'high_low') sortByParam = 'price_desc';
+  else sortByParam = 'newest';
   const { data, isLoading, refetch } = useProducts({ sortBy: sortByParam as any }, 50);
   
   const products: RecentProduct[] = data?.products?.map((p: any) => ({
     id: p._id || p.id,
     title: p.name,
     category: p.category || 'General',
-    price: parseFloat(p.price) || 0,
+    price: Number.parseFloat(p.price) || 0,
     oldPrice: null,
     image: p.images?.[0] ? { uri: p.images[0] } : require('../assets/images/icon.png'),
     timestamp: 'Just now',

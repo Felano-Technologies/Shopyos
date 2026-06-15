@@ -50,27 +50,146 @@ const toFiniteCoordinate = (value: unknown, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+function pluralUnit(n: number, unit: string): string {
+  return `${n} ${unit}${n === 1 ? '' : 's'}`;
+}
+
+async function submitReview(params: {
+  userRating: number;
+  userComment: string;
+  storeId: string;
+  paramsId: string;
+  setIsSubmittingReview: (v: boolean) => void;
+  setReviewModalVisible: (v: boolean) => void;
+  setUserRating: (v: number) => void;
+  setUserComment: (v: string) => void;
+  setReviewEligibilityVisible: (v: boolean) => void;
+  setStoreData: (v: any) => void;
+  fetchReviews: () => void;
+}) {
+  if (params.userRating === 0) {
+    Alert.alert("Rating Required", "Please select a star rating.");
+    return;
+  }
+  try {
+    params.setIsSubmittingReview(true);
+    const res = await createStoreReview({
+      storeId: params.storeId,
+      rating: params.userRating,
+      reviewText: params.userComment,
+    });
+    if (res.success) {
+      CustomInAppToast.show({ type: 'success', title: 'Review Posted!', message: 'Thanks for supporting local businesses.' });
+      params.setReviewModalVisible(false);
+      params.setUserRating(0);
+      params.setUserComment('');
+      params.fetchReviews();
+      getBusinessById(params.paramsId).then((bizRes: any) => {
+        if (bizRes.success) params.setStoreData(bizRes.business);
+      });
+    }
+  } catch (error: any) {
+    const message = String(error?.message || '').toLowerCase();
+    if (message.includes('purchase') || message.includes('order') || message.includes('receive')) {
+      params.setReviewModalVisible(false);
+      params.setReviewEligibilityVisible(true);
+    } else if (message.includes('already reviewed')) {
+      Alert.alert("Already Reviewed", "You have already reviewed this store. You can update your existing review from your profile.");
+    } else {
+      Alert.alert("Error", error.message || "Failed to post review");
+    }
+  } finally {
+    params.setIsSubmittingReview(false);
+  }
+}
+
+async function startChat(params: {
+  chatLoading: boolean;
+  storeData: any;
+  store: { name: string; logo: { uri: string } | null; id: string };
+  setChatLoading: (v: boolean) => void;
+  routerPush: (route: any) => void;
+}) {
+  if (params.chatLoading) return;
+  try {
+    params.setChatLoading(true);
+    const ownerId = params.storeData?.owner?._id || params.storeData?.owner;
+    if (!ownerId) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Cannot Chat',
+        message: "This store owner is currently unavailable or doesn't exist.",
+      });
+      return;
+    }
+    const res = await startConversation(ownerId);
+    if (res.success && res.conversation) {
+      params.routerPush({
+        pathname: '/chat/conversation',
+        params: {
+          conversationId: res.conversation.id,
+          name: params.store.name,
+          avatar: params.store.logo?.uri || 'https://api.dicebear.com/7.x/initials/png?seed=' + params.store.name,
+          chatType: 'buyer',
+          entityId: params.store.id,
+          participantId: ownerId,
+        },
+      });
+    }
+  } catch {
+    CustomInAppToast.show({
+      type: 'error',
+      title: 'Chat Error',
+      message: 'Something went wrong while trying to start a chat. Please try again later.',
+    });
+  } finally {
+    params.setChatLoading(false);
+  }
+}
+
+async function toggleFollow(params: {
+  isFollowing: boolean;
+  storeId: string;
+  setIsFollowing: (v: boolean) => void;
+}) {
+  try {
+    if (params.isFollowing) {
+      await unfollowStore(params.storeId);
+      params.setIsFollowing(false);
+    } else {
+      await followStore(params.storeId);
+      params.setIsFollowing(true);
+    }
+  } catch {
+    CustomInAppToast.show({
+      type: 'error',
+      title: 'Error',
+      message: 'Could not complete the action. Please check your connection.',
+    });
+  }
+}
+
 const formatStoreAge = (createdAtString?: string) => {
   if (!createdAtString) return 'Joined recently';
   const createdDate = new Date(createdAtString);
-  if (isNaN(createdDate.getTime())) return 'Joined recently';
-  
+  if (Number.isNaN(createdDate.getTime())) return 'Joined recently';
+
   const now = new Date();
   const diffTime = Math.abs(now.getTime() - createdDate.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 30) {
     return 'Joined this month';
   } else if (diffDays < 365) {
     const months = Math.floor(diffDays / 30);
-    return `Joined ${months} ${months === 1 ? 'month' : 'months'} ago`;
+    return `Joined ${pluralUnit(months, 'month')} ago`;
   } else {
     const years = Math.floor(diffDays / 365);
     const months = Math.floor((diffDays % 365) / 30);
     if (months === 0) {
-      return `Joined ${years} ${years === 1 ? 'year' : 'years'} ago`;
+      return `Joined ${pluralUnit(years, 'year')} ago`;
     }
-    return `Joined ${years} ${years === 1 ? 'year' : 'years'} and ${months} ${months === 1 ? 'month' : 'months'} ago`;
+    return `Joined ${pluralUnit(years, 'year')} and ${pluralUnit(months, 'month')} ago`;
   }
 };
 export default function StoreDetailsScreen() {
@@ -203,42 +322,19 @@ export default function StoreDetailsScreen() {
     setMapPickerVisible(false);
   };
   // --- Review Submission Logic ---
-  const handleSubmitReview = async () => {
-    if (userRating === 0) {
-      Alert.alert("Rating Required", "Please select a star rating.");
-      return;
-    }
-    try {
-      setIsSubmittingReview(true);
-      const res = await createStoreReview({
-        storeId: store.id,
-        rating: userRating,
-        reviewText: userComment
-      });
-      if (res.success) {
-        CustomInAppToast.show({ type: 'success', title: 'Review Posted!', message: 'Thanks for supporting local businesses.' });
-        setReviewModalVisible(false);
-        setUserRating(0);
-        setUserComment('');
-        fetchReviews();
-        getBusinessById(params.id as string).then(bizRes => {
-          if (bizRes.success) setStoreData(bizRes.business);
-        });
-      }
-    } catch (error: any) {
-      const message = String(error?.message || '').toLowerCase();
-      if (message.includes('purchase') || message.includes('order') || message.includes('receive')) {
-        setReviewModalVisible(false);
-        setReviewEligibilityVisible(true);
-      } else if (message.includes('already reviewed')) {
-        Alert.alert("Already Reviewed", "You have already reviewed this store. You can update your existing review from your profile.");
-      } else {
-        Alert.alert("Error", error.message || "Failed to post review");
-      }
-    } finally {
-      setIsSubmittingReview(false);
-    }
-  };
+  const handleSubmitReview = () => submitReview({
+    userRating,
+    userComment,
+    storeId: store.id as string,
+    paramsId: params.id as string,
+    setIsSubmittingReview,
+    setReviewModalVisible,
+    setUserRating,
+    setUserComment,
+    setReviewEligibilityVisible,
+    setStoreData,
+    fetchReviews,
+  });
   const handleLikeReview = async (reviewId: string) => {
     try { await likeReview(reviewId); } catch (err) { console.error(err); }
   };
@@ -263,60 +359,18 @@ export default function StoreDetailsScreen() {
     } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
     finally { setCommentSubmitting(false); }
   };
-  const handleChat = async () => {
-    if (chatLoading) return;
-    try {
-      setChatLoading(true);
-      const ownerId = storeData?.owner?._id || storeData?.owner;
-      if (!ownerId) {
-        CustomInAppToast.show({ 
-          type: 'error', 
-          title: 'Cannot Chat',
-          message: 'This store owner is currently unavailable or doesn\'t exist.'
-        });
-        return;
-      }
-      const res = await startConversation(ownerId);
-      if (res.success && res.conversation) {
-        router.push({
-          pathname: '/chat/conversation',
-          params: {
-            conversationId: res.conversation.id,
-            name: store.name,
-            avatar: store.logo?.uri || 'https://api.dicebear.com/7.x/initials/png?seed=' + store.name,
-            chatType: 'buyer',
-            entityId: store.id,
-            participantId: ownerId
-          }
-        });
-      }
-    } catch {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Chat Error',
-        message: 'Something went wrong while trying to start a chat. Please try again later.'
-      });
-    } finally {
-      setChatLoading(false);
-    }
-  };
-  const handleFollow = async () => {
-    try {
-      if (isFollowing) {
-        await unfollowStore(store.id);
-        setIsFollowing(false);
-      } else {
-        await followStore(store.id);
-        setIsFollowing(true);
-      }
-    } catch { 
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Error',
-        message: 'Could not complete the action. Please check your connection.'
-      }); 
-    }
-  };
+  const handleChat = () => startChat({
+    chatLoading,
+    storeData,
+    store: { name: store.name, logo: store.logo, id: store.id as string },
+    setChatLoading,
+    routerPush: router.push,
+  });
+  const handleFollow = () => toggleFollow({
+    isFollowing,
+    storeId: store.id as string,
+    setIsFollowing,
+  });
   const handleShare = async () => {
     try {
       await Share.share({ message: `Check out ${store.name} on Shopyos!` });
@@ -434,7 +488,10 @@ export default function StoreDetailsScreen() {
               <Text style={styles.bigRating}>{Number(store.rating || 0).toFixed(1)}</Text>
               <View>
                 <View style={{ flexDirection: 'row' }}>
-                  {[...Array(5)].map((_, i) => <FontAwesome key={i} name="star" size={16} color={i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0"} />)}
+                  {[...new Array(5)].map((_, i) => {
+                    const starColor = i < Math.round(store.rating) ? "#FACC15" : "#E2E8F0";
+                    return <FontAwesome key={`star-${i}`} name="star" size={16} color={starColor} />;
+                  })}
                 </View>
                 <Text style={styles.totalReviews}>Based on {reviews.length} reviews</Text>
               </View>
@@ -442,18 +499,22 @@ export default function StoreDetailsScreen() {
                 <Text style={styles.writeBtnText}>Write Review</Text>
               </TouchableOpacity>
             </View>
-            {reviewsLoading ? (
-              <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 30 }} />
-            ) : reviews.length === 0 ? (
-              <View style={styles.emptyReviews}>
-                <MaterialCommunityIcons name="star-outline" size={60} color="#CBD5E1" />
-                <Text style={styles.emptyReviewsTitle}>No Reviews Yet</Text>
-              </View>
-            ) : (
-              reviews.map(item => (
+            {(() => {
+              if (reviewsLoading) {
+                return <ActivityIndicator size="large" color="#0C1559" style={{ marginTop: 30 }} />;
+              }
+              if (reviews.length === 0) {
+                return (
+                  <View style={styles.emptyReviews}>
+                    <MaterialCommunityIcons name="star-outline" size={60} color="#CBD5E1" />
+                    <Text style={styles.emptyReviewsTitle}>No Reviews Yet</Text>
+                  </View>
+                );
+              }
+              return reviews.map(item => (
                 <ReviewCard key={item.id} review={item} onLike={handleLikeReview} onComment={handleOpenComments} />
-              ))
-            )}
+              ));
+            })()}
           </View>
         );
       default: return null;
@@ -592,14 +653,25 @@ export default function StoreDetailsScreen() {
               <View style={styles.ratingCard}>
                 <Text style={styles.modalLabel}>Overall Rating</Text>
                 <View style={styles.starPickerRow}>
-                  {[1, 2, 3, 4, 5].map((s) => (
-                    <TouchableOpacity key={s} onPress={() => setUserRating(s)}>
-                        <FontAwesome name={s <= userRating ? "star" : "star-o"} size={38} color={s <= userRating ? "#FACC15" : "#E2E8F0"} style={{ marginHorizontal: 6 }} />
-                    </TouchableOpacity>
-                  ))}
+                  {[1, 2, 3, 4, 5].map((s) => {
+                    const starName = s <= userRating ? "star" : "star-o";
+                    const starColor = s <= userRating ? "#FACC15" : "#E2E8F0";
+                    return (
+                      <TouchableOpacity key={s} onPress={() => setUserRating(s)}>
+                        <FontAwesome name={starName} size={38} color={starColor} style={{ marginHorizontal: 6 }} />
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
                 <Text style={styles.ratingHint}>
-                  {userRating === 5 ? "Excellent!" : userRating === 4 ? "Very Good" : userRating === 3 ? "Average" : userRating === 2 ? "Poor" : userRating === 1 ? "Terrible" : "Tap to rate"}
+                  {(() => {
+                    if (userRating === 5) return "Excellent!";
+                    if (userRating === 4) return "Very Good";
+                    if (userRating === 3) return "Average";
+                    if (userRating === 2) return "Poor";
+                    if (userRating === 1) return "Terrible";
+                    return "Tap to rate";
+                  })()}
                 </Text>
               </View>
               <View style={styles.inputSection}>
@@ -663,7 +735,7 @@ export default function StoreDetailsScreen() {
           </View>
         </View>
       </Modal>
-      <ReviewCommentsSheet visible={isCommentsVisible} onClose={() => setIsCommentsVisible(false)} reviewId={selectedReviewId} comments={activeComments} onSendComment={handleSendComment} isSubmitting={commentSubmitting} />
+      <ReviewCommentsSheet visible={isCommentsVisible} onClose={() => setIsCommentsVisible(false)} comments={activeComments} onSendComment={handleSendComment} isSubmitting={commentSubmitting} />
       <ReportModal
         visible={reportVisible}
         onClose={() => setReportVisible(false)}

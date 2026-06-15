@@ -1,8 +1,7 @@
 import React from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
 
-export default function SpotlightIndicator({ source }: { source?: any }) {
-  void source;
+export default function SpotlightIndicator({ source: _source }: Readonly<{ source?: any }>) {
   const scale = React.useRef(new Animated.Value(0.8)).current;
   const opacity = React.useRef(new Animated.Value(0.9)).current;
 

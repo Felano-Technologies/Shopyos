@@ -35,17 +35,21 @@ export default function SettingsTransactionsScreen() {
   const fetchTransactions = async () => {
     try {
       const response = await getMyOrders();
-      if (response && response.success) {
-        const mappedData: Transaction[] = response.orders.map((order: any) => ({
-          id: order.id,
-          title: `Order #${order.order_number}`,
-          type: 'order',
-          amount: parseFloat(order.total_amount),
-          date: order.created_at,
-          status: order.status === 'paid' || order.status === 'completed' ? 'completed' :
-            order.status === 'cancelled' ? 'failed' : 'pending',
-          paymentMethod: order.payments?.[0]?.payment_method || 'Other'
-        }));
+      if (response?.success) {
+        const mappedData: Transaction[] = response.orders.map((order: any) => {
+          const orderStatus = order.status === 'paid' || order.status === 'completed'
+            ? 'completed'
+            : order.status === 'cancelled' ? 'failed' : 'pending';
+          return {
+            id: order.id,
+            title: `Order #${order.order_number}`,
+            type: 'order',
+            amount: Number.parseFloat(order.total_amount),
+            date: order.created_at,
+            status: orderStatus,
+            paymentMethod: order.payments?.[0]?.payment_method || 'Other',
+          };
+        });
         setTransactions(mappedData);
       }
     } catch (error) {
@@ -58,17 +62,21 @@ export default function SettingsTransactionsScreen() {
     setRefreshing(true);
     try {
       const response = await getMyOrders();
-      if (response && response.success) {
-        const mappedData: Transaction[] = response.orders.map((order: any) => ({
-          id: order.id,
-          title: `Order #${order.order_number}`,
-          type: 'order',
-          amount: parseFloat(order.total_amount),
-          date: order.created_at,
-          status: order.status === 'paid' || order.status === 'completed' ? 'completed' :
-            order.status === 'cancelled' ? 'failed' : 'pending',
-          paymentMethod: order.payments?.[0]?.payment_method || 'Other'
-        }));
+      if (response?.success) {
+        const mappedData: Transaction[] = response.orders.map((order: any) => {
+          const orderStatus = order.status === 'paid' || order.status === 'completed'
+            ? 'completed'
+            : order.status === 'cancelled' ? 'failed' : 'pending';
+          return {
+            id: order.id,
+            title: `Order #${order.order_number}`,
+            type: 'order',
+            amount: Number.parseFloat(order.total_amount),
+            date: order.created_at,
+            status: orderStatus,
+            paymentMethod: order.payments?.[0]?.payment_method || 'Other',
+          };
+        });
         setTransactions(mappedData);
       }
     } catch (error) {
@@ -115,19 +123,19 @@ export default function SettingsTransactionsScreen() {
           ]}>
             {isCredit ? '+' : '-'} {formatCurrency(item.amount)}
           </Text>
-          <View style={[
-            styles.statusBadge,
-            item.status === 'completed' ? styles.statusSuccess :
-              item.status === 'pending' ? styles.statusPending : styles.statusFailed
-          ]}>
-            <Text style={[
-              styles.statusText,
-              item.status === 'completed' ? styles.textSuccess :
-                item.status === 'pending' ? styles.textPending : styles.textFailed
-            ]}>
-              {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
-            </Text>
-          </View>
+          {(() => {
+            const badgeStyle = item.status === 'completed' ? styles.statusSuccess :
+              item.status === 'pending' ? styles.statusPending : styles.statusFailed;
+            const textStyle = item.status === 'completed' ? styles.textSuccess :
+              item.status === 'pending' ? styles.textPending : styles.textFailed;
+            return (
+              <View style={[styles.statusBadge, badgeStyle]}>
+                <Text style={[styles.statusText, textStyle]}>
+                  {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                </Text>
+              </View>
+            );
+          })()}
         </View>
       </View>
     );

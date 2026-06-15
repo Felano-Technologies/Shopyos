@@ -10,10 +10,10 @@ const CARD_W = width * 0.7;
 
 const C = { navy: '#0C1559', navyMid: '#1e3a8a' };
 
-interface Props {
+type Props = Readonly<{
   campaigns: any[];
   onPress: (campaign: any) => void;
-}
+}>;
 
 export function SponsoredAdsRow({ campaigns, onPress }: Props) {
   if (campaigns.length === 0) return null;

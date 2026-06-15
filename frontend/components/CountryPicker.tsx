@@ -42,7 +42,7 @@ interface CountryPickerProps {
   selectedCountryCode?: string;
 }
 
-export default function CountryPicker({ visible, onClose, onSelect, selectedCountryCode }: CountryPickerProps) {
+export default function CountryPicker({ visible, onClose, onSelect, selectedCountryCode }: Readonly<CountryPickerProps>) {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter countries based on search

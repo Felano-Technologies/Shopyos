@@ -16,7 +16,6 @@ import { View, Text, StyleSheet } from 'react-native';
 interface MapViewProps {
   style?: any;
   children?: React.ReactNode;
-  initialRegion?: any;
   [key: string]: any;
 }
 

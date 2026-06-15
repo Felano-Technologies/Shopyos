@@ -15,14 +15,14 @@ const C = {
   subtle: '#94A3B8',
 };
 
-interface Props {
+type Props = Readonly<{
   title: string;
   products: any[];
   loading: boolean;
   onPressProduct: (item: any) => void;
   onSeeAll?: () => void;
   getStoreName?: (item: any) => string;
-}
+}>;
 
 function defaultStoreName(item: any) {
   return (
@@ -52,8 +52,8 @@ export function ProductRow({ title, products, loading, onPressProduct, onSeeAll,
 
       {loading ? (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={S.list}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <View key={i} style={[S.card, { marginRight: 14 }]}>
+          {(['sk0', 'sk1', 'sk2', 'sk3'] as const).map((sk) => (
+            <View key={sk} style={[S.card, { marginRight: 14 }]}>
               <Skeleton width={152} height={116} borderRadius={0} />
               <View style={S.info}>
                 <Skeleton width={90} height={9} style={{ marginBottom: 6 }} />

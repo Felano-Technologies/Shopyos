@@ -30,7 +30,7 @@ TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   const { locations } = data as { locations: Location.LocationObject[] };
   if (!locations || locations.length === 0) return;
 
-  const { latitude, longitude } = locations[locations.length - 1].coords;
+  const { latitude, longitude } = locations.at(-1)!.coords;
   console.log('[BackgroundTask] Driver location update:', { latitude, longitude, timestamp: new Date().toISOString() });
 
   try {
@@ -88,7 +88,7 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
     const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
     const lastStr = await storage.getItem(cooldownKey);
     const now = Date.now();
-    if (lastStr && now - parseInt(lastStr, 10) < COOLDOWN_MS) return;
+    if (lastStr && now - Number.parseInt(lastStr, 10) < COOLDOWN_MS) return;
 
     const Notifs = getNotificationsModule();
     if (!Notifs) return;

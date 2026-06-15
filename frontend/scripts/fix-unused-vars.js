@@ -1,5 +1,5 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const reportPath = path.join(process.cwd(), 'lint-report.json');
 if (!fs.existsSync(reportPath)) {
@@ -10,7 +10,7 @@ if (!fs.existsSync(reportPath)) {
 const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
 
 function escapeRegExp(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return str.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 function splitCommaList(text) {
@@ -59,7 +59,7 @@ function removeFromArrayDestructure(line, name) {
 }
 
 function removeFromImport(line, name) {
-  const m = line.match(/^(\s*import\s*\{)([^}]*)(\}\s*from\s*['\"].*['\"];?\s*)$/);
+  const m = line.match(/^(\s*import\s*\{)([^}]*)(\}\s*from\s*['"].*['"];?\s*)$/);
   if (!m) return { changed: false, line };
 
   const parts = splitCommaList(m[2]);
@@ -130,7 +130,7 @@ for (const fileReport of report) {
 
     const esc = escapeRegExp(name);
 
-    if (new RegExp(`catch\\s*\\(\\s*[^)]*\\b${esc}\\b[^)]*\\)`).test(line)) {
+    if (new RegExp(String.raw`catch\s*\(\s*[^)]*\b${esc}\b[^)]*\)`).test(line)) {
       const next = line.replace(/catch\s*\([^)]*\)/, 'catch');
       if (next !== line) {
         lines[idx] = next;
@@ -139,7 +139,7 @@ for (const fileReport of report) {
       continue;
     }
 
-    const arrowParamRegex = new RegExp(`\\(\\s*${esc}(?:\\s*:[^)]+)?\\s*\\)\\s*=>`);
+    const arrowParamRegex = new RegExp(String.raw`\(\s*${esc}(?:\s*:[^)]+)?\s*\)\s*=>`);
     if (arrowParamRegex.test(line)) {
       const next = line.replace(arrowParamRegex, '() =>');
       if (next !== line) {
@@ -176,28 +176,27 @@ for (const fileReport of report) {
       continue;
     }
 
-    if (new RegExp(`^\\s*(const|let|var)\\s+${esc}\\s*=`).test(line)) {
+    if (new RegExp(String.raw`^\s*(const|let|var)\s+${esc}\s*=`).test(line)) {
       lines[idx] = '';
       edits += 1;
       continue;
     }
 
-    if (new RegExp(`^\\s*type\\s+${esc}\\b`).test(line)) {
+    if (new RegExp(String.raw`^\s*type\s+${esc}\b`).test(line)) {
       lines[idx] = '';
       edits += 1;
       continue;
     }
 
-    if (new RegExp(`^\\s*interface\\s+${esc}\\b`).test(line)) {
+    if (new RegExp(String.raw`^\s*interface\s+${esc}\b`).test(line)) {
       removeFunctionOrInterfaceBlock(lines, idx);
       edits += 1;
       continue;
     }
 
-    if (new RegExp(`^\\s*(?:async\\s+)?function\\s+${esc}\\b`).test(line)) {
+    if (new RegExp(String.raw`^\s*(?:async\s+)?function\s+${esc}\b`).test(line)) {
       removeFunctionOrInterfaceBlock(lines, idx);
       edits += 1;
-      continue;
     }
   }
 

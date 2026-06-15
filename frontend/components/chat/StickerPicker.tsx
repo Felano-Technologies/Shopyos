@@ -24,7 +24,7 @@ interface StickerPickerProps {
   onClose: () => void;
 }
 
-export default function StickerPicker({ onSelectSticker, onClose }: StickerPickerProps) {
+export default function StickerPicker({ onSelectSticker, onClose }: Readonly<StickerPickerProps>) {
   const [packs, setPacks] = useState<StickerPack[]>([]);
   const [activePackId, setActivePackId] = useState<string>('expressions');
   const [loading, setLoading] = useState(true);

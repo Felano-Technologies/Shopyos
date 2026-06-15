@@ -323,6 +323,26 @@ const InputField = ({ label, icon, value, onChangeText, placeholder, multiline =
     </View>
   </View>
 );
+async function submitBusinessRegistration(params: {
+  formData: Record<string, any>;
+  logo: string | null;
+  coverImage: string | null;
+  businessCert: string | null;
+  businessLicense: string | null;
+  proofOfBank: string | null;
+  onSuccess: () => void;
+  onError: (msg: string) => void;
+}) {
+  const { formData, logo, coverImage, businessCert, businessLicense, proofOfBank, onSuccess, onError } = params;
+  const submitData = { ...formData, logo, coverImage, businessCert, businessLicense, proofOfBank };
+  const response = await businessRegister(submitData);
+  if (response.success) {
+    onSuccess();
+  } else {
+    onError(response.error || 'Something went wrong');
+  }
+}
+
 const BusinessSetupScreen = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
@@ -404,29 +424,22 @@ const BusinessSetupScreen = () => {
     }
     setLoading(true);
     try {
-      // Logic simplified: we pass the local URIs directly.
-      // The businessRegister function (in services/api.tsx) 
-      // automatically detects file:// URIs and handles the upload via its own FormData logic.
-      const submitData = {
-        ...formData,
-        logo: logo,
-        coverImage: coverImage,
-        businessCert: businessCert,
-        businessLicense: businessLicense,
-        proofOfBank: proofOfBank,
-      };
-      const response = await businessRegister(submitData);
-      if (response.success) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
-        CustomInAppToast.show({ 
-          type: 'success', 
-          title: 'Success!', 
-          message: 'Your business has been registered. It is now pending approval.' 
-        });
-        router.replace('/business/dashboard');
-      } else {
-        CustomInAppToast.show({ type: 'error', title: 'Registration Failed', message: response.error || 'Something went wrong' });
-      }
+      await submitBusinessRegistration({
+        formData,
+        logo,
+        coverImage,
+        businessCert,
+        businessLicense,
+        proofOfBank,
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
+          CustomInAppToast.show({ type: 'success', title: 'Success!', message: 'Your business has been registered. It is now pending approval.' });
+          router.replace('/business/dashboard');
+        },
+        onError: (msg) => {
+          CustomInAppToast.show({ type: 'error', title: 'Registration Failed', message: msg });
+        },
+      });
     } catch (error: any) {
       CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || 'An unexpected error occurred' });
     } finally {

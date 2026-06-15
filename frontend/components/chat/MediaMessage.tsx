@@ -12,7 +12,7 @@ interface MediaMessageProps {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-export default function MediaMessage({ url, mimeType, isMe }: MediaMessageProps) {
+export default function MediaMessage({ url, mimeType, isMe }: Readonly<MediaMessageProps>) {
   const [loading, setLoading] = useState(true);
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
   const isVideo = mimeType?.startsWith('video/') || url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.mov');
@@ -58,8 +58,8 @@ export default function MediaMessage({ url, mimeType, isMe }: MediaMessageProps)
 
             <Video
               source={{ uri: url }}
-              rate={1.0}
-              volume={1.0}
+              rate={1}
+              volume={1}
               isMuted={false}
               resizeMode={ResizeMode.CONTAIN}
               shouldPlay

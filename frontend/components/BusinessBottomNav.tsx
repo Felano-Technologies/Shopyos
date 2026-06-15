@@ -13,6 +13,12 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const { width } = Dimensions.get('window');
 
+const Badge = ({ count }: Readonly<{ count: number }>) => (
+  <View style={styles.badgeContainer}>
+    <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
+  </View>
+);
+
 const BusinessBottomNav = () => {
   const pathname = usePathname();
   const [orderCount, setOrderCount] = useState(0); // Default to 0
@@ -49,14 +55,6 @@ const BusinessBottomNav = () => {
     // Trigger smooth layout transition when switching tabs
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     router.push(route as any);
-  };
-
-  const Badge = ({ count }: { count: number }) => {
-    return (
-      <View style={styles.badgeContainer}>
-        <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-      </View>
-    );
   };
 
   return (

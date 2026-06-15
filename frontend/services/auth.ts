@@ -112,7 +112,7 @@ export const loginUser = async (
       response.data.requiresRoleSelection ||
       response.data.role === 'none' ||
       !response.data.role ||
-      (response.data.roles && response.data.roles.length === 0);
+      (response.data.roles?.length === 0);
     return { ...response.data, needsRole };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
@@ -168,18 +168,20 @@ export const updateOnboardingState = async (screen: string, completed: boolean =
   }
 };
 
+function inferMimeType(ext: string): string {
+  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+  if (ext === 'png') return 'image/png';
+  if (ext === 'webp') return 'image/webp';
+  if (ext === 'heic') return 'image/heic';
+  return 'image/jpeg';
+}
+
 export const uploadAvatar = async (uri: string, options?: { fileName?: string; mimeType?: string }) => {
   try {
     const formData = new FormData();
     const filename = options?.fileName || uri.split('/').pop() || `avatar_${Date.now()}.jpg`;
     const ext = (filename.split('.').pop() || '').toLowerCase();
-    const inferredType =
-      ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' :
-      ext === 'png' ? 'image/png' :
-      ext === 'webp' ? 'image/webp' :
-      ext === 'heic' ? 'image/heic' :
-      'image/jpeg';
-    const type = options?.mimeType || inferredType;
+    const type = options?.mimeType || inferMimeType(ext);
     formData.append('avatar', { uri, name: filename, type } as any);
 
     const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');

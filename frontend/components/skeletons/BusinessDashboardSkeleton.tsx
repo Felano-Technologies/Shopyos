@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Skeleton from '../Skeleton'; // Assuming your Skeleton base component is here

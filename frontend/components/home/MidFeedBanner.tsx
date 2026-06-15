@@ -5,10 +5,10 @@ import { Ionicons } from '@expo/vector-icons';
 
 type Variant = 'deals' | 'explore' | 'categories';
 
-interface Props {
+type Props = Readonly<{
   variant: Variant;
   onPress: () => void;
-}
+}>;
 
 const CONFIGS: Record<Variant, {
   gradient: [string, string];

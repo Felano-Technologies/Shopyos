@@ -29,15 +29,14 @@ function pad(n: number) {
   return String(n).padStart(2, '0');
 }
 
-interface Props {
+type Props = Readonly<{
   products: any[];
   loading: boolean;
   onPressProduct: (item: any) => void;
   onSeeAll: () => void;
-  /** ISO timestamp from the flash_sales.ends_at DB column */
   endsAt?: string;
   saleTitle?: string;
-}
+}>;
 
 export function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, endsAt, saleTitle }: Props) {
   const [time, setTime] = useState(endsAt ? getTimeLeft(endsAt) : { h: 0, m: 0, s: 0, expired: false });
@@ -63,10 +62,10 @@ export function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, 
         </View>
         <View style={S.timerRow}>
           <Text style={S.timerLabel}>Time Left:</Text>
-          {[pad(time.h), pad(time.m), pad(time.s)].map((unit, i) => (
-            <React.Fragment key={i}>
+          {(['h', 'm', 's'] as const).map((part, i) => (
+            <React.Fragment key={part}>
               <View style={S.timerBox}>
-                <Text style={S.timerNum}>{unit}</Text>
+                <Text style={S.timerNum}>{pad(time[part])}</Text>
               </View>
               {i < 2 && <Text style={S.colon}>:</Text>}
             </React.Fragment>
@@ -93,7 +92,7 @@ export function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, 
             : null;
           const stock = item.stock_quantity ?? item.quantity ?? null;
           const stockMax = Math.max(item.original_quantity ?? 100, stock ?? 1);
-          const stockPct = stock !== null ? Math.min(100, Math.max(2, (stock / stockMax) * 100)) : null;
+          const stockPct = stock === null ? null : Math.min(100, Math.max(2, (stock / stockMax) * 100));
 
           return (
             <TouchableOpacity

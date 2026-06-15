@@ -19,6 +19,23 @@ import { useMutation } from '@tanstack/react-query';
 import { createProductReview, createStoreReview, createDriverReview } from '@/services/api';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
+
+function StarRating({ rating, onRate, size = 32 }: Readonly<{ rating: number; onRate: (r: number) => void; size?: number }>) {
+    return (
+        <View style={styles.starRow}>
+            {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => onRate(s)} style={{ paddingHorizontal: 4 }}>
+                    <Ionicons
+                        name={s <= rating ? "star" : "star-outline"}
+                        size={size}
+                        color={s <= rating ? "#F59E0B" : "#CBD5E1"}
+                    />
+                </TouchableOpacity>
+            ))}
+        </View>
+    );
+}
+
 const ReviewScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -66,19 +83,6 @@ const ReviewScreen = () => {
         }
         submitMutation.mutate();
     };
-    const StarRating = ({ rating, onRate, size = 32 }: { rating: number, onRate: (r: number) => void, size?: number }) => (
-        <View style={styles.starRow}>
-            {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => onRate(s)} style={{ paddingHorizontal: 4 }}>
-                    <Ionicons
-                        name={s <= rating ? "star" : "star-outline"}
-                        size={size}
-                        color={s <= rating ? "#F59E0B" : "#CBD5E1"}
-                    />
-                </TouchableOpacity>
-            ))}
-        </View>
-    );
     if (loading) return <ReviewSkeleton />;
     const delivery = order?.deliveries?.[0];
     const driver = delivery?.driver;

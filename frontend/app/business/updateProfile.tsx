@@ -67,8 +67,6 @@ const BusinessUpdateScreen = () => {
   });
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
-  const [logoChanged, setLogoChanged] = useState(false);
-  const [coverChanged, setCoverChanged] = useState(false);
   const [uploadLoading, ] = useState(false);
   const categories = [
     'Fashion & Apparel', 'Electronics', 'Home & Living', 'Art & Crafts',
@@ -107,8 +105,8 @@ const BusinessUpdateScreen = () => {
         quality: 0.8,
       });
       if (uri) {
-        if (type === 'logo') { setLogo(uri); setLogoChanged(true); }
-        else { setCoverImage(uri); setCoverChanged(true); }
+        if (type === 'logo') { setLogo(uri); }
+        else { setCoverImage(uri); }
       }
     } catch {
       Alert.alert('Error', 'Failed to pick image');

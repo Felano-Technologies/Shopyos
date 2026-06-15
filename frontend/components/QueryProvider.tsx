@@ -29,13 +29,13 @@ import { asyncStoragePersister } from '../lib/query/persister';
 const CACHE_BUSTER = 'shopyos-v1.0';
 
 // Keys that should NEVER be persisted — auth-sensitive or always-fresh
-const NEVER_PERSIST: string[] = [
+const NEVER_PERSIST = new Set<string>([
   'profile',    // Contains PII — always fetch fresh
   // Note: 'cart' and 'orders' are intentionally NOT excluded anymore.
   // Cart must survive app restarts. Orders are safe to cache.
-];
+]);
 
-export function QueryProvider({ children }: { children: React.ReactNode }) {
+export function QueryProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -53,7 +53,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             const key = query.queryKey[0] as string;
 
             // Never persist sensitive keys
-            if (NEVER_PERSIST.includes(String(key))) return false;
+            if (NEVER_PERSIST.has(String(key))) return false;
 
             // Only persist queries that actually succeeded — don't cache
             // error states or loading states across restarts

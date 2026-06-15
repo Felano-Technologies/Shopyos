@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { getUserData, updateOnboardingState, secureStorage } from '../services/api';
 import { cacheUserProfile, getCachedUserProfile } from '../services/storage';
 
@@ -10,7 +10,7 @@ interface OnboardingContextType {
   onboardingState: OnboardingState;
   isTourActive: boolean;
   activeScreen: string | null;
-  user: any | null;
+  user: any;
   isLoading: boolean;
   startTour: (screen: string) => Promise<void>;
   stopTour: () => void;
@@ -25,7 +25,7 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [onboardingState, setOnboardingState] = useState<OnboardingState>({});
   const [isTourActive, setIsTourActive] = useState(false);
   const [activeScreen, setActiveScreen] = useState<string | null>(null);
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -96,21 +96,24 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const isCompleted = (screen: string) => !!onboardingState[screen];
 
+  const contextValue = useMemo(
+    () => ({
+      onboardingState,
+      isTourActive,
+      activeScreen,
+      user,
+      isLoading,
+      startTour,
+      stopTour,
+      markCompleted,
+      isCompleted,
+      refresh,
+    }),
+    [onboardingState, isTourActive, activeScreen, user, isLoading, startTour, stopTour, markCompleted, isCompleted, refresh],
+  );
+
   return (
-    <OnboardingContext.Provider
-      value={{
-        onboardingState,
-        isTourActive,
-        activeScreen,
-        user,
-        isLoading,
-        startTour,
-        stopTour,
-        markCompleted,
-        isCompleted,
-        refresh,
-      }}
-    >
+    <OnboardingContext.Provider value={contextValue}>
       {children}
     </OnboardingContext.Provider>
   );

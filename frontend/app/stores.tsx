@@ -56,7 +56,7 @@ export default function StoresScreen() {
     refetch,
   } = useStores({
     search:   searchQuery || undefined,
-    category: activeCategory !== 'All' ? activeCategory : undefined,
+    category: activeCategory === 'All' ? undefined : activeCategory,
     sortBy:   filterSort,
     verified: filterVerified ? 'true' : undefined,
   });
@@ -389,7 +389,7 @@ export default function StoresScreen() {
                 <View style={styles.secHeader}>
                   <Text style={styles.secTitle}>
                     {isSearching
-                      ? `${stores.length} result${stores.length !== 1 ? 's' : ''}`
+                      ? `${stores.length} result${stores.length === 1 ? '' : 's'}`
                       : 'All Stores'}
                   </Text>
                   {!isSearching && (

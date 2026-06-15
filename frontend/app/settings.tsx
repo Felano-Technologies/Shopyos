@@ -135,7 +135,7 @@ export default function SettingsScreen() {
             setAvatarUrl(resolvedAvatar);
           }
           const prefs = await getNotificationPreferences();
-          if (prefs && prefs.success) {
+          if (prefs?.success) {
             setNotificationsEnabled(prefs.preferences.push_enabled);
           }
         } catch (error) {
@@ -195,9 +195,7 @@ export default function SettingsScreen() {
       <Text style={[styles.settingLabel, isDestructive && styles.destructiveLabel]}>
         {label}
       </Text>
-      {rightElement ? (
-        rightElement
-      ) : (
+      {rightElement ?? (
         <Feather name="chevron-right" size={20} color="#CBD5E1" />
       )}
     </TouchableOpacity>

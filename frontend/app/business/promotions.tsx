@@ -30,6 +30,25 @@ function getStatusColor(status: string) {
   }
 }
 
+async function verifyAndApplyReference(params: {
+  reference: string;
+  refetchCampaigns: () => void;
+  replaceRoute: () => void;
+}) {
+  const { reference, refetchCampaigns, replaceRoute } = params;
+  try {
+    const res = await verifyBannerPayment(reference);
+    if (res.success) {
+      CustomInAppToast.show({ type: 'success', title: 'Payment Successful', message: 'Your ad campaign is now live!' });
+      refetchCampaigns();
+    }
+  } catch (error: any) {
+    CustomInAppToast.show({ type: 'error', title: 'Verification Failed', message: error.message || 'Payment could not be verified' });
+  } finally {
+    replaceRoute();
+  }
+}
+
 export default function PromotionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -38,7 +57,6 @@ export default function PromotionsScreen() {
   const [adTitle, setAdTitle] = useState('');
   const [duration, setDuration] = useState(DURATION_TIERS[1]); // default: 1 week
   const [bannerUri, setBannerUri] = useState<string | null>(null);
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -57,21 +75,11 @@ export default function PromotionsScreen() {
 
   useEffect(() => {
     if (!reference) return;
-    (async () => {
-      try {
-        setPaymentLoading(true);
-        const res = await verifyBannerPayment(reference as string);
-        if (res.success) {
-          CustomInAppToast.show({ type: 'success', title: 'Payment Successful', message: 'Your ad campaign is now live!' });
-          refetchCampaigns();
-        }
-      } catch (error: any) {
-        CustomInAppToast.show({ type: 'error', title: 'Verification Failed', message: error.message || 'Payment could not be verified' });
-      } finally {
-        setPaymentLoading(false);
-        router.replace('/business/promotions');
-      }
-    })();
+    verifyAndApplyReference({
+      reference: reference as string,
+      refetchCampaigns,
+      replaceRoute: () => router.replace('/business/promotions'),
+    });
   }, [reference]);
   const showImagePicker = useImagePickerSheet();
   const handlePickImage = async () => {
@@ -102,7 +110,6 @@ export default function PromotionsScreen() {
   };
   const handlePayAd = async (campaignId: string) => {
     try {
-      setPaymentLoading(true);
       const res = await initializeBannerPayment({ campaignId, email: 'merchant@shopyos.com' });
       if (res.success && res.data.authorization_url) {
         CustomInAppToast.show({ type: 'success', title: 'Opening Checkout', message: 'Redirecting to Paystack secure payment page...' });
@@ -110,10 +117,15 @@ export default function PromotionsScreen() {
       }
     } catch (error: any) {
       CustomInAppToast.show({ type: 'error', title: 'Initialisation Failed', message: error.message || 'Could not reach payment provider' });
-    } finally {
-      setPaymentLoading(false);
     }
   };
+
+  const totalClicks = campaigns.reduce((acc, c) => acc + (c.clicks || 0), 0);
+  const totalSpent = campaigns.reduce(
+    (acc, c) => (['Active', 'Completed'].includes(c.status) ? acc + Number.parseFloat(c.paid_amount || 0) : acc),
+    0
+  );
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -153,19 +165,19 @@ export default function PromotionsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" colors={['#0C1559']} />
           }
         >
-          
+
           {activeTab === 'campaigns' ? (
             <>
               {/* Stats Overview */}
               <View style={styles.statsRow}>
                 <View style={styles.statCard}>
                   <Feather name="trending-up" size={20} color="#84cc16" />
-                  <Text style={styles.statValue}>{campaigns.reduce((acc, c) => acc + (c.clicks || 0), 0).toLocaleString()}</Text>
+                  <Text style={styles.statValue}>{totalClicks.toLocaleString()}</Text>
                   <Text style={styles.statLabel}>Total Ad Clicks</Text>
                 </View>
                 <View style={styles.statCard}>
                   <Feather name="pie-chart" size={20} color="#0C1559" />
-                  <Text style={styles.statValue}>₵{campaigns.reduce((acc, c) => (['Active', 'Completed'].includes(c.status) ? acc + Number.parseFloat(c.paid_amount || 0) : acc), 0)}</Text>
+                  <Text style={styles.statValue}>₵{totalSpent}</Text>
                   <Text style={styles.statLabel}>Total Spent</Text>
                 </View>
               </View>

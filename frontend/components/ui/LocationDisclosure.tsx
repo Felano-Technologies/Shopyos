@@ -21,20 +21,12 @@ import {
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 const { width } = Dimensions.get('window');
-interface LocationDisclosureProps {
-  /** Whether the modal is visible */
+type LocationDisclosureProps = Readonly<{
   visible: boolean;
-  /** Called when the user accepts — caller should then request system permissions */
   onAccept: () => void;
-  /** Called when the user declines */
   onDecline: () => void;
-  /**
-   * Context for the disclosure copy:
-   *  - 'driver'  → explains tracking for active deliveries
-   *  - 'general' → explains proximity alerts / cached location
-   */
   context?: 'driver' | 'general';
-}
+}>;
 const C = {
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
@@ -149,8 +141,8 @@ export default function LocationDisclosure({
           </Text>
           {/* Feature list */}
           <View style={styles.featureList}>
-            {features.map((f, i) => (
-              <View key={i} style={styles.featureRow}>
+            {features.map((f) => (
+              <View key={f.title} style={styles.featureRow}>
                 <View style={styles.featureIcon}>
                   {f.iconFamily === 'mci' ? (
                     <MaterialCommunityIcons

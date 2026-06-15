@@ -70,6 +70,18 @@ const fmt = (iso: string) => {
   }
 };
 
+async function confirmCancelBroadcast(
+  id: string,
+  setBroadcasts: React.Dispatch<React.SetStateAction<Broadcast[]>>,
+) {
+  try {
+    await api.delete(`/admin/scheduled-notifications/${id}`);
+    setBroadcasts((previous) => previous.filter((broadcast) => broadcast.id !== id));
+  } catch {
+    Alert.alert('Error', 'Could not cancel notification');
+  }
+}
+
 export default function AdminNotificationsScreen() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -161,17 +173,9 @@ export default function AdminNotificationsScreen() {
   };
 
   const handleCancel = (id: string) => {
-    const confirmCancel = async () => {
-      try {
-        await api.delete(`/admin/scheduled-notifications/${id}`);
-        setBroadcasts((previous) => previous.filter((broadcast) => broadcast.id !== id));
-      } catch {
-        Alert.alert('Error', 'Could not cancel notification');
-      }
-    };
     Alert.alert('Cancel broadcast?', 'This cannot be undone.', [
       { text: 'No', style: 'cancel' },
-      { text: 'Yes, cancel', style: 'destructive', onPress: confirmCancel },
+      { text: 'Yes, cancel', style: 'destructive', onPress: () => confirmCancelBroadcast(id, setBroadcasts) },
     ]);
   };
 

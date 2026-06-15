@@ -59,8 +59,8 @@ export default function StoresMapWeb() {
         const res = await getAllStores({});
         if (res.success) {
           const mapped: StoreItem[] = (res.businesses || []).map((store: any) => {
-            const lat = store.latitude ? parseFloat(store.latitude) : coords.latitude;
-            const lng = store.longitude ? parseFloat(store.longitude) : coords.longitude;
+            const lat = store.latitude ? Number.parseFloat(store.latitude) : coords.latitude;
+            const lng = store.longitude ? Number.parseFloat(store.longitude) : coords.longitude;
 
             return {
               id: store.id,

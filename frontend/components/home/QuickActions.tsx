@@ -10,9 +10,9 @@ export interface QuickAction {
   bg: string;
 }
 
-interface Props {
+type Props = Readonly<{
   actions: QuickAction[];
-}
+}>;
 
 export function QuickActions({ actions }: Props) {
   return (

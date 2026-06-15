@@ -9,7 +9,9 @@ import {
   TouchableOpacity,
   Alert,
   useColorScheme,
+  ActivityIndicator,
 } from 'react-native';
+import { api } from '@/services/api';
 
 export default function ChangePasswordScreen() {
   const theme = useColorScheme();
@@ -23,8 +25,9 @@ export default function ChangePasswordScreen() {
   const [currentPw, setCurrentPw] = useState('');
   const [newPw, setNewPw] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPw || !newPw || !confirmPw) {
       Alert.alert('Error', 'All fields are required.');
       return;
@@ -33,11 +36,19 @@ export default function ChangePasswordScreen() {
       Alert.alert('Error', 'New password and confirm password must match.');
       return;
     }
-    // TODO: Call your backend change-password endpoint here
-    Alert.alert('Success', 'Password changed successfully.');
-    setCurrentPw('');
-    setNewPw('');
-    setConfirmPw('');
+    try {
+      setLoading(true);
+      await api.put('/auth/change-password', { currentPassword: currentPw, newPassword: newPw });
+      Alert.alert('Success', 'Password changed successfully.');
+      setCurrentPw('');
+      setNewPw('');
+      setConfirmPw('');
+    } catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || 'Failed to change password.';
+      Alert.alert('Error', message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -75,8 +86,9 @@ export default function ChangePasswordScreen() {
         <TouchableOpacity
           style={[styles.button, { backgroundColor: isDark ? '#4F46E5' : '#222222' }]}
           onPress={handleChangePassword}
+          disabled={loading}
         >
-          <Text style={styles.buttonText}>Submit</Text>
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.buttonText}>Submit</Text>}
         </TouchableOpacity>
       </View>
     </SafeAreaView>

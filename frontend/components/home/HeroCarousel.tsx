@@ -33,10 +33,10 @@ export interface HeroAd {
   store_id?: string;
 }
 
-interface Props {
+type Props = Readonly<{
   ads: HeroAd[];
   onAdPress: (ad: HeroAd) => void;
-}
+}>;
 
 export function HeroCarousel({ ads, onAdPress }: Props) {
   const scrollRef = useRef<ScrollView>(null);
@@ -138,9 +138,9 @@ export function HeroCarousel({ ads, onAdPress }: Props) {
 
       {ads.length > 1 && (
         <View style={S.dots}>
-          {ads.map((_, i) => (
+          {ads.map((ad, i) => (
             <TouchableOpacity
-              key={i}
+              key={ad.id}
               style={[S.dot, i === adIndex && S.dotActive]}
               onPress={() => goToAd(i)}
             />

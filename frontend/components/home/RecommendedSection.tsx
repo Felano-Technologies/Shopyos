@@ -5,7 +5,7 @@ import { ProductRow } from './ProductRow';
 
 export function RecommendedSection() {
   const { data: personalized, isLoading: loadingPersonalized, isError } = usePersonalizedRecommendations();
-  const { data: trending, isLoading: loadingTrending } = useTrendingRecommendations(undefined);
+  const { data: trending, isLoading: loadingTrending } = useTrendingRecommendations();
 
   const isLoading = loadingPersonalized;
   const products: any[] = personalized?.products?.length

@@ -58,11 +58,8 @@ export const useDriverGuard = () => {
         // If they haven't submitted anything yet (no record at all)
         // But getDriverProfile usually returns 404 if no profile.
         // The isLoading/error handles that.
-      } else {
-        // No driver profile found? Redirect to registration/verification
-        if (!pathname.startsWith('/driver/verification') && !pathname.startsWith('/driver/index')) {
-           router.replace('/driver/verification');
-        }
+      } else if (!pathname.startsWith('/driver/verification') && !pathname.startsWith('/driver/index')) {
+        router.replace('/driver/verification');
       }
 
       setIsChecking(false);

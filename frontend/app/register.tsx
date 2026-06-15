@@ -15,7 +15,6 @@ const { width } = Dimensions.get('window');
 const RegisterScreen = () => {
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [, setCountryCode] = useState('GH');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -146,9 +145,6 @@ const RegisterScreen = () => {
                   visible={showCountryPicker}
                   onClose={() => setShowCountryPicker(false)}
                   onSelect={(country) => {
-                    // 1. Use 'code' instead of 'cca2'
-                    setCountryCode(country.code);
-                    // 2. Use 'dial_code' instead of 'callingCode[0]'
                     setCallingCode(country.dial_code);
                   }}
                 />

@@ -16,7 +16,7 @@ export const useAvailableDeliveries = (options?: DeliveryQueryOptions) => {
     },
     staleTime: 1 * 60 * 1000, // 1 minute - available deliveries change frequently
     gcTime: 5 * 60 * 1000,
-    enabled: options?.enabled !== undefined ? options.enabled : true,
+    enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,
   });
 };
@@ -30,7 +30,7 @@ export const useActiveDeliveries = (options?: DeliveryQueryOptions) => {
     },
     staleTime: 1 * 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000,
-    enabled: options?.enabled !== undefined ? options.enabled : true,
+    enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,
   });
 };

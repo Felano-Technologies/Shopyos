@@ -92,12 +92,10 @@ export default function ReceiptScreen() {
   const serviceFee: number  = Number.parseFloat(order?.service_fee  ?? 0);
   const tax: number         = Number.parseFloat(order?.tax_amount   ?? 0);
   const discount: number    = Number.parseFloat(order?.discount ?? order?.discount_amount ?? 0);
-  const grandTotal: number  =
-    order?.total_amount
-      ? Number.parseFloat(order.total_amount)
-      : payment?.amount
-        ? Number.parseFloat(payment.amount)
-        : itemsSubtotal + deliveryFee + serviceFee + tax - discount;
+  const computedTotal = itemsSubtotal + deliveryFee + serviceFee + tax - discount;
+  const grandTotal: number = order?.total_amount
+    ? Number.parseFloat(order.total_amount)
+    : Number.parseFloat(payment?.amount ?? String(computedTotal));
 
   const buyerName = (() => {
     if (!order) return 'Customer';
@@ -121,10 +119,10 @@ export default function ReceiptScreen() {
       setDownloading(true);
 
       // Step 1 — capture the exact receipt View as a base64 PNG
-      // quality: 1.0 = lossless, result: 'base64' so we can embed in HTML
+      // quality: 1 = lossless, result: 'base64' so we can embed in HTML
       const base64Image = await captureRef(receiptRef, {
         format:  'png',
-        quality: 1.0,
+        quality: 1,
         result:  'base64',
       });
 
@@ -377,7 +375,7 @@ export default function ReceiptScreen() {
               <Text style={S.barcodeStripTxt}>shopyos.com  ·  digital receipt</Text>
               <View style={S.barcodeWrap}>
                 {BAR_DEFS.map((b, i) => (
-                  <View key={i} style={[S.bar, { width: rs(b.w), height: rs(b.h) }]} />
+                  <View key={`bar-${i}-${b.w}-${b.h}`} style={[S.bar, { width: rs(b.w), height: rs(b.h) }]} />
                 ))}
               </View>
             </View>

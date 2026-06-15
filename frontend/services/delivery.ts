@@ -143,7 +143,8 @@ export const getLatestLocation = async (deliveryId: string) => {
   try {
     const response = await api.get(`/deliveries/${deliveryId}/latest-location`);
     return response.data as { success: boolean; location: { latitude: number; longitude: number } | null };
-  } catch (error: any) {
+  } catch (err: any) {
+    console.warn('[delivery] getLatestLocation failed:', err?.message);
     return { success: false, location: null };
   }
 };

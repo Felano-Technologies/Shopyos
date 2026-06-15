@@ -5,7 +5,8 @@ export const uploadStoreLogo = async (uri: string) => {
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'logo.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : 'image/jpeg';
+    const ext = match ? match[1] : null;
+    const type = ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'image/jpeg';
     formData.append('logo', { uri, name: filename, type } as any);
     const response = await api.post('/upload/store-logo', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

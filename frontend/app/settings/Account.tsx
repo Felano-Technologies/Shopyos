@@ -42,7 +42,7 @@ const LOCATION_DATA: Record<string, string[]> = {
   'United States': ['California', 'Texas', 'Florida', 'New York', 'Illinois', 'Pennsylvania'],
   'Canada': ['Ontario', 'Quebec', 'British Columbia', 'Alberta', 'Manitoba'],
 };
-const COUNTRIES = Object.keys(LOCATION_DATA).sort();
+const COUNTRIES = Object.keys(LOCATION_DATA).sort((a, b) => a.localeCompare(b));
 const LOCAL_AVATAR_CACHE_KEY = 'lastUploadedAvatarUri';
 const isLocalhostLikeUrl = (value?: string | null) =>
   !!value && /https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(value);
@@ -118,17 +118,63 @@ const ProfileField = ({
     </TouchableOpacity>
   );
 };
+function SelectionModal({ visible, onClose, title, data, onSelect, selectedCountry, selectedRegion }: Readonly<{
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  data: string[];
+  onSelect: (item: string) => void;
+  selectedCountry: string;
+  selectedRegion: string;
+}>) {
+  return (
+    <Modal
+      animationType="slide"
+      transparent={true}
+      visible={visible}
+      onRequestClose={onClose}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose}>
+              <Ionicons name="close" size={24} color="#64748B" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={data}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.optionItem} onPress={() => onSelect(item)}>
+                <Text style={styles.optionText}>{item}</Text>
+                {((title.includes('Country') && selectedCountry === item) ||
+                  (title.includes('Region') && selectedRegion === item)) && (
+                    <Ionicons name="checkmark" size={20} color="#A3E635" />
+                  )}
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No options available</Text>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export default function AccountScreen() {
   const router = useRouter();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [, setMethods] = useState<any[]>([]);
+  const [_methods, setMethods] = useState<any[]>([]);
   // --- 1. Fetch User Data ---
   const fetchMethods = useCallback(async () => {
     try {
       const resp = await getPaymentMethods();
-      if (resp && resp.success) {
+      if (resp?.success) {
         setMethods(resp.data || []);
       }
     } catch (err) {
@@ -219,42 +265,6 @@ export default function AccountScreen() {
     setUserData({ ...userData, region });
     setShowRegionModal(false);
   };
-  // Reusable Selection Modal
-  const SelectionModal = ({ visible, onClose, title, data, onSelect }: any) => (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-          <FlatList
-            data={data}
-            keyExtractor={(item) => item}
-            renderItem={({ item }) => (
-              <TouchableOpacity style={styles.optionItem} onPress={() => onSelect(item)}>
-                <Text style={styles.optionText}>{item}</Text>
-                {((title.includes('Country') && userData.country === item) ||
-                  (title.includes('Region') && userData.region === item)) && (
-                    <Ionicons name="checkmark" size={20} color="#A3E635" />
-                  )}
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>No options available</Text>
-            }
-          />
-        </View>
-      </View>
-    </Modal>
-  );
   const showImagePicker = useImagePickerSheet();
   const pickImage = async () => {
     try {
@@ -275,7 +285,7 @@ export default function AccountScreen() {
       setShowAvatarModal(false);
       setUploading(true);
       const res = await uploadAvatar(uri);
-      if (res && res.success) {
+      if (res?.success) {
         const uploadedAvatar = res?.data?.public_url || res?.data?.url || userData.avatar;
         const safeAvatarToShow = isLocalhostLikeUrl(uploadedAvatar) ? uri : uploadedAvatar;
         setUserData({ ...userData, avatar: safeAvatarToShow });
@@ -427,6 +437,8 @@ export default function AccountScreen() {
         title="Select Country"
         data={COUNTRIES}
         onSelect={selectCountry}
+        selectedCountry={userData.country}
+        selectedRegion={userData.region}
       />
       <SelectionModal
         visible={showRegionModal}
@@ -434,6 +446,8 @@ export default function AccountScreen() {
         title={`Select Region in ${userData.country}`}
         data={userData.country ? LOCATION_DATA[userData.country] : []}
         onSelect={selectRegion}
+        selectedCountry={userData.country}
+        selectedRegion={userData.region}
       />
       {/* Avatar Modal */}
       <Modal

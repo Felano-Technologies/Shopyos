@@ -58,6 +58,18 @@ const EMPTY_ANALYTICS = {
   categoryDistribution: [] as any[],
 };
 
+function measureElementInWindow(
+  ref: React.RefObject<View>,
+  key: string,
+  setLayouts: React.Dispatch<React.SetStateAction<any>>,
+) {
+  if (ref.current) {
+    ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
+      setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+    });
+  }
+}
+
 const Analytics = () => {
   const insets = useSafeAreaInsets();
 
@@ -83,13 +95,7 @@ const Analytics = () => {
   const refStats = useRef<View>(null);
   const refTopProducts = useRef<View>(null);
 
-  const measureElement = (ref: any, key: string) => {
-    if (ref.current) {
-      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
-      });
-    }
-  };
+  const measureElement = (ref: any, key: string) => measureElementInWindow(ref, key, setLayouts);
 
   const onRefresh = useCallback(() => { refetch(); }, [refetch]);
 

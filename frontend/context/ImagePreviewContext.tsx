@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Modal, View, StyleSheet, TouchableOpacity, Text, Dimensions, Platform } from 'react-native';
+import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode } from 'react';
+import { Modal, View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -23,20 +23,22 @@ export const ImagePreviewProvider = ({ children }: { children: ReactNode }) => {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [label, setLabel] = useState<string | null>(null);
 
-  const showPreview = (uri: string, title?: string) => {
+  const showPreview = useCallback((uri: string, title?: string) => {
     setImageUri(uri);
     setLabel(title || null);
     setVisible(true);
-  };
+  }, []);
 
-  const hidePreview = () => {
+  const hidePreview = useCallback(() => {
     setVisible(false);
     setImageUri(null);
     setLabel(null);
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({ showPreview, hidePreview }), [showPreview, hidePreview]);
 
   return (
-    <ImagePreviewContext.Provider value={{ showPreview, hidePreview }}>
+    <ImagePreviewContext.Provider value={contextValue}>
       {children}
       <Modal
         animationType="fade"

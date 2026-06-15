@@ -24,8 +24,8 @@ export default function SnapViewer() {
     }
   }, [params.feedData]);
 
-  const initialIndex = React.useMemo(() => 
-    params.initialIndex ? parseInt(params.initialIndex as string, 10) : 0, 
+  const initialIndex = React.useMemo(() =>
+    params.initialIndex ? Number.parseInt(params.initialIndex as string, 10) : 0,
   [params.initialIndex]);
 
   const [storeIndex, setStoreIndex] = useState(initialIndex);
@@ -135,16 +135,14 @@ export default function SnapViewer() {
 
           {/* Progress Bars */}
           <View style={[styles.progressContainer, { top: insets.top || 10 }]}>
-            {currentStore.snaps.map((_: any, i: number) => (
-              <View key={i} style={styles.progressBarBg}>
-                <View 
-                  style={[
-                    styles.progressBarFill, 
-                    { width: i === snapIndex ? `${progress}%` : i < snapIndex ? '100%' : '0%' }
-                  ]} 
-                />
-              </View>
-            ))}
+            {currentStore.snaps.map((snap: any, i: number) => {
+              const barWidth = i === snapIndex ? `${progress}%` : i < snapIndex ? '100%' : '0%';
+              return (
+                <View key={snap.id ?? i} style={styles.progressBarBg}>
+                  <View style={[styles.progressBarFill, { width: barWidth }]} />
+                </View>
+              );
+            })}
           </View>
 
           {/* Header Info */}

@@ -466,7 +466,7 @@ const OrdersScreen = () => {
                   </View>
                   <View style={S.adPlaceholderDots}>
                     {[0, 1, 2].map(i => (
-                      <View key={i} style={[S.adPlaceholderDot, i === 0 && S.adPlaceholderDotActive]} />
+                      <View key={`dot-${i}`} style={[S.adPlaceholderDot, i === 0 && S.adPlaceholderDotActive]} />
                     ))}
                   </View>
                 </View>

@@ -91,13 +91,13 @@ export default function StoresMap() {
   const listRef = useRef<FlatList>(null);
   const [userCoords,    setUserCoords]    = useState<{ latitude: number; longitude: number } | null>(null);
   const [allStores,     setAllStores]     = useState<StoreItem[]>([]);
-  const [filteredStores, setFiltered]     = useState<StoreItem[]>([]);
-  const [loading,        setLoading]      = useState(true);
-  const [activeIndex,    setActiveIndex]  = useState(0);
-  const [radiusKm,       setRadiusKm]     = useState(2);
-  const [activeCategory, setCategory]     = useState('All');
-  const [searchQuery,    setSearch]        = useState('');
-  const [showRadiusPicker, setShowRadius] = useState(false);
+  const [filteredStores, setFilteredStores] = useState<StoreItem[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [activeIndex,    setActiveIndex]    = useState(0);
+  const [radiusKm,       setRadiusKm]       = useState(2);
+  const [activeCategory, setActiveCategory] = useState('All');
+  const [searchQuery,    setSearchQuery]    = useState('');
+  const [showRadiusPicker, setShowRadiusPicker] = useState(false);
   // Pulse animation for active marker
   const pulseAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -126,9 +126,9 @@ export default function StoresMap() {
           const mapped: StoreItem[] = (res.businesses || []).map((b: any, i: number) => {
             // Use real coordinates if present, otherwise scatter near user
             // (remove the fallback scatter in production — all stores should have coords)
-            const lat = b.latitude  ? parseFloat(b.latitude)
+            const lat = b.latitude  ? Number.parseFloat(b.latitude)
               : coords.latitude  + (Math.random() - 0.5) * 0.04;
-            const lng = b.longitude ? parseFloat(b.longitude)
+            const lng = b.longitude ? Number.parseFloat(b.longitude)
               : coords.longitude + (Math.random() - 0.5) * 0.04;
             return {
               id:          b.id,
@@ -172,7 +172,7 @@ export default function StoresMap() {
           s.category.toLowerCase().includes(q)
       );
     }
-    setFiltered(result);
+    setFilteredStores(result);
     setActiveIndex(0);
   }, [allStores, radiusKm, activeCategory, searchQuery]);
   // ── Animate map to active store ────────────────────────────────────────────
@@ -339,13 +339,13 @@ export default function StoresMap() {
               placeholder="Search stores nearby…"
               placeholderTextColor={C.subtle}
               value={searchQuery}
-              onChangeText={setSearch}
+              onChangeText={setSearchQuery}
               returnKeyType="search"
               autoCorrect={false}
               autoCapitalize="none"
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Ionicons name="close-circle" size={15} color={C.subtle} />
               </TouchableOpacity>
             )}
@@ -363,7 +363,7 @@ export default function StoresMap() {
               <TouchableOpacity
                 key={cat}
                 style={[S.chip, on && S.chipOn]}
-                onPress={() => setCategory(cat)}
+                onPress={() => setActiveCategory(cat)}
               >
                 <Text style={[S.chipTxt, on && S.chipTxtOn]}>{cat}</Text>
               </TouchableOpacity>
@@ -380,7 +380,7 @@ export default function StoresMap() {
         {/* Radius picker toggle */}
         <TouchableOpacity
           style={[S.fab, showRadiusPicker && S.fabActive]}
-          onPress={() => setShowRadius((v) => !v)}
+          onPress={() => setShowRadiusPicker((v) => !v)}
         >
           <MaterialCommunityIcons
             name="radar"
@@ -395,7 +395,7 @@ export default function StoresMap() {
               <TouchableOpacity
                 key={r}
                 style={[S.radiusOption, radiusKm === r && S.radiusOptionOn]}
-                onPress={() => { setRadiusKm(r); setShowRadius(false); }}
+                onPress={() => { setRadiusKm(r); setShowRadiusPicker(false); }}
               >
                 <Text style={[S.radiusOptionTxt, radiusKm === r && S.radiusOptionTxtOn]}>
                   {r} km
@@ -412,11 +412,11 @@ export default function StoresMap() {
         {/* Count row */}
         <View style={S.countRow}>
           <Text style={S.nearbyCount}>
-            {filteredStores.length} store{filteredStores.length !== 1 ? 's' : ''} nearby
+            {filteredStores.length} store{filteredStores.length === 1 ? '' : 's'} nearby
           </Text>
           <TouchableOpacity
             style={S.radiusBadge}
-            onPress={() => setShowRadius((v) => !v)}
+            onPress={() => setShowRadiusPicker((v) => !v)}
           >
             <MaterialCommunityIcons name="radar" size={12} color={C.navy} />
             <Text style={S.radiusBadgeTxt}>Within {radiusKm} km</Text>
@@ -429,7 +429,7 @@ export default function StoresMap() {
             <MaterialCommunityIcons name="storefront-outline" size={28} color={C.subtle} />
             <Text style={S.emptyCarouselTxt}>No stores found in this area</Text>
             <TouchableOpacity
-              onPress={() => { setRadiusKm(10); setCategory('All'); setSearch(''); }}
+              onPress={() => { setRadiusKm(10); setActiveCategory('All'); setSearchQuery(''); }}
             >
               <Text style={S.emptyCarouselLink}>Expand search to 10 km</Text>
             </TouchableOpacity>

@@ -70,6 +70,271 @@ const CATEGORY_IMAGES: Record<string, any> = {
   'Books': require('../assets/images/search/pencil.png'),
 };
 type ViewMode = 'grid' | 'list';
+
+function buildFilters(
+  category: string | null,
+  gender: string | null,
+  sortBy: string,
+  params: ReturnType<typeof useLocalSearchParams>,
+) {
+  return {
+    category: category ?? (params.category ? String(params.category) : undefined),
+    gender: gender ?? (params.gender ? String(params.gender) : undefined),
+    sortBy: sortBy as any,
+    minPrice: params.minPrice ? Number.parseFloat(String(params.minPrice)) : undefined,
+    maxPrice: params.maxPrice ? Number.parseFloat(String(params.maxPrice)) : undefined,
+    minRating: params.minRating ? Number.parseFloat(String(params.minRating)) : undefined,
+  };
+}
+
+async function addItemToCart(
+  item: any,
+  addToCart: (p: any) => void,
+  setAddingId: (id: string | null) => void,
+) {
+  setAddingId(item._id);
+  try {
+    addToCart({
+      id: item._id,
+      title: item.name,
+      category: item.category || 'General',
+      price: Number.parseFloat(item.price) || 0,
+      image: item.images?.[0] || 'https://via.placeholder.com/300',
+      storeId: item.store_id || item.business_id || item.store?._id || item.store?.id,
+    });
+    CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
+  } catch {
+    CustomInAppToast.show({ type: 'error', title: 'Could not add to cart', message: 'Please try again later' });
+  } finally {
+    setAddingId(null);
+  }
+}
+
+function AdPlaceholder({ style }: { style?: any }) {
+  return (
+    <View style={[styles.searchAdPlaceholder, style]}>
+      <LinearGradient
+        colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+        style={StyleSheet.absoluteFill}
+      />
+      <View style={styles.searchAdContent}>
+        <View style={[styles.searchAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
+          <Text style={[styles.searchAdBadgeTxt, { color: C.muted }]}>ADS</Text>
+        </View>
+        <Text style={[styles.searchAdTitle, { color: C.muted }]}>Your campaign here</Text>
+        <Text style={[styles.searchAdSub, { color: C.subtle }]}>Promote your store to buyers →</Text>
+      </View>
+    </View>
+  );
+}
+
+function StoreList({ stores }: { stores: any[] }) {
+  if (!stores || stores.length === 0) return null;
+  return (
+    <View style={styles.storesSection}>
+      <View style={styles.storesHeader}>
+        <Text style={styles.storesTitle}>Sellers</Text>
+        <Text style={styles.storesCount}>{stores.length} found</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storeList}>
+        {stores.map((store: any) => (
+          <TouchableOpacity
+            key={store.id}
+            style={styles.storeCard}
+            onPress={() => safePush('/stores/details', { id: store.id, name: store.name, logo: store.logo })}
+          >
+            <View style={styles.storeLogoWrap}>
+              <AppImage uri={store.logo || 'https://via.placeholder.com/60'} style={styles.storeLogo} />
+              {store.verified && (
+                <View style={styles.verifiedBadgeSmall}>
+                  <Ionicons name="checkmark-circle" size={10} color={C.lime} />
+                </View>
+              )}
+            </View>
+            <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+function GridCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+  return (
+    <TouchableOpacity style={styles.gridCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
+      <View style={styles.gridImgWrap}>
+        <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.gridImg} />
+        <TouchableOpacity style={styles.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="heart-outline" size={13} color={C.navy} />
+        </TouchableOpacity>
+        {item.isNew && <View style={styles.badgeNew}><Text style={styles.badgeNewTxt}>NEW</Text></View>}
+      </View>
+      <View style={styles.gridInfo}>
+        <Text style={styles.storeLbl} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
+        <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
+        <View style={styles.priceRow}>
+          <Text style={styles.priceLbl}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+          <TouchableOpacity
+            style={styles.addBtn}
+            onPress={(e: any) => { e?.stopPropagation?.(); onAddToCart(item); }}
+            disabled={addingId === item._id}
+          >
+            {addingId === item._id
+              ? <ActivityIndicator size="small" color="#fff" />
+              : <Ionicons name="add" size={14} color="#fff" />
+            }
+          </TouchableOpacity>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function FeaturedCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+  return (
+    <TouchableOpacity style={styles.featCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
+      <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.featImg} />
+      <View style={styles.featInfo}>
+        <View style={styles.featBadge}><Text style={styles.featBadgeTxt}>TOP PICK</Text></View>
+        <Text style={styles.featName} numberOfLines={2}>{item.name}</Text>
+        <Text style={styles.featStore} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
+        <Text style={styles.featPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
+      </View>
+      <TouchableOpacity
+        style={styles.featAddBtn}
+        onPress={(e: any) => { e?.stopPropagation?.(); onAddToCart(item); }}
+        disabled={addingId === item._id}
+      >
+        {addingId === item._id
+          ? <ActivityIndicator size="small" color={C.limeText} />
+          : <Ionicons name="add" size={18} color={C.limeText} />
+        }
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+
+function ListCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+  return (
+    <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => safePush('/product/details', { id: item._id })}>
+      <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.listImg} />
+      <View style={styles.listInfo}>
+        <Text style={styles.storeLbl} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
+        <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
+        <Text style={[styles.priceLbl, { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime }]}>
+          ₵{Number.parseFloat(item.price).toFixed(2)}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={styles.listAddBtn}
+        onPress={(e: any) => { e?.stopPropagation?.(); onAddToCart(item); }}
+        disabled={addingId === item._id}
+      >
+        {addingId === item._id
+          ? <ActivityIndicator size="small" color="#fff" />
+          : <Ionicons name="add" size={16} color="#fff" />
+        }
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+
+function DiscoveryView({
+  recentSearches,
+  searchAds,
+  visibleCategories,
+  category,
+  handleAdPress,
+  clearRecent,
+  setQuery,
+  setCategory,
+  inputRef,
+}: {
+  recentSearches: string[];
+  searchAds: HeroAd[];
+  visibleCategories: any[];
+  category: string | null;
+  handleAdPress: (ad: HeroAd) => void;
+  clearRecent: () => void;
+  setQuery: (q: string) => void;
+  setCategory: (c: string | null) => void;
+  inputRef: React.RefObject<TextInput>;
+}) {
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.discoveryScroll} keyboardShouldPersistTaps="handled">
+      {recentSearches.length > 0 && (
+        <View style={styles.discSection}>
+          <View style={styles.discHeader}>
+            <Text style={styles.discLabel}>Recent</Text>
+            <TouchableOpacity onPress={clearRecent}><Text style={styles.discClear}>Clear all</Text></TouchableOpacity>
+          </View>
+          {recentSearches.map(term => (
+            <TouchableOpacity key={term} style={styles.recentRow} onPress={() => { setQuery(term); inputRef.current?.focus(); }}>
+              <View style={styles.recentIcon}><Ionicons name="time-outline" size={14} color={C.navy} /></View>
+              <Text style={styles.recentTxt}>{term}</Text>
+              <Feather name="arrow-up-right" size={13} color={C.subtle} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
+      {searchAds.length > 0
+        ? <View style={{ marginTop: 4 }}><CompactAdCarousel ads={searchAds} onAdPress={handleAdPress} /></View>
+        : <AdPlaceholder style={{ marginTop: 4 }} />
+      }
+      {visibleCategories.length > 0 && (
+        <>
+          <View style={styles.discDivider} />
+          <View style={styles.discSection}>
+            <Text style={styles.discLabel}>Browse categories</Text>
+            <View style={styles.catTileGrid}>
+              {[...visibleCategories].sort((a, b) => a.name.localeCompare(b.name)).map((cat: any) => {
+                const isOn = category === cat.name;
+                const catImg = CATEGORY_IMAGES[cat.name];
+                return (
+                  <TouchableOpacity
+                    key={cat.id || cat.name}
+                    style={[styles.catTile, isOn && styles.catTileSelected]}
+                    onPress={() => { setCategory(isOn ? null : cat.name); setQuery(''); }}
+                  >
+                    <View style={styles.catTileInner}>
+                      {catImg
+                        ? <AppImage source={catImg} style={styles.catTileBgImg} />
+                        : <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' }]} />
+                      }
+                      <LinearGradient colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']} style={styles.catTileScrim} />
+                      {isOn && <View style={styles.catTileActiveTint} />}
+                      <View style={styles.catTileTextWrap}>
+                        {isOn && <View style={styles.catTileCheckmark}><Ionicons name="checkmark" size={9} color="#fff" /></View>}
+                        <Text style={styles.catTileTxtLeft} numberOfLines={2}>{cat.name}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </>
+      )}
+    </ScrollView>
+  );
+}
+
+function EmptyResults({ setQuery, setCategory, setSortBy }: { setQuery: (q: string) => void; setCategory: (c: string | null) => void; setSortBy: (s: string) => void }) {
+  return (
+    <View style={styles.emptyWrap}>
+      <View style={styles.emptyCircle}>
+        <MaterialCommunityIcons name="archive-search-outline" size={44} color={C.navy} />
+      </View>
+      <Text style={styles.emptyTitle}>Nothing found</Text>
+      <Text style={styles.emptyBody}>Try different keywords or remove active filters.</Text>
+      <TouchableOpacity style={styles.resetBtn} onPress={() => { setQuery(''); setCategory(null); setSortBy('newest'); }}>
+        <Text style={styles.resetBtnTxt}>Reset filters</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function SearchScreen() {
   const { addToCart } = useCart();
   const params = useLocalSearchParams();
@@ -85,7 +350,7 @@ export default function SearchScreen() {
   );
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortOpen, setSortOpen] = useState(false);
-  const [recentSearches, setRecent] = useState<string[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const inputRef = useRef<TextInput>(null);
@@ -119,7 +384,6 @@ export default function SearchScreen() {
     setSortBy(params.sortBy ? String(params.sortBy) : 'newest');
   }, [params.query, params.category, params.gender, params.sortBy]);
 
-  // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
   const refSearchPill = useRef<View>(null);
@@ -127,8 +391,8 @@ export default function SearchScreen() {
   const refTrending = useRef<View>(null);
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
-      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      ref.current.measureInWindow((x: number, y: number, w: number, h: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width: w, height: h } }));
       });
     }
   };
@@ -142,442 +406,91 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [startTour]);
   const onboardingSteps = [
-    {
-      targetLayout: layouts.search,
-      title: 'Smart Search',
-      description: 'Find products, stores, or categories instantly by typing here.',
-    },
-    {
-      targetLayout: layouts.actions,
-      title: 'Filter & Sort',
-      description: 'Refine your results by price, date, or popularity to find the best deals.',
-    },
-    {
-      targetLayout: layouts.trending,
-      title: 'Discovery',
-      description: 'Explore trending searches and top categories to see what’s hot right now.',
-    },
+    { targetLayout: layouts.search, title: 'Smart Search', description: 'Find products, stores, or categories instantly by typing here.' },
+    { targetLayout: layouts.actions, title: 'Filter & Sort', description: 'Refine your results by price, date, or popularity to find the best deals.' },
+    { targetLayout: layouts.trending, title: 'Discovery', description: "Explore trending searches and top categories to see what's hot right now." },
   ].filter(s => !!s.targetLayout);
-  const handleOnboardingComplete = () => {
-    markCompleted('search');
-  };
-  // ── Recent searches ────────────────────────────────────────────────────────
+
   useEffect(() => {
     storage.getItem(RECENT_KEY).then(raw => {
-      if (raw) setRecent(JSON.parse(raw));
+      if (raw) setRecentSearches(JSON.parse(raw));
     });
   }, []);
   const saveRecent = useCallback(async (term: string) => {
     if (!term.trim()) return;
-    setRecent(prev => {
+    setRecentSearches(prev => {
       const next = [term, ...prev.filter(r => r !== term)].slice(0, MAX_RECENT);
       storage.setItem(RECENT_KEY, JSON.stringify(next));
       return next;
     });
   }, []);
   const clearRecent = useCallback(async () => {
-    setRecent([]);
+    setRecentSearches([]);
     await storage.removeItem(RECENT_KEY);
   }, []);
-  // ── Data ────────────────────────────────────────────────────────────────────
+
   const { data: categoriesData } = useCategories();
   const categories = categoriesData || [];
   const visibleCategories = categories.filter((cat: any) => {
     const name = String(cat?.name || '').trim().toLowerCase();
     return name !== 'automotive' && name !== 'toys';
   });
-  const filters = {
-    category: category ?? (params.category ? String(params.category) : undefined),
-    gender: gender ?? (params.gender ? String(params.gender) : undefined),
-    sortBy: sortBy as any,
-    minPrice: params.minPrice ? parseFloat(String(params.minPrice)) : undefined,
-    maxPrice: params.maxPrice ? parseFloat(String(params.maxPrice)) : undefined,
-    minRating: params.minRating ? parseFloat(String(params.minRating)) : undefined,
-  };
+  const filters = buildFilters(category, gender, sortBy, params);
   const isActive = query.length >= 2;
   const { data: allData, isLoading: loadingAll, refetch: refetchAll } = useProducts(filters, 50);
   const { data: searchData, isLoading: loadingSearch, refetch: refetchSearch } = useProductSearch(query, filters, 50);
   const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(query, category, 10);
   const loading = isActive ? loadingSearch : loadingAll;
-  const products = isActive
-    ? (searchData?.success ? searchData.products : [])
-    : (allData?.success ? allData.products : []);
+  const activeProducts = searchData?.success ? searchData.products : [];
+  const browseProducts = allData?.success ? allData.products : [];
+  const products = isActive ? activeProducts : browseProducts;
   const showStores = isActive || !!category;
   const stores = showStores && storeSearchData?.success ? (storeSearchData.data || storeSearchData.businesses || []) : [];
-  // Cross-fade on data / view change
+
   useEffect(() => {
     Animated.sequence([
       Animated.timing(fadeAnim, { toValue: 0.3, duration: 80, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 240, useNativeDriver: true }),
     ]).start();
   }, [products.length, viewMode, category, fadeAnim]);
-  // Slide-in sort dropdown
   useEffect(() => {
-    Animated.timing(slideAnim, {
-      toValue: sortOpen ? 1 : 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(slideAnim, { toValue: sortOpen ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [slideAnim, sortOpen]);
-  // ── Handlers ────────────────────────────────────────────────────────────────
-  const handleChangeText = (text: string) => {
-    setQuery(text);
-    if (category) setCategory(null);
-  };
-  const handleSubmit = () => {
-    if (query.trim().length >= 2) saveRecent(query.trim());
-    Keyboard.dismiss();
-  };
-  const handleProductPress = (item: any) => {
-    safePush('/product/details', { id: item._id });
-  };
-  const handleAddToCart = async (item: any) => {
-    setAddingId(item._id);
-    try {
-      addToCart({
-        id: item._id,
-        title: item.name,
-        category: item.category || 'General',
-        price: parseFloat(item.price) || 0,
-        image: item.images?.[0] || 'https://via.placeholder.com/300',
-        storeId: item.store_id || item.business_id || item.store?._id || item.store?.id
-      });
-      CustomInAppToast.show({ type: 'success', title: 'Added to cart', message: item.name });
-    } catch {
-      CustomInAppToast.show({ type: 'error', title: 'Could not add to cart', message: 'Please try again later' });
-    } finally {
-      setAddingId(null);
-    }
-  };
+
+  const handleChangeText = (text: string) => { setQuery(text); if (category) setCategory(null); };
+  const handleSubmit = () => { if (query.trim().length >= 2) saveRecent(query.trim()); Keyboard.dismiss(); };
+  const handleAddToCart = (item: any) => addItemToCart(item, addToCart, setAddingId);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try {
-      await Promise.all([
-        refetchAll(),
-        refetchSearch(),
-        refetchStores(),
-      ]);
-    } finally {
-      setRefreshing(false);
-    }
+    try { await Promise.all([refetchAll(), refetchSearch(), refetchStores()]); }
+    finally { setRefreshing(false); }
   }, [refetchAll, refetchSearch, refetchStores]);
-  // ── Header title ────────────────────────────────────────────────────────────
+
   const headingTop = isActive ? 'Results for' : 'Discover';
-
-  const renderListHeader = () => {
-    return (
-      <View>
-        {renderStores()}
-        {searchAds.length > 0 ? (
-          <CompactAdCarousel ads={searchAds} onAdPress={handleAdPress} />
-        ) : (
-          <View style={styles.searchAdPlaceholder}>
-            <LinearGradient
-              colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.searchAdContent}>
-              <View style={[styles.searchAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
-                <Text style={[styles.searchAdBadgeTxt, { color: C.muted }]}>ADS</Text>
-              </View>
-              <Text style={[styles.searchAdTitle, { color: C.muted }]}>Your campaign here</Text>
-              <Text style={[styles.searchAdSub, { color: C.subtle }]}>Promote your store to buyers →</Text>
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  };
-
-  // ── Render: stores ──────────────────────────────────────────────────────────
-  const renderStores = () => {
-    if (!stores || stores.length === 0) return null;
-    return (
-      <View style={styles.storesSection}>
-        <View style={styles.storesHeader}>
-          <Text style={styles.storesTitle}>Sellers</Text>
-          <Text style={styles.storesCount}>
-            {stores.length} found
-          </Text>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.storeList}
-        >
-          {stores.map((store: any) => (
-            <TouchableOpacity
-              key={store.id}
-              style={styles.storeCard}
-              onPress={() => safePush('/stores/details', { id: store.id, name: store.name, logo: store.logo })}
-            >
-              <View style={styles.storeLogoWrap}>
-                <AppImage
-                  uri={store.logo || 'https://via.placeholder.com/60'}
-                  style={styles.storeLogo}
-                />
-                {store.verified && (
-                  <View style={styles.verifiedBadgeSmall}>
-                    <Ionicons name="checkmark-circle" size={10} color={C.lime} />
-                  </View>
-                )}
-              </View>
-              <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
-    );
-  };
-  // ── Render: grid card ───────────────────────────────────────────────────────
-  const renderGrid = ({ item }: { item: any }) => (
-    <TouchableOpacity
-      style={styles.gridCard}
-      activeOpacity={0.88}
-      onPress={() => handleProductPress(item)}
-    >
-      <View style={styles.gridImgWrap}>
-        <AppImage
-          uri={item.images?.[0] || 'https://via.placeholder.com/300'}
-          style={styles.gridImg}
-        />
-        <TouchableOpacity style={styles.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Ionicons name="heart-outline" size={13} color={C.navy} />
-        </TouchableOpacity>
-        {item.isNew && (
-          <View style={styles.badgeNew}><Text style={styles.badgeNewTxt}>NEW</Text></View>
-        )}
-      </View>
-      <View style={styles.gridInfo}>
-        <Text style={styles.storeLbl} numberOfLines={1}>
-          {item.store?.name || 'Shopyos'}
-        </Text>
-        <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
-        <View style={styles.priceRow}>
-          <Text style={styles.priceLbl}>₵{parseFloat(item.price).toFixed(2)}</Text>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={(e: any) => {
-              e?.stopPropagation?.();
-              handleAddToCart(item);
-            }}
-            disabled={addingId === item._id}
-          >
-            {addingId === item._id
-              ? <ActivityIndicator size="small" color="#fff" />
-              : <Ionicons name="add" size={14} color="#fff" />
-            }
-          </TouchableOpacity>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-  // ── Render: featured card (first result in list view) ──────────────────────
-  const renderFeatured = (item: any) => (
-    <TouchableOpacity
-      style={styles.featCard}
-      activeOpacity={0.88}
-      onPress={() => handleProductPress(item)}
-    >
-      <AppImage
-        uri={item.images?.[0] || 'https://via.placeholder.com/300'}
-        style={styles.featImg}
-      />
-      <View style={styles.featInfo}>
-        <View style={styles.featBadge}><Text style={styles.featBadgeTxt}>TOP PICK</Text></View>
-        <Text style={styles.featName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.featStore} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
-        <Text style={styles.featPrice}>₵{parseFloat(item.price).toFixed(2)}</Text>
-      </View>
-      <TouchableOpacity
-        style={styles.featAddBtn}
-        onPress={(e: any) => {
-          e?.stopPropagation?.();
-          handleAddToCart(item);
-        }}
-        disabled={addingId === item._id}
-      >
-        {addingId === item._id
-          ? <ActivityIndicator size="small" color={C.limeText} />
-          : <Ionicons name="add" size={18} color={C.limeText} />
-        }
-      </TouchableOpacity>
-    </TouchableOpacity>
-  );
-  // ── Render: list card ───────────────────────────────────────────────────────
-  const renderList = ({ item, index }: { item: any; index: number }) => {
-    if (index === 0) return renderFeatured(item);
-    return (
-      <TouchableOpacity
-        style={styles.listCard}
-        activeOpacity={0.85}
-        onPress={() => handleProductPress(item)}
-      >
-        <AppImage
-          uri={item.images?.[0] || 'https://via.placeholder.com/300'}
-          style={styles.listImg}
-        />
-        <View style={styles.listInfo}>
-          <Text style={styles.storeLbl} numberOfLines={1}>
-            {item.store?.name || 'Shopyos'}
-          </Text>
-          <Text style={styles.productLbl} numberOfLines={2}>{item.name}</Text>
-          <Text style={[styles.priceLbl, { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.lime }]}>
-            ₵{parseFloat(item.price).toFixed(2)}
-          </Text>
-        </View>
-        <TouchableOpacity
-          style={styles.listAddBtn}
-          onPress={(e: any) => {
-            e?.stopPropagation?.();
-            handleAddToCart(item);
-          }}
-          disabled={addingId === item._id}
-        >
-          {addingId === item._id
-            ? <ActivityIndicator size="small" color="#fff" />
-            : <Ionicons name="add" size={16} color="#fff" />
-          }
-        </TouchableOpacity>
-      </TouchableOpacity>
-    );
-  };
-  // ── Render: discovery ───────────────────────────────────────────────────────
-  const renderDiscovery = () => (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.discoveryScroll}
-      keyboardShouldPersistTaps="handled"
-    >
-      {recentSearches.length > 0 && (
-        <View style={styles.discSection}>
-          <View style={styles.discHeader}>
-            <Text style={styles.discLabel}>Recent</Text>
-            <TouchableOpacity onPress={clearRecent}>
-              <Text style={styles.discClear}>Clear all</Text>
-            </TouchableOpacity>
-          </View>
-          {recentSearches.map(term => (
-            <TouchableOpacity
-              key={term}
-              style={styles.recentRow}
-              onPress={() => { setQuery(term); inputRef.current?.focus(); }}
-            >
-              <View style={styles.recentIcon}>
-                <Ionicons name="time-outline" size={14} color={C.navy} />
-              </View>
-              <Text style={styles.recentTxt}>{term}</Text>
-              <Feather name="arrow-up-right" size={13} color={C.subtle} />
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-      {/* Ad campaign slot — always visible in discovery */}
-      {searchAds.length > 0 ? (
-        <View style={{ marginTop: 4 }}>
-          <CompactAdCarousel ads={searchAds} onAdPress={handleAdPress} />
-        </View>
-      ) : (
-        <View style={[styles.searchAdPlaceholder, { marginTop: 4 }]}>
-          <LinearGradient
-            colors={['rgba(12,21,89,0.05)', 'rgba(12,21,89,0.02)']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={styles.searchAdContent}>
-            <View style={[styles.searchAdBadge, { backgroundColor: 'rgba(12,21,89,0.08)' }]}>
-              <Text style={[styles.searchAdBadgeTxt, { color: C.muted }]}>ADS</Text>
-            </View>
-            <Text style={[styles.searchAdTitle, { color: C.muted }]}>Your campaign here</Text>
-            <Text style={[styles.searchAdSub, { color: C.subtle }]}>Promote your store to buyers →</Text>
-          </View>
-        </View>
-      )}
-
-      {visibleCategories.length > 0 && (
-        <>
-          <View style={styles.discDivider} />
-          <View style={styles.discSection}>
-            <Text style={styles.discLabel}>Browse categories</Text>
-            <View style={styles.catTileGrid}>
-              {[...visibleCategories].sort((a, b) => a.name.localeCompare(b.name)).map((cat: any, i: number) => {
-                const isOn = category === cat.name;
-                const catImg = CATEGORY_IMAGES[cat.name];
-                return (
-                  <TouchableOpacity
-                    key={cat.id || cat.name}
-                    style={[styles.catTile, isOn && styles.catTileSelected]}
-                    onPress={() => {
-                      setCategory(isOn ? null : cat.name);
-                      setQuery('');
-                    }}
-                  >
-                    <View style={styles.catTileInner}>
-                      {catImg ? (
-                        <AppImage
-                          source={catImg}
-                          style={styles.catTileBgImg}
-                        />
-                      ) : (
-                        <View style={[styles.catTileBgImg, { backgroundColor: '#1E293B' }]} />
-                      )}
-                      {/* Dark gradient scrim for text legibility */}
-                      <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
-                        style={styles.catTileScrim}
-                      />
-                      {/* Active overlay tint */}
-                      {isOn && <View style={styles.catTileActiveTint} />}
-                      {/* Text */}
-                      <View style={styles.catTileTextWrap}>
-                        {isOn && (
-                          <View style={styles.catTileCheckmark}>
-                            <Ionicons name="checkmark" size={9} color="#fff" />
-                          </View>
-                        )}
-                        <Text style={styles.catTileTxtLeft} numberOfLines={2}>
-                          {cat.name}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        </>
-      )}
-    </ScrollView>
-  );
-  // ── Render: empty results ───────────────────────────────────────────────────
-  const renderEmpty = () => (
-    <View style={styles.emptyWrap}>
-      <View style={styles.emptyCircle}>
-        <MaterialCommunityIcons name="archive-search-outline" size={44} color={C.navy} />
-      </View>
-      <Text style={styles.emptyTitle}>Nothing found</Text>
-      <Text style={styles.emptyBody}>Try different keywords or remove active filters.</Text>
-      <TouchableOpacity
-        style={styles.resetBtn}
-        onPress={() => { setQuery(''); setCategory(null); setSortBy('newest'); }}
-      >
-        <Text style={styles.resetBtnTxt}>Reset filters</Text>
-      </TouchableOpacity>
+  const renderListHeader = () => (
+    <View>
+      <StoreList stores={stores} />
+      {searchAds.length > 0
+        ? <CompactAdCarousel ads={searchAds} onAdPress={handleAdPress} />
+        : <AdPlaceholder />
+      }
     </View>
   );
-  // ── Root ────────────────────────────────────────────────────────────────────
+  const renderGrid = ({ item }: { item: any }) => <GridCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />;
+  const renderList = ({ item, index }: { item: any; index: number }) =>
+    index === 0
+      ? <FeaturedCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />
+      : <ListCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />;
+  const renderEmpty = () => <EmptyResults setQuery={setQuery} setCategory={setCategory} setSortBy={setSortBy} />;
+
   return (
     <Pressable onPress={() => { Keyboard.dismiss(); setSortOpen(false); }} style={{ flex: 1 }}>
       <View style={styles.root}>
         <StatusBar style="light" />
-        {/* ── Premium header ──────────────────────────────────────────────── */}
         <LinearGradient colors={[C.navy, C.navyMid]} style={styles.hdrGradient}>
-          {/* Radial lime glow — decorative */}
           <View style={styles.hdrGlow} pointerEvents="none" />
           <SafeAreaView edges={['top', 'left', 'right']}>
             <View style={styles.hdrInner}>
-              {/* Top row */}
               <View style={styles.hdrTop}>
                 <View>
                   <Text style={styles.hdrEyebrow}>{headingTop}</Text>
@@ -589,15 +502,11 @@ export default function SearchScreen() {
                   </Text>
                 </View>
                 <View style={styles.hdrActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
-                  <TouchableOpacity
-                    style={styles.hdrBtn}
-                    onPress={() => safePush('/cart')}
-                  >
+                  <TouchableOpacity style={styles.hdrBtn} onPress={() => safePush('/cart')}>
                     <Feather name="shopping-bag" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>
                 </View>
               </View>
-              {/* Search pill */}
               <View style={[styles.searchPill, query.length > 0 && styles.searchPillFocused]} ref={refSearchPill} onLayout={() => measureElement(refSearchPill, 'search')}>
                 <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
                 <TextInput
@@ -613,149 +522,82 @@ export default function SearchScreen() {
                   autoCapitalize="none"
                 />
                 {query.length > 0 ? (
-                  <TouchableOpacity
-                    style={styles.clearBtn}
-                    onPress={() => { setQuery(''); setCategory(null); }}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
+                  <TouchableOpacity style={styles.clearBtn} onPress={() => { setQuery(''); setCategory(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close" size={10} color="#fff" />
                   </TouchableOpacity>
                 ) : (
-                  <View style={styles.kbdHint}>
-                    <Text style={styles.kbdHintTxt}>⌘K</Text>
-                  </View>
+                  <View style={styles.kbdHint}><Text style={styles.kbdHintTxt}>⌘K</Text></View>
                 )}
               </View>
             </View>
           </SafeAreaView>
-          {/* White arc cutout — creates the premium curved bottom */}
           <View style={styles.hdrArc} />
         </LinearGradient>
-        {/* ── Body ────────────────────────────────────────────────────────── */}
         {(loading && products.length === 0 && !isActive && !category) ? (
           <View style={{ flex: 1 }}><SearchSkeleton /></View>
         ) : (
-          <View style={{
-            flex: 1,
-            backgroundColor: '#ffffff',
-            zIndex: 10
-          }}>
-            {/* Discovery: no active search and no category selected */}
+          <View style={{ flex: 1, backgroundColor: '#ffffff', zIndex: 10 }}>
             {!isActive && !category ? (
-              renderDiscovery()
+              <DiscoveryView
+                recentSearches={recentSearches}
+                searchAds={searchAds}
+                visibleCategories={visibleCategories}
+                category={category}
+                handleAdPress={handleAdPress}
+                clearRecent={clearRecent}
+                setQuery={setQuery}
+                setCategory={setCategory}
+                inputRef={inputRef}
+              />
             ) : (
               <View style={{ flex: 1 }}>
-                {/* Gender Quick-Filter Strip */}
                 {isFashionCategory(category) && (
                   <View style={styles.genderFilterRow}>
                     {['All', 'Men', 'Women', 'Unisex', 'Boys', 'Girls'].map((g) => {
                       const active = (g === 'All' && !gender) || gender === g;
                       return (
-                        <TouchableOpacity
-                          key={g}
-                          style={[styles.genderFilterChip, active && styles.genderFilterChipActive]}
-                          onPress={() => setGender(g === 'All' ? null : g)}
-                        >
-                          <Text style={[styles.genderFilterChipTxt, active && styles.genderFilterChipTxtActive]}>
-                            {g}
-                          </Text>
+                        <TouchableOpacity key={g} style={[styles.genderFilterChip, active && styles.genderFilterChipActive]} onPress={() => setGender(g === 'All' ? null : g)}>
+                          <Text style={[styles.genderFilterChipTxt, active && styles.genderFilterChipTxtActive]}>{g}</Text>
                         </TouchableOpacity>
                       );
                     })}
                   </View>
                 )}
-
-                {/* Toolbar */}
                 <View style={styles.toolbar}>
                   <Text style={styles.resultCount}>
-                    {products.length}{' '}
-                    {isActive ? 'result' : 'product'}
-                    {products.length !== 1 ? 's' : ''}
+                    {products.length}{' '}{isActive ? 'result' : 'product'}{products.length === 1 ? '' : 's'}
                   </Text>
                   <View style={styles.toolbarRight}>
                     <View style={styles.viewToggle}>
-                      <TouchableOpacity
-                        style={[styles.vtBtn, viewMode === 'grid' && styles.vtBtnOn]}
-                        onPress={() => setViewMode('grid')}
-                      >
+                      <TouchableOpacity style={[styles.vtBtn, viewMode === 'grid' && styles.vtBtnOn]} onPress={() => setViewMode('grid')}>
                         <MaterialCommunityIcons name="view-grid-outline" size={15} color={viewMode === 'grid' ? '#fff' : C.muted} />
                       </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.vtBtn, viewMode === 'list' && styles.vtBtnOn]}
-                        onPress={() => setViewMode('list')}
-                      >
+                      <TouchableOpacity style={[styles.vtBtn, viewMode === 'list' && styles.vtBtnOn]} onPress={() => setViewMode('list')}>
                         <MaterialCommunityIcons name="view-list-outline" size={15} color={viewMode === 'list' ? '#fff' : C.muted} />
                       </TouchableOpacity>
                     </View>
-                    <TouchableOpacity
-                      style={styles.sortBtn}
-                      onPress={() => setSortOpen(v => !v)}
-                    >
+                    <TouchableOpacity style={styles.sortBtn} onPress={() => setSortOpen(v => !v)}>
                       <Ionicons name="funnel-outline" size={11} color={C.navy} />
-                      <Text style={styles.sortBtnTxt}>
-                        {SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}
-                      </Text>
+                      <Text style={styles.sortBtnTxt}>{SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}</Text>
                       <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={11} color={C.navy} />
                     </TouchableOpacity>
                   </View>
                 </View>
-                {/* Sort dropdown */}
                 {sortOpen && (
-                  <Animated.View
-                    style={[styles.sortDropdown, {
-                      opacity: slideAnim,
-                      transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
-                    }]}
-                  >
+                  <Animated.View style={[styles.sortDropdown, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] }]}>
                     {SORT_OPTIONS.map(opt => (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]}
-                        onPress={() => { setSortBy(opt.value); setSortOpen(false); }}
-                      >
-                        <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: C.navy }]}>
-                          {opt.label}
-                        </Text>
+                      <TouchableOpacity key={opt.value} style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]} onPress={() => { setSortBy(opt.value); setSortOpen(false); }}>
+                        <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: C.navy }]}>{opt.label}</Text>
                         {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={C.lime} />}
                       </TouchableOpacity>
                     ))}
                   </Animated.View>
                 )}
-                {/* Product list */}
-                <Animated.View style={{
-                  flex: 1,
-                  opacity: loading ? 0.6 : fadeAnim
-                }}>
+                <Animated.View style={{ flex: 1, opacity: loading ? 0.6 : fadeAnim }}>
                   {viewMode === 'grid' ? (
-                    <FlatList
-                      key="grid"
-                      data={products}
-                      keyExtractor={item => item._id}
-                      numColumns={2}
-                      contentContainerStyle={styles.gridContent}
-                      columnWrapperStyle={styles.gridRow}
-                      showsVerticalScrollIndicator={false}
-                      keyboardShouldPersistTaps="handled"
-                      renderItem={renderGrid}
-                      ListHeaderComponent={renderListHeader}
-                      ListEmptyComponent={renderEmpty}
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                    />
+                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
                   ) : (
-                    <FlatList
-                      key="list"
-                      data={products}
-                      keyExtractor={item => item._id}
-                      contentContainerStyle={styles.listContent}
-                      showsVerticalScrollIndicator={false}
-                      keyboardShouldPersistTaps="handled"
-                      renderItem={renderList}
-                      ListHeaderComponent={renderListHeader}
-                      ListEmptyComponent={renderEmpty}
-                      refreshing={refreshing}
-                      onRefresh={onRefresh}
-                    />
+                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
                   )}
                 </Animated.View>
               </View>
@@ -767,7 +609,7 @@ export default function SearchScreen() {
       <SpotlightTour
         visible={isTourActive && activeScreen === 'search'}
         steps={onboardingSteps}
-        onComplete={handleOnboardingComplete}
+        onComplete={() => markCompleted('search')}
       />
     </Pressable>
   );

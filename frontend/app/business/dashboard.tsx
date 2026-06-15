@@ -197,10 +197,10 @@ const BusinessDashboard = () => {
       // Only show the modal if we are actually logged in
       const token = await secureStorage.getItem('userToken');
       if (!token) return;
-      if (!selectedBusiness) {
-        setShowNoBusinessModal(true);
-      } else {
+      if (selectedBusiness) {
         setShowNoBusinessModal(false);
+      } else {
+        setShowNoBusinessModal(true);
       }
     };
     
