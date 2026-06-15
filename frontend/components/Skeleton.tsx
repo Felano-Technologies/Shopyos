@@ -9,13 +9,13 @@ interface SkeletonProps {
   style?: StyleProp<ViewStyle>;
 }
 
-export default function Skeleton({ 
-  width = '100%', 
-  height = 20, 
-  borderRadius = 8, 
-  circle = false, 
-  style 
-}: SkeletonProps) {
+export default function Skeleton({
+  width = '100%',
+  height = 20,
+  borderRadius = 8,
+  circle = false,
+  style
+}: Readonly<SkeletonProps>) {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {

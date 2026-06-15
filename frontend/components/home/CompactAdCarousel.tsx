@@ -16,7 +16,7 @@ interface Props {
   onAdPress: (ad: HeroAd) => void;
 }
 
-export function CompactAdCarousel({ ads, onAdPress }: Props) {
+export function CompactAdCarousel({ ads, onAdPress }: Readonly<Props>) {
   const scrollRef = useRef<ScrollView>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isDragging = useRef(false);

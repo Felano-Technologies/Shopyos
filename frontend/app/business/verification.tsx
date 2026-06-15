@@ -59,7 +59,6 @@ const InputField = ({ label, icon, value, onChange, placeholder, required = fals
 const BusinessVerification = () => {
   const { businessId } = useLocalSearchParams<{ businessId: string }>();
   const [loading, setLoading] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [details, setDetails] = useState<BusinessDetails>({
     ownerName: '',
@@ -76,12 +75,11 @@ const BusinessVerification = () => {
   });
   const handleUploadDocument = async (type: 'businessCert' | 'businessLicense' | 'proofOfBank') => {
     try {
-      setUploading(true);
       const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/*'] });
       if (!result.canceled && result.assets) {
         setDetails(prev => ({ ...prev, [type]: result.assets[0].uri }));
       }
-    } catch (e) { console.log(e); } finally { setUploading(false); }
+    } catch (e) { console.log(e); }
   };
   const showImagePicker = useImagePickerSheet();
   const handleUploadLogo = async () => {

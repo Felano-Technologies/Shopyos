@@ -53,6 +53,63 @@ const getNotificationsModule = () => {
   return require('expo-notifications');
 };
 
+async function cacheReverseGeocode(latitude: number, longitude: number) {
+  try {
+    const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
+    if (place) {
+      const { city, region, country } = place;
+      const primary = city ?? region ?? country ?? 'Unknown';
+      const suffix = country ? `, ${country}` : '';
+      await storage.setItem('CACHED_LOCATION_TEXT', `${primary}${suffix}`);
+    }
+  } catch { /* non-critical */ }
+}
+
+async function syncLocationToBackend(latitude: number, longitude: number) {
+  try {
+    const userToken = await secureStorage.getItem('userToken');
+    if (userToken) {
+      await axios.put(
+        `${API_URL}auth/location`,
+        { latitude, longitude },
+        { headers: { Authorization: `Bearer ${userToken}` }, timeout: 8000 }
+      );
+    }
+  } catch { /* non-critical */ }
+}
+
+type StoreEntry = { id: string; store_name: string; latitude: number | string; longitude: number | string };
+
+async function checkStoreProximity(latitude: number, longitude: number, stores: StoreEntry[], now: number) {
+  for (const store of stores) {
+    const sLat = typeof store.latitude === 'string' ? Number.parseFloat(store.latitude) : store.latitude;
+    const sLon = typeof store.longitude === 'string' ? Number.parseFloat(store.longitude) : store.longitude;
+    if (!sLat || !sLon || Number.isNaN(sLat) || Number.isNaN(sLon)) continue;
+
+    const dist = haversineMetres(latitude, longitude, sLat, sLon);
+    if (dist > PROXIMITY_RADIUS_METERS) continue;
+
+    const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
+    const last = await storage.getItem(cooldownKey);
+    if (last && now - Number.parseInt(last, 10) < COOLDOWN_MS) continue;
+
+    const Notifications = getNotificationsModule();
+    if (!Notifications) continue;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `📍 ${store.store_name} is nearby!`,
+        body: `You're within ${Math.round(dist)}m of ${store.store_name}. Tap to explore!`,
+        data: { screen: 'store', storeId: store.id },
+        sound: true,
+      },
+      trigger: null,
+    });
+    await storage.setItem(cooldownKey, now.toString());
+    console.log(`[ForegroundGeofence] Proximity alert → ${store.store_name} (${Math.round(dist)}m)`);
+  }
+}
+
 /**
  * Runs the same logic as TASK_LOCATION_GEOFENCE but in the foreground.
  * Used as a fallback when background tasks are unavailable (Expo Go).
@@ -66,64 +123,13 @@ async function runForegroundGeofenceCheck() {
       accuracy: Location.Accuracy.Balanced,
     });
 
-    // 1. Cache reverse-geocoded location text
-    try {
-      const [place] = await Location.reverseGeocodeAsync({ latitude, longitude });
-      if (place) {
-        const { city, region, country } = place;
-        const text = `${city ?? region ?? country ?? 'Unknown'}${country ? `, ${country}` : ''}`;
-        await storage.setItem('CACHED_LOCATION_TEXT', text);
-      }
-    } catch { /* non-critical */ }
+    await cacheReverseGeocode(latitude, longitude);
+    await syncLocationToBackend(latitude, longitude);
 
-    // 2. Update backend position
-    try {
-      const userToken = await secureStorage.getItem('userToken');
-      if (userToken) {
-        await axios.put(
-          `${API_URL}auth/location`,
-          { latitude, longitude },
-          { headers: { Authorization: `Bearer ${userToken}` }, timeout: 8000 }
-        );
-      }
-    } catch { /* non-critical */ }
-
-    // 3. Proximity check
     const storeRaw = await storage.getItem('CACHED_STORES');
     if (!storeRaw) return;
-    const stores: { id: string; store_name: string; latitude: number | string; longitude: number | string }[] =
-      JSON.parse(storeRaw);
-    const now = Date.now();
-
-    for (const store of stores) {
-      const sLat = typeof store.latitude === 'string' ? parseFloat(store.latitude) : store.latitude;
-      const sLon = typeof store.longitude === 'string' ? parseFloat(store.longitude) : store.longitude;
-      if (!sLat || !sLon || isNaN(sLat) || isNaN(sLon)) continue;
-
-      const dist = haversineMetres(latitude, longitude, sLat, sLon);
-      if (dist > PROXIMITY_RADIUS_METERS) continue;
-
-      const cooldownKey = `${COOLDOWN_PREFIX}${store.id}`;
-      const last = await storage.getItem(cooldownKey);
-      if (last && now - parseInt(last, 10) < COOLDOWN_MS) continue;
-
-      const Notifications = getNotificationsModule();
-      if (!Notifications) {
-        continue;
-      }
-
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: `📍 ${store.store_name} is nearby!`,
-          body: `You're within ${Math.round(dist)}m of ${store.store_name}. Tap to explore!`,
-          data: { screen: 'store', storeId: store.id },
-          sound: true,
-        },
-        trigger: null,
-      });
-      await storage.setItem(cooldownKey, now.toString());
-      console.log(`[ForegroundGeofence] Proximity alert → ${store.store_name} (${Math.round(dist)}m)`);
-    }
+    const stores: StoreEntry[] = JSON.parse(storeRaw);
+    await checkStoreProximity(latitude, longitude, stores, Date.now());
   } catch (err) {
     console.warn('[ForegroundGeofence] Check failed:', err);
   }

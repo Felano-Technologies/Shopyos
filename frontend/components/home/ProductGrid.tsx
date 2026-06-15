@@ -22,7 +22,7 @@ const C = {
   subtle: '#94A3B8',
 };
 
-interface Props {
+type Props = Readonly<{
   title?: string;
   products: any[];
   loading: boolean;
@@ -34,11 +34,10 @@ interface Props {
   favoriteBusyId: string | null;
   onSeeAll?: () => void;
   getStoreName?: (item: any) => string;
-  /** Inject a sponsored card every N products. Pass campaigns array (non-empty) to enable. */
   injectedAds?: any[];
   emptyTitle?: string;
   emptyIcon?: string;
-}
+}>;
 
 function defaultStoreName(item: any) {
   return (
@@ -61,8 +60,8 @@ export function ProductGrid({
       <View>
         {title && <SectionHeader title={title} onSeeAll={onSeeAll} />}
         <View style={S.grid}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <View key={i} style={S.card}>
+          {(['sk0', 'sk1', 'sk2', 'sk3'] as const).map((sk) => (
+            <View key={sk} style={S.card}>
               <Skeleton width="100%" height={136} borderRadius={0} />
               <View style={S.cardInfo}>
                 <Skeleton width={80} height={9} style={{ marginBottom: 6 }} />

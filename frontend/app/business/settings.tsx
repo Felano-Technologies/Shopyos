@@ -405,7 +405,8 @@ const SettingRow = ({
   icon, iconColor, iconBg, label, onPress, value, isToggle = false, isDanger = false, disabled = false,
   onRestrictedAction, onNotificationToggle,
 }: SettingRowProps) => {
-  const handlePress = isToggle ? undefined : (disabled ? onRestrictedAction : onPress);
+  const pressTarget = disabled ? onRestrictedAction : onPress;
+  const handlePress = isToggle ? undefined : pressTarget;
   return (
     <TouchableOpacity
       style={[S.settingRow, disabled && S.settingRowDisabled]}

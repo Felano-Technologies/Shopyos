@@ -11,32 +11,36 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 
 const { width } = Dimensions.get('window');
 
+const RenderIcon = ({ name, color, size }: Readonly<{ name: string; color: string; size: number }>) => (
+  <Feather name={name as any} size={size} color={color} />
+);
+
 const DriverBottomNav = () => {
   const pathname = usePathname();
 
   // Driver-specific Navigation Items
   const navItems = [
-    { 
-        name: 'Home', 
-        icon: 'navigation', 
+    {
+        name: 'Home',
+        icon: 'navigation',
         route: '/driver/dashboard',
-        library: 'Feather' 
+        library: 'Feather'
     },
-    { 
-        name: 'Earnings', 
-        icon: 'dollar-sign', 
+    {
+        name: 'Earnings',
+        icon: 'dollar-sign',
         route: '/driver/earnings',
         library: 'Feather'
     },
-    { 
-        name: 'History', 
-        icon: 'clock', 
+    {
+        name: 'History',
+        icon: 'clock',
         route: '/driver/history',
         library: 'Feather'
     },
-    { 
-        name: 'Profile', 
-        icon: 'user', 
+    {
+        name: 'Profile',
+        icon: 'user',
         route: '/driver/settings',
         library: 'Feather'
     },
@@ -46,11 +50,6 @@ const DriverBottomNav = () => {
     // Trigger smooth layout transition
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     router.push(route as any);
-  };
-
-  // Helper to render icon based on library (mostly Feather for consistency)
-  const RenderIcon = ({ name, color, size }: { name: string, color: string, size: number }) => {
-      return <Feather name={name as any} size={size} color={color} />;
   };
 
   return (

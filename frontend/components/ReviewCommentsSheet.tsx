@@ -25,13 +25,12 @@ interface Comment {
 interface Props {
     visible: boolean;
     onClose: () => void;
-    reviewId: string | null;
     comments: Comment[];
     onSendComment: (text: string) => void;
     isSubmitting: boolean;
 }
 
-export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment, isSubmitting }: Props) => {
+export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment, isSubmitting }: Readonly<Props>) => {
     const [newComment, setNewComment] = useState('');
 
     const handleSend = () => {

@@ -65,6 +65,14 @@ function extractStoreArray(res: any): Store[] {
   return [];
 }
 
+function clearStoreContext(
+  setSelectedStore: (s: Store | null) => void,
+  setSearchResults: (s: Store[]) => void,
+) {
+  setSelectedStore(null);
+  setSearchResults([]);
+}
+
 function applyStoreResults(
   normalized: Store[],
   storeIdParam: string | undefined,
@@ -96,7 +104,7 @@ export default function AdminStores() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Store[]>([]);
   const [selectedStore, setSelectedStore] = useState<Store | null>(null);
-  const [_loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
@@ -111,8 +119,7 @@ export default function AdminStores() {
 
         const shouldLoad = Boolean(storeIdParam || ownerIdParam || searchQuery.trim());
         if (!shouldLoad) {
-          setSelectedStore(null);
-          setSearchResults([]);
+          clearStoreContext(setSelectedStore, setSearchResults);
           return;
         }
 
@@ -147,14 +154,14 @@ export default function AdminStores() {
   const summary = useMemo(() => {
     if (!currentStore) return [];
     return [
-      { label: 'Products', value: currentStore.product_count || 0, icon: 'cube-outline' },
+      { label: 'Products', value: currentStore.product_count || 0, icon: 'cube-outline' as const },
       { label: 'Documents', value: [
         currentStore.business_cert_url,
         currentStore.business_license_url,
         currentStore.proof_of_bank_url,
-      ].filter(Boolean).length, icon: 'document-text-outline' },
-      { label: 'Verified', value: currentStore.verification_status === 'verified' ? 'Yes' : 'No', icon: 'shield-checkmark-outline' },
-      { label: 'Location', value: currentStore.city || 'N/A', icon: 'location-outline' },
+      ].filter(Boolean).length, icon: 'document-text-outline' as const },
+      { label: 'Verified', value: currentStore.verification_status === 'verified' ? 'Yes' : 'No', icon: 'shield-checkmark-outline' as const },
+      { label: 'Location', value: currentStore.city || 'N/A', icon: 'location-outline' as const },
     ];
   }, [currentStore]);
 
@@ -380,7 +387,7 @@ export default function AdminStores() {
                   {summary.map((item) => (
                     <View key={item.label} style={styles.summaryCard}>
                       <View style={styles.summaryIcon}>
-                        <Ionicons name={item.icon as any} size={16} color="#0A2EA8" />
+                        <Ionicons name={item.icon} size={16} color="#0A2EA8" />
                       </View>
                       <Text style={styles.summaryLabel}>{item.label}</Text>
                       <Text style={styles.summaryValue}>{String(item.value)}</Text>

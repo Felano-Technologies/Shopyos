@@ -27,8 +27,6 @@ const ReviewsScreen = () => {
   const [replyText, setReplyText] = useState('');
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const { isVerified } = useSellerGuard();
   const { activeBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
@@ -49,9 +47,6 @@ const ReviewsScreen = () => {
       }
     } catch (error) {
       console.error('Failed to fetch reviews:', error);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
     }
   }, [businessId]);
   React.useEffect(() => {
@@ -89,8 +84,8 @@ const ReviewsScreen = () => {
               <View style={styles.reviewHeader}>
                 <Text style={[styles.reviewerName, { color: primaryText }]}>{item.customerName}</Text>
                 <View style={styles.ratingRow}>
-                  {Array.from({ length: item.rating }).map((_, i) => (
-                    <Ionicons key={`star-${i}`} name="star" size={16} color="#FACC15" />
+                  {Array.from({ length: item.rating }, (_, i) => (
+                    <Ionicons key={`star-${item.id}-${i}`} name="star" size={16} color="#FACC15" />
                   ))}
                 </View>
               </View>

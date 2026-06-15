@@ -71,6 +71,59 @@ function buildVariantOptions(vals: { color: string; size: string }) {
   return opts;
 }
 
+async function openListingFeePayment(params: {
+  businessId: string;
+  businessEmail: string | undefined;
+  message: string;
+}) {
+  const { businessId, businessEmail, message } = params;
+  const email = businessEmail;
+  if (!email) {
+    Alert.alert('Error', 'No email address found for payment. Please update your profile.');
+    return;
+  }
+  try {
+    const res = await initializeListingFee({ storeId: businessId, email });
+    if (res.success && res.data?.authorization_url) {
+      await WebBrowser.openBrowserAsync(res.data.authorization_url);
+    }
+  } catch (payErr: any) {
+    Alert.alert('Payment Error', payErr.message || 'Could not initialize payment');
+  }
+}
+
+async function confirmDeleteProduct(id: string, fetchProducts: () => Promise<void>) {
+  try {
+    await deleteProduct(id);
+    fetchProducts();
+  } catch {
+    Alert.alert('Error', 'Failed to delete product');
+  }
+}
+
+async function saveProduct(params: {
+  editingId: string | null;
+  image: string | null;
+  productData: Record<string, any>;
+  fetchProducts: () => Promise<void>;
+  resetForm: () => void;
+}) {
+  const { editingId, image, productData, fetchProducts, resetForm } = params;
+  if (editingId) {
+    const res = await updateProduct(editingId, productData);
+    if (res.success && image && !image.startsWith('http'))
+      await uploadProductImages(editingId, [image]);
+    Alert.alert('Success', 'Product updated');
+  } else {
+    if (!image) { Alert.alert('Missing Image', 'Please add an image.'); return; }
+    const res = await createProduct(productData);
+    if (res.success && res.product) await uploadProductImages(res.product._id, [image]);
+    Alert.alert('Success', 'Product added');
+  }
+  await fetchProducts();
+  resetForm();
+}
+
 const ProductsScreen = () => {
   const scrollRef = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
@@ -122,8 +175,8 @@ const ProductsScreen = () => {
 
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
-      ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
-        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width, height } }));
+      ref.current.measureInWindow((x: number, y: number, w: number, h: number) => {
+        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width: w, height: h } }));
       });
     }
   };
@@ -284,19 +337,7 @@ const ProductsScreen = () => {
         variantOptions: buildVariantOptions({ color: attrColor, size: attrSize }),
       };
 
-      if (editingId) {
-        const res = await updateProduct(editingId, productData);
-        if (res.success && image && !image.startsWith('http'))
-          await uploadProductImages(editingId, [image]);
-        Alert.alert('Success', 'Product updated');
-      } else {
-        if (!image) { Alert.alert('Missing Image', 'Please add an image.'); return; }
-        const res = await createProduct(productData);
-        if (res.success && res.product) await uploadProductImages(res.product._id, [image]);
-        Alert.alert('Success', 'Product added');
-      }
-      await fetchProducts();
-      resetForm();
+      await saveProduct({ editingId, image, productData, fetchProducts, resetForm });
     } catch (e: any) {
       if (e.code === 'LISTING_FEE_REQUIRED') {
         Alert.alert(
@@ -304,27 +345,12 @@ const ProductsScreen = () => {
           e.message,
           [
             { text: 'Cancel', style: 'cancel' },
-            { 
-              text: 'Pay ₵50', 
-              onPress: async () => {
-                try {
-                  const email = businessEmail;
-                  if (!email) {
-                    Alert.alert('Error', 'No email address found for payment. Please update your profile.');
-                    return;
-                  }
-                  
-                  if (!businessId) return;
-                  
-                  const res = await initializeListingFee({ storeId: businessId, email });
-                  if (res.success && res.data?.authorization_url) {
-                    await WebBrowser.openBrowserAsync(res.data.authorization_url);
-                  }
-                } catch (payErr: any) {
-                  Alert.alert('Payment Error', payErr.message || 'Could not initialize payment');
-                }
-              }
-            }
+            {
+              text: 'Pay ₵50',
+              onPress: () => businessId
+                ? openListingFeePayment({ businessId, businessEmail, message: e.message })
+                : undefined,
+            },
           ]
         );
       } else {
@@ -339,10 +365,8 @@ const ProductsScreen = () => {
     Alert.alert('Delete Product', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await deleteProduct(id); fetchProducts(); }
-          catch { Alert.alert('Error', 'Failed to delete product'); }
-        },
+        text: 'Delete', style: 'destructive',
+        onPress: () => confirmDeleteProduct(id, fetchProducts),
       },
     ]);
   };

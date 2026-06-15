@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { router } from 'expo-router';
-import { queryClient } from '@/lib/query/client';
 import { storage, secureStorage } from './storage';
 export { storage, secureStorage };
 import { CustomInAppToast } from '@/components/InAppToastHost';
@@ -55,8 +54,8 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const get429DelayMs = (error: any, attempt: number): number => {
   const retryAfter = error?.response?.headers?.['retry-after'];
   if (retryAfter) {
-    const seconds = parseInt(retryAfter, 10);
-    if (!isNaN(seconds)) return seconds * 1000;
+    const seconds = Number.parseInt(retryAfter, 10);
+    if (!Number.isNaN(seconds)) return seconds * 1000;
   }
   return Math.pow(2, attempt) * 1000;
 };
@@ -92,29 +91,94 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+async function handle429(error: any, originalRequest: any): Promise<any> {
+  originalRequest._429RetryCount = (originalRequest._429RetryCount ?? 0);
+  const MAX_429_RETRIES = 3;
+  if (originalRequest._429RetryCount < MAX_429_RETRIES) {
+    const attempt = originalRequest._429RetryCount;
+    originalRequest._429RetryCount += 1;
+    const delayMs = get429DelayMs(error, attempt);
+    console.warn(`[429] Rate limited. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_429_RETRIES})`);
+    await wait(delayMs);
+    return api(originalRequest);
+  }
+  CustomInAppToast.show({
+    type: 'error',
+    title: 'Too many requests',
+    message: 'Please slow down and try again in a moment.',
+  });
+  throw error;
+}
+
+async function handleTokenExpired(error: any, originalRequest: any): Promise<any> {
+  if (isRefreshing) {
+    return new Promise((resolve, reject) => {
+      failedQueue.push({ resolve, reject });
+    })
+      .then((token) => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api(originalRequest);
+      })
+      .catch((err) => { throw err; });
+  }
+
+  originalRequest._retry = true;
+  isRefreshing = true;
+
+  try {
+    const storedRefreshToken = await secureStorage.getItem('refreshToken');
+    if (!storedRefreshToken) throw new Error('No refresh token stored');
+
+    const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
+    const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
+
+    await secureStorage.setItem('userToken', newAccessToken);
+    if (newRefreshToken) await secureStorage.setItem('refreshToken', newRefreshToken);
+
+    api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
+
+    try {
+      const { socketService } = require('./socket');
+      const sock = socketService.getSocket();
+      if (sock) sock.auth = { token: newAccessToken };
+    } catch {}
+
+    processQueue(null, newAccessToken);
+    originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+    return api(originalRequest);
+  } catch (refreshError) {
+    processQueue(refreshError, null);
+    try {
+      await secureStorage.removeItem('userToken');
+      await secureStorage.removeItem('refreshToken');
+      await storage.removeItem('userId');
+    } catch {}
+    throw refreshError;
+  } finally {
+    isRefreshing = false;
+  }
+}
+
+async function handleUnauthorized(originalRequest: any): Promise<void> {
+  try {
+    const existingToken = await secureStorage.getItem('userToken');
+    await secureStorage.removeItem('userToken');
+    await secureStorage.removeItem('refreshToken');
+    await storage.removeItem('userId');
+    if (existingToken) router.replace('/login');
+  } catch (storageError) {
+    console.error('Error clearing tokens:', storageError);
+  }
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     error.userMessage = extractErrorMessage(error);
-    const originalRequest = error.config as any;
+    const originalRequest = error.config;
 
     if (error.response?.status === 429) {
-      originalRequest._429RetryCount = (originalRequest._429RetryCount ?? 0);
-      const MAX_429_RETRIES = 3;
-      if (originalRequest._429RetryCount < MAX_429_RETRIES) {
-        const attempt = originalRequest._429RetryCount;
-        originalRequest._429RetryCount += 1;
-        const delayMs = get429DelayMs(error, attempt);
-        console.warn(`[429] Rate limited. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_429_RETRIES})`);
-        await wait(delayMs);
-        return api(originalRequest);
-      }
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Too many requests',
-        message: 'Please slow down and try again in a moment.',
-      });
-      return Promise.reject(error);
+      return handle429(error, originalRequest);
     }
 
     const isTokenExpired =
@@ -123,66 +187,13 @@ api.interceptors.response.use(
         error.response?.data?.error === 'Access token expired');
 
     if (isTokenExpired && !originalRequest._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return api(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      originalRequest._retry = true;
-      isRefreshing = true;
-
-      try {
-        const storedRefreshToken = await secureStorage.getItem('refreshToken');
-        if (!storedRefreshToken) throw new Error('No refresh token stored');
-
-        const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
-        const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
-
-        await secureStorage.setItem('userToken', newAccessToken);
-        if (newRefreshToken) await secureStorage.setItem('refreshToken', newRefreshToken);
-
-        api.defaults.headers.common['Authorization'] = `Bearer ${newAccessToken}`;
-
-        try {
-          const { socketService } = require('./socket');
-          const sock = socketService.getSocket();
-          if (sock) sock.auth = { token: newAccessToken };
-        } catch {}
-
-        processQueue(null, newAccessToken);
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
-        return api(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        try {
-          await secureStorage.removeItem('userToken');
-          await secureStorage.removeItem('refreshToken');
-          await storage.removeItem('userId');
-        } catch {}
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
+      return handleTokenExpired(error, originalRequest);
     }
 
     if (error.response?.status === 401 && !originalRequest._retry) {
-      try {
-        const existingToken = await secureStorage.getItem('userToken');
-        await secureStorage.removeItem('userToken');
-        await secureStorage.removeItem('refreshToken');
-        await storage.removeItem('userId');
-        if (existingToken) router.replace('/login');
-      } catch (storageError) {
-        console.error('Error clearing tokens:', storageError);
-      }
+      await handleUnauthorized(originalRequest);
     }
 
-    return Promise.reject(error);
+    throw error;
   }
 );

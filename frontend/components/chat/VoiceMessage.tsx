@@ -11,7 +11,7 @@ interface VoiceMessageProps {
 
 const NUM_BARS = 24;
 
-export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessageProps) {
+export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<VoiceMessageProps>) {
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [position, setPosition] = useState(0);
@@ -25,7 +25,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
   const waveHeights = useMemo(() => {
     let seed = 0;
     for (let i = 0; i < url.length; i++) {
-      seed = ((seed << 5) - seed + url.charCodeAt(i)) | 0;
+      seed = Math.trunc((seed << 5) - seed + (url.codePointAt(i) ?? 0));
     }
     return Array.from({ length: NUM_BARS }, (_, i) => {
       seed = (seed * 16807 + 13) % 2147483647;
@@ -114,7 +114,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
   const meActive = isMe ? '#fff' : '#84cc16';
   const meInactive = isMe ? 'rgba(255,255,255,0.25)' : 'rgba(12,21,89,0.15)';
   const mePlayBtnBg = isMe ? 'rgba(255,255,255,0.2)' : '#84cc16';
-  const mePlayIcon = isMe ? '#fff' : '#fff';
+  const mePlayIcon = '#fff';
   const meTimeColor = isMe ? 'rgba(255,255,255,0.5)' : '#64748B';
 
   return (
@@ -133,7 +133,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
             name={isPlaying ? 'pause' : 'play'}
             size={18}
             color={mePlayIcon}
-            style={!isPlaying ? { marginLeft: 2 } : undefined}
+            style={isPlaying ? undefined : { marginLeft: 2 }}
           />
         )}
       </TouchableOpacity>
@@ -145,7 +145,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: VoiceMessage
             const barFilled = progressFraction >= (i / NUM_BARS);
             return (
               <View
-                key={i}
+                key={`bar-${i}`}
                 style={[
                   styles.bar,
                   {

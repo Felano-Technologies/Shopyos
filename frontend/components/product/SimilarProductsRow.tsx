@@ -3,9 +3,9 @@ import { useSimilarProducts } from '@/hooks/useRecommendations';
 import { safePush } from '@/lib/navigation';
 import { ProductRow } from '@/components/home/ProductRow';
 
-interface Props {
+type Props = Readonly<{
   productId: string;
-}
+}>;
 
 export function SimilarProductsRow({ productId }: Props) {
   const { data, isLoading } = useSimilarProducts(productId);

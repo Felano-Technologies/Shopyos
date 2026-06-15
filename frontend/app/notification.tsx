@@ -127,7 +127,7 @@ const NotificationScreen = () => {
   const isRead = useCallback((n: any) => n.is_read || readIds.has(n.id), [readIds]);
 
   // ── Render: REFINED NOTIFICATION CARD ───────────────────────────────────────
-  const renderItem = useCallback(({ item }: { item: any }) => {
+  const renderItem = useCallback((item: any) => {
     const cfg    = getTypeCfg(item.type);
     const unread = !isRead(item);
 
@@ -280,7 +280,7 @@ const NotificationScreen = () => {
               if (item.kind === 'header') {
                 return renderSectionHeader(item.title);
               }
-              return renderItem({ item: item.item });
+              return renderItem(item.item);
             }}
           />
         )}

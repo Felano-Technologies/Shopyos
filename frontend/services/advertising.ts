@@ -92,7 +92,8 @@ export const uploadSnapImage = async (uri: string) => {
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'snap.jpg';
     const match = /\.(\w+)$/.exec(filename);
-    const type = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : 'image/jpeg';
+    const ext = match ? match[1] : null;
+    const type = ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'image/jpeg';
     formData.append('image', { uri, name: filename, type } as any);
     const response = await api.post('/upload/single?folder=shopyos/snaps', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

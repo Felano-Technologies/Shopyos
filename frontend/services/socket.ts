@@ -10,8 +10,8 @@ class SocketService {
   private socket: Socket | null = null;
   private connectionPromise: Promise<Socket> | null = null;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
-  private eventHandlers: Map<string, SocketEventCallback[]> = new Map();
+  private readonly maxReconnectAttempts = 5;
+  private readonly eventHandlers: Map<string, SocketEventCallback[]> = new Map();
 
   /**
    * Get backend socket URL
@@ -31,7 +31,7 @@ class SocketService {
    */
   async connect(): Promise<Socket> {
     // Return existing connection if already connected
-    if (this.socket && this.socket.connected) {
+    if (this.socket?.connected) {
       return this.socket;
     }
 
@@ -40,110 +40,112 @@ class SocketService {
       return this.connectionPromise;
     }
 
-    this.connectionPromise = new Promise(async (resolve, reject) => {
-      try {
-        const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
-        
-        if (!token) {
-          console.error('❌ No authentication token found');
-          throw new Error('No authentication token found');
-        }
-
-        const socketURL = this.getSocketURL();
-        console.log('🔌 Connecting to Socket.IO:', socketURL);
-        console.log('🔑 Token available:', !!token, 'Length:', token?.length);
-
-        this.socket = io(socketURL, {
-          auth: { token },
-          transports: ['websocket', 'polling'],
-          reconnection: true,
-          reconnectionDelay: 1000,
-          reconnectionDelayMax: 5000,
-          reconnectionAttempts: this.maxReconnectAttempts,
-          timeout: 20000,
-        });
-
-        // Connection successful
-        this.socket.on('connect', () => {
-          console.log('✅ Socket.IO connected:', this.socket?.id);
-          this.reconnectAttempts = 0;
-          this.reattachEventHandlers();
-        });
-
-        // Connection error
-        this.socket.on('connect_error', async (error: any) => {
-          const message = error.message || '';
-          console.error('❌ Socket.IO connection error:', message);
+    this.connectionPromise = new Promise((resolve, reject) => {
+      (async () => {
+        try {
+          const token = await secureStorage.getItem('userToken') || await secureStorage.getItem('businessToken');
           
-          // Handle JWT expired error specifically
-          if (message.includes('jwt expired') || message.includes('Authentication failed')) {
-            console.warn('🔑 Token expired during socket connection, attempting forced refresh...');
+          if (!token) {
+            console.error('❌ No authentication token found');
+            throw new Error('No authentication token found');
+          }
+
+          const socketURL = this.getSocketURL();
+          console.log('🔌 Connecting to Socket.IO:', socketURL);
+          console.log('🔑 Token available:', !!token, 'Length:', token?.length);
+
+          this.socket = io(socketURL, {
+            auth: { token },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: this.maxReconnectAttempts,
+            timeout: 20000,
+          });
+
+          // Connection successful
+          this.socket.on('connect', () => {
+            console.log('✅ Socket.IO connected:', this.socket?.id);
+            this.reconnectAttempts = 0;
+            this.reattachEventHandlers();
+          });
+
+          // Connection error
+          this.socket.on('connect_error', async (error: any) => {
+            const message = error.message || '';
+            console.error('❌ Socket.IO connection error:', message);
             
-            try {
-              // We make a lightweight request to trigger the axios silent-refresh interceptor
-              // which is already configured in api.tsx to update storage and notify the socket.
-              const { api } = require('./api');
-              await api.get('/auth/me'); 
+            // Handle JWT expired error specifically
+            if (message.includes('jwt expired') || message.includes('Authentication failed')) {
+              console.warn('🔑 Token expired during socket connection, attempting forced refresh...');
               
-              // Now that token is likely refreshed in storage, 
-              // we update the auth object for the current socket instance
-              const newToken = await secureStorage.getItem('userToken');
-              if (newToken && this.socket) {
-                this.socket.auth = { token: newToken };
-                this.socket.connect(); // Force reconnection with new token
-                return;
+              try {
+                // We make a lightweight request to trigger the axios silent-refresh interceptor
+                // which is already configured in api.tsx to update storage and notify the socket.
+                const { api } = require('./api');
+                await api.get('/auth/me'); 
+                
+                // Now that token is likely refreshed in storage, 
+                // we update the auth object for the current socket instance
+                const newToken = await secureStorage.getItem('userToken');
+                if (newToken && this.socket) {
+                  this.socket.auth = { token: newToken };
+                  this.socket.connect(); // Force reconnection with new token
+                  return;
+                }
+              } catch (err) {
+                console.error('Failed to refresh token for socket:', err);
               }
-            } catch (err) {
-              console.error('Failed to refresh token for socket:', err);
             }
-          }
 
-          this.reconnectAttempts++;
-          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            this.disconnect();
-          }
-        });
+            this.reconnectAttempts++;
+            if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+              this.disconnect();
+            }
+          });
 
-        // Disconnection
-        this.socket.on('disconnect', (reason: string) => {
-          console.log('🔌 Socket.IO disconnected:', reason);
-          if (reason === 'io server disconnect') {
-            this.socket?.connect();
-          }
-        });
+          // Disconnection
+          this.socket.on('disconnect', (reason: string) => {
+            console.log('🔌 Socket.IO disconnected:', reason);
+            if (reason === 'io server disconnect') {
+              this.socket?.connect();
+            }
+          });
 
-        // Authentication error
-        this.socket.on('error', (error: any) => {
-          console.error('Socket.IO error:', error);
+          // Authentication error
+          this.socket.on('error', (error: any) => {
+            console.error('Socket.IO error:', error);
+            reject(error);
+          });
+
+          // Wait for connection
+          await new Promise<void>((resolveConnect, rejectConnect) => {
+            const timeout = setTimeout(() => {
+              rejectConnect(new Error('Socket connection timeout'));
+            }, 10000);
+
+            this.socket!.once('connect', () => {
+              clearTimeout(timeout);
+              resolveConnect();
+            });
+
+            this.socket!.once('connect_error', (err: any) => {
+              // Give it a chance to auto-retry if it's a transient error or just refreshed
+              if (err.message?.includes('jwt expired')) return; 
+              
+              clearTimeout(timeout);
+              rejectConnect(err);
+            });
+          });
+
+          resolve(this.socket);
+        } catch (error) {
+          console.error('Failed to connect socket:', error);
+          this.connectionPromise = null;
           reject(error);
-        });
-
-        // Wait for connection
-        await new Promise<void>((resolveConnect, rejectConnect) => {
-          const timeout = setTimeout(() => {
-            rejectConnect(new Error('Socket connection timeout'));
-          }, 10000);
-
-          this.socket!.once('connect', () => {
-            clearTimeout(timeout);
-            resolveConnect();
-          });
-
-          this.socket!.once('connect_error', (err: any) => {
-            // Give it a chance to auto-retry if it's a transient error or just refreshed
-            if (err.message?.includes('jwt expired')) return; 
-            
-            clearTimeout(timeout);
-            rejectConnect(err);
-          });
-        });
-
-        resolve(this.socket);
-      } catch (error) {
-        console.error('Failed to connect socket:', error);
-        this.connectionPromise = null;
-        reject(error);
-      }
+        }
+      })();
     });
 
     return this.connectionPromise;
@@ -174,22 +176,17 @@ class SocketService {
    * Join a conversation room
    */
   async joinConversation(conversationId: string): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const socket = await this.connect();
-        
-        socket.emit('conversation:join', { conversationId }, (response: any) => {
-          if (response?.success) {
-            console.log(`✅ Joined conversation: ${conversationId}`);
-            resolve();
-          } else {
-            console.error('Failed to join conversation:', response?.error);
-            reject(new Error(response?.error || 'Failed to join conversation'));
-          }
-        });
-      } catch (error) {
-        reject(error);
-      }
+    const socket = await this.connect();
+    return new Promise((resolve, reject) => {
+      socket.emit('conversation:join', { conversationId }, (response: any) => {
+        if (response?.success) {
+          console.log(`✅ Joined conversation: ${conversationId}`);
+          resolve();
+        } else {
+          console.error('Failed to join conversation:', response?.error);
+          reject(new Error(response?.error || 'Failed to join conversation'));
+        }
+      });
     });
   }
 
@@ -197,24 +194,19 @@ class SocketService {
    * Leave a conversation room
    */
   async leaveConversation(conversationId: string): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        if (!this.socket || !this.socket.connected) {
-          resolve(); // Already disconnected
-          return;
+    if (!this.socket?.connected) {
+      return; // Already disconnected
+    }
+    const socket = this.socket;
+    return new Promise((resolve, reject) => {
+      socket.emit('conversation:leave', { conversationId }, (response: any) => {
+        if (response?.success || !response) {
+          console.log(`👋 Left conversation: ${conversationId}`);
+          resolve();
+        } else {
+          reject(new Error(response?.error || 'Failed to leave conversation'));
         }
-
-        this.socket.emit('conversation:leave', { conversationId }, (response: any) => {
-          if (response?.success || !response) {
-            console.log(`👋 Left conversation: ${conversationId}`);
-            resolve();
-          } else {
-            reject(new Error(response?.error || 'Failed to leave conversation'));
-          }
-        });
-      } catch (error) {
-        reject(error);
-      }
+      });
     });
   }
 
@@ -228,26 +220,21 @@ class SocketService {
     attachmentUrl?: string,
     attachmentMeta?: any
   ): Promise<any> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const socket = await this.connect();
-        
-        socket.emit('message:send', {
-          conversationId,
-          content,
-          messageType,
-          attachmentUrl,
-          attachmentMeta
-        }, (response: any) => {
-          if (response?.success) {
-            resolve(response.message);
-          } else {
-            reject(new Error(response?.error || 'Failed to send message'));
-          }
-        });
-      } catch (error) {
-        reject(error);
-      }
+    const socket = await this.connect();
+    return new Promise((resolve, reject) => {
+      socket.emit('message:send', {
+        conversationId,
+        content,
+        messageType,
+        attachmentUrl,
+        attachmentMeta
+      }, (response: any) => {
+        if (response?.success) {
+          resolve(response.message);
+        } else {
+          reject(new Error(response?.error || 'Failed to send message'));
+        }
+      });
     });
   }
 
@@ -255,20 +242,15 @@ class SocketService {
    * Mark conversation as read via socket
    */
   async markConversationRead(conversationId: string): Promise<void> {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const socket = await this.connect();
-        
-        socket.emit('conversation:read', { conversationId }, (response: any) => {
-          if (response?.success) {
-            resolve();
-          } else {
-            reject(new Error(response?.error || 'Failed to mark as read'));
-          }
-        });
-      } catch (error) {
-        reject(error);
-      }
+    const socket = await this.connect();
+    return new Promise((resolve, reject) => {
+      socket.emit('conversation:read', { conversationId }, (response: any) => {
+        if (response?.success) {
+          resolve();
+        } else {
+          reject(new Error(response?.error || 'Failed to mark as read'));
+        }
+      });
     });
   }
 

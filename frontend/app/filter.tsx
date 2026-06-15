@@ -67,9 +67,9 @@ function buildActiveFilters(category: string, pricePreset: string, rating: strin
 
 type Setter = (v: string) => void;
 
-function applyRemoveFilter(key: string, setCategory: Setter, setPreset: Setter, setRating: Setter, setSortBy: Setter) {
+function applyRemoveFilter(key: string, setCategory: Setter, setPricePreset: Setter, setRating: Setter, setSortBy: Setter) {
   if (key === 'category') setCategory('All');
-  if (key === 'price')    setPreset('any');
+  if (key === 'price')    setPricePreset('any');
   if (key === 'rating')   setRating('any');
   if (key === 'sort')     setSortBy('newest');
 }
@@ -84,7 +84,7 @@ export default function FilterScreen() {
 
   const [sortBy,    setSortBy]    = useState<string>(String(params.sortBy    || 'newest'));
   const [category,  setCategory]  = useState<string>(String(params.category  || 'All'));
-  const [pricePreset, setPreset]  = useState<string>(String(params.priceRange || 'any'));
+  const [pricePreset, setPricePreset]  = useState<string>(String(params.priceRange || 'any'));
   const [rating,    setRating]    = useState<string>(String(params.minRating || 'any'));
 
   const activeFilters = buildActiveFilters(category, pricePreset, rating, sortBy);
@@ -109,7 +109,7 @@ export default function FilterScreen() {
   const resetFilters = useCallback(() => {
     setSortBy('newest');
     setCategory('All');
-    setPreset('any');
+    setPricePreset('any');
     setRating('any');
   }, []);
 
@@ -143,7 +143,7 @@ export default function FilterScreen() {
               <TouchableOpacity
                 key={f.key}
                 style={styles.activeBadge}
-                onPress={() => applyRemoveFilter(f.key, setCategory, setPreset, setRating, setSortBy)}
+                onPress={() => applyRemoveFilter(f.key, setCategory, setPricePreset, setRating, setSortBy)}
               >
                 <Text style={styles.activeBadgeTxt}>{f.label}</Text>
                 <View style={styles.badgeX}>
@@ -266,7 +266,7 @@ export default function FilterScreen() {
                   <TouchableOpacity
                     key={p.value}
                     style={[styles.preset, on && styles.presetOn]}
-                    onPress={() => setPreset(p.value)}
+                    onPress={() => setPricePreset(p.value)}
                   >
                     <Text style={[styles.presetTxt, on && styles.presetTxtOn]}>
                       {p.label}

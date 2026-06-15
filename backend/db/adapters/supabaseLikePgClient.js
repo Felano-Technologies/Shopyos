@@ -248,7 +248,7 @@ class QueryBuilder {
   }
 
   // NOSONAR: intentional thenable — allows `await queryBuilder` throughout the codebase
-  then(resolve, reject) {
+  then(resolve, reject) { // NOSONAR: intentional thenable
     return this.execute().then(resolve, reject);
   }
 

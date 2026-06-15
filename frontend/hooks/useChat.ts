@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import {
   getConversations,
@@ -239,7 +239,7 @@ const formatConversation = (c: any, currentUserId: string | null) => {
     unread: c.unreadCount || 0,
     online: false,
     messages: c.lastMessage
-      ? [{ id: c.lastMessage.id, text: preview, sender: (isMe ? 'me' : 'them') as 'me' | 'them', time }]
+      ? [{ id: c.lastMessage.id, text: preview, sender: isMe ? 'me' : 'them', time }]
       : [],
     otherParticipant: p,
   };

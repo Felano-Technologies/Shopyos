@@ -7,17 +7,17 @@ type AdminPanelProps = {
   style?: any;
 };
 
-export function AdminPanel({ children, style }: AdminPanelProps) {
+export function AdminPanel({ children, style }: Readonly<AdminPanelProps>) {
   return <View style={[styles.panel, style]}>{children}</View>;
 }
 
 export function AdminSectionHeader({
   title,
   action,
-}: {
+}: Readonly<{
   title: string;
   action?: React.ReactNode;
-}) {
+}>) {
   return (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -26,7 +26,7 @@ export function AdminSectionHeader({
   );
 }
 
-export default function AdminShell({ children }: { children: React.ReactNode }) {
+export default function AdminShell({ children }: Readonly<{ children: React.ReactNode }>) {
   return <>{children}</>;
 }
 

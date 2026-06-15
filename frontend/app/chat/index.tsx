@@ -153,6 +153,7 @@ export default function ChatInbox() {
           throw new Error('Failed to start');
         }
       } catch (err) {
+        // intentional
         CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not connect to Shopyos Bot' });
         return;
       }
@@ -298,7 +299,7 @@ export default function ChatInbox() {
           </TouchableOpacity>
         ))}
         <Text style={styles.countText}>
-          {filtered.length} chat{filtered.length !== 1 ? 's' : ''}
+          {filtered.length} chat{filtered.length === 1 ? '' : 's'}
         </Text>
       </View>
 
@@ -308,9 +309,9 @@ export default function ChatInbox() {
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         contentContainerStyle={[styles.list, displayList.length === 0 && { flex: 1 }]}
-        ListEmptyComponent={() => <ChatEmpty hasConversations={hasConversations} onBrowse={() => router.push('/home')} />}
+        ListEmptyComponent={() => <InboxEmpty hasConversations={hasConversations} onBrowse={() => router.push('/home')} />}
         showsVerticalScrollIndicator={false}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
+        ItemSeparatorComponent={ConversationSeparator}
       />
 
       {/* Floating Action Button (FAB) for Choose Merchant */}
@@ -374,14 +375,8 @@ export default function ChatInbox() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.modalList}
                 showsVerticalScrollIndicator={false}
-                ItemSeparatorComponent={() => <View style={styles.modalSep} />}
-                ListEmptyComponent={() => (
-                  <View style={styles.modalEmpty}>
-                    <Ionicons name="storefront-outline" size={32} color={C.mutedText} />
-                    <Text style={styles.modalEmptyTitle}>No sellers found</Text>
-                    <Text style={styles.modalEmptyDesc}>Try checking your search keyword.</Text>
-                  </View>
-                )}
+                ItemSeparatorComponent={ModalSeparator}
+                ListEmptyComponent={ModalEmptyComponent}
                 renderItem={({ item }) => (
                   <SellerRow item={item} onPress={startChatWithSeller} getInitials={initials} />
                 )}
@@ -728,6 +723,18 @@ const styles = StyleSheet.create({
   },
 });
 
+const ConversationSeparator = () => <View style={styles.sep} />;
+
+const ModalSeparator = () => <View style={styles.modalSep} />;
+
+const ModalEmptyComponent = () => (
+  <View style={styles.modalEmpty}>
+    <Ionicons name="storefront-outline" size={32} color={C.mutedText} />
+    <Text style={styles.modalEmptyTitle}>No sellers found</Text>
+    <Text style={styles.modalEmptyDesc}>Try checking your search keyword.</Text>
+  </View>
+);
+
 type ChatEmptyProps = Readonly<{
   hasConversations: boolean;
   onBrowse: () => void;
@@ -754,6 +761,15 @@ const ChatEmpty = ({ hasConversations, onBrowse }: ChatEmptyProps) => (
       </TouchableOpacity>
     )}
   </View>
+);
+
+type InboxEmptyProps = Readonly<{
+  hasConversations: boolean;
+  onBrowse: () => void;
+}>;
+
+const InboxEmpty = ({ hasConversations, onBrowse }: InboxEmptyProps) => (
+  <ChatEmpty hasConversations={hasConversations} onBrowse={onBrowse} />
 );
 
 type SellerRowProps = Readonly<{

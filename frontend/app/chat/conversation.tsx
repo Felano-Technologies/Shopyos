@@ -30,6 +30,121 @@ import StickerPicker from '../../components/chat/StickerPicker';
 
 const { width } = Dimensions.get('window');
 
+// ---- Module-level helpers ----
+
+function formatLastSeenStatic(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  const diffMins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diffMins < 1) return 'Last seen just now';
+  if (diffMins < 60) return `Last seen ${diffMins}m ago`;
+  const h = Math.floor(diffMins / 60);
+  if (h < 24) return `Last seen ${h}h ago`;
+  return `Last seen ${d.toLocaleDateString()}`;
+}
+
+function parseSafeDateStatic(value?: any): Date | null {
+  if (value === undefined || value === null) return null;
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (value && typeof value === 'object') {
+    if (typeof value.toISOString === 'function') {
+      const d = new Date(value.toISOString());
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }
+  if (typeof value === 'string' && (!value.trim() || value.trim().toLowerCase() === 'invalid date')) return null;
+  const date = typeof value === 'number' ? new Date(value < 1e12 ? value * 1000 : value) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function getMessageTimestampStatic(msg?: Partial<MessageItem> | null): string | null {
+  return msg?.created_at || msg?.timestamp || msg?.createdAt || msg?.sent_at || null;
+}
+
+function buildBubbleThemStyle(hasMedia: boolean) {
+  return hasMedia
+    ? { paddingVertical: 0 as const, paddingHorizontal: 0 as const, borderWidth: 0 as const, backgroundColor: 'transparent' as const, shadowOpacity: 0 as const, elevation: 0 as const }
+    : undefined;
+}
+
+function buildMetaPaddingStyle(hasMedia: boolean) {
+  return {
+    paddingBottom: hasMedia ? 2 : 6,
+    paddingTop: hasMedia ? 4 : 0,
+    paddingHorizontal: hasMedia ? 6 : 0,
+  };
+}
+
+function renderReplyPreviewStatic(
+  item: MessageItem,
+  isMe: boolean,
+  currentUserId: string | null,
+  displayName: string,
+) {
+  if (!item.reply_to_message) { return null; }
+  const replyMsg = item.reply_to_message;
+  const senderProfile = replyMsg.sender?.user_profiles;
+  const senderName = senderProfile?.full_name || (replyMsg.sender_id === currentUserId ? 'You' : displayName);
+  return (
+    <View style={[styles.bubbleReplyPreview, isMe ? styles.bubbleReplyMe : styles.bubbleReplyThem]}>
+      <View style={[styles.bubbleReplyAccent, isMe ? styles.bubbleReplyAccentMe : styles.bubbleReplyAccentThem]} />
+      <View style={styles.bubbleReplyBody}>
+        <Text style={[styles.bubbleReplyLabel, isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem]}>{senderName}</Text>
+        <Text style={[styles.bubbleReplyText, isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem]} numberOfLines={1}>{replyMsg.content}</Text>
+      </View>
+    </View>
+  );
+}
+
+async function uploadAndSendMedia(
+  conversationId: string,
+  asset: ImagePicker.ImagePickerAsset,
+  type: 'image' | 'video',
+  onProgress: (prog: number) => void,
+  appendMessage: (msg: any) => void,
+) {
+  const uploadRes = await uploadChatMedia(asset.uri, conversationId, (prog: number) => {
+    onProgress(Math.round(prog * 100));
+  }, asset.mimeType ?? undefined);
+  if (uploadRes?.success && uploadRes.media) {
+    const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
+    const sentMsg = res.message;
+    if (sentMsg) { appendMessage(sentMsg); }
+  }
+}
+
+type StickerIconProps = Readonly<{
+  pending: boolean | undefined;
+  is_read: boolean | undefined;
+  failed: boolean | undefined;
+}>;
+
+function stickerIconName({ pending, is_read }: StickerIconProps): 'time-outline' | 'checkmark-done' | 'checkmark' {
+  if (pending) return 'time-outline';
+  if (is_read) return 'checkmark-done';
+  return 'checkmark';
+}
+
+function stickerIconColor({ pending, is_read }: StickerIconProps, colors: typeof C): string {
+  if (pending) return colors.mutedText;
+  if (is_read) return colors.limeTick;
+  return colors.mutedText;
+}
+
+function bubbleIconName(pending: boolean | undefined, is_read: boolean | undefined): 'time-outline' | 'checkmark-done' | 'checkmark' {
+  if (pending) return 'time-outline';
+  if (is_read) return 'checkmark-done';
+  return 'checkmark';
+}
+
+function bubbleIconColor(pending: boolean | undefined, is_read: boolean | undefined): string {
+  if (pending) return 'rgba(255,255,255,0.3)';
+  if (is_read) return C.limeTick;
+  return 'rgba(255,255,255,0.55)';
+}
+
 // Shopyos design tokens
 const C = {
   pageBg:        '#E9F0FF',
@@ -125,19 +240,6 @@ export default function ConversationScreen() {
   const displayAvatar = avatar || null;
   const initials = (n: string) =>
     (n || 'S').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-
-  // Format last seen
-  const formatLastSeen = (iso: string | null): string => {
-    if (!iso) return '';
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '';
-    const diffMins = Math.floor((Date.now() - d.getTime()) / 60000);
-    if (diffMins < 1) return 'Last seen just now';
-    if (diffMins < 60) return `Last seen ${diffMins}m ago`;
-    const h = Math.floor(diffMins / 60);
-    if (h < 24) return `Last seen ${h}h ago`;
-    return `Last seen ${d.toLocaleDateString()}`;
-  };
 
   // Combined mark as read
   const markAsReadCombined = useCallback(async () => {
@@ -294,14 +396,7 @@ export default function ConversationScreen() {
         }
         setIsUploadingMedia(true);
         setUploadingProgress(0);
-        const uploadRes = await uploadChatMedia(asset.uri, conversationId, (prog: number) => {
-          setUploadingProgress(Math.round(prog * 100));
-        }, asset.mimeType ?? undefined);
-        if (uploadRes?.success && uploadRes.media) {
-          const res = await apiSendMessage(conversationId, '', undefined, type, uploadRes.media.url, { size: uploadRes.media.size, mimeType: uploadRes.media.mimeType });
-          const sentMsg = res.message;
-          if (sentMsg) appendMessage(sentMsg);
-        }
+        await uploadAndSendMedia(conversationId, asset, type, setUploadingProgress, appendMessage);
       }
     } catch (err: any) {
       console.error('Pick media error', err);
@@ -382,7 +477,12 @@ export default function ConversationScreen() {
   // ---- Context actions ----
 
   const doLongPress = (msg: MessageItem) => { Vibration.vibrate(28); setSelectedMsg(msg); setMenuVisible(true); };
-  const doReply = () => { if (!selectedMsg) return; setReplyTo(selectedMsg); setMenuVisible(false); setTimeout(() => inputRef.current?.focus(), 80); };
+  const doReply = () => {
+    if (!selectedMsg) { return; }
+    setReplyTo(selectedMsg);
+    setMenuVisible(false);
+    setTimeout(() => inputRef.current?.focus(), 80);
+  };
   const doCopy = () => {
     if (!selectedMsg) return;
     Clipboard.setString(selectedMsg.content); setMenuVisible(false);
@@ -433,51 +533,18 @@ export default function ConversationScreen() {
 
   // ---- Reply preview renderer ----
 
-  const renderReplyPreview = (item: MessageItem, isMe: boolean) => {
-    if (!item.reply_to_message) return null;
-    const replyMsg = item.reply_to_message;
-    const senderProfile = replyMsg.sender?.user_profiles;
-    const senderName = senderProfile?.full_name || (replyMsg.sender_id === currentUserId ? 'You' : displayName);
-    return (
-      <View style={[styles.bubbleReplyPreview, isMe ? styles.bubbleReplyMe : styles.bubbleReplyThem]}>
-        <View style={[styles.bubbleReplyAccent, isMe ? styles.bubbleReplyAccentMe : styles.bubbleReplyAccentThem]} />
-        <View style={styles.bubbleReplyBody}>
-          <Text style={[styles.bubbleReplyLabel, isMe ? styles.bubbleReplyLabelMe : styles.bubbleReplyLabelThem]}>{senderName}</Text>
-          <Text style={[styles.bubbleReplyText, isMe ? styles.bubbleReplyTextMe : styles.bubbleReplyTextThem]} numberOfLines={1}>{replyMsg.content}</Text>
-        </View>
-      </View>
-    );
-  };
+  const renderReplyPreview = (item: MessageItem, isMe: boolean) =>
+    renderReplyPreviewStatic(item, isMe, currentUserId, displayName);
 
   // ---- Date helpers ----
 
-  const getMessageTimestamp = (msg?: Partial<MessageItem> | null) =>
-    msg?.created_at || msg?.timestamp || msg?.createdAt || msg?.sent_at || null;
-
-  const parseSafeDate = (value?: any) => {
-    if (value === undefined || value === null) return null;
-    // Handle Date objects directly (pg adapter may leak them through socket or cache)
-    if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
-    // Handle Date-like objects with toISOString (e.g. wrapped Date subclasses)
-    if (value && typeof value === 'object') {
-      if (typeof value.toISOString === 'function') {
-        const d = new Date(value.toISOString());
-        return Number.isNaN(d.getTime()) ? null : d;
-      }
-      return null;
-    }
-    if (typeof value === 'string' && (!value.trim() || value.trim().toLowerCase() === 'invalid date')) return null;
-    const date = typeof value === 'number' ? new Date(value < 1e12 ? value * 1000 : value) : new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  };
-
   const fmtTime = useCallback((msg: MessageItem) => {
-    const date = parseSafeDate(getMessageTimestamp(msg));
+    const date = parseSafeDateStatic(getMessageTimestampStatic(msg));
     return date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
   }, []);
 
   const fmtDate = useCallback((msg: MessageItem) => {
-    const date = parseSafeDate(getMessageTimestamp(msg));
+    const date = parseSafeDateStatic(getMessageTimestampStatic(msg));
     if (!date) return 'Today';
     const today = new Date(); const yday = new Date(today); yday.setDate(yday.getDate() - 1);
     if (date.toDateString() === today.toDateString()) return 'Today';
@@ -487,8 +554,8 @@ export default function ConversationScreen() {
 
   const showDate = useCallback((i: number) => {
     if (i === 0) return true;
-    const current = parseSafeDate(getMessageTimestamp(messages[i]));
-    const prev = parseSafeDate(getMessageTimestamp(messages[i - 1]));
+    const current = parseSafeDateStatic(getMessageTimestampStatic(messages[i]));
+    const prev = parseSafeDateStatic(getMessageTimestampStatic(messages[i - 1]));
     if (!current || !prev) return i === 0;
     return current.toDateString() !== prev.toDateString();
   }, [messages]);
@@ -502,7 +569,7 @@ export default function ConversationScreen() {
 
     if (isImage || isVideo) {
       return (
-        <View style={!isMe ? { padding: 4 } : undefined}>
+        <View style={isMe ? undefined : { padding: 4 }}>
           {renderReplyPreview(item, isMe)}
           <MediaMessage url={item.attachment_url || ''} mimeType={isVideo ? 'video/mp4' : 'image/jpeg'} isMe={isMe} />
           {item.content ? <Text style={[isMe ? styles.bubbleTxtMe : styles.bubbleTxtThem, { padding: 8 }]}>{item.content}</Text> : null}
@@ -543,51 +610,59 @@ export default function ConversationScreen() {
     </>
   );
 
-  const renderStickerBubble = (item: MessageItem, index: number, isMe: boolean) => (
-    <>
-      {showDate(index) && (
-        <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
-      )}
-      <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
-        {!isMe && (
-          displayAvatar
-            ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
-            : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
-        )}
-        <View>
-          <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
-            <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
-          </TouchableOpacity>
-          <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
-            <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
-            {isMe && !item.failed && (
-              <Ionicons
-                name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
-                size={13}
-                color={item.pending ? C.mutedText : item.is_read ? C.limeTick : C.mutedText}
-              />
-            )}
-          </View>
-        </View>
-      </View>
-    </>
-  );
-
-  const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
-    const isMe = item.sender_id === currentUserId;
-    const isSticker = item.message_type === 'sticker';
-
-    if (item.is_moderated) return renderModeratedBubble(item, index);
-    if (isSticker) return renderStickerBubble(item, index, isMe);
-
-    const hasMedia = item.message_type === 'image' || item.message_type === 'video' || item.message_type === 'voice';
-
+  const renderStickerBubble = (item: MessageItem, index: number, isMe: boolean) => {
+    const iconProps: StickerIconProps = { pending: item.pending, is_read: item.is_read, failed: item.failed };
+    const stickerName = stickerIconName(iconProps);
+    const stickerColor = stickerIconColor(iconProps, C);
     return (
       <>
         {showDate(index) && (
           <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
         )}
         <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
+          {!isMe && (
+            displayAvatar
+              ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
+              : <View style={styles.msgAvatarFallback}><Text style={styles.msgAvatarTxt}>{initials(displayName)}</Text></View>
+          )}
+          <View>
+            <TouchableOpacity activeOpacity={0.9} onLongPress={() => doLongPress(item)} style={styles.stickerBubble}>
+              <AppImage uri={item.attachment_url} style={styles.stickerImage} contentFit="contain" />
+            </TouchableOpacity>
+            <View style={[styles.metaRow, { paddingHorizontal: 4, paddingBottom: 2 }]}>
+              <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
+              {isMe && !item.failed && (
+                <Ionicons name={stickerName} size={13} color={stickerColor} />
+              )}
+            </View>
+          </View>
+        </View>
+      </>
+    );
+  };
+
+  const renderMsg = useCallback(({ item, index }: { item: MessageItem; index: number }) => {
+    const isMe = item.sender_id === currentUserId;
+    const isSticker = item.message_type === 'sticker';
+
+    if (item.is_moderated) { return renderModeratedBubble(item, index); }
+    if (isSticker) { return renderStickerBubble(item, index, isMe); }
+
+    const hasMedia = item.message_type === 'image' || item.message_type === 'video' || item.message_type === 'voice';
+    const rowStyle = isMe ? styles.rowMe : styles.rowThem;
+    const bubbleThemExtra = buildBubbleThemStyle(hasMedia);
+    const bubbleSideStyle = isMe ? styles.bubbleMe : [styles.bubbleThem, bubbleThemExtra];
+    const gradMediaStyle = hasMedia ? { paddingVertical: 0 as const, paddingHorizontal: 0 as const } : undefined;
+    const iconName = bubbleIconName(item.pending, item.is_read);
+    const iconColor = bubbleIconColor(item.pending, item.is_read);
+    const metaPaddingStyle = buildMetaPaddingStyle(hasMedia);
+
+    return (
+      <>
+        {showDate(index) && (
+          <View style={styles.dateSep}><View style={styles.datePill}><Text style={styles.dateText}>{fmtDate(item)}</Text></View></View>
+        )}
+        <View style={[styles.msgRow, rowStyle]}>
           {!isMe && (
             displayAvatar
               ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
@@ -600,7 +675,7 @@ export default function ConversationScreen() {
             delayLongPress={280}
             style={[
               styles.bubble,
-              isMe ? styles.bubbleMe : [styles.bubbleThem, hasMedia && { paddingVertical: 0, paddingHorizontal: 0, borderWidth: 0, backgroundColor: 'transparent', shadowOpacity: 0, elevation: 0 }],
+              bubbleSideStyle,
               item.pending && styles.bubblePending,
               item.failed && styles.bubbleFailed,
             ]}
@@ -609,17 +684,13 @@ export default function ConversationScreen() {
               <LinearGradient
                 colors={[C.navyDeep, C.navyMid]}
                 start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                style={[styles.bubbleMeGrad, hasMedia && { paddingVertical: 0, paddingHorizontal: 0 }]}
+                style={[styles.bubbleMeGrad, gradMediaStyle]}
               >
                 {renderMsgContent(item, true)}
                 <View style={[styles.metaRow, hasMedia && { paddingRight: 10, paddingBottom: 6 }]}>
                   <Text style={styles.metaTimeMe}>{fmtTime(item)}</Text>
                   {!item.failed && (
-                    <Ionicons
-                      name={item.pending ? 'time-outline' : item.is_read ? 'checkmark-done' : 'checkmark'}
-                      size={13}
-                      color={item.pending ? 'rgba(255,255,255,0.3)' : item.is_read ? C.limeTick : 'rgba(255,255,255,0.55)'}
-                    />
+                    <Ionicons name={iconName} size={13} color={iconColor} />
                   )}
                 </View>
               </LinearGradient>
@@ -634,7 +705,7 @@ export default function ConversationScreen() {
             ) : (
               <>
                 {renderMsgContent(item, false)}
-                <View style={[styles.metaRow, { paddingBottom: hasMedia ? 2 : 6, paddingTop: hasMedia ? 4 : 0, paddingHorizontal: hasMedia ? 6 : 0 }]}>
+                <View style={[styles.metaRow, metaPaddingStyle]}>
                   <Text style={styles.metaTimeThem}>{fmtTime(item)}</Text>
                 </View>
               </>
@@ -646,8 +717,28 @@ export default function ConversationScreen() {
   }, [currentUserId, displayAvatar, displayName, showDate, fmtDate, fmtTime, renderReplyPreview]);
 
   // ---- Root render ----
-  const offlineStatusText = lastSeen ? formatLastSeen(lastSeen) : (chatType === 'buyer' ? 'Official Store' : 'Customer');
+  const offlineStatusText = lastSeen ? formatLastSeenStatic(lastSeen) : (chatType === 'buyer' ? 'Official Store' : 'Customer');
   const hdrStatusText = isOnline ? 'Online' : offlineStatusText;
+
+  const typingFooter = isBotTyping ? (
+    <View style={styles.typingRow}>
+      {displayAvatar
+        ? <AppImage uri={displayAvatar} style={styles.msgAvatar} />
+        : (
+          <View style={[styles.msgAvatarFallback, { backgroundColor: C.navyDeep }]}>
+            <Text style={[styles.msgAvatarTxt, { color: '#fff' }]}>{initials(displayName)}</Text>
+          </View>
+        )
+      }
+      <View style={[styles.bubble, styles.bubbleThem, styles.typingBubble]}>
+        <Text style={styles.typingText}>Shopyos Bot is typing...</Text>
+        <ActivityIndicator size="small" color={C.navyMid} style={{ marginLeft: 6 }} />
+      </View>
+    </View>
+  ) : null;
+
+  const replyLabelText = replyTo?.sender_id === currentUserId ? 'You' : displayName;
+  const paperclipColor = isUploadingMedia ? '#CBD5E1' : C.mutedText;
 
   return (
     <View style={styles.root}>
@@ -705,21 +796,7 @@ export default function ConversationScreen() {
             maxToRenderPerBatch={10}
             windowSize={10}
             removeClippedSubviews={Platform.OS === 'android'}
-            ListFooterComponent={isBotTyping ? (
-              <View style={styles.typingRow}>
-                {displayAvatar ? (
-                  <AppImage uri={displayAvatar} style={styles.msgAvatar} />
-                ) : (
-                  <View style={[styles.msgAvatarFallback, { backgroundColor: C.navyDeep }]}>
-                    <Text style={[styles.msgAvatarTxt, { color: '#fff' }]}>{initials(displayName)}</Text>
-                  </View>
-                )}
-                <View style={[styles.bubble, styles.bubbleThem, styles.typingBubble]}>
-                  <Text style={styles.typingText}>Shopyos Bot is typing...</Text>
-                  <ActivityIndicator size="small" color={C.navyMid} style={{ marginLeft: 6 }} />
-                </View>
-              </View>
-            ) : null}
+            ListFooterComponent={typingFooter}
           />
         )}
 
@@ -730,7 +807,7 @@ export default function ConversationScreen() {
             <View style={styles.replyPreview}>
               <View style={styles.replyAccent} />
               <View style={styles.replyBody}>
-                <Text style={styles.replyLabel}>{replyTo.sender_id === currentUserId ? 'You' : displayName}</Text>
+                <Text style={styles.replyLabel}>{replyLabelText}</Text>
                 <Text style={styles.replyText} numberOfLines={1}>{replyTo.content}</Text>
               </View>
               <TouchableOpacity onPress={() => setReplyTo(null)} style={styles.replyClose}>
@@ -757,7 +834,7 @@ export default function ConversationScreen() {
             <View style={styles.pill}>
               {/* Paperclip */}
               <TouchableOpacity style={styles.attachBtn} onPress={handleAttachMedia} disabled={isUploadingMedia}>
-                <Feather name="paperclip" size={18} color={isUploadingMedia ? '#CBD5E1' : C.mutedText} />
+                <Feather name="paperclip" size={18} color={paperclipColor} />
               </TouchableOpacity>
 
               {/* Sticker */}

@@ -18,6 +18,23 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getProductById, createProductReview, getReviewableProducts } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
+
+function StarRating({ currentRating, onRate }: Readonly<{ currentRating: number; onRate: (r: number) => void }>) {
+    return (
+        <View style={styles.starRow}>
+            {[1, 2, 3, 4, 5].map((s) => (
+                <TouchableOpacity key={s} onPress={() => onRate(s)} style={{ paddingHorizontal: 6 }}>
+                    <Ionicons
+                        name={s <= currentRating ? "star" : "star-outline"}
+                        size={36}
+                        color={s <= currentRating ? "#F59E0B" : "#CBD5E1"}
+                    />
+                </TouchableOpacity>
+            ))}
+        </View>
+    );
+}
+
 const ProductReviewScreen = () => {
     const { id } = useLocalSearchParams();
     const router = useRouter();
@@ -31,7 +48,7 @@ const ProductReviewScreen = () => {
         try {
             // 1. Fetch product details
             const res = await getProductById(id as string);
-            if (res && res.success) {
+            if (res?.success) {
                 setProduct(res.product);
                 
                 // 2. Try to find a matching order for this product (to satisfy DB constraints)
@@ -87,19 +104,6 @@ const ProductReviewScreen = () => {
             setSubmitting(false);
         }
     };
-    const StarRating = ({ currentRating, onRate }: { currentRating: number, onRate: (r: number) => void }) => (
-        <View style={styles.starRow}>
-            {[1, 2, 3, 4, 5].map((s) => (
-                <TouchableOpacity key={s} onPress={() => onRate(s)} style={{ paddingHorizontal: 6 }}>
-                    <Ionicons
-                        name={s <= currentRating ? "star" : "star-outline"}
-                        size={36}
-                        color={s <= currentRating ? "#F59E0B" : "#CBD5E1"}
-                    />
-                </TouchableOpacity>
-            ))}
-        </View>
-    );
     if (loading) return <ReviewSkeleton />;
     return (
         <View style={styles.mainContainer}>

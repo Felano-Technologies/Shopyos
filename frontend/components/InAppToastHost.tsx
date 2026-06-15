@@ -193,12 +193,11 @@ export function InAppToastHost() {
 
   let accentColor = '#84cc16'; // Default Lime Green
   let kickerText = 'NOTIFICATION';
-  
+
   if (currentToast.type === 'error') {
     accentColor = '#EF4444'; // Red
     kickerText = 'ERROR';
   } else if (currentToast.type === 'success') {
-    accentColor = '#84cc16'; // Green
     kickerText = 'SUCCESS';
   } else if (currentToast.type === 'info') {
     accentColor = '#3B82F6'; // Blue

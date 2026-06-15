@@ -16,6 +16,56 @@ const getMsgPreview = (msg: any): string => {
   return msg?.content || '';
 };
 
+function updateConvEntry(
+  c: any,
+  conversationId: string,
+  message: any,
+  isMe: string | boolean | null,
+  isViewing: boolean
+) {
+  if (c.id !== conversationId) return c;
+  return {
+    ...c,
+    lastMessage: {
+      ...c.lastMessage,
+      content: message.content,
+      message_type: message.message_type,
+      attachment_url: message.attachment_url,
+      created_at: message.created_at || message.timestamp,
+    },
+    updatedAt: message.created_at || message.timestamp,
+    unreadCount: isMe || isViewing ? c.unreadCount : (c.unreadCount || 0) + 1,
+  };
+}
+
+function sortByConversation(a: any, b: any, conversationId: string) {
+  if (a.id === conversationId) return -1;
+  if (b.id === conversationId) return 1;
+  return 0;
+}
+
+function applyMessageToConvList(
+  prev: any[],
+  conversationId: string,
+  message: any,
+  isMe: string | boolean | null,
+  pathnameRef: { current: any },
+  conversationIdRef: { current: any },
+  queryClient: any,
+  convKey: any[]
+) {
+  if (!prev.some((c: any) => c.id === conversationId)) {
+    queryClient.invalidateQueries({ queryKey: convKey });
+    return prev;
+  }
+  const isViewing =
+    pathnameRef.current === '/chat/conversation' &&
+    conversationIdRef.current === conversationId;
+  return prev
+    .map((c: any) => updateConvEntry(c, conversationId, message, isMe, isViewing))
+    .sort((a: any, b: any) => sortByConversation(a, b, conversationId));
+}
+
 export const useSocketSetup = () => {
   const queryClient = useQueryClient();
   const currentUserId = useChatStore((s) => s.currentUserId);
@@ -71,38 +121,9 @@ export const useSocketSetup = () => {
         }
       }
 
-      queryClient.setQueryData<any[]>(convKey, (prev = []) => {
-        if (!prev.some((c: any) => c.id === conversationId)) {
-          queryClient.invalidateQueries({ queryKey: convKey });
-          return prev;
-        }
-        const isViewing =
-          pathnameRef.current === '/chat/conversation' &&
-          conversationIdRef.current === conversationId;
-        return prev
-          .map((c: any) =>
-            c.id === conversationId
-              ? {
-                  ...c,
-                  lastMessage: {
-                    ...c.lastMessage,
-                    content: message.content,
-                    message_type: message.message_type,
-                    attachment_url: message.attachment_url,
-                    created_at: message.created_at || message.timestamp,
-                  },
-                  updatedAt: message.created_at || message.timestamp,
-                  unreadCount:
-                    isMe || isViewing
-                      ? c.unreadCount
-                      : (c.unreadCount || 0) + 1,
-                }
-              : c
-          )
-          .sort((a: any, b: any) =>
-            a.id === conversationId ? -1 : b.id === conversationId ? 1 : 0
-          );
-      });
+      queryClient.setQueryData<any[]>(convKey, (prev = []) =>
+        applyMessageToConvList(prev, conversationId, message, isMe, pathnameRef, conversationIdRef, queryClient, convKey)
+      );
     };
 
     const initSocket = async () => {

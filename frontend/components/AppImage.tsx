@@ -9,7 +9,7 @@ interface Props {
   placeholder?: string;
 }
 
-export default function AppImage({ uri, source, style, contentFit = 'cover', placeholder }: Props) {
+export default function AppImage({ uri, source, style, contentFit = 'cover', placeholder }: Readonly<Props>) {
   const resolvedSource = source ?? (uri ? { uri } : null);
   const isRemote = !!uri && !source;
   return (

@@ -13,7 +13,7 @@ interface VoiceRecorderProps {
 const NUM_BARS = 28;
 const MAX_DURATION = 120; // seconds
 
-export default function VoiceRecorder({ onSend, onCancel }: VoiceRecorderProps) {
+export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecorderProps>) {
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [duration, setDuration] = useState(0);
@@ -277,104 +277,105 @@ export default function VoiceRecorder({ onSend, onCancel }: VoiceRecorderProps) 
     };
   }, []);
 
-  return (
-    <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
-      {isRecording ? (
-        /* ---- RECORDING MODE ---- */
-        <View style={styles.recordingContainer}>
-          {/* Top row: cancel + timer */}
-          <View style={styles.recordTopRow}>
-            <TouchableOpacity onPress={discardRecording} style={styles.cancelBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-              <Ionicons name="close" size={22} color="#EF4444" />
-            </TouchableOpacity>
+  const content = isRecording ? (
+    /* ---- RECORDING MODE ---- */
+    <View style={styles.recordingContainer}>
+      {/* Top row: cancel + timer */}
+      <View style={styles.recordTopRow}>
+        <TouchableOpacity onPress={discardRecording} style={styles.cancelBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="close" size={22} color="#EF4444" />
+        </TouchableOpacity>
 
-            <View style={styles.timerPill}>
-              <Animated.View style={[styles.recordDot, { opacity: pulseAnim }]} />
-              <Text style={[styles.timerText, duration >= 110 && styles.timerWarning]}>
-                {formatTime(duration)}
-              </Text>
-              <Text style={styles.timerMax}> / 2:00</Text>
-            </View>
+        <View style={styles.timerPill}>
+          <Animated.View style={[styles.recordDot, { opacity: pulseAnim }]} />
+          <Text style={[styles.timerText, duration >= 110 && styles.timerWarning]}>
+            {formatTime(duration)}
+          </Text>
+          <Text style={styles.timerMax}> / 2:00</Text>
+        </View>
 
-            <TouchableOpacity onPress={stopRecordingAndPreview} style={styles.stopBtn}>
-              <View style={styles.stopSquare} />
-            </TouchableOpacity>
-          </View>
+        <TouchableOpacity onPress={stopRecordingAndPreview} style={styles.stopBtn}>
+          <View style={styles.stopSquare} />
+        </TouchableOpacity>
+      </View>
 
-          {/* Waveform bars */}
-          <View style={styles.waveformContainer}>
-            {barAnims.map((anim, i) => (
-              <Animated.View
-                key={i}
+      {/* Waveform bars */}
+      <View style={styles.waveformContainer}>
+        {barAnims.map((anim, i) => (
+          <Animated.View
+            key={`rec-bar-${i}`}
+            style={[
+              styles.waveBar,
+              {
+                height: anim,
+                backgroundColor: i > NUM_BARS - 4 ? '#84cc16' : 'rgba(132, 204, 22, 0.6)',
+              },
+            ]}
+          />
+        ))}
+      </View>
+
+      {/* Hint */}
+      <Text style={styles.hintText}>{"Tap stop when you're done"}</Text>
+    </View>
+  ) : recordedUri ? (
+    /* ---- PREVIEW MODE ---- */
+    <View style={styles.previewContainer}>
+      {/* Waveform playback visualization */}
+      <View style={styles.previewWaveRow}>
+        <TouchableOpacity onPress={togglePlayPreview} style={styles.playBtn}>
+          <Ionicons name={isPlayingPreview ? 'pause' : 'play'} size={20} color="#fff" />
+        </TouchableOpacity>
+
+        <View style={styles.previewWaveform}>
+          {Array.from({ length: NUM_BARS }).map((_, i) => {
+            const barFilled = previewProgress >= (i / NUM_BARS);
+            const h = Math.max(4, meterLevels[i] || (6 + Math.sin(i * 0.7) * 10));
+            return (
+              <View
+                key={`prev-bar-${i}`}
                 style={[
-                  styles.waveBar,
+                  styles.previewBar,
                   {
-                    height: anim,
-                    backgroundColor: i > NUM_BARS - 4 ? '#84cc16' : 'rgba(132, 204, 22, 0.6)',
+                    height: h,
+                    backgroundColor: barFilled ? '#84cc16' : 'rgba(255,255,255,0.25)',
                   },
                 ]}
               />
-            ))}
-          </View>
-
-          {/* Hint */}
-          <Text style={styles.hintText}>{"Tap stop when you're done"}</Text>
+            );
+          })}
         </View>
-      ) : recordedUri ? (
-        /* ---- PREVIEW MODE ---- */
-        <View style={styles.previewContainer}>
-          {/* Waveform playback visualization */}
-          <View style={styles.previewWaveRow}>
-            <TouchableOpacity onPress={togglePlayPreview} style={styles.playBtn}>
-              <Ionicons name={isPlayingPreview ? 'pause' : 'play'} size={20} color="#fff" />
-            </TouchableOpacity>
 
-            <View style={styles.previewWaveform}>
-              {Array.from({ length: NUM_BARS }).map((_, i) => {
-                const barFilled = previewProgress >= (i / NUM_BARS);
-                // Use stored meter levels for static wave shape
-                const h = Math.max(4, meterLevels[i] || (6 + Math.sin(i * 0.7) * 10));
-                return (
-                  <View
-                    key={i}
-                    style={[
-                      styles.previewBar,
-                      {
-                        height: h,
-                        backgroundColor: barFilled ? '#84cc16' : 'rgba(255,255,255,0.25)',
-                      },
-                    ]}
-                  />
-                );
-              })}
-            </View>
+        <Text style={styles.previewTime}>
+          {isPlayingPreview ? formatTime(Math.floor(playbackPosition / 1000)) : formatTime(duration)}
+        </Text>
+      </View>
 
-            <Text style={styles.previewTime}>
-              {isPlayingPreview ? formatTime(Math.floor(playbackPosition / 1000)) : formatTime(duration)}
-            </Text>
-          </View>
+      {/* Action buttons */}
+      <View style={styles.previewActions}>
+        <TouchableOpacity onPress={discardRecording} style={styles.discardBtn}>
+          <Ionicons name="trash-outline" size={20} color="#EF4444" />
+          <Text style={styles.discardText}>Discard</Text>
+        </TouchableOpacity>
 
-          {/* Action buttons */}
-          <View style={styles.previewActions}>
-            <TouchableOpacity onPress={discardRecording} style={styles.discardBtn}>
-              <Ionicons name="trash-outline" size={20} color="#EF4444" />
-              <Text style={styles.discardText}>Discard</Text>
-            </TouchableOpacity>
+        <TouchableOpacity onPress={handleSend} style={styles.sendVoiceBtn}>
+          <LinearGradient
+            colors={['#84cc16', '#65a30d']}
+            style={styles.sendGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Ionicons name="send" size={16} color="#fff" style={{ marginLeft: 2 }} />
+            <Text style={styles.sendText}>Send</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
+    </View>
+  ) : null;
 
-            <TouchableOpacity onPress={handleSend} style={styles.sendVoiceBtn}>
-              <LinearGradient
-                colors={['#84cc16', '#65a30d']}
-                style={styles.sendGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-              >
-                <Ionicons name="send" size={16} color="#fff" style={{ marginLeft: 2 }} />
-                <Text style={styles.sendText}>Send</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : null}
+  return (
+    <Animated.View style={[styles.container, { transform: [{ translateY: slideAnim }] }]}>
+      {content}
     </Animated.View>
   );
 }

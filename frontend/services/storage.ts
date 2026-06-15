@@ -27,7 +27,7 @@ export async function cacheUserProfile(user: any): Promise<void> {
   await storage.setItem(USER_CACHE_KEY, JSON.stringify(user));
 }
 
-export async function getCachedUserProfile(): Promise<any | null> {
+export async function getCachedUserProfile(): Promise<object | null> {
   const raw = await storage.getItem(USER_CACHE_KEY);
   return raw ? JSON.parse(raw) : null;
 }

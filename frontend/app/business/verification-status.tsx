@@ -21,6 +21,59 @@ import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
 
+type StatusModalBodyProps = Readonly<{
+    checking: boolean;
+    isVerified: boolean;
+    onDismiss: () => void;
+    onGoToDashboard: () => void;
+}>;
+
+function StatusModalBody({ checking, isVerified, onDismiss, onGoToDashboard }: StatusModalBodyProps) {
+    if (checking) {
+        return (
+            <View style={styles.modalBody}>
+                <ActivityIndicator size="large" color="#0C1559" />
+                <Text style={styles.modalInfoTitle}>Synchronizing...</Text>
+                <Text style={styles.modalInfoSub}>Verifying your status with Shopyos servers.</Text>
+            </View>
+        );
+    }
+    if (isVerified) {
+        return (
+            <View style={styles.modalBody}>
+                <View style={styles.confettiContainer}>
+                    <Ionicons name="sparkles" size={40} color="#FBBF24" style={styles.sparkle1} />
+                    <Ionicons name="sparkles" size={30} color="#84CC16" style={styles.sparkle2} />
+                    <View style={styles.successCircle}>
+                        <Ionicons name="checkmark-done" size={60} color="#FFF" />
+                    </View>
+                </View>
+                <Text style={[styles.modalInfoTitle, { color: '#16A34A' }]}>Congratulations!</Text>
+                <Text style={styles.modalInfoSub}>Your store is now active. You have full access to the dashboard.</Text>
+                <TouchableOpacity
+                    style={[styles.modalBtn, { backgroundColor: '#16A34A' }]}
+                    onPress={onGoToDashboard}
+                >
+                    <Text style={styles.modalBtnText}>Go to Dashboard</Text>
+                    <Feather name="arrow-right" size={18} color="#FFF" style={{ marginLeft: 8 }} />
+                </TouchableOpacity>
+            </View>
+        );
+    }
+    return (
+        <View style={styles.modalBody}>
+            <View style={styles.pendingCircle}>
+                <Feather name="clock" size={50} color="#D97706" />
+            </View>
+            <Text style={styles.modalInfoTitle}>Still Under Review</Text>
+            <Text style={styles.modalInfoSub}>Our team is carefully vetting your documents. Hang tight!</Text>
+            <TouchableOpacity style={styles.modalBtn} onPress={onDismiss}>
+                <Text style={styles.modalBtnText}>I will wait</Text>
+            </TouchableOpacity>
+        </View>
+    );
+}
+
 async function playSuccessSound(setSound: (s: Audio.Sound | null) => void) {
     try {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -89,6 +142,9 @@ export default function VerificationStatus() {
     const badgeText = isPending ? 'Status: Under Review' : isRejected ? 'Status: Rejected' : 'Status: Verified';
     const updateBtnIconName = isPending ? 'document-text-outline' : 'refresh-outline';
     const updateBtnText = isPending ? 'Update Application' : 'Resubmit Details';
+    const steps = isPending || isVerified
+        ? ['Submit your business details', 'Admin reviews your application', 'Get approved & go live']
+        : ['Review the rejection reason above', 'Update your business information', 'Resubmit for admin review'];
 
     return (
         <View style={styles.mainContainer}>
@@ -126,10 +182,7 @@ export default function VerificationStatus() {
                     )}
 
                     <View style={styles.stepsContainer}>
-                        {(isPending || isVerified
-                            ? ['Submit your business details', 'Admin reviews your application', 'Get approved & go live']
-                            : ['Review the rejection reason above', 'Update your business information', 'Resubmit for admin review']
-                        ).map((step, i) => (
+                        {steps.map((step, i) => (
                             <View key={step} style={styles.stepRow}>
                                 <View style={[styles.stepNum, (i === 0 || isVerified) && styles.stepNumActive]}>
                                     {isVerified ? (
@@ -162,50 +215,15 @@ export default function VerificationStatus() {
             <Modal visible={showStatusModal} transparent animationType="fade">
                 <View style={styles.modalOverlay}>
                     <Animated.View style={[styles.modalContent, { transform: [{ scale: scaleAnim }] }]}>
-                        {checking ? (
-                            <View style={styles.modalBody}>
-                                <ActivityIndicator size="large" color="#0C1559" />
-                                <Text style={styles.modalInfoTitle}>Synchronizing...</Text>
-                                <Text style={styles.modalInfoSub}>Verifying your status with Shopyos servers.</Text>
-                            </View>
-                        ) : isVerified ? (
-                            <View style={styles.modalBody}>
-                                <View style={styles.confettiContainer}>
-                                    <Ionicons name="sparkles" size={40} color="#FBBF24" style={styles.sparkle1} />
-                                    <Ionicons name="sparkles" size={30} color="#84CC16" style={styles.sparkle2} />
-                                    <View style={styles.successCircle}>
-                                        <Ionicons name="checkmark-done" size={60} color="#FFF" />
-                                    </View>
-                                </View>
-                                <Text style={[styles.modalInfoTitle, { color: '#16A34A' }]}>Congratulations!</Text>
-                                <Text style={styles.modalInfoSub}>Your store is now active. You have full access to the dashboard.</Text>
-
-                                <TouchableOpacity
-                                    style={[styles.modalBtn, { backgroundColor: '#16A34A' }]}
-                                    onPress={() => {
-                                        setShowStatusModal(false);
-                                        router.replace('/business/dashboard');
-                                    }}
-                                >
-                                    <Text style={styles.modalBtnText}>Go to Dashboard</Text>
-                                    <Feather name="arrow-right" size={18} color="#FFF" style={{ marginLeft: 8 }} />
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <View style={styles.modalBody}>
-                                <View style={styles.pendingCircle}>
-                                    <Feather name="clock" size={50} color="#D97706" />
-                                </View>
-                                <Text style={styles.modalInfoTitle}>Still Under Review</Text>
-                                <Text style={styles.modalInfoSub}>Our team is carefully vetting your documents. Hang tight!</Text>
-                                <TouchableOpacity
-                                    style={styles.modalBtn}
-                                    onPress={() => setShowStatusModal(false)}
-                                >
-                                    <Text style={styles.modalBtnText}>I will wait</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
+                        <StatusModalBody
+                            checking={checking}
+                            isVerified={isVerified}
+                            onDismiss={() => setShowStatusModal(false)}
+                            onGoToDashboard={() => {
+                                setShowStatusModal(false);
+                                router.replace('/business/dashboard');
+                            }}
+                        />
                     </Animated.View>
                 </View>
             </Modal>

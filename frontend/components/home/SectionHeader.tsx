@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-interface Props {
+type Props = Readonly<{
   title: string;
   onSeeAll?: () => void;
   seeAllLabel?: string;
   marginTop?: number;
-}
+}>;
 
 export function SectionHeader({ title, onSeeAll, seeAllLabel = 'See All', marginTop = 8 }: Props) {
   return (

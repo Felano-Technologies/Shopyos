@@ -15,7 +15,7 @@ import { getAdminStores, adminVerifyStore } from '@/services/api';
 import Skeleton from '@/components/Skeleton';
 const { width, height } = Dimensions.get('window');
 
-type DetailItemProps = { label: string; value?: string; icon: string; isLink?: boolean; onPress?: () => void };
+type DetailItemProps = Readonly<{ label: string; value?: string; icon: string; isLink?: boolean; onPress?: () => void }>;
 function DetailItem({ label, value, icon, isLink, onPress }: DetailItemProps) {
     return (
         <TouchableOpacity

@@ -119,13 +119,13 @@ export const startGeofenceTracking = async (): Promise<{ success: boolean; messa
     const regions = stores
       .map(s => ({
         identifier: s.id,
-        latitude: typeof s.latitude === 'string' ? parseFloat(s.latitude) : s.latitude,
-        longitude: typeof s.longitude === 'string' ? parseFloat(s.longitude) : s.longitude,
+        latitude: typeof s.latitude === 'string' ? Number.parseFloat(s.latitude) : s.latitude,
+        longitude: typeof s.longitude === 'string' ? Number.parseFloat(s.longitude) : s.longitude,
         radius: PROXIMITY_RADIUS_METERS,
         notifyOnEnter: true,
         notifyOnExit: false,
       }))
-      .filter(r => !isNaN(r.latitude) && !isNaN(r.longitude) && r.latitude !== 0 && r.longitude !== 0);
+      .filter(r => !Number.isNaN(r.latitude) && !Number.isNaN(r.longitude) && r.latitude !== 0 && r.longitude !== 0);
 
     if (regions.length === 0) return { success: false, message: 'No valid store coordinates in cache' };
 
@@ -209,42 +209,45 @@ export const setLocationSharingPreference = async (enabled: boolean): Promise<vo
  * @param userState  current user state
  * @param skipGeofence  when true, skip starting geofence (hook already started/failed it)
  */
+async function syncGeofence(isAuthenticated: boolean | undefined, skipGeofence: boolean): Promise<void> {
+  if (!skipGeofence) {
+    const geofenceRunning = await isGeofenceRunning();
+    if (isAuthenticated && !geofenceRunning) {
+      const res = await startGeofenceTracking();
+      if (!res.success && !res.isExpoGo) {
+        console.warn('[TaskController] Geofence start failed:', res.message);
+      }
+    } else if (!isAuthenticated && geofenceRunning) {
+      await stopGeofenceTracking();
+    }
+  } else if (!isAuthenticated && (await isGeofenceRunning())) {
+    await stopGeofenceTracking();
+  }
+}
+
+async function syncDriverTracking(role: string | undefined, activeDeliveryId: string | null | undefined, shareLiveLocation: boolean | undefined): Promise<void> {
+  const isDriver = role?.toLowerCase() === 'driver';
+  const shouldTrack = isDriver && !!activeDeliveryId && shareLiveLocation === true;
+  const isTracking = await isTrackingLocation();
+
+  if (shouldTrack && !isTracking) {
+    const deliveryId = activeDeliveryId as string;
+    const res = await startDriverLocationTracking(deliveryId);
+    if (!res.success) console.warn('[TaskController] Driver tracking start failed:', res.message);
+  } else if (!shouldTrack && isTracking) {
+    await stopDriverLocationTracking();
+  }
+}
+
 export const ensureBackgroundTasksForUser = async (
   userState: UserState,
   skipGeofence = false,
 ): Promise<void> => {
   try {
     console.log('[TaskController] Ensuring tasks for state:', userState);
-
     const { role, activeDeliveryId, shareLiveLocation, isAuthenticated } = userState;
-
-    // ── Geofence (all users) ─────────────────────────────────────────────────
-    if (!skipGeofence) {
-      const geofenceRunning = await isGeofenceRunning();
-      if (isAuthenticated && !geofenceRunning) {
-        const res = await startGeofenceTracking();
-        if (!res.success && !res.isExpoGo) {
-          console.warn('[TaskController] Geofence start failed:', res.message);
-        }
-      } else if (!isAuthenticated && (await isGeofenceRunning())) {
-        await stopGeofenceTracking();
-      }
-    } else if (!isAuthenticated) {
-      // Even with skipGeofence, still stop it on logout
-      if (await isGeofenceRunning()) await stopGeofenceTracking();
-    }
-
-    // ── Driver delivery tracking ─────────────────────────────────────────────
-    const isDriver = role?.toLowerCase() === 'driver';
-    const shouldTrack = isDriver && !!activeDeliveryId && shareLiveLocation === true;
-    const isTracking = await isTrackingLocation();
-
-    if (shouldTrack && !isTracking) {
-      const res = await startDriverLocationTracking(activeDeliveryId!);
-      if (!res.success) console.warn('[TaskController] Driver tracking start failed:', res.message);
-    } else if (!shouldTrack && isTracking) {
-      await stopDriverLocationTracking();
-    }
+    await syncGeofence(isAuthenticated, skipGeofence);
+    await syncDriverTracking(role, activeDeliveryId, shareLiveLocation);
   } catch (error) {
     console.error('[TaskController] Error in ensureBackgroundTasksForUser:', error);
   }

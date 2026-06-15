@@ -9,7 +9,7 @@ interface QRScannerProps {
   onScanned: (data: string) => void;
 }
 
-export default function QRScanner({ visible, onClose, onScanned }: QRScannerProps) {
+export default function QRScanner({ visible, onClose, onScanned }: Readonly<QRScannerProps>) {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
 

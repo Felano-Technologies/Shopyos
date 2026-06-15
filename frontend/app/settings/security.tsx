@@ -45,11 +45,11 @@ function SectionPill({
   label,
   active,
   onPress,
-}: {
+}: Readonly<{
   label: string;
   active: boolean;
   onPress: () => void;
-}) {
+}>) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -66,13 +66,13 @@ function ToggleRow({
   subtitle,
   value,
   onValueChange,
-}: {
+}: Readonly<{
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   value: boolean;
   onValueChange: (v: boolean) => void;
-}) {
+}>) {
   return (
     <View style={styles.rowCard}>
       <View style={styles.rowInner}>
@@ -100,14 +100,14 @@ function LinkRow({
   onPress,
   badge,
   danger = false,
-}: {
+}: Readonly<{
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   onPress: () => void;
   badge?: string;
   danger?: boolean;
-}) {
+}>) {
   return (
     <TouchableOpacity style={styles.rowCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowInner}>
@@ -130,9 +130,16 @@ function LinkRow({
   );
 }
 
-function ScoreBanner({ score }: { score: number }) {
-  const color = score >= 80 ? '#A3E635' : score >= 50 ? '#F59E0B' : '#EF4444';
-  const label = score >= 80 ? 'Strong' : score >= 50 ? 'Fair' : 'Needs attention';
+function ScoreBanner({ score }: Readonly<{ score: number }>) {
+  let color: string;
+  if (score >= 80) { color = '#A3E635'; }
+  else if (score >= 50) { color = '#F59E0B'; }
+  else { color = '#EF4444'; }
+
+  let label: string;
+  if (score >= 80) { label = 'Strong'; }
+  else if (score >= 50) { label = 'Fair'; }
+  else { label = 'Needs attention'; }
   const barWidth = `${score}%` as any;
 
   return (

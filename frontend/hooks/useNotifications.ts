@@ -3,10 +3,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
 import * as ApiService from '@/services/api';
 import { socketService } from '@/services/socket';
-import { useRouter, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+
+function unloadOnFinish(sound: any, status: any) {
+  if (status.isLoaded && status.didJustFinish) {
+    sound.unloadAsync();
+  }
+}
 export const useNotifications = () => {
   const queryClient = useQueryClient();
   // Listen for real-time notification events via socket
@@ -79,11 +85,7 @@ export const useUnreadNotificationCount = (enableRealtime: boolean = true) => {
           { shouldPlay: true, volume: 0.25 } // soft chime, not full-blast
         )
           .then(({ sound }) => {
-            sound.setOnPlaybackStatusUpdate((status) => {
-              if (status.isLoaded && status.didJustFinish) {
-                sound.unloadAsync(); // clean up memory
-              }
-            });
+            sound.setOnPlaybackStatusUpdate((status: any) => unloadOnFinish(sound, status));
           })
           .catch((err) => console.warn('Failed to play notification sound:', err));
         CustomInAppToast.show({
@@ -153,7 +155,7 @@ export const useMarkNotificationRead = () => {
       queryClient.setQueryData(queryKeys.notifications.unreadCount(), (prev: any) => {
         const current = Number(prev?.unreadCount || 0);
         return {
-          ...(prev || {}),
+          ...prev,
           unreadCount: Math.max(0, current - 1)
         };
       });
@@ -172,7 +174,7 @@ export const useMarkAllNotificationsRead = () => {
     onSuccess: () => {
       // Optimistically clear unread state across the app
       queryClient.setQueryData(queryKeys.notifications.unreadCount(), (prev: any) => ({
-        ...(prev || {}),
+        ...prev,
         unreadCount: 0
       }));
       queryClient.setQueryData(queryKeys.notifications.list(), (prev: any) => {

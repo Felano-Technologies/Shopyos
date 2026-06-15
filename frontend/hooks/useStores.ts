@@ -11,7 +11,7 @@ export const useStores = (filters?: StoreFilters) => {
       getAllStores({ ...filters, limit: PAGE_SIZE, offset: pageParam as number }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      const p = (lastPage as any)?.pagination;
+      const p = lastPage?.pagination;
       if (!p?.hasNext) return undefined;
       return p.currentPage * p.itemsPerPage;
     },

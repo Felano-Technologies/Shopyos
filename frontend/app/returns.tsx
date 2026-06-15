@@ -52,7 +52,7 @@ const ReturnCard = ({ item }: { item: any }) => {
         </View>
       ) : null}
       {item.refund_amount ? (
-        <Text style={styles.refundAmt}>Refunded: ₵{parseFloat(item.refund_amount).toFixed(2)}</Text>
+        <Text style={styles.refundAmt}>Refunded: ₵{Number.parseFloat(item.refund_amount).toFixed(2)}</Text>
       ) : null}
       <Text style={styles.date}>{format(new Date(item.created_at), 'dd MMM yyyy')}</Text>
     </View>
@@ -101,17 +101,24 @@ export default function ReturnsScreen() {
         <View style={{ width: rs(38) }} />
       </LinearGradient>
 
-      {loading && returns.length === 0 ? (
-        <View style={styles.centred}>
-          <ActivityIndicator color={C.navy} size="large" />
-        </View>
-      ) : returns.length === 0 ? (
-        <View style={styles.centred}>
-          <Ionicons name="refresh-circle-outline" size={rs(56)} color="#CBD5E1" />
-          <Text style={styles.emptyTitle}>No return requests</Text>
-          <Text style={styles.emptyBody}>Returns you submit will appear here.</Text>
-        </View>
-      ) : (
+      {(() => {
+        if (loading && returns.length === 0) {
+          return (
+            <View style={styles.centred}>
+              <ActivityIndicator color={C.navy} size="large" />
+            </View>
+          );
+        }
+        if (returns.length === 0) {
+          return (
+            <View style={styles.centred}>
+              <Ionicons name="refresh-circle-outline" size={rs(56)} color="#CBD5E1" />
+              <Text style={styles.emptyTitle}>No return requests</Text>
+              <Text style={styles.emptyBody}>Returns you submit will appear here.</Text>
+            </View>
+          );
+        }
+        return (
         <FlatList
           data={returns}
           keyExtractor={(item) => item.id}
@@ -122,7 +129,8 @@ export default function ReturnsScreen() {
           onEndReachedThreshold={0.3}
           ListFooterComponent={hasMore ? <ActivityIndicator color={C.navy} style={{ marginVertical: rs(16) }} /> : null}
         />
-      )}
+        );
+      })()}
     </View>
   );
 }

@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 12,
     paddingBottom: 40,
-    height: height * 0.40,
+    height: height * 0.4,
   },
   dragHandle: {
     width: 40,

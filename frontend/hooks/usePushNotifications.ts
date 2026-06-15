@@ -6,6 +6,43 @@ import { useRouter } from 'expo-router';
 import { registerPushTokenInBackend, storage } from '../services/api';
 
 const isExpoGo = Constants.appOwnership === 'expo';
+
+function handleNotificationResponse(response: any, router: ReturnType<typeof useRouter>) {
+    const data = response.notification.request.content.data;
+    if (data?.screen === 'messages') {
+        if (data.conversationId) {
+            router.push({
+                pathname: '/chat/conversation',
+                params: {
+                    conversationId: data.conversationId,
+                    chatType: data.chatType || 'buyer',
+                    name: data.senderName || '',
+                }
+            });
+        } else {
+            router.push('/chat');
+        }
+    } else if (data?.screen === 'cart') {
+        router.push('/cart');
+    } else if (data?.screen === 'order' && data?.orderId) {
+        router.push(`/order/${data.orderId}` as any);
+    } else if (data?.screen?.startsWith('order/')) {
+        const ordId = data.screen.replace('order/', '');
+        router.push(`/order/${ordId}` as any);
+    } else if (data?.screen === 'product/details' && data?.productId) {
+        router.push({ pathname: '/product/details', params: { id: data.productId } } as any);
+    } else if (data?.screen === 'review' && data?.reviewId) {
+        router.push('/notification');
+    } else if (data?.screen === 'returns' || data?.screen === 'return_request') {
+        router.push('/returns' as any);
+    } else if (data?.screen === 'store' && data.storeId) {
+        router.push({ pathname: '/stores/details', params: { id: String(data.storeId) } });
+    } else if (data?.screen === 'loyalty') {
+        router.push('/settings/loyaltyPoints' as any);
+    } else {
+        router.push('/notification');
+    }
+}
 let notificationHandlerConfigured = false;
 
 const getNotificationsModule = () => {
@@ -22,7 +59,7 @@ const ensureNotificationHandler = () => {
     Notifications.setNotificationHandler({
         handleNotification: async (notification) => {
             const data = notification?.request?.content?.data;
-            const activeId = (global as any).activeConversationId;
+            const activeId = (globalThis as any).activeConversationId;
 
             // Suppress foreground notification alert/banner if user is already inside this specific chat!
             if (data?.screen === 'messages' && data?.conversationId && data?.conversationId === activeId) {
@@ -89,40 +126,7 @@ export function usePushNotifications() {
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
             console.log('タップ Notification Tapped:', JSON.stringify(response, null, 2));
-            const data = response.notification.request.content.data;
-            if (data?.screen === 'messages') {
-                if (data.conversationId) {
-                    router.push({
-                        pathname: '/chat/conversation',
-                        params: {
-                            conversationId: data.conversationId,
-                            chatType: data.chatType || 'buyer',
-                            name: data.senderName || '',
-                        }
-                    });
-                } else {
-                    router.push('/chat');
-                }
-            } else if (data?.screen === 'cart') {
-                router.push('/cart');
-            } else if (data?.screen === 'order' && data?.orderId) {
-                router.push(`/order/${data.orderId}` as any);
-            } else if (data?.screen?.startsWith('order/')) {
-                const ordId = data.screen.replace('order/', '');
-                router.push(`/order/${ordId}` as any);
-            } else if (data?.screen === 'product/details' && data?.productId) {
-                router.push({ pathname: '/product/details', params: { id: data.productId } } as any);
-            } else if (data?.screen === 'review' && data?.reviewId) {
-                router.push('/notification');
-            } else if (data?.screen === 'returns' || data?.screen === 'return_request') {
-                router.push('/returns' as any);
-            } else if (data?.screen === 'store' && data.storeId) {
-                router.push({ pathname: '/stores/details', params: { id: String(data.storeId) } });
-            } else if (data?.screen === 'loyalty') {
-                router.push('/settings/loyaltyPoints' as any);
-            } else {
-                router.push('/notification');
-            }
+            handleNotificationResponse(response, router);
         });
 
         return () => {

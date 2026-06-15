@@ -27,6 +27,15 @@ interface PaymentMethod {
   identifier: string; // e.g., "054 *** 2719" or "**** 4242"
   isDefault: boolean;
 }
+async function confirmDeleteMethod(id: string, setMethods: React.Dispatch<React.SetStateAction<PaymentMethod[]>>) {
+  try {
+    await deletePaymentMethod(id);
+    setMethods(prev => prev.filter(m => m.id !== id));
+  } catch {
+    alert('Failed to delete payment method');
+  }
+}
+
 export default function PaymentMethodsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -52,7 +61,7 @@ export default function PaymentMethodsScreen() {
   const fetchPaymentMethods = async () => {
     try {
       const response = await getPaymentMethods();
-      if (response && response.success) {
+      if (response?.success) {
         const mapped = response.data.map((m: any) => ({
           id: m.id,
           type: m.type,
@@ -73,7 +82,7 @@ export default function PaymentMethodsScreen() {
     setRefreshing(true);
     try {
       const response = await getPaymentMethods();
-      if (response && response.success) {
+      if (response?.success) {
         const mapped = response.data.map((m: any) => ({
           id: m.id,
           type: m.type,
@@ -96,14 +105,7 @@ export default function PaymentMethodsScreen() {
       {
         text: "Remove",
         style: "destructive",
-        onPress: async () => {
-          try {
-            await deletePaymentMethod(id);
-            setMethods(prev => prev.filter(m => m.id !== id));
-          } catch {
-            alert('Failed to delete payment method');
-          }
-        }
+        onPress: () => confirmDeleteMethod(id, setMethods),
       }
     ]);
   };
@@ -126,7 +128,7 @@ export default function PaymentMethodsScreen() {
     try {
       setAdding(true);
       const response = await addPaymentMethod(newMethod);
-      if (response && response.success) {
+      if (response?.success) {
         setShowAddModal(false);
         setNewMethod({ type: 'momo', provider: 'mtn', title: '', identifier: '' });
         fetchPaymentMethods();
@@ -338,28 +340,26 @@ export default function PaymentMethodsScreen() {
             <ActivityIndicator size="large" color="#0C1559" />
           </View>
         ) : (
-          <>
-            <FlatList
-              data={methods}
-              keyExtractor={(item) => item.id}
-              renderItem={renderItem}
-              contentContainerStyle={styles.listContent}
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <MaterialCommunityIcons name="credit-card-plus-outline" size={64} color="#E2E8F0" />
-                  <Text style={styles.emptyText}>No payment methods added yet.</Text>
-                  <TouchableOpacity 
-                    style={styles.emptyAddBtn}
-                    onPress={() => setShowAddModal(true)}
-                  >
-                    <Text style={styles.emptyAddBtnText}>Add your first method</Text>
-                  </TouchableOpacity>
-                </View>
-              }
-            />
-          </>
+          <FlatList
+            data={methods}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={styles.listContent}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <MaterialCommunityIcons name="credit-card-plus-outline" size={64} color="#E2E8F0" />
+                <Text style={styles.emptyText}>No payment methods added yet.</Text>
+                <TouchableOpacity
+                  style={styles.emptyAddBtn}
+                  onPress={() => setShowAddModal(true)}
+                >
+                  <Text style={styles.emptyAddBtnText}>Add your first method</Text>
+                </TouchableOpacity>
+              </View>
+            }
+          />
         )}
       </View>
     </View>
