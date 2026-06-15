@@ -967,7 +967,7 @@ const S = StyleSheet.create({
   // Verification banner
   verifyBanner: {
     flexDirection: 'row', alignItems: 'flex-start', gap: rs(10),
-    backgroundColor: '#FEF3C7', borderLeftWidth: 4, borderLeftColor: '#F59E0B',
+    backgroundColor: '#FEF3C7', borderLeftWidth: 4, borderLeftColor: '#FEF3C7',
     marginHorizontal: rs(16), marginTop: rs(8), marginBottom: rs(4),
     borderRadius: rs(12), padding: rs(14),
   },
