@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import {
   useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead,
 } from '@/hooks/useNotifications';
+import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 
@@ -124,11 +125,12 @@ export default function NotificationsScreen() {
     } catch (e) { console.error('Mark all read failed', e); }
   }, [rawNotifications, markAllMutation, refetch]);
 
-  const handleItemPress = useCallback(async (id: string) => {
-    setReadIds((prev) => new Set([...prev, id]));
-    try { await markOneMutation.mutateAsync(id); }
-    catch (e) { console.error('Mark one read failed', e); }
-  }, [markOneMutation]);
+  const handleItemPress = useCallback(async (item: any) => {
+    setReadIds((prev) => new Set([...prev, item.id]));
+    try { await markOneMutation.mutateAsync(item.id); } catch (e) { console.error('Mark one read failed', e); }
+    const route = getRouteFromNotification(item.raw, 'seller');
+    if (route) router.push(route as any);
+  }, [markOneMutation, router]);
 
   // ── Renders ───────────────────────────────────────────────────────────────
   const renderSectionHeader = useCallback(({ section: { title } }: any) => (
@@ -148,7 +150,7 @@ export default function NotificationsScreen() {
       <TouchableOpacity
         style={[S.card, isUnread && S.cardUnread, isLast && { marginBottom: rs(20) }]}
         activeOpacity={0.78}
-        onPress={() => handleItemPress(item.id)}
+        onPress={() => handleItemPress(item)}
       >
         {/* Coloured left accent bar for unread */}
         {isUnread && <View style={[S.accentBar, { backgroundColor: cfg.bar }]} />}

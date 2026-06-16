@@ -125,7 +125,7 @@ export const startGeofenceTracking = async (): Promise<{ success: boolean; messa
         notifyOnEnter: true,
         notifyOnExit: false,
       }))
-      .filter(r => !Number.isNaN(r.latitude) && !Number.isNaN(r.longitude) && r.latitude !== 0 && r.longitude !== 0);
+      .filter(r => Number.isFinite(r.latitude) && Number.isFinite(r.longitude) && r.latitude !== 0 && r.longitude !== 0);
 
     if (regions.length === 0) return { success: false, message: 'No valid store coordinates in cache' };
 

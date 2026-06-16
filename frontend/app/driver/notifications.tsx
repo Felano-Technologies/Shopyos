@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useNotifications, useMarkNotificationRead } from '@/hooks/useNotifications';
+import { getRouteFromNotification } from '@/utils/notificationRouting';
 import { LinearGradient } from 'expo-linear-gradient';
 const { width } = Dimensions.get('window');
 type Notification = {
@@ -34,7 +35,6 @@ export default function DriverNotificationsScreen() {
         refetch();
     };
     const handleNotificationPress = async (notification: Notification) => {
-        // Mark as read
         if (!notification.is_read) {
             try {
                 await markReadMutation.mutateAsync(notification.id);
@@ -42,24 +42,31 @@ export default function DriverNotificationsScreen() {
                 console.error("Failed to mark notification as read", error);
             }
         }
-        // Navigate based on notification type
-        if (notification.data?.deliveryId) {
-            router.push({
-                pathname: '/driver/activeOrder',
-                params: { deliveryId: notification.data.deliveryId }
-            });
-        }
+        const route = getRouteFromNotification(notification, 'driver');
+        if (route) router.push(route as any);
     };
     const getNotificationIcon = (type: string) => {
         switch (type) {
             case 'new_delivery_available':
+            case 'delivery_assigned':
                 return { name: 'notifications-active', color: '#84cc16' };
+            case 'delivery_update':
+            case 'delivery_in_transit':
+            case 'delivery_picked_up':
+                return { name: 'local-shipping', color: '#2563EB' };
+            case 'delivery_completed':
+            case 'order_delivered':
+                return { name: 'check-circle', color: '#10B981' };
             case 'delivery_cancelled':
+            case 'delivery_issue':
                 return { name: 'cancel', color: '#EF4444' };
+            case 'new_message':
             case 'message_received':
                 return { name: 'chat-bubble', color: '#3B82F6' };
             case 'payment_received':
                 return { name: 'payments', color: '#10B981' };
+            case 'driver_verification':
+                return { name: 'verified-user', color: '#8B5CF6' };
             default:
                 return { name: 'notifications', color: '#64748B' };
         }

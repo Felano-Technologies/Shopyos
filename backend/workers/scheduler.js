@@ -16,6 +16,8 @@ const aiService = require('../services/aiService');
 let broadcastRunning = false;
 let sweepRunning = false;
 
+const USER_SELECT = '*, user_profiles(full_name, phone), stores(store_name)';
+
 async function runInBatches(items, fn, batchSize = 50) {
   for (let i = 0; i < items.length; i += batchSize) {
     await Promise.all(items.slice(i, i + batchSize).map(fn));
@@ -110,7 +112,7 @@ function personalizeTemplate(templateString, user) {
 // ─── Resolve target users ─────────────────────────────────────────────────────
 
 async function resolveRecipients(recipientType, recipientIds) {
-  const selectQuery = '*, user_profiles(full_name, phone), stores(store_name)';
+  const selectQuery = USER_SELECT;
 
   if (recipientType === 'specific' && recipientIds?.length) {
     const { data } = await repositories.users.findAll({
@@ -329,7 +331,7 @@ async function _runHolidayBlast(holiday, copy) {
     logger.info('[Scheduler] Dispatching holiday blast in paginated batches…');
     let hasMore = true;
     while (hasMore) {
-      const { data: page } = await repositories.users.findAll({ limit: PAGE_SIZE, offset });
+      const { data: page } = await repositories.users.findAll({ select: USER_SELECT, limit: PAGE_SIZE, offset });
       if (!page?.length) break;
       await runInBatches(page, u => dispatchToUser(u, item));
       totalDispatched += page.length;
@@ -395,7 +397,6 @@ async function _runEngagementSweep() {
   const campaign = await _createEngagementCampaign(timeOfDay, variantPools, sendPush, sendEmail, sendSMS);
 
   try {
-    const selectQuery = '*, user_profiles(full_name, phone), stores(store_name)';
     const { data: customersRole } = await repositories.users.getUsersByRoleName('buyer', 20000);
     const notificationService = require('../services/notificationService');
     const dispatchOpts = { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService };
@@ -409,7 +410,7 @@ async function _runEngagementSweep() {
         const pageIds = allIds.slice(i, i + PAGE_SIZE);
         const { data: customers } = await repositories.users.findAll({
           where: { id: pageIds },
-          select: selectQuery,
+          select: USER_SELECT,
           limit: PAGE_SIZE
         });
         if (!customers?.length) continue;
