@@ -279,8 +279,8 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    marginLeft: -50,
-    marginBottom: -200,
+    marginLeft: -60,
+    marginBottom: -210,
   },
   brandLogo: {
     width: 90,

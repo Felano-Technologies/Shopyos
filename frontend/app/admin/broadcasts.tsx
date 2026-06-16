@@ -569,7 +569,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   brandLogo: {
-    width: 106,
+    width: 120,
     height: 30,
     resizeMode: 'contain',
   },

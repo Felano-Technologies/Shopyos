@@ -20,8 +20,9 @@ import { getAdminOrders } from '@/services/api';
 
 const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
 const STATUS_FILTERS = ['All', 'pending', 'processing', 'delivered', 'cancelled'];
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: string }> = {
+const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: IoniconName }> = {
   delivered: { color: '#15803D', bg: '#DCFCE7', icon: 'checkmark-circle' },
   processing: { color: '#1E40AF', bg: '#DBEAFE', icon: 'sync' },
   pending: { color: '#B45309', bg: '#FEF3C7', icon: 'time' },
@@ -92,11 +93,11 @@ export default function AdminOrders() {
     const cancelled = orders.filter((order) => order.status === 'cancelled').length;
 
     return [
-      { label: 'Total Orders', value: orders.length, color: '#0A2EA8', icon: 'bag-handle-outline' },
-      { label: 'Pending', value: pending, color: '#0A2EA8', icon: 'time-outline' },
-      { label: 'Processing', value: processing, color: '#0A2EA8', icon: 'sync-outline' },
-      { label: 'Delivered', value: delivered, color: '#0A2EA8', icon: 'checkmark-done-outline' },
-      { label: 'Cancelled', value: cancelled, color: '#0A2EA8', icon: 'close-circle-outline' },
+      { label: 'Total Orders', value: orders.length, color: '#0A2EA8', icon: 'bag-handle-outline' as IoniconName },
+      { label: 'Pending', value: pending, color: '#0A2EA8', icon: 'time-outline' as IoniconName },
+      { label: 'Processing', value: processing, color: '#0A2EA8', icon: 'sync-outline' as IoniconName },
+      { label: 'Delivered', value: delivered, color: '#0A2EA8', icon: 'checkmark-done-outline' as IoniconName },
+      { label: 'Cancelled', value: cancelled, color: '#0A2EA8', icon: 'close-circle-outline' as IoniconName },
     ];
   }, [orders]);
 
@@ -150,7 +151,7 @@ export default function AdminOrders() {
           </View>
 
           <View style={[styles.statusBadge, { backgroundColor: cfg.bg }]}>
-            <Ionicons name={cfg.icon as any} size={12} color={cfg.color} />
+            <Ionicons name={cfg.icon} size={12} color={cfg.color} />
             <Text style={[styles.statusText, { color: cfg.color }]}>{status.toUpperCase()}</Text>
           </View>
         </View>
@@ -410,7 +411,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   brandLogo: {
-    width: 106,
+    width: 120,
     height: 30,
     resizeMode: 'contain',
   },

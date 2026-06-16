@@ -2,7 +2,8 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ScrollView,
-  ActivityIndicator, Modal,
+  ActivityIndicator, Modal, Animated,
+  Platform
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +21,7 @@ import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useStoreOrders } from '@/hooks/useOrders';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
-const { width: SW } = Dimensions.get('window');
+const { width: SW, height: SH } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
@@ -81,12 +82,45 @@ const OrderListEmpty = ({ filter }: { filter: FilterType }) => (
   </View>
 );
 
-const OrdersScreen = () => {
-  // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
+// --- Custom 3-Color Spinner ---
+const MultiColorSpinner = () => {
+  const spinValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spinValue, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [spinValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <View style={{ width: 50, height: 50, justifyContent: 'center', alignItems: 'center' }}>
+      <Animated.View style={{ width: '100%', height: '100%', transform: [{ rotate: spin }] }}>
+        <LinearGradient
+          colors={['#1e3a8a', '#84cc16', '#111827']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ flex: 1, borderRadius: 25 }}
+        />
+      </Animated.View>
+      <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: C.bg }} />
+    </View>
+  );
+};
+
+export default function OrdersScreen() {
   const insets = useSafeAreaInsets();
   const { isChecking, isVerified } = useSellerGuard();
 
-  const [filter,      setFilter]      = useState<FilterType>('All');
+  const [filter, setFilter] = useState<FilterType>('All');
   const [showSwitcher, setShowSwitcher] = useState(false);
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
@@ -144,12 +178,14 @@ const OrdersScreen = () => {
       return () => clearTimeout(timer);
     }
   }, [loading, isVerified, filtered.length, startTour]);
-  // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {
     return (
       <View style={S.centred}>
-        <ActivityIndicator size="large" color={C.navy} />
+        <MultiColorSpinner />
+        <Text style={{ marginTop: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' }}>
+          Loading Orders...
+        </Text>
       </View>
     );
   }
@@ -203,7 +239,6 @@ const OrdersScreen = () => {
   const deliveredCount  = orders.filter((o) => o.displayStatus === 'Delivered').length;
   const cancelledCount  = orders.filter((o) => o.displayStatus === 'Cancelled').length;
 
-  // ── Order card ──────────────────────────────────────────────────────────────
   const renderOrder = ({ item }: { item: Order }) => {
     const cfg = MAP_STATUS(item.status);
     let dateStr = '';
@@ -217,11 +252,9 @@ const OrdersScreen = () => {
         ref={filtered[0]?.id === item.id ? refFirstItem : undefined}
         onLayout={filtered[0]?.id === item.id ? () => measureElement(refFirstItem, 'list') : undefined}
       >
-        {/* Status accent bar */}
         <View style={[S.cardBar, { backgroundColor: cfg.bar }]} />
 
         <View style={S.cardInner}>
-          {/* Top row */}
           <View style={S.cardTop}>
             <View style={S.orderIdRow}>
               <View style={S.orderIcon}>
@@ -235,7 +268,6 @@ const OrdersScreen = () => {
             </View>
           </View>
 
-          {/* Info rows */}
           <View style={S.infoGrid}>
             <View style={S.infoItem}>
               <Text style={S.infoLbl}>Customer</Text>
@@ -251,7 +283,6 @@ const OrdersScreen = () => {
             </View>
           </View>
 
-          {/* Footer */}
           <View style={S.cardFoot}>
             <View>
               <Text style={S.footLbl}>Total</Text>
@@ -267,149 +298,169 @@ const OrdersScreen = () => {
     );
   };
 
-  // ── Root ────────────────────────────────────────────────────────────────────
   return (
     <View style={S.root}>
       <StatusBar style="light" />
 
-      {/* Watermark */}
-      <View style={S.watermark}>
-        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
-      </View>
-
-      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         {loading ? (
           <BusinessOrdersSkeleton />
         ) : (
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[S.scrollContent, { paddingBottom: rs(100) + insets.bottom }]}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#fff" />
-            }
-          >
-            {/* ── Header ────────────────────────────────────────────────── */}
-            <LinearGradient
-              colors={[C.navy, C.navyMid]}
-              style={[S.header, { paddingTop: insets.top + rs(16) }]}
-            >
-              <View style={S.hdrGlow} pointerEvents="none" />
+          <>
+            {/* ── STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 100) ── */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
+              <LinearGradient
+                colors={[C.navy, C.navyMid]}
+                style={[S.header, { paddingTop: insets.top + rs(16) }]}
+              >
+                <View style={S.hdrGlow} pointerEvents="none" />
 
-              {/* Logo row */}
-              <View style={S.hdrLogoRow}>
-                <TouchableOpacity
-                  style={S.storeSelectorPill}
-                  onPress={() => setShowSwitcher(true)}
-                  activeOpacity={0.85}
-                >
-                  {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
-                    <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={S.storePillLogo} />
-                  ) : (
-                    <View style={S.storePillPlaceholder}>
-                      <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
-                    </View>
-                  )}
-                  <View style={S.storePillTextWrap}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(3) }}>
-                      <Text style={S.storePillName} numberOfLines={1}>{activeBusiness?.businessName || 'Store'}</Text>
-                      <Ionicons name="chevron-down" size={rs(12)} color="#FFF" />
-                    </View>
-                    <Text style={S.storePillRating}>★ {activeBusiness?.rating || 0} Rating</Text>
-                  </View>
-                </TouchableOpacity>
-
-                <View style={S.topIcons}>
-                  <View style={S.hdrBadge}>
-                    <Text style={S.hdrBadgeTxt}>{totalOrders} orders</Text>
-                  </View>
-                  <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/notifications')}>
-                    <Ionicons name="notifications-outline" size={20} color="#FFF" />
-                    {unreadCount > 0 && (
-                      <View style={S.badgeContainer}>
-                        <Text style={S.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                {/* Logo row */}
+                <View style={S.hdrLogoRow}>
+                  <TouchableOpacity
+                    style={S.storeSelectorPill}
+                    onPress={() => setShowSwitcher(true)}
+                    activeOpacity={0.85}
+                  >
+                    {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
+                      <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={S.storePillLogo} />
+                    ) : (
+                      <View style={S.storePillPlaceholder}>
+                        <Text style={S.storePillInitial}>{activeBusiness?.businessName?.charAt(0) || 'B'}</Text>
                       </View>
                     )}
+                    <View style={S.storePillTextWrap}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: rs(3) }}>
+                        <Text style={S.storePillName} numberOfLines={1}>{activeBusiness?.businessName || 'Store'}</Text>
+                        <Ionicons name="chevron-down" size={rs(12)} color="#FFF" />
+                      </View>
+                      <Text style={S.storePillRating}>★ {activeBusiness?.rating || 0} Rating</Text>
+                    </View>
                   </TouchableOpacity>
-                  <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/settings')}>
-                    <Ionicons name="settings-outline" size={20} color="#FFF" />
-                  </TouchableOpacity>
-                </View>
-              </View>
 
-              {/* Revenue cards */}
-              <View style={S.revenueRow}>
-                <View style={[S.revenueCard, { flex: 1 }]}>
-                  <View>
-                    <Text style={S.revLbl}>Earned</Text>
-                    <Text style={[S.revAmt, { fontSize: rf(18) }]}>₵{earnedRevenue.toFixed(2)}</Text>
+                  <View style={S.topIcons}>
+                    <View style={S.hdrBadge}>
+                      <Text style={S.hdrBadgeTxt}>{totalOrders} orders</Text>
+                    </View>
+                    <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/notifications')}>
+                      <Ionicons name="notifications-outline" size={20} color="#FFF" />
+                      {unreadCount > 0 && (
+                        <View style={S.badgeContainer}>
+                          <Text style={S.badgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/settings')}>
+                      <Ionicons name="settings-outline" size={20} color="#FFF" />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <View style={[S.revenueCard, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)' }]}>
-                  <View>
-                    <Text style={S.revLbl}>In Escrow</Text>
-                    <Text style={[S.revAmt, { fontSize: rf(18), color: C.lime }]}>₵{pendingRevenue.toFixed(2)}</Text>
+
+                {/* Revenue cards */}
+                <View style={S.revenueRow} ref={refRevenue} onLayout={() => measureElement(refRevenue, 'revenue')}>
+                  <View style={[S.revenueCard, { flex: 1 }]}>
+                    <View>
+                      <Text style={S.revLbl}>Earned</Text>
+                      <Text style={[S.revAmt, { fontSize: rf(18) }]}>₵{earnedRevenue.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                  <View style={[S.revenueCard, { flex: 1, backgroundColor: 'rgba(255,255,255,0.05)' }]}>
+                    <View>
+                      <Text style={S.revLbl}>In Escrow</Text>
+                      <Text style={[S.revAmt, { fontSize: rf(18), color: C.lime }]}>₵{pendingRevenue.toFixed(2)}</Text>
+                    </View>
                   </View>
                 </View>
-              </View>
 
-              <View style={S.hdrArc} />
-            </LinearGradient>
-
-            {/* ── Stat pills ────────────────────────────────────────────── */}
-            <View style={S.statRow} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
-              {[
-                { label: 'Awaiting',   value: pendingCount,   color: '#F59E0B' },
-                { label: 'Processing', value: processingCount, color: '#3B82F6' },
-                { label: 'Delivered', value: deliveredCount, color: '#84cc16' },
-                { label: 'Cancelled', value: cancelledCount, color: '#EF4444' },
-              ].map((s) => (
-                <View key={s.label} style={S.statCard}>
-                  <Text style={[S.statNum, { color: s.color }]}>{s.value}</Text>
-                  <Text style={S.statLbl}>{s.label}</Text>
-                  <View style={[S.statBar, { backgroundColor: s.color }]} />
-                </View>
-              ))}
+                <View style={S.hdrArc} />
+              </LinearGradient>
             </View>
 
-            {/* ── Filter chips ──────────────────────────────────────────── */}
+{/* ── SCROLLVIEW ON TOP (zIndex 10) ── */}
             <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={S.chipScrollView}
-              contentContainerStyle={S.chipStrip}
-              ref={refFilters}
-              onLayout={() => measureElement(refFilters, 'filters')}
+              showsVerticalScrollIndicator={false}
+              style={{ zIndex: 10 }}
+              // Android uses padding to push content down; iOS uses contentInset
+              contentContainerStyle={{ flexGrow: 1, paddingTop: Platform.OS === 'android' ? 240 : 0, paddingBottom: rs(100) }} 
+              // iOS pushes the content down AND moves the refresh spinner into this empty space!
+              contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }} 
+              contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -10 : 0 }}
+              refreshControl={
+                <RefreshControl 
+                  refreshing={refreshing} 
+                  onRefresh={handleRefresh} 
+                  tintColor="#84cc16" // iOS single color (Apple strict rule)
+                  colors={['#1e3a8a', '#84cc16', '#111827']} // Android 3-color ring
+                  progressViewOffset={260} // Android offset
+                />
+              }
             >
-              {FILTERS.map((f) => {
-                const on = filter === f;
-                return (
-                  <TouchableOpacity
-                    key={f}
-                    style={[S.chip, on && S.chipOn]}
-                    onPress={() => setFilter(f)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={[S.chipTxt, on && S.chipTxtOn]}>{f}</Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {/* REMOVE the transparent spacer View! The padding/contentInset handles it now. */}
+
+              {/* Solid body that gracefully covers the background when scrolling */}
+              <View style={S.scrollBody}>
+                {/* Background Watermark properly inside the scrolling area */}
+                <View style={S.watermark} pointerEvents="none">
+                  <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+                </View>
+
+                {/* ── Stat pills ────────────────────────────────────────────── */}
+                <View style={S.statRow} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
+                  {[
+                    { label: 'Awaiting',   value: pendingCount,   color: '#F59E0B' },
+                    { label: 'Processing', value: processingCount, color: '#3B82F6' },
+                    { label: 'Delivered', value: deliveredCount, color: '#84cc16' },
+                    { label: 'Cancelled', value: cancelledCount, color: '#EF4444' },
+                  ].map((s) => (
+                    <View key={s.label} style={S.statCard}>
+                      <Text style={[S.statNum, { color: s.color }]}>{s.value}</Text>
+                      <Text style={S.statLbl}>{s.label}</Text>
+                      <View style={[S.statBar, { backgroundColor: s.color }]} />
+                    </View>
+                  ))}
+                </View>
+
+                {/* ── Filter chips ──────────────────────────────────────────── */}
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={S.chipScrollView}
+                  contentContainerStyle={S.chipStrip}
+                  ref={refFilters}
+                  onLayout={() => measureElement(refFilters, 'filters')}
+                >
+                  {FILTERS.map((f) => {
+                    const on = filter === f;
+                    return (
+                      <TouchableOpacity
+                        key={f}
+                        style={[S.chip, on && S.chipOn]}
+                        onPress={() => setFilter(f)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={[S.chipTxt, on && S.chipTxtOn]}>{f}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Spacer between chips and cards */}
+                <View style={{ height: rs(12) }} />
+
+                {/* ── Order list ────────────────────────────────────────────── */}
+                <View style={S.listWrap}>
+                  <FlatList
+                    data={filtered}
+                    keyExtractor={(item) => item.id}
+                    renderItem={renderOrder}
+                    scrollEnabled={false}
+                    ItemSeparatorComponent={OrderListSeparator}
+                    ListEmptyComponent={<OrderListEmpty filter={filter} />}
+                  />
+                </View>
+              </View>
             </ScrollView>
-
-            {/* Spacer between chips and cards */}
-            <View style={{ height: rs(12) }} />
-
-            {/* ── Order list ────────────────────────────────────────────── */}
-            <View style={S.listWrap}>
-              <FlatList
-                data={filtered}
-                keyExtractor={(item) => item.id}
-                renderItem={renderOrder}
-                scrollEnabled={false}
-                ItemSeparatorComponent={OrderListSeparator}
-                ListEmptyComponent={<OrderListEmpty filter={filter} />}
-              />
-            </View>
-          </ScrollView>
+          </>
         )}
 
         <BusinessBottomNav />
@@ -494,7 +545,8 @@ const S = StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
 
-  watermark:    { position: 'absolute', bottom: 20, left: -20 },
+  scrollBody: { flex: 1, backgroundColor: C.bg, minHeight: SH },
+  watermark:    { position: 'absolute', bottom: 140, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
 
   scrollContent: { flexGrow: 1 },
@@ -808,4 +860,4 @@ const S = StyleSheet.create({
   },
 });
 
-export default OrdersScreen;
+// (already exported as default above)

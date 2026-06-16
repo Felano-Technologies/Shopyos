@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    ScrollView,
-    RefreshControl,
-    Dimensions,
-    Modal,
-    ActivityIndicator
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  RefreshControl,
+  Dimensions,
+  Modal,
+  ActivityIndicator
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { router } from 'expo-router';
@@ -26,7 +26,9 @@ import SpotlightIndicator from '../../components/ui/SpotlightIndicator';
 import { useActiveBusiness, useBusinessDashboard } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
-const { width } = Dimensions.get('window');
+
+const { width, height } = Dimensions.get('window');
+
 // --- Tokens ---
 const C = {
   pageBg:  '#F8FAFC',
@@ -38,6 +40,7 @@ const C = {
   muted:   '#64748B',
   subtle:  '#94A3B8',
 };
+
 // --- Interfaces ---
 interface Order {
   id: string;
@@ -46,11 +49,13 @@ interface Order {
   status: string;
   createdAt: string;
 }
+
 const BusinessDashboard = () => {
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'yearly'>('weekly');
   const [showNoBusinessModal, setShowNoBusinessModal] = useState(false);
   const { isChecking, isVerified } = useSellerGuard();
   const [showSwitcher, setShowSwitcher] = useState(false);
+
   // --- TanStack Query Hooks ---
   const { activeBusiness: selectedBusiness, businesses, isLoading: isLoadingBusinesses, refetch: refetchBusinesses, isRefetching: isRefetchingBusinesses, selectBusiness } = useActiveBusiness();
   
@@ -59,6 +64,7 @@ const BusinessDashboard = () => {
   const unreadCount = unreadData?.unreadCount || 0;
   const loading = isLoadingBusinesses || isLoadingDashboard;
   const refreshing = isRefetchingBusinesses || isRefetchingDashboard;
+
   // --- Onboarding ---
   const { startTour, markCompleted, isTourActive, activeScreen } = useOnboarding();
   const [layouts, setLayouts] = useState<any>({});
@@ -66,6 +72,7 @@ const BusinessDashboard = () => {
   const refActions = React.useRef<View>(null);
   const refChart = React.useRef<View>(null);
   const refTop = React.useRef<View>(null);
+
   const measureElement = (ref: any, key: string) => {
     if (ref.current) {
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
@@ -73,6 +80,7 @@ const BusinessDashboard = () => {
       });
     }
   };
+
   useEffect(() => {
     if (!loading && selectedBusiness && isVerified) {
       const timer = setTimeout(() => {
@@ -85,6 +93,7 @@ const BusinessDashboard = () => {
       return () => clearTimeout(timer);
     }
   }, [loading, isVerified, selectedBusiness, startTour]);
+
   const onboardingSteps = [
     {
       targetLayout: layouts.top,
@@ -108,14 +117,16 @@ const BusinessDashboard = () => {
       description: 'Visualize your store’s performance over various time periods.',
     },
   ].filter(s => !!s.targetLayout);
+
   const handleOnboardingComplete = () => {
     markCompleted('business_dashboard');
   };
+
   const renderHeaderContent = () => {
     const headerBg = selectedBusiness?.banner_url || selectedBusiness?.coverImage;
     
     return (
-      <View style={styles.headerContainer}>
+      <View style={styles.headerContainer} ref={refTop} onLayout={() => measureElement(refTop, 'top')}>
         {headerBg ? (
           <AppImage uri={headerBg} style={StyleSheet.absoluteFillObject} />
         ) : (
@@ -176,12 +187,12 @@ const BusinessDashboard = () => {
       </View>
     );
   };
- 
+
   // Force refetch on mount to catch newly registered businesses
   useEffect(() => {
     refetchBusinesses();
   }, [refetchBusinesses]);
- 
+
   // --- Sync Storage ---
   useEffect(() => {
     if (selectedBusiness?._id) {
@@ -189,14 +200,17 @@ const BusinessDashboard = () => {
       storage.setItem('currentBusinessVerificationStatus', selectedBusiness.verificationStatus || 'pending');
     }
   }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
+
   // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
     const checkAuthAndShowModal = async () => {
       const isStillLoading = loading || isLoadingBusinesses || isRefetchingBusinesses;
       if (isStillLoading) return;
+
       // Only show the modal if we are actually logged in
       const token = await secureStorage.getItem('userToken');
       if (!token) return;
+
       if (selectedBusiness) {
         setShowNoBusinessModal(false);
       } else {
@@ -206,10 +220,11 @@ const BusinessDashboard = () => {
     
     checkAuthAndShowModal();
   }, [loading, selectedBusiness, isLoadingBusinesses, isRefetchingBusinesses]);
+
   const onRefresh = async () => {
     await Promise.all([refetchBusinesses(), refetchDashboard()]);
   };
- 
+
   const handleLogout = async () => {
     try {
       await logoutUser();
@@ -220,6 +235,7 @@ const BusinessDashboard = () => {
       router.replace('/login');
     }
   };
+
   const isInitialLoading = loading && !dashboardData;
   if (isInitialLoading) {
     return (
@@ -230,165 +246,201 @@ const BusinessDashboard = () => {
       </View>
     );
   }
+
   const stats = dashboardData?.stats || { totalProducts: 0, totalOrders: 0, pendingOrders: 0, totalRevenue: 0, pendingRevenue: 0, balance: 0, followers: 0 };
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = dashboardData?.chartData?.[timeframe] || { labels: [], datasets: [{ data: [0] }] };
-    // Show a blank loading screen while the guard checks storage.
-  // This prevents a flash of protected content for unverified sellers.
+
+  // Show a blank loading screen while the guard checks storage.
   if (isChecking || !isVerified) {
     return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0C1559" />
+      <View style={styles.centered}>
+        <ActivityIndicator size="large" color="#000000" />
+        <Text style={[styles.noBizText, { marginTop: 15 }]}>Loading Store...</Text>
       </View>
     );
   }
+
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
+      
       {/* --- Background Watermark --- */}
       <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
         <View style={styles.bottomLogos}>
           <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
         </View>
       </View>
+
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         {selectedBusiness ? (
-          <ScrollView
-            style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1 }]}
-            contentContainerStyle={styles.scrollContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0C1559" />}
-            showsVerticalScrollIndicator={false}
-          >
-            {renderHeaderContent()}
-            {/* --- FLOATING STATS --- */}
-            <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
-              {isTourActive && (
-                <View style={styles.statsPulse}>
-                  <SpotlightIndicator source={require('../../assets/pulse.json')} />
+          <>
+            {/* --- STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 10) --- */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+              {renderHeaderContent()}
+            </View>
+
+            {/* --- SCROLLVIEW ON TOP (zIndex 20) --- */}
+            <ScrollView
+              style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1, zIndex: 20 }]}
+              contentContainerStyle={{ flexGrow: 1 }}
+              refreshControl={
+                <RefreshControl 
+                  refreshing={refreshing} 
+                  onRefresh={onRefresh} 
+                  tintColor="#000000" 
+                  progressViewOffset={260} // Dropped lower so it displays over the white background
+                />
+              }
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Transparent spacer exposing the header */}
+              <View style={{ height: 240, backgroundColor: 'transparent' }} />
+
+              {/* Solid body that gracefully covers the header when scrolling up */}
+              <View style={styles.scrollBody}>
+                
+                {/* Background Watermark properly inside the scrolling area */}
+                <View style={styles.bottomLogos} pointerEvents="none">
+                  <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
-              )}
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>₵{Number(stats.balance || 0).toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Balance</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.totalOrders}</Text>
-                <Text style={styles.statLabel}>Orders</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>₵{Number(stats.pendingRevenue || 0).toLocaleString()}</Text>
-                <Text style={styles.statLabel}>In Escrow</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{stats.totalProducts}</Text>
-                <Text style={styles.statLabel}>Products</Text>
-              </View>
-            </View>
-            {/* --- QUICK ACTIONS --- */}
-            <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
-              <View style={styles.servicesGrid}>
-                {[
-                  { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products' },
-                  { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
-                  { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
-                  { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
-                  { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
-                ].map((item) => (
-                  <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
-                    <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
-                      {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
-                    </LinearGradient>
-                    <Text style={styles.actionLabel}>{item.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            {/* --- PERFORMANCE CHART --- */}
-            <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
-              <View style={styles.chartHeader}>
-                <View>
-                  <Text style={styles.cardTitle}>Sales Performance</Text>
-                  <Text style={styles.cardSubtitle}>Revenue tracking</Text>
-                </View>
-                <TouchableOpacity onPress={() => setTimeframe((t) => {
-                  if (t === 'weekly') return 'monthly';
-                  if (t === 'monthly') return 'yearly';
-                  return 'weekly';
-                })}>
-                  <View style={styles.timeToggle}>
-                    <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
-                    <Feather name="chevron-down" size={14} color="#64748B" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-              <LineChart
-                data={chartData}
-                width={width - 48}
-                height={180}
-                chartConfig={{
-                  backgroundGradientFrom: '#FFF',
-                  backgroundGradientTo: '#FFF',
-                  decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-                  style: { borderRadius: 16 },
-                  propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' }
-                }}
-                bezier
-                style={styles.chartStyle}
-                withVerticalLines={false}
-              />
-            </View>
-            {/* --- RECENT ORDERS --- */}
-            <View style={styles.sectionContainer}>
-              <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>Recent Orders</Text>
-                <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
-              </View>
-              {recentOrders.length > 0 ? (
-                recentOrders.map((order: Order, idx: number) => (
-                  <View key={order.id || `order-${idx}`} style={styles.orderCard}>
-                    <View style={styles.orderLeft}>
-                      <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
-                          <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
-                      </View>
-                      <View>
-                          <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                          <Text style={styles.orderStatus}>{order.status}</Text>
-                      </View>
+
+                {/* --- FLOATING STATS --- */}
+                <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
+                  {isTourActive && (
+                    <View style={styles.statsPulse}>
+                      <SpotlightIndicator source={require('../../assets/pulse.json')} />
                     </View>
-                    <Text style={styles.orderAmount}>₵{Number(order.totalAmount || 0).toFixed(2)}</Text>
+                  )}
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>₵{Number(stats.balance || 0).toLocaleString()}</Text>
+                    <Text style={styles.statLabel}>Balance</Text>
                   </View>
-                ))
-              ) : (
-                <View style={styles.emptyOrdersCard}>
-                  <Feather name="shopping-cart" size={24} color={C.subtle} />
-                  <Text style={styles.emptyOrdersText}>No recent orders yet</Text>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>{stats.totalOrders}</Text>
+                    <Text style={styles.statLabel}>Orders</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>₵{Number(stats.pendingRevenue || 0).toLocaleString()}</Text>
+                    <Text style={styles.statLabel}>In Escrow</Text>
+                  </View>
+                  <View style={styles.statDivider} />
+                  <View style={styles.statItem}>
+                    <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+                    <Text style={styles.statLabel}>Products</Text>
+                  </View>
                 </View>
-              )}
-            </View>
-            {/* --- PRO TIP --- */}
-            <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
-              <View style={styles.tipHeader}>
-                <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
-                <Text style={styles.tipTitle}>Pro Tip</Text>
+
+                {/* --- QUICK ACTIONS --- */}
+                <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
+                  <Text style={styles.sectionTitle}>Quick Actions</Text>
+                  <View style={styles.servicesGrid}>
+                    {[
+                      { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products/addproducts' },
+                      { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
+                      { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
+                      { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
+                      { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
+                    ].map((item) => (
+                      <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
+                        <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
+                          {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
+                        </LinearGradient>
+                        <Text style={styles.actionLabel}>{item.label}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+
+                {/* --- PERFORMANCE CHART --- */}
+                <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
+                  <View style={styles.chartHeader}>
+                    <View>
+                      <Text style={styles.cardTitle}>Sales Performance</Text>
+                      <Text style={styles.cardSubtitle}>Revenue tracking</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setTimeframe((t) => {
+                      if (t === 'weekly') return 'monthly';
+                      if (t === 'monthly') return 'yearly';
+                      return 'weekly';
+                    })}>
+                      <View style={styles.timeToggle}>
+                        <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
+                        <Feather name="chevron-down" size={14} color="#64748B" />
+                      </View>
+                    </TouchableOpacity>
+                  </View>
+                  <LineChart
+                    data={chartData}
+                    width={width - 48}
+                    height={180}
+                    chartConfig={{
+                      backgroundGradientFrom: '#FFF',
+                      backgroundGradientTo: '#FFF',
+                      decimalPlaces: 0,
+                      color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
+                      labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                      style: { borderRadius: 16 },
+                      propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' }
+                    }}
+                    bezier
+                    style={styles.chartStyle}
+                    withVerticalLines={false}
+                  />
+                </View>
+
+                {/* --- RECENT ORDERS --- */}
+                <View style={styles.sectionContainer}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Recent Orders</Text>
+                    <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
+                  </View>
+                  {recentOrders.length > 0 ? (
+                    recentOrders.map((order: Order, idx: number) => (
+                      <View key={order.id || `order-${idx}`} style={styles.orderCard}>
+                        <View style={styles.orderLeft}>
+                          <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
+                              <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
+                          </View>
+                          <View>
+                              <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
+                              <Text style={styles.orderStatus}>{order.status}</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.orderAmount}>₵{Number(order.totalAmount || 0).toFixed(2)}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.emptyOrdersCard}>
+                      <Feather name="shopping-cart" size={24} color={C.subtle} />
+                      <Text style={styles.emptyOrdersText}>No recent orders yet</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* --- PRO TIP --- */}
+                <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
+                  <View style={styles.tipHeader}>
+                    <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
+                    <Text style={styles.tipTitle}>Pro Tip</Text>
+                  </View>
+                  <Text style={styles.tipText}>Keep your product inventory updated to avoid order cancellations and maintain a high rating.</Text>
+                </LinearGradient>
               </View>
-              <Text style={styles.tipText}>Keep your product inventory updated to avoid order cancellations and maintain a high rating.</Text>
-            </LinearGradient>
-          </ScrollView>
+            </ScrollView>
+          </>
         ) : (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#0C1559" />
+            <ActivityIndicator size="large" color="#000000" />
             <Text style={[styles.noBizText, { marginTop: 15 }]}>
               {isLoadingBusinesses ? "Fetching your business..." : "Preparing Dashboard..."}
             </Text>
           </View>
         )}
       </SafeAreaView>
+
       {/* --- NO BUSINESS MODAL --- */}
       <Modal animationType="fade" transparent visible={showNoBusinessModal}>
         <View style={styles.alertOverlay}>
@@ -400,7 +452,7 @@ const BusinessDashboard = () => {
               <Text style={styles.alertButtonText}>Create Business</Text>
               <Feather name="arrow-right" size={18} color="#FFF" />
             </TouchableOpacity>
- 
+
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               <TouchableOpacity
                 style={[styles.outlineButton, { flex: 1 }]}
@@ -408,7 +460,7 @@ const BusinessDashboard = () => {
               >
                 <Text style={styles.outlineButtonText}>Go Home</Text>
               </TouchableOpacity>
- 
+
               <TouchableOpacity
                 style={[styles.outlineButton, { flex: 1, borderColor: '#EF4444' }]}
                 onPress={handleLogout}
@@ -419,6 +471,7 @@ const BusinessDashboard = () => {
           </View>
         </View>
       </Modal>
+
       {/* --- SWITCHER BOTTOM SHEET --- */}
       <Modal visible={showSwitcher} animationType="slide" transparent>
         <View style={styles.switcherOverlay}>
@@ -493,12 +546,13 @@ const BusinessDashboard = () => {
     </View>
   );
 };
+
 const styles = StyleSheet.create({
   mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollContent: { paddingBottom: 120 },
-  bottomLogos: { position: 'absolute', bottom: 20, left: -20 },
+  scrollBody: { flex: 1, backgroundColor: '#F8FAFC', minHeight: height, paddingBottom: 120 },
+  bottomLogos: { position: 'absolute', bottom: 140, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
     height: 240,
@@ -606,4 +660,5 @@ const styles = StyleSheet.create({
   switcherAddIcon: { width: 36, height: 36, borderRadius: 12, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
   switcherAddText: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0C1559', marginLeft: 12 },
 });
+
 export default BusinessDashboard;
