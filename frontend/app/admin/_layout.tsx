@@ -6,6 +6,7 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Tabs, usePathname, useRouter } from 'expo-router';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,11 +16,11 @@ const NAV_ITEMS = [
   { label: 'Home',       route: '/admin/dashboard',     icon: 'grid'          as const },
   { label: 'Orders',     route: '/admin/orders',        icon: 'shopping-bag'  as const },
   { label: 'Users',      route: '/admin/users',         icon: 'users'         as const },
-  { label: 'Broadcasts', route: '/admin/notifications', icon: 'bell'          as const },
+  { label: 'Broadcasts', route: '/admin/broadcasts', icon: 'bell'          as const },
   { label: 'Settings',   route: '/admin/settings',      icon: 'settings'      as const },
 ];
 
-function AdminTabBar() {
+function AdminTabBar(props: BottomTabBarProps) {
   const router   = useRouter();
   const pathname = usePathname();
   const insets   = useSafeAreaInsets();
@@ -73,7 +74,7 @@ function AdminTabBar() {
 export default function AdminLayout() {
   return (
     <Tabs
-      tabBar={AdminTabBar}
+    tabBar={(props) => <AdminTabBar {...props} />}
       screenOptions={{ headerShown: false }}
     >
         <Tabs.Screen name="dashboard" />
@@ -88,9 +89,10 @@ export default function AdminLayout() {
         <Tabs.Screen name="stores"              options={{ href: null }} />
         <Tabs.Screen name="user-buyers"         options={{ href: null }} />
         <Tabs.Screen name="driverVerifications" options={{ href: null }} />
-        <Tabs.Screen name="driver-verifications" options={{ href: null }} />
-        <Tabs.Screen name="store-details"       options={{ href: null }} />
-        <Tabs.Screen name="driver-chat"         options={{ href: null }} />
+        <Tabs.Screen name="driver-verifications/[id]" options={{ href: null }} />
+        <Tabs.Screen name="store-details/[id]"       options={{ href: null }} />
+        <Tabs.Screen name="driver-chat/[id]"         options={{ href: null }} />
+        <Tabs.Screen name="driver-chat/index"         options={{ href: null }} />
         <Tabs.Screen name="notifications"        options={{ href: null }} />
       </Tabs>
   );

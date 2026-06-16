@@ -7,7 +7,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  ImageSourcePropType,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
@@ -18,7 +17,7 @@ import { updateUserRole } from '@/services/api';
 // 1. Define the Role Type
 type Role = {
   id: string;
-  image: ImageSourcePropType;
+  image: number;
   label: string;
 };
 // 2. Move RoleCard OUTSIDE the main component
@@ -175,11 +174,11 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   logo: {
-    width: 200,
-    height: 60,
+    width: 202,
+    height: 50,
     resizeMode: 'contain',
     marginBottom: 15,
-    marginTop: 20,
+    marginTop: 15,
   },
   rolesContainer: {
     width: '92%',

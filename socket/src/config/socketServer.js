@@ -5,15 +5,20 @@ const logger = require('./logger');
 let io = null;
 
 const initializeSocketServer = (httpServer) => {
+  const isDev = process.env.NODE_ENV !== 'production';
+  
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || '*',
+      origin: isDev ? '*' : (process.env.FRONTEND_URL || 'http://localhost:3000'),
       methods: ['GET', 'POST'],
       credentials: true,
+      allowEIO3: true,
     },
     transports: ['websocket', 'polling'],
     pingTimeout: 60000,
     pingInterval: 25000,
+    allowEIO3: true,
+    perMessageDeflate: false, // Disable compression for better compatibility
   });
 
   io.use((socket, next) => {
@@ -23,6 +28,7 @@ const initializeSocketServer = (httpServer) => {
         socket.handshake.headers.authorization?.replace('Bearer ', '');
 
       if (!token) {
+        logger.warn('Connection attempt without token', { socketId: socket.id, remoteAddress: socket.handshake.address });
         return next(new Error('Authentication token required'));
       }
 
@@ -33,8 +39,10 @@ const initializeSocketServer = (httpServer) => {
 
       socket.userId = decoded.id;
       socket.userRole = decoded.role;
+      logger.info('Socket authenticated', { userId: socket.userId, socketId: socket.id, remoteAddress: socket.handshake.address });
       next();
     } catch (error) {
+      logger.error('Socket authentication failed', { error: error.message, socketId: socket.id });
       next(new Error(`Authentication failed: ${error.message}`));
     }
   });

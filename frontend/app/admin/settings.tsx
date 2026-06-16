@@ -100,12 +100,7 @@ export default function AdminSettings() {
   return (
     <>
       <StatusBar style="dark" />
-      <AdminShell
-        title="Settings"
-        subtitle="Platform controls, notifications, and account security."
-        scroll
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
+      <AdminShell>
         <View style={styles.page}>
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>

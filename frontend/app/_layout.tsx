@@ -125,6 +125,10 @@ function AppContent() {
                 animation: 'slide_from_right',
               }}
             >
+
+              {/* --- ADMIN SCREENS --- */}
+              <Stack.Screen name="admin" options={{ animation: 'fade' }} />
+              
               {/* --- MAIN CUSTOMER SCREENS --- */}
               <Stack.Screen name="index" options={{ animation: 'fade', contentStyle: { backgroundColor: '#061f65' } }} />
               <Stack.Screen name="home" options={{ animation: 'none', contentStyle: { backgroundColor: '#E9F0FF' } }} />
