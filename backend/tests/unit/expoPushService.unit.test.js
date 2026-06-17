@@ -30,7 +30,7 @@ jest.mock('../../utils/pushConfig', () => ({
   getTtlSeconds: jest.fn().mockReturnValue(86400),
 }));
 
-const repositories = require('../../db/repositories');
+const _repositories = require('../../db/repositories');
 
 describe('ExpoPushService', () => {
   let service;

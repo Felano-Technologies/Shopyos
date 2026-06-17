@@ -94,7 +94,7 @@ const BusinessUpdateScreen = () => {
       setLogo(biz.logo_url || biz.logo || null);
       setCoverImage(biz.banner_url || biz.coverImage || null);
     }
-  }, [bizData]);
+  }, [activeBiz]);
   // --- Logic ---
   const showImagePicker = useImagePickerSheet();
   const pickImage = async (type: 'logo' | 'cover') => {

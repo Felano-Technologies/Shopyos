@@ -80,7 +80,7 @@ export default function PromotionsScreen() {
       refetchCampaigns,
       replaceRoute: () => router.replace('/business/promotions'),
     });
-  }, [reference]);
+  }, [reference, refetchCampaigns, router]);
   const showImagePicker = useImagePickerSheet();
   const handlePickImage = async () => {
     const uri = await showImagePicker({ allowsEditing: true, aspect: [10.8, 4], quality: 1 });

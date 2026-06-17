@@ -37,7 +37,7 @@ type OrderItem = {
   total_amount?: string | number;
   store?: { store_name?: string };
   items_count?: number;
-  order_items?: Array<{ count?: number }>;
+  order_items?: { count?: number }[];
 };
 
 type StoreSummary = {

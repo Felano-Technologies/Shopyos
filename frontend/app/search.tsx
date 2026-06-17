@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View, Text, TextInput, StyleSheet, FlatList,
   TouchableOpacity, Dimensions, Keyboard,
@@ -445,7 +445,10 @@ export default function SearchScreen() {
   const browseProducts = allData?.success ? allData.products : [];
   const products = isActive ? activeProducts : browseProducts;
   const showStores = isActive || !!category;
-  const stores = showStores && storeSearchData?.success ? (storeSearchData.data || storeSearchData.businesses || []) : [];
+  const stores = useMemo(
+    () => showStores && storeSearchData?.success ? (storeSearchData.data || storeSearchData.businesses || []) : [],
+    [showStores, storeSearchData]
+  );
 
   useEffect(() => {
     Animated.sequence([
@@ -459,7 +462,7 @@ export default function SearchScreen() {
 
   const handleChangeText = (text: string) => { setQuery(text); if (category) setCategory(null); };
   const handleSubmit = () => { if (query.trim().length >= 2) saveRecent(query.trim()); Keyboard.dismiss(); };
-  const handleAddToCart = (item: any) => addItemToCart(item, addToCart, setAddingId);
+  const handleAddToCart = useCallback((item: any) => addItemToCart(item, addToCart, setAddingId), [addToCart, setAddingId]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try { await Promise.all([refetchAll(), refetchSearch(), refetchStores()]); }

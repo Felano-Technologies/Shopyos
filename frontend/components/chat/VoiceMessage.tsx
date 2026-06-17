@@ -45,7 +45,7 @@ export default function VoiceMessage({ url, durationMs = 0, isMe }: Readonly<Voi
       tension: 80,
       friction: 10,
     }).start();
-  }, []);
+  }, [scaleAnim]);
 
   useEffect(() => {
     return () => {

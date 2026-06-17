@@ -26,16 +26,39 @@ export const SnapsRow = () => {
     }
   };
 
-  const handlePress = (storeId: string, index: number) => {
-    // Pass the feed and start index to the viewer
+  const handlePress = useCallback((storeId: string, index: number) => {
     router.push({
       pathname: '/snaps/viewer',
-      params: { 
+      params: {
         feedData: JSON.stringify(feed),
-        initialIndex: index 
+        initialIndex: index
       }
     });
-  };
+  }, [router, feed]);
+
+  const renderItem = useCallback(({ item, index }: { item: any; index: number }) => (
+    <TouchableOpacity
+      style={styles.snapItem}
+      activeOpacity={0.8}
+      onPress={() => handlePress(item.store_id, index)}
+    >
+      <LinearGradient
+        colors={['#84cc16', '#bef264']}
+        style={styles.ring}
+      >
+        <View style={styles.imageContainer}>
+          {item.store_logo ? (
+            <AppImage uri={item.store_logo} style={styles.image} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Ionicons name="storefront" size={24} color="#94A3B8" />
+            </View>
+          )}
+        </View>
+      </LinearGradient>
+      <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
+    </TouchableOpacity>
+  ), [handlePress]);
 
   if (loading) {
     return (
@@ -46,7 +69,7 @@ export const SnapsRow = () => {
   }
 
   if (feed.length === 0) {
-    return null; // Hide the row entirely if no active snaps
+    return null;
   }
 
   return (
@@ -60,29 +83,7 @@ export const SnapsRow = () => {
         initialNumToRender={8}
         maxToRenderPerBatch={8}
         windowSize={5}
-        renderItem={useCallback(({ item, index }: { item: any; index: number }) => (
-          <TouchableOpacity
-            style={styles.snapItem}
-            activeOpacity={0.8}
-            onPress={() => handlePress(item.store_id, index)}
-          >
-            <LinearGradient
-              colors={['#84cc16', '#bef264']}
-              style={styles.ring}
-            >
-              <View style={styles.imageContainer}>
-                {item.store_logo ? (
-                  <AppImage uri={item.store_logo} style={styles.image} />
-                ) : (
-                  <View style={styles.placeholder}>
-                    <Ionicons name="storefront" size={24} color="#94A3B8" />
-                  </View>
-                )}
-              </View>
-            </LinearGradient>
-            <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
-          </TouchableOpacity>
-        ), [handlePress])}
+        renderItem={renderItem}
       />
     </View>
   );

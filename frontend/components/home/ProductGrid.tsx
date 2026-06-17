@@ -55,6 +55,20 @@ function ProductGridBase({
 }: Props) {
   const storeName = getStoreName ?? defaultStoreName;
 
+  // Build display list with ad injection — memoized to avoid rebuilding every render
+  type ListItem = { type: 'product'; data: any } | { type: 'ad'; data: any; key: string };
+  const listItems = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    products.forEach((p, i) => {
+      items.push({ type: 'product', data: p });
+      if (injectedAds.length > 0 && (i + 1) % AD_EVERY === 0) {
+        const adIdx = Math.floor((i + 1) / AD_EVERY - 1) % injectedAds.length;
+        items.push({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
+      }
+    });
+    return items;
+  }, [products, injectedAds]);
+
   if (loading) {
     return (
       <View>
@@ -74,20 +88,6 @@ function ProductGridBase({
       </View>
     );
   }
-
-  // Build display list with ad injection — memoized to avoid rebuilding every render
-  type ListItem = { type: 'product'; data: any } | { type: 'ad'; data: any; key: string };
-  const listItems = useMemo<ListItem[]>(() => {
-    const items: ListItem[] = [];
-    products.forEach((p, i) => {
-      items.push({ type: 'product', data: p });
-      if (injectedAds.length > 0 && (i + 1) % AD_EVERY === 0) {
-        const adIdx = Math.floor((i + 1) / AD_EVERY - 1) % injectedAds.length;
-        items.push({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
-      }
-    });
-    return items;
-  }, [products, injectedAds]);
 
   const renderProduct = (item: any, idx: number) => {
     const productId = String(item._id || item.id || '');

@@ -96,6 +96,7 @@ const IndexScreen = () => {
   // --- OTA Update Check ---
   useEffect(() => {
     runUpdateCheck(updateBannerOpacity, setUpdateStatusText, setIsUpdating);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Animated dots for "Checking…" text ---
@@ -106,6 +107,7 @@ const IndexScreen = () => {
         Animated.timing(dotAnim, { toValue: 0, duration: 600, useNativeDriver: true }),
       ])
     ).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Main index animation (runs once update phase is done) ---

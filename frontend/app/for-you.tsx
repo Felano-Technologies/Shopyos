@@ -115,7 +115,7 @@ export default function ForYouScreen() {
     trending:     'Popular right now',
   };
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setToastVisible(true);
     Animated.sequence([
@@ -123,12 +123,12 @@ export default function ForYouScreen() {
       Animated.delay(1800),
       Animated.timing(fadeAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
     ]).start(() => setToastVisible(false));
-  };
+  }, [fadeAnim]);
 
   const handleAddToCart = useCallback((item: any) => {
     addToCart({ id: item._id, title: item.name, price: item.price, image: { uri: item.images?.[0] }, storeId: null });
     showToast(`${item.name} added to cart!`);
-  }, [addToCart]);
+  }, [addToCart, showToast]);
 
   const onRefresh = useCallback(async () => {
     await Promise.all([refetchPersonalized(), refetchTrending()]);

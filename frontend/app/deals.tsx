@@ -50,19 +50,19 @@ export default function DealsScreen() {
 
   const loading = isLoading;
 
-  const handleProductPress = (item: any) => {
+  const handleProductPress = useCallback((item: any) => {
     router.push({
       pathname: '/product/details',
-      params: { 
-        id: item.id, 
-        title: item.title, 
-        price: item.price, 
+      params: {
+        id: item.id,
+        title: item.title,
+        price: item.price,
         oldPrice: item.oldPrice,
-        image: typeof item.image === 'string' ? item.image : item.image.uri, // Handle URI mapping safely
-        category: item.category 
+        image: typeof item.image === 'string' ? item.image : item.image.uri,
+        category: item.category
       }
     });
-  };
+  }, [router]);
 
   const renderDeal = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity 
@@ -103,7 +103,7 @@ export default function DealsScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  ), [router]);
+  ), [handleProductPress]);
 
   if (loading) {
     return <DealsSkeleton />;

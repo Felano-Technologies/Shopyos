@@ -321,6 +321,7 @@ export default function ConversationScreen() {
       const hasUnread = messages.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
       if (hasUnread) markAsReadCombined().catch(() => {});
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length === 0 ? 0 : 1, currentUserId]);
 
   // Socket: join conversation, receive new messages, handle reconnect
@@ -353,6 +354,7 @@ export default function ConversationScreen() {
       const sock = socketService.getSocket();
       if (sock) sock.off('bot:stop_typing');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, currentUserId]);
 
   // Auto-scroll
@@ -714,6 +716,7 @@ export default function ConversationScreen() {
         </View>
       </>
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, displayAvatar, displayName, showDate, fmtDate, fmtTime, renderReplyPreview]);
 
   // ---- Root render ----

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Dimensions, RefreshControl, ScrollView,
-  ActivityIndicator, Modal, Animated,
+  Modal, Animated,
   Platform
 } from 'react-native';
 import AppImage from '@/components/AppImage';

@@ -141,6 +141,7 @@ export default function LoyaltyPointsScreen() {
 
   useEffect(() => {
     loadData(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleRefresh = () => {

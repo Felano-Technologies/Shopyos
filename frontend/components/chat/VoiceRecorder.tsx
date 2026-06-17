@@ -41,7 +41,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       tension: 50,
       friction: 9,
     }).start();
-  }, []);
+  }, [slideAnim]);
 
   // Pulsing record dot
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isRecording]);
+  }, [isRecording, pulseAnim]);
 
   // Cleanup audio resources when they change or on unmount
   useEffect(() => {
@@ -268,13 +268,13 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
 
   const previewProgress = playbackDuration > 0 ? playbackPosition / playbackDuration : 0;
 
-  // Auto-start
   useEffect(() => {
     startRecording();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (meteringRef.current) clearInterval(meteringRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const content = isRecording ? (

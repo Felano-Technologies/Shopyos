@@ -99,7 +99,7 @@ export default function ManageProductScreen() {
         setAttrSize(item.attrSize || ''); setAttrMaterial(item.attrMaterial || '');
         setAttrStyle(item.attrStyle || ''); setAttrBrand(item.attrBrand || '');
         setAttrConnectivity(item.attrConnectivity || '');
-      } catch(e) {}
+      } catch {}
     }
   }, [productData]);
 

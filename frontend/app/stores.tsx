@@ -147,9 +147,9 @@ export default function StoresScreen() {
       Animated.timing(fadeAnim, { toValue: 1,   duration: 300, useNativeDriver: true }),
     ]).start();
   }, [isRefreshing, fadeAnim]);
-  const handleVisitStore = (item: any) => {
+  const handleVisitStore = useCallback((item: any) => {
     safePush('/stores/details', { id: item.id, name: item.name, category: item.category, logo: item.logo });
-  };
+  }, []);
   const onRefresh = useCallback(() => { refetch(); }, [refetch]);
   // ── Popular card — single logo image, verified badge overlaid on it ────────
   const renderPopularCard = useCallback(({ item }: { item: any }) => (
