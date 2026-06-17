@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS user_payment_methods (
     is_default BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     CONSTRAINT unique_user_payment_identifier UNIQUE (user_id, identifier)
 );
 

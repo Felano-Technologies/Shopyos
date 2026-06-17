@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -14,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
 import { adminColors } from '@/components/admin/adminTheme';
 import { getUserData } from '@/services/api';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function SettingItem({
   icon,
@@ -56,6 +58,7 @@ function SettingItem({
 
 export default function AdminSettings() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [autoApproveSellers, setAutoApproveSellers] = useState(false);
@@ -101,7 +104,11 @@ export default function AdminSettings() {
     <>
       <StatusBar style="dark" />
       <AdminShell>
-        <View style={styles.page}>
+        <ScrollView
+          style={styles.page}
+          contentContainerStyle={[styles.pageContent, { paddingBottom: Math.max(insets.bottom, 12) + 80 }]}
+          showsVerticalScrollIndicator={false}
+        >
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
               {profileImage ? (
@@ -192,7 +199,7 @@ export default function AdminSettings() {
             <Feather name="log-out" size={20} color={adminColors.red} />
             <Text style={styles.logoutText}>Logout Admin Portal</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </AdminShell>
     </>
   );
@@ -201,7 +208,11 @@ export default function AdminSettings() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  pageContent: {
     gap: 16,
+    padding: 16,
   },
   profileCard: {
     flexDirection: 'row',

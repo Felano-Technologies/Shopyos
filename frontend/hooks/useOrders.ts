@@ -10,7 +10,7 @@
 // immediately without waiting for staleTime to expire.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, businessApi } from '../lib/query/api';
+import { ordersApi } from '../lib/query/api';
 import { queryKeys } from '../lib/query/keys';
 import {
   createProduct,
@@ -42,68 +42,6 @@ export const useOrderDetail = (id: string, options?: Record<string, any>) => {
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,
     ...options,
-  });
-};
-
-// ─── Business / Store ─────────────────────────────────────────────────────────
-
-export const useMyBusinesses = () => {
-  return useQuery({
-    queryKey: queryKeys.business.list(),
-    queryFn: () => businessApi.getMyBusinesses(),
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    // Business list is stable — don't refetch unless stale
-    refetchOnMount: false,
-  });
-};
-
-export const useBusinessDashboard = (businessId: string) => {
-  return useQuery({
-    queryKey: queryKeys.business.dashboard(businessId),
-    queryFn: () => businessApi.getDashboard(businessId),
-    enabled: !!businessId,
-    // Dashboard numbers change — always refetch on mount
-    refetchOnMount: true,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-};
-
-export const useBusinessAnalytics = (
-  businessId: string,
-  timeframe: 'week' | 'month' | 'year'
-) => {
-  return useQuery({
-    queryKey: queryKeys.business.analytics(businessId, timeframe),
-    queryFn: () => businessApi.getAnalytics(businessId, timeframe),
-    enabled: !!businessId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 20 * 60 * 1000,
-  });
-};
-
-export const useStoreOrders = (
-  storeId: string,
-  status?: string
-) => {
-  return useQuery({
-    queryKey: queryKeys.business.orders(storeId, status),
-    queryFn: () => businessApi.getStoreOrders(storeId, { status }),
-    enabled: !!storeId,
-    refetchOnMount: true,
-    staleTime: 30 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-};
-
-export const useStoreProducts = (storeId: string) => {
-  return useQuery({
-    queryKey: queryKeys.business.products(storeId),
-    queryFn: () => businessApi.getStoreProducts(storeId),
-    enabled: !!storeId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 20 * 60 * 1000,
   });
 };
 

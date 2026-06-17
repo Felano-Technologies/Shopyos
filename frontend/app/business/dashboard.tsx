@@ -275,14 +275,9 @@ const BusinessDashboard = () => {
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         {selectedBusiness ? (
           <>
-            {/* --- STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 10) --- */}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
-              {renderHeaderContent()}
-            </View>
-
-            {/* --- SCROLLVIEW ON TOP (zIndex 20) --- */}
+            {/* --- SCROLLVIEW FIRST (beneath the header) --- */}
             <ScrollView
-              style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1, zIndex: 20 }]}
+              style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1 }]}
               contentContainerStyle={{ flexGrow: 1 }}
               refreshControl={
                 <RefreshControl 
@@ -295,7 +290,7 @@ const BusinessDashboard = () => {
               showsVerticalScrollIndicator={false}
             >
               {/* Transparent spacer exposing the header */}
-              <View style={{ height: 240, backgroundColor: 'transparent' }} />
+              <View style={{ height: 240, backgroundColor: 'transparent' }} pointerEvents="none" />
 
               {/* Solid body that gracefully covers the header when scrolling up */}
               <View style={styles.scrollBody}>
@@ -336,60 +331,86 @@ const BusinessDashboard = () => {
                 {/* --- QUICK ACTIONS --- */}
                 <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
                   <Text style={styles.sectionTitle}>Quick Actions</Text>
-                  <View style={styles.servicesGrid}>
+                  <View style={styles.actionsGrid}>
                     {[
-                      { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products/addproducts' },
-                      { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
-                      { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
-                      { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
-                      { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
+                      { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'] as [string, string], accent: '#7C3AED', label: 'Add Item', sub: 'New product', route: '/business/products/addproducts' },
+                      { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'] as [string, string], accent: '#84cc16', label: 'Add Snap', sub: 'Share a snap', route: '/business/snaps/create' },
+                      { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'] as [string, string], accent: '#059669', label: 'Orders', sub: 'View orders', route: '/business/orders' },
+                      { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'] as [string, string], accent: '#F59E0B', label: 'Promote', sub: 'Run a deal', route: '/business/promotions' },
+                      { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'] as [string, string], accent: '#2563EB', label: 'Analytics', sub: 'Performance', route: '/business/analytics' },
                     ].map((item) => (
-                      <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
-                        <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
-                          {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
+                      <TouchableOpacity
+                        key={item.label}
+                        style={[styles.actionPill, { borderLeftColor: item.accent }]}
+                        onPress={() => router.push(item.route as any)}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient colors={item.bg} style={styles.actionPillIcon}>
+                          {item.family === 'Feather'
+                            ? <Feather name={item.icon as any} size={18} color="#FFF" />
+                            : <Ionicons name={item.icon as any} size={18} color="#FFF" />}
                         </LinearGradient>
-                        <Text style={styles.actionLabel}>{item.label}</Text>
+                        <View style={styles.actionPillText}>
+                          <Text style={styles.actionPillLabel}>{item.label}</Text>
+                          <Text style={styles.actionPillSub}>{item.sub}</Text>
+                        </View>
                       </TouchableOpacity>
                     ))}
                   </View>
                 </View>
 
                 {/* --- PERFORMANCE CHART --- */}
-                <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
-                  <View style={styles.chartHeader}>
-                    <View>
-                      <Text style={styles.cardTitle}>Sales Performance</Text>
-                      <Text style={styles.cardSubtitle}>Revenue tracking</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => setTimeframe((t) => {
-                      if (t === 'weekly') return 'monthly';
-                      if (t === 'monthly') return 'yearly';
-                      return 'weekly';
-                    })}>
-                      <View style={styles.timeToggle}>
-                        <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
-                        <Feather name="chevron-down" size={14} color="#64748B" />
+                {(() => {
+                  const chartTotal = (chartData?.datasets?.[0]?.data || []).reduce((a: number, b: number) => a + b, 0);
+                  return (
+                    <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
+                      <View style={styles.chartHeader}>
+                        <View>
+                          <Text style={styles.cardSubtitle}>Total Revenue</Text>
+                          <Text style={styles.chartRevenue}>₵{chartTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                        </View>
+                        <View style={styles.timeframeTabs}>
+                          {(['weekly', 'monthly', 'yearly'] as const).map((t) => (
+                            <TouchableOpacity
+                              key={t}
+                              style={[styles.timeframeTab, timeframe === t && styles.timeframeTabActive]}
+                              onPress={() => setTimeframe(t)}
+                              activeOpacity={0.8}
+                            >
+                              <Text style={[styles.timeframeTabText, timeframe === t && styles.timeframeTabTextActive]}>
+                                {t === 'weekly' ? 'W' : t === 'monthly' ? 'M' : 'Y'}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
                       </View>
-                    </TouchableOpacity>
-                  </View>
-                  <LineChart
-                    data={chartData}
-                    width={width - 48}
-                    height={180}
-                    chartConfig={{
-                      backgroundGradientFrom: '#FFF',
-                      backgroundGradientTo: '#FFF',
-                      decimalPlaces: 0,
-                      color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
-                      labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-                      style: { borderRadius: 16 },
-                      propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' }
-                    }}
-                    bezier
-                    style={styles.chartStyle}
-                    withVerticalLines={false}
-                  />
-                </View>
+                      <LineChart
+                        data={chartData}
+                        width={width - 64}
+                        height={190}
+                        chartConfig={{
+                          backgroundGradientFrom: '#FFFFFF',
+                          backgroundGradientFromOpacity: 0,
+                          backgroundGradientTo: '#FFFFFF',
+                          backgroundGradientToOpacity: 0,
+                          fillShadowGradient: '#0C1559',
+                          fillShadowGradientOpacity: 0.12,
+                          decimalPlaces: 0,
+                          color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
+                          labelColor: () => '#94A3B8',
+                          propsForDots: { r: '5', strokeWidth: '2', stroke: '#0C1559', fill: '#FFFFFF' },
+                          propsForBackgroundLines: { stroke: '#F1F5F9', strokeWidth: 1, strokeDasharray: '' },
+                          propsForLabels: { fontSize: 9 },
+                        }}
+                        bezier
+                        style={styles.chartStyle}
+                        withVerticalLines={false}
+                        withHorizontalLines
+                        fromZero
+                      />
+                    </View>
+                  );
+                })()}
 
                 {/* --- RECENT ORDERS --- */}
                 <View style={styles.sectionContainer}>
@@ -430,6 +451,11 @@ const BusinessDashboard = () => {
                 </LinearGradient>
               </View>
             </ScrollView>
+
+            {/* --- HEADER ON TOP (rendered after ScrollView so it receives touches) --- */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+              {renderHeaderContent()}
+            </View>
           </>
         ) : (
           <View style={styles.centered}>
@@ -548,10 +574,10 @@ const BusinessDashboard = () => {
 };
 
 const styles = StyleSheet.create({
-  mainContainer: { flex: 1, backgroundColor: '#F8FAFC' },
+  mainContainer: { flex: 1, backgroundColor: '#FFFFFF' },
   safeArea: { flex: 1 },
   scrollView: { flex: 1 },
-  scrollBody: { flex: 1, backgroundColor: '#F8FAFC', minHeight: height, paddingBottom: 120 },
+  scrollBody: { flex: 1, backgroundColor: '#FFFFFF', minHeight: height, paddingBottom: 120 },
   bottomLogos: { position: 'absolute', bottom: 140, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
@@ -585,7 +611,7 @@ const styles = StyleSheet.create({
   businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 4 },
   ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
-  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -35, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
+  floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -5, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
   statsPulse: { position: 'absolute', top: -15, left: -15, width: 80, height: 80, opacity: 0.15 },
   statItem: { alignItems: 'center', flex: 1, zIndex: 1 },
   statNumber: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
@@ -593,17 +619,23 @@ const styles = StyleSheet.create({
   statDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
   sectionContainer: { paddingHorizontal: 20, marginTop: 30 },
   sectionTitle: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 15 },
-  servicesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  actionCard: { width: '23%', alignItems: 'center', marginBottom: 10 },
-  actionIconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 8, elevation: 3 },
-  actionLabel: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#334155', textAlign: 'center' },
-  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 25, borderRadius: 20, padding: 16, elevation: 2 },
-  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 15 },
+  actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  actionPill: { flex: 1, minWidth: '45%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 14, gap: 12, borderLeftWidth: 3, elevation: 3, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8 },
+  actionPillIcon: { width: 44, height: 44, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
+  actionPillText: { justifyContent: 'center' },
+  actionPillLabel: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  actionPillSub: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 1 },
+  chartCard: { backgroundColor: '#FFF', marginHorizontal: 20, marginTop: 25, borderRadius: 24, padding: 20, elevation: 3, shadowColor: '#0C1559', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+  chartHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   cardTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
-  cardSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8' },
-  timeToggle: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10 },
-  timeText: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#475569', marginRight: 4 },
-  chartStyle: { marginVertical: 8, borderRadius: 16 },
+  cardSubtitle: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginBottom: 4 },
+  chartRevenue: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  timeframeTabs: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 3, gap: 2 },
+  timeframeTab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10 },
+  timeframeTabActive: { backgroundColor: '#0C1559' },
+  timeframeTabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#94A3B8' },
+  timeframeTabTextActive: { color: '#FFFFFF' },
+  chartStyle: { marginLeft: -8, borderRadius: 16 },
   sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   seeAllText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
   orderCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', padding: 14, borderRadius: 16, marginBottom: 10, elevation: 1 },

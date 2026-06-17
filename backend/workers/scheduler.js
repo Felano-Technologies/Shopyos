@@ -16,7 +16,39 @@ const aiService = require('../services/aiService');
 let broadcastRunning = false;
 let sweepRunning = false;
 
-const USER_SELECT = '*, user_profiles(full_name, phone), stores(store_name)';
+const USER_SELECT = '*';
+
+// Batch-fetch user_profiles and stores for a list of users and merge them in.
+// The custom pg client does not support Supabase embedded-join syntax,
+// so we query both tables directly instead.
+async function enrichWithProfiles(users) {
+  if (!users?.length) return users;
+  try {
+    const ids = users.map(u => u.id);
+
+    const db = require('../config/postgres').getPool();
+    const [{ data: profiles }, storeResult] = await Promise.all([
+      repositories.userProfiles.findAll({
+        where: { user_id: ids },
+        select: 'user_id, full_name, phone',
+        limit: ids.length,
+      }),
+      db.query('SELECT owner_id, id, store_name FROM stores WHERE owner_id = ANY($1)', [ids]),
+    ]);
+
+    const profileMap = Object.fromEntries((profiles || []).map(p => [p.user_id, p]));
+    const storeMap   = Object.fromEntries((storeResult.rows || []).map(s => [s.owner_id, s]));
+
+    return users.map(u => ({
+      ...u,
+      user_profiles: profileMap[u.id] || u.user_profiles || null,
+      stores:        storeMap[u.id]   || u.stores        || null,
+    }));
+  } catch (err) {
+    logger.warn('[Scheduler] Failed to enrich users with profiles/stores:', err.message);
+    return users;
+  }
+}
 
 async function runInBatches(items, fn, batchSize = 50) {
   for (let i = 0; i < items.length; i += batchSize) {
@@ -99,7 +131,7 @@ function personalizeTemplate(templateString, user) {
   const profile = Array.isArray(user.user_profiles) ? user.user_profiles[0] : user.user_profiles;
   const store = Array.isArray(user.stores) ? user.stores[0] : user.stores;
 
-  const name = profile?.full_name || user.first_name || user.email?.split('@')[0] || 'there';
+  const name = profile?.full_name || user.email?.split('@')[0] || 'there';
   const shopName = store?.store_name || 'your store';
 
   return templateString
@@ -112,15 +144,13 @@ function personalizeTemplate(templateString, user) {
 // ─── Resolve target users ─────────────────────────────────────────────────────
 
 async function resolveRecipients(recipientType, recipientIds) {
-  const selectQuery = USER_SELECT;
-
   if (recipientType === 'specific' && recipientIds?.length) {
     const { data } = await repositories.users.findAll({
       where: { id: recipientIds },
-      select: selectQuery,
+      select: USER_SELECT,
       limit: recipientIds.length
     });
-    return data || [];
+    return enrichWithProfiles(data || []);
   }
 
   const roleMap = {
@@ -133,21 +163,20 @@ async function resolveRecipients(recipientType, recipientIds) {
   const role = roleMap[recipientType];
   if (role) {
     const { data } = await repositories.users.getUsersByRoleName(role, 20000);
-
     if (!data || data.length === 0) return [];
     const ids = data.map(u => u.id);
     const { data: enriched } = await repositories.users.findAll({
       where: { id: ids },
-      select: selectQuery,
+      select: USER_SELECT,
       limit: 20000
     });
-    return enriched || [];
+    return enrichWithProfiles(enriched || []);
   } else {
     const { data } = await repositories.users.findAll({
-      select: selectQuery,
+      select: USER_SELECT,
       limit: 20000
     });
-    return data || [];
+    return enrichWithProfiles(data || []);
   }
 }
 
@@ -331,8 +360,9 @@ async function _runHolidayBlast(holiday, copy) {
     logger.info('[Scheduler] Dispatching holiday blast in paginated batches…');
     let hasMore = true;
     while (hasMore) {
-      const { data: page } = await repositories.users.findAll({ select: USER_SELECT, limit: PAGE_SIZE, offset });
-      if (!page?.length) break;
+      const { data: rawPage } = await repositories.users.findAll({ select: USER_SELECT, limit: PAGE_SIZE, offset });
+      if (!rawPage?.length) break;
+      const page = await enrichWithProfiles(rawPage);
       await runInBatches(page, u => dispatchToUser(u, item));
       totalDispatched += page.length;
       hasMore = page.length === PAGE_SIZE;
@@ -380,6 +410,28 @@ async function _runEngagementSweep() {
     ]);
     featuredStores = featuredStores ?? [];
     promoted = promoted ?? [];
+
+    // If no promoted products are active right now, fall back to any active products
+    if (!promoted.length) {
+      const { data } = await repositories.products.findAll({
+        where: { is_active: true },
+        select: 'id, title',
+        orderBy: 'created_at',
+        limit: 5,
+      });
+      promoted = data || [];
+    }
+
+    // If no featured stores are active right now, fall back to any verified active stores
+    if (!featuredStores.length) {
+      const { data } = await repositories.stores.findAll({
+        where: { is_active: true, is_verified: true },
+        select: 'id, store_name',
+        orderBy: 'created_at',
+        limit: 5,
+      });
+      featuredStores = data || [];
+    }
   } catch (err) {
     logger.warn('[Scheduler] Could not pre-fetch spotlight context, spotlight types will use fallback copy:', err.message);
   }
@@ -408,12 +460,13 @@ async function _runEngagementSweep() {
       logger.info(`[Scheduler] Dispatching engagement sweep to ${allIds.length} customers in pages…`);
       for (let i = 0; i < allIds.length; i += PAGE_SIZE) {
         const pageIds = allIds.slice(i, i + PAGE_SIZE);
-        const { data: customers } = await repositories.users.findAll({
+        const { data: rawCustomers } = await repositories.users.findAll({
           where: { id: pageIds },
           select: USER_SELECT,
           limit: PAGE_SIZE
         });
-        if (!customers?.length) continue;
+        if (!rawCustomers?.length) continue;
+        const customers = await enrichWithProfiles(rawCustomers);
         await runInBatches(customers, c => _dispatchEngagementToCustomer(c, dispatchOpts));
         totalDispatched += customers.length;
       }

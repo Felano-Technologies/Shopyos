@@ -15,7 +15,7 @@ router.use(paymentLimiter);
 router.post('/initialize', validateInitializePayment, initializePayment);
 router.post('/listing-fee/initialize', hasAnyRole('seller', 'admin'), initializeListingFee);
 router.get('/verify/:reference', verifyPayment);
-// Only buyers (or admins in exceptional cases) should trigger a card charge
-router.post('/charge', hasAnyRole('buyer', 'admin'), chargeAuthorization);
+// Any authenticated user can charge — controller validates order.buyer_id === req.user.id
+router.post('/charge', chargeAuthorization);
 
 module.exports = router;

@@ -31,7 +31,8 @@ const C = {
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { items: cartItems, clearCart } = useCart();
+  const cartItems = useCart((s) => s.items);
+  const clearCart = useCart((s) => s.clearCart);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 

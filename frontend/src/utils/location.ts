@@ -15,7 +15,7 @@ export const requestForegroundPermission = async (): Promise<boolean> => {
     const { status } = await Location.requestForegroundPermissionsAsync();
     return status === 'granted';
   } catch (error) {
-    console.error('[Location] Error requesting foreground permission:', error);
+    if (__DEV__) console.error('[Location] Error requesting foreground permission:', error);
     return false;
   }
 };
@@ -36,7 +36,7 @@ export const getCurrentLocation = async (): Promise<{
       longitude: location.coords.longitude,
     };
   } catch (error) {
-    console.error('[Location] Error getting current location:', error);
+    if (__DEV__) console.error('[Location] Error getting current location:', error);
     return null;
   }
 };
@@ -65,17 +65,17 @@ export const updateUserLocationOnce = async (showAlert: boolean = true): Promise
     // Get current location
     const coords = await getCurrentLocation();
     if (!coords) {
-      console.warn('[Location] Failed to get location');
+      if (__DEV__) console.warn('[Location] Failed to get location');
       return null;
     }
 
     // Send to backend
     await updateUserLocation(coords.latitude, coords.longitude);
-    console.log('[Location] User location updated successfully');
+    if (__DEV__) console.log('[Location] User location updated successfully');
 
     return coords;
   } catch (error) {
-    console.error('[Location] Error updating user location:', error);
+    if (__DEV__) console.error('[Location] Error updating user location:', error);
     return null;
   }
 };

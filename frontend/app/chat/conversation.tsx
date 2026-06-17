@@ -399,7 +399,7 @@ export default function ConversationScreen() {
         await uploadAndSendMedia(conversationId, asset, type, setUploadingProgress, appendMessage);
       }
     } catch (err: any) {
-      console.error('Pick media error', err);
+      if (__DEV__) console.error('Pick media error', err);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not upload file.' });
     } finally {
       setIsUploadingMedia(false);
@@ -420,7 +420,7 @@ export default function ConversationScreen() {
         if (sentMsg) appendMessage(sentMsg);
       }
     } catch (err: any) {
-      console.error('Upload voice note error', err);
+      if (__DEV__) console.error('Upload voice note error', err);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not upload voice note.' });
     } finally {
       setIsUploadingMedia(false);
@@ -435,7 +435,7 @@ export default function ConversationScreen() {
       const sentMsg = res.message;
       if (sentMsg) appendMessage(sentMsg);
     } catch (err: any) {
-      console.error('Send sticker error', err);
+      if (__DEV__) console.error('Send sticker error', err);
     } finally {
       setShowStickerPicker(false);
     }

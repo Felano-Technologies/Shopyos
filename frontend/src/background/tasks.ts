@@ -22,7 +22,7 @@ const getNotificationsModule = () => {
 // Only runs when a driver has an active delivery with location sharing enabled.
 TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   if (error) {
-    console.error('[BackgroundTask] TASK_DRIVER_LOCATION error:', error);
+    if (__DEV__) console.error('[BackgroundTask] TASK_DRIVER_LOCATION error:', error);
     return;
   }
   if (!data) return;
@@ -31,23 +31,23 @@ TaskManager.defineTask(TASK_DRIVER_LOCATION, async ({ data, error }: any) => {
   if (!locations || locations.length === 0) return;
 
   const { latitude, longitude } = locations.at(-1)!.coords;
-  console.log('[BackgroundTask] Driver location update:', { latitude, longitude, timestamp: new Date().toISOString() });
+  if (__DEV__) console.log('[BackgroundTask] Driver location update:', { latitude, longitude, timestamp: new Date().toISOString() });
 
   try {
     const deliveryId = await storage.getItem('activeDeliveryId');
     if (!deliveryId) {
-      console.warn('[BackgroundTask] No active delivery ID found. Skipping location update.');
+      if (__DEV__) console.warn('[BackgroundTask] No active delivery ID found. Skipping location update.');
       return;
     }
     await updateDriverLocation(deliveryId, latitude, longitude);
-    console.log('[BackgroundTask] Location sent successfully');
+    if (__DEV__) console.log('[BackgroundTask] Location sent successfully');
   } catch (err: any) {
-    console.error('[BackgroundTask] Failed to send location, queuing for later:', err.message);
+    if (__DEV__) console.error('[BackgroundTask] Failed to send location, queuing for later:', err.message);
     try {
       const deliveryId = await storage.getItem('activeDeliveryId');
       if (deliveryId) await enqueueLocation(latitude, longitude, deliveryId);
     } catch (queueError) {
-      console.error('[BackgroundTask] Failed to queue location:', queueError);
+      if (__DEV__) console.error('[BackgroundTask] Failed to queue location:', queueError);
     }
   }
 });
@@ -64,7 +64,7 @@ const COOLDOWN_MS = 30 * 60 * 1000;
 
 TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
   if (error) {
-    console.error('[GeofenceTask] Error:', error);
+    if (__DEV__) console.error('[GeofenceTask] Error:', error);
     return;
   }
   if (!data) return;
@@ -103,8 +103,8 @@ TaskManager.defineTask(TASK_LOCATION_GEOFENCE, async ({ data, error }: any) => {
       trigger: null,
     });
     await storage.setItem(cooldownKey, now.toString());
-    console.log(`[GeofenceTask] Proximity alert → ${store.store_name}`);
+    if (__DEV__) console.log(`[GeofenceTask] Proximity alert → ${store.store_name}`);
   } catch (err) {
-    console.warn('[GeofenceTask] Notification error:', err);
+    if (__DEV__) console.warn('[GeofenceTask] Notification error:', err);
   }
 });

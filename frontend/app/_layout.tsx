@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, useColorScheme, TouchableOpacity, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, usePathname } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { FontFamily, FontSize } from '@/constants/Typography';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -16,6 +17,8 @@ import { useSocketSetup } from '../hooks/useSocketSetup';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
 import { OnboardingProvider } from '@/context/OnboardingContext';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useAuthStore } from '@/store/authStore';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
@@ -67,6 +70,20 @@ function getScreenBg(colorScheme: string | null | undefined, isIndexRoute: boole
 function AppContent() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const activeMode = useAuthStore((s) => s.activeMode);
+  const originalRole = useAuthStore((s) => s.originalRole);
+  const exitBuyerMode = useAuthStore((s) => s.exitBuyerMode);
+
+  const handleReturnFromBuyerMode = () => {
+    exitBuyerMode();
+    if (originalRole === 'driver') {
+      router.replace('/driver/dashboard');
+    } else {
+      router.replace('/business/dashboard');
+    }
+  };
 
 
   // Apply Push Hook globally
@@ -94,7 +111,7 @@ function AppContent() {
     (mainCustomerTabs.includes(pathname) || pathname.startsWith('/categories/categories')) &&
     !pathname.startsWith('/driver');
 
-  // --- DRIVER NAV LOGIC ---
+  // --- DRIVER NAV LOGIC (hidden when actively browsing buyer routes in buyer mode) ---
   const isDriverRoute = pathname.startsWith('/driver');
   const showDriverNav = [
     '/driver/index',
@@ -102,7 +119,7 @@ function AppContent() {
     '/driver/earnings',
     '/driver/history',
     '/driver/settings',
-  ].includes(pathname);
+  ].includes(pathname) && !(activeMode === 'buyer' && !isDriverRoute);
 
   // --- BUSINESS NAV LOGIC (Updated to exclude verification) ---
   const isBusinessRoute = pathname.startsWith('/business');
@@ -114,7 +131,7 @@ function AppContent() {
     '/business/products',
     '/business/settings',
     '/business/notifications',
-  ].includes(pathname);
+  ].includes(pathname) && !(activeMode === 'buyer' && !isBusinessRoute);
 
   return (
     <ThemeProvider value={navTheme}>
@@ -221,6 +238,18 @@ function AppContent() {
             <StatusBar style="auto" />
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
             <InAppToastHost />
+            {activeMode === 'buyer' && (
+              <TouchableOpacity
+                style={[styles.buyerBanner, { top: insets.top }]}
+                onPress={handleReturnFromBuyerMode}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.buyerBannerLabel}>Shopping as buyer</Text>
+                <Text style={styles.buyerBannerReturn}>
+                  Return to {originalRole === 'driver' ? 'Driver' : 'Business'} Dashboard →
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </ThemeProvider>
   );
@@ -243,16 +272,44 @@ export default function RootLayout() {
   if (!loaded) return null;
 
   return (
-    <QueryProvider>
-      <OnboardingProvider>
-        <ImagePreviewProvider>
-          <AppContent />
-        </ImagePreviewProvider>
-      </OnboardingProvider>
-    </QueryProvider>
+    <ErrorBoundary>
+      <QueryProvider>
+        <OnboardingProvider>
+          <ImagePreviewProvider>
+            <AppContent />
+          </ImagePreviewProvider>
+        </OnboardingProvider>
+      </QueryProvider>
+    </ErrorBoundary>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  buyerBanner: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    backgroundColor: '#0C1559',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    zIndex: 9999,
+    elevation: 20,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4 },
+    }),
+  },
+  buyerBannerLabel: {
+    color: '#A3E635',
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  buyerBannerReturn: {
+    color: '#FFF',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+  },
 });

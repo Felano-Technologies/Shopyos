@@ -42,8 +42,8 @@ async function verifyAndApplyReference(params: {
       CustomInAppToast.show({ type: 'success', title: 'Payment Successful', message: 'Your ad campaign is now live!' });
       refetchCampaigns();
     }
-  } catch (error: any) {
-    CustomInAppToast.show({ type: 'error', title: 'Verification Failed', message: error.message || 'Payment could not be verified' });
+  } catch (error: unknown) {
+    CustomInAppToast.show({ type: 'error', title: 'Verification Failed', message: error instanceof Error ? error.message : 'Payment could not be verified' });
   } finally {
     replaceRoute();
   }
@@ -115,8 +115,8 @@ export default function PromotionsScreen() {
         CustomInAppToast.show({ type: 'success', title: 'Opening Checkout', message: 'Redirecting to Paystack secure payment page...' });
         Linking.openURL(res.data.authorization_url);
       }
-    } catch (error: any) {
-      CustomInAppToast.show({ type: 'error', title: 'Initialisation Failed', message: error.message || 'Could not reach payment provider' });
+    } catch (error: unknown) {
+      CustomInAppToast.show({ type: 'error', title: 'Initialisation Failed', message: error instanceof Error ? error.message : 'Could not reach payment provider' });
     }
   };
 

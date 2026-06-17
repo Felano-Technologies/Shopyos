@@ -68,8 +68,8 @@ const LoginScreen = () => {
       } else {
         CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
       }
-    } catch (error: any) {
-      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error.message || 'Something went wrong.' });
+    } catch (error: unknown) {
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
       setLoading(false);
     }
@@ -90,8 +90,8 @@ const LoginScreen = () => {
       } else {
         CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
       }
-    } catch (error: any) {
-      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error.message || 'Something went wrong.' });
+    } catch (error: unknown) {
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
       setLoading(false);
     }

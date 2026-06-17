@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ScrollView, Animated,
@@ -31,20 +31,45 @@ function defaultStoreName(item: any) {
   );
 }
 
-export function ProductRow({ title, products, loading, onPressProduct, onSeeAll, getStoreName }: Props) {
-  const [animVals, setAnimVals] = useState<Animated.Value[]>([]);
+function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, getStoreName }: Props) {
+  // useRef keeps animated values stable across renders — no new allocations in renderItem
+  const animValsRef = useRef<Animated.Value[]>([]);
   const storeName = getStoreName ?? defaultStoreName;
 
+  // Pre-seed synchronously so animValsRef[index] always exists during render
+  while (animValsRef.current.length < products.length) {
+    animValsRef.current.push(new Animated.Value(0));
+  }
+
   useEffect(() => {
-    if (products.length > 0) {
-      const vals = products.map(() => new Animated.Value(0));
-      setAnimVals(vals);
-      Animated.stagger(
-        60,
-        vals.map((v) => Animated.timing(v, { toValue: 1, duration: 360, useNativeDriver: true }))
-      ).start();
-    }
+    if (products.length === 0) return;
+    const vals = animValsRef.current.slice(0, products.length);
+    vals.forEach((v) => v.setValue(0));
+    Animated.stagger(
+      60,
+      vals.map((v) => Animated.timing(v, { toValue: 1, duration: 360, useNativeDriver: true }))
+    ).start();
   }, [products]);
+
+  const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
+    const anim = animValsRef.current[index];
+    return (
+      <Animated.View style={{
+        opacity: anim,
+        transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.88, 1] }) }],
+        marginRight: 14,
+      }}>
+        <TouchableOpacity style={S.card} activeOpacity={0.82} onPress={() => onPressProduct(item)}>
+          <AppImage uri={item.images?.[0] || ''} style={S.img} />
+          <View style={S.info}>
+            <Text style={S.store} numberOfLines={1}>{storeName(item)}</Text>
+            <Text style={S.name} numberOfLines={1}>{item.name}</Text>
+            <Text style={S.price}>₵{Number(item.price || 0).toFixed(2)}</Text>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }, [onPressProduct, storeName]);
 
   return (
     <View style={S.wrap}>
@@ -70,34 +95,17 @@ export function ProductRow({ title, products, loading, onPressProduct, onSeeAll,
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={S.list}
-          renderItem={({ item, index }) => (
-            <Animated.View style={{
-              opacity: animVals[index] ?? 1,
-              transform: [{
-                scale: (animVals[index] ?? new Animated.Value(1)).interpolate({
-                  inputRange: [0, 1], outputRange: [0.88, 1],
-                }),
-              }],
-              marginRight: 14,
-            }}>
-              <TouchableOpacity style={S.card} activeOpacity={0.82} onPress={() => onPressProduct(item)}>
-                <AppImage
-                  uri={item.images?.[0] || 'https://via.placeholder.com/150'}
-                  style={S.img}
-                />
-                <View style={S.info}>
-                  <Text style={S.store} numberOfLines={1}>{storeName(item)}</Text>
-                  <Text style={S.name} numberOfLines={1}>{item.name}</Text>
-                  <Text style={S.price}>₵{Number(item.price || 0).toFixed(2)}</Text>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-          )}
+          initialNumToRender={5}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          renderItem={renderItem}
         />
       )}
     </View>
   );
 }
+
+export const ProductRow = React.memo(ProductRowBase);
 
 const S = StyleSheet.create({
   wrap: { marginBottom: 8 },

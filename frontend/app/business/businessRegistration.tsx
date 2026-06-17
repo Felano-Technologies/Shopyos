@@ -26,6 +26,33 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import MapView, { UrlTile } from '@/components/MapView';
+interface BusinessFormData {
+  businessName: string;
+  ownerName: string;
+  ownerEmail: string;
+  businessEmail: string;
+  ownerPhone: string;
+  businessPhone: string;
+  country: string;
+  city: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  website: string;
+  socialMedia: string;
+  businessCert: string | null;
+  taxId: string;
+  businessLicense: string | null;
+  ownerId: string | null;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  proofOfBank: string | null;
+  refundPolicy: string;
+  adminNotes: string;
+  storePhotos: string[];
+}
+
 // --- Mock City Data ---
 const CITIES = [
   'Kumasi', 'Accra', 'Tema', 'Tamale', 'Takoradi', 
@@ -127,7 +154,7 @@ export default function BusinessRegistrationScreen() {
   const { data: userProfile } = useProfile();
 
   // --- Form State ---
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<BusinessFormData>({
     businessName: '',
     ownerName: '',
     ownerEmail: '',
@@ -156,7 +183,7 @@ export default function BusinessRegistrationScreen() {
 
   useEffect(() => {
     if (userProfile) {
-      setFormData((prev: any) => ({
+      setFormData((prev) => ({
         ...prev,
         ownerPhone: prev.ownerPhone || userProfile.fullPhoneNumber || '',
         businessPhone: prev.businessPhone || userProfile.fullPhoneNumber || '',
@@ -178,15 +205,15 @@ export default function BusinessRegistrationScreen() {
     longitude: -1.5716,
   });
   // --- Actions ---
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev: any) => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: keyof BusinessFormData, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
   const handleCitySelect = (city: string) => {
-    setFormData((prev: any) => ({ ...prev, city }));
+    setFormData((prev) => ({ ...prev, city }));
     setShowCityModal(false);
   };
   const confirmMapSelection = () => {
-    setFormData((prev: any) => ({
+    setFormData((prev) => ({
       ...prev,
       latitude: tempCoords.latitude,
       longitude: tempCoords.longitude
@@ -210,7 +237,7 @@ export default function BusinessRegistrationScreen() {
         longitudeDelta: 0.005
     }, 1000);
   };
-  const pickImage = async (field: string, isArray: boolean = false) => {
+  const pickImage = async (field: keyof BusinessFormData, isArray: boolean = false) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') return;
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -222,16 +249,16 @@ export default function BusinessRegistrationScreen() {
     if (!result.canceled) {
         const uri = result.assets[0].uri;
         if (isArray) {
-            setFormData((prev: any) => ({ ...prev, [field]: [...prev[field], uri] }));
+            setFormData((prev) => ({ ...prev, [field]: [...(prev[field] as string[]), uri] }));
         } else {
-            setFormData((prev: any) => ({ ...prev, [field]: uri }));
+            setFormData((prev) => ({ ...prev, [field]: uri }));
         }
     }
   };
   const removeStorePhoto = (index: number) => {
       const updated = [...formData.storePhotos];
       updated.splice(index, 1);
-      setFormData((prev: any) => ({ ...prev, storePhotos: updated }));
+      setFormData((prev) => ({ ...prev, storePhotos: updated }));
   };
   const handleSubmit = async () => {
     if (!formData.businessName || !formData.latitude || !formData.businessEmail) {

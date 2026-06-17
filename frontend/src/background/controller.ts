@@ -55,7 +55,7 @@ export const startDriverLocationTracking = async (
       showsBackgroundLocationIndicator: true,
     });
 
-    console.log('[TaskController] Driver location tracking started');
+    if (__DEV__) console.log('[TaskController] Driver location tracking started');
     return { success: true, message: 'Location tracking started' };
   } catch (error: any) {
     const msg: string = error?.message ?? '';
@@ -64,12 +64,12 @@ export const startDriverLocationTracking = async (
       msg.includes('UIBackgroundModes') ||
       msg.includes('BACKGROUND_LOCATION')
     ) {
-      console.log(
+      if (__DEV__) console.log(
         '[TaskController] Background location tracking unavailable (Expo Go/simulator fallback active).'
       );
       return { success: true, message: 'Foreground fallback active (Expo Go)' };
     }
-    console.error('[TaskController] Failed to start driver tracking:', error);
+    if (__DEV__) console.error('[TaskController] Failed to start driver tracking:', error);
     return { success: false, message: error.message || 'Failed to start tracking' };
   }
 };
@@ -78,12 +78,12 @@ export const stopDriverLocationTracking = async (): Promise<void> => {
   try {
     if (await isTrackingLocation()) {
       await Location.stopLocationUpdatesAsync(TASK_DRIVER_LOCATION);
-      console.log('[TaskController] Driver location tracking stopped');
+      if (__DEV__) console.log('[TaskController] Driver location tracking stopped');
     }
     await storage.removeItem('activeDeliveryId');
     await flushQueue();
   } catch (error) {
-    console.error('[TaskController] Error stopping driver tracking:', error);
+    if (__DEV__) console.error('[TaskController] Error stopping driver tracking:', error);
   }
 };
 
@@ -135,7 +135,7 @@ export const startGeofenceTracking = async (): Promise<{ success: boolean; messa
     }
 
     await Location.startGeofencingAsync(TASK_LOCATION_GEOFENCE, regions);
-    console.log(`[TaskController] Geofencing started for ${regions.length} stores`);
+    if (__DEV__) console.log(`[TaskController] Geofencing started for ${regions.length} stores`);
     return { success: true, message: `Geofencing started (${regions.length} stores)` };
   } catch (error: any) {
     const msg: string = error?.message ?? '';
@@ -144,10 +144,10 @@ export const startGeofenceTracking = async (): Promise<{ success: boolean; messa
       msg.includes('UIBackgroundModes') ||
       msg.includes('BACKGROUND_LOCATION')
     ) {
-      console.warn('[TaskController] OS geofencing unavailable (Expo Go). Foreground poll handles proximity.');
+      if (__DEV__) console.warn('[TaskController] OS geofencing unavailable (Expo Go). Foreground poll handles proximity.');
       return { success: false, message: msg, isExpoGo: true };
     }
-    console.error('[TaskController] Failed to start geofencing:', error);
+    if (__DEV__) console.error('[TaskController] Failed to start geofencing:', error);
     return { success: false, message: msg || 'Failed to start geofencing' };
   }
 };
@@ -156,10 +156,10 @@ export const stopGeofenceTracking = async (): Promise<void> => {
   try {
     if (await isGeofenceRunning()) {
       await Location.stopGeofencingAsync(TASK_LOCATION_GEOFENCE);
-      console.log('[TaskController] Geofencing stopped');
+      if (__DEV__) console.log('[TaskController] Geofencing stopped');
     }
   } catch (error) {
-    console.error('[TaskController] Error stopping geofencing:', error);
+    if (__DEV__) console.error('[TaskController] Error stopping geofencing:', error);
   }
 };
 
@@ -192,7 +192,7 @@ export const setLocationSharingPreference = async (enabled: boolean): Promise<vo
   try {
     await storage.setItem('shareLiveLocation', enabled ? 'true' : 'false');
   } catch (error) {
-    console.error('[TaskController] Error setting location sharing preference:', error);
+    if (__DEV__) console.error('[TaskController] Error setting location sharing preference:', error);
   }
 };
 
@@ -215,7 +215,7 @@ async function syncGeofence(isAuthenticated: boolean | undefined, skipGeofence: 
     if (isAuthenticated && !geofenceRunning) {
       const res = await startGeofenceTracking();
       if (!res.success && !res.isExpoGo) {
-        console.warn('[TaskController] Geofence start failed:', res.message);
+        if (__DEV__) console.warn('[TaskController] Geofence start failed:', res.message);
       }
     } else if (!isAuthenticated && geofenceRunning) {
       await stopGeofenceTracking();
@@ -233,7 +233,7 @@ async function syncDriverTracking(role: string | undefined, activeDeliveryId: st
   if (shouldTrack && !isTracking) {
     const deliveryId = activeDeliveryId as string;
     const res = await startDriverLocationTracking(deliveryId);
-    if (!res.success) console.warn('[TaskController] Driver tracking start failed:', res.message);
+    if (!res.success && __DEV__) console.warn('[TaskController] Driver tracking start failed:', res.message);
   } else if (!shouldTrack && isTracking) {
     await stopDriverLocationTracking();
   }
@@ -244,11 +244,11 @@ export const ensureBackgroundTasksForUser = async (
   skipGeofence = false,
 ): Promise<void> => {
   try {
-    console.log('[TaskController] Ensuring tasks for state:', userState);
+    if (__DEV__) console.log('[TaskController] Ensuring tasks for state:', userState);
     const { role, activeDeliveryId, shareLiveLocation, isAuthenticated } = userState;
     await syncGeofence(isAuthenticated, skipGeofence);
     await syncDriverTracking(role, activeDeliveryId, shareLiveLocation);
   } catch (error) {
-    console.error('[TaskController] Error in ensureBackgroundTasksForUser:', error);
+    if (__DEV__) console.error('[TaskController] Error in ensureBackgroundTasksForUser:', error);
   }
 };

@@ -356,7 +356,7 @@ export default function StoreDetailsScreen() {
         const updated = await getReviewComments(selectedReviewId);
         setActiveComments(updated.comments);
       }
-    } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
+    } catch (err: unknown) { Alert.alert("Error", err instanceof Error ? err.message : "Could not post comment"); }
     finally { setCommentSubmitting(false); }
   };
   const handleChat = () => startChat({

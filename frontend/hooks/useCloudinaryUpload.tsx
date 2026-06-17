@@ -76,10 +76,10 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
         width: data.width,
         height: data.height,
       };
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to upload image to Cloudinary';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload image to Cloudinary';
       setError(errorMessage);
-      console.error('Cloudinary upload error:', err);
+      if (__DEV__) console.error('Cloudinary upload error:', err);
       return null;
     } finally {
       setLoading(false);
@@ -97,8 +97,8 @@ export const useCloudinaryUpload = (): UseCloudinaryUpload => {
 
       const results = await Promise.all(uploadPromises);
       return results;
-    } catch (err: any) {
-      const errorMessage = err.message || 'Failed to upload multiple images';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to upload multiple images';
       setError(errorMessage);
       return [];
     } finally {

@@ -1,4 +1,4 @@
-// app/business/products/index.tsx
+// app/business/products.tsx
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
@@ -23,7 +23,7 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F1F5F9',
+  bg:      '#FFFFFF',
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
   lime:    '#84cc16',
@@ -95,7 +95,7 @@ export default function ProductsScreen() {
     Alert.alert('Delete Product', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await deleteProduct(id); loadProducts(true); } 
+          try { await deleteProduct(id); loadProducts(true); }
           catch { Alert.alert('Error', 'Failed to delete product'); }
         }
       },
@@ -174,7 +174,7 @@ export default function ProductsScreen() {
 
       {/* Watermark */}
       <View style={S.watermark}>
-        <AppImage source={require('../../../assets/images/splash-icon.png')} style={S.watermarkImg} />
+        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
       </View>
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
@@ -244,10 +244,10 @@ export default function ProductsScreen() {
               style={{ flex: 1, marginTop: -rs(24), zIndex: 1 }} // Slips seamlessly under the curved arc
               contentContainerStyle={[S.scrollContent, { paddingBottom: rs(100) + insets.bottom, paddingTop: rs(34) }]}
               refreshControl={
-                <RefreshControl 
-                  refreshing={refreshing} 
-                  onRefresh={() => loadProducts(true)} 
-                  tintColor={C.navy} 
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={() => loadProducts(true)}
+                  tintColor={C.navy}
                   progressViewOffset={rs(20)} // Ensures spinner is visible below the curve
                 />
               }
@@ -336,7 +336,7 @@ export default function ProductsScreen() {
                   <Ionicons name="close" size={24} color="#64748B" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={S.switcherList}>
                 {businesses.map((biz: any) => {
                   const active = biz._id === activeBusiness?._id;
@@ -392,7 +392,7 @@ export default function ProductsScreen() {
 
 const S = StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
-  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
+  centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFFFFF' },
 
   watermark:    { position: 'absolute', bottom: 20, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
@@ -401,7 +401,7 @@ const S = StyleSheet.create({
   header: { paddingHorizontal: rs(20), paddingBottom: rs(28), position: 'relative', elevation: 10, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16) },
   hdrGlow: { position: 'absolute', top: -rs(30), right: -rs(30), width: rs(160), height: rs(160), borderRadius: rs(80), backgroundColor: 'rgba(132,204,22,0.12)' },
   hdrLogoRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: rs(20) },
-  
+
   storeSelectorPill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.12)', paddingHorizontal: rs(10), paddingVertical: rs(6), borderRadius: rs(16), borderWidth: 0.5, borderColor: 'rgba(255, 255, 255, 0.18)', maxWidth: SW * 0.48 },
   storePillLogo: { width: rs(28), height: rs(28), borderRadius: rs(14), backgroundColor: '#F1F5F9' },
   storePillPlaceholder: { width: rs(28), height: rs(28), borderRadius: rs(14), backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center' },
@@ -415,7 +415,7 @@ const S = StyleSheet.create({
   badgeContainer: { position: 'absolute', top: -3, right: -3, backgroundColor: '#EF4444', minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: C.navy },
   badgeText: { color: '#FFF', fontSize: 8, fontFamily: 'Montserrat-Bold' },
 
-  revenueRow: { flexDirection: 'row', gap: rs(10) },
+  revenueRow: { flexDirection: 'row', gap: rs(10), marginBottom: rs(12) },
   revenueCard: { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 0.5, borderColor: 'rgba(255,255,255,0.15)', borderRadius: rs(16), padding: rs(12), justifyContent: 'center' },
   revLbl: { fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginBottom: rs(4) },
   revAmt: { fontFamily: 'Montserrat-Bold', color: '#fff' },

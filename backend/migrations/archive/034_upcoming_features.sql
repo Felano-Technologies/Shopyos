@@ -18,8 +18,8 @@ ALTER TABLE public.conversations
 -- Create the dedicated support user if it doesn't exist
 INSERT INTO public.users (id, email, password_hash, is_active)
 VALUES (
-    '00000000-0000-0000-0000-000000000001', 
-    'support@shopyos.com', 
+    '00000000-0000-0000-0000-000000000001',
+    'support@shopyos.com',
     'NOT_A_REAL_PASSWORD_DO_NOT_LOGIN', -- They authenticate via system or admin panel
     true
 )

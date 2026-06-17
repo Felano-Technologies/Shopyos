@@ -1,7 +1,7 @@
 // app/business/products/addproducts.tsx
 import React, { useState, useEffect } from 'react';
-import {View, Text, StyleSheet, TouchableOpacity, TextInput, 
-  ScrollView, ActivityIndicator, Modal, Pressable, Alert, Dimensions} from 'react-native';
+import {View, Text, StyleSheet, TouchableOpacity, TextInput,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Modal, Pressable, Alert, Dimensions} from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F1F5F9',
+  bg:      '#FFFFFF',
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
   lime:    '#84cc16',
@@ -176,7 +176,12 @@ return (
           <View style={S.hdrArc} />
         </LinearGradient>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={S.screen}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={S.screen}>
           
           <View style={S.cardSection}>
             <CardActionRow
@@ -225,59 +230,55 @@ return (
 
 <View style={S.cardSection}>
             <Text style={S.sectionLabel}>Pricing & Inventory</Text>
+            {/* Row 1: Price + Old Price */}
             <View style={S.pricingRow}>
-              
-              {/* Selling Price */}
               <View style={{ flex: 1 }}>
                 <Text style={S.inputLabel}>Price</Text>
                 <View style={S.lightInput}>
                   <Text style={S.currencyPfx}>₵</Text>
-                  <TextInput 
-                    value={price} 
-                    onChangeText={setPrice} 
-                    placeholder="0.00" 
-                    placeholderTextColor="#94A3B8" 
-                    keyboardType="numeric" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={price}
+                    onChangeText={setPrice}
+                    placeholder="0.00"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="numeric"
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
-
-              {/* Discount / Old Price */}
               <View style={{ flex: 1 }}>
                 <Text style={S.inputLabel}>Old Price (Optional)</Text>
                 <View style={S.lightInput}>
                   <Text style={[S.currencyPfx, { color: C.subtle }]}>₵</Text>
-                  <TextInput 
-                    value={compareAtPrice} 
-                    onChangeText={setCompareAtPrice} 
-                    placeholder="0.00" 
-                    placeholderTextColor="#94A3B8" 
-                    keyboardType="numeric" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
+                  <TextInput
+                    value={compareAtPrice}
+                    onChangeText={setCompareAtPrice}
+                    placeholder="0.00"
+                    placeholderTextColor="#94A3B8"
+                    keyboardType="numeric"
+                    style={S.lightInputTxt}
+                    editable={!isSubmitting}
                   />
                 </View>
               </View>
+            </View>
 
-              {/* Stock Quantity */}
-              <View style={{ flex: 0.8 }}>
-                <Text style={S.inputLabel}>Stock Qty</Text>
-                <View style={S.lightInput}>
-                  <Feather name="layers" size={rs(14)} color={C.muted} style={{ marginRight: rs(6) }} />
-                  <TextInput 
-                    value={stock} 
-                    onChangeText={setStock} 
-                    placeholder="Qty" 
-                    placeholderTextColor="#94A3B8" 
-                    keyboardType="numeric" 
-                    style={S.lightInputTxt} 
-                    editable={!isSubmitting} 
-                  />
-                </View>
+            {/* Row 2: Stock Qty */}
+            <View style={{ marginTop: rs(12) }}>
+              <Text style={S.inputLabel}>Stock Quantity</Text>
+              <View style={S.lightInput}>
+                <Feather name="layers" size={rs(14)} color={C.muted} style={{ marginRight: rs(6) }} />
+                <TextInput
+                  value={stock}
+                  onChangeText={setStock}
+                  placeholder="Enter quantity"
+                  placeholderTextColor="#94A3B8"
+                  keyboardType="numeric"
+                  style={S.lightInputTxt}
+                  editable={!isSubmitting}
+                />
               </View>
-
             </View>
           </View>
 
@@ -402,6 +403,7 @@ return (
           </View>
 
         </ScrollView>
+        </KeyboardAvoidingView>
 
         <Modal animationType="slide" transparent visible={categoryModal} onRequestClose={() => setCategoryModal(false)}>
           <Pressable style={S.catOverlay} onPress={() => setCategoryModal(false)}>
@@ -456,7 +458,7 @@ header: {
   backBtn: { width: rs(38), height: rs(38), borderRadius: rs(12), backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: rf(18), fontFamily: 'Montserrat-Bold', color: '#FFFFFF' },
 
-  screen: { flexGrow: 1, paddingHorizontal: rs(16), paddingBottom: rs(60), paddingTop: rs(10) },
+  screen: { flexGrow: 1, paddingHorizontal: rs(16), paddingBottom: rs(120), paddingTop: rs(10) },
 
   cardSection: { marginBottom: rs(16), backgroundColor: C.card, borderRadius: rs(24), padding: rs(16), shadowColor: C.navy, shadowOpacity: 0.04, shadowRadius: rs(8), shadowOffset: { width: 0, height: rs(3) }, elevation: 2 },
   sectionLabel: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body, marginBottom: rs(10) },

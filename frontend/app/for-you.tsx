@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ const CARD_WIDTH = (width - 44) / 2;
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
 
-function ProductCard({ item, onPress, onAddToCart }: Readonly<{ item: any; onPress: () => void; onAddToCart: () => void }>) {
+const ProductCard = React.memo(function ProductCard({ item, onPress, onAddToCart }: Readonly<{ item: any; onPress: () => void; onAddToCart: () => void }>) {
   return (
     <TouchableOpacity style={S.card} activeOpacity={0.9} onPress={onPress}>
       <View style={S.imageContainer}>
@@ -60,7 +60,7 @@ function ProductCard({ item, onPress, onAddToCart }: Readonly<{ item: any; onPre
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 // ─── Loading skeleton ─────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ function GridSkeleton() {
 
 export default function ForYouScreen() {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const addToCart = useCart((s) => s.addToCart);
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
@@ -125,22 +125,22 @@ export default function ForYouScreen() {
     ]).start(() => setToastVisible(false));
   };
 
-  const handleAddToCart = (item: any) => {
+  const handleAddToCart = useCallback((item: any) => {
     addToCart({ id: item._id, title: item.name, price: item.price, image: { uri: item.images?.[0] }, storeId: null });
     showToast(`${item.name} added to cart!`);
-  };
+  }, [addToCart]);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     await Promise.all([refetchPersonalized(), refetchTrending()]);
-  };
+  }, [refetchPersonalized, refetchTrending]);
 
-  const renderItem = ({ item }: { item: any }) => (
+  const renderItem = useCallback(({ item }: { item: any }) => (
     <ProductCard
       item={item}
       onPress={() => router.push({ pathname: '/product/details', params: { id: item._id } })}
       onAddToCart={() => handleAddToCart(item)}
     />
-  );
+  ), [handleAddToCart, router]);
 
   return (
     <View style={S.container}>
@@ -175,6 +175,10 @@ export default function ForYouScreen() {
           contentContainerStyle={S.listContainer}
           columnWrapperStyle={S.columnWrapper}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews
           renderItem={renderItem}
           refreshControl={<RefreshControl refreshing={false} onRefresh={onRefresh} tintColor="#0C1559" />}
           ListEmptyComponent={

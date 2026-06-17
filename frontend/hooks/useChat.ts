@@ -10,16 +10,19 @@ import {
 import { queryKeys } from '@/lib/query/keys';
 import { socketService } from '@/services/socket';
 import { useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 
 // ── Conversations ────────────────────────────────────────────────────────────
 
 export const useConversations = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.chat.conversations(),
     queryFn: async () => {
       const res = await getConversations();
       return res?.conversations ?? [];
     },
+    enabled: isAuthenticated,
     refetchOnMount: true,
     staleTime: 30 * 1000,
     gcTime: 10 * 60 * 1000,

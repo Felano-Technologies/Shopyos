@@ -46,11 +46,11 @@ const RegisterScreen = () => {
           message: data.message || 'Please try again.',
         });
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       CustomInAppToast.show({
         type: 'error',
         title: 'Sign Up Failed',
-        message: error.message || 'Something went wrong.',
+        message: error instanceof Error ? error.message : 'Something went wrong.',
       });
     } finally {
       setLoading(false);

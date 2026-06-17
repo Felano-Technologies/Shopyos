@@ -14,7 +14,7 @@ BEGIN
     'total_revenue', COALESCE(SUM(total_amount) FILTER (WHERE status IN ('paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit', 'delivered', 'completed')), 0)
   ) INTO v_stats
   FROM orders;
-  
+
   RETURN v_stats;
 END;
 $$ LANGUAGE plpgsql;
@@ -32,7 +32,7 @@ BEGIN
   FROM products p
   LEFT JOIN inventory i ON i.product_id = p.id
   WHERE p.deleted_at IS NULL;
-  
+
   RETURN v_stats;
 END;
 $$ LANGUAGE plpgsql;
@@ -47,7 +47,7 @@ BEGIN
     'average_rating', COALESCE(AVG(rating), 0)
   ) INTO v_stats
   FROM product_reviews;
-  
+
   RETURN v_stats;
 END;
 $$ LANGUAGE plpgsql;

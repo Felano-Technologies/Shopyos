@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,7 @@ interface RecentProduct {
 
 export default function RecentScreen() {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const addToCart = useCart((s) => s.addToCart);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSort, setActiveSort] = useState('newest');
@@ -131,7 +131,7 @@ export default function RecentScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: RecentProduct }) => (
+  const renderItem = useCallback(({ item }: { item: RecentProduct }) => (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.9}
@@ -169,7 +169,7 @@ export default function RecentScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [handleAddToCart]);
 
   return (
     <View style={styles.container}>
@@ -227,6 +227,10 @@ export default function RecentScreen() {
           contentContainerStyle={styles.listContainer}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews
           renderItem={renderItem}
           refreshing={refreshing}
           onRefresh={onRefresh}

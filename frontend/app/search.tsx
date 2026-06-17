@@ -160,7 +160,7 @@ function StoreList({ stores }: { stores: any[] }) {
   );
 }
 
-function GridCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
   return (
     <TouchableOpacity style={styles.gridCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <View style={styles.gridImgWrap}>
@@ -189,9 +189,9 @@ function GridCard({ item, addingId, onAddToCart }: { item: any; addingId: string
       </View>
     </TouchableOpacity>
   );
-}
+});
 
-function FeaturedCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
   return (
     <TouchableOpacity style={styles.featCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.featImg} />
@@ -213,9 +213,9 @@ function FeaturedCard({ item, addingId, onAddToCart }: { item: any; addingId: st
       </TouchableOpacity>
     </TouchableOpacity>
   );
-}
+});
 
-function ListCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
+const ListCard = React.memo(function ListCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
   return (
     <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => safePush('/product/details', { id: item._id })}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.listImg} />
@@ -238,7 +238,7 @@ function ListCard({ item, addingId, onAddToCart }: { item: any; addingId: string
       </TouchableOpacity>
     </TouchableOpacity>
   );
-}
+});
 
 function DiscoveryView({
   recentSearches,
@@ -336,7 +336,7 @@ function EmptyResults({ setQuery, setCategory, setSortBy }: { setQuery: (q: stri
 }
 
 export default function SearchScreen() {
-  const { addToCart } = useCart();
+  const addToCart = useCart((s) => s.addToCart);
   const params = useLocalSearchParams();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<string | null>(
@@ -467,7 +467,7 @@ export default function SearchScreen() {
   }, [refetchAll, refetchSearch, refetchStores]);
 
   const headingTop = isActive ? 'Results for' : 'Discover';
-  const renderListHeader = () => (
+  const renderListHeader = useCallback(() => (
     <View>
       <StoreList stores={stores} />
       {searchAds.length > 0
@@ -475,13 +475,14 @@ export default function SearchScreen() {
         : <AdPlaceholder />
       }
     </View>
-  );
-  const renderGrid = ({ item }: { item: any }) => <GridCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />;
-  const renderList = ({ item, index }: { item: any; index: number }) =>
+  ), [stores, searchAds, handleAdPress]);
+  const renderGrid = useCallback(({ item }: { item: any }) => <GridCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />, [addingId, handleAddToCart]);
+  const renderList = useCallback(({ item, index }: { item: any; index: number }) =>
     index === 0
       ? <FeaturedCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />
-      : <ListCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />;
-  const renderEmpty = () => <EmptyResults setQuery={setQuery} setCategory={setCategory} setSortBy={setSortBy} />;
+      : <ListCard item={item} addingId={addingId} onAddToCart={handleAddToCart} />,
+  [addingId, handleAddToCart]);
+  const renderEmpty = useCallback(() => <EmptyResults setQuery={setQuery} setCategory={setCategory} setSortBy={setSortBy} />, [setQuery, setCategory, setSortBy]);
 
   return (
     <Pressable onPress={() => { Keyboard.dismiss(); setSortOpen(false); }} style={{ flex: 1 }}>
@@ -595,9 +596,9 @@ export default function SearchScreen() {
                 )}
                 <Animated.View style={{ flex: 1, opacity: loading ? 0.6 : fadeAnim }}>
                   {viewMode === 'grid' ? (
-                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
+                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
                   ) : (
-                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
+                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
                   )}
                 </Animated.View>
               </View>

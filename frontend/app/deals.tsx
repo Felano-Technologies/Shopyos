@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,14 +25,14 @@ export default function DealsScreen() {
   const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc' });
   const [refreshing, setRefreshing] = React.useState(false);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await refetch();
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [refetch]);
   
   const deals = data?.products?.map((p: any) => {
     const priceNum = Number(p.price) || 0;
@@ -64,7 +64,7 @@ export default function DealsScreen() {
     });
   };
 
-  const renderDeal = ({ item }: { item: any }) => (
+  const renderDeal = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity 
       style={styles.card} 
       activeOpacity={0.9}
@@ -103,7 +103,7 @@ export default function DealsScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [router]);
 
   if (loading) {
     return <DealsSkeleton />;
@@ -136,6 +136,10 @@ export default function DealsScreen() {
         contentContainerStyle={styles.listContainer}
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews
         renderItem={renderDeal}
         refreshing={refreshing}
         onRefresh={onRefresh}

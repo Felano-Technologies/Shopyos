@@ -195,7 +195,7 @@ export default function ChatInbox() {
   const hasConversations = buyerConversations.length > 0;
 
   // ── Conversation row ─────────────────────────────────────────────────────────
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = useCallback(({ item }: { item: any }) => {
     const unread = item.unread > 0;
     return (
       <TouchableOpacity
@@ -241,7 +241,7 @@ export default function ChatInbox() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [openChat, handleLongPress]);
 
   return (
     <View style={styles.root}>
@@ -311,6 +311,10 @@ export default function ChatInbox() {
         contentContainerStyle={[styles.list, displayList.length === 0 && { flex: 1 }]}
         ListEmptyComponent={() => <InboxEmpty hasConversations={hasConversations} onBrowse={() => router.push('/home')} />}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews
         ItemSeparatorComponent={ConversationSeparator}
       />
 
@@ -375,6 +379,9 @@ export default function ChatInbox() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.modalList}
                 showsVerticalScrollIndicator={false}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={8}
                 ItemSeparatorComponent={ModalSeparator}
                 ListEmptyComponent={ModalEmptyComponent}
                 renderItem={({ item }) => (

@@ -2,11 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { favoritesApi, Product } from '@/lib/query/api';
 import { queryKeys } from '@/lib/query/keys';
 import { Alert } from 'react-native';
+import { useAuthStore } from '@/store/authStore';
 
 export const useFavorites = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.favorites.list(),
     queryFn: favoritesApi.getAll,
+    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });

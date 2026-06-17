@@ -4,11 +4,14 @@ import { queryKeys } from '@/lib/query/keys';
 import { Alert } from 'react-native';
 import { useEffect } from 'react';
 import { cacheUserProfile } from '@/services/storage';
+import { useAuthStore } from '@/store/authStore';
 
 export const useProfile = () => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const query = useQuery({
     queryKey: queryKeys.profile.current(),
     queryFn: profileApi.get,
+    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
   });

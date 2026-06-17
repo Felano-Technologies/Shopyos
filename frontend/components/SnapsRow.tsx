@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { getSnapFeed } from '@/services/api';
@@ -20,7 +20,7 @@ export const SnapsRow = () => {
       const res = await getSnapFeed();
       if (res?.feed) setFeed(res.feed);
     } catch (e) {
-      console.log('Error fetching snaps:', e);
+      if (__DEV__) console.log('Error fetching snaps:', e);
     } finally {
       setLoading(false);
     }
@@ -57,9 +57,12 @@ export const SnapsRow = () => {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        renderItem={({ item, index }) => (
-          <TouchableOpacity 
-            style={styles.snapItem} 
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        renderItem={useCallback(({ item, index }: { item: any; index: number }) => (
+          <TouchableOpacity
+            style={styles.snapItem}
             activeOpacity={0.8}
             onPress={() => handlePress(item.store_id, index)}
           >
@@ -79,7 +82,7 @@ export const SnapsRow = () => {
             </LinearGradient>
             <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
           </TouchableOpacity>
-        )}
+        ), [handlePress])}
       />
     </View>
   );

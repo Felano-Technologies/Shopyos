@@ -15,7 +15,7 @@ BEGIN
       updated_at = NOW()
   WHERE id = p_campaign_id
   RETURNING budget_spent, budget_allocated INTO v_new_spent, v_budget;
-  
+
   -- Pause if we hit budget limits
   IF v_new_spent >= v_budget THEN
     UPDATE promoted_products
@@ -44,7 +44,7 @@ BEGIN
       updated_at = NOW()
   WHERE id = p_campaign_id
   RETURNING budget_spent, budget_allocated INTO v_new_spent, v_budget;
-  
+
   -- Pause if we hit budget limits
   IF v_new_spent >= v_budget THEN
     UPDATE promoted_products

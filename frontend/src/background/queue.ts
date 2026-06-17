@@ -38,7 +38,7 @@ export const enqueueLocation = async (
     const trimmedQueue = existingQueue.slice(-MAX_QUEUE_SIZE);
     await storage.setItem(QUEUE_KEY, JSON.stringify(trimmedQueue));
   } catch (error) {
-    console.error('[LocationQueue] Failed to enqueue location:', error);
+    if (__DEV__) console.error('[LocationQueue] Failed to enqueue location:', error);
   }
 };
 
@@ -50,7 +50,7 @@ export const getQueue = async (): Promise<QueuedLocation[]> => {
     const queueJson = await storage.getItem(QUEUE_KEY);
     return queueJson ? JSON.parse(queueJson) : [];
   } catch (error) {
-    console.error('[LocationQueue] Failed to get queue:', error);
+    if (__DEV__) console.error('[LocationQueue] Failed to get queue:', error);
     return [];
   }
 };
@@ -77,7 +77,7 @@ export const flushQueue = async (): Promise<void> => {
           location.longitude
         );
       } catch (error) {
-        console.error('[LocationQueue] Failed to send queued location:', error);
+        if (__DEV__) console.error('[LocationQueue] Failed to send queued location:', error);
         failedUpdates.push(location);
       }
     }
@@ -89,7 +89,7 @@ export const flushQueue = async (): Promise<void> => {
       await clearQueue();
     }
   } catch (error) {
-    console.error('[LocationQueue] Failed to flush queue:', error);
+    if (__DEV__) console.error('[LocationQueue] Failed to flush queue:', error);
   }
 };
 
@@ -100,6 +100,6 @@ export const clearQueue = async (): Promise<void> => {
   try {
     await storage.removeItem(QUEUE_KEY);
   } catch (error) {
-    console.error('[LocationQueue] Failed to clear queue:', error);
+    if (__DEV__) console.error('[LocationQueue] Failed to clear queue:', error);
   }
 };

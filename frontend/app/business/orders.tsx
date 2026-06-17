@@ -17,8 +17,7 @@ import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { BusinessOrdersSkeleton } from '@/components/skeletons/BusinessOrdersSkeleton';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
-import { useActiveBusiness } from '@/hooks/useBusiness';
-import { useStoreOrders } from '@/hooks/useOrders';
+import { useActiveBusiness, useStoreOrders } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 
 const { width: SW, height: SH } = Dimensions.get('window');
