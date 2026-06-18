@@ -20,7 +20,8 @@ async function handleNotificationResponse(response: any, router: ReturnType<type
     }
     const route = getRouteFromPushData(data, role);
     if (route) {
-        router.push(route as any);
+        const destination = route.params ? route : route.pathname;
+        router.push(destination as any);
     } else {
         // Default fallback per role
         if (role === 'seller') router.push('/business/notifications' as any);

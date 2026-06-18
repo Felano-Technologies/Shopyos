@@ -1,7 +1,7 @@
 import { useWindowDimensions } from 'react-native';
 
 export const adminColors = {
-  appBg: '#E9F0FF',
+  appBg: '#FFFFFF',
   surface: '#FFFFFF',
   surfaceSoft: '#F8FAFC',
   surfaceMuted: '#F1F5F9',

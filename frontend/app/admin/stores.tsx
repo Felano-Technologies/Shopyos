@@ -260,16 +260,10 @@ export default function AdminStores() {
                 <View style={styles.heroIcons}>
                   <TouchableOpacity style={styles.topActionBubble}>
                     <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.topActionBubble}>
                     <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <View style={styles.avatarCircle}>
@@ -570,12 +564,12 @@ function DetailItem({ label, value, icon, isLink, onPress }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#FFFFFF',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
   },
   scrollView: {
     flex: 1,
@@ -673,7 +667,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   pageHead: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 10,
   },

@@ -16,6 +16,7 @@ const {
 } = require('../controllers/orderController');
 const { protect, hasAnyRole } = require('../middleware/authMiddleware');
 const { validateCreateOrder } = require('../middleware/validators');
+const { auditLog } = require('../middleware/auditMiddleware');
 
 // All order routes require authentication
 router.use(protect);
@@ -23,7 +24,7 @@ router.use(protect);
 // @route   POST /api/orders/create
 // @desc    Create order from cart
 // @access  Private
-router.post('/create', validateCreateOrder, createOrder);
+router.post('/create', validateCreateOrder, auditLog('place_order', 'order'), createOrder);
 
 // @route   GET /api/orders/my-orders
 // @desc    Get user's orders
@@ -48,12 +49,12 @@ router.get('/:orderId', getOrderDetails);
 // @route   PUT /api/orders/:orderId/status
 // @desc    Update order status
 // @access  Private (Seller/Admin)
-router.put('/:orderId/status', hasAnyRole('seller', 'admin'), updateOrderStatus);
+router.put('/:orderId/status', hasAnyRole('seller', 'admin'), auditLog('update_order_status', 'order'), updateOrderStatus);
 
 // @route   PUT /api/orders/:orderId/cancel
 // @desc    Cancel order (buyer/seller/admin, only when status is pending)
 // @access  Private
-router.put('/:orderId/cancel', cancelOrder);
+router.put('/:orderId/cancel', auditLog('cancel_order', 'order'), cancelOrder);
 
 // @route   PUT /api/orders/:orderId/confirm-delivery
 // @desc    Buyer confirms receipt of order

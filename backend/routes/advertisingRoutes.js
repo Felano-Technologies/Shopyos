@@ -13,6 +13,7 @@ const {
   createReport
 } = require('../controllers/advertisingController');
 const { protect, seller, hasAnyRole } = require('../middleware/authMiddleware');
+const { auditLog } = require('../middleware/auditMiddleware');
 const upload = require('../middleware/upload');
 const bannerCampaignController = require('../controllers/bannerCampaignController');
 
@@ -40,13 +41,14 @@ router.post('/campaigns', seller, createCampaign);
 router.get('/my-campaigns', seller, getMyCampaigns);
 
 // Banner Campaign Routes
-router.post('/banners', seller, upload.single('banner'), bannerCampaignController.createCampaign);
+router.post('/banners', seller, upload.single('banner'), auditLog('create_campaign', 'campaign'), bannerCampaignController.createCampaign);
 router.get('/banners/my', seller, bannerCampaignController.getMyCampaigns);
 router.post('/banners/pay-initialize', seller, bannerCampaignController.initializeCampaignPayment);
 router.get('/banners/verify/:reference', seller, bannerCampaignController.verifyCampaignPayment);
 
 // Admin Routes
 router.get('/banners/all', hasAnyRole('admin'), bannerCampaignController.getAllCampaigns);
+router.post('/banners/admin-create', hasAnyRole('admin'), upload.single('banner'), auditLog('admin_create_campaign', 'campaign'), bannerCampaignController.adminCreateCampaign);
 router.put('/banners/:id/status', hasAnyRole('admin'), bannerCampaignController.updateCampaignStatus);
 
 // @route   GET /api/advertising/campaigns/:campaignId

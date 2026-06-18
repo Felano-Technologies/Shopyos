@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,6 +19,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
+import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
   active:    { color: '#059669', bg: '#D1FAE5', dot: '#10B981' },
@@ -51,6 +53,7 @@ export default function AdminBuyers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [menuUser, setMenuUser] = useState<UserItem | null>(null);
 
   const loadBuyers = useCallback(
     async (isRefresh = false) => {
@@ -114,6 +117,51 @@ export default function AdminBuyers() {
     );
   };
 
+  const handleDeleteUser = async (user: UserItem) => {
+    Alert.alert('Delete User', `Permanently delete ${user.full_name || user.email}? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          setActionLoading(user.id);
+          setMenuUser(null);
+          await adminDeleteUser(user.id);
+          setBuyers(prev => prev.filter(u => u.id !== user.id));
+          CustomInAppToast.show({ type: 'success', title: 'User Deleted', message: 'Account removed successfully.' });
+        } catch (err: any) {
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+        } finally { setActionLoading(null); }
+      }},
+    ]);
+  };
+
+  const handleResetSession = async (user: UserItem) => {
+    try {
+      setActionLoading(user.id);
+      setMenuUser(null);
+      await adminResetUserSession(user.id);
+      CustomInAppToast.show({ type: 'success', title: 'Session Reset', message: `${user.full_name || user.email} will need to log in again.` });
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+    } finally { setActionLoading(null); }
+  };
+
+  const handleDisableSession = async (user: UserItem) => {
+    Alert.alert('Disable Session', `Deactivate ${user.full_name || user.email} and revoke all access?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Disable', style: 'destructive', onPress: async () => {
+        try {
+          setActionLoading(user.id);
+          setMenuUser(null);
+          await adminDisableUserSession(user.id);
+          setBuyers(prev => prev.map(u => u.id === user.id ? { ...u, account_status: 'suspended' } : u));
+          CustomInAppToast.show({ type: 'success', title: 'Session Disabled', message: 'User deactivated and logged out.' });
+        } catch (err: any) {
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+        } finally { setActionLoading(null); }
+      }},
+    ]);
+  };
+
   const renderBuyer = ({ item }: { item: UserItem }) => {
     const status = item.account_status || 'active';
     const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.active;
@@ -155,26 +203,35 @@ export default function AdminBuyers() {
           <Text style={styles.joinedText}>
             Joined {new Date(item.created_at || Date.now()).toLocaleDateString()}
           </Text>
-          <TouchableOpacity
-            style={[styles.actionButton, isActive ? styles.actionDanger : styles.actionSuccess]}
-            onPress={() => handleStatusChange(item)}
-            disabled={actionLoading === item.id}
-          >
-            {actionLoading === item.id ? (
-              <ActivityIndicator size="small" color={isActive ? '#DC2626' : '#059669'} />
-            ) : (
-              <>
-                <Feather
-                  name={isActive ? 'slash' : 'check-circle'}
-                  size={14}
-                  color={isActive ? '#DC2626' : '#059669'}
-                />
-                <Text style={[styles.actionText, { color: isActive ? '#DC2626' : '#059669' }]}>
-                  {isActive ? 'Suspend' : 'Activate'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity
+              style={[styles.actionButton, isActive ? styles.actionDanger : styles.actionSuccess]}
+              onPress={() => handleStatusChange(item)}
+              disabled={actionLoading === item.id}
+            >
+              {actionLoading === item.id ? (
+                <ActivityIndicator size="small" color={isActive ? '#DC2626' : '#059669'} />
+              ) : (
+                <>
+                  <Feather
+                    name={isActive ? 'slash' : 'check-circle'}
+                    size={14}
+                    color={isActive ? '#DC2626' : '#059669'}
+                  />
+                  <Text style={[styles.actionText, { color: isActive ? '#DC2626' : '#059669' }]}>
+                    {isActive ? 'Suspend' : 'Activate'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.moreBtn}
+              onPress={(e) => { e.stopPropagation(); setMenuUser(item); }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="more-vertical" size={16} color="#64748B" />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -255,9 +312,59 @@ export default function AdminBuyers() {
           />
         )}
       </SafeAreaView>
+
+      {/* User action menu */}
+      <Modal
+        visible={!!menuUser}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuUser(null)}
+      >
+        <TouchableOpacity style={menuStyles.overlay} activeOpacity={1} onPress={() => setMenuUser(null)}>
+          <View style={menuStyles.sheet}>
+            <View style={menuStyles.handle} />
+            <Text style={menuStyles.title} numberOfLines={1}>
+              {menuUser?.full_name || menuUser?.email || 'User'}
+            </Text>
+            <TouchableOpacity style={menuStyles.option} onPress={() => handleResetSession(menuUser!)}>
+              <Feather name="refresh-cw" size={18} color="#3B82F6" />
+              <View style={{ flex: 1 }}>
+                <Text style={menuStyles.optionLabel}>Reset Session</Text>
+                <Text style={menuStyles.optionSub}>Force re-login, tokens revoked</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={menuStyles.option} onPress={() => handleDisableSession(menuUser!)}>
+              <Feather name="lock" size={18} color="#F59E0B" />
+              <View style={{ flex: 1 }}>
+                <Text style={menuStyles.optionLabel}>Disable Session</Text>
+                <Text style={menuStyles.optionSub}>Deactivate + revoke all tokens</Text>
+              </View>
+            </TouchableOpacity>
+            <View style={menuStyles.divider} />
+            <TouchableOpacity style={menuStyles.option} onPress={() => handleDeleteUser(menuUser!)}>
+              <Feather name="trash-2" size={18} color="#EF4444" />
+              <View style={{ flex: 1 }}>
+                <Text style={[menuStyles.optionLabel, { color: '#EF4444' }]}>Delete User</Text>
+                <Text style={menuStyles.optionSub}>Soft-delete, irreversible</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 }
+
+const menuStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 16 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 8 },
+  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 4 },
+});
 
 const styles = StyleSheet.create({
   safeArea: {
@@ -523,5 +630,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
     textAlign: 'center',
+  },
+  moreBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
   },
 });

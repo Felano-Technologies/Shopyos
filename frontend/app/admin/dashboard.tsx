@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAdminDashboard } from '@/services/api';
+import { getAdminOrders, getAdminStores } from '@/services/admin';
 
 function getStatusStyle(statusStyle: string) {
   if (statusStyle === 'paid') return styles.statusPaid;
@@ -21,11 +22,6 @@ function getStatusStyle(statusStyle: string) {
   return styles.statusPending;
 }
 
-const FALLBACK_TRANSACTIONS = [
-  { name: 'Kofi Mensah',  date: '2026-04-20T08:00:00.000Z', type: 'paid',    status: 'Paid',    statusStyle: 'paid'    },
-  { name: 'Ama Owusu',    date: '2026-04-21T14:00:00.000Z', type: 'shipped', status: 'Shipped', statusStyle: 'shipped' },
-  { name: 'Ama Owusu',    date: '2026-04-23T18:30:00.000Z', type: 'pending', status: 'Pending', statusStyle: 'pending' },
-];
 
 type DashboardStats = {
   totalUsers: number;
@@ -53,6 +49,8 @@ export default function AdminDashboard() {
     usersGrowth: 0,
     pendingDriverVerifications: 0,
   });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [topStores, setTopStores] = useState<any[]>([]);
   const loadData = useCallback(async () => {
     try {
       const dashRes = await getAdminDashboard();
@@ -60,6 +58,16 @@ export default function AdminDashboard() {
       if (dashRes?.success && dashRes.stats) {
         setStats(dashRes.stats);
       }
+      try {
+        const [ordersRes, storesRes] = await Promise.all([
+          getAdminOrders({ limit: '5', sortBy: 'created_at', sortDir: 'desc' }),
+          getAdminStores({ limit: '3', sortBy: 'total_revenue', sortDir: 'desc' }),
+        ]);
+        const ordersArr = Array.isArray(ordersRes?.orders) ? ordersRes.orders : Array.isArray(ordersRes) ? ordersRes : [];
+        const storesArr = Array.isArray(storesRes?.stores) ? storesRes.stores : Array.isArray(storesRes) ? storesRes : [];
+        setRecentOrders(ordersArr.slice(0, 5));
+        setTopStores(storesArr.slice(0, 3));
+      } catch { /* non-critical */ }
     } catch (error) {
       console.error('Failed to load admin dashboard', error);
     } finally {
@@ -160,16 +168,10 @@ export default function AdminDashboard() {
               <View style={styles.heroIcons}>
                 <TouchableOpacity style={styles.topActionBubble}>
                   <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.badgeDot}>
-                    <Text style={styles.badgeText}>2</Text>
-                  </View>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.topActionBubble}>
                   <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.badgeDot}>
-                    <Text style={styles.badgeText}>2</Text>
-                  </View>
                 </TouchableOpacity>
 
                 <View style={styles.avatarCircle}>
@@ -185,7 +187,7 @@ export default function AdminDashboard() {
           {/* ── PAGE HEADING ─────────────────────────────────────────────── */}
           <View style={styles.pageHead}>
             <Text style={styles.pageTitle}>Dashboard</Text>
-            <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
+            <Text style={styles.pageDate}>{new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
           </View>
 
           {/* ── METRIC CARDS GRID — 2 per row ────────────────────────────── */}
@@ -275,27 +277,31 @@ export default function AdminDashboard() {
               </TouchableOpacity>
             </View>
 
-            {FALLBACK_TRANSACTIONS.map((item, index) => (
-              <View
-                key={item.type}
-                style={[
-                  styles.orderRow,
-                  index === FALLBACK_TRANSACTIONS.length - 1 && { borderBottomWidth: 0 },
-                ]}
-              >
-                <View>
-                  <Text style={styles.orderId}>#ORD-{5821 - index}</Text>
-                  <Text style={styles.orderMeta}>
-                    {item.name} - {index === 0 ? '2 items' : '1 item'}
-                  </Text>
-                </View>
-                <View
-                  style={[styles.statusPill, getStatusStyle(item.statusStyle)]}
-                >
-                  <Text style={styles.statusLabel}>{item.status}</Text>
-                </View>
+            {recentOrders.length === 0 ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <Text style={styles.orderMeta}>No recent orders</Text>
               </View>
-            ))}
+            ) : (
+              recentOrders.map((item: any, index: number) => (
+                <View
+                  key={item.id || index}
+                  style={[
+                    styles.orderRow,
+                    index === recentOrders.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <View>
+                    <Text style={styles.orderId}>#{item.order_number || item.id?.slice(0, 8)?.toUpperCase()}</Text>
+                    <Text style={styles.orderMeta}>
+                      {item.buyer?.full_name || item.user?.full_name || 'Customer'} · {item.order_items?.length ?? 1} item{(item.order_items?.length ?? 1) > 1 ? 's' : ''}
+                    </Text>
+                  </View>
+                  <View style={[styles.statusPill, getStatusStyle(item.status || 'pending')]}>
+                    <Text style={styles.statusLabel}>{item.status || 'Pending'}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
 
           {/* ── TOP STORES ────────────────────────────────────────────────── */}
@@ -314,30 +320,31 @@ export default function AdminDashboard() {
               </TouchableOpacity>
             </View>
 
-            {/* Three store rows to match image 2 */}
-            {[
-              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.8' },
-              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.7' },
-              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.6' },
-            ].map((store, index, arr) => (
-              <View
-                key={store.rating}
-                style={[
-                  styles.storeRow,
-                  index < arr.length - 1 && styles.storeRowBorder,
-                ]}
-              >
-                <View>
-                  <Text style={styles.storeName}>{store.name}</Text>
-                  <Text style={styles.storeMeta}>
-                    {store.orders} orders · ${store.revenue.toLocaleString()}
-                  </Text>
-                </View>
-                <View style={styles.storeScore}>
-                  <Text style={styles.storeScoreText}>{store.rating} ★</Text>
-                </View>
+            {topStores.length === 0 ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <Text style={styles.orderMeta}>No store data yet</Text>
               </View>
-            ))}
+            ) : (
+              topStores.map((store: any, index: number, arr: any[]) => (
+                <View
+                  key={store.id || index}
+                  style={[
+                    styles.storeRow,
+                    index < arr.length - 1 && styles.storeRowBorder,
+                  ]}
+                >
+                  <View>
+                    <Text style={styles.storeName}>{store.store_name || store.name || 'Store'}</Text>
+                    <Text style={styles.storeMeta}>
+                      {store.total_orders ?? store.orders ?? 0} orders · ₵{Number(store.total_revenue ?? store.revenue ?? 0).toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.storeScore}>
+                    <Text style={styles.storeScoreText}>{store.rating ? store.rating + ' ★' : 'N/A'}</Text>
+                  </View>
+                </View>
+              ))
+            )}
           </View>
 
           {/* ── ALERTS ────────────────────────────────────────────────────── */}
@@ -354,7 +361,7 @@ export default function AdminDashboard() {
               */}
               <Ionicons name="bicycle-outline" size={20} color="#000" style={{ marginRight: 8 }} />
               <View>
-                <Text style={styles.alertTitle}>2 new riders awaiting approval</Text>
+                <Text style={styles.alertTitle}>{stats.pendingDriverVerifications} driver{stats.pendingDriverVerifications !== 1 ? 's' : ''} awaiting approval</Text>
                 <Text style={styles.alertSub}>Documents submitted today</Text>
               </View>
             </View>
@@ -377,16 +384,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#FFFFFF',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#FFFFFF',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 5,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
   },
   scrollView: {
     flex: 1,

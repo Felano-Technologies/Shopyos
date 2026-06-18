@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -17,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getAdminOrders } from '@/services/api';
+import { updateOrderStatus } from '@/services/orders';
 
 const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
 const STATUS_FILTERS = ['All', 'pending', 'processing', 'delivered', 'cancelled'];
@@ -46,6 +48,8 @@ type StoreSummary = {
   revenue: number;
 };
 
+const ORDER_STATUSES = ['pending', 'processing', 'ready_for_pickup', 'in_transit', 'delivered', 'cancelled'];
+
 export default function AdminOrders() {
   const router = useRouter();
   const searchQuery = '';
@@ -53,6 +57,8 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [actionOrder, setActionOrder] = useState<OrderItem | null>(null);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const loadOrders = useCallback(
     async (isRefresh = false) => {
@@ -128,6 +134,21 @@ export default function AdminOrders() {
       .slice(0, 3);
   }, [orders]);
 
+  const handleStatusUpdate = async (newStatus: string) => {
+    if (!actionOrder) return;
+    try {
+      setUpdatingStatus(true);
+      await updateOrderStatus(actionOrder.id, newStatus);
+      setOrders(prev => prev.map(o => o.id === actionOrder.id ? { ...o, status: newStatus } : o));
+      CustomInAppToast.show({ type: 'success', title: 'Status Updated', message: `Order set to ${newStatus}` });
+      setActionOrder(null);
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Update Failed', message: err.message });
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
   const renderOrderRow = (item: OrderItem, compact = false) => {
     const status = (item.status || 'pending').toLowerCase();
     const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.pending;
@@ -171,9 +192,18 @@ export default function AdminOrders() {
             </View>
           </View>
 
-          <View style={styles.amountBlock}>
-            <Text style={styles.amountLabel}>Total</Text>
-            <Text style={styles.amountValue}>₵{amount.toFixed(2)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={styles.amountBlock}>
+              <Text style={styles.amountLabel}>Total</Text>
+              <Text style={styles.amountValue}>₵{amount.toFixed(2)}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={(e) => { e.stopPropagation(); setActionOrder(item); }}
+              style={styles.menuBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Feather name="more-vertical" size={18} color="#64748B" />
+            </TouchableOpacity>
           </View>
         </View>
       </TouchableOpacity>
@@ -210,16 +240,10 @@ export default function AdminOrders() {
                 <View style={styles.heroIcons}>
                   <TouchableOpacity style={styles.topActionBubble}>
                     <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.topActionBubble}>
                     <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <View style={styles.avatarCircle}>
@@ -235,7 +259,7 @@ export default function AdminOrders() {
 
             <View style={styles.pageHead}>
               <Text style={styles.pageTitle}>Orders</Text>
-              <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
+              <Text style={styles.pageDate}>{new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
             </View>
 
             <View style={styles.listHeaderWrap}>
@@ -352,6 +376,47 @@ export default function AdminOrders() {
           </ScrollView>
         </View>
       </SafeAreaView>
+
+      {/* Status update bottom sheet */}
+      <Modal
+        visible={!!actionOrder}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActionOrder(null)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setActionOrder(null)}
+        >
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.modalTitle}>
+              Update Order {actionOrder?.order_number ? `#${actionOrder.order_number}` : ''}
+            </Text>
+            <Text style={styles.modalSubtitle}>Select new status</Text>
+            {ORDER_STATUSES.map(s => {
+              const cfg = STATUS_CONFIG[s] || STATUS_CONFIG.pending;
+              const isCurrent = (actionOrder?.status || '').toLowerCase() === s;
+              return (
+                <TouchableOpacity
+                  key={s}
+                  style={[styles.statusOption, isCurrent && styles.statusOptionCurrent]}
+                  onPress={() => handleStatusUpdate(s)}
+                  disabled={updatingStatus || isCurrent}
+                >
+                  <Ionicons name={cfg.icon} size={18} color={isCurrent ? '#FFF' : cfg.color} />
+                  <Text style={[styles.statusOptionText, isCurrent && { color: '#FFF' }]}>
+                    {s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                  </Text>
+                  {isCurrent && <Text style={styles.currentLabel}>Current</Text>}
+                </TouchableOpacity>
+              );
+            })}
+            {updatingStatus && <ActivityIndicator style={{ marginTop: 12 }} color="#0A2EA8" />}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 }
@@ -372,16 +437,16 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#FFFFFF',
   },
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#FFFFFF',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
   },
   scrollView: {
     flex: 1,
@@ -753,5 +818,72 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 48,
+  },
+  menuBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#D1D5DB',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: 4,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginBottom: 16,
+  },
+  statusOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 14,
+    marginBottom: 8,
+    backgroundColor: '#F8FAFC',
+  },
+  statusOptionCurrent: {
+    backgroundColor: '#0A2EA8',
+  },
+  statusOptionText: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#0F172A',
+  },
+  currentLabel: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Bold',
+    color: '#A3E635',
+    backgroundColor: 'rgba(163,230,53,0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
 });

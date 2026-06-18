@@ -22,7 +22,7 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F8FAFC',
+  bg:      '#FFFFFF',
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
   lime:    '#84cc16',

@@ -181,6 +181,59 @@ export default function AdminUsers() {
             </LinearGradient>
           </TouchableOpacity>
 
+          {/* ── Quick actions ─────────────────────────────────────── */}
+          <Text style={styles.sectionLabel}>Quick Actions</Text>
+
+          <View style={styles.quickRow}>
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.85}
+              onPress={() => router.push('/admin/create-user' as any)}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: '#EFF6FF' }]}>
+                <Ionicons name="person-add-outline" size={22} color="#3B82F6" />
+              </View>
+              <Text style={styles.quickTitle}>Create User</Text>
+              <Text style={styles.quickSub}>New profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.85}
+              onPress={() => router.push('/admin/approvals' as any)}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="checkmark-done-outline" size={22} color="#B45309" />
+              </View>
+              <Text style={styles.quickTitle}>Approvals</Text>
+              <Text style={styles.quickSub}>Pending review</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.85}
+              onPress={() => router.push('/admin/create-business' as any)}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: '#DCFCE7' }]}>
+                <Ionicons name="storefront-outline" size={22} color="#15803D" />
+              </View>
+              <Text style={styles.quickTitle}>New Store</Text>
+              <Text style={styles.quickSub}>Create business</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.85}
+              onPress={() => router.push('/admin/create-driver' as any)}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: '#EEF2FF' }]}>
+                <Ionicons name="car-outline" size={22} color="#0C1559" />
+              </View>
+              <Text style={styles.quickTitle}>New Driver</Text>
+              <Text style={styles.quickSub}>Driver profile</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* ── Sellers info tip ──────────────────────────────────── */}
           <View style={styles.tipCard}>
             <Ionicons name="information-circle-outline" size={18} color={adminColors.textMuted} />
@@ -501,5 +554,41 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     lineHeight: 18,
+  },
+  quickRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 8,
+  },
+  quickCard: {
+    width: '47%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: '#0B2060',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  quickIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  quickTitle: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontFamily: 'Montserrat-Bold',
+    marginBottom: 2,
+  },
+  quickSub: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontFamily: 'Montserrat-Regular',
   },
 });

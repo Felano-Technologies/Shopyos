@@ -12,9 +12,11 @@ import AppImage from '@/components/AppImage';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import Constants from 'expo-constants';
 import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
 import { adminColors } from '@/components/admin/adminTheme';
 import { getUserData } from '@/services/api';
+import { storage } from '@/services/storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function SettingItem({
@@ -82,6 +84,16 @@ export default function AdminSettings() {
       } catch {
         // Keep defaults if profile fetch fails.
       }
+      // Load persisted settings
+      const [maint, push, autoApprove] = await Promise.all([
+        storage.getItem('admin:maintenanceMode'),
+        storage.getItem('admin:pushNotifications'),
+        storage.getItem('admin:autoApproveSellers'),
+      ]);
+      if (!mounted) return;
+      if (maint !== null) setIsMaintenanceMode(maint === 'true');
+      if (push !== null) setPushNotifications(push === 'true');
+      if (autoApprove !== null) setAutoApproveSellers(autoApprove === 'true');
     })();
     return () => {
       mounted = false;
@@ -139,7 +151,10 @@ export default function AdminSettings() {
                 subLabel="Restrict user access during updates"
                 type="toggle"
                 value={isMaintenanceMode}
-                onValueChange={setIsMaintenanceMode}
+                onValueChange={async (v: boolean) => {
+                  setIsMaintenanceMode(v);
+                  await storage.setItem('admin:maintenanceMode', String(v)).catch(() => {});
+                }}
               />
               <View style={styles.divider} />
               <SettingItem
@@ -148,7 +163,10 @@ export default function AdminSettings() {
                 subLabel="Skip manual verification for trusted stores"
                 type="toggle"
                 value={autoApproveSellers}
-                onValueChange={setAutoApproveSellers}
+                onValueChange={async (v: boolean) => {
+                  setAutoApproveSellers(v);
+                  await storage.setItem('admin:autoApproveSellers', String(v)).catch(() => {});
+                }}
                 color={adminColors.green}
               />
             </AdminPanel>
@@ -175,7 +193,10 @@ export default function AdminSettings() {
                 subLabel="Keep push alerts enabled"
                 type="toggle"
                 value={pushNotifications}
-                onValueChange={setPushNotifications}
+                onValueChange={async (v: boolean) => {
+                  setPushNotifications(v);
+                  await storage.setItem('admin:pushNotifications', String(v)).catch(() => {});
+                }}
               />
             </AdminPanel>
           </View>
@@ -191,7 +212,7 @@ export default function AdminSettings() {
             <View style={styles.divider} />
             <View style={styles.versionRow}>
               <Text style={styles.versionLabel}>Shopyos Admin Version</Text>
-              <Text style={styles.versionValue}>v2.0.4-Build</Text>
+              <Text style={styles.versionValue}>{Constants.expoConfig?.version ?? '2.0.4'}</Text>
             </View>
           </AdminPanel>
 

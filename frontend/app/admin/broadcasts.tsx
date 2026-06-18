@@ -483,16 +483,10 @@ export default function AdminNotificationsScreen() {
                 <View style={styles.heroIcons}>
                   <TouchableOpacity style={styles.topActionBubble}>
                     <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.heroBadgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <TouchableOpacity style={styles.topActionBubble}>
                     <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.heroBadgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <View style={styles.avatarCircle}>
@@ -508,7 +502,7 @@ export default function AdminNotificationsScreen() {
 
             <View style={styles.pageHead}>
               <Text style={styles.pageTitle}>Broadcast</Text>
-              <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
+              <Text style={styles.pageDate}>{new Date().toLocaleDateString('en-US', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
             </View>
 
             <View style={styles.noticePanel}>
@@ -535,12 +529,12 @@ export default function AdminNotificationsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#FFFFFF',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
   },
   scrollView: {
     flex: 1,
@@ -551,7 +545,7 @@ const styles = StyleSheet.create({
   },
   heroPanel: {
     borderRadius: 36,
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 24,
     justifyContent: 'space-between',

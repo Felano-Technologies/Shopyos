@@ -292,7 +292,7 @@ export default function AdminAds() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   
   header: { paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 10, zIndex: 10 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   headerBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
   headerBadgeText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
-  controlsSection: { paddingHorizontal: 20, paddingTop: 15, zIndex: 5 },
+  controlsSection: { paddingHorizontal: 16, paddingTop: 15, zIndex: 5 },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
   searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', fontSize: 14, color: '#0F172A' },
   tabs: { flexDirection: 'row', backgroundColor: '#E2E8F0', borderRadius: 14, padding: 4, marginTop: 15 },

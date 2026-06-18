@@ -14,47 +14,47 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn(),
 }));
 
-// Mock orders and business API from lib/query/api
+// Mock orders API from lib/query/api
 jest.mock('@/lib/query/api', () => ({
   __esModule: true,
   ordersApi: {
     getAll: jest.fn(),
     getById: jest.fn(),
   },
-  businessApi: {
-    getMyBusinesses: jest.fn(),
-    getDashboard: jest.fn(),
-    getAnalytics: jest.fn(),
-    getStoreOrders: jest.fn(),
-    getStoreProducts: jest.fn(),
-  },
 }));
 
-// Mock services/api for product CRUD functions
+// Mock services/api for product CRUD and business functions
 jest.mock('../../services/api', () => ({
   __esModule: true,
   createProduct: jest.fn(),
   updateProduct: jest.fn(),
   deleteProduct: jest.fn(),
   uploadProductImages: jest.fn(),
+  getMyBusinesses: jest.fn(),
+  getBusinessDashboard: jest.fn(),
+  getBusinessAnalytics: jest.fn(),
+  getStoreOrders: jest.fn(),
+  getStoreProducts: jest.fn(),
 }));
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ordersApi, businessApi } from '@/lib/query/api';
+import { ordersApi } from '@/lib/query/api';
 import * as ServicesApi from '../../services/api';
 import {
   useOrders,
   useOrderDetail,
-  useMyBusinesses,
-  useBusinessDashboard,
-  useBusinessAnalytics,
-  useStoreOrders,
-  useStoreProducts,
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
   useUploadProductImages,
 } from '../../hooks/useOrders';
+import {
+  useMyBusinesses,
+  useBusinessDashboard,
+  useBusinessAnalytics,
+  useStoreOrders,
+  useStoreProducts,
+} from '../../hooks/useBusiness';
 import { queryKeys } from '@/lib/query/keys';
 
 describe('useOrders Hooks Unit Tests', () => {
@@ -151,14 +151,14 @@ describe('useOrders Hooks Unit Tests', () => {
       expect.objectContaining({
         queryKey: queryKeys.business.list(),
         refetchOnMount: false,
-        staleTime: 10 * 60 * 1000,
-        gcTime: 30 * 60 * 1000,
+        staleTime: 30 * 1000,
+        gcTime: 5 * 60 * 1000,
       })
     );
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(businessApi.getMyBusinesses).toHaveBeenCalled();
+    expect(ServicesApi.getMyBusinesses).toHaveBeenCalled();
     expect(result).toBeDefined();
   });
 
@@ -183,7 +183,7 @@ describe('useOrders Hooks Unit Tests', () => {
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(businessApi.getDashboard).toHaveBeenCalledWith('biz-456');
+    expect(ServicesApi.getBusinessDashboard).toHaveBeenCalledWith('biz-456');
     expect(result).toBeDefined();
   });
 
@@ -213,13 +213,13 @@ describe('useOrders Hooks Unit Tests', () => {
         queryKey: queryKeys.business.analytics('biz-456', 'month'),
         enabled: true,
         staleTime: 5 * 60 * 1000,
-        gcTime: 20 * 60 * 1000,
+        gcTime: 15 * 60 * 1000,
       })
     );
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(businessApi.getAnalytics).toHaveBeenCalledWith('biz-456', 'month');
+    expect(ServicesApi.getBusinessAnalytics).toHaveBeenCalledWith('biz-456', 'month');
     expect(result).toBeDefined();
   });
 
@@ -249,14 +249,14 @@ describe('useOrders Hooks Unit Tests', () => {
         queryKey: queryKeys.business.orders('store-789', undefined),
         enabled: true,
         refetchOnMount: true,
-        staleTime: 30 * 1000,
+        staleTime: 2 * 60 * 1000,
         gcTime: 10 * 60 * 1000,
       })
     );
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(businessApi.getStoreOrders).toHaveBeenCalledWith('store-789', { status: undefined });
+    expect(ServicesApi.getStoreOrders).toHaveBeenCalledWith('store-789', undefined);
     expect(result).toBeDefined();
   });
 
@@ -286,13 +286,13 @@ describe('useOrders Hooks Unit Tests', () => {
         queryKey: queryKeys.business.products('store-789'),
         enabled: true,
         staleTime: 5 * 60 * 1000,
-        gcTime: 20 * 60 * 1000,
+        gcTime: 15 * 60 * 1000,
       })
     );
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
     config.queryFn();
-    expect(businessApi.getStoreProducts).toHaveBeenCalledWith('store-789');
+    expect(ServicesApi.getStoreProducts).toHaveBeenCalledWith('store-789', undefined);
     expect(result).toBeDefined();
   });
 

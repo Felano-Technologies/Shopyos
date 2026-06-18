@@ -8,6 +8,7 @@ const {
   respondToReview, deleteReviewResponse
 } = require('../controllers/reviewController');
 const { protect, optionalAuth } = require('../middleware/authMiddleware');
+const { auditLog } = require('../middleware/auditMiddleware');
 const { cacheMiddleware, reviewCacheKey } = require('../middleware/cache');
 
 router.get('/product/:productId', optionalAuth, cacheMiddleware(
@@ -31,9 +32,9 @@ router.get('/:reviewId/comments', getReviewComments);
 
 router.use(protect);
 
-router.post('/product', createProductReview);
-router.post('/store', createStoreReview);
-router.post('/driver', createDriverReview);
+router.post('/product', auditLog('submit_review', 'product'), createProductReview);
+router.post('/store', auditLog('submit_review', 'store'), createStoreReview);
+router.post('/driver', auditLog('submit_review', 'driver'), createDriverReview);
 router.get('/my-reviews/:type', getMyReviews);
 router.get('/reviewable-products', getReviewableProducts);
 router.put('/product/:reviewId', updateProductReview);
