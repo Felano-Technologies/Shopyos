@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
-  Dimensions, ActivityIndicator, Modal, RefreshControl,
+  Dimensions, Modal, RefreshControl, Platform
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -16,8 +16,9 @@ import { BusinessAnalyticsSkeleton } from '@/components/skeletons/BusinessAnalyt
 import { useBusinessAnalytics, useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
+import { router } from 'expo-router';
 
-const { width: SW } = Dimensions.get('window');
+const { width: SW, height: SH } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
@@ -69,6 +70,40 @@ function measureElementInWindow(
     });
   }
 }
+
+// --- Custom 3-Color Spinner ---
+const MultiColorSpinner = () => {
+  const spinValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(spinValue, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, [spinValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  return (
+    <View style={{ width: 50, height: 50, justifyContent: 'center', alignItems: 'center' }}>
+      <Animated.View style={{ width: '100%', height: '100%', transform: [{ rotate: spin }] }}>
+        <LinearGradient
+          colors={['#1e3a8a', '#84cc16', '#111827']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{ flex: 1, borderRadius: 25 }}
+        />
+      </Animated.View>
+      <View style={{ position: 'absolute', width: 40, height: 40, borderRadius: 20, backgroundColor: C.bg }} />
+    </View>
+  );
+};
 
 const Analytics = () => {
   const insets = useSafeAreaInsets();
@@ -130,7 +165,14 @@ const Analytics = () => {
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
 
   if (isChecking || !isVerified) {
-    return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
+    return (
+      <View style={S.centred}>
+        <MultiColorSpinner />
+        <Text style={{ marginTop: 16, color: '#64748B', fontFamily: 'Montserrat-Medium' }}>
+          Loading Analytics...
+        </Text>
+      </View>
+    );
   }
 
   const onboardingSteps = [
@@ -193,29 +235,9 @@ const Analytics = () => {
     <View style={S.root}>
       <StatusBar style="light" />
 
-      <View style={S.watermark}>
-        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
-      </View>
-
-      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
-        <Animated.ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[S.scroll, { paddingBottom: rs(100) + insets.bottom }]}
-          onScroll={Animated.event(
-            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            { useNativeDriver: true }
-          )}
-          scrollEventThrottle={16}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={onRefresh}
-              tintColor={C.navy}
-              colors={[C.navy]}
-            />
-          }
-        >
-          {/* ── Header ─────────────────────────────────────────────────── */}
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
+        {/* ── STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 100) ── */}
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 100 }}>
           <LinearGradient
             colors={[C.navy, C.navyMid]}
             style={[S.header, { paddingTop: insets.top + rs(16) }]}
@@ -264,159 +286,196 @@ const Analytics = () => {
             <Text style={S.hdrSub}>Overview & Performance</Text>
             <View style={S.hdrArc} />
           </LinearGradient>
+        </View>
 
-          {/* ── Body ───────────────────────────────────────────────────── */}
-          <View style={S.body}>
-
-            {/* Timeframe toggle */}
-            <View style={S.toggleRow} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
-              {(['week', 'month', 'year'] as const).map((p) => {
-                const on = timeframe === p;
-                return (
-                  <TouchableOpacity
-                    key={p}
-                    style={[S.toggleBtn, on && S.toggleBtnOn]}
-                    onPress={() => setTimeframe(p)}
-                  >
-                    <Text style={[S.toggleTxt, on && S.toggleTxtOn]}>
-                      {getTimeframeLabel(p)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+        {/* ── SCROLLVIEW ON TOP (zIndex 10) ── */}
+        <Animated.ScrollView
+          showsVerticalScrollIndicator={false}
+          style={{ zIndex: 10 }}
+          contentContainerStyle={[
+            S.scroll, 
+            { 
+              paddingTop: Platform.OS === 'android' ? 240 : 0, 
+              paddingBottom: rs(100) + insets.bottom 
+            }
+          ]}
+          contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }} 
+          contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -240 : 0 }}
+          onScroll={Animated.event(
+            [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+            { useNativeDriver: true }
+          )}
+          scrollEventThrottle={16}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefetching}
+              onRefresh={onRefresh}
+              tintColor="#84cc16" // iOS fallback
+              colors={['#1e3a8a', '#84cc16', '#111827']} // Android colors
+              progressViewOffset={250} // Android offset
+            />
+          }
+        >
+          {/* Solid body that gracefully covers the background when scrolling */}
+          <View style={S.scrollBody}>
+            {/* Background Watermark properly inside the scrolling area */}
+            <View style={S.watermark} pointerEvents="none">
+              <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
             </View>
 
-            {/* Revenue chart */}
-            <Text style={S.secTitle}>Revenue Trend</Text>
-            <View style={S.card} ref={refTrend} onLayout={() => measureElement(refTrend, 'trend')}>
-              {hasChart ? (
-                <LineChart
-                  data={{
-                    labels:   analytics.chart.labels,
-                    datasets: analytics.chart.datasets,
-                  }}
-                  width={SW - rs(48)}
-                  height={220}
-                  chartConfig={chartConfig}
-                  bezier
-                  style={{ borderRadius: rs(16) }}
-                  withInnerLines
-                  withOuterLines={false}
-                  withVerticalLines={false}
-                  yAxisLabel="₵"
-                  yAxisSuffix="k"
-                  yAxisInterval={1}
-                />
+            {/* ── Body ───────────────────────────────────────────────────── */}
+            <View style={S.body}>
+
+              {/* Timeframe toggle */}
+              <View style={S.toggleRow} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
+                {(['week', 'month', 'year'] as const).map((p) => {
+                  const on = timeframe === p;
+                  return (
+                    <TouchableOpacity
+                      key={p}
+                      style={[S.toggleBtn, on && S.toggleBtnOn]}
+                      onPress={() => setTimeframe(p)}
+                    >
+                      <Text style={[S.toggleTxt, on && S.toggleTxtOn]}>
+                        {getTimeframeLabel(p)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Revenue chart */}
+              <Text style={S.secTitle}>Revenue Trend</Text>
+              <View style={S.card} ref={refTrend} onLayout={() => measureElement(refTrend, 'trend')}>
+                {hasChart ? (
+                  <LineChart
+                    data={{
+                      labels:   analytics.chart.labels,
+                      datasets: analytics.chart.datasets,
+                    }}
+                    width={SW - rs(48)}
+                    height={220}
+                    chartConfig={chartConfig}
+                    bezier
+                    style={{ borderRadius: rs(16) }}
+                    withInnerLines
+                    withOuterLines={false}
+                    withVerticalLines={false}
+                    yAxisLabel="₵"
+                    yAxisSuffix="k"
+                    yAxisInterval={1}
+                  />
+                ) : (
+                  <View style={S.emptyChart}>
+                    <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color="#CBD5E1" />
+                    <Text style={S.emptyTxt}>No revenue data for this period</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Stats grid */}
+              <View style={S.statsGrid} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
+                <View style={S.statCard}>
+                  <View style={[S.iconBox, { backgroundColor: '#DCFCE7' }]}>
+                    <Ionicons name="cash" size={rs(20)} color="#15803D" />
+                  </View>
+                  <Text style={S.statLbl}>Revenue</Text>
+                  <Text style={S.statVal}>₵{analytics.stats.revenue.toLocaleString()}</Text>
+                  <View style={S.growthRow}>
+                    <Feather
+                      name={analytics.stats.growth >= 0 ? 'trending-up' : 'trending-down'}
+                      size={rs(13)}
+                      color={analytics.stats.growth >= 0 ? '#15803D' : '#EF4444'}
+                    />
+                    <Text style={[S.growthTxt, { color: analytics.stats.growth >= 0 ? '#15803D' : '#EF4444' }]}>
+                      {Math.abs(analytics.stats.growth)}%
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={S.statCard}>
+                  <View style={[S.iconBox, { backgroundColor: '#FEF3C7' }]}>
+                    <MaterialCommunityIcons name="timer-sand" size={rs(20)} color="#B45309" />
+                  </View>
+                  <Text style={S.statLbl}>In Escrow</Text>
+                  <Text style={S.statVal}>₵{analytics.stats.pending.toLocaleString()}</Text>
+                  <Text style={S.statSubTxt}>Awaiting release</Text>
+                </View>
+
+                <View style={S.statCard}>
+                  <View style={[S.iconBox, { backgroundColor: '#DBEAFE' }]}>
+                    <Ionicons name="cart" size={rs(20)} color="#1E40AF" />
+                  </View>
+                  <Text style={S.statLbl}>Orders</Text>
+                  <Text style={S.statVal}>{analytics.stats.orders}</Text>
+                  <Text style={S.statSubTxt}>Total orders</Text>
+                </View>
+              </View>
+
+              {/* Category breakdown */}
+              {hasPie && (
+                <>
+                  <Text style={S.secTitle}>Category Breakdown</Text>
+                  <View style={S.card}>
+                    <PieChart
+                      data={analytics.categoryDistribution}
+                      width={SW - rs(48)}
+                      height={200}
+                      chartConfig={chartConfig}
+                      accessor="sales"
+                      backgroundColor="transparent"
+                      paddingLeft="15"
+                      absolute
+                    />
+                  </View>
+                </>
+              )}
+
+              {/* Top products */}
+              <Text style={S.secTitle}>Top Products</Text>
+              {analytics.topProducts.length > 0 ? (
+                analytics.topProducts.map((p: any, i: number) => (
+                  <View
+                    key={p.name ?? i}
+                    style={S.productCard}
+                    ref={i === 0 ? refTopProducts : undefined}
+                    onLayout={i === 0 ? () => measureElement(refTopProducts, 'products') : undefined}
+                  >
+                    <View style={[S.rankBadge, { backgroundColor: getRankBadgeColor(i, C.navy) }]}>
+                      <Text style={S.rankTxt}>{i + 1}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: rs(12) }}>
+                      <Text style={S.productName} numberOfLines={1}>{p.name}</Text>
+                      <Text style={S.productSales}>{p.sales} items sold</Text>
+                    </View>
+                    <Text style={S.productRev}>₵{p.revenue.toLocaleString()}</Text>
+                  </View>
+                ))
               ) : (
-                <View style={S.emptyChart}>
-                  <MaterialCommunityIcons name="chart-line-variant" size={rs(40)} color="#CBD5E1" />
-                  <Text style={S.emptyTxt}>No revenue data for this period</Text>
+                <View style={S.emptyList}>
+                  <MaterialCommunityIcons name="chart-bar" size={rs(32)} color="#CBD5E1" />
+                  <Text style={S.emptyTxt}>No top products yet</Text>
                 </View>
               )}
-            </View>
 
-            {/* Stats grid */}
-            <View style={S.statsGrid} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
-              <View style={S.statCard}>
-                <View style={[S.iconBox, { backgroundColor: '#DCFCE7' }]}>
-                  <Ionicons name="cash" size={rs(20)} color="#15803D" />
-                </View>
-                <Text style={S.statLbl}>Revenue</Text>
-                <Text style={S.statVal}>₵{analytics.stats.revenue.toLocaleString()}</Text>
-                <View style={S.growthRow}>
-                  <Feather
-                    name={analytics.stats.growth >= 0 ? 'trending-up' : 'trending-down'}
-                    size={rs(13)}
-                    color={analytics.stats.growth >= 0 ? '#15803D' : '#EF4444'}
-                  />
-                  <Text style={[S.growthTxt, { color: analytics.stats.growth >= 0 ? '#15803D' : '#EF4444' }]}>
-                    {Math.abs(analytics.stats.growth)}%
+              {/* Performance banner */}
+              <LinearGradient colors={[C.navy, C.navyMid]} style={S.scoreBanner}>
+                <View style={{ flex: 1, marginRight: rs(12) }}>
+                  <Text style={S.scoreTitle}>Performance Score</Text>
+                  <Text style={S.scoreDesc}>
+                    {analytics.stats.growth > 0
+                      ? "You're growing fast! Keep it up."
+                      : 'Steady progress. Try adding new items.'}
                   </Text>
                 </View>
-              </View>
-
-              <View style={S.statCard}>
-                <View style={[S.iconBox, { backgroundColor: '#FEF3C7' }]}>
-                  <MaterialCommunityIcons name="timer-sand" size={rs(20)} color="#B45309" />
+                <View style={S.scoreCircle}>
+                  <Text style={S.scoreNum}>
+                    {analytics.stats.orders > 0 ? '9.2' : '—'}
+                  </Text>
                 </View>
-                <Text style={S.statLbl}>In Escrow</Text>
-                <Text style={S.statVal}>₵{analytics.stats.pending.toLocaleString()}</Text>
-                <Text style={S.statSubTxt}>Awaiting release</Text>
-              </View>
+              </LinearGradient>
 
-              <View style={S.statCard}>
-                <View style={[S.iconBox, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="cart" size={rs(20)} color="#1E40AF" />
-                </View>
-                <Text style={S.statLbl}>Orders</Text>
-                <Text style={S.statVal}>{analytics.stats.orders}</Text>
-                <Text style={S.statSubTxt}>Total orders</Text>
-              </View>
             </View>
-
-            {/* Category breakdown */}
-            {hasPie && (
-              <>
-                <Text style={S.secTitle}>Category Breakdown</Text>
-                <View style={S.card}>
-                  <PieChart
-                    data={analytics.categoryDistribution}
-                    width={SW - rs(48)}
-                    height={200}
-                    chartConfig={chartConfig}
-                    accessor="sales"
-                    backgroundColor="transparent"
-                    paddingLeft="15"
-                    absolute
-                  />
-                </View>
-              </>
-            )}
-
-            {/* Top products */}
-            <Text style={S.secTitle}>Top Products</Text>
-            {analytics.topProducts.length > 0 ? (
-              analytics.topProducts.map((p: any, i: number) => (
-                <View
-                  key={p.name ?? i}
-                  style={S.productCard}
-                  ref={i === 0 ? refTopProducts : undefined}
-                  onLayout={i === 0 ? () => measureElement(refTopProducts, 'products') : undefined}
-                >
-                  <View style={[S.rankBadge, { backgroundColor: getRankBadgeColor(i, C.navy) }]}>
-                    <Text style={S.rankTxt}>{i + 1}</Text>
-                  </View>
-                  <View style={{ flex: 1, marginLeft: rs(12) }}>
-                    <Text style={S.productName} numberOfLines={1}>{p.name}</Text>
-                    <Text style={S.productSales}>{p.sales} items sold</Text>
-                  </View>
-                  <Text style={S.productRev}>₵{p.revenue.toLocaleString()}</Text>
-                </View>
-              ))
-            ) : (
-              <View style={S.emptyList}>
-                <MaterialCommunityIcons name="chart-bar" size={rs(32)} color="#CBD5E1" />
-                <Text style={S.emptyTxt}>No top products yet</Text>
-              </View>
-            )}
-
-            {/* Performance banner */}
-            <LinearGradient colors={[C.navy, C.navyMid]} style={S.scoreBanner}>
-              <View style={{ flex: 1, marginRight: rs(12) }}>
-                <Text style={S.scoreTitle}>Performance Score</Text>
-                <Text style={S.scoreDesc}>
-                  {analytics.stats.growth > 0
-                    ? "You're growing fast! Keep it up."
-                    : 'Steady progress. Try adding new items.'}
-                </Text>
-              </View>
-              <View style={S.scoreCircle}>
-                <Text style={S.scoreNum}>
-                  {analytics.stats.orders > 0 ? '9.2' : '—'}
-                </Text>
-              </View>
-            </LinearGradient>
-
           </View>
         </Animated.ScrollView>
 
@@ -493,14 +552,6 @@ const Analytics = () => {
           onComplete={handleOnboardingComplete}
         />
       </SafeAreaView>
-
-      {isRefetching && (
-        <View style={S.refreshOverlay}>
-          <View style={S.refreshCircle}>
-            <ActivityIndicator size="small" color={C.navy} />
-          </View>
-        </View>
-      )}
     </View>
   );
 };
@@ -510,7 +561,8 @@ const S = StyleSheet.create({
   root:    { flex: 1, backgroundColor: C.bg },
   centred: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: C.bg },
 
-  watermark:    { position: 'absolute', bottom: 20, left: -20 },
+  scrollBody: { flex: 1, backgroundColor: C.bg, minHeight: SH },
+  watermark:    { position: 'absolute', bottom: 60, left: -20 },
   watermarkImg: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   scroll: { flexGrow: 1 },
 
@@ -626,19 +678,6 @@ const S = StyleSheet.create({
     borderWidth: 2, borderColor: C.lime,
   },
   scoreNum: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#fff' },
-
-  // Refresh overlay
-  refreshOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(241,245,249,0.4)',
-    justifyContent: 'center', alignItems: 'center', zIndex: 999,
-  },
-  refreshCircle: {
-    width: rs(50), height: rs(50), borderRadius: rs(25),
-    backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center',
-    elevation: 5, shadowColor: '#000',
-    shadowOffset: { width: 0, height: rs(4) }, shadowOpacity: 0.1, shadowRadius: rs(10),
-  },
 
   // Store Selector Pill
   storeSelectorPill: {

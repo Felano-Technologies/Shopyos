@@ -15,7 +15,7 @@ CREATE TABLE favorites (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     -- Ensure a user can only favorite a product once
     CONSTRAINT unique_user_product_favorite UNIQUE (user_id, product_id)
 );

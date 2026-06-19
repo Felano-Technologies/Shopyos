@@ -3,6 +3,7 @@ const router = express.Router();
 const snapController = require('../controllers/snapController');
 const { protect, hasAnyRole } = require('../middleware/authMiddleware');
 const { requireStore } = require('../middleware/businessMiddleware');
+const { auditLog } = require('../middleware/auditMiddleware');
 
 // Public route for viewing snap feed
 router.get('/feed', snapController.getSnapFeed);
@@ -15,7 +16,7 @@ router.use(protect);
 router.use(hasAnyRole(['seller']));
 router.use(requireStore);
 
-router.post('/', snapController.createSnap);
-router.delete('/:id', snapController.deleteSnap);
+router.post('/', auditLog('create_snap', 'snap'), snapController.createSnap);
+router.delete('/:id', auditLog('delete_snap', 'snap'), snapController.deleteSnap);
 
 module.exports = router;

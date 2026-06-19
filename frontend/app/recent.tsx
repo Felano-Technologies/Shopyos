@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,7 @@ interface RecentProduct {
 
 export default function RecentScreen() {
   const router = useRouter();
-  const { addToCart } = useCart();
+  const addToCart = useCart((s) => s.addToCart);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeSort, setActiveSort] = useState('newest');
@@ -74,7 +74,7 @@ export default function RecentScreen() {
 
   const loading = isLoading;
 
-  const handleProductPress = (item: RecentProduct) => {
+  const handleProductPress = useCallback((item: RecentProduct) => {
     router.push({
       pathname: '/product/details',
       params: {
@@ -85,10 +85,9 @@ export default function RecentScreen() {
         image: typeof item.image === 'string' ? item.image : item.image.uri
       }
     });
-  };
+  }, [router]);
 
-  // --- Custom Toast Function ---
-  const showToast = (message: string) => {
+  const showToast = useCallback((message: string) => {
     setToastMessage(message);
     setToastVisible(true);
 
@@ -103,9 +102,9 @@ export default function RecentScreen() {
         Animated.timing(slideAnim, { toValue: 50, duration: 300, useNativeDriver: true }),
       ]).start(() => setToastVisible(false));
     }, 2000);
-  };
+  }, [fadeAnim, slideAnim]);
 
-  const handleAddToCart = (item: RecentProduct) => {
+  const handleAddToCart = useCallback((item: RecentProduct) => {
     addToCart({
       id: item.id,
       title: item.title,
@@ -115,7 +114,7 @@ export default function RecentScreen() {
       storeId: item.storeId
     });
     showToast(`${item.title} added to cart!`);
-  };
+  }, [addToCart, showToast]);
 
   const applySort = (type: string) => {
     setActiveSort(type);
@@ -131,7 +130,7 @@ export default function RecentScreen() {
     }
   };
 
-  const renderItem = ({ item }: { item: RecentProduct }) => (
+  const renderItem = useCallback(({ item }: { item: RecentProduct }) => (
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.9}
@@ -169,7 +168,7 @@ export default function RecentScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [handleAddToCart, handleProductPress]);
 
   return (
     <View style={styles.container}>
@@ -227,6 +226,10 @@ export default function RecentScreen() {
           contentContainerStyle={styles.listContainer}
           columnWrapperStyle={styles.columnWrapper}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={10}
+          removeClippedSubviews
           renderItem={renderItem}
           refreshing={refreshing}
           onRefresh={onRefresh}

@@ -25,6 +25,7 @@ const {
 } = require('../controllers/driverController');
 const upload = require('../middleware/upload');
 const { protect, driver, hasAnyRole } = require('../middleware/authMiddleware');
+const { auditLog } = require('../middleware/auditMiddleware');
 
 const driverUploadFields = upload.fields([
   { name: 'idCard', maxCount: 1 },
@@ -80,7 +81,7 @@ router.put('/:deliveryId/assign', driver, assignDriver);
 // @route   PUT /api/deliveries/:deliveryId/status
 // @desc    Update delivery status
 // @access  Private (Driver)
-router.put('/:deliveryId/status', driver, updateDeliveryStatus);
+router.put('/:deliveryId/status', driver, auditLog('update_delivery_status', 'delivery'), updateDeliveryStatus);
 
 // @route   POST /api/deliveries/:deliveryId/verify-pin
 // @desc    Verify delivery PIN and release funds

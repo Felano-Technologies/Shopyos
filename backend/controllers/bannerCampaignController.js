@@ -133,6 +133,66 @@ exports.getActiveBanners = async (req, res, next) => {
   }
 };
 
+/**
+ * Admin-created campaign — skips Paystack, sets Active immediately
+ * @route   POST /api/advertising/banners/admin-create
+ */
+exports.adminCreateCampaign = async (req, res, next) => {
+  try {
+    const { storeId, title, duration } = req.body;
+    if (!storeId || !title || !duration) {
+      return res.status(400).json({ error: 'storeId, title and duration are required' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'Banner image is required' });
+    }
+
+    const durationDays = Number.parseInt(duration);
+    const totalCost = calcCost(durationDays);
+    const placement = PLACEMENTS[Math.floor(Math.random() * PLACEMENTS.length)];
+    const start = new Date();
+    const end = new Date();
+    end.setDate(start.getDate() + durationDays);
+
+    const uploadResult = await uploadFileToCloudinary(req.file, 'shopyos/banner-campaigns');
+
+    const campaign = await repositories.bannerCampaigns.createCampaign({
+      store_id: storeId,
+      title,
+      placement,
+      duration_days: durationDays,
+      paid_amount: totalCost,
+      status: 'Active',
+      banner_url: uploadResult.url,
+      admin_created: true,
+      start_date: start.toISOString(),
+      end_date: end.toISOString(),
+    });
+
+    // Notify store owner
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+    const { rows } = await db.query(`SELECT owner_id FROM stores WHERE id = $1`, [storeId]);
+    if (rows[0]) {
+      const notificationService = require('../services/notificationService');
+      await notificationService.sendNotification({
+        userId: rows[0].owner_id,
+        type: 'business_approved',
+        title: 'Campaign Created',
+        message: `An admin created a banner campaign "${title}" for your store. It is now live.`,
+        relatedId: campaign.id,
+        relatedType: 'campaign',
+        data: { campaignId: campaign.id, storeId },
+        push: { data: { screen: 'business/promotions' } },
+      }).catch(() => {});
+    }
+
+    res.status(201).json({ success: true, campaign: formatBanners(campaign) });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const axios = require('axios');
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';

@@ -16,6 +16,7 @@ validateEnv();
 const { logger, httpLogMiddleware } = require('./config/logger');
 const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } = require('./config/redis');
 const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
+const { maintenanceMode } = require('./middleware/maintenanceMode');
 const { register } = require('./config/metrics');
 const { initializeSocketBridge } = require('./config/socketBridge');
 const { getPool } = require('./config/postgres');
@@ -203,6 +204,8 @@ app.use('/api/v1/upload', uploadLimiter);
 app.use('/api/v1/orders/create', orderLimiter);
 app.use('/api/v1/messaging', messageLimiter);
 app.use('/api', apiLimiter);
+
+app.use(maintenanceMode);
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/business', businessRoutes);

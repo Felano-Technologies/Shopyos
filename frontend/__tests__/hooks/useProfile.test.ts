@@ -6,6 +6,31 @@
  * Conforms to guidelines/test.md.
  */
 
+// Mock useEffect — useProfile calls it outside a React component context in these unit tests
+jest.mock('react', () => ({
+  ...jest.requireActual('react'),
+  useEffect: jest.fn(),
+}));
+
+// Mock expo-secure-store — no native module available in Jest
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: jest.fn().mockResolvedValue(null),
+  setItemAsync: jest.fn().mockResolvedValue(undefined),
+  deleteItemAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+// Mock auth store — Zustand hooks require a React context; this avoids that
+jest.mock('@/store/authStore', () => ({
+  useAuthStore: jest.fn((selector: (s: { isAuthenticated: boolean }) => unknown) =>
+    selector({ isAuthenticated: true })
+  ),
+}));
+
+// Mock AsyncStorage native module
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 // Mock TanStack React Query hooks
 jest.mock('@tanstack/react-query', () => ({
   __esModule: true,

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect, seller: isSeller, admin: isAdmin } = require('../middleware/authMiddleware');
+const { auditLog } = require('../middleware/auditMiddleware');
 const {
   createReturnRequest,
   getBuyerReturns,
@@ -11,7 +12,7 @@ const {
 } = require('../controllers/returnController');
 
 // Buyer
-router.post('/', protect, createReturnRequest);
+router.post('/', protect, auditLog('request_return', 'order'), createReturnRequest);
 router.get('/my', protect, getBuyerReturns);
 
 // Seller

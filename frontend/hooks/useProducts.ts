@@ -9,11 +9,14 @@
 import { useQuery, useInfiniteQuery, keepPreviousData, UseQueryOptions } from '@tanstack/react-query';
 import { productsApi, Product } from '../lib/query/api';
 import { queryKeys, ProductFilters } from '../lib/query/keys';
+import { useAuthStore } from '../store/authStore';
 
 export const useProducts = (filters?: ProductFilters, limit = 20) => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useQuery({
     queryKey: queryKeys.products.list(filters),
     queryFn: () => productsApi.search(undefined, filters, limit, 0),
+    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
@@ -21,6 +24,7 @@ export const useProducts = (filters?: ProductFilters, limit = 20) => {
 };
 
 export const useInfiniteProducts = (filters?: ProductFilters, limit = 20) => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   return useInfiniteQuery({
     queryKey: queryKeys.products.infinite(filters),
     queryFn: ({ pageParam = 0 }) =>
@@ -32,6 +36,7 @@ export const useInfiniteProducts = (filters?: ProductFilters, limit = 20) => {
       return allPages.length * limit;
     },
     initialPageParam: 0,
+    enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,

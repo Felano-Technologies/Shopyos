@@ -141,7 +141,8 @@ export default function Home() {
 
   // ── Remote data ───────────────────────────────────────────────────────────────
   const { data: unreadCount = 0 } = useBuyerUnreadCount();
-  const { items: cartItems, addToCart } = useCart();
+  const cartItems = useCart((s) => s.items);
+  const addToCart = useCart((s) => s.addToCart);
   const cartCount = cartItems.reduce((sum: number, item: any) => sum + item.quantity, 0);
   const { data: favoriteProducts = [] } = useFavorites();
   const addFavoriteMutation = useAddFavorite();
@@ -549,12 +550,12 @@ const refChat = useRef<View>(null);
         >
           <LinearGradient colors={[C.navy, C.navyMid]} style={S.chatFabGrad}>
             <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />
-            {unreadCount > 0 && (
-              <View style={S.chatFabBadge}>
-                <Text style={S.chatFabBadgeTxt}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
-              </View>
-            )}
           </LinearGradient>
+          {unreadCount > 0 && (
+            <View style={S.chatFabBadge}>
+              <Text style={S.chatFabBadgeTxt}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
 
         <BottomNav />
@@ -633,11 +634,11 @@ const S = StyleSheet.create({
 
   // Chat FAB
   chatFab: {
-    position: 'absolute', bottom: 140, right: 18,
+    position: 'absolute', bottom: 130, right: 18,
     width: 58, height: 58, borderRadius: 29,
     elevation: 8, shadowColor: C.navy,
     shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
-    zIndex: 100,
+    zIndex: 100, overflow: 'visible',
   },
   chatFabGrad: {
     width: '100%', height: '100%', borderRadius: 29,

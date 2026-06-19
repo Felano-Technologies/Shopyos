@@ -21,19 +21,19 @@ export const storage = {
   },
 };
 
-const USER_CACHE_KEY = 'cachedUserProfile';
+const PROFILE_SECURE_KEY = 'secure_user_profile';
 
-export async function cacheUserProfile(user: any): Promise<void> {
-  await storage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+export async function cacheUserProfile(user: unknown): Promise<void> {
+  await secureStorage.setItem(PROFILE_SECURE_KEY, JSON.stringify(user));
 }
 
 export async function getCachedUserProfile(): Promise<object | null> {
-  const raw = await storage.getItem(USER_CACHE_KEY);
+  const raw = await secureStorage.getItem(PROFILE_SECURE_KEY);
   return raw ? JSON.parse(raw) : null;
 }
 
 export async function clearUserProfileCache(): Promise<void> {
-  await storage.removeItem(USER_CACHE_KEY);
+  await secureStorage.removeItem(PROFILE_SECURE_KEY);
 }
 
 /**

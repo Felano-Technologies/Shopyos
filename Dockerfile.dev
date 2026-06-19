@@ -1,0 +1,16 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install all dependencies including dev (nodemon, etc.)
+COPY backend/package*.json ./
+RUN npm ci
+
+COPY backend/ ./backend/
+COPY socket/src/ ./socket/src/
+
+WORKDIR /app/backend
+
+EXPOSE 5000
+
+CMD ["sh", "-c", "npm run migrate:apply && npm run dev"]

@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
+import { businessApi } from '@/lib/query/api';
 import * as ApiService from '@/services/api';
 
 export const useMyBusinesses = (params?: { limit?: number; offset?: number }) => {
   return useQuery({
     queryKey: queryKeys.business.list(),
-    queryFn: async () => {
-      const response = await ApiService.getMyBusinesses(params);
-      return response;
-    },
-    staleTime: 30 * 1000, // 30 seconds - allow for quick updates after registration
+    queryFn: () => ApiService.getMyBusinesses(params),
+    refetchOnMount: false,
+    staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 };
@@ -18,12 +17,10 @@ export const useMyBusinesses = (params?: { limit?: number; offset?: number }) =>
 export const useBusinessDashboard = (businessId: string) => {
   return useQuery({
     queryKey: queryKeys.business.dashboard(businessId),
-    queryFn: async () => {
-      const response = await ApiService.getBusinessDashboard(businessId);
-      return response;
-    },
+    queryFn: () => ApiService.getBusinessDashboard(businessId),
     enabled: !!businessId,
-    staleTime: 2 * 60 * 1000, // 2 minutes - dashboard data should be fresh
+    refetchOnMount: true,
+    staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 };
@@ -34,12 +31,9 @@ export const useBusinessAnalytics = (
 ) => {
   return useQuery({
     queryKey: queryKeys.business.analytics(businessId, timeframe),
-    queryFn: async () => {
-      const response = await ApiService.getBusinessAnalytics(businessId, timeframe);
-      return response;
-    },
+    queryFn: () => ApiService.getBusinessAnalytics(businessId, timeframe),
     enabled: !!businessId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
 };
@@ -50,12 +44,10 @@ export const useStoreOrders = (
 ) => {
   return useQuery({
     queryKey: queryKeys.business.orders(storeId, params?.status),
-    queryFn: async () => {
-      const response = await ApiService.getStoreOrders(storeId, params);
-      return response;
-    },
+    queryFn: () => ApiService.getStoreOrders(storeId, params?.status),
     enabled: !!storeId,
-    staleTime: 2 * 60 * 1000, // 2 minutes - orders should be fresh
+    refetchOnMount: true,
+    staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 };
@@ -63,12 +55,9 @@ export const useStoreOrders = (
 export const useStoreProducts = (storeId: string, params?: any) => {
   return useQuery({
     queryKey: queryKeys.business.products(storeId),
-    queryFn: async () => {
-      const response = await ApiService.getStoreProducts(storeId, params);
-      return response;
-    },
+    queryFn: () => ApiService.getStoreProducts(storeId, params),
     enabled: !!storeId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
   });
 };

@@ -14,21 +14,19 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAdminDashboard } from '@/services/api';
+import { getAdminOrders, getAdminStores } from '@/services/admin';
+import { useAdminBreakpoint } from '@/components/admin/adminTheme';
 
-function getStatusStyle(statusStyle: string) {
-  if (statusStyle === 'paid') return styles.statusPaid;
-  if (statusStyle === 'shipped') return styles.statusShipped;
-  return styles.statusPending;
-}
-
-const FALLBACK_TRANSACTIONS = [
-  { name: 'Kofi Mensah',  date: '2026-04-20T08:00:00.000Z', type: 'paid',    status: 'Paid',    statusStyle: 'paid'    },
-  { name: 'Ama Owusu',    date: '2026-04-21T14:00:00.000Z', type: 'shipped', status: 'Shipped', statusStyle: 'shipped' },
-  { name: 'Ama Owusu',    date: '2026-04-23T18:30:00.000Z', type: 'pending', status: 'Pending', statusStyle: 'pending' },
-];
+const STATUS_PILL: Record<string, { bg: string; text: string }> = {
+  delivered:  { bg: '#DCFCE7', text: '#16A34A' },
+  processing: { bg: '#DBEAFE', text: '#2563EB' },
+  pending:    { bg: '#FEF3C7', text: '#D97706' },
+  cancelled:  { bg: '#FEE2E2', text: '#DC2626' },
+};
 
 type DashboardStats = {
   totalUsers: number;
+  totalBuyers: number;
   totalStores: number;
   totalOrders: number;
   totalRevenue: number;
@@ -38,13 +36,14 @@ type DashboardStats = {
   pendingDriverVerifications: number;
 };
 
-
 export default function AdminDashboard() {
   const router = useRouter();
+  const { isDesktop } = useAdminBreakpoint();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
+    totalBuyers: 0,
     totalStores: 0,
     totalOrders: 0,
     totalRevenue: 0,
@@ -53,13 +52,26 @@ export default function AdminDashboard() {
     usersGrowth: 0,
     pendingDriverVerifications: 0,
   });
+  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [topStores, setTopStores] = useState<any[]>([]);
+
   const loadData = useCallback(async () => {
     try {
       const dashRes = await getAdminDashboard();
 
       if (dashRes?.success && dashRes.stats) {
-        setStats(dashRes.stats);
+        setStats(prev => ({ ...prev, ...dashRes.stats }));
       }
+      try {
+        const [ordersRes, storesRes] = await Promise.all([
+          getAdminOrders({ limit: '5', sortBy: 'created_at', sortDir: 'desc' }),
+          getAdminStores({ limit: '3', sortBy: 'total_revenue', sortDir: 'desc' }),
+        ]);
+        const ordersArr = Array.isArray(ordersRes?.orders) ? ordersRes.orders : Array.isArray(ordersRes) ? ordersRes : [];
+        const storesArr = Array.isArray(storesRes?.stores) ? storesRes.stores : Array.isArray(storesRes) ? storesRes : [];
+        setRecentOrders(ordersArr.slice(0, 5));
+        setTopStores(storesArr.slice(0, 3));
+      } catch { /* non-critical */ }
     } catch (error) {
       console.error('Failed to load admin dashboard', error);
     } finally {
@@ -72,56 +84,62 @@ export default function AdminDashboard() {
     loadData();
   }, [loadData]);
 
-  // ── Metric cards (2-column grid) ───────────────────────────────────────────
+  // ── Metric cards ────────────────────────────────────────────────────────────
   const metricCards = useMemo(
     () => [
       {
         label: 'Revenue',
         value: formatCurrency(stats.totalRevenue),
-        subValue: '+4.04%',
-        subPositive: true,
         route: '/admin/revenue',
         icon: 'wallet-outline',
+        iconBg: '#DCFCE7',
+        iconColor: '#16A34A',
+        accentColor: '#16A34A',
       },
       {
         label: 'Orders',
-        value: stats.totalOrders.toLocaleString(),
-        subValue: '+3.76%',
-        subPositive: true,
+        value: (stats.totalOrders ?? 0).toLocaleString(),
         route: '/admin/orders',
         icon: 'cart-outline',
+        iconBg: '#DBEAFE',
+        iconColor: '#2563EB',
+        accentColor: '#2563EB',
       },
       {
-        label: 'Customers',
-        value: stats.totalUsers.toLocaleString(),
-        subValue: '+4.04%',
-        subPositive: true,
+        label: 'Buyers',
+        value: (stats.totalBuyers ?? 0).toLocaleString(),
         route: '/admin/users',
         icon: 'people-outline',
+        iconBg: '#EDE9FE',
+        iconColor: '#7C3AED',
+        accentColor: '#7C3AED',
       },
       {
-        label: 'Conversion',
-        value: '3.2%',
-        subValue: '-2.00%',
-        subPositive: false,
-        route: '/admin/orders',
-        icon: 'eye-outline',
+        label: 'Stores',
+        value: (stats.totalStores ?? 0).toLocaleString(),
+        route: '/admin/stores',
+        icon: 'storefront-outline',
+        iconBg: '#FEF3C7',
+        iconColor: '#D97706',
+        accentColor: '#D97706',
       },
       {
-        label: 'Driver Verification',
-        value: `${stats.pendingDriverVerifications ?? 0} pending reviews`,
-        subValue: '',
-        subPositive: true,
+        label: 'Driver Verif.',
+        value: String(stats.pendingDriverVerifications ?? 0),
         route: '/admin/driverVerifications',
         icon: 'car-outline',
+        iconBg: '#F1F5F9',
+        iconColor: '#475569',
+        accentColor: '#475569',
       },
       {
-        label: 'Ads Approval',
-        value: 'Review active campaigns',
-        subValue: '',
-        subPositive: true,
+        label: 'Ads',
+        value: 'Review',
         route: '/admin/ads',
         icon: 'image-outline',
+        iconBg: '#CFFAFE',
+        iconColor: '#0891B2',
+        accentColor: '#0891B2',
       },
     ],
     [stats],
@@ -139,595 +157,252 @@ export default function AdminDashboard() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.canvas}>
-          <ScrollView
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.screen}
-          >
-          {/* ── HERO PANEL ───────────────────────────────────────────────── */}
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.screen}>
+
+          {/* HERO */}
           <LinearGradient
-            colors={['#01217B', '#85CC16']}
+            colors={['#01217B', '#0C2E8A', '#0E5E1A']}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.heroPanel}
+            end={{ x: 1, y: 1 }}
+            style={styles.hero}
           >
             <View style={styles.heroTopRow}>
-              <View style={styles.heroBrand}>
-                <AppImage source={require('@/assets/images/iconwhite.png')} style={styles.brandLogo} />
-              </View>
-
+              <AppImage source={require('@/assets/images/iconwhite.png')} style={styles.brandLogo} />
               <View style={styles.heroIcons}>
-                <TouchableOpacity style={styles.topActionBubble}>
+                <TouchableOpacity
+                  style={styles.topActionBubble}
+                  onPress={() => router.push('/admin/audit-logs' as any)}
+                >
                   <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.badgeDot}>
-                    <Text style={styles.badgeText}>2</Text>
-                  </View>
                 </TouchableOpacity>
-
-                <TouchableOpacity style={styles.topActionBubble}>
+                <TouchableOpacity
+                  style={styles.topActionBubble}
+                  onPress={() => router.push('/admin/notifications' as any)}
+                >
                   <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.badgeDot}>
-                    <Text style={styles.badgeText}>2</Text>
-                  </View>
                 </TouchableOpacity>
-
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarLetter}>A</Text>
                 </View>
               </View>
             </View>
-
-            {/* Greeting */}
-            <Text style={styles.greeting}>WELCOME BACK ADMIN</Text>
+            <Text style={styles.heroGreeting}>Welcome back, Admin</Text>
+            <Text style={styles.heroDate}>
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Text>
           </LinearGradient>
 
-          {/* ── PAGE HEADING ─────────────────────────────────────────────── */}
-          <View style={styles.pageHead}>
-            <Text style={styles.pageTitle}>Dashboard</Text>
-            <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
-          </View>
+          {/* BODY — two-column on desktop */}
+          <View style={[styles.body, isDesktop && styles.bodyDesktop]}>
 
-          {/* ── METRIC CARDS GRID — 2 per row ────────────────────────────── */}
-          {[0, 2, 4].map((rowStart) => (
-            <View key={rowStart} style={styles.metricRow}>
-              {metricCards.slice(rowStart, rowStart + 2).map((item) => (
-                <TouchableOpacity
-                  key={item.label}
-                  style={styles.metricCardWrap}
-                  onPress={() => router.push(item.route)}
-                  activeOpacity={0.85}
-                >
-                  <LinearGradient
-                    colors={['#081059', '#1498EF']}
-                    style={styles.metricCard}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
+            {/* LEFT / MAIN COLUMN */}
+            <View style={[styles.mainCol, isDesktop && { flex: 1 }]}>
+
+              {/* METRIC CARDS */}
+              <View style={styles.metricGrid}>
+                {metricCards.map((item) => (
+                  <TouchableOpacity
+                    key={item.label}
+                    style={[styles.metricCard, { flexBasis: isDesktop ? '30%' : '47%', flexGrow: 1 }]}
+                    onPress={() => router.push(item.route as any)}
+                    activeOpacity={0.9}
                   >
-                    {/* Icon + Label row */}
-                    <View style={styles.metricHeaderRow}>
-                      <Ionicons name={item.icon} size={14} color="#FFFFFF" />
-                      <Text style={styles.metricLabel} numberOfLines={1}>
-                        {item.label}
-                      </Text>
+                    <View style={styles.metricTop}>
+                      <View style={[styles.metricIcon, { backgroundColor: item.iconBg }]}>
+                        <Ionicons
+                          name={item.icon as React.ComponentProps<typeof Ionicons>['name']}
+                          size={16}
+                          color={item.iconColor}
+                        />
+                      </View>
                     </View>
+                    <Text style={styles.metricValue} numberOfLines={1}>{item.value}</Text>
+                    <Text style={styles.metricLabel} numberOfLines={1}>{item.label}</Text>
+                    <View style={[styles.metricBar, { backgroundColor: item.accentColor }]} />
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-                    {/* Main value */}
-                    <Text style={styles.metricValue} numberOfLines={2}>
-                      {item.value}
-                    </Text>
-
-                    {/* Growth badge */}
-                    {item.subValue ? (
-                      <View style={styles.metricGrowthRow}>
-                        <View
-                          style={{
-                            width: 18,
-                            height: 18,
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transform: [{ rotate: item.subPositive ? '15deg' : '-15deg' }],
-                          }}
-                        >
-                          {/* stacked icons: larger one behind to give a bolder look */}
-                          <Ionicons
-                            name={item.subPositive ? 'arrow-up' : 'arrow-down'}
-                            size={14}
-                            color={item.subPositive ? '#85CC16' : '#e85050'}
-                            style={{ position: 'absolute', opacity: 0.95 }}
-                          />
-                          <Ionicons
-                            name={item.subPositive ? 'arrow-up' : 'arrow-down'}
-                            size={12}
-                            color={item.subPositive ? '#85CC16' : '#e85050'}
-                          />
+              {/* RECENT ORDERS */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    <Ionicons name="receipt-sharp" size={16} color="#0C1559" />
+                    <Text style={styles.cardTitle}>Recent Orders</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => router.push('/admin/orders' as any)}>
+                    <Text style={styles.cardLink}>View all</Text>
+                  </TouchableOpacity>
+                </View>
+                {recentOrders.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>No recent orders</Text>
+                  </View>
+                ) : (
+                  recentOrders.map((item: any, index: number) => {
+                    const pill = STATUS_PILL[item.status] ?? STATUS_PILL.pending;
+                    return (
+                      <View
+                        key={item.id || index}
+                        style={[styles.rowItem, index === recentOrders.length - 1 && { borderBottomWidth: 0 }]}
+                      >
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.rowTitle}>
+                            #{item.order_number || item.id?.slice(0, 8)?.toUpperCase()}
+                          </Text>
+                          <Text style={styles.rowSub}>
+                            {item.buyer?.full_name || item.user?.full_name || 'Customer'} · {item.order_items?.length ?? 1} item{(item.order_items?.length ?? 1) > 1 ? 's' : ''}
+                          </Text>
                         </View>
-                        <Text
-                          style={[
-                            styles.metricGrowth,
-                            { color: item.subPositive ? '#A8E063' : '#e85050' },
-                          ]}
-                        >
-                          {item.subValue}
+                        <View style={[styles.pill, { backgroundColor: pill.bg }]}>
+                          <Text style={[styles.pillText, { color: pill.text }]}>
+                            {item.status || 'pending'}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })
+                )}
+              </View>
+            </View>
+
+            {/* RIGHT SIDEBAR */}
+            <View style={[styles.sideCol, isDesktop && styles.sideColDesktop]}>
+
+              {/* TOP STORES */}
+              <View style={styles.card}>
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    <Ionicons name="storefront-outline" size={16} color="#0C1559" />
+                    <Text style={styles.cardTitle}>Top Stores</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => router.push('/admin/stores' as any)}>
+                    <Text style={styles.cardLink}>View all</Text>
+                  </TouchableOpacity>
+                </View>
+                {topStores.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text style={styles.emptyText}>No store data yet</Text>
+                  </View>
+                ) : (
+                  topStores.map((store: any, index: number) => (
+                    <View
+                      key={store.id || index}
+                      style={[styles.rowItem, index === topStores.length - 1 && { borderBottomWidth: 0 }]}
+                    >
+                      <View style={styles.storeAvatar}>
+                        <Text style={styles.storeAvatarLetter}>
+                          {(store.store_name || store.name || 'S').charAt(0).toUpperCase()}
                         </Text>
                       </View>
-                    ) : null}
-                  </LinearGradient>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))}
-
-          {/* ── RECENT ORDERS ─────────────────────────────────────────────── */}
-          <View style={styles.cardSection}>
-            <View style={styles.sectionHeaderRow}>
-              {/* Orders icon + title */}
-              <View style={styles.sectionTitleRow}>
-                <Ionicons name="receipt-sharp" size={20} color="#081059" />
-                <Text style={styles.sectionTitle}>Recent orders</Text>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.rowTitle}>{store.store_name || store.name || 'Store'}</Text>
+                        <Text style={styles.rowSub}>
+                          {store.total_orders ?? 0} orders · ₵{Number(store.total_revenue ?? 0).toLocaleString()}
+                        </Text>
+                      </View>
+                      {store.rating ? <Text style={styles.storeRating}>{store.rating}★</Text> : null}
+                    </View>
+                  ))
+                )}
               </View>
-              <TouchableOpacity onPress={() => router.push('/admin/orders' as any)}>
-                <Text style={styles.sectionLink}>View all</Text>
-              </TouchableOpacity>
-            </View>
 
-            {FALLBACK_TRANSACTIONS.map((item, index) => (
-              <View
-                key={item.type}
-                style={[
-                  styles.orderRow,
-                  index === FALLBACK_TRANSACTIONS.length - 1 && { borderBottomWidth: 0 },
-                ]}
-              >
-                <View>
-                  <Text style={styles.orderId}>#ORD-{5821 - index}</Text>
-                  <Text style={styles.orderMeta}>
-                    {item.name} - {index === 0 ? '2 items' : '1 item'}
-                  </Text>
+              {/* ALERTS */}
+              <View style={styles.card}>
+                <View style={styles.cardTitleRow}>
+                  <Ionicons name="alert-circle-outline" size={16} color="#0C1559" />
+                  <Text style={styles.cardTitle}>Alerts</Text>
                 </View>
-                <View
-                  style={[styles.statusPill, getStatusStyle(item.statusStyle)]}
-                >
-                  <Text style={styles.statusLabel}>{item.status}</Text>
+                <View style={styles.alertItem}>
+                  <View style={styles.alertIcon}>
+                    <Ionicons name="bicycle-outline" size={16} color="#D97706" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rowTitle}>
+                      {stats.pendingDriverVerifications} driver{stats.pendingDriverVerifications !== 1 ? 's' : ''} awaiting approval
+                    </Text>
+                    <Text style={styles.rowSub}>Documents submitted</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => router.push('/admin/driverVerifications' as any)}>
+                    <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+                  </TouchableOpacity>
                 </View>
               </View>
-            ))}
-          </View>
 
-          {/* ── TOP STORES ────────────────────────────────────────────────── */}
-          <View style={styles.cardSection}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleRow}>
-                {/*
-                  INSERT TOP STORES ICON IMAGE HERE if needed, e.g.:
-                  <Image source={require('@/assets/icons/store-icon.png')} style={styles.sectionIcon} />
-                */}
-                <Ionicons name="storefront-outline" size={20} color="#081059" />
-                <Text style={styles.sectionTitle}>Top Stores</Text>
-              </View>
-              <TouchableOpacity onPress={() => router.push('/admin/stores' as any)}>
-                <Text style={styles.sectionLink}>View all</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Three store rows to match image 2 */}
-            {[
-              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.8' },
-              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.7' },
-              { name: 'FreshMart', orders: 86, revenue: 3100, rating: '4.6' },
-            ].map((store, index, arr) => (
-              <View
-                key={store.rating}
-                style={[
-                  styles.storeRow,
-                  index < arr.length - 1 && styles.storeRowBorder,
-                ]}
-              >
-                <View>
-                  <Text style={styles.storeName}>{store.name}</Text>
-                  <Text style={styles.storeMeta}>
-                    {store.orders} orders · ${store.revenue.toLocaleString()}
-                  </Text>
-                </View>
-                <View style={styles.storeScore}>
-                  <Text style={styles.storeScoreText}>{store.rating} ★</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* ── ALERTS ────────────────────────────────────────────────────── */}
-          <View style={styles.cardSection}>
-            <View style={styles.sectionTitleRow}>
-              <Ionicons name="information-circle-outline" size={20} color="#081059" />
-              <Text style={styles.sectionTitle}>Alerts</Text>
-            </View>
-
-            <View style={styles.alertRow}>
-              {/*
-                INSERT RIDER ICON IMAGE HERE if you have one, e.g.:
-                <Image source={require('@/assets/icons/rider.png')} style={styles.alertIcon} />
-              */}
-              <Ionicons name="bicycle-outline" size={20} color="#000" style={{ marginRight: 8 }} />
-              <View>
-                <Text style={styles.alertTitle}>2 new riders awaiting approval</Text>
-                <Text style={styles.alertSub}>Documents submitted today</Text>
-              </View>
             </View>
           </View>
-          </ScrollView>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </>
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 function formatCurrency(value: number) {
   return `₵${Number(value || 0).toLocaleString()}`;
 }
 
-// ── Styles ─────────────────────────────────────────────────────────────────────
+// ── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  loadingWrap: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#E9EFFF',
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#E9EFFF',
-  },
-  canvas: {
-    flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 5,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  screen: {
-    flexGrow: 1,
-    paddingBottom: 220,
-    paddingTop: 0,
-  },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+  screen: { paddingBottom: 40 },
 
-  // ── Hero ──────────────────────────────────────────────────────────────────
-  heroPanel: {
-    borderRadius: 36,
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 24,
-    marginBottom: 0,
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  heroBrand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  // If you use an Image logo:
-  brandLogo: {
-    width: 100,
-    height: 28,
-    resizeMode: 'contain',
-  },
+  // Hero
+  hero: { marginHorizontal: 12, marginTop: 8, borderRadius: 20, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 20, gap: 12 },
+  heroTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  heroBrand: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+  brandLogo: { width: 110, height: 28, resizeMode: 'contain' },
+  heroIcons: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  topActionBubble: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  avatarCircle: { width: 38, height: 38, borderRadius: 19, backgroundColor: '#E5EEFF', alignItems: 'center', justifyContent: 'center' },
+  avatarLetter: { color: '#0B2060', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  heroGreeting: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Montserrat-Bold', letterSpacing: 0.2 },
+  heroDate: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: 'Montserrat-Regular' },
 
-  heroIcons: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginLeft: 'auto',
-  },
-  topActionBubble: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  badgeDot: {
-    position: 'absolute',
-    top: -3,
-    right: -3,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FF2323',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 9,
-    fontFamily: 'Montserrat-Bold',
-  },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#E5EEFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: '#0B2060',
-    fontSize: 20,
-    fontFamily: 'Montserrat-Bold',
-  },
-  greeting: {
-    fontSize: 22,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFFFFF',
-    letterSpacing: 0.6,
-    textAlign: 'center',
-    marginTop: 18,
-  },
+  // Body layout
+  body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40, gap: 12 },
+  bodyDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  mainCol: { gap: 12 },
+  sideCol: { gap: 12 },
+  sideColDesktop: { width: 300, marginLeft: 12 },
 
-  // ── Page heading ─────────────────────────────────────────────────────────
-  pageHead: {
-    paddingHorizontal: 8,
-    paddingTop: 18,
-    paddingBottom: 10,
-  },
-  pageTitle: {
-    color: '#081059',
-    fontSize: 24,
-    fontFamily: 'Montserrat-Bold',
-  },
-  pageDate: {
-    color: '#081059',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 2,
-  },
+  // Metric cards
+  metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  metricCard: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 14, minWidth: 120, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#0C1559', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2, overflow: 'hidden' },
+  metricTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  metricIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  metricGrowth: { fontSize: 11, fontFamily: 'Montserrat-SemiBold' },
+  metricValue: { color: '#0F172A', fontSize: 20, fontFamily: 'Montserrat-Bold', marginBottom: 3 },
+  metricLabel: { color: '#64748B', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginBottom: 10 },
+  metricBar: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3 },
 
-  // ── Metric grid ──────────────────────────────────────────────────────────
-  metricGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 4,
-    justifyContent: 'center',
-  },
-  metricRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 10,
-  },
-  metricCardWrap: {
-    width: '48.5%',
-  },
-  metricCard: {
-    width: '100%',
-    minHeight: 82,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  metricHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginBottom: 4,
-  },
-  metricLabel: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontFamily: 'Montserrat-SemiBold',
-    flexShrink: 1,
-  },
-  metricValue: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontFamily: 'Montserrat-Bold',
-    lineHeight: 22,
-  },
-  metricGrowthRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginTop: 4,
-  },
-  metricGrowth: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-SemiBold',
-  },
+  // Cards
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#0C1559', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 2 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  cardTitle: { color: '#0C1559', fontSize: 15, fontFamily: 'Montserrat-Bold' },
+  cardLink: { color: '#2563EB', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
 
-  // ── Card sections (orders, stores, alerts) ───────────────────────────────
-  cardSection: {
-    marginTop: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    width: '100%',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  sectionTitle: {
-    color: '#081059',
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-  },
-  sectionLink: {
-    color: '#85CC16',
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  // If you use an image icon next to section title:
-  sectionIcon: {
-    width: 20,
-    height: 20,
-    resizeMode: 'contain',
-  },
+  // Row items
+  rowItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, gap: 10, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  rowTitle: { color: '#0F172A', fontSize: 13, fontFamily: 'Montserrat-SemiBold', marginBottom: 2 },
+  rowSub: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular' },
 
-  // ── Order rows ───────────────────────────────────────────────────────────
-  orderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
-  },
-  orderId: {
-    color: '#111827',
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 2,
-  },
-  orderMeta: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusPaid: {
-    backgroundColor: '#B2BF9E',
-  },
-  statusShipped: {
-    backgroundColor: '#87CFFF',
-  },
-  statusPending: {
-    backgroundColor: '#D9B889',
-  },
-  statusLabel: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontFamily: 'Montserrat-SemiBold',
-  },
+  // Status pill
+  pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  pillText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', textTransform: 'capitalize' },
 
-  // ── Store rows ───────────────────────────────────────────────────────────
-  storeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  storeRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#D9D9D9',
-  },
-  storeName: {
-    color: '#000000',
-    fontSize: 15,
-    fontFamily: 'Montserrat-Bold',
-  },
-  storeMeta: {
-    color: '#00000',
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 2,
-  },
-  storeScore: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: '#B2BF9E',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 50,
-  },
-  storeScoreText: {
-    color: '#2B4501',
-    fontSize: 11,
-    fontFamily: 'Montserrat-medium',
-  },
+  // Store
+  storeAvatar: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#EDE9FE', alignItems: 'center', justifyContent: 'center' },
+  storeAvatarLetter: { color: '#7C3AED', fontSize: 14, fontFamily: 'Montserrat-Bold' },
+  storeRating: { color: '#D97706', fontSize: 12, fontFamily: 'Montserrat-SemiBold' },
 
-  // ── Alert row ────────────────────────────────────────────────────────────
-  alertRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  // If you use an image icon in alerts:
-  alertIcon: {
-    width: 22,
-    height: 22,
-    resizeMode: 'contain',
-    marginRight: 10,
-  },
-  alertTitle: {
-    color: '#111827',
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  alertSub: {
-    color: '#9CA3AF',
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 2,
-  },
+  // Alert
+  alertItem: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  alertIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#FEF3C7', alignItems: 'center', justifyContent: 'center' },
 
-  // ── Bottom tab bar ────────────────────────────────────────────────────────
-  tabBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 72,
-    backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    gap: 4,
-  },
-  tabActiveBubble: {
-    backgroundColor: '#081059',
-    borderRadius: 20,
-    padding: 10,
-  },
-  tabLabel: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-Regular',
-    color: '#9CA3AF',
-  },
-  tabLabelActive: {
-    color: '#081059',
-    fontFamily: 'Montserrat-SemiBold',
-  }
+  // Empty state
+  emptyState: { paddingVertical: 20, alignItems: 'center' },
+  emptyText: { color: '#94A3B8', fontSize: 13, fontFamily: 'Montserrat-Regular' },
 });
-
-

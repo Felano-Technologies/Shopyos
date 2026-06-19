@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   Dimensions, ActivityIndicator,
@@ -48,12 +48,26 @@ function defaultStoreName(item: any) {
 
 const AD_EVERY = 8;
 
-export function ProductGrid({
+function ProductGridBase({
   title, products, loading, onPressProduct, onAddToCart,
   addingId, favoriteIds, onToggleFavorite, favoriteBusyId,
   onSeeAll, getStoreName, injectedAds = [], emptyTitle, emptyIcon,
 }: Props) {
   const storeName = getStoreName ?? defaultStoreName;
+
+  // Build display list with ad injection — memoized to avoid rebuilding every render
+  type ListItem = { type: 'product'; data: any } | { type: 'ad'; data: any; key: string };
+  const listItems = useMemo<ListItem[]>(() => {
+    const items: ListItem[] = [];
+    products.forEach((p, i) => {
+      items.push({ type: 'product', data: p });
+      if (injectedAds.length > 0 && (i + 1) % AD_EVERY === 0) {
+        const adIdx = Math.floor((i + 1) / AD_EVERY - 1) % injectedAds.length;
+        items.push({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
+      }
+    });
+    return items;
+  }, [products, injectedAds]);
 
   if (loading) {
     return (
@@ -74,17 +88,6 @@ export function ProductGrid({
       </View>
     );
   }
-
-  // Build display list with ad injection
-  type ListItem = { type: 'product'; data: any } | { type: 'ad'; data: any; key: string };
-  const listItems: ListItem[] = [];
-  products.forEach((p, i) => {
-    listItems.push({ type: 'product', data: p });
-    if (injectedAds.length > 0 && (i + 1) % AD_EVERY === 0) {
-      const adIdx = Math.floor((i + 1) / AD_EVERY - 1) % injectedAds.length;
-      listItems.push({ type: 'ad', data: injectedAds[adIdx], key: `ad-${i}` });
-    }
-  });
 
   const renderProduct = (item: any, idx: number) => {
     const productId = String(item._id || item.id || '');
@@ -229,6 +232,8 @@ export function ProductGrid({
     </View>
   );
 }
+
+export const ProductGrid = React.memo(ProductGridBase);
 
 const S = StyleSheet.create({
   section: { marginBottom: 8 },

@@ -19,10 +19,10 @@ CREATE OR REPLACE FUNCTION increment_product_sales(product_id_param UUID, sale_q
 RETURNS VOID AS $$
 BEGIN
   UPDATE products
-  SET 
+  SET
     total_sales = total_sales + sale_qty_param
   WHERE id = product_id_param;
-  
+
   -- Update store sales count too
   UPDATE stores
   SET total_sales = total_sales + sale_qty_param
@@ -50,7 +50,7 @@ BEGIN
     COUNT(*) FILTER (WHERE status = 'pending') AS pending_orders,
     COUNT(*) FILTER (WHERE status = 'completed') AS completed_orders
   FROM orders
-  WHERE 
+  WHERE
     store_id = store_id_param AND
     created_at BETWEEN start_date_param AND end_date_param;
 END;

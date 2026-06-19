@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS store_follows (
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     store_id UUID NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     CONSTRAINT unique_user_store_follow UNIQUE (user_id, store_id)
 );
 

@@ -17,13 +17,15 @@ class AuditLogRepository extends BaseRepository {
     const { data, error } = await this.db
       .from(this.tableName)
       .insert({
-        user_id: logData.userId,
-        action: logData.action,
-        entity_type: logData.entityType,
-        entity_id: logData.entityId,
-        metadata: logData.changes || logData.metadata || {},
-        ip_address: logData.ipAddress,
-        user_agent: logData.userAgent
+        user_id:        logData.userId,
+        action:         logData.action,
+        entity_type:    logData.entityType,
+        entity_id:      logData.entityId,
+        metadata:       logData.changes || logData.metadata || {},
+        ip_address:     logData.ipAddress,
+        user_agent:     logData.userAgent,
+        status:         logData.status || 'success',
+        failure_reason: logData.failureReason || null,
       })
       .select()
       .single();
@@ -38,7 +40,11 @@ class AuditLogRepository extends BaseRepository {
    * @returns {Promise<Array>} List of audit logs
    */
   async getAuditLogs(options = {}) {
-    const { userId, action, entityType, startDate, endDate, limit = 100, offset = 0 } = options;
+    const {
+      userId, action, entityType, startDate, endDate,
+      role, status,
+      limit = 100, offset = 0,
+    } = options;
     const { getPool } = require('../../config/postgres');
     const db = getPool();
     const params = [];
@@ -46,12 +52,15 @@ class AuditLogRepository extends BaseRepository {
     let sql = `
       SELECT
         al.*,
-        u.id    AS actor_id,
-        u.email AS actor_email,
-        up.full_name AS actor_full_name
+        u.id         AS actor_id,
+        u.email      AS actor_email,
+        up.full_name AS actor_full_name,
+        r.name       AS actor_role
       FROM audit_logs al
-      LEFT JOIN users u          ON u.id = al.user_id
+      LEFT JOIN users         u  ON u.id  = al.user_id
       LEFT JOIN user_profiles up ON up.user_id = al.user_id
+      LEFT JOIN user_roles    ur ON ur.user_id = al.user_id AND ur.is_active = TRUE
+      LEFT JOIN roles         r  ON r.id  = ur.role_id
       WHERE 1=1
     `;
 
@@ -60,6 +69,8 @@ class AuditLogRepository extends BaseRepository {
     if (entityType) { params.push(entityType); sql += ` AND al.entity_type = $${params.length}`; }
     if (startDate)  { params.push(startDate);  sql += ` AND al.timestamp >= $${params.length}`; }
     if (endDate)    { params.push(endDate);    sql += ` AND al.timestamp <= $${params.length}`; }
+    if (role)       { params.push(role);       sql += ` AND r.name = $${params.length}`; }
+    if (status)     { params.push(status);     sql += ` AND al.status = $${params.length}`; }
 
     sql += ` ORDER BY al.timestamp DESC`;
     params.push(limit);  sql += ` LIMIT $${params.length}`;
@@ -68,10 +79,11 @@ class AuditLogRepository extends BaseRepository {
     const { rows } = await db.query(sql, params);
     return rows.map(log => ({
       ...log,
-      user: {
+      actor: {
         id:        log.actor_id,
         email:     log.actor_email,
         full_name: log.actor_full_name,
+        role:      log.actor_role,
       },
     }));
   }

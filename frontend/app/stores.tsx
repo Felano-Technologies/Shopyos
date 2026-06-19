@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, Dimensions, Keyboard, Pressable,
@@ -147,12 +147,12 @@ export default function StoresScreen() {
       Animated.timing(fadeAnim, { toValue: 1,   duration: 300, useNativeDriver: true }),
     ]).start();
   }, [isRefreshing, fadeAnim]);
-  const handleVisitStore = (item: any) => {
+  const handleVisitStore = useCallback((item: any) => {
     safePush('/stores/details', { id: item.id, name: item.name, category: item.category, logo: item.logo });
-  };
-  const onRefresh = () => { refetch(); };
+  }, []);
+  const onRefresh = useCallback(() => { refetch(); }, [refetch]);
   // ── Popular card — single logo image, verified badge overlaid on it ────────
-  const renderPopularCard = ({ item }: { item: any }) => (
+  const renderPopularCard = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.popularCard}
       activeOpacity={0.85}
@@ -197,9 +197,9 @@ export default function StoresScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [handleVisitStore]);
   // ── Store row ──────────────────────────────────────────────────────────────
-  const renderStoreRow = ({ item }: { item: any }) => (
+  const renderStoreRow = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
       style={styles.storeRow}
       activeOpacity={0.82}
@@ -237,8 +237,8 @@ export default function StoresScreen() {
         <Ionicons name="chevron-forward" size={12} color={C.navy} />
       </TouchableOpacity>
     </TouchableOpacity>
-  );
-  const renderEmpty = () => (
+  ), [handleVisitStore]);
+  const renderEmpty = useCallback(() => (
     <View style={styles.emptyWrap}>
       <View style={styles.emptyCircle}>
         <MaterialCommunityIcons name="storefront-outline" size={40} color={C.navy} />
@@ -250,7 +250,7 @@ export default function StoresScreen() {
           : 'No stores in this category yet.'}
       </Text>
     </View>
-  );
+  ), [searchQuery]);
   // Only show the full skeleton loader during initial boot with NO data
   if (loading && stores.length === 0) {
     return (
@@ -333,6 +333,10 @@ export default function StoresScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            removeClippedSubviews
             renderItem={renderStoreRow}
             ListEmptyComponent={renderEmpty}
             onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
@@ -358,6 +362,9 @@ export default function StoresScreen() {
                   keyExtractor={(item) => item}
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.chipStrip}
+                  initialNumToRender={8}
+                  maxToRenderPerBatch={8}
+                  windowSize={5}
                   renderItem={({ item }) => {
                     const on = activeCategory === item;
                     return (
@@ -382,6 +389,9 @@ export default function StoresScreen() {
                       keyExtractor={(item) => item.id}
                       showsHorizontalScrollIndicator={false}
                       contentContainerStyle={styles.popularStrip}
+                      initialNumToRender={5}
+                      maxToRenderPerBatch={5}
+                      windowSize={5}
                       renderItem={renderPopularCard}
                     />
                   </>

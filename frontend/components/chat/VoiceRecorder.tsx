@@ -41,7 +41,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       tension: 50,
       friction: 9,
     }).start();
-  }, []);
+  }, [slideAnim]);
 
   // Pulsing record dot
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
     } else {
       pulseAnim.setValue(1);
     }
-  }, [isRecording]);
+  }, [isRecording, pulseAnim]);
 
   // Cleanup audio resources when they change or on unmount
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       setIsRecording(true);
       setDuration(0);
       durationRef.current = 0;
-      console.log('[VoiceRecorder] Recording started successfully');
+      if (__DEV__) console.log('[VoiceRecorder] Recording started successfully');
 
       // Timer
       timerRef.current = setInterval(() => {
@@ -154,7 +154,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
         } catch {}
       }, 80);
     } catch (err) {
-      console.error('Failed to start recording', err);
+      if (__DEV__) console.error('Failed to start recording', err);
       CustomInAppToast.show({
         type: 'error',
         title: 'Error',
@@ -174,19 +174,19 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
     try {
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI();
-      console.log('[VoiceRecorder] Stopped. URI:', uri);
+      if (__DEV__) console.log('[VoiceRecorder] Stopped. URI:', uri);
       setIsRecording(false);
       setRecording(null);
       if (uri) {
         setRecordedUri(uri);
         setPlaybackDuration(durationRef.current * 1000);
       } else {
-        console.warn('[VoiceRecorder] No URI returned — recording may have failed');
+        if (__DEV__) console.warn('[VoiceRecorder] No URI returned — recording may have failed');
         CustomInAppToast.show({ type: 'error', title: 'Recording Failed', message: 'No audio was captured. Please try again.' });
         onCancel();
       }
     } catch (err) {
-      console.error('Failed to stop recording', err);
+      if (__DEV__) console.error('Failed to stop recording', err);
     }
   };
 
@@ -256,7 +256,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
       }
       onSend(recordedUri, duration * 1000);
     } catch (err) {
-      console.error('Send voice note failed', err);
+      if (__DEV__) console.error('Send voice note failed', err);
     }
   };
 
@@ -268,13 +268,13 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
 
   const previewProgress = playbackDuration > 0 ? playbackPosition / playbackDuration : 0;
 
-  // Auto-start
   useEffect(() => {
     startRecording();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (meteringRef.current) clearInterval(meteringRef.current);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const content = isRecording ? (

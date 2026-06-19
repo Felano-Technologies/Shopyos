@@ -169,7 +169,7 @@ export default function AccountScreen() {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [_methods, setMethods] = useState<any[]>([]);
+  const [, setMethods] = useState<any[]>([]);
   // --- 1. Fetch User Data ---
   const fetchMethods = useCallback(async () => {
     try {

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useState } from 'react';
+import React, { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -55,10 +55,12 @@ export default function OrderTrackingMap() {
   const storeLogo = params.storeLogo as string | undefined;
   const storeCategory = params.storeCategory as string | undefined;
 
-  const customerCoord: Coord | null =
-    params.deliveryLatitude && params.deliveryLongitude
+  const customerCoord = useMemo<Coord | null>(
+    () => params.deliveryLatitude && params.deliveryLongitude
       ? { latitude: Number.parseFloat(params.deliveryLatitude as string), longitude: Number.parseFloat(params.deliveryLongitude as string) }
-      : null;
+      : null,
+    [params.deliveryLatitude, params.deliveryLongitude]
+  );
 
   const storeCoord: Coord | null =
     params.storeLatitude && params.storeLongitude

@@ -321,6 +321,7 @@ export default function ConversationScreen() {
       const hasUnread = messages.some((m: any) => !m.is_read && m.sender_id !== currentUserId);
       if (hasUnread) markAsReadCombined().catch(() => {});
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length === 0 ? 0 : 1, currentUserId]);
 
   // Socket: join conversation, receive new messages, handle reconnect
@@ -353,6 +354,7 @@ export default function ConversationScreen() {
       const sock = socketService.getSocket();
       if (sock) sock.off('bot:stop_typing');
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, currentUserId]);
 
   // Auto-scroll
@@ -399,7 +401,7 @@ export default function ConversationScreen() {
         await uploadAndSendMedia(conversationId, asset, type, setUploadingProgress, appendMessage);
       }
     } catch (err: any) {
-      console.error('Pick media error', err);
+      if (__DEV__) console.error('Pick media error', err);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Could not upload file.' });
     } finally {
       setIsUploadingMedia(false);
@@ -420,7 +422,7 @@ export default function ConversationScreen() {
         if (sentMsg) appendMessage(sentMsg);
       }
     } catch (err: any) {
-      console.error('Upload voice note error', err);
+      if (__DEV__) console.error('Upload voice note error', err);
       CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not upload voice note.' });
     } finally {
       setIsUploadingMedia(false);
@@ -435,7 +437,7 @@ export default function ConversationScreen() {
       const sentMsg = res.message;
       if (sentMsg) appendMessage(sentMsg);
     } catch (err: any) {
-      console.error('Send sticker error', err);
+      if (__DEV__) console.error('Send sticker error', err);
     } finally {
       setShowStickerPicker(false);
     }
@@ -714,6 +716,7 @@ export default function ConversationScreen() {
         </View>
       </>
     );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUserId, displayAvatar, displayName, showDate, fmtDate, fmtTime, renderReplyPreview]);
 
   // ---- Root render ----

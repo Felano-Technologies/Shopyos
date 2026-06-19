@@ -35,9 +35,16 @@ function navigateByRole(role: string | undefined) {
   } else if (userRole === 'driver') {
     router.push('/driver');
   } else if (userRole === 'admin') {
-    router.push('/admin/dashboard');
+    router.replace('/admin/dashboard');
   }
 }
+
+const DEV_ACCOUNTS = [
+  { label: 'Admin',  email: 'shoyosecommercehub@gmail.com',  password: 'Shopyos@2026' },
+  { label: 'Buyer',  email: 'kwame@test.com',      password: 'Password123!' },
+  { label: 'Seller', email: 'kofi.sells@test.com', password: 'Password123!' },
+  { label: 'Driver', email: 'driver@test.com',     password: 'Password123!' },
+];
 
 const LoginScreen = () => {
   const { refresh } = useOnboarding();
@@ -61,8 +68,30 @@ const LoginScreen = () => {
       } else {
         CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
       }
-    } catch (error: any) {
-      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error.message || 'Something went wrong.' });
+    } catch (error: unknown) {
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error instanceof Error ? error.message : 'Something went wrong.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleQuickLogin = async (quickEmail: string, quickPassword: string) => {
+    try {
+      setLoading(true);
+      const { latitude, longitude } = await getDeviceLocation();
+      const response = await loginUser(quickEmail, quickPassword, latitude, longitude);
+      if (response.message === 'Login successful') {
+        CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
+        await refresh();
+        if (response.needsRole) {
+          router.push('/role');
+        } else {
+          navigateByRole(response.role);
+        }
+      } else {
+        CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
+      }
+    } catch (error: unknown) {
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
       setLoading(false);
     }
@@ -148,6 +177,24 @@ const LoginScreen = () => {
                 Not registered? <Text style={styles.registerBold}>Sign up now!</Text>
               </Text>
             </TouchableOpacity>
+            {/* DEV QUICK LOGIN */}
+            {__DEV__ && (
+              <View style={styles.devPanel}>
+                <Text style={styles.devLabel}>Dev</Text>
+                <View style={styles.devButtonRow}>
+                  {DEV_ACCOUNTS.map((account) => (
+                    <TouchableOpacity
+                      key={account.label}
+                      style={styles.devButton}
+                      onPress={() => handleQuickLogin(account.email, account.password)}
+                      disabled={loading}
+                    >
+                      <Text style={styles.devButtonText}>{account.label}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
             {/* Bottom Logos */}
             <View style={styles.bottomLogos}>
               <AppImage source={require('../assets/images/adaptive-icon.png')} style={styles.circleLogo} contentFit="contain" />
@@ -279,8 +326,8 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     resizeMode: 'contain',
-    marginLeft: -50,
-    marginBottom: -200,
+    marginLeft: -60,
+    marginBottom: -210,
   },
   brandLogo: {
     width: 90,
@@ -288,6 +335,36 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginLeft: -50,
     marginBottom: -200,
+  },
+  devPanel: {
+    width: '100%',
+    marginTop: 14,
+    alignItems: 'center',
+  },
+  devLabel: {
+    fontSize: 10,
+    color: '#9ca3af',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+  },
+  devButtonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  devButton: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  devButtonText: {
+    fontSize: 11,
+    color: '#374151',
+    fontWeight: '600',
   },
 });
 export default LoginScreen;

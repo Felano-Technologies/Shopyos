@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import {  logoutUser } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import { useAuthStore } from '@/store/authStore';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -40,6 +41,7 @@ export default function BusinessSettingsScreen() {
   // ── ALL HOOKS FIRST — no early returns before this block ─────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [notificationsOn, setNotificationsOn] = useState(true);
+  const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const { activeBusiness: businessData, isLoading: profileLoading } = useActiveBusiness();
   const isBusinessVerified = businessData?.verificationStatus === 'verified';
   const handleRestrictedAction = () => {
@@ -235,6 +237,20 @@ export default function BusinessSettingsScreen() {
                 onPress={() => router.push('/settings/contactUs' as any)}
                 onRestrictedAction={handleRestrictedAction}
                 onNotificationToggle={() => setNotificationsOn(v => !v)}
+              />
+            </SettingGroup>
+            {/* Switch Mode */}
+            <Text style={S.groupLabel}>Switch Mode</Text>
+            <SettingGroup>
+              <SettingRow
+                icon="cart-outline" iconColor="#1D4ED8" iconBg="#EFF6FF"
+                label="Shop as Buyer"
+                onPress={() => {
+                  switchToBuyerMode('seller');
+                  router.push('/home');
+                }}
+                onRestrictedAction={() => {}}
+                onNotificationToggle={() => {}}
               />
             </SettingGroup>
             {/* Log out */}

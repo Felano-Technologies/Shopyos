@@ -1,531 +1,203 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import AppImage from '@/components/AppImage';
 import { Feather, Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, adminShadow } from '@/components/admin/adminTheme';
-import { api } from '@/services/api';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { CustomInAppToast } from '@/components/InAppToastHost';
+import {
+  getNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from '@/services/notifications';
 
-type RecipientType = 'all' | 'customers' | 'stores' | 'drivers';
-type CampaignType = 'manual' | 'holiday' | 'daily_engagement';
-type Status = 'pending' | 'processing' | 'sent' | 'failed';
-
-interface Broadcast {
+type Notif = {
   id: string;
-  title: string;
-  message: string;
-  send_email: boolean;
-  send_sms: boolean;
-  send_push: boolean;
-  recipient_type: RecipientType;
-  campaign_type: CampaignType;
-  scheduled_at: string;
-  status: Status;
-  sent_at?: string;
-  error_message?: string;
-}
-
-interface HolidayPreview {
-  isHoliday: boolean;
-  holidayName?: string;
-  aiRecommendation?: { title: string; message: string };
-  upcomingHolidays?: { date: string; localName: string }[];
-}
-
-const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
-
-const AUDIENCES: { key: RecipientType; label: string; icon: string }[] = [
-  { key: 'all', label: 'Everyone', icon: 'globe' },
-  { key: 'customers', label: 'Customers', icon: 'shopping-bag' },
-  { key: 'stores', label: 'Stores', icon: 'shopping-cart' },
-  { key: 'drivers', label: 'Drivers', icon: 'truck' },
-];
-
-const STATUS_COLORS: Record<Status, { bg: string; text: string }> = {
-  pending: { bg: '#FEF3C7', text: '#D97706' },
-  processing: { bg: '#DBEAFE', text: '#2563EB' },
-  sent: { bg: '#D1FAE5', text: '#059669' },
-  failed: { bg: '#FEE2E2', text: '#DC2626' },
+  title?: string;
+  message?: string;
+  type?: string;
+  is_read?: boolean;
+  created_at?: string;
+  data?: any;
 };
 
-const fmt = (iso: string) => {
-  try {
-    const date = new Date(iso);
-    return date.toLocaleString('en-GH', { dateStyle: 'medium', timeStyle: 'short' });
-  } catch {
-    return iso;
-  }
+const TYPE_CONFIG: Record<string, { icon: React.ComponentProps<typeof Ionicons>['name']; color: string; bg: string }> = {
+  order:                  { icon: 'bag-handle-outline',        color: '#1E40AF', bg: '#DBEAFE' },
+  payment:                { icon: 'card-outline',               color: '#059669', bg: '#D1FAE5' },
+  business_verification:  { icon: 'shield-checkmark-outline',  color: '#B45309', bg: '#FEF3C7' },
+  driver_verification:    { icon: 'car-outline',               color: '#7C3AED', bg: '#EDE9FE' },
+  message:                { icon: 'chatbubble-outline',         color: '#0284C7', bg: '#E0F2FE' },
+  system:                 { icon: 'settings-outline',           color: '#475569', bg: '#F1F5F9' },
+  default:                { icon: 'notifications-outline',      color: '#64748B', bg: '#F8FAFC' },
 };
 
-async function confirmCancelBroadcast(
-  id: string,
-  setBroadcasts: React.Dispatch<React.SetStateAction<Broadcast[]>>,
-) {
-  try {
-    await api.delete(`/admin/scheduled-notifications/${id}`);
-    setBroadcasts((previous) => previous.filter((broadcast) => broadcast.id !== id));
-  } catch {
-    Alert.alert('Error', 'Could not cancel notification');
-  }
+function timeAgo(ts?: string) {
+  if (!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'Just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-export default function AdminNotificationsScreen() {
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const [sendEmail, setSendEmail] = useState(false);
-  const [sendSms, setSendSms] = useState(false);
-  const [sendPush, setSendPush] = useState(true);
-  const [audience, setAudience] = useState<RecipientType>('all');
-  const [scheduleIn, setScheduleIn] = useState('10');
-  const [submitting, setSubmitting] = useState(false);
-  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+export default function AdminNotifications() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { isDesktop } = useAdminBreakpoint();
+  const [notifications, setNotifications] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [holiday, setHoliday] = useState<HolidayPreview | null>(null);
-  const [loadingHoliday, setLoadingHoliday] = useState(false);
-  const [tab, setTab] = useState<'queue' | 'automated'>('queue');
-  const [testingNotif, setTestingNotif] = useState(false);
+  const [markingAll, setMarkingAll] = useState(false);
 
-  const fetchBroadcasts = useCallback(async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  const load = useCallback(async (isRefresh = false) => {
     try {
-      const res = await api.get('/admin/scheduled-notifications?limit=30');
-      const json = res.data;
-      if (json.success) setBroadcasts(json.data ?? []);
-    } catch {
-      // silently fail on refresh
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
+      const res = await getNotifications();
+      const list: Notif[] = Array.isArray(res?.notifications) ? res.notifications
+        : Array.isArray(res) ? res : [];
+      setNotifications(list);
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load notifications' });
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  const fetchHoliday = useCallback(async () => {
-    setLoadingHoliday(true);
+  useEffect(() => { load(); }, [load]);
+
+  const handleRead = async (item: Notif) => {
+    if (item.is_read) return;
     try {
-      const res = await api.get('/admin/scheduled-notifications/holiday-preview');
-      const json = res.data;
-      if (json.success) setHoliday(json);
-    } catch {
-      // non-critical
+      await markNotificationRead(item.id);
+      setNotifications(prev => prev.map(n => n.id === item.id ? { ...n, is_read: true } : n));
+    } catch { /* non-critical */ }
+  };
+
+  const handleMarkAll = async () => {
+    try {
+      setMarkingAll(true);
+      await markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+      CustomInAppToast.show({ type: 'success', title: 'Done', message: 'All notifications marked as read.' });
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
     } finally {
-      setLoadingHoliday(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchBroadcasts();
-    fetchHoliday();
-  }, [fetchBroadcasts, fetchHoliday]);
-
-  const handleSubmit = async () => {
-    if (!title.trim() || !message.trim()) {
-      Alert.alert('Missing fields', 'Title and message are required.');
-      return;
-    }
-    if (!sendEmail && !sendSms && !sendPush) {
-      Alert.alert('No channel', 'Enable at least one channel.');
-      return;
-    }
-    const mins = Number.parseInt(scheduleIn, 10);
-    if (Number.isNaN(mins) || mins < 1) {
-      Alert.alert('Invalid time', 'Enter a number of minutes >= 1.');
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const scheduled_at = new Date(Date.now() + mins * 60_000).toISOString();
-      const res = await api.post('/admin/scheduled-notifications', {
-        title,
-        message,
-        send_email: sendEmail,
-        send_sms: sendSms,
-        send_push: sendPush,
-        recipient_type: audience,
-        scheduled_at,
-      });
-      const json = res.data;
-      if (!json.success) throw new Error(json.message);
-      Alert.alert('Scheduled ✓', `Broadcast queued for ${fmt(scheduled_at)}`);
-      setTitle('');
-      setMessage('');
-      fetchBroadcasts();
-    } catch (error: any) {
-      Alert.alert('Error', error.message ?? 'Failed to schedule notification');
-    } finally {
-      setSubmitting(false);
+      setMarkingAll(false);
     }
   };
 
-  const handleCancel = (id: string) => {
-    Alert.alert('Cancel broadcast?', 'This cannot be undone.', [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes, cancel', style: 'destructive', onPress: () => confirmCancelBroadcast(id, setBroadcasts) },
-    ]);
-  };
+  const unreadCount = notifications.filter(n => !n.is_read).length;
 
-  const triggerSweep = async () => {
-    try {
-      await api.post('/admin/scheduled-notifications/trigger-sweep');
-      Alert.alert('Sweep triggered', 'Daily marketing sweep is running. Check logs.');
-    } catch {
-      Alert.alert('Error', 'Could not trigger sweep');
-    }
-  };
-
-  const sendTestNotification = async () => {
-    setTestingNotif(true);
-    try {
-      const res = await api.post('/admin/scheduled-notifications/send-test');
-      const json = res.data;
-      Alert.alert(json.success ? 'Test sent ✓' : 'Test failed', json.message);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message ?? error.message ?? 'Request failed');
-    } finally {
-      setTestingNotif(false);
-    }
-  };
-
-  const renderStatusBadge = (status: Status) => {
-    const colors = STATUS_COLORS[status] ?? { bg: '#E2E8F0', text: '#475569' };
+  const renderItem = ({ item }: { item: Notif }) => {
+    const cfg = TYPE_CONFIG[item.type || ''] || TYPE_CONFIG.default;
     return (
-      <View style={[styles.badge, { backgroundColor: colors.bg }]}>
-        <Text style={[styles.badgeText, { color: colors.text }]}>{status.toUpperCase()}</Text>
-      </View>
+      <TouchableOpacity
+        style={[styles.notifCard, !item.is_read && styles.notifCardUnread]}
+        activeOpacity={0.82}
+        onPress={() => handleRead(item)}
+      >
+        <View style={[styles.notifIcon, { backgroundColor: cfg.bg }]}>
+          <Ionicons name={cfg.icon} size={18} color={cfg.color} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Text style={styles.notifTitle} numberOfLines={1}>{item.title || 'Notification'}</Text>
+            <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
+          </View>
+          <Text style={styles.notifMessage} numberOfLines={2}>{item.message || ''}</Text>
+        </View>
+      </TouchableOpacity>
     );
   };
-
-  const renderBroadcastCard = (item: Broadcast) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle} numberOfLines={1}>
-          {item.title}
-        </Text>
-        {renderStatusBadge(item.status)}
-      </View>
-      <Text style={styles.cardBody} numberOfLines={2}>
-        {item.message}
-      </Text>
-      <View style={styles.cardMeta}>
-        <View style={styles.metaRow}>
-          <Ionicons name="people-outline" size={12} color={adminColors.textSoft} />
-          <Text style={styles.metaText}>{item.recipient_type.toUpperCase()}</Text>
-        </View>
-        <View style={styles.metaRow}>
-          <Feather name="clock" size={12} color={adminColors.textSoft} />
-          <Text style={styles.metaText}>{fmt(item.sent_at ?? item.scheduled_at)}</Text>
-        </View>
-      </View>
-      <View style={styles.chips}>
-        {item.send_email && <View style={styles.channelChip}><Feather name="mail" size={10} color={adminColors.textMuted} /><Text style={styles.channelChipText}>Email</Text></View>}
-        {item.send_sms && <View style={styles.channelChip}><Feather name="message-square" size={10} color={adminColors.textMuted} /><Text style={styles.channelChipText}>SMS</Text></View>}
-        {item.send_push && <View style={styles.channelChip}><Feather name="bell" size={10} color={adminColors.textMuted} /><Text style={styles.channelChipText}>Push</Text></View>}
-        <View style={[styles.channelChip, { backgroundColor: '#F1F5F9' }]}>
-          <Text style={[styles.channelChipText, { color: adminColors.textMuted }]}>
-            {item.campaign_type.replace('_', ' ')}
-          </Text>
-        </View>
-      </View>
-      {item.status === 'pending' && (
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => handleCancel(item.id)}>
-          <Feather name="trash-2" size={12} color={adminColors.red} />
-          <Text style={styles.cancelText}>Cancel</Text>
-        </TouchableOpacity>
-      )}
-      {item.status === 'failed' && item.error_message && (
-        <Text style={styles.errorText} numberOfLines={2}>
-          {item.error_message}
-        </Text>
-      )}
-    </View>
-  );
-
-  const manualList = useMemo(() => broadcasts.filter((broadcast) => broadcast.campaign_type === 'manual'), [broadcasts]);
-  const automatedList = useMemo(
-    () => broadcasts.filter((broadcast) => broadcast.campaign_type !== 'manual'),
-    [broadcasts],
-  );
-
-  const composePanel = (
-    <View style={styles.cardSection}>
-      <View style={styles.sectionHeaderRow}>
-        <View style={styles.sectionTitleRow}>
-          <Ionicons name="megaphone-outline" size={20} color="#081059" />
-          <Text style={styles.sectionTitle}>New Broadcast</Text>
-        </View>
-      </View>
-
-      <View style={styles.compactNote}>
-        <Text style={styles.compactNoteTitle}>Schedule a message across Email, SMS, and Push.</Text>
-        <Text style={styles.compactNoteText}>Use variables like {"{{name}}"} to personalize the message.</Text>
-      </View>
-
-      {holiday?.isHoliday && (
-        <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.holidayBanner}>
-          <Text style={styles.holidayEmoji}>🎉</Text>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.holidayTitle}>Today: {holiday.holidayName}</Text>
-            <Text style={styles.holidaySub}>AI draft ready — tap to auto-fill</Text>
-          </View>
-          <TouchableOpacity
-            style={styles.holidayFillBtn}
-            onPress={() => {
-              if (holiday.aiRecommendation) {
-                setTitle(holiday.aiRecommendation.title);
-                setMessage(holiday.aiRecommendation.message);
-                setSendEmail(true);
-                setSendSms(true);
-                setSendPush(true);
-                setAudience('all');
-              }
-            }}
-          >
-            <Text style={styles.holidayFillBtnText}>Auto-fill</Text>
-          </TouchableOpacity>
-        </LinearGradient>
-      )}
-
-      <Text style={styles.label}>Title</Text>
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Notification title..."
-        placeholderTextColor={adminColors.textSoft}
-        style={styles.input}
-      />
-
-      <View style={styles.labelRow}>
-        <Text style={styles.labelReset}>Message</Text>
-        <View style={styles.varChipRow}>
-          {(['{{name}}', '{{shop}}', '{{email}}'] as const).map((tag) => (
-            <TouchableOpacity
-              key={tag}
-              style={styles.varChip}
-              onPress={() => setMessage((previous) => previous + (previous.length && !previous.endsWith(' ') ? ' ' : '') + tag)}
-            >
-              <Text style={styles.varChipText}>+ {tag.replace(/[{}]/g, '')}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-      <TextInput
-        value={message}
-        onChangeText={setMessage}
-        placeholder="Write your message here..."
-        placeholderTextColor={adminColors.textSoft}
-        multiline
-        numberOfLines={4}
-        style={[styles.input, styles.textarea]}
-      />
-
-      <Text style={styles.label}>Channels</Text>
-      <View style={styles.channelRow}>
-        {[
-          { val: sendEmail, setter: setSendEmail, icon: 'mail', label: 'Email' },
-          { val: sendSms, setter: setSendSms, icon: 'message-square', label: 'SMS' },
-          { val: sendPush, setter: setSendPush, icon: 'bell', label: 'Push' },
-        ].map((channel) => (
-          <TouchableOpacity
-            key={channel.label}
-            style={[styles.channelToggle, channel.val && styles.channelToggleOn]}
-            onPress={() => channel.setter(!channel.val)}
-          >
-            <Feather name={channel.icon as any} size={16} color={channel.val ? '#fff' : adminColors.textMuted} />
-            <Text style={[styles.channelToggleText, channel.val && { color: '#fff' }]}>{channel.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Target Audience</Text>
-      <View style={styles.audienceRow}>
-        {AUDIENCES.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.audienceBtn, audience === item.key && styles.audienceBtnOn]}
-            onPress={() => setAudience(item.key)}
-          >
-            <Feather name={item.icon as any} size={14} color={audience === item.key ? '#fff' : adminColors.textMuted} />
-            <Text style={[styles.audienceBtnText, audience === item.key && { color: '#fff' }]}>{item.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.label}>Send in (minutes from now)</Text>
-      <TextInput
-        value={scheduleIn}
-        onChangeText={setScheduleIn}
-        keyboardType="number-pad"
-        placeholder="e.g. 10"
-        placeholderTextColor={adminColors.textSoft}
-        style={styles.input}
-      />
-
-      <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleSubmit} disabled={submitting}>
-        {submitting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <Ionicons name="paper-plane-outline" size={18} color="#fff" />
-            <Text style={styles.submitBtnText}>Schedule Broadcast</Text>
-          </>
-        )}
-      </TouchableOpacity>
-
-      {!holiday?.isHoliday && !loadingHoliday && (holiday?.upcomingHolidays?.length ?? 0) > 0 && (
-        <View style={styles.upcomingBox}>
-          <Text style={styles.upcomingHeader}>Upcoming Ghana Holidays</Text>
-          {holiday!.upcomingHolidays!.slice(0, 5).map((item) => (
-            <View key={item.date} style={styles.upcomingRow}>
-              <Text style={styles.upcomingDate}>{item.date}</Text>
-              <Text style={styles.upcomingName}>{item.localName}</Text>
-            </View>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  const historyPanel = (
-    <View style={styles.cardSection}>
-      <View style={styles.sectionHeaderRow}>
-        <View style={styles.sectionTitleRow}>
-          <Ionicons name="time-outline" size={20} color="#081059" />
-          <Text style={styles.sectionTitle}>Broadcast Log</Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => fetchBroadcasts(true)}>
-            <Feather name="refresh-cw" size={15} color={adminColors.navy} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconBtn, styles.iconBtnGreen]} onPress={sendTestNotification} disabled={testingNotif}>
-            <Feather name="send" size={15} color="#fff" />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.iconBtn, styles.iconBtnNavy]} onPress={triggerSweep}>
-            <Feather name="zap" size={15} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      <View style={styles.tabRow}>
-        {(['queue', 'automated'] as const).map((item) => (
-          <TouchableOpacity key={item} style={[styles.tabBtn, tab === item && styles.tabBtnOn]} onPress={() => setTab(item)}>
-            <Text style={[styles.tabBtnText, tab === item && { color: '#fff' }]}>
-              {item === 'queue' ? `Manual (${manualList.length})` : `Automated (${automatedList.length})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <ActivityIndicator size="large" color={adminColors.navy} style={{ marginVertical: 40 }} />
-      ) : (() => {
-          const list = tab === 'queue' ? manualList : automatedList;
-          if (!list.length) {
-            return (
-              <View style={styles.emptyState}>
-                <Ionicons name="notifications-off-outline" size={44} color={adminColors.textSoft} />
-                <Text style={styles.emptyText}>
-                  {tab === 'queue' ? 'No manual broadcasts yet.' : 'No automated campaigns yet.'}
-                </Text>
-              </View>
-            );
-          }
-
-          return (
-            <FlatList
-              data={list}
-              keyExtractor={(item) => item.id}
-              scrollEnabled={false}
-              renderItem={({ item }) => renderBroadcastCard(item)}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={() => fetchBroadcasts(true)} tintColor={adminColors.navy} />
-              }
-            />
-          );
-        })()
-      }
-    </View>
-  );
 
   return (
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.canvas}>
-          <ScrollView
-            style={styles.scrollView}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.screen}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => fetchBroadcasts(true)} tintColor="#1E88E5" />
-            }
+        <View style={[styles.canvas, isDesktop && styles.desktopCanvas]}>
+          {/* Header */}
+          <LinearGradient
+            colors={['#01217B', '#0C2E8A', '#0E5E1A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.hero}
           >
-            <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
-              <View style={styles.heroTopRow}>
-                <View style={styles.heroBrand}>
-                  <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
+            <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+              <Feather name="arrow-left" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+            <View style={styles.heroCenter}>
+              <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
+              <Text style={styles.heroTitle}>Notifications</Text>
+              {unreadCount > 0 && (
+                <View style={styles.heroBadge}>
+                  <Text style={styles.heroBadgeText}>{unreadCount}</Text>
                 </View>
+              )}
+            </View>
+            {unreadCount > 0 ? (
+              <TouchableOpacity
+                style={styles.markAllBtn}
+                onPress={handleMarkAll}
+                disabled={markingAll}
+              >
+                {markingAll
+                  ? <ActivityIndicator size="small" color="#FFFFFF" />
+                  : <Text style={styles.markAllText}>Mark all read</Text>}
+              </TouchableOpacity>
+            ) : (
+              <View style={{ width: 80 }} />
+            )}
+          </LinearGradient>
 
-                <View style={styles.heroIcons}>
-                  <TouchableOpacity style={styles.topActionBubble}>
-                    <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.heroBadgeText}>2</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity style={styles.topActionBubble}>
-                    <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.heroBadgeText}>2</Text>
-                    </View>
-                  </TouchableOpacity>
-
-                  <View style={styles.avatarCircle}>
-                    <Text style={styles.avatarLetter}>A</Text>
-                  </View>
+          {loading ? (
+            <View style={styles.loadingWrap}>
+              <ActivityIndicator size="large" color={adminColors.navy} />
+            </View>
+          ) : (
+            <FlatList
+              data={notifications}
+              keyExtractor={item => item.id}
+              renderItem={renderItem}
+              contentContainerStyle={[
+                styles.list,
+                { paddingBottom: Math.max(insets.bottom, 16) + 40 },
+              ]}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={adminColors.navy} />
+              }
+              ListHeaderComponent={
+                notifications.length > 0 ? (
+                  <Text style={styles.listHeader}>
+                    {notifications.length} notification{notifications.length !== 1 ? 's' : ''}{unreadCount > 0 ? ` · ${unreadCount} unread` : ''}
+                  </Text>
+                ) : null
+              }
+              ListEmptyComponent={
+                <View style={styles.emptyWrap}>
+                  <Ionicons name="notifications-off-outline" size={52} color={adminColors.textSoft} />
+                  <Text style={styles.emptyTitle}>No notifications</Text>
+                  <Text style={styles.emptySubtitle}>You're all caught up</Text>
                 </View>
-              </View>
-
-              <View style={styles.heroPill}>
-                <Text style={styles.heroPillText}>BROADCAST</Text>
-              </View>
-            </LinearGradient>
-
-            <View style={styles.pageHead}>
-              <Text style={styles.pageTitle}>Broadcast</Text>
-              <Text style={styles.pageDate}>Wed, 3 June 2026</Text>
-            </View>
-
-            <View style={styles.noticePanel}>
-              <View style={styles.noticeIcon}>
-                <Ionicons name="megaphone-outline" size={18} color="#0A2EA8" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.noticeTitle}>Reach all your audiences from one place</Text>
-                <Text style={styles.noticeText}>Compose scheduled campaigns, review logs, and trigger quick tests.</Text>
-              </View>
-            </View>
-
-            <View style={styles.dualColumn}>
-              {composePanel}
-              {historyPanel}
-            </View>
-          </ScrollView>
+              }
+            />
+          )}
         </View>
       </SafeAreaView>
     </>
@@ -533,533 +205,161 @@ export default function AdminNotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#E9EFFF',
-  },
-  canvas: {
-    flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 12,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  screen: {
-    flexGrow: 1,
-    paddingBottom: 220,
-  },
-  heroPanel: {
-    borderRadius: 36,
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    paddingBottom: 24,
-    justifyContent: 'space-between',
-    gap: 16,
-  },
-  heroTopRow: {
+  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+  canvas: { flex: 1, backgroundColor: '#F5F7FA' },
+  desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
+  hero: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 10,
   },
-  heroBrand: {
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCenter: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flex: 1,
   },
-  brandLogo: {
-    width: 106,
-    height: 30,
-    resizeMode: 'contain',
+  heroTitle: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
   },
-  heroIcons: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-    marginLeft: 'auto',
-  },
-  topActionBubble: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+  heroBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#EF4444',
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-  },
-  badgeDot: {
-    position: 'absolute',
-    top: -3,
-    right: -3,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: '#FF2323',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 5,
   },
   heroBadgeText: {
     color: '#FFFFFF',
-    fontSize: 9,
-    fontFamily: 'Montserrat-Bold',
-  },
-  avatarCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#E5EEFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: '#0B2060',
-    fontSize: 20,
-    fontFamily: 'Montserrat-Bold',
-  },
-  heroPill: {
-    alignSelf: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 999,
-    paddingHorizontal: 26,
-    paddingVertical: 10,
-    minWidth: 290,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.18,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 4,
-  },
-  heroPillText: {
-    color: '#0B2060',
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    letterSpacing: 0.5,
-  },
-  pageHead: {
-    paddingHorizontal: 8,
-    paddingTop: 18,
-    paddingBottom: 10,
-  },
-  pageTitle: {
-    color: '#1D2B73',
-    fontSize: 24,
-    fontFamily: 'Montserrat-Bold',
-  },
-  pageDate: {
-    color: '#1D2B73',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 2,
-  },
-  noticePanel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    padding: 14,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-    marginBottom: 14,
-  },
-  noticeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: '#EEF4FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noticeTitle: {
-    color: '#081059',
-    fontSize: 15,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 2,
-  },
-  noticeText: {
-    color: adminColors.textMuted,
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    lineHeight: 17,
-  },
-  dualColumn: {
-    gap: 16,
-  },
-  cardSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    width: '100%',
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  sectionTitle: {
-    color: '#081059',
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-  },
-  compactNote: {
-    backgroundColor: '#EEF4FF',
-    borderRadius: 18,
-    padding: 12,
-    marginBottom: 10,
-  },
-  compactNoteTitle: {
-    color: '#081059',
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 2,
-  },
-  compactNoteText: {
-    color: adminColors.textMuted,
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-  },
-  label: {
-    color: adminColors.text,
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 13,
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginTop: 14,
-    marginBottom: 6,
-  },
-  labelReset: {
-    color: adminColors.text,
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 13,
-  },
-  varChipRow: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-    justifyContent: 'flex-end',
-  },
-  varChip: {
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: adminColors.border,
-  },
-  varChipText: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-SemiBold',
-    color: adminColors.navy,
-  },
-  input: {
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: adminColors.text,
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 14,
-  },
-  textarea: {
-    minHeight: 90,
-    textAlignVertical: 'top',
-  },
-  channelRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  channelToggle: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
-  },
-  channelToggleOn: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
-  },
-  channelToggleText: {
-    fontSize: 12,
-    fontFamily: 'Montserrat-SemiBold',
-    color: adminColors.textMuted,
-  },
-  audienceRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  audienceBtn: {
-    flex: 1,
-    minWidth: 72,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
-  },
-  audienceBtnOn: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
-  },
-  audienceBtnText: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-SemiBold',
-    color: adminColors.textMuted,
-  },
-  submitBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginTop: 18,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: adminColors.navy,
-    ...adminShadow,
-  },
-  submitBtnText: {
-    color: '#fff',
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 15,
-  },
-  holidayBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 4,
-  },
-  holidayEmoji: {
-    fontSize: 28,
-  },
-  holidayTitle: {
-    color: '#fff',
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 14,
-  },
-  holidaySub: {
-    color: 'rgba(255,255,255,0.72)',
     fontSize: 11,
-    fontFamily: 'Montserrat-Regular',
+    fontFamily: 'Montserrat-Bold',
   },
-  holidayFillBtn: {
-    backgroundColor: 'rgba(255,255,255,0.18)',
+  markAllBtn: {
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
-  holidayFillBtnText: {
-    color: '#fff',
-    fontFamily: 'Montserrat-SemiBold',
+  markAllText: {
+    color: '#FFFFFF',
     fontSize: 12,
-  },
-  upcomingBox: {
-    marginTop: 16,
-    backgroundColor: adminColors.surfaceSoft,
-    borderRadius: 10,
-    padding: 12,
-  },
-  upcomingHeader: {
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
+  },
+
+  list: { paddingHorizontal: 0, paddingTop: 12 },
+  listHeader: {
     color: adminColors.textMuted,
-    marginBottom: 8,
-  },
-  upcomingRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingVertical: 4,
-  },
-  upcomingDate: {
-    fontFamily: 'Montserrat-Medium',
     fontSize: 12,
-    color: adminColors.textSoft,
-    width: 90,
-  },
-  upcomingName: {
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
-    color: adminColors.text,
-    flex: 1,
+    marginBottom: 10,
+    paddingHorizontal: 12,
   },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
-  },
-  tabBtnOn: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
-  },
-  tabBtnText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
-    color: adminColors.textMuted,
-  },
-  card: {
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
+
+  notifCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 14,
-    marginBottom: 10,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  cardHeader: {
+  notifCardUnread: {
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563EB',
+    backgroundColor: '#F8FAFF',
+  },
+  notifIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  notifBody: { flex: 1 },
+  notifTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    marginBottom: 4,
     gap: 8,
   },
-  cardTitle: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 14,
-    color: adminColors.text,
-    flex: 1,
-  },
-  cardBody: {
-    fontFamily: 'Montserrat-Regular',
+  notifTitle: {
+    color: '#0F172A',
     fontSize: 13,
-    color: adminColors.textMuted,
-    marginTop: 6,
-    lineHeight: 18,
+    fontFamily: 'Montserrat-SemiBold',
+    flex: 1,
+    marginRight: 8,
   },
-  cardMeta: {
-    flexDirection: 'row',
-    gap: 14,
-    marginTop: 10,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontFamily: 'Montserrat-Medium',
+  notifTime: {
+    color: '#94A3B8',
     fontSize: 11,
-    color: adminColors.textSoft,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 10,
-  },
-  channelChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: adminColors.border,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  channelChipText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 10,
-    color: adminColors.textMuted,
-  },
-  cancelBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 10,
-    alignSelf: 'flex-end',
-  },
-  cancelText: {
-    fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
-    color: adminColors.red,
-  },
-  errorText: {
     fontFamily: 'Montserrat-Regular',
-    fontSize: 11,
-    color: adminColors.red,
-    marginTop: 6,
+    flexShrink: 0,
   },
-  badge: {
+  notifMessage: {
+    color: '#64748B',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 3,
+    lineHeight: 17,
+  },
+  typeBadge: {
+    alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
+    marginTop: 6,
   },
-  badgeText: {
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 9,
-    letterSpacing: 0.5,
+  typeBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-SemiBold',
+    textTransform: 'capitalize',
   },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
+  unreadDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#3B82F6',
+    marginTop: 6,
+    flexShrink: 0,
   },
-  iconBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+
+  emptyWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
+    paddingTop: 100,
+    gap: 12,
   },
-  iconBtnGreen: {
-    backgroundColor: '#16a34a',
-    borderColor: '#16a34a',
+  emptyTitle: {
+    color: adminColors.text,
+    fontSize: 18,
+    fontFamily: 'Montserrat-Bold',
   },
-  iconBtnNavy: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    gap: 10,
-  },
-  emptyText: {
-    fontFamily: 'Montserrat-Medium',
-    color: adminColors.textSoft,
-    fontSize: 14,
+  emptySubtitle: {
+    color: adminColors.textMuted,
+    fontSize: 13,
+    fontFamily: 'Montserrat-Regular',
   },
 });

@@ -15,11 +15,11 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons, FontAwesome } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, adminShadow } from '@/components/admin/adminTheme';
+import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminVerifyStore, getAdminStores } from '@/services/api';
 
@@ -52,7 +52,13 @@ type Store = {
   created_at?: string;
 };
 
-const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
+const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
+
+const STATUS_PILL: Record<string, { bg: string; text: string }> = {
+  verified: { bg: '#DCFCE7', text: '#16A34A' },
+  pending:  { bg: '#FEF3C7', text: '#D97706' },
+  rejected: { bg: '#FEE2E2', text: '#DC2626' },
+};
 
 function normalizeParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -97,6 +103,8 @@ function applyStoreResults(
 }
 
 export default function AdminStores() {
+  const router = useRouter();
+  const { isDesktop } = useAdminBreakpoint();
   const params = useLocalSearchParams<{ id?: string | string[]; ownerId?: string | string[] }>();
   const storeIdParam = normalizeParam(params.id);
   const ownerIdParam = normalizeParam(params.ownerId);
@@ -154,14 +162,14 @@ export default function AdminStores() {
   const summary = useMemo(() => {
     if (!currentStore) return [];
     return [
-      { label: 'Products', value: currentStore.product_count || 0, icon: 'cube-outline' as const },
+      { label: 'Products',  value: currentStore.product_count || 0, icon: 'cube-outline' as const,           iconBg: '#DBEAFE', iconColor: '#2563EB' },
       { label: 'Documents', value: [
         currentStore.business_cert_url,
         currentStore.business_license_url,
         currentStore.proof_of_bank_url,
-      ].filter(Boolean).length, icon: 'document-text-outline' as const },
-      { label: 'Verified', value: currentStore.verification_status === 'verified' ? 'Yes' : 'No', icon: 'shield-checkmark-outline' as const },
-      { label: 'Location', value: currentStore.city || 'N/A', icon: 'location-outline' as const },
+      ].filter(Boolean).length,                                       icon: 'document-text-outline' as const, iconBg: '#FEF3C7', iconColor: '#D97706' },
+      { label: 'Verified',  value: currentStore.verification_status === 'verified' ? 'Yes' : 'No', icon: 'shield-checkmark-outline' as const, iconBg: '#DCFCE7', iconColor: '#16A34A' },
+      { label: 'Location',  value: currentStore.city || 'N/A',       icon: 'location-outline' as const,      iconBg: '#FFE4E6', iconColor: '#E11D48' },
     ];
   }, [currentStore]);
 
@@ -242,7 +250,7 @@ export default function AdminStores() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.canvas}>
+        <View style={[styles.canvas, isDesktop && styles.desktopCanvas]}>
           <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
@@ -251,25 +259,25 @@ export default function AdminStores() {
               <RefreshControl refreshing={refreshing} onRefresh={() => fetchStoreContext(true)} tintColor="#1E88E5" />
             }
           >
-            <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
+            <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroPanel}>
               <View style={styles.heroTopRow}>
                 <View style={styles.heroBrand}>
                   <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
                 </View>
 
                 <View style={styles.heroIcons}>
-                  <TouchableOpacity style={styles.topActionBubble}>
+                  <TouchableOpacity
+                    style={styles.topActionBubble}
+                    onPress={() => router.push('/admin/audit-logs' as any)}
+                  >
                     <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.topActionBubble}>
+                  <TouchableOpacity
+                    style={styles.topActionBubble}
+                    onPress={() => router.push('/admin/notifications' as any)}
+                  >
                     <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                    <View style={styles.badgeDot}>
-                      <Text style={styles.badgeText}>2</Text>
-                    </View>
                   </TouchableOpacity>
 
                   <View style={styles.avatarCircle}>
@@ -366,17 +374,11 @@ export default function AdminStores() {
                       <Text style={styles.ownerLine}>{currentStore.owner?.full_name || 'Unknown owner'}</Text>
                     </View>
                     {(() => {
-                      let statusStyle;
-                      if (currentStore.verification_status === 'verified') {
-                        statusStyle = styles.statusVerified;
-                      } else if (currentStore.verification_status === 'rejected') {
-                        statusStyle = styles.statusRejected;
-                      } else {
-                        statusStyle = styles.statusPending;
-                      }
+                      const vStatus = (currentStore.verification_status || 'pending').toLowerCase();
+                      const spill = STATUS_PILL[vStatus] ?? STATUS_PILL.pending;
                       return (
-                        <View style={[styles.statusBadge, statusStyle]}>
-                          <Text style={styles.statusText}>{(currentStore.verification_status || 'pending').toUpperCase()}</Text>
+                        <View style={[styles.pill, { backgroundColor: spill.bg }]}>
+                          <Text style={[styles.pillText, { color: spill.text }]}>{vStatus.toUpperCase()}</Text>
                         </View>
                       );
                     })()}
@@ -385,12 +387,13 @@ export default function AdminStores() {
 
                 <View style={styles.summaryRow}>
                   {summary.map((item) => (
-                    <View key={item.label} style={styles.summaryCard}>
-                      <View style={styles.summaryIcon}>
-                        <Ionicons name={item.icon} size={16} color="#0A2EA8" />
+                    <View key={item.label} style={[styles.statCard, { flexBasis: isDesktop ? '22%' : '47%', flexGrow: 1 }]}>
+                      <View style={[styles.statIcon, { backgroundColor: item.iconBg }]}>
+                        <Ionicons name={item.icon} size={16} color={item.iconColor} />
                       </View>
-                      <Text style={styles.summaryLabel}>{item.label}</Text>
-                      <Text style={styles.summaryValue}>{String(item.value)}</Text>
+                      <Text style={styles.statValue}>{String(item.value)}</Text>
+                      <Text style={styles.statLabel}>{item.label}</Text>
+                      <View style={[styles.statBar, { backgroundColor: item.iconColor }]} />
                     </View>
                   ))}
                 </View>
@@ -570,25 +573,30 @@ function DetailItem({ label, value, icon, isLink, onPress }: any) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#F5F7FA',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
-    paddingHorizontal: 12,
+    backgroundColor: '#F5F7FA',
+    paddingHorizontal: 16,
+  },
+  desktopCanvas: {
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
   },
   scrollView: {
     flex: 1,
   },
   screen: {
     flexGrow: 1,
-    paddingBottom: 180,
+    paddingBottom: 40,
   },
   heroPanel: {
     borderRadius: 36,
     paddingHorizontal: 18,
     paddingTop: 16,
-    paddingBottom: 24,
+    paddingBottom: 18,
     justifyContent: 'space-between',
     gap: 16,
   },
@@ -673,7 +681,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   pageHead: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingTop: 18,
     paddingBottom: 10,
   },
@@ -725,6 +733,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 28,
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
     borderRadius: 24,
     shadowColor: '#0B2060',
     shadowOpacity: 0.08,
@@ -757,6 +767,8 @@ const styles = StyleSheet.create({
   },
   brandCard: {
     backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
     borderRadius: 24,
     overflow: 'hidden',
     shadowColor: '#0B2060',
@@ -840,56 +852,76 @@ const styles = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     letterSpacing: 0.5,
   },
+  pill: {
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    alignSelf: 'center',
+  },
+  pillText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Bold',
+    letterSpacing: 0.5,
+  },
   summaryRow: {
     flexDirection: 'row',
     gap: 10,
     flexWrap: 'wrap',
     marginBottom: 14,
   },
-  summaryCard: {
-    width: '48.3%',
+  statCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.15,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.06,
     shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    overflow: 'hidden',
   },
-  summaryIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    justifyContent: 'center',
+  statIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
     alignItems: 'center',
-    marginBottom: 6,
-    backgroundColor: '#EEF4FF',
+    justifyContent: 'center',
   },
-  summaryLabel: {
-    color: '#1D2B73',
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    marginTop: 2,
-  },
-  summaryValue: {
-    color: '#1D2B73',
-    fontSize: 16,
+  statValue: {
+    color: '#0F172A',
+    fontSize: 18,
     fontFamily: 'Montserrat-Bold',
-    lineHeight: 22,
+    marginBottom: 2,
+    marginTop: 8,
+  },
+  statLabel: {
+    color: '#64748B',
+    fontSize: 11,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  statBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
   cardSection: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
     width: '100%',
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
     marginBottom: 14,
   },
   sectionHeaderRow: {
@@ -961,13 +993,18 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     flexBasis: '31%',
     minWidth: 96,
-    borderRadius: 18,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: adminColors.border,
-    backgroundColor: adminColors.surfaceSoft,
+    borderColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 14,
     paddingHorizontal: 10,
     alignItems: 'center',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   docName: {
     color: adminColors.text,

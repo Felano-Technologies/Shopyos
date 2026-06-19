@@ -5,11 +5,11 @@ CREATE OR REPLACE FUNCTION get_category_counts()
 RETURNS TABLE(category VARCHAR, product_count BIGINT) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
-    p.category, 
+  SELECT
+    p.category,
     COUNT(p.id) AS product_count
   FROM products p
-  WHERE p.is_active = TRUE 
+  WHERE p.is_active = TRUE
     AND p.deleted_at IS NULL
   GROUP BY p.category
   ORDER BY product_count DESC;

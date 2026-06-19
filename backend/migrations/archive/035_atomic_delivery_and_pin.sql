@@ -56,23 +56,23 @@ BEGIN
     SELECT * INTO v_delivery FROM deliveries WHERE order_id = p_order_id FOR UPDATE;
 
     -- 4. Calculate Payouts
-    -- Logic: 
+    -- Logic:
     -- Platform takes Tax (₵1.00 usually)
     -- Platform takes 5% of subtotal
     -- Driver gets 85% of delivery_fee (Platform takes 15%)
-    
+
     v_seller_payout := v_order.subtotal * 0.95;
-    
+
     IF v_delivery.id IS NOT NULL AND v_delivery.driver_id IS NOT NULL THEN
         v_driver_payout := v_order.delivery_fee * 0.85;
     ELSE
         v_driver_payout := 0;
     END IF;
-    
+
     v_platform_fee := v_order.total_amount - v_seller_payout - v_driver_payout;
 
     -- 5. Update Order
-    UPDATE orders SET 
+    UPDATE orders SET
         status = 'completed',
         escrow_status = 'RELEASED',
         platform_fee = v_platform_fee,
@@ -90,19 +90,19 @@ BEGIN
 
     -- 7. Credit Driver (User Wallet)
     IF v_driver_payout > 0 THEN
-        UPDATE user_profiles SET 
+        UPDATE user_profiles SET
             wallet_balance = COALESCE(wallet_balance, 0) + v_driver_payout,
             updated_at = v_now
         WHERE user_id = v_delivery.driver_id;
-        
+
         -- Get new balance for logging
         SELECT wallet_balance INTO v_new_driver_balance FROM user_profiles WHERE user_id = v_delivery.driver_id;
 
         INSERT INTO wallet_logs (user_id, amount, transaction_type, order_id, balance_after)
         VALUES (v_delivery.driver_id, v_driver_payout, 'earning', p_order_id, v_new_driver_balance);
-        
+
         -- Update delivery status if not already delivered
-        UPDATE deliveries SET 
+        UPDATE deliveries SET
             status = 'delivered',
             delivered_at = v_now,
             driver_earnings = v_driver_payout,
@@ -116,22 +116,22 @@ BEGIN
         v_referral RECORD;
         v_referrer_wallet DECIMAL(12, 2);
     BEGIN
-        SELECT * INTO v_referral FROM referrals 
-        WHERE referred_id = v_order.buyer_id AND status = 'pending' 
+        SELECT * INTO v_referral FROM referrals
+        WHERE referred_id = v_order.buyer_id AND status = 'pending'
         LIMIT 1 FOR UPDATE;
 
         IF FOUND THEN
-            UPDATE referrals SET 
-                status = 'completed', 
-                order_id = p_order_id, 
-                completed_at = v_now 
+            UPDATE referrals SET
+                status = 'completed',
+                order_id = p_order_id,
+                completed_at = v_now
             WHERE id = v_referral.id;
 
-            UPDATE user_profiles SET 
+            UPDATE user_profiles SET
                 wallet_balance = COALESCE(wallet_balance, 0) + v_referral.reward_amount,
                 updated_at = v_now
             WHERE user_id = v_referral.referrer_id;
-            
+
             SELECT wallet_balance INTO v_referrer_wallet FROM user_profiles WHERE user_id = v_referral.referrer_id;
 
             INSERT INTO wallet_logs (user_id, amount, transaction_type, order_id, balance_after)
@@ -140,7 +140,7 @@ BEGIN
     END;
 
     RETURN jsonb_build_object(
-        'success', true, 
+        'success', true,
         'message', 'Delivery confirmed and funds released',
         'seller_payout', v_seller_payout,
         'driver_payout', v_driver_payout,
@@ -178,7 +178,7 @@ BEGIN
     END IF;
 
     -- 4. Mark as Verified
-    UPDATE orders SET 
+    UPDATE orders SET
         pin_verified_at = NOW(),
         verification_pin = NULL -- Optional: Clear PIN after use
     WHERE id = p_order_id;

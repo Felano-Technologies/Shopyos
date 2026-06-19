@@ -92,7 +92,7 @@ function resolveVariant(variants: any[], attrs: Record<string, string>): any {
 export default function ProductDetails() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { addToCart } = useCart();
+    const addToCart = useCart((s) => s.addToCart);
     const [isLiked, setIsLiked] = useState(false);
     const [successModalVisible, setSuccessModalVisible] = useState(false);
     // --- Review States ---
@@ -213,7 +213,7 @@ export default function ProductDetails() {
                 const updated = await getReviewComments(selectedReviewId);
                 setActiveComments(updated.comments);
             }
-        } catch (err: any) { Alert.alert("Error", err.message || "Could not post comment"); }
+        } catch (err: unknown) { Alert.alert("Error", err instanceof Error ? err.message : "Could not post comment"); }
         finally { setCommentSubmitting(false); }
     };
     const toggleFavorite = async () => {
@@ -225,7 +225,7 @@ export default function ProductDetails() {
                 await addToFavorites(product.id);
                 setIsLiked(true);
             }
-        } catch (error: any) { Alert.alert("Error", error.message || "Failed to update favorites"); }
+        } catch (error: unknown) { Alert.alert("Error", error instanceof Error ? error.message : "Failed to update favorites"); }
     };
     const handleChat = async () => {
         try {
@@ -247,7 +247,7 @@ export default function ProductDetails() {
                     }
                 });
             }
-        } catch (error: any) { Alert.alert("Error", error.message || "Failed to start chat with seller"); }
+        } catch (error: unknown) { Alert.alert("Error", error instanceof Error ? error.message : "Failed to start chat with seller"); }
     };
     const handleAttributeSelect = (optionName: string, value: string) => {
         const next = { ...selectedAttributes, [optionName]: value };
@@ -491,14 +491,14 @@ export default function ProductDetails() {
     );
 }
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F0F4FC' },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
     detailsScroll: { flex: 1, marginTop: -30 },
     detailsScrollContent: { paddingBottom: 150 },
     imageHeaderContainer: { height: height * 0.45, width: '100%', position: 'relative' },
     productImage: { width: '100%', height: '100%' },
     headerOverlay: { position: 'absolute', top: 50, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between' },
     iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center', shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-    detailsCard: { backgroundColor: '#F0F4FC', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.6 },
+    detailsCard: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, paddingHorizontal: 24, paddingTop: 16, minHeight: height * 0.6 },
     handleBar: { width: 40, height: 4, backgroundColor: '#CBD5E1', borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
     metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
     categoryBadge: { backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },

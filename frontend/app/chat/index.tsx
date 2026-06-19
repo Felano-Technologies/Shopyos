@@ -138,12 +138,11 @@ export default function ChatInbox() {
     }
   };
 
-  const openChat = async (item: any) => {
+  const openChat = useCallback(async (item: any) => {
     if (item.unread > 0 && item.id !== 'pinned-bot') markAsRead(item.id, 'buyer');
-    
+
     let targetConversationId = item.id;
-    
-    // If it's the bot and they haven't talked to it yet
+
     if (item.id === 'pinned-bot') {
       try {
         const res = await startConversation(SUPPORT_BOT_ID);
@@ -152,8 +151,7 @@ export default function ChatInbox() {
         } else {
           throw new Error('Failed to start');
         }
-      } catch (err) {
-        // intentional
+      } catch {
         CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not connect to Shopyos Bot' });
         return;
       }
@@ -161,33 +159,33 @@ export default function ChatInbox() {
 
     router.push({
       pathname: '/chat/conversation',
-      params: { 
-        conversationId: targetConversationId, 
-        name: item.name, 
-        avatar: item.avatar, 
+      params: {
+        conversationId: targetConversationId,
+        name: item.name,
+        avatar: item.avatar,
         chatType: 'buyer',
         entityId: item.otherParticipant?.store?.id || item.otherParticipant?.id,
         participantId: item.otherParticipant?.id
       },
     });
-  };
+  }, [markAsRead, router]);
 
-  const handleLongPress = (item: any) => {
+  const handleLongPress = useCallback((item: any) => {
     Alert.alert('Delete Chat', `Delete conversation with ${item.name}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
           const ok = await deleteConversation(item.id, 'buyer');
-          CustomInAppToast.show({ 
-            type: ok ? 'success' : 'error', 
+          CustomInAppToast.show({
+            type: ok ? 'success' : 'error',
             title: ok ? 'Deleted' : 'Error',
             message: ok ? 'Conversation deleted successfully' : 'Failed to delete conversation'
           });
         },
       },
     ]);
-  };
+  }, [deleteConversation]);
 
   const initials = (name: string) =>
     (name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -195,7 +193,7 @@ export default function ChatInbox() {
   const hasConversations = buyerConversations.length > 0;
 
   // ── Conversation row ─────────────────────────────────────────────────────────
-  const renderItem = ({ item }: { item: any }) => {
+  const renderItem = useCallback(({ item }: { item: any }) => {
     const unread = item.unread > 0;
     return (
       <TouchableOpacity
@@ -241,7 +239,7 @@ export default function ChatInbox() {
         </View>
       </TouchableOpacity>
     );
-  };
+  }, [openChat, handleLongPress]);
 
   return (
     <View style={styles.root}>
@@ -311,6 +309,10 @@ export default function ChatInbox() {
         contentContainerStyle={[styles.list, displayList.length === 0 && { flex: 1 }]}
         ListEmptyComponent={() => <InboxEmpty hasConversations={hasConversations} onBrowse={() => router.push('/home')} />}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={15}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews
         ItemSeparatorComponent={ConversationSeparator}
       />
 
@@ -375,6 +377,9 @@ export default function ChatInbox() {
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.modalList}
                 showsVerticalScrollIndicator={false}
+                initialNumToRender={10}
+                maxToRenderPerBatch={10}
+                windowSize={8}
                 ItemSeparatorComponent={ModalSeparator}
                 ListEmptyComponent={ModalEmptyComponent}
                 renderItem={({ item }) => (

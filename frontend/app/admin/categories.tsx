@@ -22,7 +22,7 @@ const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F8FAFC',
+  bg:      '#F5F7FA',
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
   lime:    '#84cc16',
@@ -199,28 +199,24 @@ export default function AdminCategories() {
     <View style={S.root}>
       <StatusBar style="light" />
 
-      {/* Watermark */}
-      <View style={S.watermark} pointerEvents="none">
-        <AppImage source={require('../../assets/images/splash-icon.png')} style={S.watermarkImg} />
-      </View>
-
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
-        <SafeAreaView edges={['left', 'right']}>
-          <View style={S.hdrInner}>
-            <View style={S.hdrTop}>
-              <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
-                <Ionicons name="arrow-back" size={rs(22)} color="#fff" />
-              </TouchableOpacity>
-              <Text style={S.hdrTitle}>Categories</Text>
-              <TouchableOpacity style={S.addBtn} onPress={openAddModal}>
-                <Ionicons name="add" size={rs(24)} color={C.navy} />
-              </TouchableOpacity>
-            </View>
-            <Text style={S.hdrSub}>Manage product categories for the platform</Text>
+      <LinearGradient
+        colors={['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[S.header, { paddingTop: insets.top + 10 }]}
+      >
+        <View style={S.hdrInner}>
+          <View style={S.hdrTop}>
+            <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
+              <Ionicons name="arrow-back" size={22} color="#fff" />
+            </TouchableOpacity>
+            <Text style={S.hdrTitle}>Categories</Text>
+            <TouchableOpacity style={S.addBtn} onPress={openAddModal}>
+              <Ionicons name="add" size={22} color="#fff" />
+            </TouchableOpacity>
           </View>
-        </SafeAreaView>
-        <View style={S.hdrArc} />
+        </View>
       </LinearGradient>
 
       {/* ── Search & List ──────────────────────────────────────────────────── */}
@@ -302,25 +298,20 @@ export default function AdminCategories() {
 
 const S = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
-  watermark: { position: 'absolute', bottom: -50, right: -50, opacity: 0.03 },
-  watermarkImg: { width: 300, height: 300, resizeMode: 'contain' },
   header: {
-    paddingBottom: rs(28),
-    borderBottomLeftRadius: rs(30),
-    borderBottomRightRadius: rs(30),
+    paddingHorizontal: 16,
+    paddingBottom: 14,
   },
-  hdrInner: { paddingHorizontal: rs(22) },
+  hdrInner: { paddingHorizontal: 0 },
   hdrTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  backBtn: { padding: rs(5) },
-  hdrTitle: { fontSize: rf(22), fontFamily: 'Montserrat-Bold', color: '#fff' },
-  addBtn: {
-    width: rs(40), height: rs(40), borderRadius: rs(12),
-    backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center'
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  hdrSub: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: 'rgba(255,255,255,0.6)', marginTop: rs(6) },
-  hdrArc: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(20),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(20), borderTopRightRadius: rs(20),
+  hdrTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#fff', flex: 1, textAlign: 'center' },
+  addBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center',
   },
   searchArea: { paddingHorizontal: rs(18), marginTop: rs(10) },
   searchBox: {
@@ -334,7 +325,8 @@ const S = StyleSheet.create({
   catCard: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
     borderRadius: rs(18), padding: rs(14), marginBottom: rs(12),
-    elevation: 2, shadowColor: C.navy, shadowOpacity: 0.05, shadowRadius: 10
+    elevation: 2, shadowColor: C.navy, shadowOpacity: 0.05, shadowRadius: 10,
+    borderWidth: 1, borderColor: '#E8EEF8'
   },
   catInfo: { flex: 1, flexDirection: 'row', alignItems: 'center' },
   catIcon: {

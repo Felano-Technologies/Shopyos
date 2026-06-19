@@ -31,8 +31,8 @@ const ForgotPasswordScreen = () => {
       setSending(true);
       await requestPasswordReset(normalizedEmail);
       setSuccessVisible(true);
-    } catch (error: any) {
-      Alert.alert('Request Failed', error?.message || 'Could not send reset email. Please try again.');
+    } catch (error: unknown) {
+      Alert.alert('Request Failed', error instanceof Error ? error.message : 'Could not send reset email. Please try again.');
     } finally {
       setSending(false);
     }

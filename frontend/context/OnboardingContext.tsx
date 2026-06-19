@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { getUserData, updateOnboardingState, secureStorage } from '../services/api';
 import { cacheUserProfile, getCachedUserProfile } from '../services/storage';
+import { useAuthStore } from '../store/authStore';
 
 interface OnboardingState {
   [key: string]: boolean;
@@ -27,20 +28,25 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [activeScreen, setActiveScreen] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const setAuthenticated = useAuthStore((s) => s.setAuthenticated);
+  const exitBuyerMode = useAuthStore((s) => s.exitBuyerMode);
 
   useEffect(() => {
     const init = async () => {
       const token = await secureStorage.getItem('userToken');
       if (token) {
+        setAuthenticated(true);
         await loadOnboardingState();
       } else {
+        setAuthenticated(false);
+        exitBuyerMode();
         setOnboardingState({});
         setUser(null);
         setIsLoading(false);
       }
     };
     init();
-  }, []);
+  }, [setAuthenticated, exitBuyerMode]);
 
   // Listen for login/logout by checking storage or other auth signals
   // For now, we can expose a refresh method and call it after login
@@ -54,16 +60,18 @@ export const OnboardingProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const cached = await getCachedUserProfile();
       if (cached) {
         setUser(cached);
-        setOnboardingState(cached.onboarding_state ?? {});
+        setAuthenticated(true);
+        setOnboardingState((cached as any).onboarding_state ?? {});
       }
       getUserData()
         .then(fresh => {
           cacheUserProfile(fresh);
           setUser(fresh);
+          setAuthenticated(true);
           setOnboardingState(fresh.onboarding_state ?? {});
         })
         .catch(() => {});
-      return cached?.onboarding_state ?? null;
+      return (cached as any)?.onboarding_state ?? null;
     } catch (error) {
       console.warn('Failed to load onboarding state:', error);
       return null;

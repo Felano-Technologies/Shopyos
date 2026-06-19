@@ -15,13 +15,15 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getPendingDriverVerifications } from '@/services/api';
 
+const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as const;
+
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
 const rf = (n: number) => Math.round(n * Math.min(SCALE, 1.1));
 
 const C = {
-  bg:      '#F8FAFC',
+  bg:      '#F5F7FA',
   navy:    '#0C1559',
   navyMid: '#1e3a8a',
   lime:    '#84cc16',
@@ -47,10 +49,6 @@ const FILTERS: { key: FilterType; label: string }[] = [
   { key: 'approved', label: 'Approved' },
   { key: 'rejected', label: 'Rejected' },
 ];
-
-function DriverListSeparator() {
-  return <View style={{ height: rs(12) }} />;
-}
 
 type DriverListEmptyProps = Readonly<{ filter: FilterType }>;
 function DriverListEmpty({ filter }: DriverListEmptyProps) {
@@ -131,11 +129,8 @@ export default function DriverVerificationsScreen() {
           params:   { id: item.id },
         })}
       >
-        {/* Status accent bar */}
-        <View style={[S.cardAccentBar, { backgroundColor: cfg.color }]} />
-
         <View style={S.cardInner}>
-          {/* Avatar + info */}
+          {/* Avatar + info + status pill */}
           <View style={S.cardTop}>
             <View style={S.avatarWrap}>
               {avatar ? (
@@ -149,8 +144,8 @@ export default function DriverVerificationsScreen() {
 
             <View style={S.driverInfo}>
               <Text style={S.driverName} numberOfLines={1}>{name}</Text>
-              <Text style={S.driverEmail} numberOfLines={1}>{email}</Text>
-              <Text style={S.driverPhone}>{phone}</Text>
+              <Text style={S.driverMeta} numberOfLines={1}>{email}</Text>
+              <Text style={S.driverDate}>{phone}</Text>
             </View>
 
             <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
@@ -199,7 +194,7 @@ export default function DriverVerificationsScreen() {
             </View>
           </View>
 
-          {/* Review CTA */}
+          {/* Footer */}
           <View style={S.cardFooter}>
             {item.created_at ? (
               <Text style={S.submittedDate}>
@@ -226,21 +221,17 @@ export default function DriverVerificationsScreen() {
 
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
 
-        {/* ── Header ──────────────────────────────────────────────────── */}
+        {/* Header */}
         <LinearGradient
-          colors={[C.navy, C.navyMid]}
+          colors={DARK_GRADIENT}
+          end={{ x: 1, y: 1 }}
           style={[S.header, { paddingTop: insets.top + rs(12) }]}
         >
-          <View style={S.hdrGlow} pointerEvents="none" />
-
           <View style={S.hdrRow}>
             <TouchableOpacity style={S.hdrBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
-            <View style={S.hdrCenter}>
-              <Text style={S.hdrEye}>Admin</Text>
-              <Text style={S.hdrTitle}>Driver Verifications</Text>
-            </View>
+            <Text style={S.hdrTitle}>Driver Verifications</Text>
             {pendingCount > 0 ? (
               <View style={S.pendingBadge}>
                 <Text style={S.pendingBadgeTxt}>{pendingCount}</Text>
@@ -249,11 +240,9 @@ export default function DriverVerificationsScreen() {
               <View style={{ width: rs(38) }} />
             )}
           </View>
-
-          <View style={S.hdrArc} />
         </LinearGradient>
 
-        {/* ── Filter chips ─────────────────────────────────────────────── */}
+        {/* Filter chips */}
         <View style={S.filterRow}>
           {FILTERS.map((f) => {
             const on = filter === f.key;
@@ -275,117 +264,140 @@ export default function DriverVerificationsScreen() {
           })}
         </View>
 
-        {/* ── List ─────────────────────────────────────────────────────── */}
-        {loading ? (
-          <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
-        ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => item.id}
-            renderItem={renderItem}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={[
-              S.listContent,
-              { paddingBottom: rs(40) + insets.bottom },
-            ]}
-            ItemSeparatorComponent={DriverListSeparator}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} />
-            }
-            ListEmptyComponent={<DriverListEmpty filter={filter} />}
-          />
-        )}
+        {/* Desktop canvas */}
+        <View style={S.desktopCanvas}>
+          {loading ? (
+            <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
+          ) : (
+            <FlatList
+              data={filtered}
+              keyExtractor={(item) => item.id}
+              renderItem={renderItem}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={[
+                S.listContent,
+                { paddingBottom: rs(40) + insets.bottom },
+              ]}
+              ItemSeparatorComponent={() => <View style={{ height: rs(8) }} />}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.navy} />
+              }
+              ListEmptyComponent={<DriverListEmpty filter={filter} />}
+            />
+          )}
+        </View>
       </SafeAreaView>
     </View>
   );
 }
 
 const S = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: C.bg },
-  centred:{ flex: 1, justifyContent: 'center', alignItems: 'center' },
+  root:          { flex: 1, backgroundColor: C.bg },
+  centred:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%', flex: 1 },
 
+  // Header
   header: {
-    paddingHorizontal: rs(20), paddingBottom: rs(26),
-    position: 'relative', elevation: 10, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(8) }, shadowOpacity: 0.2, shadowRadius: rs(16),
-  },
-  hdrGlow: {
-    position: 'absolute', top: -rs(30), right: -rs(30),
-    width: rs(150), height: rs(150), borderRadius: rs(75),
-    backgroundColor: 'rgba(132,204,22,0.12)',
+    paddingHorizontal: rs(16),
+    paddingBottom: rs(16),
+    elevation: 8,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(4) },
+    shadowOpacity: 0.18,
+    shadowRadius: rs(12),
   },
   hdrRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   hdrBtn: {
-    width: rs(38), height: rs(38), borderRadius: rs(12),
-    backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.18)', justifyContent: 'center', alignItems: 'center',
+    width: rs(34),
+    height: rs(34),
+    borderRadius: rs(17),
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  hdrCenter:  { alignItems: 'center' },
-  hdrEye: {
-    fontSize: rf(9), fontFamily: 'Montserrat-Bold',
-    color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: 0.9, marginBottom: rs(2),
+  hdrTitle: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: rf(17),
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFFFFF',
   },
-  hdrTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#fff' },
   pendingBadge: {
-    width: rs(38), height: rs(38), borderRadius: rs(19),
-    backgroundColor: C.lime, justifyContent: 'center', alignItems: 'center',
+    width: rs(34),
+    height: rs(34),
+    borderRadius: rs(17),
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  pendingBadgeTxt: { fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.limeText },
-  hdrArc: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: rs(24),
-    backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
-  },
+  pendingBadgeTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#FFFFFF' },
 
   // Filter chips
   filterRow: {
-    flexDirection: 'row', gap: rs(8), paddingHorizontal: rs(16),
-    paddingVertical: rs(12), backgroundColor: C.bg,
+    flexDirection: 'row',
+    gap: rs(8),
+    paddingHorizontal: rs(12),
+    paddingVertical: rs(10),
+    backgroundColor: C.bg,
   },
   filterChip: {
-    height: 34, paddingHorizontal: rs(14), borderRadius: 17,
-    borderWidth: 0.5, borderColor: 'rgba(12,21,89,0.14)', backgroundColor: C.card,
-    justifyContent: 'center', alignItems: 'center',
-    elevation: 1, shadowColor: C.navy, shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04, shadowRadius: rs(2),
+    paddingHorizontal: rs(14),
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   filterChipOn:    { backgroundColor: C.navy, borderColor: C.navy },
-  filterChipTxt:   { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.muted },
-  filterChipTxtOn: { color: '#fff' },
+  filterChipTxt:   { fontSize: rf(12), fontFamily: 'Montserrat-SemiBold', color: C.muted },
+  filterChipTxtOn: { color: '#FFFFFF' },
 
-  listContent: { paddingHorizontal: rs(16), paddingTop: rs(4) },
+  listContent: { paddingHorizontal: rs(12), paddingTop: rs(4) },
 
-  // Driver card
+  // Driver card (clean card layout)
   driverCard: {
-    backgroundColor: C.card, borderRadius: rs(20), overflow: 'hidden',
-    elevation: 4, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.08, shadowRadius: rs(12),
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginHorizontal: 0,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: C.navy,
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: rs(2) },
+    elevation: 1,
+    overflow: 'hidden',
   },
-  cardAccentBar: { height: rs(3) },
-  cardInner:     { padding: rs(14) },
+  cardInner: { padding: rs(14) },
 
-  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: rs(14) },
+  cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: rs(12) },
   avatarWrap:     { marginRight: rs(12), flexShrink: 0 },
-  avatar:         { width: rs(52), height: rs(52), borderRadius: rs(16) },
-  avatarFallback: { backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
-  avatarInitials: { fontSize: rf(18), fontFamily: 'Montserrat-Bold', color: C.lime },
+  avatar:         { width: rs(44), height: rs(44), borderRadius: rs(22) },
+  avatarFallback: { backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
+  avatarInitials: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: '#2563EB' },
 
   driverInfo:  { flex: 1, marginRight: rs(8) },
-  driverName:  { fontSize: rf(14), fontFamily: 'Montserrat-Bold',    color: C.body, marginBottom: rs(3) },
-  driverEmail: { fontSize: rf(11), fontFamily: 'Montserrat-Medium',  color: C.muted, marginBottom: rs(2) },
-  driverPhone: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', color: C.subtle },
+  driverName:  { fontSize: rf(14), fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: rs(2) },
+  driverMeta:  { fontSize: rf(12), fontFamily: 'Montserrat-Regular',  color: '#64748B' },
+  driverDate:  { fontSize: rf(11), fontFamily: 'Montserrat-Regular',  color: '#94A3B8', marginTop: rs(2) },
 
   statusPill: {
-    paddingHorizontal: rs(8), paddingVertical: rs(4),
-    borderRadius: rs(10), flexShrink: 0, alignSelf: 'flex-start',
+    paddingHorizontal: rs(10),
+    paddingVertical: rs(4),
+    borderRadius: rs(20),
+    flexShrink: 0,
+    alignSelf: 'flex-start',
   },
-  statusPillTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold' },
+  statusPillTxt: { fontSize: rf(11), fontFamily: 'Montserrat-SemiBold', textTransform: 'capitalize' },
 
   // Doc progress
-  docProgressWrap:   { marginBottom: rs(12) },
+  docProgressWrap:   { marginBottom: rs(10) },
   docProgressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(6) },
   docProgressLbl:    { fontSize: rf(10), fontFamily: 'Montserrat-SemiBold', color: C.muted },
   docProgressCount:  { fontSize: rf(10), fontFamily: 'Montserrat-Bold',     color: C.navy },
-  docBar:      { height: rs(4), backgroundColor: '#F1F5F9', borderRadius: rs(2), marginBottom: rs(10), overflow: 'hidden' },
+  docBar:      { height: rs(4), backgroundColor: '#F1F5F9', borderRadius: rs(2), marginBottom: rs(8), overflow: 'hidden' },
   docBarFill:  { height: '100%', borderRadius: rs(2) },
   docChips:    { flexDirection: 'row', flexWrap: 'wrap', gap: rs(6) },
   docChip: {
@@ -395,8 +407,8 @@ const S = StyleSheet.create({
   docChipTxt: { fontSize: rf(9), fontFamily: 'Montserrat-Bold' },
 
   // Card footer
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  submittedDate: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: rs(10) },
+  submittedDate: { fontSize: rf(10), fontFamily: 'Montserrat-Regular', color: C.subtle },
   reviewBtn: {
     flexDirection: 'row', alignItems: 'center', gap: rs(4),
     backgroundColor: C.navy, paddingVertical: rs(8), paddingHorizontal: rs(14), borderRadius: rs(12),
@@ -404,8 +416,8 @@ const S = StyleSheet.create({
   reviewBtnTxt: { fontSize: rf(11), fontFamily: 'Montserrat-Bold', color: C.lime },
 
   // Empty
-  emptyWrap:  { alignItems: 'center', paddingTop: rs(60), paddingHorizontal: rs(40) },
-  emptyCircle:{ width: rs(88), height: rs(88), borderRadius: rs(44), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16) },
-  emptyTitle: { fontSize: rf(16), fontFamily: 'Montserrat-Bold',   color: C.body, marginBottom: rs(8) },
-  emptySub:   { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', lineHeight: rf(20) },
+  emptyWrap:   { alignItems: 'center', paddingTop: rs(60), paddingHorizontal: rs(40) },
+  emptyCircle: { width: rs(88), height: rs(88), borderRadius: rs(44), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center', marginBottom: rs(16) },
+  emptyTitle:  { fontSize: rf(16), fontFamily: 'Montserrat-Bold',    color: C.body, marginBottom: rs(8) },
+  emptySub:    { fontSize: rf(13), fontFamily: 'Montserrat-Regular', color: C.muted, textAlign: 'center', lineHeight: rf(20) },
 });

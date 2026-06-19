@@ -28,6 +28,16 @@ const {
   getAllEscrows,
   refundEscrow,
   releaseEscrow,
+  deleteUser,
+  resetUserSession,
+  disableUserSession,
+  createUserProfile,
+  createStoreAdmin,
+  createDriverProfileAdmin,
+  getDriverStatsAdmin,
+  getDriverHistoryAdmin,
+  getPlatformSettings,
+  updatePlatformSettings,
 } = require('../controllers/adminController');
 const {
   getScheduledNotifications,
@@ -38,10 +48,17 @@ const {
   sendTestNotification
 } = require('../controllers/adminNotificationController');
 const { protect, admin } = require('../middleware/authMiddleware');
+const adminExportController = require('../controllers/adminExportController');
 
 // All admin routes require authentication and admin role
 router.use(protect);
 router.use(admin);
+
+// Platform Settings (must be before any /:id routes)
+// @route   GET  /api/admin/platform-settings
+router.get('/platform-settings', getPlatformSettings);
+// @route   PUT  /api/admin/platform-settings
+router.put('/platform-settings', updatePlatformSettings);
 
 // @route   GET /api/admin/dashboard
 router.get('/dashboard', getDashboard);
@@ -53,13 +70,28 @@ router.get('/users', getAllUsers);
 // @route   GET /api/admin/users/stats  (must be before /:userId routes)
 router.get('/users/stats', getUserStats);
 
+// @route   POST /api/admin/users/create  (must be before /:userId routes)
+router.post('/users/create', createUserProfile);
+
 // @route   PUT /api/admin/users/:userId/status
 router.put('/users/:userId/status', updateUserStatus);
 
 // @route   PUT /api/admin/users/:userId/role
 router.put('/users/:userId/role', updateUserRole);
 
+// @route   DELETE /api/admin/users/:userId
+router.delete('/users/:userId', deleteUser);
+
+// @route   POST /api/admin/users/:userId/reset-session
+router.post('/users/:userId/reset-session', resetUserSession);
+
+// @route   POST /api/admin/users/:userId/disable-session
+router.post('/users/:userId/disable-session', disableUserSession);
+
 // Store Management
+// @route   POST /api/admin/stores/create  (must be before /:storeId routes)
+router.post('/stores/create', createStoreAdmin);
+
 // @route   GET /api/admin/stores
 router.get('/stores', getAllStores);
 
@@ -101,6 +133,16 @@ router.get('/orders', getAllOrders);
 // @route   GET /api/admin/revenue
 router.get('/revenue', getRevenue);
 
+// Driver Management
+// @route   POST /api/admin/drivers/create
+router.post('/drivers/create', createDriverProfileAdmin);
+
+// @route   GET /api/admin/drivers/:id/stats
+router.get('/drivers/:id/stats', getDriverStatsAdmin);
+
+// @route   GET /api/admin/drivers/:id/deliveries
+router.get('/drivers/:id/deliveries', getDriverHistoryAdmin);
+
 // Driver Verifications
 // @route   GET /api/admin/driver-verifications
 router.get('/driver-verifications', getDriverVerifications);
@@ -123,6 +165,10 @@ router.put('/escrows/:id/refund', refundEscrow);
 
 // @route   PUT /api/admin/escrows/:id/release
 router.put('/escrows/:id/release', releaseEscrow);
+
+// Export
+// @route   GET /api/admin/export/:resource
+router.get('/export/:resource', adminExportController.exportResource);
 
 // ─── Scheduled Broadcast Notifications ───────────────────────────────────────
 // Sub-paths BEFORE /:id to prevent shadowing

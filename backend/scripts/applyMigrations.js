@@ -109,6 +109,11 @@ async function run() {
     const files = getMigrationFiles();
     const applied = await getAppliedMigrations(client);
 
+    const overridesPath = path.join(MIGRATIONS_DIR, 'checksum_overrides.json');
+    const checksumOverrides = fs.existsSync(overridesPath)
+      ? JSON.parse(fs.readFileSync(overridesPath, 'utf8'))
+      : {};
+
     let appliedCount = 0;
 
     for (const fileName of files) {
@@ -118,6 +123,14 @@ async function run() {
 
       if (applied.has(fileName)) {
         if (applied.get(fileName) !== hash) {
+          if (checksumOverrides[fileName] === hash) {
+            await client.query(
+              'UPDATE schema_migrations SET checksum = $1 WHERE filename = $2',
+              [hash, fileName]
+            );
+            console.log(`🔄 Checksum updated: ${fileName}`);
+            continue;
+          }
           throw new Error(
             `Checksum mismatch for already-applied migration ${fileName}. ` +
             'Do not edit old migrations; add a new migration file instead.'

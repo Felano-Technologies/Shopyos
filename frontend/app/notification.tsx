@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { format, isToday, isYesterday } from 'date-fns';
 import { useNotifications, useMarkAllNotificationsRead, useMarkNotificationRead } from '@/hooks/useNotifications';
+import { getRouteFromNotification } from '@/utils/notificationRouting';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -118,10 +119,11 @@ const NotificationScreen = () => {
     } catch (e) { console.error('Mark all read failed', e); }
   };
 
-  const handleItemPress = useCallback(async (id: string) => {
-    setReadIds((prev) => new Set([...prev, id]));
-    try { await markOneMutation.mutateAsync(id); }
-    catch (e) { console.error('Mark one read failed', e); }
+  const handleItemPress = useCallback(async (item: any) => {
+    setReadIds((prev) => new Set([...prev, item.id]));
+    try { await markOneMutation.mutateAsync(item.id); } catch (e) { console.error('Mark one read failed', e); }
+    const route = getRouteFromNotification(item, 'buyer');
+    if (route) router.push(route as any);
   }, [markOneMutation]);
 
   const isRead = useCallback((n: any) => n.is_read || readIds.has(n.id), [readIds]);
@@ -135,7 +137,7 @@ const NotificationScreen = () => {
       <TouchableOpacity
         style={[S.card, unread && S.cardUnread]}
         activeOpacity={0.7}
-        onPress={() => handleItemPress(item.id)}
+        onPress={() => handleItemPress(item)}
       >
         {/* Premium Circular Icon */}
         <View style={[S.iconBox, { backgroundColor: cfg.bg }]}>

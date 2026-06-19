@@ -31,6 +31,7 @@ const LoyaltyRepository = require('./LoyaltyRepository');
 const ReturnRepository = require('./ReturnRepository');
 const ProductVariantRepository = require('./ProductVariantRepository');
 const RecommendationRepository = require('./RecommendationRepository');
+const AdminSettingsRepository = require('./AdminSettingsRepository');
 
 
 // Initialize repositories with selected client
@@ -62,6 +63,7 @@ const repositories = {
   returns: new ReturnRepository(repositoryClient),
   productVariants: new ProductVariantRepository(repositoryClient),
   recommendations: new RecommendationRepository(),
+  adminSettings: new AdminSettingsRepository(repositoryClient),
 };
 
 module.exports = repositories;

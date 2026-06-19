@@ -36,8 +36,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({ visible, onClose, enti
       await reportEntity(entityType, entityId, selectedReason, details);
       CustomInAppToast.show({ type: 'success', title: 'Report Submitted', message: 'Thank you for your report. We will investigate.' });
       onClose();
-    } catch (error: any) {
-      CustomInAppToast.show({ type: 'error', title: 'Report Failed', message: error.message || 'Something went wrong.' });
+    } catch (error: unknown) {
+      CustomInAppToast.show({ type: 'error', title: 'Report Failed', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
       setLoading(false);
     }

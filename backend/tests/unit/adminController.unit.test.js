@@ -105,7 +105,7 @@ const {
   rejectDriverVerification,
   getAuditLogs,
   getEntityHistory,
-  getAllEscrows,
+  getAllEscrows: _getAllEscrows,
   refundEscrow,
   releaseEscrow,
 } = require('../../controllers/adminController');
@@ -1649,7 +1649,7 @@ describe('AdminController Unit Tests', () => {
 
     test('test_releaseEscrow_rpcFails_returns400', async () => {
       repositories.orders.findById.mockResolvedValueOnce({ id: 'ord-1', escrow_status: 'HELD' });
-      const rpcMock = { rpc: jest.fn().mockResolvedValue({ data: { success: false, error: 'Already released' }, error: null }) };
+      const _rpcMock = { rpc: jest.fn().mockResolvedValue({ data: { success: false, error: 'Already released' }, error: null }) };
       repositories.orders.db.rpc = jest.fn().mockResolvedValue({ data: { success: false, error: 'Already released' }, error: null });
       const req = mockReq({ params: { id: 'ord-1' }, body: {} });
       const res = mockRes();

@@ -8,6 +8,18 @@
  * `notificationHandlerConfigured` flag) uses jest.isolateModules().
  */
 
+// Mock AsyncStorage native module — required before any import of services/storage
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
+// Mock services/storage so getCachedUserProfile resolves immediately (no native deps)
+jest.mock('../../services/storage', () => ({
+  getCachedUserProfile: jest.fn().mockResolvedValue(null),
+  cacheUserProfile: jest.fn().mockResolvedValue(undefined),
+  clearUserProfileCache: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('expo-constants', () => ({
   __esModule: true,
   default: {
@@ -134,10 +146,12 @@ describe('usePushNotifications Hook Unit Tests', () => {
     await mountAndFlush();
     const responseHandler = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0]?.[0];
     if (!responseHandler) return;
-    responseHandler({
-      notification: {
-        request: { content: { data: { screen: 'messages', conversationId: 'convo-abc', chatType: 'seller', senderName: 'Alice' } } },
-      },
+    await act(async () => {
+      responseHandler({
+        notification: {
+          request: { content: { data: { screen: 'messages', conversationId: 'convo-abc', chatType: 'seller', senderName: 'Alice' } } },
+        },
+      });
     });
     expect(mockRouterPush).toHaveBeenCalledWith({
       pathname: '/chat/conversation',
@@ -149,7 +163,9 @@ describe('usePushNotifications Hook Unit Tests', () => {
     await mountAndFlush();
     const responseHandler = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0]?.[0];
     if (!responseHandler) return;
-    responseHandler({ notification: { request: { content: { data: { screen: 'messages' } } } } });
+    await act(async () => {
+      responseHandler({ notification: { request: { content: { data: { screen: 'messages' } } } } });
+    });
     expect(mockRouterPush).toHaveBeenCalledWith('/chat');
   });
 
@@ -157,7 +173,9 @@ describe('usePushNotifications Hook Unit Tests', () => {
     await mountAndFlush();
     const responseHandler = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0]?.[0];
     if (!responseHandler) return;
-    responseHandler({ notification: { request: { content: { data: { screen: 'order', orderId: 'ord-789' } } } } });
+    await act(async () => {
+      responseHandler({ notification: { request: { content: { data: { screen: 'order', orderId: 'ord-789' } } } } });
+    });
     expect(mockRouterPush).toHaveBeenCalledWith('/order/ord-789');
   });
 
@@ -165,7 +183,9 @@ describe('usePushNotifications Hook Unit Tests', () => {
     await mountAndFlush();
     const responseHandler = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0]?.[0];
     if (!responseHandler) return;
-    responseHandler({ notification: { request: { content: { data: { screen: 'store', storeId: 'store-42' } } } } });
+    await act(async () => {
+      responseHandler({ notification: { request: { content: { data: { screen: 'store', storeId: 'store-42' } } } } });
+    });
     expect(mockRouterPush).toHaveBeenCalledWith({ pathname: '/stores/details', params: { id: 'store-42' } });
   });
 
@@ -173,7 +193,9 @@ describe('usePushNotifications Hook Unit Tests', () => {
     await mountAndFlush();
     const responseHandler = (Notifications.addNotificationResponseReceivedListener as jest.Mock).mock.calls[0]?.[0];
     if (!responseHandler) return;
-    responseHandler({ notification: { request: { content: { data: { screen: 'unknown' } } } } });
+    await act(async () => {
+      responseHandler({ notification: { request: { content: { data: { screen: 'unknown' } } } } });
+    });
     expect(mockRouterPush).toHaveBeenCalledWith('/notification');
   });
 

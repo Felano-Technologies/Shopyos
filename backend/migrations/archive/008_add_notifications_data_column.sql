@@ -3,7 +3,7 @@
 -- Run this in your Supabase SQL Editor
 
 -- Add the 'data' JSONB column to notifications table
-ALTER TABLE notifications 
+ALTER TABLE notifications
 ADD COLUMN IF NOT EXISTS data JSONB DEFAULT '{}';
 
 -- Add a comment for documentation

@@ -34,7 +34,7 @@ type SwipeableProps = {
   updateQuantity: (id: string, delta: number) => void;
 };
 
-function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<SwipeableProps>) {
+const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<SwipeableProps>) {
   const translateX = useRef(new Animated.Value(0)).current;
   const SWIPE_THRESHOLD = -60;
 
@@ -136,12 +136,14 @@ function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart
       </Animated.View>
     </View>
   );
-}
+});
 
 export default function CartScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { items: cartItems, removeFromCart, updateQuantity } = useCart();
+  const cartItems = useCart((s) => s.items);
+  const removeFromCart = useCart((s) => s.removeFromCart);
+  const updateQuantity = useCart((s) => s.updateQuantity);
   const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const [cartAds, setCartAds] = useState<HeroAd[]>([]);
@@ -242,6 +244,9 @@ export default function CartScreen() {
         )}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={8}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" />

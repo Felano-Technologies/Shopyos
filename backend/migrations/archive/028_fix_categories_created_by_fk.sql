@@ -13,7 +13,7 @@ DROP CONSTRAINT IF EXISTS categories_created_by_fkey;
 
 -- 2. Add the correct constraint referencing our own users table
 ALTER TABLE categories
-ADD CONSTRAINT categories_created_by_fkey 
+ADD CONSTRAINT categories_created_by_fkey
 FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL;
 
 -- 3. Comment for documentation

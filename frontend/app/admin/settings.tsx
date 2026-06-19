@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -11,9 +12,13 @@ import AppImage from '@/components/AppImage';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import Constants from 'expo-constants';
 import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
 import { adminColors } from '@/components/admin/adminTheme';
 import { getUserData } from '@/services/api';
+import { getAdminPlatformSettings, updateAdminPlatformSettings } from '@/services/admin';
+import { storage } from '@/services/storage';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function SettingItem({
   icon,
@@ -56,6 +61,7 @@ function SettingItem({
 
 export default function AdminSettings() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [autoApproveSellers, setAutoApproveSellers] = useState(false);
@@ -66,6 +72,7 @@ export default function AdminSettings() {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      // Load profile
       try {
         const data = await getUserData();
         const user = data?.user || data || {};
@@ -79,6 +86,31 @@ export default function AdminSettings() {
       } catch {
         // Keep defaults if profile fetch fails.
       }
+
+      // Load platform settings from API (with localStorage fallback)
+      try {
+        const settings = await getAdminPlatformSettings();
+        if (!mounted) return;
+        setIsMaintenanceMode(settings.maintenance_mode);
+        setAutoApproveSellers(settings.auto_approve_sellers);
+        // Cache locally so next open is instant
+        await storage.setItem('admin:maintenanceMode', String(settings.maintenance_mode)).catch(() => {});
+        await storage.setItem('admin:autoApproveSellers', String(settings.auto_approve_sellers)).catch(() => {});
+      } catch {
+        // Fall back to cached local values if API fails
+        const [maint, autoApprove] = await Promise.all([
+          storage.getItem('admin:maintenanceMode'),
+          storage.getItem('admin:autoApproveSellers'),
+        ]);
+        if (!mounted) return;
+        if (maint !== null) setIsMaintenanceMode(maint === 'true');
+        if (autoApprove !== null) setAutoApproveSellers(autoApprove === 'true');
+      }
+
+      // Load local-only push notification preference
+      const push = await storage.getItem('admin:pushNotifications');
+      if (!mounted) return;
+      if (push !== null) setPushNotifications(push === 'true');
     })();
     return () => {
       mounted = false;
@@ -100,13 +132,12 @@ export default function AdminSettings() {
   return (
     <>
       <StatusBar style="dark" />
-      <AdminShell
-        title="Settings"
-        subtitle="Platform controls, notifications, and account security."
-        scroll
-        contentContainerStyle={{ paddingBottom: 120 }}
-      >
-        <View style={styles.page}>
+      <AdminShell>
+        <ScrollView
+          style={styles.page}
+          contentContainerStyle={[styles.pageContent, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 12) + 80 }]}
+          showsVerticalScrollIndicator={false}
+        >
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
               {profileImage ? (
@@ -137,7 +168,15 @@ export default function AdminSettings() {
                 subLabel="Restrict user access during updates"
                 type="toggle"
                 value={isMaintenanceMode}
-                onValueChange={setIsMaintenanceMode}
+                onValueChange={async (v: boolean) => {
+                  setIsMaintenanceMode(v);
+                  await storage.setItem('admin:maintenanceMode', String(v)).catch(() => {});
+                  await updateAdminPlatformSettings({ maintenance_mode: v }).catch(() => {
+                    // Revert UI on failure
+                    setIsMaintenanceMode(!v);
+                    storage.setItem('admin:maintenanceMode', String(!v)).catch(() => {});
+                  });
+                }}
               />
               <View style={styles.divider} />
               <SettingItem
@@ -146,8 +185,24 @@ export default function AdminSettings() {
                 subLabel="Skip manual verification for trusted stores"
                 type="toggle"
                 value={autoApproveSellers}
-                onValueChange={setAutoApproveSellers}
+                onValueChange={async (v: boolean) => {
+                  setAutoApproveSellers(v);
+                  await storage.setItem('admin:autoApproveSellers', String(v)).catch(() => {});
+                  await updateAdminPlatformSettings({ auto_approve_sellers: v }).catch(() => {
+                    // Revert UI on failure
+                    setAutoApproveSellers(!v);
+                    storage.setItem('admin:autoApproveSellers', String(!v)).catch(() => {});
+                  });
+                }}
                 color={adminColors.green}
+              />
+              <View style={styles.divider} />
+              <SettingItem
+                icon="send"
+                label="Broadcasts"
+                subLabel="Send scheduled notifications to users"
+                onPress={() => router.push('/admin/broadcasts' as any)}
+                color={adminColors.blue}
               />
             </AdminPanel>
 
@@ -173,10 +228,32 @@ export default function AdminSettings() {
                 subLabel="Keep push alerts enabled"
                 type="toggle"
                 value={pushNotifications}
-                onValueChange={setPushNotifications}
+                onValueChange={async (v: boolean) => {
+                  setPushNotifications(v);
+                  await storage.setItem('admin:pushNotifications', String(v)).catch(() => {});
+                }}
               />
             </AdminPanel>
           </View>
+
+          <AdminPanel>
+            <Text style={styles.sectionTitle}>Content</Text>
+            <SettingItem
+              icon="tag"
+              label="Categories"
+              subLabel="Manage product categories"
+              onPress={() => router.push('/admin/categories' as any)}
+              color="#7C3AED"
+            />
+            <View style={styles.divider} />
+            <SettingItem
+              icon="image"
+              label="Ads & Campaigns"
+              subLabel="Manage banner ads and promotions"
+              onPress={() => router.push('/admin/ads' as any)}
+              color="#0891B2"
+            />
+          </AdminPanel>
 
           <AdminPanel>
             <Text style={styles.sectionTitle}>System info</Text>
@@ -189,7 +266,7 @@ export default function AdminSettings() {
             <View style={styles.divider} />
             <View style={styles.versionRow}>
               <Text style={styles.versionLabel}>Shopyos Admin Version</Text>
-              <Text style={styles.versionValue}>v2.0.4-Build</Text>
+              <Text style={styles.versionValue}>{Constants.expoConfig?.version ?? '2.0.4'}</Text>
             </View>
           </AdminPanel>
 
@@ -197,7 +274,7 @@ export default function AdminSettings() {
             <Feather name="log-out" size={20} color={adminColors.red} />
             <Text style={styles.logoutText}>Logout Admin Portal</Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </AdminShell>
     </>
   );
@@ -206,7 +283,12 @@ export default function AdminSettings() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
+    backgroundColor: '#F5F7FA',
+  },
+  pageContent: {
     gap: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   profileCard: {
     flexDirection: 'row',

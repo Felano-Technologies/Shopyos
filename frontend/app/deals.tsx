@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,14 +25,14 @@ export default function DealsScreen() {
   const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc' });
   const [refreshing, setRefreshing] = React.useState(false);
 
-  const onRefresh = async () => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
       await refetch();
     } finally {
       setRefreshing(false);
     }
-  };
+  }, [refetch]);
   
   const deals = data?.products?.map((p: any) => {
     const priceNum = Number(p.price) || 0;
@@ -50,21 +50,21 @@ export default function DealsScreen() {
 
   const loading = isLoading;
 
-  const handleProductPress = (item: any) => {
+  const handleProductPress = useCallback((item: any) => {
     router.push({
       pathname: '/product/details',
-      params: { 
-        id: item.id, 
-        title: item.title, 
-        price: item.price, 
+      params: {
+        id: item.id,
+        title: item.title,
+        price: item.price,
         oldPrice: item.oldPrice,
-        image: typeof item.image === 'string' ? item.image : item.image.uri, // Handle URI mapping safely
-        category: item.category 
+        image: typeof item.image === 'string' ? item.image : item.image.uri,
+        category: item.category
       }
     });
-  };
+  }, [router]);
 
-  const renderDeal = ({ item }: { item: any }) => (
+  const renderDeal = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity 
       style={styles.card} 
       activeOpacity={0.9}
@@ -103,7 +103,7 @@ export default function DealsScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), [handleProductPress]);
 
   if (loading) {
     return <DealsSkeleton />;
@@ -136,6 +136,10 @@ export default function DealsScreen() {
         contentContainerStyle={styles.listContainer}
         columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        removeClippedSubviews
         renderItem={renderDeal}
         refreshing={refreshing}
         onRefresh={onRefresh}

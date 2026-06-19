@@ -1,11 +1,12 @@
 // app/admin/driver-verifications/[id].tsx
 // Detail screen — full driver profile, all documents, approve / reject
+// Tabbed: Documents | Stats | History
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   Dimensions, ActivityIndicator, Alert, Modal,
-  TextInput, Linking,
+  TextInput, Linking, FlatList,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,9 +14,10 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getDriverVerificationDetails, approveDriverVerification, rejectDriverVerification } from '@/services/api';
+import { getDriverVerificationDetails, approveDriverVerification, rejectDriverVerification, getDriverStatsAdmin, getDriverHistoryAdmin } from '@/services/admin';
 import Skeleton from '@/components/Skeleton';
 import Toast from 'react-native-toast-message';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -51,6 +53,183 @@ function safeDate(val: any, fallback = '—') {
   } catch { return fallback; }
 }
 
+const TABS = ['Documents', 'Stats', 'History'] as const;
+type Tab = typeof TABS[number];
+
+// ── Stats Tab ─────────────────────────────────────────────────────────────────
+function StatsTab({ driverId }: { driverId: string }) {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (loaded) return;
+    setLoading(true);
+    getDriverStatsAdmin(driverId)
+      .then((data) => setStats(data?.stats ?? data ?? null))
+      .catch((e) => CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not load stats' }))
+      .finally(() => { setLoading(false); setLoaded(true); });
+  }, [driverId, loaded]);
+
+  if (loading) {
+    return (
+      <View style={S.tabCenter}>
+        <ActivityIndicator size="large" color={C.navy} />
+      </View>
+    );
+  }
+
+  if (!stats) {
+    return (
+      <View style={S.tabCenter}>
+        <Feather name="bar-chart-2" size={rs(36)} color={C.subtle} />
+        <Text style={S.noDataTxt}>No stats available</Text>
+      </View>
+    );
+  }
+
+  const metrics = [
+    { label: 'Total Deliveries', value: stats.total_deliveries ?? stats.totalDeliveries ?? '—', icon: 'package' as const, color: C.navy },
+    { label: 'Completed',        value: stats.completed_deliveries ?? stats.completed ?? '—',   icon: 'check-circle' as const, color: '#15803D' },
+    { label: 'Cancelled',        value: stats.cancelled_deliveries ?? stats.cancelled ?? '—',   icon: 'x-circle' as const,     color: '#EF4444' },
+    { label: 'Total Earnings',   value: `GHS ${Number(stats.total_earnings ?? stats.totalEarnings ?? 0).toFixed(2)}`, icon: 'dollar-sign' as const, color: '#D97706', wide: true },
+    { label: 'Avg Rating',       value: `${Number(stats.avg_rating ?? stats.averageRating ?? 0).toFixed(1)} / 5`, icon: 'star' as const, color: '#F59E0B', wide: true },
+  ];
+
+  return (
+    <ScrollView contentContainerStyle={S.tabScroll} showsVerticalScrollIndicator={false}>
+      <View style={S.metricsGrid}>
+        {metrics.map((m) => (
+          <View key={m.label} style={[S.metricCard, m.wide && S.metricCardWide]}>
+            <View style={[S.metricIconWrap, { backgroundColor: m.color + '18' }]}>
+              <Feather name={m.icon} size={rs(20)} color={m.color} />
+            </View>
+            <Text style={S.metricValue}>{String(m.value)}</Text>
+            <Text style={S.metricLabel}>{m.label}</Text>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+}
+
+// ── History Tab ───────────────────────────────────────────────────────────────
+const HISTORY_LIMIT = 20;
+
+const DELIVERY_STATUS_CFG: Record<string, { color: string; bg: string }> = {
+  delivered:  { color: '#15803D', bg: '#DCFCE7' },
+  completed:  { color: '#15803D', bg: '#DCFCE7' },
+  cancelled:  { color: '#B91C1C', bg: '#FEE2E2' },
+  pending:    { color: '#D97706', bg: '#FEF3C7' },
+  picked_up:  { color: '#2563EB', bg: '#DBEAFE' },
+  in_transit: { color: '#2563EB', bg: '#DBEAFE' },
+};
+const getDeliveryStatusCfg = (s: string) =>
+  DELIVERY_STATUS_CFG[s?.toLowerCase()] ?? { color: C.muted, bg: '#F3F4F6' };
+
+function HistoryTab({ driverId }: { driverId: string }) {
+  const [items, setItems]     = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded]   = useState(false);
+  const [offset, setOffset]   = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const load = useCallback(async (off: number, append = false) => {
+    if (off === 0) setLoading(true); else setLoadingMore(true);
+    try {
+      const res = await getDriverHistoryAdmin(driverId, { limit: HISTORY_LIMIT, offset: off });
+      const rows: any[] = res?.deliveries ?? res?.data ?? res ?? [];
+      setItems((prev) => append ? [...prev, ...rows] : rows);
+      setHasMore(rows.length === HISTORY_LIMIT);
+      setLoaded(true);
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not load history' });
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  }, [driverId]);
+
+  useEffect(() => { if (!loaded) load(0); }, [loaded, load]);
+
+  if (loading) {
+    return (
+      <View style={S.tabCenter}>
+        <ActivityIndicator size="large" color={C.navy} />
+      </View>
+    );
+  }
+
+  if (!loading && loaded && items.length === 0) {
+    return (
+      <View style={S.tabCenter}>
+        <Feather name="truck" size={rs(36)} color={C.subtle} />
+        <Text style={S.noDataTxt}>No delivery history</Text>
+      </View>
+    );
+  }
+
+  const handleLoadMore = () => {
+    const newOffset = offset + HISTORY_LIMIT;
+    setOffset(newOffset);
+    load(newOffset, true);
+  };
+
+  return (
+    <FlatList
+      data={items}
+      keyExtractor={(item, i) => String(item.id ?? item.order_id ?? i)}
+      contentContainerStyle={S.tabScroll}
+      showsVerticalScrollIndicator={false}
+      renderItem={({ item }) => {
+        const sc = getDeliveryStatusCfg(item.status);
+        return (
+          <View style={S.historyCard}>
+            <View style={S.historyCardTop}>
+              <View>
+                <Text style={S.historyOrderNum}>#{item.order_number ?? item.id ?? '—'}</Text>
+                <Text style={S.historyStore}>{item.store_name ?? '—'}</Text>
+              </View>
+              <View style={[S.historyStatusBadge, { backgroundColor: sc.bg }]}>
+                <Text style={[S.historyStatusTxt, { color: sc.color }]}>
+                  {(item.status ?? '—').replace(/_/g, ' ')}
+                </Text>
+              </View>
+            </View>
+            <View style={S.historyCardBottom}>
+              <View style={S.historyMeta}>
+                <Feather name="user" size={rs(11)} color={C.muted} />
+                <Text style={S.historyMetaTxt}>{item.buyer_name ?? item.customer_name ?? '—'}</Text>
+              </View>
+              <View style={S.historyMeta}>
+                <Feather name="calendar" size={rs(11)} color={C.muted} />
+                <Text style={S.historyMetaTxt}>{safeDate(item.created_at)}</Text>
+              </View>
+            </View>
+          </View>
+        );
+      }}
+      ListFooterComponent={
+        hasMore ? (
+          <TouchableOpacity
+            style={S.loadMoreBtn}
+            onPress={handleLoadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? (
+              <ActivityIndicator size="small" color={C.navy} />
+            ) : (
+              <Text style={S.loadMoreTxt}>Load More</Text>
+            )}
+          </TouchableOpacity>
+        ) : null
+      }
+    />
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
 export default function DriverVerificationDetailScreen() {
   const { id }  = useLocalSearchParams<{ id: string }>();
   const router  = useRouter();
@@ -59,6 +238,9 @@ export default function DriverVerificationDetailScreen() {
   const [driver,      setDriver]      = useState<any>(null);
   const [loading,     setLoading]     = useState(true);
   const [submitting,  setSubmitting]  = useState(false);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<Tab>('Documents');
 
   // Reject modal state
   const [rejectModal,  setRejectModal]  = useState(false);
@@ -233,6 +415,227 @@ export default function DriverVerificationDetailScreen() {
   const submittedCount = DOCUMENTS.length;
   const totalExpected  = 5;
 
+  // ── Documents Tab Content ──────────────────────────────────────────────────
+  const DocumentsContent = (
+    <ScrollView
+      showsVerticalScrollIndicator={false}
+      contentContainerStyle={[S.scroll, { paddingBottom: rs(40) + insets.bottom }]}
+    >
+      {/* ── Profile card ─────────────────────────────────────────── */}
+      <View style={S.profileCard}>
+        {/* Status bar at top */}
+        <View style={[S.profileStatusBar, { backgroundColor: cfg.bar }]} />
+
+        <View style={S.profileCardInner}>
+          {/* Avatar */}
+          <View style={S.profileAvatarWrap}>
+            {avatar ? (
+              <AppImage uri={avatar} style={S.profileAvatar} />
+            ) : (
+              <View style={[S.profileAvatar, S.profileAvatarFallback]}>
+                <Text style={S.profileInitials}>{initials}</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Name + status */}
+          <View style={S.profileMeta}>
+            <Text style={S.profileName}>{name}</Text>
+            <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
+              <Ionicons name={cfg.icon} size={rs(12)} color={cfg.color} />
+              <Text style={[S.statusPillTxt, { color: cfg.color }]}>{cfg.label}</Text>
+            </View>
+            <Text style={S.profileSub}>Applied {safeDate(driver.created_at)}</Text>
+          </View>
+
+          {/* Contact actions */}
+          <View style={S.profileActions}>
+            <TouchableOpacity
+              style={S.actionCircle}
+              onPress={() => Linking.openURL(`tel:${phone}`)}
+            >
+              <Ionicons name="call" size={rs(17)} color={C.limeText} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[S.actionCircle, { backgroundColor: '#EEF2FF' }]}
+              onPress={() => Linking.openURL(`mailto:${email}`)}
+            >
+              <Ionicons name="mail" size={rs(17)} color={C.navy} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      {/* ── Personal information ─────────────────────────────────── */}
+      <Text style={S.secLbl}>Personal Information</Text>
+      <View style={S.infoCard}>
+        {[
+          { icon: 'mail-outline',     label: 'Email',   value: email   },
+          { icon: 'call-outline',     label: 'Phone',   value: phone   },
+          { icon: 'location-outline', label: 'Address', value: address },
+          { icon: 'calendar-outline', label: 'DOB',     value: safeDate(driver.date_of_birth) },
+        ].map((row, i, arr) => (
+          <View key={row.label}>
+            <View style={S.infoRow}>
+              <View style={S.infoIconWrap}>
+                <Ionicons name={row.icon as any} size={rs(16)} color={C.navy} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={S.infoLbl}>{row.label}</Text>
+                <Text style={S.infoVal}>{row.value}</Text>
+              </View>
+            </View>
+            {i < arr.length - 1 && <View style={S.infoDivider} />}
+          </View>
+        ))}
+      </View>
+
+      {/* ── Vehicle information ──────────────────────────────────── */}
+      <Text style={S.secLbl}>Vehicle Information</Text>
+      <View style={S.infoCard}>
+        <View style={S.vehicleGrid}>
+          {[
+            { label: 'Make',         value: vehicle.make  },
+            { label: 'Model',        value: vehicle.model },
+            { label: 'Year',         value: vehicle.year  },
+            { label: 'Color',        value: vehicle.color },
+            { label: 'Plate Number', value: vehicle.plate },
+            { label: 'Type',         value: vehicle.type  },
+          ].map((v) => (
+            <View key={v.label} style={S.vehicleCell}>
+              <Text style={S.vehicleCellLbl}>{v.label}</Text>
+              <Text style={S.vehicleCellVal}>{v.value}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* ── Documents ───────────────────────────────────────────── */}
+      <View style={S.docSecHeader}>
+        <Text style={S.secLbl}>Submitted Documents</Text>
+        <View style={[
+          S.docCountPill,
+          { backgroundColor: submittedCount === totalExpected ? '#DCFCE7' : '#FEF3C7' },
+        ]}>
+          <Text style={[
+            S.docCountTxt,
+            { color: submittedCount === totalExpected ? '#15803D' : '#D97706' },
+          ]}>
+            {submittedCount}/{totalExpected}
+          </Text>
+        </View>
+      </View>
+
+      {DOCUMENTS.length === 0 ? (
+        <View style={[S.infoCard, { alignItems: 'center', paddingVertical: rs(24) }]}>
+          <Feather name="inbox" size={rs(30)} color={C.subtle} />
+          <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(8) }}>
+            No documents submitted yet
+          </Text>
+        </View>
+      ) : (
+        DOCUMENTS.map((doc) => (
+          <View key={doc.key} style={S.docCard}>
+            <View style={S.docCardHeader}>
+              <View style={S.docIconWrap}>
+                <Ionicons name={doc.icon as any} size={rs(18)} color={C.navy} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={S.docLabel}>{doc.label}</Text>
+                {doc.expiry ? (
+                  <Text style={S.docExpiry}>Expires: {safeDate(doc.expiry)}</Text>
+                ) : null}
+              </View>
+              <View style={S.docSubmittedBadge}>
+                <Ionicons name="checkmark-circle" size={rs(13)} color="#15803D" />
+                <Text style={S.docSubmittedTxt}>Submitted</Text>
+              </View>
+            </View>
+
+            {/* Document image — tappable for full view */}
+            <TouchableOpacity
+              style={S.docImageWrap}
+              activeOpacity={0.88}
+              onPress={() => setPreviewUri(doc.uri)}
+            >
+              <AppImage
+                uri={doc.uri}
+                style={S.docImage}
+              />
+              <View style={S.docImageOverlay}>
+                <View style={S.docImageOverlayPill}>
+                  <Ionicons name="expand-outline" size={rs(13)} color="#fff" />
+                  <Text style={S.docImageOverlayTxt}>Tap to enlarge</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+        ))
+      )}
+
+      {/* ── Rejection reason (if rejected) ──────────────────────── */}
+      {status.toLowerCase() === 'rejected' && driver.rejection_reason ? (
+        <>
+          <Text style={S.secLbl}>Rejection Reason</Text>
+          <View style={[S.infoCard, { backgroundColor: '#FFF5F5', borderWidth: 0.5, borderColor: '#FECACA' }]}>
+            <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: '#991B1B', lineHeight: rf(20) }}>
+              {driver.rejection_reason}
+            </Text>
+          </View>
+        </>
+      ) : null}
+
+      {/* ── Action buttons ───────────────────────────────────────── */}
+      {isPending && (
+        <View style={S.actionRow}>
+          {/* Reject */}
+          <TouchableOpacity
+            style={[S.rejectBtn, submitting && { opacity: 0.6 }]}
+            onPress={() => setRejectModal(true)}
+            disabled={submitting}
+            activeOpacity={0.85}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <>
+                <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
+                <Text style={S.rejectBtnTxt}>Reject</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          {/* Approve */}
+          <TouchableOpacity
+            style={[S.approveBtn, submitting && { opacity: 0.6 }]}
+            onPress={handleApprove}
+            disabled={submitting}
+            activeOpacity={0.88}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle-outline" size={rs(18)} color="#fff" />
+                <Text style={S.approveBtnTxt}>Approve Driver</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Already actioned — show a note */}
+      {!isPending && (
+        <View style={[S.actionedNote, { backgroundColor: cfg.bg }]}>
+          <Ionicons name={cfg.icon} size={rs(18)} color={cfg.color} />
+          <Text style={[S.actionedNoteTxt, { color: cfg.color }]}>
+            This application has been <Text style={{ fontFamily: 'Montserrat-Bold' }}>{status.toLowerCase()}</Text>.
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+
   return (
     <View style={S.root}>
       <StatusBar style="light" />
@@ -259,225 +662,27 @@ export default function DriverVerificationDetailScreen() {
           <View style={S.hdrArc} />
         </LinearGradient>
 
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[S.scroll, { paddingBottom: rs(40) + insets.bottom }]}
-        >
-
-          {/* ── Profile card ─────────────────────────────────────────── */}
-          <View style={S.profileCard}>
-            {/* Status bar at top */}
-            <View style={[S.profileStatusBar, { backgroundColor: cfg.bar }]} />
-
-            <View style={S.profileCardInner}>
-              {/* Avatar */}
-              <View style={S.profileAvatarWrap}>
-                {avatar ? (
-                  <AppImage uri={avatar} style={S.profileAvatar} />
-                ) : (
-                  <View style={[S.profileAvatar, S.profileAvatarFallback]}>
-                    <Text style={S.profileInitials}>{initials}</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* Name + status */}
-              <View style={S.profileMeta}>
-                <Text style={S.profileName}>{name}</Text>
-                <View style={[S.statusPill, { backgroundColor: cfg.bg }]}>
-                  <Ionicons name={cfg.icon} size={rs(12)} color={cfg.color} />
-                  <Text style={[S.statusPillTxt, { color: cfg.color }]}>{cfg.label}</Text>
-                </View>
-                <Text style={S.profileSub}>Applied {safeDate(driver.created_at)}</Text>
-              </View>
-
-              {/* Contact actions */}
-              <View style={S.profileActions}>
-                <TouchableOpacity
-                  style={S.actionCircle}
-                  onPress={() => Linking.openURL(`tel:${phone}`)}
-                >
-                  <Ionicons name="call" size={rs(17)} color={C.limeText} />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[S.actionCircle, { backgroundColor: '#EEF2FF' }]}
-                  onPress={() => Linking.openURL(`mailto:${email}`)}
-                >
-                  <Ionicons name="mail" size={rs(17)} color={C.navy} />
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-
-          {/* ── Personal information ─────────────────────────────────── */}
-          <Text style={S.secLbl}>Personal Information</Text>
-          <View style={S.infoCard}>
-            {[
-              { icon: 'mail-outline',     label: 'Email',   value: email   },
-              { icon: 'call-outline',     label: 'Phone',   value: phone   },
-              { icon: 'location-outline', label: 'Address', value: address },
-              { icon: 'calendar-outline', label: 'DOB',     value: safeDate(driver.date_of_birth) },
-            ].map((row, i, arr) => (
-              <View key={row.label}>
-                <View style={S.infoRow}>
-                  <View style={S.infoIconWrap}>
-                    <Ionicons name={row.icon as any} size={rs(16)} color={C.navy} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={S.infoLbl}>{row.label}</Text>
-                    <Text style={S.infoVal}>{row.value}</Text>
-                  </View>
-                </View>
-                {i < arr.length - 1 && <View style={S.infoDivider} />}
-              </View>
-            ))}
-          </View>
-
-          {/* ── Vehicle information ──────────────────────────────────── */}
-          <Text style={S.secLbl}>Vehicle Information</Text>
-          <View style={S.infoCard}>
-            <View style={S.vehicleGrid}>
-              {[
-                { label: 'Make',         value: vehicle.make  },
-                { label: 'Model',        value: vehicle.model },
-                { label: 'Year',         value: vehicle.year  },
-                { label: 'Color',        value: vehicle.color },
-                { label: 'Plate Number', value: vehicle.plate },
-                { label: 'Type',         value: vehicle.type  },
-              ].map((v) => (
-                <View key={v.label} style={S.vehicleCell}>
-                  <Text style={S.vehicleCellLbl}>{v.label}</Text>
-                  <Text style={S.vehicleCellVal}>{v.value}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* ── Documents ───────────────────────────────────────────── */}
-          <View style={S.docSecHeader}>
-            <Text style={S.secLbl}>Submitted Documents</Text>
-            <View style={[
-              S.docCountPill,
-              { backgroundColor: submittedCount === totalExpected ? '#DCFCE7' : '#FEF3C7' },
-            ]}>
-              <Text style={[
-                S.docCountTxt,
-                { color: submittedCount === totalExpected ? '#15803D' : '#D97706' },
-              ]}>
-                {submittedCount}/{totalExpected}
+        {/* ── Tab Bar ──────────────────────────────────────────────────── */}
+        <View style={S.tabBar}>
+          {TABS.map((tab) => (
+            <TouchableOpacity
+              key={tab}
+              style={[S.tabBtn, activeTab === tab && S.tabBtnActive]}
+              onPress={() => setActiveTab(tab)}
+              activeOpacity={0.8}
+            >
+              <Text style={[S.tabBtnTxt, activeTab === tab && S.tabBtnTxtActive]}>
+                {tab}
               </Text>
-            </View>
-          </View>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-          {DOCUMENTS.length === 0 ? (
-            <View style={[S.infoCard, { alignItems: 'center', paddingVertical: rs(24) }]}>
-              <Feather name="inbox" size={rs(30)} color={C.subtle} />
-              <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(8) }}>
-                No documents submitted yet
-              </Text>
-            </View>
-          ) : (
-            DOCUMENTS.map((doc) => (
-              <View key={doc.key} style={S.docCard}>
-                <View style={S.docCardHeader}>
-                  <View style={S.docIconWrap}>
-                    <Ionicons name={doc.icon as any} size={rs(18)} color={C.navy} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={S.docLabel}>{doc.label}</Text>
-                    {doc.expiry ? (
-                      <Text style={S.docExpiry}>Expires: {safeDate(doc.expiry)}</Text>
-                    ) : null}
-                  </View>
-                  <View style={S.docSubmittedBadge}>
-                    <Ionicons name="checkmark-circle" size={rs(13)} color="#15803D" />
-                    <Text style={S.docSubmittedTxt}>Submitted</Text>
-                  </View>
-                </View>
+        {/* ── Tab Content ──────────────────────────────────────────────── */}
+        {activeTab === 'Documents' && DocumentsContent}
+        {activeTab === 'Stats'     && <StatsTab   driverId={id} />}
+        {activeTab === 'History'   && <HistoryTab driverId={id} />}
 
-                {/* Document image — tappable for full view */}
-                <TouchableOpacity
-                  style={S.docImageWrap}
-                  activeOpacity={0.88}
-                  onPress={() => setPreviewUri(doc.uri)}
-                >
-                  <AppImage
-                    uri={doc.uri}
-                    style={S.docImage}
-                  />
-                  <View style={S.docImageOverlay}>
-                    <View style={S.docImageOverlayPill}>
-                      <Ionicons name="expand-outline" size={rs(13)} color="#fff" />
-                      <Text style={S.docImageOverlayTxt}>Tap to enlarge</Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </View>
-            ))
-          )}
-
-          {/* ── Rejection reason (if rejected) ──────────────────────── */}
-          {status.toLowerCase() === 'rejected' && driver.rejection_reason ? (
-            <>
-              <Text style={S.secLbl}>Rejection Reason</Text>
-              <View style={[S.infoCard, { backgroundColor: '#FFF5F5', borderWidth: 0.5, borderColor: '#FECACA' }]}>
-                <Text style={{ fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: '#991B1B', lineHeight: rf(20) }}>
-                  {driver.rejection_reason}
-                </Text>
-              </View>
-            </>
-          ) : null}
-
-          {/* ── Action buttons ───────────────────────────────────────── */}
-          {isPending && (
-            <View style={S.actionRow}>
-              {/* Reject */}
-              <TouchableOpacity
-                style={[S.rejectBtn, submitting && { opacity: 0.6 }]}
-                onPress={() => setRejectModal(true)}
-                disabled={submitting}
-                activeOpacity={0.85}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#EF4444" />
-                ) : (
-                  <>
-                    <Ionicons name="close-circle-outline" size={rs(18)} color="#EF4444" />
-                    <Text style={S.rejectBtnTxt}>Reject</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-
-              {/* Approve */}
-              <TouchableOpacity
-                style={[S.approveBtn, submitting && { opacity: 0.6 }]}
-                onPress={handleApprove}
-                disabled={submitting}
-                activeOpacity={0.88}
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark-circle-outline" size={rs(18)} color="#fff" />
-                    <Text style={S.approveBtnTxt}>Approve Driver</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Already actioned — show a note */}
-          {!isPending && (
-            <View style={[S.actionedNote, { backgroundColor: cfg.bg }]}>
-              <Ionicons name={cfg.icon} size={rs(18)} color={cfg.color} />
-              <Text style={[S.actionedNoteTxt, { color: cfg.color }]}>
-                This application has been <Text style={{ fontFamily: 'Montserrat-Bold' }}>{status.toLowerCase()}</Text>.
-              </Text>
-            </View>
-          )}
-
-        </ScrollView>
       </SafeAreaView>
 
       {/* ── Reject reason modal ──────────────────────────────────────── */}
@@ -584,7 +789,86 @@ const S = StyleSheet.create({
     backgroundColor: C.bg, borderTopLeftRadius: rs(24), borderTopRightRadius: rs(24),
   },
 
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    marginHorizontal: rs(16),
+    marginTop: rs(4),
+    marginBottom: rs(12),
+    backgroundColor: '#F1F5F9',
+    borderRadius: rs(14),
+    padding: rs(4),
+    gap: rs(4),
+  },
+  tabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: rs(9),
+    borderRadius: rs(10),
+    backgroundColor: 'transparent',
+  },
+  tabBtnActive: {
+    backgroundColor: C.navy,
+  },
+  tabBtnTxt: {
+    fontSize: rf(12),
+    fontFamily: 'Montserrat-SemiBold',
+    color: C.navy,
+  },
+  tabBtnTxtActive: {
+    color: '#fff',
+  },
+
   scroll: { padding: rs(16) },
+
+  // Tab shared
+  tabScroll:  { padding: rs(16), paddingBottom: rs(40) },
+  tabCenter:  { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: rs(60) },
+  noDataTxt:  { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.subtle, marginTop: rs(12) },
+
+  // Stats tab
+  metricsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: rs(12) },
+  metricCard: {
+    width: (SW - rs(44)) / 3,
+    backgroundColor: C.card,
+    borderRadius: rs(16),
+    padding: rs(14),
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
+  },
+  metricCardWide: {
+    width: (SW - rs(44)) / 2,
+  },
+  metricIconWrap: {
+    width: rs(40), height: rs(40), borderRadius: rs(12),
+    justifyContent: 'center', alignItems: 'center', marginBottom: rs(10),
+  },
+  metricValue: { fontSize: rf(16), fontFamily: 'Montserrat-Bold', color: C.body, textAlign: 'center' },
+  metricLabel: { fontSize: rf(10), fontFamily: 'Montserrat-Medium', color: C.muted, textAlign: 'center', marginTop: rs(4) },
+
+  // History tab
+  historyCard: {
+    backgroundColor: C.card, borderRadius: rs(16), padding: rs(14), marginBottom: rs(10),
+    elevation: 2, shadowColor: C.navy,
+    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.05, shadowRadius: rs(8),
+  },
+  historyCardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: rs(8) },
+  historyOrderNum:{ fontSize: rf(14), fontFamily: 'Montserrat-Bold', color: C.body },
+  historyStore:   { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted, marginTop: rs(2) },
+  historyStatusBadge: {
+    paddingHorizontal: rs(8), paddingVertical: rs(3), borderRadius: rs(10),
+  },
+  historyStatusTxt: { fontSize: rf(10), fontFamily: 'Montserrat-Bold', textTransform: 'capitalize' },
+  historyCardBottom:{ flexDirection: 'row', gap: rs(16) },
+  historyMeta:     { flexDirection: 'row', alignItems: 'center', gap: rs(4) },
+  historyMetaTxt:  { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.muted },
+  loadMoreBtn: {
+    alignItems: 'center', paddingVertical: rs(14), marginTop: rs(4),
+    backgroundColor: C.card, borderRadius: rs(14), borderWidth: 0.5, borderColor: '#E2E8F0',
+  },
+  loadMoreTxt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.navy },
 
   // Profile card
   profileCard: {

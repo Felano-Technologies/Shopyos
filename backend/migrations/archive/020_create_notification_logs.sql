@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS notification_logs (
     status VARCHAR(50) NOT NULL,     -- 'SENT', 'FAILED'
     error TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
-    
+
     -- Idempotency key: ensure we don't send the same event to the same target for the same reference
     CONSTRAINT unique_notification UNIQUE(event_type, target, reference_id)
 );

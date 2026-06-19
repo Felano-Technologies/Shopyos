@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -18,12 +19,20 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
+import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
 
-const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
-  active:    { color: '#059669', bg: '#D1FAE5', dot: '#10B981' },
-  suspended: { color: '#B45309', bg: '#FEF3C7', dot: '#F59E0B' },
-  banned:    { color: '#B91C1C', bg: '#FEE2E2', dot: '#EF4444' },
+const STATUS_PILL: Record<string, { bg: string; text: string }> = {
+  active:    { bg: '#DCFCE7', text: '#16A34A' },
+  suspended: { bg: '#FEF3C7', text: '#D97706' },
+  banned:    { bg: '#FEE2E2', text: '#DC2626' },
 };
+
+const AVATAR_COLORS = ['#DBEAFE', '#EDE9FE', '#DCFCE7', '#FEF3C7', '#FFE4E6', '#CFFAFE'];
+const AVATAR_TEXT_COLORS = ['#2563EB', '#7C3AED', '#16A34A', '#D97706', '#E11D48', '#0891B2'];
+function getAvatarColor(name?: string) {
+  const idx = (name?.charCodeAt(0) ?? 0) % AVATAR_COLORS.length;
+  return { bg: AVATAR_COLORS[idx], text: AVATAR_TEXT_COLORS[idx] };
+}
 
 type UserItem = {
   id: string;
@@ -51,6 +60,7 @@ export default function AdminBuyers() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [menuUser, setMenuUser] = useState<UserItem | null>(null);
 
   const loadBuyers = useCallback(
     async (isRefresh = false) => {
@@ -114,69 +124,77 @@ export default function AdminBuyers() {
     );
   };
 
+  const handleDeleteUser = async (user: UserItem) => {
+    Alert.alert('Delete User', `Permanently delete ${user.full_name || user.email}? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: async () => {
+        try {
+          setActionLoading(user.id);
+          setMenuUser(null);
+          await adminDeleteUser(user.id);
+          setBuyers(prev => prev.filter(u => u.id !== user.id));
+          CustomInAppToast.show({ type: 'success', title: 'User Deleted', message: 'Account removed successfully.' });
+        } catch (err: any) {
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+        } finally { setActionLoading(null); }
+      }},
+    ]);
+  };
+
+  const handleResetSession = async (user: UserItem) => {
+    try {
+      setActionLoading(user.id);
+      setMenuUser(null);
+      await adminResetUserSession(user.id);
+      CustomInAppToast.show({ type: 'success', title: 'Session Reset', message: `${user.full_name || user.email} will need to log in again.` });
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+    } finally { setActionLoading(null); }
+  };
+
+  const handleDisableSession = async (user: UserItem) => {
+    Alert.alert('Disable Session', `Deactivate ${user.full_name || user.email} and revoke all access?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Disable', style: 'destructive', onPress: async () => {
+        try {
+          setActionLoading(user.id);
+          setMenuUser(null);
+          await adminDisableUserSession(user.id);
+          setBuyers(prev => prev.map(u => u.id === user.id ? { ...u, account_status: 'suspended' } : u));
+          CustomInAppToast.show({ type: 'success', title: 'Session Disabled', message: 'User deactivated and logged out.' });
+        } catch (err: any) {
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+        } finally { setActionLoading(null); }
+      }},
+    ]);
+  };
+
   const renderBuyer = ({ item }: { item: UserItem }) => {
     const status = item.account_status || 'active';
-    const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG.active;
-    const isActive = status === 'active';
+    const pill = STATUS_PILL[status] || STATUS_PILL.active;
+    const avatarColor = getAvatarColor(item.full_name || item.email);
 
     return (
-      <TouchableOpacity
-        style={styles.userCard}
-        activeOpacity={0.86}
-        onPress={() => handleStatusChange(item)}
-      >
-        <View style={styles.userHeader}>
-          <View style={styles.avatarWrap}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(item.full_name, item.email)}</Text>
-            </View>
-            <View style={[styles.statusDot, { backgroundColor: statusConfig.dot }]} />
-          </View>
-
-          <View style={{ flex: 1 }}>
-            <Text style={styles.userName} numberOfLines={1}>
-              {item.full_name || 'Unnamed Buyer'}
-            </Text>
-            <Text style={styles.userContact} numberOfLines={1}>
-              {item.email || item.phone || 'No contact info'}
-            </Text>
-            <View style={styles.badgeRow}>
-              <View style={[styles.badge, { backgroundColor: '#EFF6FF' }]}>
-                <Text style={[styles.badgeText, { color: '#3B82F6' }]}>buyer</Text>
-              </View>
-              <View style={[styles.badge, { backgroundColor: statusConfig.bg }]}>
-                <Text style={[styles.badgeText, { color: statusConfig.color }]}>{status}</Text>
-              </View>
+      <View style={styles.userCard}>
+        {/* Avatar with initials */}
+        <View style={[styles.avatar, { backgroundColor: avatarColor.bg }]}>
+          <Text style={[styles.avatarText, { color: avatarColor.text }]}>{getInitials(item.full_name, item.email)}</Text>
+        </View>
+        {/* Info */}
+        <View style={{ flex: 1 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={styles.userName}>{item.full_name || 'Unknown'}</Text>
+            <View style={[styles.pill, { backgroundColor: pill.bg }]}>
+              <Text style={[styles.pillText, { color: pill.text }]}>{status}</Text>
             </View>
           </View>
+          <Text style={styles.userEmail} numberOfLines={1}>{item.email || item.phone || 'No contact info'}</Text>
         </View>
-
-        <View style={styles.cardFooter}>
-          <Text style={styles.joinedText}>
-            Joined {new Date(item.created_at || Date.now()).toLocaleDateString()}
-          </Text>
-          <TouchableOpacity
-            style={[styles.actionButton, isActive ? styles.actionDanger : styles.actionSuccess]}
-            onPress={() => handleStatusChange(item)}
-            disabled={actionLoading === item.id}
-          >
-            {actionLoading === item.id ? (
-              <ActivityIndicator size="small" color={isActive ? '#DC2626' : '#059669'} />
-            ) : (
-              <>
-                <Feather
-                  name={isActive ? 'slash' : 'check-circle'}
-                  size={14}
-                  color={isActive ? '#DC2626' : '#059669'}
-                />
-                <Text style={[styles.actionText, { color: isActive ? '#DC2626' : '#059669' }]}>
-                  {isActive ? 'Suspend' : 'Activate'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        {/* Three-dot menu */}
+        <TouchableOpacity onPress={() => setMenuUser(item)} style={styles.menuBtn}>
+          <Ionicons name="ellipsis-vertical" size={18} color="#94A3B8" />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -186,46 +204,39 @@ export default function AdminBuyers() {
       <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
         {/* ── Header ─────────────────────────────────────────────────── */}
         <LinearGradient
-          colors={['#0C1559', '#1e3a8a']}
+          colors={['#01217B', '#0C2E8A', '#0E5E1A']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={[styles.header, { paddingTop: insets.top + 12 }]}
         >
           <View style={styles.hdrRow}>
             <TouchableOpacity style={styles.hdrBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
-            <View style={styles.hdrCenter}>
-              <Text style={styles.hdrEye}>User Management</Text>
-              <Text style={styles.hdrTitle}>Buyers</Text>
-            </View>
+            <Text style={styles.hdrTitle}>Buyers</Text>
             <View style={styles.countBadge}>
               <Text style={styles.countBadgeTxt}>{buyers.length}</Text>
             </View>
           </View>
-          <View style={styles.hdrArc} />
         </LinearGradient>
 
         {/* ── Search ─────────────────────────────────────────────────── */}
-        <View style={styles.searchWrap}>
-          <View style={styles.searchCard}>
-            <Ionicons name="search" size={18} color={adminColors.textMuted} />
-            <TextInput
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholder="Search buyers by name or email..."
-              placeholderTextColor={adminColors.textMuted}
-              style={styles.searchInput}
-              returnKeyType="search"
-              onSubmitEditing={() => loadBuyers()}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={adminColors.textMuted} />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={styles.searchAction} onPress={() => loadBuyers()}>
-              <Text style={styles.searchActionText}>Go</Text>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color="#94A3B8" />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search buyers by name or email..."
+            placeholderTextColor="#94A3B8"
+            style={styles.searchInput}
+            returnKeyType="search"
+            onSubmitEditing={() => loadBuyers()}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={16} color="#94A3B8" />
             </TouchableOpacity>
-          </View>
+          )}
         </View>
 
         {/* ── List ───────────────────────────────────────────────────── */}
@@ -238,7 +249,7 @@ export default function AdminBuyers() {
             data={buyers}
             keyExtractor={(item, idx) => item.id || idx.toString()}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 120 }]}
+            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={() => loadBuyers(true)} tintColor="#1E88E5" />
             }
@@ -255,14 +266,64 @@ export default function AdminBuyers() {
           />
         )}
       </SafeAreaView>
+
+      {/* User action menu */}
+      <Modal
+        visible={!!menuUser}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMenuUser(null)}
+      >
+        <TouchableOpacity style={menuStyles.overlay} activeOpacity={1} onPress={() => setMenuUser(null)}>
+          <View style={menuStyles.sheet}>
+            <View style={menuStyles.handle} />
+            <Text style={menuStyles.title} numberOfLines={1}>
+              {menuUser?.full_name || menuUser?.email || 'User'}
+            </Text>
+            <TouchableOpacity style={menuStyles.option} onPress={() => handleResetSession(menuUser!)}>
+              <Feather name="refresh-cw" size={18} color="#3B82F6" />
+              <View style={{ flex: 1 }}>
+                <Text style={menuStyles.optionLabel}>Reset Session</Text>
+                <Text style={menuStyles.optionSub}>Force re-login, tokens revoked</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={menuStyles.option} onPress={() => handleDisableSession(menuUser!)}>
+              <Feather name="lock" size={18} color="#F59E0B" />
+              <View style={{ flex: 1 }}>
+                <Text style={menuStyles.optionLabel}>Disable Session</Text>
+                <Text style={menuStyles.optionSub}>Deactivate + revoke all tokens</Text>
+              </View>
+            </TouchableOpacity>
+            <View style={menuStyles.divider} />
+            <TouchableOpacity style={menuStyles.option} onPress={() => handleDeleteUser(menuUser!)}>
+              <Feather name="trash-2" size={18} color="#EF4444" />
+              <View style={{ flex: 1 }}>
+                <Text style={[menuStyles.optionLabel, { color: '#EF4444' }]}>Delete User</Text>
+                <Text style={menuStyles.optionSub}>Soft-delete, irreversible</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </>
   );
 }
 
+const menuStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 40 },
+  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: '#D1D5DB', alignSelf: 'center', marginBottom: 16 },
+  title: { fontSize: 16, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 16 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: 14, backgroundColor: '#F8FAFC', marginBottom: 8 },
+  optionLabel: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  optionSub: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
+  divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 4 },
+});
+
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#F5F7FA',
   },
 
   // Header
@@ -303,9 +364,11 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   hdrTitle: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 18,
     fontFamily: 'Montserrat-Bold',
     color: '#FFFFFF',
+    marginLeft: 12,
   },
   countBadge: {
     width: 38,
@@ -326,48 +389,31 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 24,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#F5F7FA',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
   },
 
   // Search
-  searchWrap: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  searchCard: {
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    marginHorizontal: 12,
+    marginBottom: 10,
+    marginTop: 8,
   },
   searchInput: {
     flex: 1,
-    color: '#0B2060',
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Montserrat-Regular',
-    paddingVertical: 0,
-  },
-  searchAction: {
-    backgroundColor: '#0A2EA8',
-    borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  searchActionText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
   },
 
   // List
@@ -381,113 +427,57 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
 
-  // Buyer card
+  // User card
   userCard: {
-    marginTop: 12,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 12,
     padding: 14,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  userHeader: {
+    marginHorizontal: 12,
+    marginBottom: 8,
     flexDirection: 'row',
-    gap: 14,
-  },
-  avatarWrap: {
-    position: 'relative',
-  },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: '#E2E8F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: adminColors.navy,
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
-  },
-  statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-  },
-  userName: {
-    color: adminColors.text,
-    fontSize: 15,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 4,
-  },
-  userContact: {
-    color: adminColors.textMuted,
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    marginBottom: 10,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  badgeText: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-Bold',
-    textTransform: 'uppercase',
-  },
-  cardFooter: {
-    marginTop: 18,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: adminColors.border,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  joinedText: {
-    color: adminColors.textSoft,
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    flex: 1,
-  },
-  actionButton: {
-    minWidth: 124,
-    flexDirection: 'row',
+  avatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
   },
-  actionDanger: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
-  },
-  actionSuccess: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-  },
-  actionText: {
-    fontSize: 12,
+  avatarText: {
+    fontSize: 16,
     fontFamily: 'Montserrat-Bold',
+    color: '#FFFFFF',
+  },
+  userName: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontFamily: 'Montserrat-SemiBold',
+  },
+  userEmail: {
+    color: '#64748B',
+    fontSize: 12,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 2,
+  },
+  menuBtn: {
+    padding: 6,
+  },
+  pill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 20,
+  },
+  pillText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-SemiBold',
   },
 
   // Empty state
@@ -525,3 +515,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 });
+

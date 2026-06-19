@@ -18,10 +18,13 @@
 // - Only cache queries that succeeded (status === 'success') to avoid
 //   persisting error states
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { useQueryClient } from '@tanstack/react-query';
 import { queryClient } from '../lib/query/client';
 import { asyncStoragePersister } from '../lib/query/persister';
+import { getCachedUserProfile } from '../services/storage';
+import { queryKeys } from '../lib/query/keys';
 
 // Bump this string whenever you make a breaking change to your data models.
 // A changed buster causes all persisted cache to be discarded on next launch,
@@ -34,6 +37,20 @@ const NEVER_PERSIST = new Set<string>([
   // Note: 'cart' and 'orders' are intentionally NOT excluded anymore.
   // Cart must survive app restarts. Orders are safe to cache.
 ]);
+
+function ProfileHydrator() {
+  const client = useQueryClient();
+
+  useEffect(() => {
+    getCachedUserProfile().then((profile) => {
+      if (profile) {
+        client.setQueryData(queryKeys.profile.current(), profile);
+      }
+    });
+  }, [client]);
+
+  return null;
+}
 
 export function QueryProvider({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -64,6 +81,7 @@ export function QueryProvider({ children }: Readonly<{ children: React.ReactNode
         },
       }}
     >
+      <ProfileHydrator />
       {children}
     </PersistQueryClientProvider>
   );

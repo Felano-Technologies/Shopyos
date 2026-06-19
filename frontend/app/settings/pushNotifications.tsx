@@ -32,7 +32,7 @@ export default function PushNotificationsScreen() {
   const primaryText = isDark ? '#EDEDED' : '#222222';
   const secondaryText = isDark ? '#AAA' : '#666666';
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [_expoPushToken, setExpoPushToken] = useState<string | null>(null);
+  const [, setExpoPushToken] = useState<string | null>(null);
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
   useEffect(() => {

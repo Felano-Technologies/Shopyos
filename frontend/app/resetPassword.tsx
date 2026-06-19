@@ -60,10 +60,10 @@ const ResetPasswordScreen = () => {
           }
         ]
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         'Reset Failed',
-        error.message || 'Failed to reset password. The link may have expired. Please request a new one.'
+        error instanceof Error ? error.message : 'Failed to reset password. The link may have expired. Please request a new one.'
       );
     } finally {
       setLoading(false);

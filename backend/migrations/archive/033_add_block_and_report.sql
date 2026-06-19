@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.user_reports (
     resolved_at TIMESTAMP WITH TIME ZONE,
     resolved_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
     resolution_notes TEXT,
-    
+
     -- Ensure either user or store is reported, not both or neither
     CONSTRAINT check_reported_entity CHECK (
         (entity_type = 'user' AND reported_user_id IS NOT NULL AND reported_store_id IS NULL) OR

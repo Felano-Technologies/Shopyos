@@ -4,43 +4,30 @@ import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { registerPushTokenInBackend, storage } from '../services/api';
+import { getCachedUserProfile } from '../services/storage';
+import { getRouteFromPushData } from '../utils/notificationRouting';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
-function handleNotificationResponse(response: any, router: ReturnType<typeof useRouter>) {
-    const data = response.notification.request.content.data;
-    if (data?.screen === 'messages') {
-        if (data.conversationId) {
-            router.push({
-                pathname: '/chat/conversation',
-                params: {
-                    conversationId: data.conversationId,
-                    chatType: data.chatType || 'buyer',
-                    name: data.senderName || '',
-                }
-            });
-        } else {
-            router.push('/chat');
-        }
-    } else if (data?.screen === 'cart') {
-        router.push('/cart');
-    } else if (data?.screen === 'order' && data?.orderId) {
-        router.push(`/order/${data.orderId}` as any);
-    } else if (data?.screen?.startsWith('order/')) {
-        const ordId = data.screen.replace('order/', '');
-        router.push(`/order/${ordId}` as any);
-    } else if (data?.screen === 'product/details' && data?.productId) {
-        router.push({ pathname: '/product/details', params: { id: data.productId } } as any);
-    } else if (data?.screen === 'review' && data?.reviewId) {
-        router.push('/notification');
-    } else if (data?.screen === 'returns' || data?.screen === 'return_request') {
-        router.push('/returns' as any);
-    } else if (data?.screen === 'store' && data.storeId) {
-        router.push({ pathname: '/stores/details', params: { id: String(data.storeId) } });
-    } else if (data?.screen === 'loyalty') {
-        router.push('/settings/loyaltyPoints' as any);
+async function handleNotificationResponse(response: any, router: ReturnType<typeof useRouter>) {
+    const data = response.notification.request.content.data || {};
+    let role = 'buyer';
+    try {
+        const profile: any = await getCachedUserProfile();
+        if (profile?.role) role = profile.role.toLowerCase();
+    } catch {
+        // fall back to buyer routing
+    }
+    const route = getRouteFromPushData(data, role);
+    if (route) {
+        const destination = route.params ? route : route.pathname;
+        router.push(destination as any);
     } else {
-        router.push('/notification');
+        // Default fallback per role
+        if (role === 'seller') router.push('/business/notifications' as any);
+        else if (role === 'driver') router.push('/driver/notifications' as any);
+        else if (role === 'admin') router.push('/admin/dashboard' as any);
+        else router.push('/notification');
     }
 }
 let notificationHandlerConfigured = false;

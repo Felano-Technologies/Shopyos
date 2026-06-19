@@ -11,6 +11,7 @@ import {
 } from '@/src/background/controller';
 import { useQueryClient } from '@tanstack/react-query';
 import { getDriverProfile, getUserData, CustomInAppToast, uploadAvatar, updateDriverAvailability, logoutUser } from '@/services/api';
+import { useAuthStore } from '@/store/authStore';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import TappableAvatar from '@/components/TappableAvatar';
 // removed useCloudinaryUpload import
@@ -56,6 +57,7 @@ function ToggleRow({ icon, label, value, onToggle, description }: Readonly<{ ico
 export default function DriverSettings() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const [shareLiveLocation, setShareLiveLocation] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [driver, setDriver] = useState<any>(null);
@@ -225,8 +227,18 @@ export default function DriverSettings() {
           <SettingRow icon="map" label="Navigation App" value="Google Maps" />
           <SettingRow icon="bell" label="Sound & Notification" value="On" />
         </View>
-        <TouchableOpacity 
-          style={styles.logoutBtn} 
+        <TouchableOpacity
+          style={styles.shopBtn}
+          onPress={() => {
+            switchToBuyerMode('driver');
+            router.push('/home');
+          }}
+        >
+          <Feather name="shopping-bag" size={18} color="#1D4ED8" />
+          <Text style={styles.shopBtnText}>Shop as Buyer</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.logoutBtn}
           onPress={handleLogout}
           disabled={logoutLoading}
         >
@@ -278,6 +290,11 @@ const styles = StyleSheet.create({
   rowDescription: { fontSize: 12, color: '#64748B', fontFamily: 'Montserrat-Regular', marginTop: 2 },
   rowRight: { flexDirection: 'row', alignItems: 'center' },
   rowValue: { fontSize: 14, color: '#64748B', marginRight: 8, fontFamily: 'Montserrat-Regular' },
-  logoutBtn: { backgroundColor: '#FEE2E2', padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 20, marginBottom: 10 },
+  shopBtn: {
+    backgroundColor: '#EFF6FF', padding: 16, borderRadius: 16, alignItems: 'center',
+    marginTop: 20, marginBottom: 8, flexDirection: 'row', justifyContent: 'center', gap: 8,
+  },
+  shopBtnText: { color: '#1D4ED8', fontFamily: 'Montserrat-Bold', fontSize: 16 },
+  logoutBtn: { backgroundColor: '#FEE2E2', padding: 16, borderRadius: 16, alignItems: 'center', marginTop: 0, marginBottom: 10 },
   logoutText: { color: '#DC2626', fontFamily: 'Montserrat-Bold', fontSize: 16 },
 });

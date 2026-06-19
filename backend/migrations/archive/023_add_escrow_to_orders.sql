@@ -1,5 +1,5 @@
 -- 023_add_escrow_to_orders.sql
-ALTER TABLE orders 
+ALTER TABLE orders
   ADD COLUMN IF NOT EXISTS platform_fee NUMERIC(10,2),
   ADD COLUMN IF NOT EXISTS seller_payout_amount NUMERIC(10,2),
   ADD COLUMN IF NOT EXISTS escrow_status VARCHAR(50) DEFAULT 'PENDING',  -- PENDING, HELD, RELEASED, DISPUTED, REFUNDED

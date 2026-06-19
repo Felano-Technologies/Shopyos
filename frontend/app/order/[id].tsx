@@ -108,7 +108,8 @@ const OrderDetailsScreen = () => {
     onError: (e: any) => Alert.alert('Error', e.message || 'Failed to cancel order'),
   });
 
-  const confirmMutation = useMutation({
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _confirmMutation = useMutation({
     mutationFn: () => confirmDelivery(orderId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.orders.lists() });

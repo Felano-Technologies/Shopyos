@@ -19,6 +19,12 @@ const getDashboard = async (req, res, next) => {
     const { rows } = await db.query(`
       SELECT
         (SELECT COUNT(*)::int FROM users WHERE deleted_at IS NULL)           AS total_users,
+        (SELECT COUNT(DISTINCT u.id)::int
+           FROM users u
+           JOIN user_roles ur ON ur.user_id = u.id
+           JOIN roles r       ON r.id = ur.role_id
+          WHERE u.deleted_at IS NULL AND r.name = 'buyer'
+            AND ur.is_active = TRUE)                                          AS total_buyers,
         (SELECT COUNT(*)::int FROM stores)                                    AS total_stores,
         (SELECT COUNT(*)::int FROM orders)                                    AS total_orders,
         (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed') AS total_revenue,
@@ -32,6 +38,7 @@ const getDashboard = async (req, res, next) => {
       success: true,
       stats: {
         totalUsers: s.total_users || 0,
+        totalBuyers: s.total_buyers || 0,
         totalStores: s.total_stores || 0,
         totalOrders: s.total_orders || 0,
         totalRevenue: Number.parseFloat(s.total_revenue) || 0,
@@ -834,6 +841,388 @@ const rejectDriverVerification = async (req, res, next) => {
   }
 };
 
+// ─── User: soft-delete ────────────────────────────────────────────────────────
+const deleteUser = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    await db.query(
+      `UPDATE users SET is_active = FALSE, deleted_at = NOW() WHERE id = $1`,
+      [userId]
+    );
+
+    // Revoke all refresh tokens
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'admin_deleted' })
+      .eq('user_id', userId);
+
+    // Bust auth cache
+    const { cacheDel } = require('../config/redis');
+    await cacheDel(`shopyos:users:${userId}:auth`).catch(() => {});
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'delete_user',
+      entityType: 'user',
+      entityId: userId,
+      metadata: {},
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(200).json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── User: reset session (revoke tokens, force re-login) ──────────────────────
+const resetUserSession = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'admin_reset' })
+      .eq('user_id', userId)
+      .eq('is_revoked', false);
+
+    const { cacheDel } = require('../config/redis');
+    await cacheDel(`shopyos:users:${userId}:auth`).catch(() => {});
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'reset_user_session',
+      entityType: 'user',
+      entityId: userId,
+      metadata: {},
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(200).json({ success: true, message: 'User session reset. They will need to log in again.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── User: disable session (reset + deactivate) ───────────────────────────────
+const disableUserSession = async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    await db.query(`UPDATE users SET is_active = FALSE WHERE id = $1`, [userId]);
+
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'admin_disabled' })
+      .eq('user_id', userId)
+      .eq('is_revoked', false);
+
+    const { cacheDel } = require('../config/redis');
+    await cacheDel(`shopyos:users:${userId}:auth`).catch(() => {});
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'disable_user_session',
+      entityType: 'user',
+      entityId: userId,
+      metadata: {},
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(200).json({ success: true, message: 'User session disabled and account deactivated.' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Create user profile ──────────────────────────────────────────────────────
+const createUserProfile = async (req, res, next) => {
+  try {
+    const { full_name, email, phone, password, role } = req.body;
+    if (!full_name || !email || !password || !role) {
+      return res.status(400).json({ error: 'full_name, email, password and role are required' });
+    }
+
+    const user = await repositories.users.createUser({ email, password, phone });
+    await repositories.userProfiles.create({ user_id: user.id, full_name, phone });
+    await repositories.admin.setUserRoleByUserId(user.id, role);
+
+    await notificationService.sendNotification({
+      userId: user.id,
+      type: 'admin_broadcast',
+      title: 'Welcome to Shopyos',
+      message: `Your ${role} account has been created by an admin. Welcome aboard!`,
+      data: { role },
+    }).catch(() => {});
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'admin_create_user',
+      entityType: 'user',
+      entityId: user.id,
+      metadata: { email, role },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(201).json({ success: true, user: { id: user.id, email, full_name, role } });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Create store ─────────────────────────────────────────────────────────────
+const createStoreAdmin = async (req, res, next) => {
+  try {
+    const {
+      owner_id, store_name, description, category, city, phone, email,
+      registration_number, tax_id, auto_verify = false,
+    } = req.body;
+
+    if (!owner_id || !store_name) {
+      return res.status(400).json({ error: 'owner_id and store_name are required' });
+    }
+
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    const { rows } = await db.query(
+      `INSERT INTO stores
+         (owner_id, store_name, description, category, city, phone, email,
+          registration_number, tax_id,
+          verification_status, is_verified, verified_at, is_active)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,TRUE)
+       RETURNING *`,
+      [
+        owner_id, store_name, description || null, category || null,
+        city || null, phone || null, email || null,
+        registration_number || null, tax_id || null,
+        auto_verify ? 'verified' : 'pending',
+        auto_verify,
+        auto_verify ? new Date().toISOString() : null,
+      ]
+    );
+    const store = rows[0];
+
+    await notificationService.sendNotification({
+      userId: owner_id,
+      type: 'business_approved',
+      title: auto_verify ? 'Store Created & Verified' : 'Store Created',
+      message: auto_verify
+        ? `Your store "${store_name}" has been created and verified by an admin.`
+        : `Your store "${store_name}" has been created by an admin and is pending review.`,
+      relatedId: store.id,
+      relatedType: 'store',
+      data: { storeId: store.id },
+      push: { data: { screen: 'business/dashboard', storeId: store.id } },
+    }).catch(() => {});
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'admin_create_store',
+      entityType: 'store',
+      entityId: store.id,
+      metadata: { store_name, owner_id, auto_verify },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(201).json({ success: true, store });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Create driver profile ────────────────────────────────────────────────────
+const createDriverProfileAdmin = async (req, res, next) => {
+  try {
+    const { user_id, vehicle_type, plate_number, license_number, auto_approve = false } = req.body;
+    if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    const { rows } = await db.query(
+      `INSERT INTO driver_profiles
+         (user_id, vehicle_type, plate_number, license_number, is_verified)
+       VALUES ($1,$2,$3,$4,$5)
+       RETURNING *`,
+      [user_id, vehicle_type || null, plate_number || null, license_number || null, auto_approve]
+    );
+    const driver = rows[0];
+
+    if (auto_approve) {
+      await repositories.admin.setUserRoleByUserId(user_id, 'driver');
+    }
+
+    await notificationService.sendNotification({
+      userId: user_id,
+      type: 'driver_approved',
+      title: auto_approve ? 'Driver Profile Created & Approved' : 'Driver Profile Created',
+      message: auto_approve
+        ? 'Your driver profile has been created and approved by an admin. You can now accept deliveries.'
+        : 'Your driver profile has been created by an admin and is pending document upload.',
+      relatedId: driver.id,
+      relatedType: 'driver',
+      data: { driverId: driver.id },
+      push: { data: { screen: 'driver/dashboard' } },
+    }).catch(() => {});
+
+    await repositories.auditLogs.createLog({
+      userId: req.user.id,
+      action: 'admin_create_driver',
+      entityType: 'driver',
+      entityId: driver.id,
+      metadata: { user_id, auto_approve },
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+
+    res.status(201).json({ success: true, driver });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Driver stats (for admin view) ───────────────────────────────────────────
+const getDriverStatsAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    const { rows } = await db.query(`
+      SELECT
+        dp.id,
+        dp.user_id,
+        up.full_name,
+        dp.vehicle_type,
+        dp.is_verified,
+        COUNT(d.id) FILTER (WHERE d.status = 'delivered')::int      AS completed_deliveries,
+        COUNT(d.id) FILTER (WHERE d.status = 'cancelled')::int      AS cancelled_deliveries,
+        COUNT(d.id)::int                                             AS total_deliveries,
+        COALESCE(SUM(de.amount) FILTER (WHERE de.type = 'credit'), 0)  AS total_earnings,
+        COALESCE(AVG(dr.rating), 0)                                  AS avg_rating
+      FROM driver_profiles dp
+      LEFT JOIN user_profiles up  ON up.user_id = dp.user_id
+      LEFT JOIN deliveries   d   ON d.driver_id = dp.id
+      LEFT JOIN driver_earnings de ON de.driver_id = dp.id
+      LEFT JOIN driver_reviews  dr ON dr.driver_id = dp.id
+      WHERE dp.id = $1
+      GROUP BY dp.id, dp.user_id, up.full_name, dp.vehicle_type, dp.is_verified
+    `, [id]);
+
+    if (!rows.length) return res.status(404).json({ error: 'Driver not found' });
+    res.status(200).json({ success: true, stats: rows[0] });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Driver delivery history (for admin view) ─────────────────────────────────
+const getDriverHistoryAdmin = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const limit  = Number.parseInt(req.query.limit)  || 20;
+    const offset = Number.parseInt(req.query.offset) || 0;
+    const { getPool } = require('../config/postgres');
+    const db = getPool();
+
+    const { rows } = await db.query(`
+      SELECT
+        d.*,
+        o.order_number,
+        o.total_amount,
+        s.store_name,
+        up.full_name AS buyer_name
+      FROM deliveries d
+      LEFT JOIN orders        o  ON o.id = d.order_id
+      LEFT JOIN stores        s  ON s.id = o.store_id
+      LEFT JOIN user_profiles up ON up.user_id = o.buyer_id
+      WHERE d.driver_id = $1
+      ORDER BY d.created_at DESC
+      LIMIT $2 OFFSET $3
+    `, [id, limit, offset]);
+
+    res.status(200).json({ success: true, deliveries: rows });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── Platform Settings ────────────────────────────────────────────────────────
+
+const getPlatformSettings = async (req, res, next) => {
+  try {
+    const settings = await repositories.adminSettings.getSettings();
+    res.status(200).json({
+      success: true,
+      settings: {
+        maintenance_mode: settings.maintenance_mode,
+        auto_approve_sellers: settings.auto_approve_sellers,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePlatformSettings = async (req, res, next) => {
+  try {
+    const { maintenance_mode, auto_approve_sellers } = req.body;
+    const updates = {};
+
+    if (maintenance_mode !== undefined) {
+      if (typeof maintenance_mode !== 'boolean') {
+        return res.status(400).json({ success: false, error: 'maintenance_mode must be a boolean' });
+      }
+      updates.maintenance_mode = maintenance_mode;
+    }
+    if (auto_approve_sellers !== undefined) {
+      if (typeof auto_approve_sellers !== 'boolean') {
+        return res.status(400).json({ success: false, error: 'auto_approve_sellers must be a boolean' });
+      }
+      updates.auto_approve_sellers = auto_approve_sellers;
+    }
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ success: false, error: 'No valid fields provided' });
+    }
+
+    const settings = await repositories.adminSettings.updateSettings(updates, req.user.id);
+
+    await repositories.auditLogs.createLog({
+      user_id: req.user.id,
+      action: 'platform_settings_updated',
+      entity_type: 'platform_settings',
+      metadata: updates,
+    }).catch(() => {});
+
+    // Invalidate maintenance mode cache immediately
+    const { cacheSet } = require('../config/redis');
+    if (updates.maintenance_mode !== undefined) {
+      await cacheSet('shopyos:platform:maintenance_mode', updates.maintenance_mode, 10).catch(() => {});
+    }
+
+    res.status(200).json({
+      success: true,
+      settings: {
+        maintenance_mode: settings.maintenance_mode,
+        auto_approve_sellers: settings.auto_approve_sellers,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllUsers,
@@ -858,5 +1247,16 @@ module.exports = {
   rejectDriverVerification,
   getAllEscrows,
   refundEscrow,
-  releaseEscrow
+  releaseEscrow,
+  // New
+  deleteUser,
+  resetUserSession,
+  disableUserSession,
+  createUserProfile,
+  createStoreAdmin,
+  createDriverProfileAdmin,
+  getDriverStatsAdmin,
+  getDriverHistoryAdmin,
+  getPlatformSettings,
+  updatePlatformSettings,
 };

@@ -6,6 +6,13 @@
  * Conforms to guidelines/test.md.
  */
 
+// Mock auth store — Zustand hooks require a React context; this avoids that
+jest.mock('@/store/authStore', () => ({
+  useAuthStore: jest.fn((selector: (s: { isAuthenticated: boolean }) => unknown) =>
+    selector({ isAuthenticated: true })
+  ),
+}));
+
 // Mock TanStack React Query hooks — useInfiniteQuery is needed for useInfiniteProducts
 jest.mock('@tanstack/react-query', () => ({
   __esModule: true,

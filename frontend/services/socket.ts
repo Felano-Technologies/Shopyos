@@ -54,6 +54,8 @@ class SocketService {
           console.log('🔌 Connecting to Socket.IO:', socketURL);
           console.log('🔑 Token available:', !!token, 'Length:', token?.length);
 
+          const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
+
           this.socket = io(socketURL, {
             auth: { token },
             transports: ['websocket', 'polling'],
@@ -62,6 +64,8 @@ class SocketService {
             reconnectionDelayMax: 5000,
             reconnectionAttempts: this.maxReconnectAttempts,
             timeout: 20000,
+            // Bypass ngrok's browser interstitial on web dev builds.
+            ...(isDev && { extraHeaders: { 'ngrok-skip-browser-warning': '1' } }),
           });
 
           // Connection successful
