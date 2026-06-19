@@ -10,10 +10,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import { 
-  getAllBannerCampaigns, 
-  updateBannerCampaignStatus 
+import {
+  getAllBannerCampaigns,
+  updateBannerCampaignStatus
 } from '@/services/api';
+import { useAdminBreakpoint } from '@/components/admin/adminTheme';
 const { width, height } = Dimensions.get('window');
 type AdStatus = 'Pending' | 'Approved' | 'Active' | 'Rejected' | 'Completed';
 const FILTER_TABS: AdStatus[] = ['Pending', 'Approved', 'Active', 'Completed', 'Rejected'];
@@ -82,6 +83,7 @@ function AdCard({ item, onPreview, onRejectPress, onApprove, actionLoading }: Re
 export default function AdminAds() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDesktop } = useAdminBreakpoint();
   
   const [ads, setAds] = useState<any[]>([]);
   const [filter, setFilter] = useState<AdStatus>('Pending');
@@ -168,24 +170,26 @@ export default function AdminAds() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      <View style={[styles.desktopCanvas, isDesktop && styles.desktopCanvasWide]}>
       {/* --- Premium Header --- */}
-      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={[styles.header, { paddingTop: insets.top + 10 }]}>
+      <LinearGradient
+        colors={['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={[styles.header, { paddingTop: insets.top + 10 }]}
+      >
         <View style={styles.headerRow}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#FFF" />
+            <Ionicons name="arrow-back" size={20} color="#FFF" />
           </TouchableOpacity>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={styles.headerLabel}>ADMINISTRATION</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Text style={styles.headerTitle}>Ad Approvals</Text>
-              {pendingCount > 0 && (
-                <View style={styles.headerBadge}>
-                  <Text style={styles.headerBadgeText}>{pendingCount}</Text>
-                </View>
-              )}
-            </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={styles.headerTitle}>Ad Approvals</Text>
+            {pendingCount > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{pendingCount}</Text>
+              </View>
+            )}
           </View>
-          <View style={{ width: 40 }} />
+          <View style={{ width: 36 }} />
         </View>
       </LinearGradient>
       {/* --- Search & Filters --- */}
@@ -256,6 +260,7 @@ export default function AdminAds() {
           </View>
         </View>
       </Modal>
+      </View>
       {/* --- Rejection Modal --- */}
       <Modal visible={rejectModal} transparent animationType="slide">
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
@@ -292,14 +297,15 @@ export default function AdminAds() {
   );
 }
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  desktopCanvas: { flex: 1 },
+  desktopCanvasWide: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
   
-  header: { paddingBottom: 20, borderBottomLeftRadius: 30, borderBottomRightRadius: 30, elevation: 10, zIndex: 10 },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20 },
-  backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-  headerLabel: { color: '#A3E635', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 2 },
-  headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-  headerBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginLeft: 8 },
+  header: { paddingBottom: 14, paddingHorizontal: 16, elevation: 10, zIndex: 10 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  headerBadge: { backgroundColor: '#EF4444', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 },
   headerBadgeText: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
   controlsSection: { paddingHorizontal: 16, paddingTop: 15, zIndex: 5 },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 12, height: 48, borderWidth: 1, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
@@ -309,23 +315,23 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: '#0C1559', elevation: 2 },
   tabText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#64748B' },
   tabTextActive: { color: '#FFF' },
-  listContent: { padding: 20, paddingBottom: 60 },
-  card: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#0C1559', shadowOpacity: 0.05, shadowRadius: 10, borderWidth: 1, borderColor: '#F1F5F9' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  listContent: { padding: 16, paddingBottom: 40 },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 14, padding: 16, marginBottom: 12, elevation: 2, shadowColor: '#0C1559', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, borderWidth: 1, borderColor: '#F1F5F9' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   storeInfo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  storeName: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#334155' },
-  dateText: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8' },
-  
-  cardBody: { flexDirection: 'row', gap: 15, marginBottom: 15 },
-  bannerPreview: { width: 100, height: 70, borderRadius: 12, overflow: 'hidden', backgroundColor: '#E2E8F0' },
+  storeName: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A' },
+  dateText: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8' },
+
+  cardBody: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  bannerPreview: { width: 88, height: 64, borderRadius: 10, overflow: 'hidden', backgroundColor: '#DBEAFE', flexShrink: 0 },
   bannerImg: { width: '100%', height: '100%' },
-  zoomOverlay: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.6)', padding: 4, borderRadius: 8 },
+  zoomOverlay: { position: 'absolute', bottom: 4, right: 4, backgroundColor: 'rgba(0,0,0,0.55)', padding: 4, borderRadius: 6 },
   adDetails: { flex: 1, justifyContent: 'center' },
-  adTitle: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A', marginBottom: 6 },
-  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  detailText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B' },
-  paidBadge: { alignSelf: 'flex-start', backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 4 },
-  paidText: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#059669' },
+  adTitle: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: 4 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
+  detailText: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: '#64748B' },
+  paidBadge: { alignSelf: 'flex-start', backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, marginTop: 4 },
+  paidText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#16A34A' },
   actions: { flexDirection: 'row', gap: 10, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
   actionBtn: { flex: 1, paddingVertical: 12, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   rejectBtn: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA' },

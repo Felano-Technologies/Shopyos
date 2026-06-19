@@ -1,5 +1,26 @@
 import { api, extractErrorMessage } from './client';
 
+export const getAdminPlatformSettings = async () => {
+  try {
+    const response = await api.get('/admin/platform-settings');
+    return response.data.settings as { maintenance_mode: boolean; auto_approve_sellers: boolean };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateAdminPlatformSettings = async (updates: {
+  maintenance_mode?: boolean;
+  auto_approve_sellers?: boolean;
+}) => {
+  try {
+    const response = await api.put('/admin/platform-settings', updates);
+    return response.data.settings as { maintenance_mode: boolean; auto_approve_sellers: boolean };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getAdminDashboard = async () => {
   try {
     const response = await api.get('/admin/dashboard');

@@ -11,7 +11,7 @@ module.exports = {
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Business-ID', 'ngrok-skip-browser-warning']
   },
 
   timeout: 30000

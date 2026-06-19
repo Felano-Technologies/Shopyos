@@ -92,6 +92,7 @@ export default function AdminLayout() {
           {/* People sub-pages */}
           <Tabs.Screen name="approvals"           options={{ href: null }} />
           <Tabs.Screen name="user-buyers"         options={{ href: null }} />
+          <Tabs.Screen name="user-sellers"        options={{ href: null }} />
           <Tabs.Screen name="driverVerifications" options={{ href: null }} />
           <Tabs.Screen name="driver-verifications/[id]" options={{ href: null }} />
           <Tabs.Screen name="create-user"         options={{ href: null }} />

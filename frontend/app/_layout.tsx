@@ -169,6 +169,7 @@ function AppContent() {
               />
 
               {/* --- AUTH & ROLE --- */}
+              <Stack.Screen name="admin-login" options={{ animation: 'fade' }} />
               <Stack.Screen name="login" />
               <Stack.Screen name="register" options={{ animation: 'fade' }} />
               <Stack.Screen name="role" />

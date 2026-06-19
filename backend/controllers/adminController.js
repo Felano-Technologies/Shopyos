@@ -19,6 +19,12 @@ const getDashboard = async (req, res, next) => {
     const { rows } = await db.query(`
       SELECT
         (SELECT COUNT(*)::int FROM users WHERE deleted_at IS NULL)           AS total_users,
+        (SELECT COUNT(DISTINCT u.id)::int
+           FROM users u
+           JOIN user_roles ur ON ur.user_id = u.id
+           JOIN roles r       ON r.id = ur.role_id
+          WHERE u.deleted_at IS NULL AND r.name = 'buyer'
+            AND ur.is_active = TRUE)                                          AS total_buyers,
         (SELECT COUNT(*)::int FROM stores)                                    AS total_stores,
         (SELECT COUNT(*)::int FROM orders)                                    AS total_orders,
         (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'completed') AS total_revenue,
@@ -32,6 +38,7 @@ const getDashboard = async (req, res, next) => {
       success: true,
       stats: {
         totalUsers: s.total_users || 0,
+        totalBuyers: s.total_buyers || 0,
         totalStores: s.total_stores || 0,
         totalOrders: s.total_orders || 0,
         totalRevenue: Number.parseFloat(s.total_revenue) || 0,
@@ -1151,6 +1158,71 @@ const getDriverHistoryAdmin = async (req, res, next) => {
   }
 };
 
+// ─── Platform Settings ────────────────────────────────────────────────────────
+
+const getPlatformSettings = async (req, res, next) => {
+  try {
+    const settings = await repositories.adminSettings.getSettings();
+    res.status(200).json({
+      success: true,
+      settings: {
+        maintenance_mode: settings.maintenance_mode,
+        auto_approve_sellers: settings.auto_approve_sellers,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updatePlatformSettings = async (req, res, next) => {
+  try {
+    const { maintenance_mode, auto_approve_sellers } = req.body;
+    const updates = {};
+
+    if (maintenance_mode !== undefined) {
+      if (typeof maintenance_mode !== 'boolean') {
+        return res.status(400).json({ success: false, error: 'maintenance_mode must be a boolean' });
+      }
+      updates.maintenance_mode = maintenance_mode;
+    }
+    if (auto_approve_sellers !== undefined) {
+      if (typeof auto_approve_sellers !== 'boolean') {
+        return res.status(400).json({ success: false, error: 'auto_approve_sellers must be a boolean' });
+      }
+      updates.auto_approve_sellers = auto_approve_sellers;
+    }
+    if (!Object.keys(updates).length) {
+      return res.status(400).json({ success: false, error: 'No valid fields provided' });
+    }
+
+    const settings = await repositories.adminSettings.updateSettings(updates, req.user.id);
+
+    await repositories.auditLogs.createLog({
+      user_id: req.user.id,
+      action: 'platform_settings_updated',
+      entity_type: 'platform_settings',
+      metadata: updates,
+    }).catch(() => {});
+
+    // Invalidate maintenance mode cache immediately
+    const { cacheSet } = require('../config/redis');
+    if (updates.maintenance_mode !== undefined) {
+      await cacheSet('shopyos:platform:maintenance_mode', updates.maintenance_mode, 10).catch(() => {});
+    }
+
+    res.status(200).json({
+      success: true,
+      settings: {
+        maintenance_mode: settings.maintenance_mode,
+        auto_approve_sellers: settings.auto_approve_sellers,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllUsers,
@@ -1185,4 +1257,6 @@ module.exports = {
   createDriverProfileAdmin,
   getDriverStatsAdmin,
   getDriverHistoryAdmin,
+  getPlatformSettings,
+  updatePlatformSettings,
 };

@@ -35,7 +35,7 @@ function navigateByRole(role: string | undefined) {
   } else if (userRole === 'driver') {
     router.push('/driver');
   } else if (userRole === 'admin') {
-    router.push('/admin/dashboard');
+    router.replace('/admin/dashboard');
   }
 }
 

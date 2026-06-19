@@ -16,7 +16,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, adminShadow } from '@/components/admin/adminTheme';
+import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { api } from '@/services/api';
 
 type RecipientType = 'all' | 'customers' | 'stores' | 'drivers';
@@ -45,7 +45,7 @@ interface HolidayPreview {
   upcomingHolidays?: { date: string; localName: string }[];
 }
 
-const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
+const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
 const AUDIENCES: { key: RecipientType; label: string; icon: string }[] = [
   { key: 'all', label: 'Everyone', icon: 'globe' },
@@ -83,6 +83,7 @@ async function confirmCancelBroadcast(
 }
 
 export default function AdminNotificationsScreen() {
+  const { isDesktop } = useAdminBreakpoint();
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [sendEmail, setSendEmail] = useState(false);
@@ -345,8 +346,8 @@ export default function AdminNotificationsScreen() {
             style={[styles.channelToggle, channel.val && styles.channelToggleOn]}
             onPress={() => channel.setter(!channel.val)}
           >
-            <Feather name={channel.icon as any} size={16} color={channel.val ? '#fff' : adminColors.textMuted} />
-            <Text style={[styles.channelToggleText, channel.val && { color: '#fff' }]}>{channel.label}</Text>
+            <Feather name={channel.icon as any} size={14} color={channel.val ? '#FFFFFF' : '#64748B'} />
+            <Text style={[styles.channelToggleText, channel.val && { color: '#FFFFFF' }]}>{channel.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -359,8 +360,8 @@ export default function AdminNotificationsScreen() {
             style={[styles.audienceBtn, audience === item.key && styles.audienceBtnOn]}
             onPress={() => setAudience(item.key)}
           >
-            <Feather name={item.icon as any} size={14} color={audience === item.key ? '#fff' : adminColors.textMuted} />
-            <Text style={[styles.audienceBtnText, audience === item.key && { color: '#fff' }]}>{item.label}</Text>
+            <Feather name={item.icon as any} size={14} color={audience === item.key ? '#FFFFFF' : '#64748B'} />
+            <Text style={[styles.audienceBtnText, audience === item.key && { color: '#FFFFFF' }]}>{item.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -465,7 +466,7 @@ export default function AdminNotificationsScreen() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={styles.canvas}>
+        <View style={[styles.canvas, isDesktop && styles.desktopCanvas]}>
           <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
@@ -474,7 +475,7 @@ export default function AdminNotificationsScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={() => fetchBroadcasts(true)} tintColor="#1E88E5" />
             }
           >
-            <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.heroPanel}>
+            <LinearGradient colors={DARK_GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.heroPanel}>
               <View style={styles.heroTopRow}>
                 <View style={styles.heroBrand}>
                   <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
@@ -529,19 +530,24 @@ export default function AdminNotificationsScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F7FA',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F7FA',
     paddingHorizontal: 16,
+  },
+  desktopCanvas: {
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
   },
   scrollView: {
     flex: 1,
   },
   screen: {
     flexGrow: 1,
-    paddingBottom: 220,
+    paddingBottom: 40,
   },
   heroPanel: {
     borderRadius: 36,
@@ -768,15 +774,15 @@ const styles = StyleSheet.create({
     color: adminColors.navy,
   },
   input: {
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
+    backgroundColor: '#F8FAFC',
     borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: adminColors.text,
-    fontFamily: 'Montserrat-Regular',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     fontSize: 14,
+    fontFamily: 'Montserrat-Regular',
+    color: '#0F172A',
   },
   textarea: {
     minHeight: 90,
@@ -787,25 +793,24 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   channelToggle: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: adminColors.surfaceSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
     borderWidth: 1,
-    borderColor: adminColors.border,
+    borderColor: '#E2E8F0',
   },
   channelToggleOn: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
   },
   channelToggleText: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: adminColors.textMuted,
+    color: '#64748B',
   },
   audienceRow: {
     flexDirection: 'row',
@@ -813,26 +818,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   audienceBtn: {
-    flex: 1,
-    minWidth: 72,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     gap: 5,
-    paddingVertical: 9,
-    borderRadius: 10,
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
   },
   audienceBtnOn: {
-    backgroundColor: adminColors.navy,
-    borderColor: adminColors.navy,
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
   },
   audienceBtnText: {
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: adminColors.textMuted,
+    color: '#64748B',
   },
   submitBtn: {
     flexDirection: 'row',
@@ -935,12 +938,12 @@ const styles = StyleSheet.create({
     color: adminColors.textMuted,
   },
   card: {
-    backgroundColor: adminColors.surfaceSoft,
-    borderWidth: 1,
-    borderColor: adminColors.border,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 14,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   cardHeader: {
     flexDirection: 'row',

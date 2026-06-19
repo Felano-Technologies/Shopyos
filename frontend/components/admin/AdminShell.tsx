@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { adminColors, adminShadow } from './adminTheme';
+import { adminCardStyle, adminColors } from './adminTheme';
 
 type AdminPanelProps = {
   children: React.ReactNode;
@@ -32,10 +32,8 @@ export default function AdminShell({ children }: Readonly<{ children: React.Reac
 
 const styles = StyleSheet.create({
   panel: {
-    backgroundColor: adminColors.surface,
-    borderRadius: 20,
+    ...adminCardStyle,
     padding: 16,
-    ...adminShadow,
   },
   sectionHeader: {
     flexDirection: 'row',

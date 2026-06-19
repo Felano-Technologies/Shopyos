@@ -27,7 +27,7 @@ import {
   rejectDriverVerification,
 } from '@/services/admin';
 
-const HEADER_GRADIENT = ['#0C1559', '#1e3a8a'] as [string, string];
+const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
 export default function AdminApprovals() {
   const router = useRouter();
@@ -134,26 +134,23 @@ export default function AdminApprovals() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.cardName}>{name}</Text>
-            {email ? <Text style={styles.cardEmail}>{email}</Text> : null}
-            <Text style={styles.cardDate}>Submitted: {date}</Text>
+            <Text style={styles.cardEmail}>{email ? `${email} · ` : ''}{date}</Text>
           </View>
         </View>
         <View style={styles.cardActions}>
-          <TouchableOpacity
-            style={styles.approveBtn}
-            onPress={() => handleApprove(id, activeTab === 'stores' ? 'store' : 'driver')}
-            disabled={actionLoading}
-          >
-            <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
-            <Text style={styles.approveBtnText}>Approve</Text>
-          </TouchableOpacity>
           <TouchableOpacity
             style={styles.rejectBtn}
             onPress={() => openRejectModal(id, activeTab === 'stores' ? 'store' : 'driver')}
             disabled={actionLoading}
           >
-            <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
             <Text style={styles.rejectBtnText}>Reject</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.approveBtn}
+            onPress={() => handleApprove(id, activeTab === 'stores' ? 'store' : 'driver')}
+            disabled={actionLoading}
+          >
+            <Text style={styles.approveBtnText}>Approve</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -167,45 +164,37 @@ export default function AdminApprovals() {
         <LinearGradient
           colors={HEADER_GRADIENT}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.header}
         >
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Pending Approvals</Text>
-            <Text style={styles.headerSubtitle}>{totalPending} total pending</Text>
-          </View>
+          <Text style={styles.headerTitle}>Pending Approvals</Text>
+          {totalPending > 0 && (
+            <View style={styles.headerBadge}>
+              <Text style={styles.headerBadgeText}>{totalPending}</Text>
+            </View>
+          )}
+          <View style={{ flex: 1 }} />
         </LinearGradient>
 
         <View style={styles.tabRow}>
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'stores' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('stores')}
-          >
-            <Text style={[styles.tabText, activeTab === 'stores' && styles.tabTextActive]}>
-              Stores
-            </Text>
-            {pendingStores.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingStores.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'drivers' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('drivers')}
-          >
-            <Text style={[styles.tabText, activeTab === 'drivers' && styles.tabTextActive]}>
-              Drivers
-            </Text>
-            {pendingDrivers.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingDrivers.length}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          {(['stores', 'drivers'] as const).map(tab => {
+            const count = tab === 'stores' ? pendingStores.length : pendingDrivers.length;
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]}
+                onPress={() => setActiveTab(tab)}
+              >
+                <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  {count > 0 && ` (${count})`}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         {loading ? (
@@ -267,111 +256,103 @@ export default function AdminApprovals() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingVertical: 14,
     gap: 12,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerText: { flex: 1 },
-  headerTitle: { color: '#fff', fontSize: 20, fontFamily: 'Montserrat-Bold' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  headerTitle: { color: '#fff', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  headerBadge: {
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
+  headerBadgeText: { color: '#fff', fontSize: 11, fontFamily: 'Montserrat-Bold' },
   tabRow: {
     flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 4,
+    margin: 12,
+    gap: 4,
   },
   tabBtn: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 8,
+    borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+  },
+  tabBtnActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
     elevation: 2,
   },
-  tabBtnActive: { backgroundColor: '#0C1559' },
-  tabText: { color: '#1D2B73', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
-  tabTextActive: { color: '#fff' },
-  badge: {
-    backgroundColor: '#DC2626',
-    borderRadius: 999,
-    minWidth: 20,
-    height: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 5,
-  },
-  badgeText: { color: '#fff', fontSize: 10, fontFamily: 'Montserrat-Bold' },
+  tabText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#64748B' },
+  tabTextActive: { color: '#0C1559' },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  listContent: { paddingHorizontal: 16, paddingBottom: 40 },
+  listContent: { paddingHorizontal: 0, paddingBottom: 40 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 14,
+    marginHorizontal: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 1,
   },
-  cardHeader: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  cardHeader: { flexDirection: 'row', gap: 12, marginBottom: 12, alignItems: 'center' },
   cardAvatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 14,
-    backgroundColor: '#EEF2FF',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#EDE9FE',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
   },
-  cardAvatarText: { color: '#0C1559', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-  cardName: { color: '#1D2B73', fontSize: 15, fontFamily: 'Montserrat-Bold', marginBottom: 2 },
-  cardEmail: { color: adminColors.textMuted, fontSize: 12, fontFamily: 'Montserrat-Regular', marginBottom: 2 },
-  cardDate: { color: adminColors.textMuted, fontSize: 11, fontFamily: 'Montserrat-Regular' },
-  cardActions: { flexDirection: 'row', gap: 10 },
+  cardAvatarText: { color: '#7C3AED', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+  cardName: { color: '#0F172A', fontSize: 14, fontFamily: 'Montserrat-SemiBold', marginBottom: 2 },
+  cardEmail: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular' },
+  cardDate: { color: '#94A3B8', fontSize: 11, fontFamily: 'Montserrat-Regular' },
+  cardActions: { flexDirection: 'row', gap: 10, marginTop: 12 },
   approveBtn: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
     backgroundColor: '#16A34A',
-    borderRadius: 12,
-    paddingVertical: 10,
+    alignItems: 'center',
   },
-  approveBtnText: { color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  approveBtnText: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   rejectBtn: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FFF5F5',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 12,
-    paddingVertical: 10,
   },
-  rejectBtnText: { color: '#DC2626', fontFamily: 'Montserrat-Bold', fontSize: 13 },
+  rejectBtnText: { color: '#DC2626', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   emptyWrap: { alignItems: 'center', paddingVertical: 60 },
   emptyTitle: { color: '#1D2B73', fontSize: 18, fontFamily: 'Montserrat-Bold', marginTop: 12, marginBottom: 6 },
   emptyText: { color: adminColors.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular' },

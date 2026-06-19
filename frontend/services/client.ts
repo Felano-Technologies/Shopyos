@@ -60,9 +60,15 @@ const get429DelayMs = (error: any, attempt: number): number => {
   return Math.pow(2, attempt) * 1000;
 };
 
+const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
+
 export const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+    // Bypasses ngrok's browser interstitial page on web dev builds.
+    ...(isDev && { 'ngrok-skip-browser-warning': '1' }),
+  },
 });
 
 api.interceptors.request.use(

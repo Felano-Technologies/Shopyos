@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
 import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
@@ -34,7 +34,7 @@ function getAvatarColor(name?: string) {
   return { bg: AVATAR_COLORS[idx], text: AVATAR_TEXT_COLORS[idx] };
 }
 
-type UserItem = {
+type SellerItem = {
   id: string;
   user_id?: string;
   full_name?: string;
@@ -43,60 +43,54 @@ type UserItem = {
   role?: string;
   account_status?: string;
   created_at?: string;
+  store_name?: string;
+  store_id?: string;
 };
 
 function getInitials(name?: string, email?: string) {
-  if (name) {
-    return name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
-  }
+  if (name) return name.split(' ').map((p: string) => p[0]).join('').toUpperCase().slice(0, 2);
   return (email || '?')[0].toUpperCase();
 }
 
-export default function AdminBuyers() {
+export default function AdminSellers() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { isDesktop } = useAdminBreakpoint();
   const [searchQuery, setSearchQuery] = useState('');
-  const [buyers, setBuyers] = useState<UserItem[]>([]);
+  const [sellers, setSellers] = useState<SellerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [menuUser, setMenuUser] = useState<UserItem | null>(null);
+  const [menuUser, setMenuUser] = useState<SellerItem | null>(null);
 
-  const loadBuyers = useCallback(
-    async (isRefresh = false) => {
-      try {
-        if (isRefresh) setRefreshing(true);
-        else setLoading(true);
+  const loadSellers = useCallback(async (isRefresh = false) => {
+    try {
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-        const params: Record<string, string> = { role: 'buyer' };
-        if (searchQuery.trim()) params.search = searchQuery.trim();
+      const params: Record<string, string> = { role: 'seller' };
+      if (searchQuery.trim()) params.search = searchQuery.trim();
 
-        const res = await getAdminUsers(params);
-        const fallbackData = Array.isArray(res) ? res : [];
-        const data = Array.isArray(res?.users) ? res.users : fallbackData;
-        setBuyers(data);
-      } catch (error: any) {
-        CustomInAppToast.show({
-          type: 'error',
-          title: 'Error',
-          message: error.message || 'Failed to load buyers',
-        });
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    },
-    [searchQuery],
-  );
+      const res = await getAdminUsers(params);
+      const fallbackData = Array.isArray(res) ? res : [];
+      const data = Array.isArray(res?.users) ? res.users : fallbackData;
+      setSellers(data);
+    } catch (error: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || 'Failed to load sellers' });
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [searchQuery]);
 
-  useEffect(() => { loadBuyers(); }, [loadBuyers]);
+  useEffect(() => { loadSellers(); }, [loadSellers]);
 
-  const handleStatusChange = (user: UserItem) => {
+  const handleStatusChange = (user: SellerItem) => {
     const isActive = (user.account_status || 'active') === 'active';
     Alert.alert(
-      isActive ? 'Suspend Account' : 'Reactivate Account',
+      isActive ? 'Suspend Seller' : 'Reactivate Seller',
       isActive
-        ? `Suspend ${user.full_name || user.email}? They will temporarily lose access.`
+        ? `Suspend ${user.full_name || user.email}? Their store will be inaccessible.`
         : `Reactivate ${user.full_name || user.email}?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -109,31 +103,29 @@ export default function AdminBuyers() {
               await adminUpdateUserStatus(user.id, isActive ? 'suspended' : 'active');
               CustomInAppToast.show({
                 type: 'success',
-                title: isActive ? 'Buyer Suspended' : 'Buyer Reactivated',
-                message: 'Account status updated successfully.',
+                title: isActive ? 'Seller Suspended' : 'Seller Reactivated',
+                message: 'Account status updated.',
               });
-              loadBuyers();
+              loadSellers();
             } catch (error: any) {
               CustomInAppToast.show({ type: 'error', title: 'Action Failed', message: error.message });
-            } finally {
-              setActionLoading(null);
-            }
+            } finally { setActionLoading(null); }
           },
         },
       ],
     );
   };
 
-  const handleDeleteUser = async (user: UserItem) => {
-    Alert.alert('Delete User', `Permanently delete ${user.full_name || user.email}? This cannot be undone.`, [
+  const handleDeleteUser = async (user: SellerItem) => {
+    Alert.alert('Delete Seller', `Permanently delete ${user.full_name || user.email}?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
         try {
           setActionLoading(user.id);
           setMenuUser(null);
           await adminDeleteUser(user.id);
-          setBuyers(prev => prev.filter(u => u.id !== user.id));
-          CustomInAppToast.show({ type: 'success', title: 'User Deleted', message: 'Account removed successfully.' });
+          setSellers(prev => prev.filter(u => u.id !== user.id));
+          CustomInAppToast.show({ type: 'success', title: 'Seller Deleted', message: 'Account removed.' });
         } catch (err: any) {
           CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
         } finally { setActionLoading(null); }
@@ -141,7 +133,7 @@ export default function AdminBuyers() {
     ]);
   };
 
-  const handleResetSession = async (user: UserItem) => {
+  const handleResetSession = async (user: SellerItem) => {
     try {
       setActionLoading(user.id);
       setMenuUser(null);
@@ -152,7 +144,7 @@ export default function AdminBuyers() {
     } finally { setActionLoading(null); }
   };
 
-  const handleDisableSession = async (user: UserItem) => {
+  const handleDisableSession = async (user: SellerItem) => {
     Alert.alert('Disable Session', `Deactivate ${user.full_name || user.email} and revoke all access?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Disable', style: 'destructive', onPress: async () => {
@@ -160,8 +152,8 @@ export default function AdminBuyers() {
           setActionLoading(user.id);
           setMenuUser(null);
           await adminDisableUserSession(user.id);
-          setBuyers(prev => prev.map(u => u.id === user.id ? { ...u, account_status: 'suspended' } : u));
-          CustomInAppToast.show({ type: 'success', title: 'Session Disabled', message: 'User deactivated and logged out.' });
+          setSellers(prev => prev.map(u => u.id === user.id ? { ...u, account_status: 'suspended' } : u));
+          CustomInAppToast.show({ type: 'success', title: 'Session Disabled', message: 'Seller deactivated and logged out.' });
         } catch (err: any) {
           CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
         } finally { setActionLoading(null); }
@@ -169,7 +161,7 @@ export default function AdminBuyers() {
     ]);
   };
 
-  const renderBuyer = ({ item }: { item: UserItem }) => {
+  const renderSeller = ({ item }: { item: SellerItem }) => {
     const status = item.account_status || 'active';
     const pill = STATUS_PILL[status] || STATUS_PILL.active;
     const avatarColor = getAvatarColor(item.full_name || item.email);
@@ -189,6 +181,9 @@ export default function AdminBuyers() {
             </View>
           </View>
           <Text style={styles.userEmail} numberOfLines={1}>{item.email || item.phone || 'No contact info'}</Text>
+          {item.store_name ? (
+            <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
+          ) : null}
         </View>
         {/* Three-dot menu */}
         <TouchableOpacity onPress={() => setMenuUser(item)} style={styles.menuBtn}>
@@ -201,36 +196,35 @@ export default function AdminBuyers() {
   return (
     <>
       <StatusBar style="light" />
-      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-        {/* ── Header ─────────────────────────────────────────────────── */}
+      <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+        <View style={[styles.canvasInner, isDesktop && styles.desktopCanvas]}>
+        {/* Header */}
         <LinearGradient
           colors={['#01217B', '#0C2E8A', '#0E5E1A']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[styles.header, { paddingTop: insets.top + 12 }]}
+          style={styles.hero}
         >
-          <View style={styles.hdrRow}>
-            <TouchableOpacity style={styles.hdrBtn} onPress={() => router.back()}>
-              <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.85)" />
-            </TouchableOpacity>
-            <Text style={styles.hdrTitle}>Buyers</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countBadgeTxt}>{buyers.length}</Text>
-            </View>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <Feather name="arrow-left" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+          <View style={styles.heroCenter}>
+            <Ionicons name="storefront-outline" size={22} color="#FFFFFF" />
+            <Text style={styles.heroTitle}>Sellers</Text>
           </View>
+          <Text style={styles.heroCount}>{sellers.length}</Text>
         </LinearGradient>
 
-        {/* ── Search ─────────────────────────────────────────────────── */}
+        {/* Search */}
         <View style={styles.searchBar}>
           <Ionicons name="search" size={16} color="#94A3B8" />
           <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name or email…"
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search buyers by name or email..."
-            placeholderTextColor="#94A3B8"
-            style={styles.searchInput}
             returnKeyType="search"
-            onSubmitEditing={() => loadBuyers()}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -239,35 +233,35 @@ export default function AdminBuyers() {
           )}
         </View>
 
-        {/* ── List ───────────────────────────────────────────────────── */}
         {loading && !refreshing ? (
-          <View style={styles.center}>
-            <ActivityIndicator size="large" color="#1E88E5" />
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="large" color={adminColors.navy} />
           </View>
         ) : (
           <FlatList
-            data={buyers}
-            keyExtractor={(item, idx) => item.id || idx.toString()}
+            data={sellers}
+            keyExtractor={(item) => item.id}
+            renderItem={renderSeller}
+            contentContainerStyle={[styles.list, { paddingBottom: Math.max(insets.bottom, 16) + 40 }]}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 40 }]}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={() => loadBuyers(true)} tintColor="#1E88E5" />
+              <RefreshControl refreshing={refreshing} onRefresh={() => loadSellers(true)} tintColor={adminColors.navy} />
             }
-            renderItem={renderBuyer}
             ListEmptyComponent={
-              <View style={styles.emptyCard}>
-                <View style={styles.emptyIconCircle}>
-                  <Ionicons name="person-outline" size={36} color={adminColors.textSoft} />
-                </View>
-                <Text style={styles.emptyTitle}>No buyers found</Text>
-                <Text style={styles.emptySubtitle}>Try a different search term.</Text>
+              <View style={styles.emptyWrap}>
+                <Ionicons name="storefront-outline" size={48} color={adminColors.textSoft} />
+                <Text style={styles.emptyTitle}>No sellers found</Text>
+                <Text style={styles.emptySubtitle}>
+                  {searchQuery ? 'Try a different search term' : 'Sellers will appear here once registered'}
+                </Text>
               </View>
             }
           />
         )}
+        </View>
       </SafeAreaView>
 
-      {/* User action menu */}
+      {/* Action menu modal */}
       <Modal
         visible={!!menuUser}
         transparent
@@ -278,7 +272,7 @@ export default function AdminBuyers() {
           <View style={menuStyles.sheet}>
             <View style={menuStyles.handle} />
             <Text style={menuStyles.title} numberOfLines={1}>
-              {menuUser?.full_name || menuUser?.email || 'User'}
+              {menuUser?.full_name || menuUser?.email || 'Seller'}
             </Text>
             <TouchableOpacity style={menuStyles.option} onPress={() => handleResetSession(menuUser!)}>
               <Feather name="refresh-cw" size={18} color="#3B82F6" />
@@ -298,7 +292,7 @@ export default function AdminBuyers() {
             <TouchableOpacity style={menuStyles.option} onPress={() => handleDeleteUser(menuUser!)}>
               <Feather name="trash-2" size={18} color="#EF4444" />
               <View style={{ flex: 1 }}>
-                <Text style={[menuStyles.optionLabel, { color: '#EF4444' }]}>Delete User</Text>
+                <Text style={[menuStyles.optionLabel, { color: '#EF4444' }]}>Delete Seller</Text>
                 <Text style={menuStyles.optionSub}>Soft-delete, irreversible</Text>
               </View>
             </TouchableOpacity>
@@ -321,80 +315,30 @@ const menuStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#F5F7FA',
-  },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
+  canvasInner: { flex: 1 },
+  desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%' },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-  // Header
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 26,
-    position: 'relative',
-    elevation: 10,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-  },
-  hdrRow: {
+  hero: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
   },
-  hdrBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.18)',
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  hdrCenter: {
-    alignItems: 'center',
-  },
-  hdrEye: {
-    fontSize: 9,
-    fontFamily: 'Montserrat-Bold',
-    color: 'rgba(255,255,255,0.45)',
-    textTransform: 'uppercase',
-    letterSpacing: 0.9,
-    marginBottom: 2,
-  },
-  hdrTitle: {
-    flex: 1,
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFFFFF',
-    marginLeft: 12,
-  },
-  countBadge: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#85CC16',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  countBadgeTxt: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
-    color: '#1a2e00',
-  },
-  hdrArc: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 24,
-    backgroundColor: '#F5F7FA',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
+  heroCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  heroTitle: { color: '#FFFFFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  heroCount: { color: '#FFFFFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold', opacity: 0.8 },
 
-  // Search
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -416,18 +360,8 @@ const styles = StyleSheet.create({
     color: '#0F172A',
   },
 
-  // List
-  center: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  listContent: {
-    paddingHorizontal: 12,
-    paddingTop: 8,
-  },
+  list: { paddingHorizontal: 0, paddingTop: 4 },
 
-  // User card
   userCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -451,68 +385,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    fontSize: 16,
-    fontFamily: 'Montserrat-Bold',
-    color: '#FFFFFF',
-  },
-  userName: {
-    color: '#0F172A',
-    fontSize: 14,
-    fontFamily: 'Montserrat-SemiBold',
-  },
-  userEmail: {
-    color: '#64748B',
-    fontSize: 12,
-    fontFamily: 'Montserrat-Regular',
-    marginTop: 2,
-  },
-  menuBtn: {
-    padding: 6,
-  },
-  pill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 20,
-  },
-  pillText: {
-    fontSize: 10,
-    fontFamily: 'Montserrat-SemiBold',
-  },
+  avatarText: { fontFamily: 'Montserrat-Bold', fontSize: 16, color: '#FFFFFF' },
+  userName: { color: '#0F172A', fontSize: 14, fontFamily: 'Montserrat-SemiBold' },
+  userEmail: { color: '#64748B', fontSize: 12, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  storeName: { fontSize: 11, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 2 },
+  menuBtn: { padding: 6 },
+  pill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  pillText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold' },
 
-  // Empty state
-  emptyCard: {
-    alignItems: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    marginTop: 16,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-  emptyIconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: adminColors.surfaceSoft,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  emptyTitle: {
-    color: adminColors.text,
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    color: adminColors.textMuted,
-    fontSize: 13,
-    fontFamily: 'Montserrat-Regular',
-    textAlign: 'center',
-  },
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
+  emptyTitle: { color: adminColors.text, fontSize: 18, fontFamily: 'Montserrat-Bold' },
+  emptySubtitle: { color: adminColors.textMuted, fontSize: 13, fontFamily: 'Montserrat-Regular', textAlign: 'center' },
 });
-

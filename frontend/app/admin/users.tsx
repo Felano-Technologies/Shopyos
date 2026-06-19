@@ -13,15 +13,16 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors } from '@/components/admin/adminTheme';
+import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { getAdminUserStats } from '@/services/api';
 
-const DARK_GRADIENT = ['#01217B', '#85CC16'] as [string, string];
+const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
-type Stats = { total: number; active: number; sellers: number; drivers: number };
+type Stats = { total: number; active: number; sellers: number; drivers: number; buyers?: number };
 
 export default function AdminUsers() {
   const router = useRouter();
+  const { isDesktop } = useAdminBreakpoint();
   const [stats, setStats] = useState<Stats>({ total: 0, active: 0, sellers: 0, drivers: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -32,13 +33,20 @@ export default function AdminUsers() {
       .finally(() => setLoading(false));
   }, []);
 
-  const buyerCount = Math.max(stats.total - stats.sellers - stats.drivers, 0);
+  const buyerCount = stats.buyers ?? Math.max(stats.total - stats.sellers - stats.drivers, 0);
 
   const summaryItems = [
-    { label: 'Total Users', value: stats.total, icon: 'people-outline' as const },
-    { label: 'Active',      value: stats.active, icon: 'checkmark-circle-outline' as const },
-    { label: 'Buyers',      value: buyerCount,   icon: 'person-outline' as const },
-    { label: 'Drivers',     value: stats.drivers, icon: 'car-outline' as const },
+    { label: 'Total',   value: stats.total,   icon: 'people-outline' as const,              color: '#3B82F6' },
+    { label: 'Active',  value: stats.active,  icon: 'checkmark-circle-outline' as const,    color: '#22C55E' },
+    { label: 'Buyers',  value: buyerCount,    icon: 'person-outline' as const,              color: '#8B5CF6' },
+    { label: 'Sellers', value: stats.sellers, icon: 'storefront-outline' as const,          color: '#F59E0B' },
+    { label: 'Drivers', value: stats.drivers, icon: 'car-outline' as const,                 color: '#0C1559' },
+  ];
+
+  const groupItems = [
+    { title: 'Buyers',  count: buyerCount,    icon: 'person-outline' as const,     bg: '#DBEAFE', color: '#2563EB', route: '/admin/user-buyers' as any },
+    { title: 'Sellers', count: stats.sellers, icon: 'storefront-outline' as const, bg: '#FEF3C7', color: '#D97706', route: '/admin/user-sellers' as any },
+    { title: 'Drivers', count: stats.drivers, icon: 'car-outline' as const,        bg: '#DCFCE7', color: '#16A34A', route: '/admin/driverVerifications' as any },
   ];
 
   return (
@@ -46,7 +54,7 @@ export default function AdminUsers() {
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ScrollView
-          style={styles.canvas}
+          style={[styles.canvas, isDesktop && styles.desktopCanvas]}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
@@ -54,7 +62,7 @@ export default function AdminUsers() {
           <LinearGradient
             colors={DARK_GRADIENT}
             start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={styles.heroPanel}
           >
             <View style={styles.heroTopRow}>
@@ -62,13 +70,17 @@ export default function AdminUsers() {
                 <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.brandLogo} />
               </View>
               <View style={styles.heroIcons}>
-                <TouchableOpacity style={styles.topActionBubble}>
+                <TouchableOpacity
+                  style={styles.topActionBubble}
+                  onPress={() => router.push('/admin/audit-logs' as any)}
+                >
                   <Ionicons name="headset-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.badgeDot}><Text style={styles.badgeTxt}>2</Text></View>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.topActionBubble}>
+                <TouchableOpacity
+                  style={styles.topActionBubble}
+                  onPress={() => router.push('/admin/notifications' as any)}
+                >
                   <Ionicons name="notifications-outline" size={18} color="#FFFFFF" />
-                  <View style={styles.badgeDot}><Text style={styles.badgeTxt}>2</Text></View>
                 </TouchableOpacity>
                 <View style={styles.avatarCircle}>
                   <Text style={styles.avatarLetter}>A</Text>
@@ -83,7 +95,7 @@ export default function AdminUsers() {
           {/* ── Page title ─────────────────────────────────────────── */}
           <View style={styles.pageHead}>
             <Text style={styles.pageTitle}>User Management</Text>
-            <Text style={styles.pageSubtitle}>Manage buyers, drivers, and store approvals</Text>
+            <Text style={styles.pageSubtitle}>Buyers · Sellers · Drivers · Admins</Text>
           </View>
 
           {/* ── Stats strip ────────────────────────────────────────── */}
@@ -94,12 +106,13 @@ export default function AdminUsers() {
           ) : (
             <View style={styles.statsRow}>
               {summaryItems.map((item) => (
-                <View key={item.label} style={styles.statCard}>
-                  <View style={styles.statIcon}>
-                    <Ionicons name={item.icon} size={16} color="#0A2EA8" />
+                <View key={item.label} style={[styles.statCard, { flexBasis: isDesktop ? '18%' : '47%', flexGrow: 1 }]}>
+                  <View style={[styles.statIconWrap, { backgroundColor: item.color + '22' }]}>
+                    <Ionicons name={item.icon} size={16} color={item.color} />
                   </View>
                   <Text style={styles.statValue}>{item.value.toLocaleString()}</Text>
                   <Text style={styles.statLabel}>{item.label}</Text>
+                  <View style={[styles.statBar, { backgroundColor: item.color }]} />
                 </View>
               ))}
             </View>
@@ -108,47 +121,24 @@ export default function AdminUsers() {
           {/* ── Section label ─────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>User Groups</Text>
 
-          {/* ── Buyers card ───────────────────────────────────────── */}
-          <TouchableOpacity
-            style={styles.groupCard}
-            activeOpacity={0.86}
-            onPress={() => router.push('/admin/user-buyers' as any)}
-          >
-            <View style={[styles.groupIconWrap, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="person-outline" size={28} color="#3B82F6" />
-            </View>
-            <View style={styles.groupInfo}>
-              <Text style={styles.groupTitle}>Buyers</Text>
-              <Text style={styles.groupSubtitle}>
-                {loading ? '—' : `${buyerCount.toLocaleString()} registered buyers`}
-              </Text>
-              <Text style={styles.groupHint}>Manage accounts · Handle reports · Suspend access</Text>
-            </View>
-            <View style={styles.groupChevronWrap}>
-              <Ionicons name="chevron-forward" size={20} color="#85CC16" />
-            </View>
-          </TouchableOpacity>
-
-          {/* ── Drivers card ──────────────────────────────────────── */}
-          <TouchableOpacity
-            style={styles.groupCard}
-            activeOpacity={0.86}
-            onPress={() => router.push('/admin/driverVerifications' as any)}
-          >
-            <View style={[styles.groupIconWrap, { backgroundColor: '#EEF2FF' }]}>
-              <Ionicons name="car-outline" size={28} color="#0C1559" />
-            </View>
-            <View style={styles.groupInfo}>
-              <Text style={styles.groupTitle}>Drivers</Text>
-              <Text style={styles.groupSubtitle}>
-                {loading ? '—' : `${stats.drivers.toLocaleString()} registered drivers`}
-              </Text>
-              <Text style={styles.groupHint}>Verify documents · Approve · Review applications</Text>
-            </View>
-            <View style={styles.groupChevronWrap}>
-              <Ionicons name="chevron-forward" size={20} color="#85CC16" />
-            </View>
-          </TouchableOpacity>
+          {/* ── Group cards ───────────────────────────────────────── */}
+          {groupItems.map((item) => (
+            <TouchableOpacity
+              key={item.title}
+              style={styles.groupCard}
+              activeOpacity={0.86}
+              onPress={() => router.push(item.route)}
+            >
+              <View style={[styles.groupIcon, { backgroundColor: item.bg }]}>
+                <Ionicons name={item.icon} size={22} color={item.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.groupTitle}>{item.title}</Text>
+                <Text style={styles.groupCount}>{loading ? '—' : item.count} users</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+            </TouchableOpacity>
+          ))}
 
           {/* ── Store approvals ───────────────────────────────────── */}
           <Text style={styles.sectionLabel}>Store Management</Text>
@@ -158,27 +148,20 @@ export default function AdminUsers() {
             activeOpacity={0.86}
             onPress={() => router.push('/admin/stores' as any)}
           >
-            <LinearGradient
-              colors={['#0C1559', '#1e3a8a']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.storeCardGradient}
-            >
+            <View style={styles.storeCardGradient}>
               <View style={styles.storeCardLeft}>
                 <View style={styles.storeIconWrap}>
-                  <Ionicons name="storefront-outline" size={28} color="#85CC16" />
+                  <Ionicons name="storefront-outline" size={24} color="#0C1559" />
                 </View>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.storeCardTitle}>Store Approvals</Text>
                   <Text style={styles.storeCardSubtitle}>
                     Review pending stores, check docs and approve
                   </Text>
                 </View>
               </View>
-              <View style={styles.storeCardArrow}>
-                <Ionicons name="arrow-forward" size={18} color="#85CC16" />
-              </View>
-            </LinearGradient>
+              <Ionicons name="arrow-forward" size={18} color="#94A3B8" />
+            </View>
           </TouchableOpacity>
 
           {/* ── Quick actions ─────────────────────────────────────── */}
@@ -234,13 +217,6 @@ export default function AdminUsers() {
             </TouchableOpacity>
           </View>
 
-          {/* ── Sellers info tip ──────────────────────────────────── */}
-          <View style={styles.tipCard}>
-            <Ionicons name="information-circle-outline" size={18} color={adminColors.textMuted} />
-            <Text style={styles.tipText}>
-              Sellers are managed through Store Approvals. Tap a store to view owner details, documents, and approve or reject the application.
-            </Text>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </>
@@ -250,15 +226,20 @@ export default function AdminUsers() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#F5F7FA',
   },
   canvas: {
     flex: 1,
-    backgroundColor: '#E9EFFF',
+    backgroundColor: '#F5F7FA',
+  },
+  desktopCanvas: {
+    maxWidth: 1200,
+    alignSelf: 'center',
+    width: '100%',
   },
   scrollContent: {
     paddingHorizontal: 12,
-    paddingBottom: 220,
+    paddingBottom: 40,
   },
 
   // Header
@@ -376,42 +357,44 @@ const styles = StyleSheet.create({
   },
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
     marginBottom: 20,
   },
   statCard: {
-    flex: 1,
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    paddingHorizontal: 10,
-    paddingVertical: 12,
-    alignItems: 'flex-start',
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
+    flexGrow: 1,
   },
-  statIcon: {
-    width: 28,
-    height: 28,
+  statIconWrap: {
+    width: 32,
+    height: 32,
     borderRadius: 9,
-    backgroundColor: '#0A2EA815',
-    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   statValue: {
-    color: '#1D2B73',
-    fontSize: 18,
+    color: '#0F172A',
+    fontSize: 20,
     fontFamily: 'Montserrat-Bold',
-    lineHeight: 22,
+    marginBottom: 2,
   },
   statLabel: {
-    color: adminColors.textMuted,
-    fontSize: 10,
+    color: '#64748B',
+    fontSize: 11,
     fontFamily: 'Montserrat-SemiBold',
-    marginTop: 2,
+  },
+  statBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 3,
   },
 
   // Section label
@@ -423,77 +406,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
 
-  // Group cards (Buyers / Drivers)
+  // Group cards (Buyers / Sellers / Drivers)
   groupCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    gap: 14,
+    marginBottom: 10,
   },
-  groupIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 18,
-    justifyContent: 'center',
+  groupIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
-    marginRight: 14,
-    flexShrink: 0,
-  },
-  groupInfo: {
-    flex: 1,
+    justifyContent: 'center',
   },
   groupTitle: {
-    color: '#1D2B73',
-    fontSize: 17,
+    color: '#0F172A',
+    fontSize: 14,
     fontFamily: 'Montserrat-Bold',
-    marginBottom: 3,
+    marginBottom: 2,
   },
-  groupSubtitle: {
-    color: '#1D2B73',
-    fontSize: 13,
-    fontFamily: 'Montserrat-SemiBold',
-    marginBottom: 4,
-  },
-  groupHint: {
-    color: adminColors.textMuted,
-    fontSize: 11,
+  groupCount: {
+    color: '#64748B',
+    fontSize: 12,
     fontFamily: 'Montserrat-Regular',
-    lineHeight: 16,
-  },
-  groupChevronWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 12,
-    backgroundColor: '#F0FDF4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 8,
-    flexShrink: 0,
   },
 
   // Store approvals card
   storeCard: {
-    borderRadius: 24,
+    borderRadius: 14,
     overflow: 'hidden',
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
     shadowColor: '#0B2060',
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 5,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   storeCardGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 18,
+    padding: 16,
+    backgroundColor: '#FFFFFF',
   },
   storeCardLeft: {
     flexDirection: 'row',
@@ -502,22 +469,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   storeIconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: 'rgba(133,204,22,0.15)',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
   },
   storeCardTitle: {
-    color: '#FFFFFF',
-    fontSize: 16,
+    color: '#0F172A',
+    fontSize: 15,
     fontFamily: 'Montserrat-Bold',
-    marginBottom: 4,
+    marginBottom: 3,
   },
   storeCardSubtitle: {
-    color: 'rgba(255,255,255,0.65)',
+    color: '#94A3B8',
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
     maxWidth: 200,
@@ -566,6 +533,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 14,
+    borderWidth: 1,
+    borderColor: '#E8EEF8',
     shadowColor: '#0B2060',
     shadowOpacity: 0.06,
     shadowRadius: 8,

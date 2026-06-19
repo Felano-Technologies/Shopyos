@@ -19,7 +19,7 @@ import { getAdminOrders } from '@/services/api';
 import { updateOrderStatus } from '@/services/orders';
 import { exportAdminData } from '@/utils/adminExport';
 
-const HEADER_GRADIENT = ['#0C1559', '#1e3a8a'] as [string, string];
+const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
 const STATUS_SEQUENCE = [
   'pending',
@@ -174,16 +174,13 @@ export default function AdminDeliveries() {
         <LinearGradient
           colors={HEADER_GRADIENT}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.header}
         >
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>Deliveries</Text>
-            <Text style={styles.headerSubtitle}>Manage order statuses</Text>
-          </View>
+          <Text style={styles.headerTitle}>Deliveries</Text>
           <TouchableOpacity style={styles.exportBtn} onPress={handleExport}>
             <Ionicons name="download-outline" size={20} color="#fff" />
           </TouchableOpacity>
@@ -217,26 +214,23 @@ export default function AdminDeliveries() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#E9EFFF' },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingVertical: 14,
     gap: 12,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerText: { flex: 1 },
-  headerTitle: { color: '#fff', fontSize: 20, fontFamily: 'Montserrat-Bold' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  headerTitle: { flex: 1, color: '#fff', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   exportBtn: {
     width: 40,
     height: 40,
@@ -248,15 +242,17 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 40 },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#0B2060',
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0C1559',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   cardTop: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   orderNumber: { color: '#1D2B73', fontSize: 15, fontFamily: 'Montserrat-Bold', marginBottom: 3 },

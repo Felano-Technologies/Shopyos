@@ -20,7 +20,7 @@ import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 
-const HEADER_GRADIENT = ['#0C1559', '#1e3a8a'] as [string, string];
+const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
 export default function AdminProductForm() {
   const router = useRouter();
@@ -101,16 +101,14 @@ export default function AdminProductForm() {
         <LinearGradient
           colors={HEADER_GRADIENT}
           start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.header}
         >
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#fff" />
+            <Ionicons name="arrow-back" size={20} color="#fff" />
           </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.headerTitle}>{isEdit ? 'Edit Product' : 'Create Product'}</Text>
-            <Text style={styles.headerSubtitle}>{isEdit ? 'Update product details' : 'Add a new product to store'}</Text>
-          </View>
+          <Text style={styles.headerTitle}>{isEdit ? 'Edit Product' : 'Create Product'}</Text>
+          <View style={{ width: 36 }} />
         </LinearGradient>
 
         {initialLoading ? (
@@ -202,26 +200,23 @@ export default function AdminProductForm() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#E9EFFF' },
+  safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 18,
+    paddingVertical: 14,
     gap: 12,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerText: { flex: 1 },
-  headerTitle: { color: '#fff', fontSize: 20, fontFamily: 'Montserrat-Bold' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Montserrat-Regular', marginTop: 2 },
+  headerTitle: { flex: 1, color: '#fff', fontSize: 18, fontFamily: 'Montserrat-Bold' },
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 },
   formCard: {

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated } from 'react-native';
+import { Platform, View, Text, StyleSheet, TouchableOpacity, Dimensions, ImageBackground, Animated } from 'react-native';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +16,10 @@ const DEV_FORCE_SHOW_UPDATE = false;
 
 function routeForUser(user: any): string {
   const role = user.role?.toLowerCase();
+  if (Platform.OS === 'web') {
+    if (role === 'admin') return '/admin/dashboard';
+    return '/admin-login';
+  }
   if (user.requiresRoleSelection || !role || role === 'none') return '/role';
   if (role === 'customer' || role === 'buyer') return '/home';
   if (role === 'seller') return '/business/dashboard';
@@ -27,7 +31,7 @@ function routeForUser(user: any): string {
 async function authCheckPromise(): Promise<string> {
   try {
     const token = await secureStorage.getItem('userToken');
-    if (!token) return '/getstarted';
+    if (!token) return Platform.OS === 'web' ? '/admin-login' : '/getstarted';
     const cached = await getCachedUserProfile();
     if (cached) {
       getUserData().then(cacheUserProfile).catch(() => {});

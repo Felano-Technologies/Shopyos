@@ -1,11 +1,12 @@
 import { useWindowDimensions } from 'react-native';
 
 export const adminColors = {
-  appBg: '#FFFFFF',
+  appBg: '#F5F7FA',
   surface: '#FFFFFF',
   surfaceSoft: '#F8FAFC',
   surfaceMuted: '#F1F5F9',
-  border: '#D9E2F2',
+  border: '#E2E8F0',
+  cardBorder: '#E8EEF8',
   borderStrong: '#CBD5E1',
   text: '#0F172A',
   textMuted: '#64748B',
@@ -25,10 +26,6 @@ export const adminColors = {
 export function useAdminBreakpoint() {
   const { width, height } = useWindowDimensions();
 
-  // Breakpoints aligned with common device ranges:
-  // < 600  → mobile (phones in portrait)
-  // 600–1023 → tablet (large phones landscape + small tablets)
-  // ≥ 1024 → desktop (tablets landscape, web)
   const isMobile = width < 600;
   const isTablet = width >= 600 && width < 1024;
   const isDesktop = width >= 1024;
@@ -44,8 +41,16 @@ export function useAdminBreakpoint() {
 
 export const adminShadow = {
   shadowColor: '#0C1559',
-  shadowOpacity: 0.1,
-  shadowRadius: 20,
-  shadowOffset: { width: 0, height: 10 },
-  elevation: 6,
+  shadowOpacity: 0.07,
+  shadowRadius: 12,
+  shadowOffset: { width: 0, height: 4 },
+  elevation: 3,
+};
+
+export const adminCardStyle = {
+  backgroundColor: '#FFFFFF',
+  borderRadius: 16,
+  borderWidth: 1,
+  borderColor: '#E8EEF8',
+  ...adminShadow,
 };

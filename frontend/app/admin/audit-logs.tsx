@@ -13,6 +13,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { exportAdminData } from '@/utils/adminExport';
 
+const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as const;
+
 const ROLE_FILTERS = ['All', 'admin', 'seller', 'driver', 'buyer'];
 const STATUS_FILTERS = ['All', 'success', 'failed'];
 const PAGE_SIZE = 100;
@@ -104,12 +106,12 @@ export default function AdminAuditLogs() {
     const getActionTheme = (action: string) => {
         const a = (action || '').toLowerCase();
         if (a.includes('verif') || a.includes('approv') || a.includes('complet'))
-            return { color: '#10b981', bg: '#DCFCE7', icon: 'check-circle' };
+            return { color: '#10b981', bg: '#DCFCE7', icon: 'checkmark-circle-outline' as const };
         if (a.includes('reject') || a.includes('deactiv') || a.includes('ban') || a.includes('delet'))
-            return { color: '#ef4444', bg: '#FEE2E2', icon: 'alert-circle' };
+            return { color: '#ef4444', bg: '#FEE2E2', icon: 'alert-circle-outline' as const };
         if (a.includes('update') || a.includes('edit') || a.includes('change'))
-            return { color: '#3b82f6', bg: '#DBEAFE', icon: 'edit' };
-        return { color: '#6366f1', bg: '#EEF2FF', icon: 'info' };
+            return { color: '#3b82f6', bg: '#DBEAFE', icon: 'create-outline' as const };
+        return { color: '#6366f1', bg: '#EEF2FF', icon: 'information-circle-outline' as const };
     };
 
     const formatDate = (ts: string) => {
@@ -134,41 +136,36 @@ export default function AdminAuditLogs() {
             </View>
 
             {/* Header */}
-            <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
+            <LinearGradient colors={DARK_GRADIENT} end={{ x: 1, y: 1 }} style={styles.header}>
                 <SafeAreaView edges={['top', 'left', 'right']}>
                     <View style={styles.headerRow}>
                         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                            <Ionicons name="arrow-back" size={24} color="#FFF" />
+                            <Ionicons name="arrow-back" size={22} color="#FFF" />
                         </TouchableOpacity>
-                        <View style={styles.headerTitleContainer}>
-                            <Text style={styles.headerLabel}>SECURITY CENTER</Text>
-                            <Text style={styles.headerTitle}>System Audit Logs</Text>
-                        </View>
+                        <Text style={styles.headerTitle}>Audit Logs</Text>
                         <TouchableOpacity style={styles.headerIconBtn} onPress={handleExport} disabled={isExporting}>
                             {isExporting
                                 ? <ActivityIndicator size="small" color="#FFF" />
-                                : <Feather name="download" size={22} color="#FFF" />}
+                                : <Feather name="download" size={20} color="#FFF" />}
                         </TouchableOpacity>
                     </View>
 
                     {/* Search */}
-                    <View style={styles.searchContainer}>
-                        <View style={styles.searchBar}>
-                            <Feather name="search" size={18} color="#94A3B8" />
-                            <TextInput
-                                placeholder="Search action..."
-                                style={styles.searchInput}
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                                onSubmitEditing={() => loadLogs()}
-                                placeholderTextColor="#94A3B8"
-                            />
-                            {searchQuery.length > 0 && (
-                                <TouchableOpacity onPress={() => setSearchQuery('')}>
-                                    <Ionicons name="close-circle" size={18} color="#94A3B8" />
-                                </TouchableOpacity>
-                            )}
-                        </View>
+                    <View style={styles.searchBar}>
+                        <Feather name="search" size={16} color="#94A3B8" />
+                        <TextInput
+                            placeholder="Search action..."
+                            style={styles.searchInput}
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            onSubmitEditing={() => loadLogs()}
+                            placeholderTextColor="#94A3B8"
+                        />
+                        {searchQuery.length > 0 && (
+                            <TouchableOpacity onPress={() => setSearchQuery('')}>
+                                <Ionicons name="close-circle" size={16} color="#94A3B8" />
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {/* Role filter chips */}
@@ -187,7 +184,7 @@ export default function AdminAuditLogs() {
                     </View>
 
                     {/* Status filter chips */}
-                    <View style={[styles.filterRow, { marginBottom: 6 }]}>
+                    <View style={[styles.filterRow, { marginBottom: 8 }]}>
                         {STATUS_FILTERS.map(s => (
                             <TouchableOpacity
                                 key={s}
@@ -209,175 +206,266 @@ export default function AdminAuditLogs() {
                 </SafeAreaView>
             </LinearGradient>
 
-            {loading ? (
-                <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
-            ) : (
-                <FlatList
-                    data={logs}
-                    keyExtractor={(item, index) => item.id || index.toString()}
-                    contentContainerStyle={styles.listContent}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLogs(true)} tintColor="#0C1559" />}
-                    onEndReached={loadMore}
-                    onEndReachedThreshold={0.3}
-                    ListFooterComponent={
-                        loadingMore
-                            ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0C1559" />
-                            : hasMore && logs.length >= PAGE_SIZE
-                                ? <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
-                                    <Text style={styles.loadMoreText}>Load More</Text>
-                                </TouchableOpacity>
-                                : null
-                    }
-                    renderItem={({ item, index }) => {
-                        const theme = getActionTheme(item.action);
-                        const actorRole = getActorRole(item);
-                        const roleStyle = ROLE_COLORS[actorRole] || { bg: '#E2E8F0', text: '#475569' };
-                        const isFailed = item.status === 'failed';
+            {/* Desktop canvas */}
+            <View style={styles.desktopCanvas}>
+                {loading ? (
+                    <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
+                ) : (
+                    <FlatList
+                        data={logs}
+                        keyExtractor={(item, index) => item.id || index.toString()}
+                        contentContainerStyle={styles.listContent}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadLogs(true)} tintColor="#0C1559" />}
+                        onEndReached={loadMore}
+                        onEndReachedThreshold={0.3}
+                        ListFooterComponent={
+                            loadingMore
+                                ? <ActivityIndicator style={{ marginVertical: 16 }} color="#0C1559" />
+                                : hasMore && logs.length >= PAGE_SIZE
+                                    ? <TouchableOpacity style={styles.loadMoreBtn} onPress={loadMore}>
+                                        <Text style={styles.loadMoreText}>Load more</Text>
+                                    </TouchableOpacity>
+                                    : null
+                        }
+                        renderItem={({ item }) => {
+                            const theme = getActionTheme(item.action);
+                            const actorRole = getActorRole(item);
+                            const roleStyle = ROLE_COLORS[actorRole] || { bg: '#F1F5F9', text: '#475569' };
+                            const isFailed = item.status === 'failed';
 
-                        return (
-                            <View style={styles.logWrapper}>
-                                <View style={styles.timelineContainer}>
-                                    <View style={[styles.timelineDot, { backgroundColor: isFailed ? '#ef4444' : theme.color }]} />
-                                    {index !== logs.length - 1 && <View style={styles.timelineLine} />}
-                                </View>
-
-                                <View style={styles.logCard}>
-                                    <View style={styles.logCardHeader}>
-                                        <View style={[styles.actionBadge, { backgroundColor: theme.bg }]}>
-                                            <Feather name={theme.icon as any} size={12} color={theme.color} />
-                                            <Text style={[styles.actionTag, { color: theme.color }]}>
-                                                {(item.action || '').replaceAll('_', ' ').toUpperCase()}
-                                            </Text>
-                                        </View>
-                                        {isFailed ? (
-                                            <View style={styles.failedBadge}>
-                                                <Text style={styles.failedBadgeText}>FAILED</Text>
-                                            </View>
-                                        ) : (
-                                            <View style={styles.successBadge}>
-                                                <Text style={styles.successBadgeText}>OK</Text>
-                                            </View>
-                                        )}
+                            return (
+                                <View style={styles.logRow}>
+                                    <View style={[styles.logIcon, { backgroundColor: theme.bg }]}>
+                                        <Ionicons name={theme.icon} size={14} color={theme.color} />
                                     </View>
-
-                                    <Text style={styles.logTarget}>
-                                        <Text style={styles.entityLabel}>Entity: </Text>
-                                        {item.entity_type || 'Platform'}
-                                        {item.entity_id ? ` · ${String(item.entity_id).slice(0, 8)}` : ''}
-                                    </Text>
-
-                                    {isFailed && item.failure_reason && (
-                                        <View style={styles.failureBox}>
-                                            <Text style={styles.failureText}>{item.failure_reason}</Text>
+                                    <View style={{ flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                            <Text style={styles.logActor}>{getActorName(item)}</Text>
+                                            {actorRole ? (
+                                                <View style={[styles.roleBadge, { backgroundColor: roleStyle.bg }]}>
+                                                    <Text style={[styles.roleBadgeText, { color: roleStyle.text }]}>{actorRole}</Text>
+                                                </View>
+                                            ) : null}
                                         </View>
-                                    )}
-
-                                    {item.metadata && Object.keys(item.metadata).length > 0 && (
-                                        <View style={styles.metadataBox}>
-                                            <Text style={styles.logNote} numberOfLines={2}>
+                                        <Text style={styles.logAction}>{item.action?.replace(/_/g, ' ')}</Text>
+                                        {item.entity_type ? (
+                                            <Text style={styles.logMeta}>
+                                                {item.entity_type}{item.entity_id ? ` · ${String(item.entity_id).slice(0, 16)}` : ''}
+                                            </Text>
+                                        ) : null}
+                                        {isFailed && item.failure_reason ? (
+                                            <View style={styles.failureBox}>
+                                                <Text style={styles.failureText}>{item.failure_reason}</Text>
+                                            </View>
+                                        ) : null}
+                                        {item.metadata && Object.keys(item.metadata).length > 0 ? (
+                                            <Text style={styles.logMeta} numberOfLines={1}>
                                                 {Object.entries(item.metadata)
                                                     .filter(([, v]) => v !== null && v !== undefined && v !== '')
                                                     .map(([k, v]) => `${k}: ${v}`)
                                                     .join(' · ')}
                                             </Text>
-                                        </View>
-                                    )}
-
-                                    <View style={styles.footerRow}>
-                                        <View style={styles.actorContainer}>
-                                            <View style={styles.actorAvatar}>
-                                                <Text style={styles.actorInitial}>{getActorName(item).charAt(0).toUpperCase()}</Text>
-                                            </View>
-                                            <Text style={styles.adminName}>{getActorName(item)}</Text>
-                                            {actorRole ? (
-                                                <View style={[styles.roleBadge, { backgroundColor: roleStyle.bg }]}>
-                                                    <Text style={[styles.roleText, { color: roleStyle.text }]}>{actorRole}</Text>
-                                                </View>
-                                            ) : null}
-                                        </View>
-                                        <Text style={styles.logDate}>{formatDate(item.timestamp || item.created_at)}</Text>
+                                        ) : null}
+                                    </View>
+                                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                                        <View style={[styles.statusDot, { backgroundColor: isFailed ? '#DC2626' : '#16A34A' }]} />
+                                        <Text style={styles.logTime}>{formatDate(item.timestamp || item.created_at)}</Text>
                                     </View>
                                 </View>
+                            );
+                        }}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <MaterialCommunityIcons name="clipboard-text-search-outline" size={60} color="#CBD5E1" />
+                                <Text style={styles.emptyTitle}>No Records Found</Text>
+                                <Text style={styles.emptySubtitle}>Adjust your filters to find specific logs.</Text>
                             </View>
-                        );
-                    }}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <MaterialCommunityIcons name="clipboard-text-search-outline" size={60} color="#CBD5E1" />
-                            <Text style={styles.emptyTitle}>No Records Found</Text>
-                            <Text style={styles.emptySubtitle}>Adjust your filters to find specific logs.</Text>
-                        </View>
-                    }
-                />
-            )}
+                        }
+                    />
+                )}
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    container: { flex: 1, backgroundColor: '#F5F7FA' },
     watermarkContainer: { position: 'absolute', bottom: -50, right: -50, opacity: 0.03 },
     fadedLogo: { width: 300, height: 300, resizeMode: 'contain' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
-    header: { paddingBottom: 14, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, elevation: 12 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10 },
-    backBtn: { width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' },
-    headerTitleContainer: { alignItems: 'center' },
-    headerLabel: { color: '#A3E635', fontSize: 10, fontFamily: 'Montserrat-Bold', letterSpacing: 1.5 },
-    headerTitle: { color: '#FFF', fontSize: 18, fontFamily: 'Montserrat-Bold' },
-    headerIconBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+    desktopCanvas: { maxWidth: 1200, alignSelf: 'center', width: '100%', flex: 1 },
 
-    searchContainer: { paddingHorizontal: 20, marginTop: 14 },
-    searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 16, height: 46, borderRadius: 14, elevation: 3 },
-    searchInput: { flex: 1, marginLeft: 10, fontFamily: 'Montserrat-Medium', color: '#0F172A', fontSize: 14 },
+    // Header
+    header: { paddingBottom: 4, elevation: 8 },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+        gap: 10,
+    },
+    backBtn: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        backgroundColor: 'rgba(255,255,255,0.18)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    headerTitle: {
+        flex: 1,
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontFamily: 'Montserrat-Bold',
+    },
+    headerIconBtn: { width: 34, height: 34, justifyContent: 'center', alignItems: 'center' },
 
-    filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, marginTop: 10, flexWrap: 'wrap' },
-    filterChip: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.15)' },
-    filterChipActive: { backgroundColor: '#A3E635' },
-    filterChipFailed: { backgroundColor: '#ef4444' },
-    filterChipText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Montserrat-SemiBold' },
-    filterChipTextActive: { color: '#0C1559' },
+    // Search bar
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        gap: 8,
+        marginHorizontal: 12,
+        marginBottom: 8,
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 14,
+        fontFamily: 'Montserrat-Regular',
+        color: '#0F172A',
+    },
 
-    listContent: { padding: 16, paddingTop: 10, paddingBottom: 80 },
+    // Filter chips
+    filterRow: {
+        flexDirection: 'row',
+        gap: 8,
+        flexWrap: 'wrap',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    filterChip: {
+        paddingHorizontal: 14,
+        paddingVertical: 7,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.18)',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.25)',
+    },
+    filterChipActive: {
+        backgroundColor: '#FFFFFF',
+        borderColor: '#FFFFFF',
+    },
+    filterChipFailed: {
+        backgroundColor: '#FEE2E2',
+        borderColor: '#FEE2E2',
+    },
+    filterChipText: {
+        fontSize: 12,
+        fontFamily: 'Montserrat-SemiBold',
+        color: 'rgba(255,255,255,0.85)',
+    },
+    filterChipTextActive: {
+        color: '#0C1559',
+    },
 
-    logWrapper: { flexDirection: 'row', marginBottom: 16 },
-    timelineContainer: { width: 26, alignItems: 'center' },
-    timelineDot: { width: 10, height: 10, borderRadius: 5, marginTop: 22, zIndex: 2, borderWidth: 2, borderColor: '#FFF' },
-    timelineLine: { width: 2, flex: 1, backgroundColor: '#E2E8F0', marginTop: 4 },
+    listContent: { padding: 12, paddingBottom: 40 },
 
-    logCard: { flex: 1, backgroundColor: '#FFF', padding: 14, borderRadius: 20, elevation: 2, shadowColor: '#000', shadowOpacity: 0.03, borderWidth: 1, borderColor: '#F1F5F9' },
-    logCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-    actionBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, gap: 4, flex: 1, marginRight: 8 },
-    actionTag: { fontSize: 9, fontFamily: 'Montserrat-Bold', flexShrink: 1 },
+    // Log row
+    logRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        paddingVertical: 10,
+        gap: 10,
+        borderBottomWidth: 1,
+        borderBottomColor: '#F1F5F9',
+    },
+    logIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 9,
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+    },
+    logActor: {
+        color: '#0F172A',
+        fontSize: 13,
+        fontFamily: 'Montserrat-SemiBold',
+    },
+    logAction: {
+        color: '#64748B',
+        fontSize: 12,
+        fontFamily: 'Montserrat-Regular',
+        textTransform: 'capitalize',
+        marginTop: 2,
+    },
+    logMeta: {
+        color: '#94A3B8',
+        fontSize: 11,
+        fontFamily: 'Montserrat-Regular',
+        marginTop: 2,
+    },
+    logTime: {
+        color: '#94A3B8',
+        fontSize: 11,
+        fontFamily: 'Montserrat-Regular',
+    },
+    roleBadge: {
+        paddingHorizontal: 7,
+        paddingVertical: 2,
+        borderRadius: 10,
+    },
+    roleBadgeText: {
+        fontSize: 10,
+        fontFamily: 'Montserrat-SemiBold',
+        textTransform: 'capitalize',
+    },
+    statusDot: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+    },
 
-    failedBadge: { backgroundColor: '#FEE2E2', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-    failedBadgeText: { color: '#ef4444', fontSize: 9, fontFamily: 'Montserrat-Bold' },
-    successBadge: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-    successBadgeText: { color: '#15803D', fontSize: 9, fontFamily: 'Montserrat-Bold' },
+    failureBox: {
+        backgroundColor: '#FEF2F2',
+        padding: 8,
+        borderRadius: 8,
+        marginTop: 4,
+        borderLeftWidth: 3,
+        borderLeftColor: '#ef4444',
+    },
+    failureText: {
+        fontSize: 11,
+        color: '#ef4444',
+        fontFamily: 'Montserrat-Regular',
+        fontStyle: 'italic',
+    },
 
-    logTarget: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', marginBottom: 6 },
-    entityLabel: { color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
+    // Load more
+    loadMoreBtn: {
+        margin: 12,
+        paddingVertical: 12,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        alignItems: 'center',
+    },
+    loadMoreText: {
+        color: '#0C1559',
+        fontSize: 14,
+        fontFamily: 'Montserrat-SemiBold',
+    },
 
-    failureBox: { backgroundColor: '#FEF2F2', padding: 10, borderRadius: 10, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#ef4444' },
-    failureText: { fontSize: 11, color: '#ef4444', fontFamily: 'Montserrat-Medium', fontStyle: 'italic' },
-
-    metadataBox: { backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: '#E2E8F0' },
-    logNote: { fontSize: 11, color: '#64748B', fontFamily: 'Montserrat-Medium', lineHeight: 16 },
-
-    footerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F1F5F9', paddingTop: 10 },
-    actorContainer: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    actorAvatar: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#0C1559', justifyContent: 'center', alignItems: 'center' },
-    actorInitial: { color: '#FFF', fontSize: 10, fontFamily: 'Montserrat-Bold' },
-    adminName: { fontSize: 11, color: '#0C1559', fontFamily: 'Montserrat-Bold' },
-    roleBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
-    roleText: { fontSize: 9, fontFamily: 'Montserrat-Bold', textTransform: 'uppercase' },
-    logDate: { fontSize: 10, color: '#94A3B8', fontFamily: 'Montserrat-Medium' },
-
-    loadMoreBtn: { alignSelf: 'center', paddingHorizontal: 24, paddingVertical: 10, backgroundColor: '#0C1559', borderRadius: 20, marginTop: 8 },
-    loadMoreText: { color: '#FFF', fontFamily: 'Montserrat-SemiBold', fontSize: 13 },
-
+    // Empty
     emptyState: { alignItems: 'center', justifyContent: 'center', marginTop: 80 },
     emptyTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#334155', marginTop: 15 },
-    emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 5, textAlign: 'center' },
+    emptySubtitle: { fontSize: 13, fontFamily: 'Montserrat-Regular', color: '#94A3B8', marginTop: 5, textAlign: 'center' },
 });

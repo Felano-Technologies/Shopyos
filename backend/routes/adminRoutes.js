@@ -36,6 +36,8 @@ const {
   createDriverProfileAdmin,
   getDriverStatsAdmin,
   getDriverHistoryAdmin,
+  getPlatformSettings,
+  updatePlatformSettings,
 } = require('../controllers/adminController');
 const {
   getScheduledNotifications,
@@ -51,6 +53,12 @@ const adminExportController = require('../controllers/adminExportController');
 // All admin routes require authentication and admin role
 router.use(protect);
 router.use(admin);
+
+// Platform Settings (must be before any /:id routes)
+// @route   GET  /api/admin/platform-settings
+router.get('/platform-settings', getPlatformSettings);
+// @route   PUT  /api/admin/platform-settings
+router.put('/platform-settings', updatePlatformSettings);
 
 // @route   GET /api/admin/dashboard
 router.get('/dashboard', getDashboard);

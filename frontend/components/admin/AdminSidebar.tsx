@@ -1,19 +1,26 @@
 // components/admin/AdminSidebar.tsx
-// Sidebar navigation for tablet (icon-only, 64px) and desktop (expanded, 240px).
-
 import React, { useState } from 'react';
 import {
+  Image,
+  LayoutAnimation,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { adminColors, useAdminBreakpoint } from './adminTheme';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const LOGO = require('@/assets/images/icon.png');
 
 type FeatherIconName = React.ComponentProps<typeof Feather>['name'];
 
@@ -45,10 +52,10 @@ const SECTIONS: Section[] = [
     icon: 'shopping-bag',
     route: '/admin/orders',
     sub: [
-      { label: 'Stores',      route: '/admin/stores' },
-      { label: 'Orders',      route: '/admin/orders' },
-      { label: 'Deliveries',  route: '/admin/deliveries' },
-      { label: 'Revenue',     route: '/admin/revenue' },
+      { label: 'Stores',     route: '/admin/stores' },
+      { label: 'Orders',     route: '/admin/orders' },
+      { label: 'Deliveries', route: '/admin/deliveries' },
+      { label: 'Revenue',    route: '/admin/revenue' },
     ],
   },
   {
@@ -57,10 +64,9 @@ const SECTIONS: Section[] = [
     icon: 'users',
     route: '/admin/users',
     sub: [
-      { label: 'Users',        route: '/admin/users' },
-      { label: 'Approvals',    route: '/admin/approvals' },
-      { label: 'Drivers',      route: '/admin/driverVerifications' },
-      { label: 'Reports',      route: '/admin/ads' },
+      { label: 'Users',     route: '/admin/users' },
+      { label: 'Approvals', route: '/admin/approvals' },
+      { label: 'Drivers',   route: '/admin/driverVerifications' },
     ],
   },
   {
@@ -69,74 +75,87 @@ const SECTIONS: Section[] = [
     icon: 'sliders',
     route: '/admin/settings',
     sub: [
-      { label: 'Broadcasts',  route: '/admin/broadcasts' },
-      { label: 'Audit Logs',  route: '/admin/audit-logs' },
-      { label: 'Categories',  route: '/admin/categories' },
-      { label: 'Ads',         route: '/admin/ads' },
-      { label: 'Settings',    route: '/admin/settings' },
+      { label: 'Broadcasts', route: '/admin/broadcasts' },
+      { label: 'Audit Logs', route: '/admin/audit-logs' },
+      { label: 'Categories', route: '/admin/categories' },
+      { label: 'Ads',        route: '/admin/ads' },
+      { label: 'Settings',   route: '/admin/settings' },
     ],
   },
 ];
 
-export default function AdminSidebar() {
-  const pathname  = usePathname();
-  const router    = useRouter();
-  const insets    = useSafeAreaInsets();
-  const { isDesktop } = useAdminBreakpoint();
+const EXPANDED_W = 260;
+const COLLAPSED_W = 72;
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({
+export default function AdminSidebar() {
+  const pathname = usePathname();
+  const router   = useRouter();
+  const insets   = useSafeAreaInsets();
+  const { isTablet } = useAdminBreakpoint();
+
+  const [collapsed, setCollapsed] = useState(isTablet);
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     commerce: true,
     people: true,
     control: true,
   });
 
-  const sidebarWidth = isDesktop ? 240 : 64;
+  const handleToggle = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setCollapsed((c) => !c);
+  };
+
+  const toggleSection = (key: string) => {
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const isActive = (route: string) =>
     pathname === route || pathname.startsWith(route + '/');
 
-  const toggle = (key: string) =>
-    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-
   return (
-    <View
-      style={[
-        styles.sidebar,
-        { width: sidebarWidth, paddingTop: insets.top + 16 },
-      ]}
-    >
-      {/* Branding */}
-      <View style={styles.brand}>
-        <View style={styles.logoBox}>
-          <Feather name="zap" size={18} color={adminColors.lime} />
+    <View style={[styles.sidebar, { width: collapsed ? COLLAPSED_W : EXPANDED_W, paddingTop: insets.top + 10 }]}>
+
+      {/* ── Branding + toggle ──────────────────────────────────────────────── */}
+      <View style={[styles.header, collapsed && styles.headerCollapsed]}>
+        <View style={styles.brandRow}>
+          <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+          {!collapsed && <Text style={styles.brandText}>Shopyos</Text>}
         </View>
-        {isDesktop && (
-          <Text style={styles.brandText}>Shopyos</Text>
-        )}
+        <TouchableOpacity style={styles.toggleBtn} onPress={handleToggle} activeOpacity={0.7}>
+          <Feather
+            name={collapsed ? 'chevrons-right' : 'chevrons-left'}
+            size={15}
+            color="rgba(255,255,255,0.45)"
+          />
+        </TouchableOpacity>
       </View>
 
+      {/* ── Nav items ─────────────────────────────────────────────────────── */}
       <ScrollView
         style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 20 }}
+        contentContainerStyle={styles.navContent}
       >
         {SECTIONS.map((section) => {
-          const sectionActive = isActive(section.route) ||
-            section.sub.some((s) => isActive(s.route));
-          const isExpanded = expanded[section.key];
+          const sectionActive =
+            isActive(section.route) || section.sub.some((s) => isActive(s.route));
+          const isOpen = !collapsed && openSections[section.key];
 
           return (
-            <View key={section.key}>
+            <View key={section.key} style={styles.sectionWrap}>
+
               {/* Section header row */}
               <TouchableOpacity
-                style={[styles.sectionRow, sectionActive && styles.sectionRowActive]}
+                style={[
+                  styles.sectionRow,
+                  collapsed && styles.sectionRowCollapsed,
+                  sectionActive && styles.sectionRowActive,
+                ]}
                 onPress={() => {
-                  if (section.sub.length === 0) {
+                  if (section.sub.length === 0 || collapsed) {
                     router.navigate(section.route as any);
-                  } else if (isDesktop) {
-                    toggle(section.key);
                   } else {
-                    router.navigate(section.route as any);
+                    toggleSection(section.key);
                   }
                 }}
                 activeOpacity={0.75}
@@ -145,73 +164,72 @@ export default function AdminSidebar() {
                   <Feather
                     name={section.icon}
                     size={18}
-                    color={sectionActive ? adminColors.lime : '#94A3B8'}
+                    color={sectionActive ? '#A3E635' : '#94A3B8'}
                   />
                 </View>
-                {isDesktop && (
+
+                {!collapsed && (
                   <>
                     <Text style={[styles.sectionLabel, sectionActive && styles.sectionLabelActive]}>
                       {section.label}
                     </Text>
                     {section.sub.length > 0 && (
                       <Feather
-                        name={isExpanded ? 'chevron-down' : 'chevron-right'}
-                        size={14}
-                        color="#64748B"
-                        style={{ marginLeft: 'auto' }}
+                        name={isOpen ? 'chevron-down' : 'chevron-right'}
+                        size={15}
+                        color={sectionActive ? 'rgba(255,255,255,0.45)' : '#475569'}
                       />
                     )}
                   </>
                 )}
               </TouchableOpacity>
 
-              {/* Sub-items (desktop only) */}
-              {isDesktop && section.sub.length > 0 && isExpanded &&
-                section.sub.map((sub) => {
-                  const subActive = isActive(sub.route);
-                  return (
-                    <TouchableOpacity
-                      key={sub.route}
-                      style={[styles.subRow, subActive && styles.subRowActive]}
-                      onPress={() => router.navigate(sub.route as any)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.subLabel, subActive && styles.subLabelActive]}>
-                        {sub.label}
-                      </Text>
-                      {sub.badge != null && sub.badge > 0 && (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>{sub.badge}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+              {/* Sub-items */}
+              {isOpen && section.sub.map((sub) => {
+                const subActive = isActive(sub.route);
+                return (
+                  <TouchableOpacity
+                    key={sub.route}
+                    style={[styles.subRow, subActive && styles.subRowActive]}
+                    onPress={() => router.navigate(sub.route as any)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.subLabel, subActive && styles.subLabelActive]}>
+                      {sub.label}
+                    </Text>
+                    {sub.badge != null && sub.badge > 0 && (
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{sub.badge}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           );
         })}
       </ScrollView>
 
-      {/* User footer */}
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        {isDesktop && (
+        {!collapsed && (
           <View style={styles.userRow}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>A</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.userName} numberOfLines={1}>Admin</Text>
-              <Text style={styles.userEmail} numberOfLines={1}>Admin Portal</Text>
+              <Text style={styles.userRole} numberOfLines={1}>Super Administrator</Text>
             </View>
           </View>
         )}
         <TouchableOpacity
-          style={styles.logoutBtn}
+          style={[styles.logoutBtn, collapsed && styles.logoutBtnCollapsed]}
           onPress={() => router.replace('/login' as any)}
           activeOpacity={0.75}
         >
-          <Feather name="log-out" size={16} color="#EF4444" />
-          {isDesktop && <Text style={styles.logoutText}>Sign Out</Text>}
+          <Feather name="log-out" size={17} color="#F87171" />
+          {!collapsed && <Text style={styles.logoutText}>Sign Out</Text>}
         </TouchableOpacity>
       </View>
     </View>
@@ -220,41 +238,79 @@ export default function AdminSidebar() {
 
 const styles = StyleSheet.create({
   sidebar: {
-    backgroundColor: adminColors.navyDeep,
+    backgroundColor: '#0B1437',
     borderRightWidth: 1,
-    borderRightColor: 'rgba(255,255,255,0.06)',
+    borderRightColor: 'rgba(255,255,255,0.07)',
     flexDirection: 'column',
   },
-  brand: {
+
+  // ── Header ──────────────────────────────────────────────────────────────────
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingBottom: 20,
+    gap: 8,
+  },
+  headerCollapsed: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 0,
+  },
+  brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 12,
-    paddingBottom: 24,
+    flex: 1,
+    overflow: 'hidden',
   },
-  logoBox: {
+  logoImg: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    backgroundColor: adminColors.navy,
-    alignItems: 'center',
-    justifyContent: 'center',
     flexShrink: 0,
   },
   brandText: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat-Bold',
-    fontSize: 16,
-    letterSpacing: 0.5,
+    fontSize: 18,
+    letterSpacing: 0.3,
+  },
+  toggleBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+
+  // ── Nav ─────────────────────────────────────────────────────────────────────
+  navContent: {
+    paddingHorizontal: 10,
+    paddingBottom: 16,
+  },
+  sectionWrap: {
+    marginBottom: 2,
   },
   sectionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 2,
+    height: 50,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    gap: 10,
   },
-  sectionRowActive: {},
+  sectionRowCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
+    marginHorizontal: 6,
+  },
+  sectionRowActive: {
+    backgroundColor: 'rgba(163,230,53,0.10)',
+  },
   iconWrap: {
     width: 36,
     height: 36,
@@ -264,42 +320,42 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   iconWrapActive: {
-    backgroundColor: 'rgba(132,204,22,0.12)',
+    backgroundColor: 'rgba(163,230,53,0.14)',
   },
   sectionLabel: {
     flex: 1,
     color: '#94A3B8',
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 13,
-    marginLeft: 8,
+    fontSize: 15,
   },
   sectionLabelActive: {
     color: '#FFFFFF',
   },
+
+  // ── Sub-items ────────────────────────────────────────────────────────────────
   subRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: 56,
-    paddingRight: 12,
-    paddingVertical: 7,
+    height: 42,
+    paddingLeft: 54,
+    paddingRight: 10,
+    borderRadius: 10,
   },
   subRowActive: {
     backgroundColor: 'rgba(255,255,255,0.06)',
-    borderRadius: 8,
-    marginHorizontal: 8,
-    paddingLeft: 48,
   },
   subLabel: {
     flex: 1,
     color: '#64748B',
     fontFamily: 'Montserrat-Medium',
-    fontSize: 12,
+    fontSize: 14,
   },
   subLabelActive: {
-    color: adminColors.lime,
+    color: '#CBD5E1',
+    fontFamily: 'Montserrat-SemiBold',
   },
   badge: {
-    backgroundColor: adminColors.red,
+    backgroundColor: '#EF4444',
     borderRadius: 10,
     minWidth: 18,
     height: 18,
@@ -312,53 +368,61 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Montserrat-Bold',
   },
+
+  // ── Footer ──────────────────────────────────────────────────────────────────
   footer: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.06)',
+    borderTopColor: 'rgba(255,255,255,0.07)',
     paddingHorizontal: 12,
-    paddingTop: 12,
-    gap: 8,
+    paddingTop: 14,
+    gap: 10,
   },
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 4,
   },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: adminColors.navyMid,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(163,230,53,0.14)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
   },
   avatarText: {
-    color: adminColors.lime,
+    color: '#A3E635',
     fontFamily: 'Montserrat-Bold',
-    fontSize: 14,
+    fontSize: 15,
   },
   userName: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
+    fontSize: 14,
   },
-  userEmail: {
-    color: '#64748B',
+  userRole: {
+    color: '#475569',
     fontFamily: 'Montserrat-Regular',
-    fontSize: 10,
+    fontSize: 11,
+    marginTop: 2,
   },
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    gap: 10,
+    paddingVertical: 11,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    backgroundColor: 'rgba(239,68,68,0.08)',
+  },
+  logoutBtnCollapsed: {
+    justifyContent: 'center',
+    paddingHorizontal: 0,
   },
   logoutText: {
-    color: '#EF4444',
+    color: '#F87171',
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 13,
+    fontSize: 14,
   },
 });

@@ -196,7 +196,9 @@ const createBusiness = async (req, res, next) => {
       account_number: accountNumber || null,
       payout_method: req.body.payoutMethod || 'bank',
       proof_of_bank_url: fileUrls.proofOfBank,
-      verification_status: 'pending',
+      verification_status: await repositories.adminSettings.getSettings()
+        .then((s) => (s.auto_approve_sellers ? 'verified' : 'pending'))
+        .catch(() => 'pending'),
       is_active: true
     });
 
