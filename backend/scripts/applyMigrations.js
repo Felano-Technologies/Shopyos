@@ -1,4 +1,4 @@
-﻿require('dotenv').config();
+require('dotenv').config();
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -9,7 +9,10 @@ const pool = getPool();
 const MIGRATIONS_DIR = path.join(__dirname, '..', 'migrations');
 const LOCK_KEY = 948372611;
 
-const checksum = (content) => crypto.createHash('sha256').update(content).digest('hex');
+const checksum = (content) => {
+  const normalized = content.replace(/\r\n/g, '\n');
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+};
 
 const getMigrationFiles = () => {
   if (!fs.existsSync(MIGRATIONS_DIR)) {
