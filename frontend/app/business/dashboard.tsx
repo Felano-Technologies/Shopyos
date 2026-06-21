@@ -141,6 +141,7 @@ const BusinessDashboard = () => {
           <View style={styles.topBar}>
             <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} contentFit="contain" />
             <View style={styles.topIcons}>
+              {/* Notifications Icon -> /business/notifications */}
               <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
                 <Ionicons name="notifications-outline" size={22} color="#FFF" />
                 {unreadCount > 0 && (
@@ -149,11 +150,14 @@ const BusinessDashboard = () => {
                   </View>
                 )}
               </TouchableOpacity>
+              {/* Settings Icon -> /business/settings */}
               <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
                 <Ionicons name="settings-outline" size={22} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Profile Switcher Trigger */}
           <TouchableOpacity style={styles.businessProfile} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
             <View style={styles.logoWrapper}>
               {(selectedBusiness?.logo_url || selectedBusiness?.logo) ? (
@@ -188,12 +192,10 @@ const BusinessDashboard = () => {
     );
   };
 
-  // Force refetch on mount to catch newly registered businesses
   useEffect(() => {
     refetchBusinesses();
   }, [refetchBusinesses]);
 
-  // --- Sync Storage ---
   useEffect(() => {
     if (selectedBusiness?._id) {
       storage.setItem('currentBusinessId', selectedBusiness._id);
@@ -201,13 +203,11 @@ const BusinessDashboard = () => {
     }
   }, [selectedBusiness?._id, selectedBusiness?.verificationStatus]);
 
-  // If loading is finished and no business is found, show the registration modal
   useEffect(() => {
     const checkAuthAndShowModal = async () => {
       const isStillLoading = loading || isLoadingBusinesses || isRefetchingBusinesses;
       if (isStillLoading) return;
 
-      // Only show the modal if we are actually logged in
       const token = await secureStorage.getItem('userToken');
       if (!token) return;
 
@@ -251,7 +251,6 @@ const BusinessDashboard = () => {
   const recentOrders = dashboardData?.recentOrders || [];
   const chartData = dashboardData?.chartData?.[timeframe] || { labels: [], datasets: [{ data: [0] }] };
 
-  // Show a blank loading screen while the guard checks storage.
   if (isChecking || !isVerified) {
     return (
       <View style={styles.centered}>
@@ -264,172 +263,162 @@ const BusinessDashboard = () => {
   return (
     <View style={styles.mainContainer}>
       <StatusBar style="light" />
-      
-      {/* --- Background Watermark --- */}
-      <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-        <View style={styles.bottomLogos}>
-          <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
-        </View>
-      </View>
 
       <SafeAreaView style={styles.safeArea} edges={['left', 'right', 'bottom']}>
         {selectedBusiness ? (
           <>
-            {/* --- STICKY HEADER OUTSIDE SCROLLVIEW (zIndex 10) --- */}
-            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            {/* ── 1. FIXED HEADER (y: 0 to 240, permanently locked in the back at zIndex: 10) ── */}
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 240, zIndex: 10 }}>
               {renderHeaderContent()}
             </View>
 
-            {/* --- SCROLLVIEW ON TOP (zIndex 20) --- */}
-            <ScrollView
-              style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1, zIndex: 20 }]}
-              contentContainerStyle={{ flexGrow: 1 }}
-              refreshControl={
-                <RefreshControl 
-                  refreshing={refreshing} 
-                  onRefresh={onRefresh} 
-                  tintColor="#000000" 
-                  progressViewOffset={260} // Dropped lower so it displays over the white background
-                />
-              }
-              showsVerticalScrollIndicator={false}
-            >
-              {/* Transparent spacer exposing the header */}
-              <View style={{ height: 240, backgroundColor: 'transparent' }} />
-
-              {/* Solid body that gracefully covers the header when scrolling up */}
-              <View style={styles.scrollBody}>
-                
-                {/* Background Watermark properly inside the scrolling area */}
-                <View style={styles.bottomLogos} pointerEvents="none">
-                  <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
-                </View>
-
-                {/* --- FLOATING STATS --- */}
-                <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
-                  {isTourActive && (
-                    <View style={styles.statsPulse}>
-                      <SpotlightIndicator source={require('../../assets/pulse.json')} />
-                    </View>
-                  )}
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>₵{Number(stats.balance || 0).toLocaleString()}</Text>
-                    <Text style={styles.statLabel}>Balance</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.totalOrders}</Text>
-                    <Text style={styles.statLabel}>Orders</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>₵{Number(stats.pendingRevenue || 0).toLocaleString()}</Text>
-                    <Text style={styles.statLabel}>In Escrow</Text>
-                  </View>
-                  <View style={styles.statDivider} />
-                  <View style={styles.statItem}>
-                    <Text style={styles.statNumber}>{stats.totalProducts}</Text>
-                    <Text style={styles.statLabel}>Products</Text>
-                  </View>
-                </View>
-
-                {/* --- QUICK ACTIONS --- */}
-                <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
-                  <Text style={styles.sectionTitle}>Quick Actions</Text>
-                  <View style={styles.servicesGrid}>
-                    {[
-                      { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products/addproducts' },
-                      { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
-                      { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
-                      { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
-                      { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
-                    ].map((item) => (
-                      <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
-                        <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
-                          {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
-                        </LinearGradient>
-                        <Text style={styles.actionLabel}>{item.label}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* --- PERFORMANCE CHART --- */}
-                <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
-                  <View style={styles.chartHeader}>
-                    <View>
-                      <Text style={styles.cardTitle}>Sales Performance</Text>
-                      <Text style={styles.cardSubtitle}>Revenue tracking</Text>
-                    </View>
-                    <TouchableOpacity onPress={() => setTimeframe((t) => {
-                      if (t === 'weekly') return 'monthly';
-                      if (t === 'monthly') return 'yearly';
-                      return 'weekly';
-                    })}>
-                      <View style={styles.timeToggle}>
-                        <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
-                        <Feather name="chevron-down" size={14} color="#64748B" />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                  <LineChart
-                    data={chartData}
-                    width={width - 48}
-                    height={180}
-                    chartConfig={{
-                      backgroundGradientFrom: '#FFF',
-                      backgroundGradientTo: '#FFF',
-                      decimalPlaces: 0,
-                      color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
-                      labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
-                      style: { borderRadius: 16 },
-                      propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' }
-                    }}
-                    bezier
-                    style={styles.chartStyle}
-                    withVerticalLines={false}
+            {/* ── 2. SCROLLVIEW WRAPPER (Starts at y: 205, zIndex: 20 -> forces metric cards over the blue lip!) ── */}
+            <View style={{ flex: 1, marginTop: 205, zIndex: 20 }}>
+              <ScrollView
+                style={[styles.scrollView, { opacity: (loading && !isInitialLoading) ? 0.6 : 1 }]}
+                // paddingTop: 35 perfectly counter-balances your metric card's hardcoded marginTop: -35
+                contentContainerStyle={{ flexGrow: 1, paddingTop: 35, paddingBottom: 120 }}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    tintColor="#0C1559"
                   />
-                </View>
-
-                {/* --- RECENT ORDERS --- */}
-                <View style={styles.sectionContainer}>
-                  <View style={styles.sectionHeaderRow}>
-                    <Text style={styles.sectionTitle}>Recent Orders</Text>
-                    <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
+                }
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.scrollBody}>
+                  
+                  <View style={styles.bottomLogos} pointerEvents="none">
+                    <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                   </View>
-                  {recentOrders.length > 0 ? (
-                    recentOrders.map((order: Order, idx: number) => (
-                      <View key={order.id || `order-${idx}`} style={styles.orderCard}>
-                        <View style={styles.orderLeft}>
-                          <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
-                              <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
-                          </View>
-                          <View>
-                              <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
-                              <Text style={styles.orderStatus}>{order.status}</Text>
-                          </View>
-                        </View>
-                        <Text style={styles.orderAmount}>₵{Number(order.totalAmount || 0).toFixed(2)}</Text>
+
+                  {/* --- FLOATING STATS --- */}
+                  <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
+                    {isTourActive && (
+                      <View style={styles.statsPulse}>
+                        <SpotlightIndicator source={require('../../assets/pulse.json')} />
                       </View>
-                    ))
-                  ) : (
-                    <View style={styles.emptyOrdersCard}>
-                      <Feather name="shopping-cart" size={24} color={C.subtle} />
-                      <Text style={styles.emptyOrdersText}>No recent orders yet</Text>
+                    )}
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>₵{Number(stats.balance || 0).toLocaleString()}</Text>
+                      <Text style={styles.statLabel}>Balance</Text>
                     </View>
-                  )}
-                </View>
-
-                {/* --- PRO TIP --- */}
-                <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
-                  <View style={styles.tipHeader}>
-                    <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
-                    <Text style={styles.tipTitle}>Pro Tip</Text>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>{stats.totalOrders}</Text>
+                      <Text style={styles.statLabel}>Orders</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>₵{Number(stats.pendingRevenue || 0).toLocaleString()}</Text>
+                      <Text style={styles.statLabel}>In Escrow</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statItem}>
+                      <Text style={styles.statNumber}>{stats.totalProducts}</Text>
+                      <Text style={styles.statLabel}>Products</Text>
+                    </View>
                   </View>
-                  <Text style={styles.tipText}>Keep your product inventory updated to avoid order cancellations and maintain a high rating.</Text>
-                </LinearGradient>
-              </View>
-            </ScrollView>
+
+                  {/* --- QUICK ACTIONS --- */}
+                  <View style={styles.sectionContainer} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
+                    <Text style={styles.sectionTitle}>Quick Actions</Text>
+                    <View style={styles.servicesGrid}>
+                      {[
+                        { icon: 'plus', family: 'Feather', bg: ['#7C3AED', '#6D28D9'], label: 'Add Item', route: '/business/products/addproducts' },
+                        { icon: 'camera', family: 'Feather', bg: ['#84cc16', '#4d7c0f'], label: 'Add Snap', route: '/business/snaps/create' },
+                        { icon: 'shopping-bag', family: 'Feather', bg: ['#059669', '#047857'], label: 'Orders', route: '/business/orders' },
+                        { icon: 'megaphone', family: 'Ionicons', bg: ['#F59E0B', '#D97706'], label: 'Promote', route: '/business/promotions' },
+                        { icon: 'bar-chart-2', family: 'Feather', bg: ['#2563EB', '#1D4ED8'], label: 'Analytics', route: '/business/analytics' },
+                      ].map((item) => (
+                        <TouchableOpacity key={item.label} style={styles.actionCard} onPress={() => router.push(item.route as any)}>
+                          <LinearGradient colors={item.bg as [string, string, ...string[]]} style={styles.actionIconBox}>
+                            {item.family === 'Feather' ? <Feather name={item.icon as any} size={20} color="#FFF" /> : <Ionicons name={item.icon as any} size={20} color="#FFF" />}
+                          </LinearGradient>
+                          <Text style={styles.actionLabel}>{item.label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+
+                  {/* --- PERFORMANCE CHART --- */}
+                  <View style={styles.chartCard} ref={refChart} onLayout={() => measureElement(refChart, 'chart')}>
+                    <View style={styles.chartHeader}>
+                      <View>
+                        <Text style={styles.cardTitle}>Sales Performance</Text>
+                        <Text style={styles.cardSubtitle}>Revenue tracking</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setTimeframe((t) => {
+                        if (t === 'weekly') return 'monthly';
+                        if (t === 'monthly') return 'yearly';
+                        return 'weekly';
+                      })}>
+                        <View style={styles.timeToggle}>
+                          <Text style={styles.timeText}>{timeframe.toUpperCase()}</Text>
+                          <Feather name="chevron-down" size={14} color="#64748B" />
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                    <LineChart
+                      data={chartData}
+                      width={width - 48}
+                      height={180}
+                      chartConfig={{
+                        backgroundGradientFrom: '#FFF',
+                        backgroundGradientTo: '#FFF',
+                        decimalPlaces: 0,
+                        color: (opacity = 1) => `rgba(12, 21, 89, ${opacity})`,
+                        labelColor: (opacity = 1) => `rgba(100, 116, 139, ${opacity})`,
+                        style: { borderRadius: 16 },
+                        propsForDots: { r: '4', strokeWidth: '2', stroke: '#0C1559' }
+                      }}
+                      bezier
+                      style={styles.chartStyle}
+                      withVerticalLines={false}
+                    />
+                  </View>
+
+                  {/* --- RECENT ORDERS --- */}
+                  <View style={styles.sectionContainer}>
+                    <View style={styles.sectionHeaderRow}>
+                      <Text style={styles.sectionTitle}>Recent Orders</Text>
+                      <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
+                    </View>
+                    {recentOrders.length > 0 ? (
+                      recentOrders.map((order: Order, idx: number) => (
+                        <View key={order.id || `order-${idx}`} style={styles.orderCard}>
+                          <View style={styles.orderLeft}>
+                            <View style={[styles.orderIconBox, { backgroundColor: order.status === 'completed' ? '#DCFCE7' : '#FEF3C7' }]}>
+                                <Feather name={order.status === 'completed' ? 'check' : 'clock'} size={18} color={order.status === 'completed' ? '#15803D' : '#B45309'} />
+                            </View>
+                            <View>
+                                <Text style={styles.orderNumber}>Order #{order.orderNumber}</Text>
+                                <Text style={styles.orderStatus}>{order.status}</Text>
+                            </View>
+                          </View>
+                          <Text style={styles.orderAmount}>₵{Number(order.totalAmount || 0).toFixed(2)}</Text>
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.emptyOrdersCard}>
+                        <Feather name="shopping-cart" size={24} color={C.subtle} />
+                        <Text style={styles.emptyOrdersText}>No recent orders yet</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* --- PRO TIP --- */}
+                  <LinearGradient colors={['#111827', '#0f172a']} style={styles.tipCard}>
+                    <View style={styles.tipHeader}>
+                      <MaterialCommunityIcons name="lightbulb-on-outline" size={20} color="#FBBF24" />
+                      <Text style={styles.tipTitle}>Pro Tip</Text>
+                    </View>
+                    <Text style={styles.tipText}>Keep your product inventory updated to avoid order cancellations and maintain a high rating.</Text>
+                  </LinearGradient>
+                </View>
+              </ScrollView>
+            </View>
           </>
         ) : (
           <View style={styles.centered}>
@@ -555,7 +544,7 @@ const styles = StyleSheet.create({
   bottomLogos: { position: 'absolute', bottom: 140, left: -20 },
   fadedLogo: { width: 130, height: 130, resizeMode: 'contain', opacity: 0.03 },
   headerContainer: {
-    height: 240,
+    height: 205,
     borderBottomLeftRadius: 35,
     borderBottomRightRadius: 35,
     overflow: 'hidden',

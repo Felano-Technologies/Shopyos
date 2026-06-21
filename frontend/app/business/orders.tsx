@@ -381,7 +381,7 @@ export default function OrdersScreen() {
               showsVerticalScrollIndicator={false}
               style={{ zIndex: 10 }}
               // Android uses padding to push content down; iOS uses contentInset
-              contentContainerStyle={{ flexGrow: 1, paddingTop: Platform.OS === 'android' ? 240 : 0, paddingBottom: rs(100) }} 
+              contentContainerStyle={{ flexGrow: 1, paddingTop: Platform.OS === 'android' ? 240 : 0, paddingBottom: rs(10) }} 
               // iOS pushes the content down AND moves the refresh spinner into this empty space!
               contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }} 
               contentOffset={{ x: 0, y: Platform.OS === 'ios' ? -10 : 0 }}
