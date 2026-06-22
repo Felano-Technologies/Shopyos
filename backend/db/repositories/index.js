@@ -32,6 +32,10 @@ const ReturnRepository = require('./ReturnRepository');
 const ProductVariantRepository = require('./ProductVariantRepository');
 const RecommendationRepository = require('./RecommendationRepository');
 const AdminSettingsRepository = require('./AdminSettingsRepository');
+const FeeConfigRepository = require('./FeeConfigRepository');
+const DisclaimerRepository = require('./DisclaimerRepository');
+const BargainRepository = require('./BargainRepository');
+const ParcelPartnerRepository = require('./ParcelPartnerRepository');
 
 
 // Initialize repositories with selected client
@@ -64,6 +68,10 @@ const repositories = {
   productVariants: new ProductVariantRepository(repositoryClient),
   recommendations: new RecommendationRepository(),
   adminSettings: new AdminSettingsRepository(repositoryClient),
+  feeConfig: new FeeConfigRepository(repositoryClient),
+  disclaimers: new DisclaimerRepository(repositoryClient),
+  bargains: new BargainRepository(repositoryClient),
+  parcelPartner: new ParcelPartnerRepository(repositoryClient),
 };
 
 module.exports = repositories;

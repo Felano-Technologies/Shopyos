@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,7 +15,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAdminDashboard } from '@/services/api';
 import { getAdminOrders, getAdminStores } from '@/services/admin';
-import { useAdminBreakpoint } from '@/components/admin/adminTheme';
+import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
   delivered:  { bg: '#DCFCE7', text: '#16A34A' },
@@ -38,7 +39,6 @@ type DashboardStats = {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { isDesktop } = useAdminBreakpoint();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
@@ -55,7 +55,8 @@ export default function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [topStores, setTopStores] = useState<any[]>([]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
       const dashRes = await getAdminDashboard();
 
@@ -147,9 +148,13 @@ export default function AdminDashboard() {
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#1E88E5" />
-      </View>
+      <>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <AdminScreenSkeleton metrics={6} rows={3} cards={2} />
+          <AdminBottomNav />
+        </SafeAreaView>
+      </>
     );
   }
 
@@ -157,7 +162,12 @@ export default function AdminDashboard() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.screen}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.screen}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#1E88E5" />}
+        >
+
 
           {/* HERO */}
           <LinearGradient
@@ -192,18 +202,18 @@ export default function AdminDashboard() {
             </Text>
           </LinearGradient>
 
-          {/* BODY — two-column on desktop */}
-          <View style={[styles.body, isDesktop && styles.bodyDesktop]}>
+          {/* BODY */}
+          <View style={styles.body}>
 
-            {/* LEFT / MAIN COLUMN */}
-            <View style={[styles.mainCol, isDesktop && { flex: 1 }]}>
+            {/* MAIN COLUMN */}
+            <View style={styles.mainCol}>
 
               {/* METRIC CARDS */}
               <View style={styles.metricGrid}>
                 {metricCards.map((item) => (
                   <TouchableOpacity
                     key={item.label}
-                    style={[styles.metricCard, { flexBasis: isDesktop ? '30%' : '47%', flexGrow: 1 }]}
+                    style={[styles.metricCard, { flexBasis: '47%', flexGrow: 1 }]}
                     onPress={() => router.push(item.route as any)}
                     activeOpacity={0.9}
                   >
@@ -266,8 +276,8 @@ export default function AdminDashboard() {
               </View>
             </View>
 
-            {/* RIGHT SIDEBAR */}
-            <View style={[styles.sideCol, isDesktop && styles.sideColDesktop]}>
+            {/* SIDE COLUMN */}
+            <View style={styles.sideCol}>
 
               {/* TOP STORES */}
               <View style={styles.card}>
@@ -332,6 +342,7 @@ export default function AdminDashboard() {
             </View>
           </View>
         </ScrollView>
+        <AdminBottomNav />
       </SafeAreaView>
     </>
   );
@@ -361,11 +372,9 @@ const styles = StyleSheet.create({
   heroDate: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: 'Montserrat-Regular' },
 
   // Body layout
-  body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40, gap: 12 },
-  bodyDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 120, gap: 12 },
   mainCol: { gap: 12 },
   sideCol: { gap: 12 },
-  sideColDesktop: { width: 300, marginLeft: 12 },
 
   // Metric cards
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

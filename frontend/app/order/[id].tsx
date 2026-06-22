@@ -135,7 +135,7 @@ const OrderDetailsScreen = () => {
   };
 
   const handleRequestReturn = () => {
-    Alert.prompt('Request Return', 'Please describe the reason for your return:', (reason) => submitReturnRequest(orderId, reason), 'plain-text');
+    router.push({ pathname: '/order/return-submit', params: { orderId } } as any);
   };
 
   const [chatLoading, setChatLoading] = useState(false);

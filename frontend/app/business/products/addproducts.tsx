@@ -82,6 +82,7 @@ export default function ManageProductScreen() {
   const [attrBrand, setAttrBrand] = useState('');
   const [attrConnectivity, setAttrConnectivity] = useState('');
   
+  const [bargainingEnabled, setBargainingEnabled] = useState(true);
   const [categories, setCategories] = useState<any[]>([]);
   const [categoryModal, setCategoryModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -99,6 +100,7 @@ export default function ManageProductScreen() {
         setAttrSize(item.attrSize || ''); setAttrMaterial(item.attrMaterial || '');
         setAttrStyle(item.attrStyle || ''); setAttrBrand(item.attrBrand || '');
         setAttrConnectivity(item.attrConnectivity || '');
+        setBargainingEnabled(item.bargainingEnabled ?? true);
       } catch {}
     }
   }, [productData]);
@@ -122,7 +124,7 @@ export default function ManageProductScreen() {
       if (attrSize.trim()) payload.variantOptions.push({ option_name: 'size', option_values: attrSize.split(',').map(v => v.trim()) });
 
       if (editingId) {
-        await updateProduct(editingId, payload);
+        await updateProduct(editingId, { ...payload, bargainingEnabled });
         if (image && !image.startsWith('http')) await uploadProductImages(editingId, [image]);
       } else {
         if (!image) { Alert.alert('Missing Image', 'Please add an image.'); setIsSubmitting(false); return; }
@@ -200,7 +202,26 @@ return (
           <View style={S.cardSection}>
             <Text style={S.sectionLabel}>Status Configuration</Text>
             <StatusRadio isActive={isActive} onToggle={setIsActive} disabled={isSubmitting} />
-            
+
+            {editingId && (
+              <>
+                <Text style={[S.sectionLabel, { marginTop: rs(16) }]}>Bargaining</Text>
+                <View style={S.radioRow}>
+                  <TouchableOpacity style={[S.radioOption, bargainingEnabled && S.radioOptionSelected]} onPress={() => setBargainingEnabled(true)} disabled={isSubmitting}>
+                    <View style={[S.radioCircle, bargainingEnabled && S.radioCircleSelected]}>{bargainingEnabled && <View style={S.radioInner} />}</View>
+                    <Text style={[S.radioLabel, bargainingEnabled && S.radioLabelSelected]}>Enabled</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[S.radioOption, !bargainingEnabled && S.radioOptionSelected]} onPress={() => setBargainingEnabled(false)} disabled={isSubmitting}>
+                    <View style={[S.radioCircle, !bargainingEnabled && S.radioCircleSelected]}>{!bargainingEnabled && <View style={S.radioInner} />}</View>
+                    <Text style={[S.radioLabel, !bargainingEnabled && S.radioLabelSelected]}>Disabled</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={{ fontSize: rf(11), color: C.muted, fontFamily: 'Montserrat-Regular', marginTop: rs(4) }}>
+                  Allow buyers to negotiate the price of this product.
+                </Text>
+              </>
+            )}
+
             <Text style={[S.sectionLabel, { marginTop: rs(16) }]}>Description</Text>
             <View style={S.descriptionBox}>
               <TextInput value={description} onChangeText={setDescription} placeholder="Write a detailed description..." placeholderTextColor={C.subtle} style={S.descriptionInput} multiline numberOfLines={4} editable={!isSubmitting} textAlignVertical="top" />

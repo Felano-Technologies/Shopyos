@@ -4,7 +4,7 @@ import {
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -15,8 +15,10 @@ import { useCart } from '@/store/cartStore';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods, getDeliveryQuote, getProductById,
-  getLoyaltyBalance, validatePromoCode,
+  getLoyaltyBalance, validatePromoCode, getPublicFeeConfigs,
 } from '@/services/api';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 const C = {
   navy: '#0C1559',
@@ -47,6 +49,11 @@ export default function CheckoutScreen() {
   const [deliveryState, setDeliveryState] = useState('Greater Accra');
   const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
 
+  // Disclaimer states
+  const [refundPolicy, setRefundPolicy] = useState<Disclaimer | null>(null);
+  const [isDisclaimerChecked, setIsDisclaimerChecked] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ id: string; code: string; discountAmount: number; label: string } | null>(null);
@@ -58,12 +65,21 @@ export default function CheckoutScreen() {
   const [loyaltyValue, setLoyaltyValue] = useState(0);
   const [usePoints, setUsePoints] = useState(false);
 
+  // Buyer protection fee from platform config (0 until loaded so nothing incorrect shows during loading)
+  const [buyerProtectionFee, setBuyerProtectionFee] = useState<number>(0);
+
   // Delivery fee state
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
   const [isFetchingFee, setIsFetchingFee] = useState(false);
   const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
   const [deliveryNote, setDeliveryNote] = useState<string | null>(null);
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Inter-Regional states
+  const [isInterRegional, setIsInterRegional] = useState(false);
+  const [parcelTransitFee, setParcelTransitFee] = useState(0);
+  const [estimatedTransitDays, setEstimatedTransitDays] = useState<number | null>(null);
+  const [storeRegionName, setStoreRegionName] = useState<string | null>(null);
 
   // Get buyer location once on mount
   useEffect(() => {
@@ -104,9 +120,13 @@ export default function CheckoutScreen() {
       try {
         const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
         if (res?.success) {
-          const { withinRange, deliveryFee: fee, note } = res.quote || {};
+          const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, storeRegion, note } = res.quote || {};
           setIsWithinRange(withinRange);
           setDeliveryNote(note || null);
+          setIsInterRegional(!!isInter);
+          setParcelTransitFee(transit || 0);
+          setEstimatedTransitDays(days || null);
+          setStoreRegionName(storeRegion || null);
           if (withinRange && fee !== null) {
             setDeliveryFee(fee);
           } else {
@@ -121,20 +141,33 @@ export default function CheckoutScreen() {
     })();
   }, [buyerCoords, cartItems, deliveryState]);
 
-  const tax = 1;
+  const tax = buyerProtectionFee;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const pointsDiscount = usePoints ? loyaltyValue : 0;
   const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
-  const total = Number.parseFloat((subtotal + tax + deliveryFee - totalDiscount).toFixed(2));
+  const totalBargainDiscount = cartItems.reduce((sum, item) => sum + (Number(item.bargain_discount) || 0) * item.quantity, 0);
+  const total = Number.parseFloat((subtotal + tax + deliveryFee + parcelTransitFee - totalDiscount - totalBargainDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
       try {
-        const [profileResponse, paymentResponse, loyaltyResponse] = await Promise.all([
+        const [profileResponse, paymentResponse, loyaltyResponse, policyResponse, feeConfigs] = await Promise.all([
           getUserData(),
           getPaymentMethods(),
           getLoyaltyBalance().catch(() => null),
+          getDisclaimerByType('refund_policy').catch(() => null),
+          getPublicFeeConfigs().catch(() => null),
         ]);
+
+        if (feeConfigs) {
+          const protEnabled = feeConfigs['buyer_protection_enabled'] !== false;
+          const protFee = Number(feeConfigs['buyer_protection_fee'] ?? 1);
+          setBuyerProtectionFee(protEnabled ? protFee : 0);
+        }
+
+        if (policyResponse) {
+          setRefundPolicy(policyResponse);
+        }
 
         if (loyaltyResponse?.success) {
           setLoyaltyBalance(loyaltyResponse.balance);
@@ -187,6 +220,20 @@ export default function CheckoutScreen() {
       setPromoError(e.message || 'Invalid promo code');
     } finally {
       setIsValidatingPromo(false);
+    }
+  };
+
+  const handleDisclaimerCheck = async () => {
+    if (!refundPolicy) return;
+    const nextVal = !isDisclaimerChecked;
+    setIsDisclaimerChecked(nextVal);
+    if (nextVal) {
+      try {
+        await acknowledgeDisclaimer('refund_policy', refundPolicy.version);
+      } catch (err) {
+        console.error('Failed to acknowledge disclaimer:', err);
+        setIsDisclaimerChecked(false);
+      }
     }
   };
 
@@ -281,6 +328,12 @@ export default function CheckoutScreen() {
                   {isFetchingFee ? '...' : (isWithinRange === false ? 'Unavailable' : `₵${deliveryFee.toFixed(2)}`)}
                 </Text>
               </View>
+              {isInterRegional && parcelTransitFee > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={S.summaryItemName}>Cross-Region Courier Fee</Text>
+                  <Text style={S.summaryItemPrice}>₵{parcelTransitFee.toFixed(2)}</Text>
+                </View>
+              )}
               {isWithinRange === false && (
                 <View style={S.errorBanner}>
                   <Ionicons name="alert-circle" size={16} color="#B91C1C" />
@@ -293,6 +346,12 @@ export default function CheckoutScreen() {
                     Discount{appliedPromo ? ` (${appliedPromo.code})` : ''}{usePoints && pointsDiscount > 0 ? `${appliedPromo ? ' + ' : ''}Points` : ''}
                   </Text>
                   <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalDiscount.toFixed(2)}</Text>
+                </View>
+              )}
+              {totalBargainDiscount > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={[S.summaryItemName, { color: '#16a34a' }]}>Bargain Discount</Text>
+                  <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalBargainDiscount.toFixed(2)}</Text>
                 </View>
               )}
               <View style={S.divider} />
@@ -423,7 +482,11 @@ export default function CheckoutScreen() {
                   <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
-                  {['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Volta'].map((reg) => (
+                  {[
+                    'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
+                    'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
+                    'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North'
+                  ].map((reg) => (
                     <TouchableOpacity
                       key={reg}
                       style={[S.regionChip, deliveryState === reg && S.regionChipActive]}
@@ -434,6 +497,35 @@ export default function CheckoutScreen() {
                   ))}
                 </ScrollView>
               </View>
+
+              {isInterRegional && (
+                <View style={S.interRegionalCard}>
+                  <View style={S.interRegionalHeader}>
+                    <Ionicons name="bus-outline" size={18} color="#0C1559" />
+                    <Text style={S.interRegionalTitle}>Cross-Region Shipment</Text>
+                  </View>
+                  <Text style={S.interRegionalText}>
+                    This order will ship from {storeRegionName || 'merchant region'} to {deliveryState}.
+                    It will be routed via our Parcel Partner hubs.
+                  </Text>
+                  {estimatedTransitDays && (
+                    <Text style={S.interRegionalTransit}>
+                      Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDays} days</Text> to destination hub.
+                    </Text>
+                  )}
+                  <View style={S.interRegionalBreakdown}>
+                    <Text style={S.breakdownTitle}>Delivery Breakdown:</Text>
+                    <View style={S.breakdownRow}>
+                      <Text style={S.breakdownLabel}>Store to Origin Hub:</Text>
+                      <Text style={S.breakdownValue}>₵{deliveryFee.toFixed(2)}</Text>
+                    </View>
+                    <View style={S.breakdownRow}>
+                      <Text style={S.breakdownLabel}>Inter-Hub Transit Fee:</Text>
+                      <Text style={S.breakdownValue}>₵{parcelTransitFee.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
               {showAddressNudge && (
                 <TouchableOpacity
                   style={S.profileNudge}
@@ -488,11 +580,35 @@ export default function CheckoutScreen() {
               </View>
             )}
 
+            {/* Disclaimer Row */}
+            {refundPolicy && (
+              <View style={S.disclaimerRow}>
+                <TouchableOpacity
+                  style={S.disclaimerCheckbox}
+                  onPress={handleDisclaimerCheck}
+                  activeOpacity={0.8}
+                >
+                  <View style={[S.checkbox, isDisclaimerChecked && S.checkboxChecked]}>
+                    {isDisclaimerChecked && <Feather name="check" size={14} color="#FFFFFF" />}
+                  </View>
+                </TouchableOpacity>
+                <Text style={S.disclaimerText}>
+                  I agree to the{' '}
+                  <Text
+                    style={S.disclaimerLink}
+                    onPress={() => setShowDisclaimerModal(true)}
+                  >
+                    Refund & Return Policy
+                  </Text>
+                </Text>
+              </View>
+            )}
+
             {/* Place Order */}
             <TouchableOpacity
-              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || isWithinRange !== true}
+              disabled={isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)}
             >
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
@@ -505,6 +621,19 @@ export default function CheckoutScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
+      )}
+
+      {refundPolicy && (
+        <DisclaimerModal
+          type="refund_policy"
+          visible={showDisclaimerModal}
+          required={true}
+          onClose={() => setShowDisclaimerModal(false)}
+          onAcknowledge={() => {
+            setIsDisclaimerChecked(true);
+            setShowDisclaimerModal(false);
+          }}
+        />
       )}
     </View>
   );
@@ -587,6 +716,22 @@ const S = StyleSheet.create({
   toggleOn: { backgroundColor: C.lime },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', elevation: 2 },
   toggleThumbOn: { alignSelf: 'flex-end' },
+
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 15, paddingHorizontal: 4 },
+  disclaimerCheckbox: { padding: 4 },
+  disclaimerText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.body, flex: 1, lineHeight: 18 },
+  disclaimerLink: { color: C.navy, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
+
+  interRegionalCard: { backgroundColor: '#EFF6FF', borderRadius: 18, padding: 16, marginTop: 12, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
+  interRegionalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  interRegionalTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#1E3A8A' },
+  interRegionalText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#1E3A8A', lineHeight: 18 },
+  interRegionalTransit: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#1E3A8A', marginTop: 8 },
+  interRegionalBreakdown: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#DBEAFE' },
+  breakdownTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#1E3A8A', marginBottom: 6 },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  breakdownLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#60A5FA' },
+  breakdownValue: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#1E3A8A' },
 });
 
 type PaymentOptionProps = Readonly<{

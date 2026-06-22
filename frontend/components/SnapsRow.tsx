@@ -5,26 +5,13 @@ import { getSnapFeed } from '@/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Video, ResizeMode } from 'expo-av';
+import { useSnapFeed } from '@/hooks/useSnaps';
 
 export const SnapsRow = () => {
-  const [feed, setFeed] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
   const router = useRouter();
-
-  useEffect(() => {
-    fetchSnaps();
-  }, []);
-
-  const fetchSnaps = async () => {
-    try {
-      const res = await getSnapFeed();
-      if (res?.feed) setFeed(res.feed);
-    } catch (e) {
-      if (__DEV__) console.log('Error fetching snaps:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data, isLoading } = useSnapFeed();
+  const feed = data?.feed || [];
 
   const handlePress = useCallback((storeId: string, index: number) => {
     router.push({
@@ -36,31 +23,55 @@ export const SnapsRow = () => {
     });
   }, [router, feed]);
 
-  const renderItem = useCallback(({ item, index }: { item: any; index: number }) => (
-    <TouchableOpacity
-      style={styles.snapItem}
-      activeOpacity={0.8}
-      onPress={() => handlePress(item.store_id, index)}
-    >
-      <LinearGradient
-        colors={['#84cc16', '#bef264']}
-        style={styles.ring}
-      >
-        <View style={styles.imageContainer}>
-          {item.store_logo ? (
-            <AppImage uri={item.store_logo} style={styles.image} />
-          ) : (
-            <View style={styles.placeholder}>
-              <Ionicons name="storefront" size={24} color="#94A3B8" />
-            </View>
-          )}
-        </View>
-      </LinearGradient>
-      <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
-    </TouchableOpacity>
-  ), [handlePress]);
+  const isVideoUrl = (url: string) => {
+    if (!url) return false;
+    const cleanUrl = url.split('?')[0].toLowerCase();
+    return cleanUrl.endsWith('.mp4') || 
+           cleanUrl.endsWith('.mov') || 
+           cleanUrl.endsWith('.quicktime') || 
+           cleanUrl.endsWith('.webm');
+  };
 
-  if (loading) {
+  const renderItem = useCallback(({ item, index }: { item: any; index: number }) => {
+    const lastSnap = item.snaps && item.snaps.length > 0 ? item.snaps[item.snaps.length - 1] : null;
+    const previewUrl = lastSnap ? lastSnap.media_url : item.store_logo;
+
+    return (
+      <TouchableOpacity
+        style={styles.snapItem}
+        activeOpacity={0.8}
+        onPress={() => handlePress(item.store_id, index)}
+      >
+        <LinearGradient
+          colors={['#84cc16', '#bef264']}
+          style={styles.ring}
+        >
+          <View style={styles.imageContainer}>
+            {previewUrl ? (
+              isVideoUrl(previewUrl) ? (
+                <Video
+                  source={{ uri: previewUrl }}
+                  style={styles.image}
+                  resizeMode={ResizeMode.COVER}
+                  shouldPlay={false}
+                  isMuted={true}
+                />
+              ) : (
+                <AppImage uri={previewUrl} style={styles.image} />
+              )
+            ) : (
+              <View style={styles.placeholder}>
+                <Ionicons name="storefront" size={24} color="#94A3B8" />
+              </View>
+            )}
+          </View>
+        </LinearGradient>
+        <Text style={styles.storeName} numberOfLines={1}>{item.store_name}</Text>
+      </TouchableOpacity>
+    );
+  }, [handlePress]);
+
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="small" color="#0C1559" />

@@ -1,5 +1,15 @@
 import { api, extractErrorMessage } from './client';
 
+export const getPublicFeeConfigs = async (): Promise<Record<string, number | boolean>> => {
+  try {
+    const response = await api.get('/fee-config/public');
+    // Backend returns a plain object with already-cast values: { buyer_protection_fee: 2, buyer_protection_enabled: true, ... }
+    return (response.data.configs ?? {}) as Record<string, number | boolean>;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getDeliveryQuote = async (storeId: string, buyerLat?: number, buyerLng?: number, deliveryState?: string) => {
   try {
     const response = await api.get('/delivery/quote', { params: { storeId, buyerLat, buyerLng, deliveryState } });

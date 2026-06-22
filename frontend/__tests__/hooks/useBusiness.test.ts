@@ -24,6 +24,8 @@ jest.mock('@/services/api', () => ({
   getStoreProducts: jest.fn(),
   getMyCampaigns: jest.fn(),
   createCampaign: jest.fn(),
+  getMyBannerCampaigns: jest.fn(),
+  createBannerCampaign: jest.fn(),
   updateCampaignStatus: jest.fn(),
   getBusinessReviews: jest.fn(),
   replyToReview: jest.fn(),
@@ -273,9 +275,9 @@ describe('useBusiness Hooks Unit Tests', () => {
     );
 
     const config = (useQuery as jest.Mock).mock.calls[0][0];
-    (ApiService.getMyCampaigns as jest.Mock).mockResolvedValueOnce({ campaigns: [] });
+    (ApiService.getMyBannerCampaigns as jest.Mock).mockResolvedValueOnce({ campaigns: [] });
     await config.queryFn();
-    expect(ApiService.getMyCampaigns).toHaveBeenCalled();
+    expect(ApiService.getMyBannerCampaigns).toHaveBeenCalled();
     expect(result).toBeDefined();
   });
 
@@ -303,9 +305,9 @@ describe('useBusiness Hooks Unit Tests', () => {
 
     // Verify mutationFn calls API
     const campaignData = { name: 'Summer Sale', discount: 20 };
-    (ApiService.createCampaign as jest.Mock).mockResolvedValueOnce({ success: true });
+    (ApiService.createBannerCampaign as jest.Mock).mockResolvedValueOnce({ success: true });
     await config.mutationFn(campaignData);
-    expect(ApiService.createCampaign).toHaveBeenCalledWith(campaignData);
+    expect(ApiService.createBannerCampaign).toHaveBeenCalledWith(campaignData);
 
     // Verify onSuccess invalidates campaigns query
     config.onSuccess();

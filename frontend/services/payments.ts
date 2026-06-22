@@ -6,6 +6,7 @@ interface InitializePaymentParams {
   channel?: 'mobile_money' | 'card';
   momoPhone?: string;
   momoProvider?: 'mtn' | 'vod' | 'tgo';
+  callbackUrl?: string;
 }
 
 export const initializePayment = async (params: InitializePaymentParams) => {
@@ -97,7 +98,7 @@ export const initializeListingFee = async (payload: { storeId: string; email: st
   }
 };
 
-export const initializeBannerPayment = async (payload: { campaignId: string; email: string }) => {
+export const initializeBannerPayment = async (payload: { campaignId: string; email: string; callbackUrl?: string }) => {
   try {
     const response = await api.post('/advertising/banners/pay-initialize', payload);
     return response.data;

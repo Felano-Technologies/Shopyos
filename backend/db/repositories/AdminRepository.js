@@ -88,7 +88,8 @@ class AdminRepository extends BaseRepository {
         COUNT(DISTINCT u.id) FILTER (WHERE u.is_active = TRUE)::int                                AS active,
         COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name IN ('buyer', 'customer'))::int             AS buyers,
         COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name = 'seller')::int                           AS sellers,
-        COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name = 'driver')::int                           AS drivers
+        COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name = 'driver')::int                           AS drivers,
+        COUNT(DISTINCT ur.user_id) FILTER (WHERE r.name = 'parcel_partner')::int                   AS parcel_partners
       FROM user_profiles up
       JOIN users u ON u.id = up.user_id
       LEFT JOIN user_roles ur ON ur.user_id = u.id AND ur.is_active = TRUE
@@ -98,12 +99,13 @@ class AdminRepository extends BaseRepository {
 
     const s = rows[0] || {};
     return {
-      total:     s.total     || 0,
-      active:    s.active    || 0,
-      suspended: (s.total || 0) - (s.active || 0),
-      buyers:    s.buyers    || 0,
-      sellers:   s.sellers   || 0,
-      drivers:   s.drivers   || 0,
+      total:           s.total           || 0,
+      active:          s.active          || 0,
+      suspended:       (s.total || 0) - (s.active || 0),
+      buyers:          s.buyers          || 0,
+      sellers:         s.sellers         || 0,
+      drivers:         s.drivers         || 0,
+      parcel_partners: s.parcel_partners || 0,
     };
   }
 

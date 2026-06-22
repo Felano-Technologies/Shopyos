@@ -1,112 +1,255 @@
 const repositories = require('../db/repositories');
-const { logger } = require('../config/logger');
+const feeConfigService = require('../services/feeConfigService');
+const { getPool } = require('../config/postgres');
 
-/**
- * GET /api/v1/flash-sales/active
- * Public — returns the currently running flash sale + its products.
- * Returns 404 with { active: false } when no sale is running.
- */
+// --- Buyer/Public Endpoints ---
+
 const getActiveSale = async (req, res, next) => {
   try {
     const result = await repositories.flashSales.getActiveSale();
-
-    if (!result) {
-      return res.status(200).json({ success: true, active: false, sale: null, products: [] });
-    }
+    if (!result) return res.status(200).json({ success: true, active: false, sale: null, products: [] });
 
     const { sale, items } = result;
-
-    // Shape products the same way the home feed expects them
-    const products = items.map((item) => {
-      const p = item.product;
-      return {
-        _id: p.id,
-        name: p.title,
-        description: p.description,
-        price: item.flash_price,           // discounted flash price
-        compare_at_price: p.price,         // original price → shows discount badge
-        images: p.images || [],
-        category: p.category,
-        average_rating: p.average_rating,
-        store_id: p.store_id,
-        stockLimit: item.stock_limit,
-        soldCount: item.sold_count,
-      };
-    });
+    const products = formatFlashSaleProducts(items);
 
     return res.status(200).json({
       success: true,
       active: true,
-      sale: {
-        id: sale.id,
-        title: sale.title,
-        description: sale.description,
-        startsAt: sale.starts_at,
-        endsAt: sale.ends_at,
-      },
-      products,
+      sale: { id: sale.id, title: sale.title, startsAt: sale.starts_at, endsAt: sale.ends_at },
+      products
     });
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * POST /api/v1/flash-sales
- * Admin only — create a new flash sale.
- * Body: { title, description?, startsAt, endsAt, products: [{ productId, flashPrice, stockLimit? }] }
- */
-const createSale = async (req, res, next) => {
+const getSlotsList = async (req, res, next) => {
   try {
-    const { title, description, startsAt, endsAt, products } = req.body;
+    const upcoming = req.query.upcoming === 'true';
+    const slots = await repositories.flashSales.getSlots({ upcoming });
+    res.status(200).json({ success: true, data: slots });
+  } catch (error) {
+    next(error);
+  }
+};
 
-    if (!title || !startsAt || !endsAt || !Array.isArray(products) || products.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'title, startsAt, endsAt, and at least one product are required',
-      });
-    }
+// --- Seller Endpoints ---
 
-    if (new Date(endsAt) <= new Date(startsAt)) {
-      return res.status(400).json({ success: false, error: 'endsAt must be after startsAt' });
-    }
+const submitFlashSale = async (req, res, next) => {
+  try {
+    const { slotId, title, description, products } = req.body;
+    const storeId = req.user.storeId; // seller store
+    if (!storeId) return res.status(403).json({ success: false, error: 'Seller store profile required' });
 
+    await validateSellerSubmission(slotId, products, storeId);
+
+    const slot = await repositories.flashSales.findById(slotId, { tableName: 'flash_sale_slots' });
     const sale = await repositories.flashSales.createSale({
       title,
       description: description || null,
-      starts_at: startsAt,
-      ends_at: endsAt,
-      is_active: true,
+      starts_at: slot.start_time,
+      ends_at: slot.end_time,
+      store_id: storeId,
       created_by: req.user.id,
+      slot_id: slotId,
+      status: 'pending_approval',
+      is_active: false
     });
 
-    const saleProducts = await repositories.flashSales.addProducts(sale.id, products);
-
-    logger.info('[FlashSale] Created', { id: sale.id, title, products: saleProducts.length });
-
-    return res.status(201).json({
-      success: true,
-      sale: { id: sale.id, title: sale.title, startsAt: sale.starts_at, endsAt: sale.ends_at },
-      productsAdded: saleProducts.length,
-    });
+    await repositories.flashSales.addProducts(sale.id, products, storeId);
+    res.status(201).json({ success: true, message: 'Flash sale submitted for review', saleId: sale.id });
   } catch (error) {
     next(error);
   }
 };
 
-/**
- * PATCH /api/v1/flash-sales/:id/end
- * Admin only — manually end a flash sale before its scheduled end time.
- */
-const endSale = async (req, res, next) => {
+const getSellerSales = async (req, res, next) => {
+  try {
+    const storeId = req.user.storeId;
+    if (!storeId) return res.status(403).json({ success: false, error: 'Seller store profile required' });
+
+    const sales = await repositories.flashSales.getSellerSales(storeId, req.query.status);
+    res.status(200).json({ success: true, data: sales });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const cancelFlashSale = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const sale = await repositories.flashSales.endSale(id);
-    logger.info('[FlashSale] Manually ended', { id });
-    return res.status(200).json({ success: true, sale });
+    const storeId = req.user.storeId;
+
+    const sale = await repositories.flashSales.findById(id);
+    if (!sale || sale.store_id !== storeId) return res.status(404).json({ success: false, error: 'Flash sale not found' });
+
+    if (sale.status === 'live' || sale.status === 'ended') {
+      return res.status(400).json({ success: false, error: 'Cannot cancel active or ended flash sales' });
+    }
+
+    const pool = getPool();
+    if (sale.status === 'approved') {
+      await releaseReservedInventory(pool, id);
+    }
+
+    await repositories.flashSales.update(id, { status: 'cancelled', is_active: false });
+    res.status(200).json({ success: true, message: 'Flash sale cancelled successfully' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { getActiveSale, createSale, endSale };
+// --- Admin Endpoints ---
+
+const createSlot = async (req, res, next) => {
+  try {
+    const { title, startTime, endTime, maxItems } = req.body;
+    if (!title || !startTime || !endTime) return res.status(400).json({ success: false, error: 'title, startTime, and endTime are required' });
+
+    const slot = await repositories.flashSales.createSlot({
+      title,
+      start_time: startTime,
+      end_time: endTime,
+      max_items: maxItems || 10,
+      created_by: req.user.id
+    });
+
+    res.status(201).json({ success: true, data: slot });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAdminSales = async (req, res, next) => {
+  try {
+    const sales = await repositories.flashSales.getAdminSales(req.query.status);
+    res.status(200).json({ success: true, data: sales });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const reviewFlashSale = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { status, adminNotes } = req.body;
+    if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ success: false, error: 'Status must be approved or rejected' });
+
+    const sale = await repositories.flashSales.findById(id);
+    if (!sale) return res.status(404).json({ success: false, error: 'Flash sale not found' });
+
+    const pool = getPool();
+    if (status === 'approved' && sale.status !== 'approved') {
+      await reserveInventoryForApprovedSale(pool, id);
+    }
+
+    await repositories.flashSales.update(id, {
+      status,
+      admin_notes: adminNotes || null,
+      reviewed_by: req.user.id,
+      reviewed_at: new Date().toISOString()
+    });
+
+    res.status(200).json({ success: true, message: `Flash sale has been ${status}` });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// --- Helper Functions to keep action methods under 30 lines ---
+
+function formatFlashSaleProducts(items) {
+  return items.map((item) => {
+    const p = item.product;
+    return {
+      _id: p.id,
+      name: p.title,
+      description: p.description,
+      price: item.flash_price,
+      compare_at_price: p.price,
+      images: p.images || [],
+      category: p.category,
+      average_rating: p.average_rating,
+      store_id: p.store_id,
+      stockLimit: item.stock_limit,
+      soldCount: item.sold_count,
+    };
+  });
+}
+
+async function validateSellerSubmission(slotId, products, storeId) {
+  if (!slotId || !Array.isArray(products) || products.length === 0) {
+    throw new Error('slotId and at least one product with price and stock are required');
+  }
+
+  const minDiscountPct = await feeConfigService.get('flash_sale_min_discount_pct') || 10;
+
+  for (const p of products) {
+    const dbProd = await repositories.products.findById(p.productId);
+    if (!dbProd || dbProd.store_id !== storeId) {
+      throw new Error(`Product ${p.productId} does not belong to your store`);
+    }
+
+    const available = await repositories.flashSales.checkProductAvailability(p.productId);
+    if (!available) {
+      throw new Error(`Product ${dbProd.title} is already scheduled in another active/upcoming flash sale`);
+    }
+
+    const originalPrice = Number(dbProd.price);
+    const discount = ((originalPrice - p.flashPrice) / originalPrice) * 100;
+    if (discount < minDiscountPct) {
+      throw new Error(`Product ${dbProd.title} discount must be at least ${minDiscountPct}%`);
+    }
+  }
+}
+
+async function reserveInventoryForApprovedSale(pool, saleId) {
+  const { rows: products } = await pool.query(
+    'SELECT product_id, stock_limit FROM flash_sale_products WHERE flash_sale_id = $1',
+    [saleId]
+  );
+
+  for (const p of products) {
+    const { rows: inv } = await pool.query(
+      'SELECT quantity FROM inventory WHERE product_id = $1 FOR UPDATE',
+      [p.product_id]
+    );
+
+    if (!inv[0] || inv[0].quantity < p.stock_limit) {
+      throw new Error('Committed flash sale stock exceeds available inventory');
+    }
+
+    await pool.query(
+      'UPDATE inventory SET quantity = quantity - $1, updated_at = NOW() WHERE product_id = $2',
+      [p.stock_limit, p.product_id]
+    );
+  }
+}
+
+async function releaseReservedInventory(pool, saleId) {
+  const { rows: products } = await pool.query(
+    'SELECT product_id, reserved_quantity, sold_count FROM flash_sale_products WHERE flash_sale_id = $1',
+    [saleId]
+  );
+
+  for (const p of products) {
+    const refundQty = p.reserved_quantity - p.sold_count;
+    if (refundQty > 0) {
+      await pool.query(
+        'UPDATE inventory SET quantity = quantity + $1, updated_at = NOW() WHERE product_id = $2',
+        [refundQty, p.product_id]
+      );
+    }
+  }
+}
+
+module.exports = {
+  getActiveSale,
+  getSlotsList,
+  submitFlashSale,
+  getSellerSales,
+  cancelFlashSale,
+  createSlot,
+  getAdminSales,
+  reviewFlashSale
+};

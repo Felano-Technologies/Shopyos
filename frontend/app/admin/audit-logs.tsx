@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { getAdminAuditLogsFiltered } from '@/services/admin';
@@ -208,8 +209,10 @@ export default function AdminAuditLogs() {
 
             {/* Desktop canvas */}
             <View style={styles.desktopCanvas}>
-                {loading ? (
-                    <View style={styles.center}><ActivityIndicator size="large" color="#0C1559" /></View>
+                {loading && !refreshing ? (
+                    <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+                        <AdminScreenSkeleton metrics={4} rows={4} />
+                    </SafeAreaView>
                 ) : (
                     <FlatList
                         data={logs}

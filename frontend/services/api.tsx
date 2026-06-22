@@ -3,7 +3,8 @@
 export { api, baseURL, API_URL, extractErrorMessage, storage, secureStorage, CustomInAppToast } from './client';
 
 export {
-  registerUser, registerPushTokenInBackend, requestPasswordReset, confirmResetPassword,
+  registerUser, registerPushTokenInBackend,
+  requestPasswordResetOTP, verifyPasswordResetOTP, resetPasswordWithToken, forceResetPassword,
   logoutUser, loginUser, getUserData, updateProfile, updateUserRole, updateOnboardingState,
   uploadAvatar, updateUserLocation, blockUser, unblockUser, getBlockedUsers, reportEntity,
 } from './auth';
@@ -28,7 +29,7 @@ export {
 } from './orders';
 
 export {
-  getDeliveryQuote, createDelivery, getAvailableDeliveries, assignDriver, getMyDeliveries,
+  getDeliveryQuote, getPublicFeeConfigs, createDelivery, getAvailableDeliveries, assignDriver, getMyDeliveries,
   getDeliveryDetails, updateDeliveryStatus, verifyDeliveryPin, getActiveDeliveries,
   getDriverStats, updateDriverLocation, getDriverProfile, updateDriverAvailability,
   submitDriverVerification,
@@ -67,6 +68,22 @@ export {
   createCampaign, getMyCampaigns, updateCampaignStatus, recordAdClick,
   createBannerCampaign, getMyBannerCampaigns, getAllBannerCampaigns, updateBannerCampaignStatus,
   getActiveBanners, uploadSnapImage, createSnap, getSnapFeed, viewSnap, deleteSnap,
+  getMySnaps, repostSnap,
 } from './advertising';
 
 export { getLoyaltyBalance, getLoyaltyTransactions, validatePromoCode } from './loyalty';
+
+export {
+  createBargainOffer, getBuyerOffers, getSellerOffers, respondToBargain,
+  buyerRespondToBargain, withdrawBargainOffer, getBargainHistory, addBargainToCart
+} from './bargain';
+
+export {
+  getHubs, getDashboardStats, getHubParcels, checkInParcel,
+  dispatchParcel, arriveParcel, requestLastMile, getTransitInfo
+} from './parcelPartner';
+
+export {
+  getActiveFlashSale, getSlotsList, submitFlashSale, getSellerSales,
+  cancelFlashSale, createSlot, getAdminSales, reviewFlashSale
+} from './flashSales';

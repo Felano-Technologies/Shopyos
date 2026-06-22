@@ -280,3 +280,192 @@ export const getAdminAuditLogsFiltered = async (params: {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export interface PlatformFeeConfig {
+  id: string;
+  config_key: string;
+  config_value: string;
+  config_type: 'percentage' | 'fixed' | 'multiplier' | 'integer';
+  category: 'commission' | 'delivery' | 'advertising' | 'payout' | 'bargaining' | 'buyer_protection' | 'flash_sale';
+  label: string;
+  description?: string;
+  min_value?: string;
+  max_value?: string;
+  updated_at: string;
+}
+
+export const getAdminFeeConfigs = async (category?: string) => {
+  try {
+    const response = await api.get('/admin/fee-config', { params: { category } });
+    return response.data.configs as PlatformFeeConfig[];
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateAdminFeeConfig = async (key: string, value: number, reason?: string) => {
+  try {
+    const response = await api.put(`/admin/fee-config/${key}`, { value, reason });
+    return response.data.config as PlatformFeeConfig;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAdminFeeConfigAudit = async (key: string) => {
+  try {
+    const response = await api.get(`/admin/fee-config/audit/${key}`);
+    return response.data.audit as Array<{
+      id: string;
+      config_key: string;
+      old_value: string;
+      new_value: string;
+      changed_by: string;
+      changed_by_email?: string;
+      reason?: string;
+      created_at: string;
+    }>;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+// ─── Hub Management ────────────────────────────────────────────────────────
+
+export interface AdminHub {
+  id: string;
+  region_id: number;
+  hub_name: string;
+  partner_name: string;
+  address: string | null;
+  phone: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  is_active: boolean;
+  region_name?: string;
+  region_code?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TransitRoute {
+  id: string;
+  origin_region: string;
+  dest_region: string;
+  transit_days_min: number;
+  transit_days_max: number;
+  transit_fee: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const adminGetAllHubs = async () => {
+  try {
+    const response = await api.get('/admin/hubs');
+    return response.data.data as AdminHub[];
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminCreateHub = async (payload: {
+  regionId: number;
+  hubName: string;
+  partnerName: string;
+  address?: string;
+  phone?: string;
+  latitude?: number;
+  longitude?: number;
+}) => {
+  try {
+    const response = await api.post('/admin/hubs', payload);
+    return response.data.hub as AdminHub;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminUpdateHub = async (
+  hubId: string,
+  payload: Partial<{
+    hubName: string;
+    partnerName: string;
+    address: string;
+    phone: string;
+    latitude: number;
+    longitude: number;
+  }>
+) => {
+  try {
+    const response = await api.put(`/admin/hubs/${hubId}`, payload);
+    return response.data.hub as AdminHub;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminToggleHub = async (hubId: string) => {
+  try {
+    const response = await api.patch(`/admin/hubs/${hubId}/toggle`);
+    return response.data.hub as Pick<AdminHub, 'id' | 'hub_name' | 'is_active'>;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminGetTransitRoutes = async () => {
+  try {
+    const response = await api.get('/admin/transit-routes');
+    return response.data.data as TransitRoute[];
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminUpsertTransitRoute = async (payload: {
+  originRegion: string;
+  destRegion: string;
+  transitDaysMin: number;
+  transitDaysMax: number;
+  transitFee: number;
+}) => {
+  try {
+    const response = await api.post('/admin/transit-routes', payload);
+    return response.data.route as TransitRoute;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+// ─── Disclaimer Management ──────────────────────────────────────────────────
+
+export const adminUpdateDisclaimer = async (
+  type: string,
+  payload: { title: string; content: string; version: string }
+) => {
+  try {
+    const response = await api.put(`/admin/disclaimers/${type}`, payload);
+    return response.data.disclaimer;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const adminGetDisclaimerAudit = async (type?: string, limit?: number) => {
+  try {
+    const response = await api.get('/admin/disclaimers/audit', { params: { type, limit } });
+    return response.data.audit as Array<{
+      id: string;
+      user_id: string;
+      disclaimer_type: string;
+      version: string;
+      acknowledged_at: string;
+      ip_address: string;
+      context_type: string;
+      context_id: string;
+    }>;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

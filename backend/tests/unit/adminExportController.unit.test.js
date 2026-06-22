@@ -243,7 +243,7 @@ describe('adminExportController – exportResource unit tests', () => {
     expect(mockCsvStream.end).toHaveBeenCalled();
   });
 
-  // ── orders resource: SQL contains FROM orders ───────────────────────────────
+  // ── orders resource: SQL uses vw_order_summary view ───────────────────────────
   test('test_exportResource_ordersResource_executesCorrectSQL', async () => {
     // Arrange
     mockPool.query.mockResolvedValueOnce({ rows: [] });
@@ -260,7 +260,7 @@ describe('adminExportController – exportResource unit tests', () => {
 
     // Assert
     const [sql] = mockPool.query.mock.calls[0];
-    expect(sql).toMatch(/FROM orders/i);
+    expect(sql).toMatch(/FROM vw_order_summary/i);
   });
 
   // ── format defaults to xlsx when not specified ──────────────────────────────

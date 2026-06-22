@@ -33,18 +33,16 @@ const RESOURCE_CONFIG = {
   orders: {
     sql: (filters, params) => {
       const conds = ['1=1'];
-      if (filters.status)  { params.push(filters.status); conds.push(`o.status = $${params.length}`); }
-      if (filters.storeId) { params.push(filters.storeId); conds.push(`o.store_id = $${params.length}`); }
-      if (filters.startDate) { params.push(filters.startDate); conds.push(`o.created_at >= $${params.length}`); }
-      if (filters.endDate)   { params.push(filters.endDate);   conds.push(`o.created_at <= $${params.length}`); }
-      return `SELECT o.order_number AS "Order #", up.full_name AS "Buyer",
-                     s.store_name AS "Store", o.total_amount AS "Total (GHS)",
-                     o.status AS "Status", o.created_at AS "Date"
-              FROM orders o
-              LEFT JOIN user_profiles up ON up.user_id = o.buyer_id
-              LEFT JOIN stores s ON s.id = o.store_id
+      if (filters.status)  { params.push(filters.status); conds.push(`status = $${params.length}`); }
+      if (filters.storeId) { params.push(filters.storeId); conds.push(`store_id = $${params.length}`); }
+      if (filters.startDate) { params.push(filters.startDate); conds.push(`created_at >= $${params.length}`); }
+      if (filters.endDate)   { params.push(filters.endDate);   conds.push(`created_at <= $${params.length}`); }
+      return `SELECT order_number AS "Order #", buyer_name AS "Buyer",
+                     store_name AS "Store", total_amount AS "Total (GHS)",
+                     status AS "Status", created_at AS "Date"
+              FROM vw_order_summary
               WHERE ${conds.join(' AND ')}
-              ORDER BY o.created_at DESC LIMIT ${MAX_ROWS}`;
+              ORDER BY created_at DESC LIMIT ${MAX_ROWS}`;
     },
     columns: ['Order #', 'Buyer', 'Store', 'Total (GHS)', 'Status', 'Date'],
   },

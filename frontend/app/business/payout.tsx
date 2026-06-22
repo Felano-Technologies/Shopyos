@@ -7,7 +7,8 @@ import {
   ScrollView,
   ActivityIndicator,
   FlatList,
-  RefreshControl
+  RefreshControl,
+  Alert,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -15,9 +16,11 @@ import { Ionicons, Feather, MaterialCommunityIcons, FontAwesome5 } from '@expo/v
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import { getPayoutHistory } from '@/services/api';
+import { getPayoutHistory, requestPayout } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
 export default function PayoutScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -25,6 +28,10 @@ export default function PayoutScreen() {
   const [hasPayoutMethod, setHasPayoutMethod] = useState(false);
   const [balance, setBalance] = useState(0);
   const [payoutHistory, setPayoutHistory] = useState<any[]>([]);
+  const [payoutTerms, setPayoutTerms] = useState<Disclaimer | null>(null);
+  const [isTermsChecked, setIsTermsChecked] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [isWithdrawing, setIsWithdrawing] = useState(false);
   const { isChecking } = useSellerGuard();
   const { activeBusiness, isLoading: isLoadingBusinesses } = useActiveBusiness();
   
@@ -36,6 +43,43 @@ export default function PayoutScreen() {
       fetchHistory(store._id);
     }
   }, [activeBusiness]);
+
+  useEffect(() => {
+    getDisclaimerByType('payout_terms').then(setPayoutTerms).catch(() => null);
+  }, []);
+
+  const handleWithdraw = () => {
+    if (payoutTerms && !isTermsChecked) {
+      Alert.alert('Agreement Required', 'Please read and agree to the Payout Terms before withdrawing.');
+      return;
+    }
+    if (balance <= 0) {
+      Alert.alert('Insufficient Balance', 'You have no balance available to withdraw.');
+      return;
+    }
+    Alert.alert(
+      'Confirm Withdrawal',
+      `Request a payout of ₵${balance.toFixed(2)}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Withdraw',
+          onPress: async () => {
+            setIsWithdrawing(true);
+            try {
+              await requestPayout({ storeId: activeBusiness._id, amount: balance });
+              Alert.alert('Request Sent', 'Your payout request has been submitted and will be processed shortly.');
+              if (activeBusiness) await fetchHistory(activeBusiness._id);
+            } catch (e: any) {
+              Alert.alert('Error', e.message || 'Payout request failed. Please try again.');
+            } finally {
+              setIsWithdrawing(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const fetchHistory = async (storeId: string) => {
     try {
@@ -124,10 +168,29 @@ export default function PayoutScreen() {
                   <Text style={styles.balanceLabel}>Available for Payout</Text>
                   <Text style={styles.balanceAmount}>₵{balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</Text>
                 </View>
-                <TouchableOpacity style={styles.withdrawBtn}>
-                  <Text style={styles.withdrawText}>Withdraw</Text>
+                <TouchableOpacity style={styles.withdrawBtn} onPress={handleWithdraw} disabled={isWithdrawing}>
+                  {isWithdrawing ? (
+                    <ActivityIndicator size="small" color="#0C1559" />
+                  ) : (
+                    <Text style={styles.withdrawText}>Withdraw</Text>
+                  )}
                 </TouchableOpacity>
               </View>
+              {payoutTerms && (
+                <View style={styles.disclaimerRow}>
+                  <TouchableOpacity onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+                    <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                      {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                    </View>
+                  </TouchableOpacity>
+                  <Text style={styles.disclaimerText}>
+                    I agree to the{' '}
+                    <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+                      Payout Terms
+                    </Text>
+                  </Text>
+                </View>
+              )}
               {/* Method Info */}
               <View style={styles.methodCard}>
                 <View style={styles.methodRow}>
@@ -184,6 +247,12 @@ export default function PayoutScreen() {
             </View>
           )}
         </ScrollView>
+        <DisclaimerModal
+          type="payout_terms"
+          visible={showTermsModal}
+          onClose={() => setShowTermsModal(false)}
+          onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+        />
       </SafeAreaView>
     </View>
   );
@@ -443,4 +512,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Montserrat-Bold',
   },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#A3E635', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: '#A3E635' },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#94A3B8', lineHeight: 18 },
+  disclaimerLink: { color: '#A3E635', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
 });

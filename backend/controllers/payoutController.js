@@ -1,6 +1,7 @@
-﻿// controllers/payoutController.js
+// controllers/payoutController.js
 const repositories = require('../db/repositories');
 const paystackService = require('../services/paystackService');
+const feeConfigService = require('../services/feeConfigService');
 
 // @desc    Request a payout
 // @route   POST /api/payouts/request
@@ -18,6 +19,12 @@ const requestPayout = async (req, res, next) => {
         const store = await repositories.stores.findById(storeId);
         if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
         if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+
+        // Check minimum payout amount
+        const minPayoutAmount = await feeConfigService.get('min_payout_amount');
+        if (amount < minPayoutAmount) {
+            return res.status(400).json({ success: false, error: `Minimum payout request amount is GHS ${minPayoutAmount}` });
+        }
 
         // Check balance
         const currentBalance = Number.parseFloat(store.current_balance || 0);

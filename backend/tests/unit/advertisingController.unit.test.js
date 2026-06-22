@@ -10,6 +10,12 @@
 
 jest.mock('../../services/rabbitmq');
 jest.mock('nodemailer');
+jest.mock('../../services/feeConfigService', () => ({
+  get: jest.fn().mockImplementation((key) => {
+    if (key === 'min_ad_budget') return Promise.resolve(10);
+    return Promise.resolve(0);
+  }),
+}));
 
 jest.mock('../../config/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -17,6 +23,7 @@ jest.mock('../../config/logger', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => (url ? `http://public/${url}` : url)),
+  transformImageUrlsAsync: jest.fn(async (obj) => obj),
 }));
 
 jest.mock('../../db/repositories', () => ({
@@ -38,6 +45,16 @@ jest.mock('../../db/repositories', () => ({
     canServeAd: jest.fn(),
     recordImpression: jest.fn(),
     recordClick: jest.fn(),
+  },
+  bannerCampaigns: {
+    recordClick: jest.fn(),
+    recordImpression: jest.fn(),
+    db: {
+      from: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    },
   },
   reports: {
     hasUserReported: jest.fn(),
@@ -587,6 +604,24 @@ describe('AdvertisingController Unit Tests', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Impression recorded' });
     });
+
+    test('test_recordImpression_bannerCampaign_recordsImpressionForBannerAndReturns200', async () => {
+      // Arrange
+      repositories.bannerCampaigns.db.maybeSingle.mockResolvedValueOnce({ data: { id: 'banner-1' }, error: null });
+      repositories.bannerCampaigns.recordImpression.mockResolvedValueOnce(undefined);
+
+      const req = mockReq({ params: { campaignId: 'banner-1' } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await recordImpression(req, res, next);
+
+      // Assert
+      expect(repositories.bannerCampaigns.recordImpression).toHaveBeenCalledWith('banner-1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Impression recorded' });
+    });
   });
 
   // ── recordClick ────────────────────────────────────────────────────
@@ -604,6 +639,24 @@ describe('AdvertisingController Unit Tests', () => {
 
       // Assert
       expect(repositories.promotedProducts.recordClick).toHaveBeenCalledWith('camp-1');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Click recorded' });
+    });
+
+    test('test_recordClick_bannerCampaign_recordsClickForBannerAndReturns200', async () => {
+      // Arrange
+      repositories.bannerCampaigns.db.maybeSingle.mockResolvedValueOnce({ data: { id: 'banner-1' }, error: null });
+      repositories.bannerCampaigns.recordClick.mockResolvedValueOnce(undefined);
+
+      const req = mockReq({ params: { campaignId: 'banner-1' } });
+      const res = mockRes();
+      const next = jest.fn();
+
+      // Act
+      await recordClick(req, res, next);
+
+      // Assert
+      expect(repositories.bannerCampaigns.recordClick).toHaveBeenCalledWith('banner-1');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Click recorded' });
     });

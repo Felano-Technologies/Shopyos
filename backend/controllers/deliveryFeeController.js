@@ -1,9 +1,10 @@
-﻿// controllers/deliveryFeeController.js
+// controllers/deliveryFeeController.js
 // Handles delivery fee quotes and seller delivery settings
 
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
+const feeConfigService = require('../services/feeConfigService');
 
 /**
  * @route   GET /api/delivery/quote
@@ -11,8 +12,9 @@ const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
  * @access  Private
  * @query   storeId, buyerLat, buyerLng, deliveryState
  */
-function resolveCoordinateFee(store, buyerLat, buyerLng) {
-    const baseFee = Number.parseFloat(store.delivery_base_fee) || 5;
+async function resolveCoordinateFee(store, buyerLat, buyerLng) {
+    const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
+    const baseFee = Number.parseFloat(store.delivery_base_fee) || defaultBaseFee;
     const hasStoreCoords = store.latitude !== null && store.longitude !== null;
     const hasBuyerCoords = buyerLat !== undefined && buyerLng !== undefined;
 
@@ -46,14 +48,64 @@ const getDeliveryQuote = async (req, res, next) => {
         const store = await repositories.stores.findById(storeId);
         if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
 
-        const { fee, distanceKm, withinRange, note } = resolveCoordinateFee(store, buyerLat, buyerLng);
+        const { fee, distanceKm, withinRange, note } = await resolveCoordinateFee(store, buyerLat, buyerLng);
 
         // Regional pricing logic (Sync with orderController.js)
         const storeRegion = (store.state_province || 'Greater Accra').trim().toLowerCase();
         const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
-        const deliveryFee = storeRegion === targetRegion
-            ? Math.max(15, Math.min(fee, 30))  // Same region: min 15, max 30
-            : Math.max(fee, 40);               // Cross region: min 40
+        
+        let deliveryFee;
+        let isInterRegional = false;
+        let parcelTransitFee = 0;
+        let estimatedTransitDays = null;
+
+        if (storeRegion === targetRegion) {
+            // Intra-regional: distance from store to buyer, capped between min/max
+            const minIntra = await feeConfigService.get('delivery_intra_min_fee');
+            const maxIntra = await feeConfigService.get('delivery_intra_max_fee');
+            deliveryFee = Math.max(minIntra, Math.min(fee, maxIntra));
+        } else {
+            // Inter-regional: fee is store → origin hub only (buyer end handled by parcel partner)
+            isInterRegional = true;
+
+            const originHub = repositories.parcelPartner
+                ? await repositories.parcelPartner.getHubByRegionName(store.state_province || 'Greater Accra')
+                : null;
+
+            const minIntra = await feeConfigService.get('delivery_intra_min_fee');
+            const maxIntra = await feeConfigService.get('delivery_intra_max_fee');
+
+            if (originHub?.latitude && originHub?.longitude && store.latitude && store.longitude) {
+                // Calculate distance from store to its nearest hub (intra-regional leg)
+                const storeToHubKm = haversineKm(
+                    Number.parseFloat(store.latitude),
+                    Number.parseFloat(store.longitude),
+                    Number.parseFloat(originHub.latitude),
+                    Number.parseFloat(originHub.longitude)
+                );
+                const hubCalc = calculateDeliveryFee(store, storeToHubKm);
+                const defaultBase = await feeConfigService.get('delivery_default_base_fee');
+                const rawFee = hubCalc.fee ?? (Number.parseFloat(store.delivery_base_fee) || defaultBase);
+                // Store → hub is an intra-regional leg; cap it the same way
+                deliveryFee = Math.max(minIntra, Math.min(rawFee, maxIntra));
+            } else {
+                // No hub coordinates – use intra min fee (store is in the same region as hub)
+                deliveryFee = minIntra;
+            }
+
+            // Fixed hub-to-hub transit fee from parcel_transit_config
+            if (repositories.parcelPartner) {
+                const transitConfig = await repositories.parcelPartner.getTransitConfig(
+                    store.state_province || 'Greater Accra',
+                    deliveryState || 'Greater Accra'
+                );
+                parcelTransitFee = Number(transitConfig?.route_fee ?? await feeConfigService.get('parcel_partner_base_fee'));
+                estimatedTransitDays = transitConfig ? transitConfig.transit_days_min : 2;
+            } else {
+                parcelTransitFee = Number(await feeConfigService.get('parcel_partner_base_fee') || 25);
+                estimatedTransitDays = 2;
+            }
+        }
 
         res.status(200).json({
             success: true,
@@ -61,6 +113,10 @@ const getDeliveryQuote = async (req, res, next) => {
                 storeId,
                 distanceKm,
                 deliveryFee: withinRange ? deliveryFee : null,
+                isInterRegional,
+                parcelTransitFee: withinRange ? parcelTransitFee : 0,
+                estimatedTransitDays: withinRange ? estimatedTransitDays : null,
+                storeRegion: store.state_province || 'Greater Accra',
                 withinRange,
                 note
             }

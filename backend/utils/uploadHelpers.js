@@ -1,8 +1,10 @@
 // utils/uploadHelpers.js
 // Helper functions for file uploads to object storage
 
+const path = require('node:path');
 const { uploadImage, deleteImage } = require('../config/storage');
 const { logger } = require('../config/logger');
+const { isVideoMimetype, processVideoBuffer } = require('./videoProcessor');
 
 /**
  * Convert buffer to base64 data URI
@@ -27,11 +29,15 @@ const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
   }
 
   try {
-    // Convert buffer to data URI
-    const dataURI = bufferToDataURI(file.buffer, file.mimetype);
+    let fileToUpload = file;
 
-    // Upload to object storage
-    const result = await uploadImage(dataURI, folder);
+    if (isVideoMimetype(file.mimetype)) {
+      const { buffer, mimetype } = await processVideoBuffer(file.buffer, file.mimetype);
+      const baseName = path.basename(file.originalname || 'video', path.extname(file.originalname || ''));
+      fileToUpload = { ...file, buffer, mimetype, originalname: `${baseName}.mp4` };
+    }
+
+    const result = await uploadImage(fileToUpload, folder);
 
     return {
       url: result.url,
@@ -40,7 +46,7 @@ const uploadFileToCloudinary = async (file, folder = 'shopyos') => {
       format: result.format,
       width: result.width,
       height: result.height,
-      size: file.size
+      size: fileToUpload.buffer ? fileToUpload.buffer.length : file.size
     };
   } catch (error) {
     logger.error('Upload error:', error);
@@ -100,7 +106,7 @@ const replaceImage = async (oldPublicId, newFile, folder = 'shopyos') => {
  * @param {number} maxSize - Max file size in bytes (default 5MB)
  * @returns {object} Validation result
  */
-const validateImage = (file, maxSize = 5 * 1024 * 1024) => {
+const validateImage = (file, maxSize = 100 * 1024 * 1024) => {
   const errors = [];
 
   if (file) {
@@ -110,9 +116,12 @@ const validateImage = (file, maxSize = 5 * 1024 * 1024) => {
     }
 
     // Check file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    const allowedTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'
+    ];
     if (!allowedTypes.includes(file.mimetype)) {
-      errors.push('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed');
+      errors.push('Invalid file type. Only JPEG, PNG, GIF, WebP, and standard short video formats (MP4, MOV, WebM) are allowed');
     }
   } else {
     errors.push('No file provided');

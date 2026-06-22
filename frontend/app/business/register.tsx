@@ -20,6 +20,8 @@ import { router } from 'expo-router';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import * as DocumentPicker from 'expo-document-picker';
 import { businessRegister, getAllCategories, CustomInAppToast } from '@/services/api';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
 // removed useCloudinaryUpload import
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query/keys';
@@ -281,6 +283,12 @@ const styles = StyleSheet.create({
     color: '#334155',
     fontFamily: 'Montserrat-Medium',
   },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginBottom: 16, paddingHorizontal: 4 },
+  disclaimerCheckbox: { padding: 4 },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: '#0C1559' },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
+  disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
   submitBtn: {
     marginHorizontal: 20,
     marginBottom: 30,
@@ -346,6 +354,12 @@ async function submitBusinessRegistration(params: {
 const BusinessSetupScreen = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [commissionTerms, setCommissionTerms] = useState<Disclaimer | null>(null);
+  const [isTermsChecked, setIsTermsChecked] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  useEffect(() => {
+    getDisclaimerByType('seller_commission').then(setCommissionTerms).catch(() => null);
+  }, []);
   const [formData, setFormData] = useState({
     businessName: '', description: '', category: '', address: '',
     city: '', country: '', phone: '', website: '',
@@ -420,6 +434,10 @@ const BusinessSetupScreen = () => {
   const handleCreateBusiness = async () => {
     if (!formData.businessName || !formData.category || !formData.address || !formData.city || !formData.phone) {
       CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Please fill in all required fields marked with *' });
+      return;
+    }
+    if (commissionTerms && !isTermsChecked) {
+      CustomInAppToast.show({ type: 'error', title: 'Agreement Required', message: 'Please agree to the Seller Commission terms before launching your business.' });
       return;
     }
     setLoading(true);
@@ -707,6 +725,28 @@ const BusinessSetupScreen = () => {
                 </View>
               </View>
             </View>
+            {/* --- Commission Agreement --- */}
+            {commissionTerms && (
+              <View style={styles.disclaimerRow}>
+                <TouchableOpacity style={styles.disclaimerCheckbox} onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+                  <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                    {isTermsChecked && <Feather name="check" size={13} color="#FFF" />}
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.disclaimerText}>
+                  I agree to the{' '}
+                  <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+                    Seller Commission Agreement
+                  </Text>
+                </Text>
+              </View>
+            )}
+            <DisclaimerModal
+              type="seller_commission"
+              visible={showTermsModal}
+              onClose={() => setShowTermsModal(false)}
+              onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+            />
             {/* --- Submit Button --- */}
             <TouchableOpacity
               style={styles.submitBtn}

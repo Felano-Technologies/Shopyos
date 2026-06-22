@@ -52,6 +52,8 @@ class OrderRepository extends BaseRepository {
           quantity,
           price,
           subtotal,
+          bargain_offer_id,
+          bargain_discount,
           product:product_id (
             product_images (image_url)
           )

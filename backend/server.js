@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const http = require('node:http');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
@@ -50,10 +50,17 @@ const deliveryFeeRoutes = require('./routes/deliveryFeeRoutes');
 const userActionRoutes = require('./routes/userActionRoutes');
 const snapRoutes = require('./routes/snapRoutes');
 const flashSaleRoutes = require('./routes/flashSaleRoutes');
+const bargainRoutes = require('./routes/bargainRoutes');
 const promoRoutes = require('./routes/promoRoutes');
 const loyaltyRoutes = require('./routes/loyaltyRoutes');
 const returnRoutes = require('./routes/returnRoutes');
 const recommendationRoutes = require('./routes/recommendationRoutes');
+const feeConfigRoutes = require('./routes/feeConfigRoutes');
+const disclaimerRoutes = require('./routes/disclaimerRoutes');
+const parcelPartnerRoutes = require('./routes/parcelPartnerRoutes');
+
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter } = require('./middleware/rateLimiter');
@@ -78,11 +85,16 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
     },
   },
   crossOriginEmbedderPolicy: false,
+}));
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+  customSiteTitle: 'Shopyos API Docs',
+  swaggerOptions: { persistAuthorization: true },
 }));
 
 app.use(cors(productionConfig.cors));
@@ -228,10 +240,14 @@ app.use('/api/v1/delivery', deliveryFeeRoutes);
 app.use('/api/v1/user-actions', userActionRoutes);
 app.use('/api/v1/snaps', snapRoutes);
 app.use('/api/v1/flash-sales', flashSaleRoutes);
+app.use('/api/v1/bargains', bargainRoutes);
 app.use('/api/v1/promo', promoRoutes);
 app.use('/api/v1/loyalty', loyaltyRoutes);
 app.use('/api/v1/returns', returnRoutes);
 app.use('/api/v1/recommendations', recommendationRoutes);
+app.use('/api/v1/fee-config', feeConfigRoutes);
+app.use('/api/v1/disclaimers', disclaimerRoutes);
+app.use('/api/v1/parcel-partner', parcelPartnerRoutes);
 
 // Legacy route forwarding for backward compatibility
 const legacyRoutes = {
@@ -240,6 +256,7 @@ const legacyRoutes = {
   '/api/messaging': messagingRoutes, '/api/deliveries': deliveryRoutes, '/api/reviews': reviewRoutes,
   '/api/notifications': notificationRoutes, '/api/favorites': favoriteRoutes,
   '/api/admin': adminRoutes, '/api/advertising': advertisingRoutes,
+  '/api/bargains': bargainRoutes,
 };
 Object.entries(legacyRoutes).forEach(([prefix, handler]) => {
   app.use(prefix, (req, res, next) => {

@@ -126,6 +126,12 @@ export const queryKeys = {
     personalized: () => ['recommendations', 'personalized'] as const,
     trending: (category?: string) => ['recommendations', 'trending', category] as const,
   },
+
+  snaps: {
+    all: ['snaps'] as const,
+    feed: () => ['snaps', 'feed'] as const,
+    mySnaps: (status?: string) => ['snaps', 'my-snaps', status] as const,
+  },
 };
 
 export interface ProductFilters {

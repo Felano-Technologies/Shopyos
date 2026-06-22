@@ -1,4 +1,4 @@
-﻿// controllers/returnController.js
+// controllers/returnController.js
 // Full return & refund flow: buyer creates request, seller responds, admin resolves.
 
 const repositories = require('../db/repositories');
@@ -38,13 +38,22 @@ const createReturnRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Could not determine seller for this order' });
     }
 
+    const subtotal = Number.parseFloat(order.subtotal || 0);
+    const discount = Number.parseFloat(order.discount_amount || 0);
+    const refundableAmount = Math.max(0, subtotal - discount);
+
     const returnReq = await repositories.returns.create({
       order_id: orderId,
       buyer_id: buyerId,
       seller_id: sellerId,
       reason: reason.trim(),
       reason_category: reasonCategory || 'other',
-      evidence_images: evidenceImages.length ? evidenceImages : null
+      evidence_images: evidenceImages.length ? evidenceImages : null,
+      delivery_fee_at_time: order.delivery_fee,
+      refundable_amount: refundableAmount,
+      policy_version: '1.0',
+      disclaimer_acknowledged: true,
+      acknowledged_at: new Date().toISOString()
     });
 
     // Notify seller
@@ -214,6 +223,19 @@ const adminActOnReturn = async (req, res, next) => {
     const statusMap = { refund: 'refund_issued', escalate: 'admin_review', close: 'closed' };
     const newStatus = statusMap[action];
     const isResolved = ['refund_issued', 'closed'].includes(newStatus);
+
+    if (action === 'refund') {
+      if (refundAmount === undefined || refundAmount === null || Number.parseFloat(refundAmount) <= 0) {
+        return res.status(400).json({ success: false, error: 'Valid refundAmount is required' });
+      }
+      const maxRefund = Number.parseFloat(returnReq.refundable_amount || 0);
+      if (Number.parseFloat(refundAmount) > maxRefund) {
+        return res.status(400).json({
+          success: false,
+          error: `Refund amount cannot exceed the maximum refundable product amount of GHS ${maxRefund}`
+        });
+      }
+    }
 
     const updated = await repositories.returns.update(returnId, {
       status: newStatus,

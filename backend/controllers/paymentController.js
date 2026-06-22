@@ -1,4 +1,4 @@
-﻿// controllers/paymentController.js
+// controllers/paymentController.js
 const crypto = require('node:crypto');
 const axios = require('axios');
 const repositories = require('../db/repositories');
@@ -97,7 +97,7 @@ function applyChannelConfig(payload, channel, momoPhone, momoProvider) {
 
 const initializePayment = async (req, res, next) => {
     try {
-        const { orderId, email: clientEmail, channel, momoPhone, momoProvider } = req.body;
+        const { orderId, email: clientEmail, channel, momoPhone, momoProvider, callbackUrl } = req.body;
 
         if (!orderId) {
             return res.status(400).json({ success: false, error: 'orderId is required' });
@@ -137,6 +137,7 @@ const initializePayment = async (req, res, next) => {
             email,
             amount: amountInPesewas,
             currency: 'GHS',
+            callback_url: callbackUrl || undefined,
             metadata: {
                 orderId,
                 userId: req.user.id,

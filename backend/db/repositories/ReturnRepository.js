@@ -23,16 +23,14 @@ class ReturnRepository extends BaseRepository {
   /** Paginated list for a buyer. */
   async getBuyerReturns(buyerId, { limit = 20, offset = 0 } = {}) {
     const { rows } = await this.db.query(
-      `SELECT rr.*, o.order_number, o.total_amount
-       FROM return_requests rr
-       JOIN orders o ON o.id = rr.order_id
-       WHERE rr.buyer_id = $1
-       ORDER BY rr.created_at DESC
+      `SELECT * FROM vw_return_request_detail
+       WHERE buyer_id = $1
+       ORDER BY created_at DESC
        LIMIT $2 OFFSET $3`,
       [buyerId, limit, offset]
     );
     const { rows: countRows } = await this.db.query(
-      `SELECT COUNT(*)::int AS count FROM return_requests WHERE buyer_id = $1`,
+      `SELECT COUNT(*)::int AS count FROM vw_return_request_detail WHERE buyer_id = $1`,
       [buyerId]
     );
     return { data: rows, count: countRows[0]?.count || 0 };
@@ -40,7 +38,7 @@ class ReturnRepository extends BaseRepository {
 
   /** Paginated list for a seller, with optional status filter. */
   async getSellerReturns(sellerId, status, { limit = 20, offset = 0 } = {}) {
-    const statusClause = status ? `AND rr.status = $2` : '';
+    const statusClause = status ? `AND status = $2` : '';
     const params = status
       ? [sellerId, status, limit, offset]
       : [sellerId, limit, offset];
@@ -48,21 +46,14 @@ class ReturnRepository extends BaseRepository {
     const offsetIdx = status ? 4 : 3;
 
     const { rows } = await this.db.query(
-      `SELECT rr.*,
-              o.order_number, o.total_amount,
-              up.full_name AS buyer_name,
-              u.email      AS buyer_email
-       FROM return_requests rr
-       JOIN orders        o  ON o.id  = rr.order_id
-       JOIN users         u  ON u.id  = rr.buyer_id
-       JOIN user_profiles up ON up.user_id = rr.buyer_id
-       WHERE rr.seller_id = $1 ${statusClause}
-       ORDER BY rr.created_at DESC
+      `SELECT * FROM vw_return_request_detail
+       WHERE seller_id = $1 ${statusClause}
+       ORDER BY created_at DESC
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params
     );
     const { rows: countRows } = await this.db.query(
-      `SELECT COUNT(*)::int AS count FROM return_requests
+      `SELECT COUNT(*)::int AS count FROM vw_return_request_detail
        WHERE seller_id = $1 ${statusClause}`,
       status ? [sellerId, status] : [sellerId]
     );
@@ -77,13 +68,13 @@ class ReturnRepository extends BaseRepository {
     const offsetIdx = status ? 3 : 2;
 
     const { rows } = await this.db.query(
-      `SELECT * FROM return_requests ${statusClause}
+      `SELECT * FROM vw_return_request_detail ${statusClause}
        ORDER BY created_at DESC
        LIMIT $${limitIdx} OFFSET $${offsetIdx}`,
       params
     );
     const { rows: countRows } = await this.db.query(
-      `SELECT COUNT(*)::int AS count FROM return_requests ${statusClause}`,
+      `SELECT COUNT(*)::int AS count FROM vw_return_request_detail ${statusClause}`,
       status ? [status] : []
     );
     return { data: rows, count: countRows[0]?.count || 0 };

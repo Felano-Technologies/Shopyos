@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,16 +20,17 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminCreateUser } from '@/services/admin';
 
 const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
-const ROLES = ['buyer', 'seller', 'driver', 'admin'] as const;
+const ROLES = ['buyer', 'seller', 'driver', 'parcel_partner', 'admin'] as const;
 type Role = (typeof ROLES)[number];
 
 export default function AdminCreateUser() {
   const router = useRouter();
+  const { defaultRole } = useLocalSearchParams<{ defaultRole?: string }>();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('buyer');
+  const [role, setRole] = useState<Role>((ROLES.includes(defaultRole as Role) ? defaultRole : 'buyer') as Role);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -126,7 +127,7 @@ export default function AdminCreateUser() {
               {errors.password ? <Text style={styles.errorText}>{errors.password}</Text> : null}
 
               <Text style={styles.fieldLabel}>Role</Text>
-              <Text style={styles.roleCurrentLabel}>{role.charAt(0).toUpperCase() + role.slice(1)}</Text>
+              <Text style={styles.roleCurrentLabel}>{role.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
               <View style={styles.chipsRow}>
                 {ROLES.map((r) => (
                   <TouchableOpacity
@@ -135,7 +136,7 @@ export default function AdminCreateUser() {
                     onPress={() => setRole(r)}
                   >
                     <Text style={[styles.chipText, role === r && styles.chipTextActive]}>
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                      {r.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
                     </Text>
                   </TouchableOpacity>
                 ))}

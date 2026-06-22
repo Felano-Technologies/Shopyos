@@ -4,7 +4,8 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const crypto = require('node:crypto');
 const { logger } = require('../config/logger');
-const { cacheSet, cacheDel } = require('../config/redis');
+const { cacheSet, cacheGet, cacheDel } = require('../config/redis');
+const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
 const {
   ACCESS_TOKEN_EXPIRY,
@@ -84,7 +85,11 @@ const sanitizePhone = (phone) => {
 };
 
 const register = async (req, res, next) => {
-  const { name, email, password, fullPhoneNumber, referralCode } = req.body;
+  const { name, email, password, fullPhoneNumber, referralCode, termsAccepted, privacyAccepted } = req.body;
+
+  if (!termsAccepted || !privacyAccepted) {
+    return res.status(400).json({ error: 'You must accept the Terms of Service and Privacy Policy to register.' });
+  }
 
   try {
     const existingUser = await repositories.users.findByEmail(email);
@@ -92,6 +97,14 @@ const register = async (req, res, next) => {
 
     const user = await repositories.users.createUser({ email, password });
     const cleanPhone = sanitizePhone(fullPhoneNumber);
+
+    // Log consent for Terms of Service and Privacy Policy at registration time
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || null;
+    const deviceInfo = req.headers['user-agent'] || null;
+    await Promise.all([
+      repositories.disclaimers.createAcknowledgement(user.id, 'terms_of_service', '1.0', null, 'registration', ipAddress, deviceInfo),
+      repositories.disclaimers.createAcknowledgement(user.id, 'privacy_policy', '1.0', null, 'registration', ipAddress, deviceInfo),
+    ]);
     
     // Process referral code
     let referredById = null;
@@ -193,6 +206,7 @@ const login = async (req, res, next) => {
       role,
       roles: roleNames,
       requiresRoleSelection: !hasRole,
+      passwordResetRequired: user.password_reset_required === true,
       message: 'Login successful'
     });
   } catch (err) {
@@ -366,91 +380,143 @@ const revokeSession = async (req, res, next) => {
   }
 };
 
-const resetPassword = async (req, res, next) => {
-  const { email } = req.body;
+const maskEmail = (email) => {
+  const [local, domain] = email.split('@');
+  const visible = local.slice(0, 2);
+  return `${visible}${'*'.repeat(Math.max(1, local.length - 2))}@${domain}`;
+};
+
+const maskPhone = (phone) => {
+  const digits = phone.replace(/\D/g, '');
+  return `+${digits.slice(0, 3)}${'*'.repeat(Math.max(1, digits.length - 6))}${digits.slice(-3)}`;
+};
+
+const requestPasswordResetOTP = async (req, res, next) => {
+  const { email, method } = req.body;
+
+  if (!email || !method || !['email', 'sms'].includes(method)) {
+    return res.status(400).json({ error: 'Email and method (email or sms) are required' });
+  }
 
   try {
-    const user = await repositories.users.findByEmail(email);
-    if (!user) return res.status(400).json({ error: 'User not found' });
+    const user = await repositories.users.findByEmail(email.trim().toLowerCase());
+    if (!user) return res.status(404).json({ error: 'No account found with that email address' });
 
-    const token = crypto.randomBytes(20).toString('hex');
-    const expiresAt = new Date(Date.now() + 3600000); // 1 hour
+    let deliveryTarget = user.email;
+    let maskedTarget = maskEmail(user.email);
 
-    await repositories.users.setPasswordResetToken(user.id, token, expiresAt);
+    if (method === 'sms') {
+      const profile = await repositories.userProfiles.findByUserId(user.id);
+      if (!profile?.phone) {
+        return res.status(400).json({ error: 'No phone number on file. Please use email instead.' });
+      }
+      deliveryTarget = profile.phone;
+      maskedTarget = maskPhone(profile.phone);
+    }
 
-    const frontendUrl = process.env.FRONTEND_URL || 'https://shopyos.com';
-    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    // Enforce 60-second resend cooldown
+    const existing = await cacheGet(`pwd_otp:${user.id}`);
+    if (existing?.sentAt) {
+      const elapsed = (Date.now() - new Date(existing.sentAt).getTime()) / 1000;
+      if (elapsed < 60) {
+        const waitSeconds = Math.ceil(60 - elapsed);
+        return res.status(429).json({ error: `Please wait ${waitSeconds} seconds before resending` });
+      }
+    }
 
-    await getTransporter().sendMail({
-      to: user.email,
-      from: process.env.EMAIL_FROM,
-      subject: 'Shopyos - Password Reset Request',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
-          <h2 style="color: #0C1559; margin-bottom: 16px;">Password Reset Request</h2>
-          <p style="color: #334155; font-size: 14px; line-height: 22px;">You requested a password reset for your Shopyos account.</p>
-          <p style="color: #64748B; font-size: 14px; line-height: 22px; margin-bottom: 24px;">Click the button below to reset your password. This will automatically open the Shopyos app on your device (link expires in 1 hour):</p>
-          <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background-color: #0C1559; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; margin-bottom: 24px;">Reset Password</a>
-          <p style="margin-top: 20px; color: #94a3b8; font-size: 12px; line-height: 18px;">If you didn't request this, please ignore this email. Your password will remain unchanged.</p>
-        </div>
-      `,
-      text: `You requested a password reset.\n\nReset your password here: ${resetUrl}\n\nThis link expires in 1 hour.\n\nIf you didn't request this, ignore this email.`
-    });
+    const code = crypto.randomInt(100000, 999999).toString();
+    await cacheSet(`pwd_otp:${user.id}`, { code, method, sentAt: new Date().toISOString() }, 300);
 
-    res.status(200).json({ success: true, message: 'Recovery email sent' });
+    if (method === 'sms') {
+      await notificationService.sendOTP(deliveryTarget, code);
+    } else {
+      await getTransporter().sendMail({
+        to: user.email,
+        from: process.env.EMAIL_FROM,
+        subject: 'Shopyos – Password Reset Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+            <h2 style="color: #0C1559; margin-bottom: 16px;">Password Reset Code</h2>
+            <p style="color: #334155; font-size: 14px; line-height: 22px;">Use the code below to reset your Shopyos password. It expires in <strong>5 minutes</strong>.</p>
+            <div style="text-align: center; margin: 28px 0;">
+              <span style="display: inline-block; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #0C1559; background: #EEF2FF; padding: 16px 28px; border-radius: 10px;">${code}</span>
+            </div>
+            <p style="color: #94a3b8; font-size: 12px; line-height: 18px;">If you didn't request this, please ignore this email.</p>
+          </div>
+        `,
+        text: `Your Shopyos password reset code is: ${code}\n\nIt expires in 5 minutes.\n\nIf you didn't request this, ignore this email.`
+      });
+    }
+
+    logger.info('Password reset OTP sent', { userId: user.id, method });
+    res.status(200).json({ success: true, maskedTarget, message: `Code sent to ${maskedTarget}` });
   } catch (err) {
     next(err);
   }
 };
 
-const confirmResetPassword = async (req, res, next) => {
+const verifyPasswordResetOTP = async (req, res, next) => {
+  const { email, code } = req.body;
+
+  if (!email || !code) {
+    return res.status(400).json({ error: 'Email and code are required' });
+  }
+
   try {
-    const { token, newPassword } = req.body;
+    const user = await repositories.users.findByEmail(email.trim().toLowerCase());
+    if (!user) return res.status(404).json({ error: 'No account found with that email address' });
 
-    if (!token || !newPassword) {
-      return res.status(400).json({ success: false, error: 'Token and new password are required' });
+    const stored = await cacheGet(`pwd_otp:${user.id}`);
+    if (!stored) {
+      return res.status(400).json({ error: 'Code has expired or was never requested' });
     }
 
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, error: 'Password must be at least 6 characters' });
+    if (stored.code !== code.trim()) {
+      return res.status(400).json({ error: 'Invalid code. Please try again.' });
     }
 
-    // Find user by reset token
-    const { data: user, error } = await repositories.users.db
-      .from('users')
-      .select('id, password_reset_token, password_reset_expires')
-      .eq('password_reset_token', token)
-      .single();
+    // OTP verified — issue a short-lived reset session token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    await cacheSet(`pwd_reset_token:${resetToken}`, { userId: user.id }, 300);
+    await cacheDel(`pwd_otp:${user.id}`);
 
-    if (error || !user) {
-      return res.status(400).json({ success: false, error: 'Invalid or expired reset token' });
+    logger.info('Password reset OTP verified', { userId: user.id });
+    res.status(200).json({ success: true, resetToken });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const resetPasswordWithToken = async (req, res, next) => {
+  const { resetToken, newPassword } = req.body;
+
+  if (!resetToken || !newPassword) {
+    return res.status(400).json({ error: 'Reset token and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    const session = await cacheGet(`pwd_reset_token:${resetToken}`);
+    if (!session?.userId) {
+      return res.status(400).json({ error: 'Reset session has expired. Please start again.' });
     }
 
-    // Check if token is expired
-    if (new Date(user.password_reset_expires) < new Date()) {
-      return res.status(400).json({ success: false, error: 'Reset token has expired. Please request a new one.' });
-    }
+    await repositories.users.updatePassword(session.userId, newPassword);
+    await cacheDel(`pwd_reset_token:${resetToken}`);
 
-    // Update password
-    await repositories.users.updatePassword(user.id, newPassword);
-
-    // Clear reset token
-    await repositories.users.db
-      .from('users')
-      .update({ password_reset_token: null, password_reset_expires: null })
-      .eq('id', user.id);
-
-    // Revoke all existing sessions for security
+    // Revoke all active sessions for security
     await repositories.users.db
       .from('refresh_tokens')
       .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'password_reset' })
-      .eq('user_id', user.id);
+      .eq('user_id', session.userId);
 
-    await cacheDel(`shopyos:users:${user.id}:auth`);
+    await cacheDel(`shopyos:users:${session.userId}:auth`);
 
-    logger.info('Password reset successful', { userId: user.id });
-
-    res.status(200).json({ success: true, message: 'Password reset successful. Please log in with your new password.' });
+    logger.info('Password reset successful', { userId: session.userId });
+    res.status(200).json({ success: true, message: 'Password reset successfully. Please log in.' });
   } catch (err) {
     next(err);
   }
@@ -658,8 +724,96 @@ const updateOnboardingState = async (req, res, next) => {
   }
 };
 
+const resetPassword = async (req, res, next) => {
+  const { email } = req.body;
+  try {
+    const user = await repositories.users.findByEmail(email);
+    if (!user) {
+      return res.status(400).json({ error: 'User not found' });
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 3600000); // 1 hour
+    await repositories.users.setPasswordResetToken(user.id, token, expires);
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    await getTransporter().sendMail({
+      from: `"${process.env.EMAIL_FROM_NAME}" <${process.env.EMAIL_FROM}>`,
+      to: user.email,
+      subject: 'Reset your Shopyos password',
+      html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
+    });
+
+    res.status(200).json({ success: true, message: 'Recovery email sent' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const confirmResetPassword = async (req, res, next) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    const { data: user, error } = await repositories.users.db
+      .from('users')
+      .select('id, password_reset_token, password_reset_expires')
+      .eq('password_reset_token', token)
+      .single();
+
+    if (error || !user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+    if (new Date(user.password_reset_expires) < new Date()) {
+      return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+    }
+
+    await repositories.users.updatePassword(user.id, newPassword);
+
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'password_reset' })
+      .eq('user_id', user.id);
+
+    logger.info('Password reset via token', { userId: user.id });
+    res.status(200).json({ success: true, message: 'Password reset successful. Please log in.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const forceResetPassword = async (req, res, next) => {
+  const { newPassword } = req.body;
+  const userId = req.user.id;
+
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+
+  try {
+    await repositories.users.updatePassword(userId, newPassword);
+    await repositories.users.db
+      .from('users')
+      .update({ password_reset_required: false })
+      .eq('id', userId);
+
+    logger.info('Forced password reset complete', { userId });
+    res.status(200).json({ success: true, message: 'Password updated successfully' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register, login, refreshAccessToken, logout, logoutAll,
-  getSessions, revokeSession, resetPassword, confirmResetPassword, getUserData,
+  getSessions, revokeSession, getUserData,
+  requestPasswordResetOTP, verifyPasswordResetOTP, resetPasswordWithToken,
+  resetPassword, confirmResetPassword, forceResetPassword,
   addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState
 };

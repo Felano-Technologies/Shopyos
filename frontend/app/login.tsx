@@ -34,6 +34,8 @@ function navigateByRole(role: string | undefined) {
     router.push('/business/dashboard');
   } else if (userRole === 'driver') {
     router.push('/driver');
+  } else if (userRole === 'parcel_partner') {
+    router.push('/parcel-partner/dashboard');
   } else if (userRole === 'admin') {
     router.replace('/admin/dashboard');
   }
@@ -60,7 +62,9 @@ const LoginScreen = () => {
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
         await refresh();
-        if (response.needsRole) {
+        if (response.passwordResetRequired) {
+          router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
+        } else if (response.needsRole) {
           router.push('/role');
         } else {
           navigateByRole(response.role);
@@ -82,7 +86,9 @@ const LoginScreen = () => {
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
         await refresh();
-        if (response.needsRole) {
+        if (response.passwordResetRequired) {
+          router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
+        } else if (response.needsRole) {
           router.push('/role');
         } else {
           navigateByRole(response.role);

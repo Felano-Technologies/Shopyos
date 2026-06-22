@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 /**
  * tests/unit/businessController.unit.test.js
@@ -102,6 +102,9 @@ jest.mock('../../db/repositories', () => ({
   },
   reviews: {
     db: mockDbReviewChain,
+  },
+  adminSettings: {
+    getSettings: jest.fn().mockResolvedValue({ auto_approve_sellers: false }),
   },
 }));
 

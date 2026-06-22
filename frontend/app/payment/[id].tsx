@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity, AppStat
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { initializePayment, verifyPayment } from '@/services/api';
 
@@ -46,9 +47,13 @@ export default function PaymentProcessingScreen() {
               channel = 'card';
             }
 
+            // Generate deep link redirect URL
+            const callbackUrl = Linking.createURL(`/payment/${id}`);
+
             const initRes = await initializePayment({
                 orderId: id,
                 channel: channel as any,
+                callbackUrl,
             });
 
 
@@ -66,14 +71,14 @@ export default function PaymentProcessingScreen() {
                 setStatus('waiting');
 
 
-                // Open Paystack checkout in browser
+                // Open Paystack checkout in auth session
                 // For MoMo: Paystack will show the MoMo prompt (USSD/STK push)
                 // For Card: Paystack will show the card form
-                const result = await WebBrowser.openBrowserAsync(authorization_url);
+                const result = await WebBrowser.openAuthSessionAsync(authorization_url, callbackUrl);
 
 
-                // When browser closes, verify
-                if (result.type === 'cancel' || result.type === 'dismiss') {
+                // When browser closes/redirects, verify
+                if (result.type === 'success' || result.type === 'cancel' || result.type === 'dismiss') {
                     handleVerify(reference);
                 }
             } else {

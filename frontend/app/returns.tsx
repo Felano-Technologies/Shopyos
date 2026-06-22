@@ -45,6 +45,16 @@ const ReturnCard = ({ item }: { item: any }) => {
         </View>
       </View>
       <Text style={styles.reason} numberOfLines={2}>{item.reason}</Text>
+      
+      <View style={styles.breakdownBox}>
+        <Text style={styles.breakdownText}>
+          Product Subtotal (Refundable): <Text style={styles.bold}>₵{Number(item.refundable_amount || 0).toFixed(2)}</Text>
+        </Text>
+        <Text style={styles.breakdownText}>
+          Delivery Fee (Non-Refundable): <Text style={styles.bold}>₵{Number(item.delivery_fee_at_time || 0).toFixed(2)}</Text>
+        </Text>
+      </View>
+
       {item.seller_response ? (
         <View style={styles.sellerNote}>
           <Ionicons name="storefront-outline" size={12} color={C.navy} />
@@ -162,4 +172,15 @@ const styles = StyleSheet.create({
   sellerNoteTxt: { flex: 1, fontSize: rf(12), fontFamily: 'Montserrat-Medium', color: C.navy },
   refundAmt: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: '#166534', marginBottom: rs(4) },
   date: { fontSize: rf(11), fontFamily: 'Montserrat-Medium', color: C.subtle },
+  breakdownBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: rs(8),
+    padding: rs(10),
+    marginTop: rs(4),
+    marginBottom: rs(8),
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  breakdownText: { fontSize: rf(11.5), fontFamily: 'Montserrat-Medium', color: C.muted, marginBottom: rs(3) },
+  bold: { fontFamily: 'Montserrat-SemiBold', color: C.body },
 });

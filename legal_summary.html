@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shopyos — Legal Summary for Counsel</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Georgia, 'Times New Roman', serif; background: #f7f6f3; color: #1a1a1a; line-height: 1.75; }
+
+  .cover {
+    background: #1a1a2e;
+    color: #fff;
+    padding: 64px 48px 48px;
+  }
+  .cover .badge { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #a0aec0; margin-bottom: 20px; }
+  .cover h1 { font-size: 36px; font-weight: 700; margin-bottom: 12px; line-height: 1.2; }
+  .cover .subtitle { font-size: 18px; color: #cbd5e0; margin-bottom: 32px; }
+  .cover .meta { display: flex; gap: 40px; flex-wrap: wrap; }
+  .cover .meta-item { }
+  .cover .meta-item span { display: block; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: #718096; margin-bottom: 4px; }
+  .cover .meta-item strong { font-size: 14px; color: #e2e8f0; }
+
+  .toc {
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 32px 48px;
+  }
+  .toc h2 { font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: #718096; margin-bottom: 16px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { padding: 4px 0; }
+  .toc a { color: #2b6cb0; text-decoration: none; font-size: 15px; }
+  .toc a:hover { text-decoration: underline; }
+
+  .content { max-width: 860px; margin: 0 auto; padding: 48px 48px 80px; }
+
+  section { margin-bottom: 56px; }
+  section h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a202c;
+    border-left: 4px solid #3182ce;
+    padding-left: 16px;
+    margin-bottom: 20px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  section h3 { font-size: 16px; font-weight: 700; color: #2d3748; margin: 24px 0 10px; }
+  section p { font-size: 15px; margin-bottom: 14px; color: #2d3748; }
+  section ul, section ol { padding-left: 22px; margin-bottom: 14px; }
+  section li { font-size: 15px; color: #2d3748; margin-bottom: 6px; }
+
+  .callout {
+    border-left: 4px solid #e53e3e;
+    background: #fff5f5;
+    padding: 16px 20px;
+    border-radius: 4px;
+    margin: 20px 0;
+  }
+  .callout.amber {
+    border-color: #dd6b20;
+    background: #fffaf0;
+  }
+  .callout.green {
+    border-color: #38a169;
+    background: #f0fff4;
+  }
+  .callout strong { display: block; margin-bottom: 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #742a2a; }
+  .callout.amber strong { color: #7b341e; }
+  .callout.green strong { color: #276749; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 20px 0; }
+  th { background: #edf2f7; text-align: left; padding: 10px 14px; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: #4a5568; border: 1px solid #e2e8f0; }
+  td { padding: 10px 14px; border: 1px solid #e2e8f0; vertical-align: top; color: #2d3748; }
+  tr:nth-child(even) td { background: #f7fafc; }
+
+  .status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .status.full { background: #c6f6d5; color: #22543d; }
+  .status.partial { background: #feebc8; color: #7b341e; }
+  .status.none { background: #fed7d7; color: #742a2a; }
+
+  .open-items { counter-reset: issue; }
+  .open-items li { counter-increment: issue; list-style: none; padding: 14px 16px 14px 52px; position: relative; border-left: 3px solid #e53e3e; background: #fff5f5; margin-bottom: 10px; border-radius: 4px; }
+  .open-items li::before { content: counter(issue); position: absolute; left: 14px; top: 14px; font-weight: 700; color: #e53e3e; font-size: 16px; }
+
+  footer { background: #1a1a2e; color: #718096; padding: 24px 48px; font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <div class="badge">Confidential &nbsp;·&nbsp; Legal Review Document</div>
+  <h1>Shopyos Platform<br>Legal Summary</h1>
+  <div class="subtitle">A plain-language guide to user agreements, consent, refund rules, and open legal questions</div>
+  <div class="meta">
+    <div class="meta-item"><span>Prepared</span><strong>June 2026</strong></div>
+    <div class="meta-item"><span>Version</span><strong>2.0</strong></div>
+    <div class="meta-item"><span>Prepared for</span><strong>Legal Counsel / Compliance</strong></div>
+    <div class="meta-item"><span>Classification</span><strong>Confidential</strong></div>
+  </div>
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#overview">What is Shopyos?</a></li>
+    <li><a href="#parties">Who Uses the Platform?</a></li>
+    <li><a href="#registration">Account Registration & User Agreement</a></li>
+    <li><a href="#buying">Buying on Shopyos</a></li>
+    <li><a href="#refunds">Refunds & Returns</a></li>
+    <li><a href="#delivery">Delivery & Shipping</a></li>
+    <li><a href="#bargaining">Price Bargaining</a></li>
+    <li><a href="#flash-sales">Flash Sales</a></li>
+    <li><a href="#selling">Selling on Shopyos</a></li>
+    <li><a href="#payouts">Seller Payouts</a></li>
+    <li><a href="#drivers">Drivers & Delivery Partners</a></li>
+    <li><a href="#reviews">Reviews & Ratings</a></li>
+    <li><a href="#content">Seller-Uploaded Content (Snaps)</a></li>
+    <li><a href="#advertising">Advertising & Promotions</a></li>
+    <li><a href="#data">Data, Privacy & Record-Keeping</a></li>
+    <li><a href="#audit">How Consent is Recorded</a></li>
+    <li><a href="#open-issues">Open Issues for Legal Decision</a></li>
+  </ol>
+</div>
+
+<div class="content">
+
+<!-- 1 -->
+<section id="overview">
+  <h2>1. What is Shopyos?</h2>
+  <p>Shopyos is a mobile marketplace operating in Ghana where buyers can purchase goods from registered sellers and have them delivered — either locally within the same region or through a parcel hub network for buyers and sellers in different regions.</p>
+  <p>The platform also includes features such as price negotiation (bargaining), time-limited discounts (flash sales), seller promotional content (snaps), and a seller advertising system. Shopyos earns revenue through commissions on seller payouts, delivery fees, and seller advertising spend.</p>
+</section>
+
+<!-- 2 -->
+<section id="parties">
+  <h2>2. Who Uses the Platform?</h2>
+  <table>
+    <thead><tr><th>Role</th><th>Who they are</th><th>What they do</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Buyer</strong></td><td>Any registered user</td><td>Browses, bargains, and purchases products; requests deliveries and returns</td></tr>
+      <tr><td><strong>Seller</strong></td><td>Registered business owners</td><td>Lists products, fulfils orders, submits flash sales and advertising campaigns, receives payouts</td></tr>
+      <tr><td><strong>Driver / Rider</strong></td><td>Registered delivery personnel</td><td>Picks up and delivers orders; earns a share of delivery fees</td></tr>
+      <tr><td><strong>Parcel Partner</strong></td><td>Hub-based logistics staff</td><td>Processes inter-regional parcels through the hub network</td></tr>
+      <tr><td><strong>Admin</strong></td><td>Shopyos staff</td><td>Approves flash sales, processes payouts, manages fee settings, moderates disputes</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 3 -->
+<section id="registration">
+  <h2>3. Account Registration & User Agreement</h2>
+  <p>Before a user can create an account, they must actively tick two checkboxes to confirm they have read and agreed to:</p>
+  <ul>
+    <li><strong>Terms of Service</strong> — the rules governing acceptable use of the platform, account security, and the grounds for suspension or termination.</li>
+    <li><strong>Privacy Policy</strong> — how Shopyos collects, stores, and uses personal data, and the user's data rights under the <em>Ghana Data Protection Act, 2012 (Act 843)</em>.</li>
+  </ul>
+  <p>If either box is left unchecked, registration is blocked. When a user registers successfully, the date and time of their consent, along with their device type and IP address, is permanently recorded in the platform's consent database.</p>
+  <div class="callout green">
+    <strong>Legal Significance</strong>
+    No account can be created without this recorded consent. The record is permanent and cannot be altered or deleted.
+  </div>
+</section>
+
+<!-- 4 -->
+<section id="buying">
+  <h2>4. Buying on Shopyos</h2>
+  <h3>Checkout Agreement</h3>
+  <p>Before any payment is processed, the buyer is shown the <strong>Refund &amp; Cancellation Policy</strong> in a pop-up window. They must tick a checkbox and press "Agree" before the platform allows the payment to proceed. The system also blocks the order on the server side if this agreement was not formally recorded — so there is no way to pay without having consented.</p>
+  <h3>What Buyers Agree to at Checkout</h3>
+  <ul>
+    <li>Delivery fees are <strong>non-refundable</strong> once the order has been paid.</li>
+    <li>The buyer protection fee (if applicable) is also non-refundable.</li>
+    <li>Cancellations are only possible within <strong>5 minutes</strong> of placing an order, provided it has not yet been processed.</li>
+    <li>After a rider picks up the order, no cancellation or refund is available.</li>
+  </ul>
+</section>
+
+<!-- 5 -->
+<section id="refunds">
+  <h2>5. Refunds & Returns</h2>
+  <h3>When a Buyer Can Request a Return</h3>
+  <p>Buyers may apply for a return within the return window (currently 7 days from delivery, adjustable by admin). Returns go through a three-step approval process: seller review → optional admin override.</p>
+  <h3>Refund Rules (Fixed by Platform Logic)</h3>
+  <table>
+    <thead><tr><th>Situation</th><th>Refund Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>Order cancelled before payment</td><td>Full refund</td></tr>
+      <tr><td>Order cancelled after payment, before rider picks up</td><td>Product price refunded; <strong>delivery fee not refunded</strong></td></tr>
+      <tr><td>Order cancelled after rider picks up</td><td>No refund</td></tr>
+      <tr><td>Return approved (within return window)</td><td>Product price refunded; delivery fee deducted</td></tr>
+      <tr><td>Return denied</td><td>No refund</td></tr>
+    </tbody>
+  </table>
+  <h3>Consent Before Return Submission</h3>
+  <p>Before a buyer can submit a return request, the platform shows the refund policy again and requires the buyer to tick a checkbox confirming they understand that the delivery fee is non-refundable. The server also enforces this — a return request cannot be submitted without the recorded agreement.</p>
+  <h3>Exact Refund Amount Shown Before Submission</h3>
+  <p>The return screen shows the buyer the exact amount they will receive back before they complete the request, so there can be no dispute about the amount being unexpected.</p>
+</section>
+
+<!-- 6 -->
+<section id="delivery">
+  <h2>6. Delivery & Shipping</h2>
+  <h3>Local Delivery</h3>
+  <p>When a buyer and seller are in the same region, a local driver is assigned to pick up and deliver the order. The delivery fee is set by the platform and displayed to the buyer at checkout.</p>
+  <h3>Inter-Regional Delivery (Hub Network)</h3>
+  <p>When a buyer and seller are in different regions, the parcel is routed through a network of dispatch hubs. Every time the parcel moves between hubs or changes status, this is recorded in a permanent log that includes who updated it and when — creating a full chain of custody.</p>
+  <h3>Last-Mile Home Delivery</h3>
+  <p>Once a parcel arrives at the buyer's nearest hub, the buyer may optionally choose to have it delivered to their home address (last-mile delivery). Before this can be confirmed, the buyer must read and agree to the <strong>Inter-Regional Shipping Terms</strong>. These terms explain:</p>
+  <ul>
+    <li>Transit time estimates are not guarantees.</li>
+    <li>If home delivery is not requested, the buyer must collect from the hub.</li>
+    <li>Delivery costs for inter-regional orders are not refunded on return.</li>
+  </ul>
+  <p>The last-mile fee is shown to the buyer before they confirm, and the consent is recorded permanently.</p>
+</section>
+
+<!-- 7 -->
+<section id="bargaining">
+  <h2>7. Price Bargaining</h2>
+  <p>Buyers can negotiate a lower price with sellers on certain products. Before submitting an offer, the buyer must read and agree to the <strong>Bargaining Terms &amp; Conditions</strong>, which state:</p>
+  <ul>
+    <li>Once a seller accepts an offer, it is a <strong>binding agreement</strong>.</li>
+    <li>The buyer must complete checkout within a set time window (typically 1 hour). If they do not, the deal expires and the full price applies.</li>
+    <li>Buyers can only see their own offers — no buyer ever sees what price another buyer offered or what the seller's counter-price is.</li>
+    <li>The original listed price on the product page does not change; the agreed discount is applied only at checkout for that specific buyer.</li>
+  </ul>
+  <p>The consent is recorded against the specific product, so in any dispute the platform can show exactly when the buyer agreed to these terms for that transaction.</p>
+</section>
+
+<!-- 8 -->
+<section id="flash-sales">
+  <h2>8. Flash Sales</h2>
+  <p>Sellers can apply to sell products at a reduced price during a specific time slot (a "flash sale"). The process is as follows:</p>
+  <ol>
+    <li>Seller submits a product and price for a flash sale slot.</li>
+    <li>Before submitting, the seller must read and agree to the <strong>Flash Sale Agreement</strong> — covering rules about minimum stock levels, pricing locks, and slot compliance.</li>
+    <li>The submission goes to admin for review. It is either approved or rejected; no product appears in a flash sale without admin sign-off.</li>
+    <li>Once approved, stock is reserved automatically and atomically (the system prevents overselling at the database level).</li>
+    <li>All buyers see the same flash sale feed — there is no preferential access or personalised pricing.</li>
+  </ol>
+  <div class="callout amber">
+    <strong>Open Issue</strong>
+    Legal counsel should confirm whether flash sale "no-return" clauses are compliant with Ghana's Consumer Protection Agency Act, 2012 (Act 843). See Section 17 for the full list of open items.
+  </div>
+</section>
+
+<!-- 9 -->
+<section id="selling">
+  <h2>9. Selling on Shopyos</h2>
+  <h3>Business Registration</h3>
+  <p>To open a store, a seller must submit their business details (name, category, and optional documents such as a business certificate or proof of bank account) and agree to the <strong>Seller Commission Agreement</strong>. This agreement states that Shopyos automatically deducts a platform commission from each completed order before the seller is paid out.</p>
+  <p>This agreement must be accepted before the store is created. The consent is permanently recorded.</p>
+  <h3>Commission Rates</h3>
+  <p>Commission rates are set by Shopyos administrators and can be adjusted. Every time an admin changes a commission rate, the old rate, new rate, the admin who made the change, the reason given, and the date are recorded in a permanent audit log. This ensures full accountability for any pricing decisions that could be disputed.</p>
+</section>
+
+<!-- 10 -->
+<section id="payouts">
+  <h2>10. Seller Payouts</h2>
+  <p>When a seller requests a payout of their earned balance, they must first agree to the <strong>Payout Guidelines</strong>. These terms cover:</p>
+  <ul>
+    <li>Payouts are only made to verified bank accounts on file.</li>
+    <li>Processing times are subject to bank transfer schedules and Shopyos review periods.</li>
+    <li>Admin approval is required before any payout is disbursed.</li>
+  </ul>
+  <p>The seller's consent to these guidelines is recorded at the time of each payout request.</p>
+</section>
+
+<!-- 11 -->
+<section id="drivers">
+  <h2>11. Drivers & Delivery Partners</h2>
+  <p>Drivers who register on the platform agree to the <strong>Driver Earnings &amp; Splits</strong> terms, which explain that drivers earn a percentage share of delivery fees from completed orders. The exact percentage is set by platform administrators.</p>
+  <p>This consent is recorded at the time of driver account creation.</p>
+  <div class="callout amber">
+    <strong>Open Issue</strong>
+    The question of who bears liability for goods damaged or lost during driver transit is not yet covered in the driver agreement. Legal counsel should advise on this.
+  </div>
+</section>
+
+<!-- 12 -->
+<section id="reviews">
+  <h2>12. Reviews & Ratings</h2>
+  <p>Buyers can leave star ratings and written reviews for products, stores, and drivers. Before submitting any review, the user must agree to the <strong>Review &amp; Ratings Policy</strong>, which states:</p>
+  <ul>
+    <li>Reviews must be genuine and based on the user's real experience.</li>
+    <li>Reviews must not be defamatory, offensive, or paid for.</li>
+    <li>Shopyos may remove reviews that violate community guidelines.</li>
+    <li>The user grants Shopyos the right to display their review on the platform.</li>
+  </ul>
+  <p>This consent is enforced both on the app screen and at the server level — a review cannot be submitted without the recorded agreement.</p>
+</section>
+
+<!-- 13 -->
+<section id="content">
+  <h2>13. Seller-Uploaded Content (Snaps)</h2>
+  <p>"Snaps" are short photo or video posts that sellers publish to promote their products. Before a seller can publish a Snap, they must agree to the <strong>Seller Content &amp; Media Policy</strong>, which states:</p>
+  <ul>
+    <li>The seller confirms they own or have the right to use all images and videos they upload.</li>
+    <li>The content must not infringe any copyright or intellectual property rights.</li>
+    <li>The seller grants Shopyos a licence to display the content on the platform.</li>
+    <li>Misleading, offensive, or illegal content is prohibited.</li>
+  </ul>
+  <p>This reduces the platform's exposure to intellectual property claims from third parties.</p>
+</section>
+
+<!-- 14 -->
+<section id="advertising">
+  <h2>14. Advertising & Promotions</h2>
+  <p>Sellers can pay to promote their products or place banner advertisements on the platform. Before creating any campaign, they must agree to the <strong>Advertising &amp; Promotions Terms</strong>, which state:</p>
+  <ul>
+    <li>All ad content must be truthful and compliant with Ghanaian advertising standards.</li>
+    <li>Campaign fees are non-refundable once the campaign is live.</li>
+    <li>Shopyos reserves the right to reject any campaign that does not meet platform standards.</li>
+  </ul>
+  <p>Consent is required separately for promoted product campaigns and banner campaigns, and is recorded at the time of each submission.</p>
+</section>
+
+<!-- 15 -->
+<section id="data">
+  <h2>15. Data, Privacy & Record-Keeping</h2>
+  <h3>What Data is Collected</h3>
+  <ul>
+    <li>Name, email address, and phone number at registration.</li>
+    <li>Device type and IP address at login and at every consent event.</li>
+    <li>Location data (used for delivery routing).</li>
+    <li>Order history, payment method tokens (not full card numbers), and chat messages.</li>
+  </ul>
+  <h3>How Data is Stored</h3>
+  <p>All data is stored on a cloud database. Consent records, in particular, are stored in an append-only table — meaning no consent record can be modified or deleted once created. This is an intentional design decision to protect both the user and the platform in any dispute.</p>
+  <h3>User Rights</h3>
+  <p>Users are informed at registration (via the Privacy Policy) that they have the right to request access to, correction of, or deletion of their personal data in accordance with the Ghana Data Protection Act, 2012 (Act 843).</p>
+  <div class="callout amber">
+    <strong>Open Issue</strong>
+    Legal counsel should advise on the minimum data retention period for consent records. The current system retains records indefinitely. GDPR guidance suggests a minimum of 6 months; local law may differ.
+  </div>
+</section>
+
+<!-- 16 -->
+<section id="audit">
+  <h2>16. How Consent is Recorded</h2>
+  <p>Every time a user agrees to any policy on Shopyos, the following information is saved permanently in the platform's database:</p>
+  <table>
+    <thead><tr><th>Field</th><th>What it records</th></tr></thead>
+    <tbody>
+      <tr><td>User ID</td><td>Which account gave consent</td></tr>
+      <tr><td>Policy type</td><td>Which policy was agreed to (e.g. "refund_policy", "terms_of_service")</td></tr>
+      <tr><td>Policy version</td><td>The exact version of the text the user saw</td></tr>
+      <tr><td>Date &amp; time</td><td>Exact timestamp of consent</td></tr>
+      <tr><td>IP address</td><td>The internet address of the device used</td></tr>
+      <tr><td>Device info</td><td>Browser or app identifier of the device used</td></tr>
+      <tr><td>Context</td><td>The specific order, product, or transaction the consent relates to (where applicable)</td></tr>
+    </tbody>
+  </table>
+  <h3>Policy Versioning</h3>
+  <p>Each policy has a version number (e.g. "1.0"). If Shopyos updates the text of any policy, the version number is incremented. When that happens, every user who tries to perform the relevant action is shown the new version and must agree again before proceeding. Old records are preserved so it is always possible to establish which version a user agreed to and when.</p>
+  <h3>Full Consent Coverage — All Agreements</h3>
+  <table>
+    <thead><tr><th>User Action</th><th>Agreement Required</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Create an account</td><td>Terms of Service + Privacy Policy</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Place an order / pay</td><td>Refund &amp; Cancellation Policy</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Submit a return request</td><td>Refund &amp; Cancellation Policy</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Make a price offer (bargain)</td><td>Bargaining Terms</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Request last-mile home delivery</td><td>Inter-Regional Shipping Terms</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Open a seller store</td><td>Seller Commission Agreement</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Submit a flash sale campaign</td><td>Flash Sale Agreement</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Request a payout</td><td>Payout Guidelines</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Post an advertising campaign or banner</td><td>Advertising &amp; Promotions Terms</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Submit a review</td><td>Review &amp; Ratings Policy</td><td><span class="status full">Enforced</span></td></tr>
+      <tr><td>Publish a Snap (photo/video)</td><td>Seller Content &amp; Media Policy</td><td><span class="status full">Enforced</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- 17 -->
+<section id="open-issues">
+  <h2>17. Open Issues for Legal Decision</h2>
+  <p>The following items have not yet been resolved by legal counsel and require decisions before the platform goes live:</p>
+  <ol class="open-items">
+    <li>
+      <strong>Flash sale no-return clauses.</strong> The current policy states that flash sale items are not eligible for return. Counsel should confirm whether this is permissible under the Consumer Protection Agency Act, 2012 (Act 843) or whether a minimum return right must be preserved.
+    </li>
+    <li>
+      <strong>Minimum return window.</strong> The platform currently defaults to a 7-day return window, which administrators can change. What is the minimum return window the platform is legally required to offer?
+    </li>
+    <li>
+      <strong>Inter-regional parcel liability.</strong> The Inter-Regional Shipping Terms do not yet clearly state who bears responsibility for goods that are lost or damaged in transit between hubs. This should be explicitly set out in the disclaimer text.
+    </li>
+    <li>
+      <strong>Driver liability for damaged goods.</strong> Similarly, the Driver Agreement does not address liability for goods damaged during local last-mile delivery. This should be resolved before drivers are onboarded at scale.
+    </li>
+    <li>
+      <strong>Data retention period.</strong> How long must consent records and order data be retained? The current system retains records indefinitely. GDPR guidance suggests a minimum of 6 months for consent records; local law requirements should be confirmed.
+    </li>
+    <li>
+      <strong>Bargain confidentiality.</strong> The bargaining terms should explicitly state that no buyer's offer is ever shared with other buyers or publicly visible — to avoid any claim of misleading auction-style pricing.
+    </li>
+    <li>
+      <strong>Governing jurisdiction.</strong> The Terms of Service and Privacy Policy should explicitly state which Ghanaian laws govern disputes arising from platform use, and whether arbitration is available as an alternative to litigation.
+    </li>
+  </ol>
+</section>
+
+</div>
+
+<footer>
+  Shopyos &nbsp;·&nbsp; Legal Summary v2.0 &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Confidential — prepared for legal counsel review only.
+  This document describes the technical state of the platform as of the date above and should be updated whenever policies, fees, or consent flows change.
+</footer>
+
+</body>
+</html>

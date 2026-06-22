@@ -10,6 +10,14 @@
 
 jest.mock('../../services/rabbitmq');
 jest.mock('nodemailer');
+jest.mock('../../services/feeConfigService', () => ({
+  get: jest.fn().mockImplementation((key) => {
+    if (key === 'banner_campaign_daily_fee') return Promise.resolve(1);
+    if (key === 'banner_campaign_weekly_fee') return Promise.resolve(10);
+    if (key === 'banner_campaign_monthly_fee') return Promise.resolve(50);
+    return Promise.resolve(0);
+  }),
+}));
 
 jest.mock('../../config/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -17,6 +25,7 @@ jest.mock('../../config/logger', () => ({
 
 jest.mock('../../config/storage', () => ({
   toPublicUrl: jest.fn((url) => (url ? `http://public/${url}` : url)),
+  transformImageUrlsAsync: jest.fn(async (obj) => obj),
 }));
 
 jest.mock('../../utils/uploadHelpers', () => ({
