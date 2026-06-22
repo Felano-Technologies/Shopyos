@@ -253,6 +253,17 @@ export default function AdminSettings() {
           </View>
 
           <AdminPanel>
+            <Text style={styles.sectionTitle}>Logistics</Text>
+            <SettingItem
+              icon="map-pin"
+              label="Hubs & Transit Routes"
+              subLabel="Manage delivery hubs and inter-regional lanes"
+              onPress={() => router.push('/admin/hubs' as any)}
+              color="#059669"
+            />
+          </AdminPanel>
+
+          <AdminPanel>
             <Text style={styles.sectionTitle}>Content</Text>
             <SettingItem
               icon="tag"
@@ -268,6 +279,14 @@ export default function AdminSettings() {
               subLabel="Manage banner ads and promotions"
               onPress={() => router.push('/admin/ads' as any)}
               color="#0891B2"
+            />
+            <View style={styles.divider} />
+            <SettingItem
+              icon="file-text"
+              label="Disclaimers & Terms"
+              subLabel="Edit platform legal content and view consent logs"
+              onPress={() => router.push('/admin/disclaimers' as any)}
+              color="#D97706"
             />
           </AdminPanel>
 

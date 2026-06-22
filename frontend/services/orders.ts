@@ -31,6 +31,8 @@ export const createOrder = async (orderData: {
   buyerLng?: number;
   promoCode?: string;
   loyaltyPointsToRedeem?: number;
+  requestLastMile?: boolean;
+  lastMileFee?: number;
 }) => {
   try {
     const response = await api.post('/orders/create', orderData);

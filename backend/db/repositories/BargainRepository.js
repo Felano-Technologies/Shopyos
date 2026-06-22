@@ -24,7 +24,7 @@ class BargainRepository extends BaseRepository {
   /**
    * Get paginated bargain offers for a buyer
    */
-  async getBuyerOffers(buyerId, { status, limit = 20, offset = 0 } = {}) {
+  async getBuyerOffers(buyerId, { status, productId, limit = 20, offset = 0 } = {}) {
     const db = getPool();
     let query = `
       SELECT b.*, p.title as product_name, p.price as product_price,
@@ -38,6 +38,11 @@ class BargainRepository extends BaseRepository {
     if (status) {
       params.push(status);
       query += ` AND b.status = $${params.length}`;
+    }
+
+    if (productId) {
+      params.push(productId);
+      query += ` AND b.product_id = $${params.length}`;
     }
 
     // Add ordering and pagination

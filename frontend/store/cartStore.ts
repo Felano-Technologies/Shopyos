@@ -10,6 +10,8 @@ type Product = {
   storeId?: string;
   variantId?: string | null;
   variantAttributes?: Record<string, string>;
+  bargain_discount?: number;
+  bargain_offer_id?: string;
 };
 
 type CartItem = Product & { quantity: number };

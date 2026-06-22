@@ -1,6 +1,9 @@
 // controllers/interRegionalController.js
 const repositories = require('../db/repositories');
 const feeConfigService = require('../services/feeConfigService');
+const notificationService = require('../services/notificationService');
+const { haversineKm } = require('../utils/distance');
+const { logger } = require('../config/logger');
 const { getPool } = require('../config/postgres');
 
 const requestLastMile = async (req, res, next) => {
@@ -68,16 +71,51 @@ const getTransitInfo = async (req, res, next) => {
 // --- Helper Functions to keep action methods under 30 lines ---
 
 async function createLastMileDeliveryRecord(order, fee) {
-  // Let's create a delivery record for the driver app to pick up
-  const deliveryData = {
-    order_id: order.id,
-    pickup_address: order.delivery_address_line1, // normally hub address, but we can set it
-    delivery_address: order.delivery_address_line1,
-    status: 'pending',
-    delivery_fee: fee,
-    driver_earnings: Number((fee * 0.85).toFixed(2)) // 85% split default
-  };
-  return repositories.deliveries.create(deliveryData);
+  const destHub = order.destination_hub_id
+    ? await repositories.parcelPartner.getHubById(order.destination_hub_id)
+    : null;
+
+  const earningsPct = (await feeConfigService.get('driver_earnings_percentage') || 85) / 100;
+
+  const delivery = await repositories.deliveries.createDelivery({
+    orderId: order.id,
+    pickupAddress: destHub?.address || 'Destination Hub',
+    pickupLatitude: destHub?.latitude || 0,
+    pickupLongitude: destHub?.longitude || 0,
+    deliveryAddress: order.delivery_address_line1 || order.delivery_address || 'Customer Address',
+    deliveryLatitude: order.delivery_latitude || 0,
+    deliveryLongitude: order.delivery_longitude || 0,
+    status: 'unassigned',
+    deliveryFee: fee,
+    driverEarnings: Number((fee * earningsPct).toFixed(2))
+  });
+
+  await notifyLastMileDrivers(destHub, delivery, fee);
+  return delivery;
+}
+
+async function notifyLastMileDrivers(hub, delivery, fee) {
+  try {
+    const onlineDrivers = await repositories.drivers.getOnlineDrivers();
+    const driversInRange = onlineDrivers.filter(drv => {
+      if (!hub?.latitude || !hub?.longitude || !drv.latitude || !drv.longitude) return false;
+      return haversineKm(
+        Number.parseFloat(hub.latitude), Number.parseFloat(hub.longitude),
+        Number.parseFloat(drv.latitude), Number.parseFloat(drv.longitude)
+      ) <= 10;
+    });
+    logger.info(`Last-mile: found ${driversInRange.length} drivers within 10km of hub`);
+    for (const drv of driversInRange) {
+      await notificationService.sendPushNotification({
+        userId: drv.user_id,
+        title: 'Last-Mile Delivery Available!',
+        body: `Pickup from ${hub?.hub_name || 'parcel hub'} — ₵${Number(fee).toFixed(2)} delivery fee.`,
+        data: { screen: 'driver_dashboard', deliveryId: delivery.id }
+      }).catch(err => logger.error(`Failed to notify driver ${drv.user_id}:`, err.message));
+    }
+  } catch (err) {
+    logger.error('Failed to notify last-mile drivers:', err.message);
+  }
 }
 
 async function updateOrderLastMile(orderId, fee, deliveryId) {

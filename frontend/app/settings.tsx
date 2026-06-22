@@ -279,6 +279,12 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
           {renderSettingItem({
+            icon: 'tag',
+            label: 'My Bargains',
+            onPress: () => router.push('/bargain/my-offers')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
             icon: 'credit-card',
             label: 'Payment Methods',
             onPress: () => router.push('/settings/paymentMethods')

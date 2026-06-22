@@ -59,7 +59,7 @@ async function validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng) {
 
 async function processStoreOrder({ storeId, items, cart, req, userId, validatedPromo, validatedLoyaltyPoints, pool }) {
   const deliveryState = req.body.deliveryState || 'Greater Accra';
-  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack' } = req.body;
+  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack', requestLastMile = false, lastMileFee } = req.body;
 
   let subtotal = 0;
   const orderItems = items.map(item => {
@@ -132,7 +132,10 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   }
 
   const discountAmount = Number.parseFloat((promoDiscount + loyaltyDiscount).toFixed(2));
-  const totalAmount = Number.parseFloat((subtotal + tax + deliveryFee + transitFee - discountAmount - totalBargainDiscount).toFixed(2));
+  const lastMileCharge = isInterRegional && requestLastMile
+    ? Number.parseFloat(lastMileFee ?? await feeConfigService.get('last_mile_default_fee') ?? 15)
+    : 0;
+  const totalAmount = Number.parseFloat((subtotal + tax + deliveryFee + transitFee + lastMileCharge - discountAmount - totalBargainDiscount).toFixed(2));
 
   const orderData = {
     order_number: generateOrderNumber(),
@@ -161,15 +164,17 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
 
   if (isInterRegional) {
     await pool.query(
-      `UPDATE orders 
+      `UPDATE orders
        SET order_type = 'inter_regional',
            origin_region = $1,
            destination_region = $2,
            origin_hub_id = $3,
            destination_hub_id = $4,
            parcel_transit_fee = $5,
-           estimated_hub_arrival = $6
-       WHERE id = $7`,
+           estimated_hub_arrival = $6,
+           last_mile_requested = $7,
+           last_mile_fee = $8
+       WHERE id = $9`,
       [
         store?.state_province || 'Greater Accra',
         deliveryState || 'Greater Accra',
@@ -177,6 +182,8 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
         destHub?.id || null,
         transitFee,
         estArrivalDate.toISOString().split('T')[0],
+        requestLastMile ? true : false,
+        lastMileCharge,
         order.id
       ]
     );
@@ -187,6 +194,8 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     order.destination_hub_id = destHub?.id || null;
     order.parcel_transit_fee = transitFee;
     order.estimated_hub_arrival = estArrivalDate.toISOString().split('T')[0];
+    order.last_mile_requested = requestLastMile;
+    order.last_mile_fee = lastMileCharge;
   }
 
   if (totalBargainDiscount > 0) {
@@ -255,9 +264,8 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
 
 async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
   const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
+  const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
   const baseFee = Number.parseFloat(store?.delivery_base_fee) || defaultBaseFee;
-  const storeRegion = (store?.state_province || 'Greater Accra').trim().toLowerCase();
-  const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
 
   let fee = baseFee;
   if (store?.latitude && store?.longitude && buyerLat !== undefined && buyerLng !== undefined) {
@@ -265,15 +273,13 @@ async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
       Number.parseFloat(store.latitude), Number.parseFloat(store.longitude),
       Number.parseFloat(buyerLat), Number.parseFloat(buyerLng)
     );
-    const calc = calculateDeliveryFee(store, distanceKm);
+    const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);
     fee = calc.fee ?? baseFee;
   }
 
+  // Floor only — no ceiling (Bolt model: fee scales linearly with distance)
   const minIntra = await feeConfigService.get('delivery_intra_min_fee');
-  const maxIntra = await feeConfigService.get('delivery_intra_max_fee');
-  // Both intra-regional delivery AND the store→hub leg of inter-regional use the same cap,
-  // since store→hub is a local movement within the same region.
-  return Math.max(minIntra, Math.min(fee, maxIntra));
+  return Math.max(minIntra, fee);
 }
 
 /**
@@ -315,12 +321,6 @@ const createOrder = async (req, res, next) => {
       const sid = item.products.store_id;
       if (!itemsByStore[sid]) itemsByStore[sid] = [];
       itemsByStore[sid].push(item);
-    }
-
-    // Ensure ALL stores are within delivery range before creating any orders.
-    const outOfRangeStore = await validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng);
-    if (outOfRangeStore) {
-      return res.status(400).json({ success: false, error: `Delivery address is outside the delivery radius for ${outOfRangeStore}` });
     }
 
     const createdOrders = [];

@@ -85,6 +85,8 @@ export const respondToBargain = async (
   }
 };
 
+const BUYER_RESPOND_MAP = { accepted: 'accept', countered: 'counter', rejected: 'reject' } as const;
+
 export const buyerRespondToBargain = async (
   bargainId: string,
   response: 'accepted' | 'countered' | 'rejected',
@@ -93,8 +95,8 @@ export const buyerRespondToBargain = async (
 ): Promise<{ success: boolean; bargain: BargainOffer }> => {
   try {
     const res = await api.patch(`/bargains/${bargainId}/buyer-respond`, {
-      response,
-      counterPrice,
+      action: BUYER_RESPOND_MAP[response],
+      offeredPrice: counterPrice,
       buyerMessage,
     });
     return res.data;
@@ -122,6 +124,23 @@ export const getBargainHistory = async (
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getAcceptedBargainForProduct = async (
+  productId: string
+): Promise<BargainOffer | null> => {
+  try {
+    const response = await api.get('/bargains/my-offers', {
+      params: { status: 'accepted', productId, limit: 1 },
+    });
+    const offers: BargainOffer[] = response.data?.data ?? [];
+    const valid = offers.find(
+      (o) => new Date(o.checkout_window_end ?? 0).getTime() > Date.now()
+    );
+    return valid ?? null;
+  } catch {
+    return null;
   }
 };
 

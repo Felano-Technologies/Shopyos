@@ -208,6 +208,8 @@ function AppContent() {
               <Stack.Screen name="business/products" options={{ animation: 'fade' }} />
 
               <Stack.Screen name="business/bargains" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/flash-sales" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="business/flash-sale-submit" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/register" />
               <Stack.Screen name="business/verification" />
               <Stack.Screen name="business/verification-status" options={{ animation: 'fade' }} />

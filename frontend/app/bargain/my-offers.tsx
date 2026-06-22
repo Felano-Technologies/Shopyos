@@ -24,6 +24,7 @@ import {
   addBargainToCart,
   BargainOffer,
 } from '@/services/bargain';
+import { useCart } from '@/store/cartStore';
 
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -213,6 +214,19 @@ export default function MyOffersScreen() {
     try {
       const res = await addBargainToCart(bargainId);
       if (res.success) {
+        const offer = offers.find((o) => o.id === bargainId);
+        if (offer) {
+          useCart.getState().addToCart({
+            id: offer.product_id,
+            title: (offer as any).product_name ?? offer.product?.title ?? '',
+            price: Number(offer.original_price),
+            image: (offer as any).product_image_url ?? offer.product?.images?.[0] ?? null,
+            category: '',
+            storeId: offer.store_id,
+            bargain_discount: Number(offer.bargain_discount),
+            bargain_offer_id: offer.id,
+          });
+        }
         Alert.alert('Success', 'Product added to cart with your bargaining discount!', [
           {
             text: 'Go to Cart',

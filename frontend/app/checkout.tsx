@@ -81,6 +81,10 @@ export default function CheckoutScreen() {
   const [estimatedTransitDays, setEstimatedTransitDays] = useState<number | null>(null);
   const [storeRegionName, setStoreRegionName] = useState<string | null>(null);
 
+  // Last-mile home delivery option (inter-regional only)
+  const [requestLastMile, setRequestLastMile] = useState(false);
+  const [lastMileFee, setLastMileFee] = useState(15);
+
   // Get buyer location once on mount
   useEffect(() => {
     (async () => {
@@ -146,7 +150,8 @@ export default function CheckoutScreen() {
   const pointsDiscount = usePoints ? loyaltyValue : 0;
   const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
   const totalBargainDiscount = cartItems.reduce((sum, item) => sum + (Number(item.bargain_discount) || 0) * item.quantity, 0);
-  const total = Number.parseFloat((subtotal + tax + deliveryFee + parcelTransitFee - totalDiscount - totalBargainDiscount).toFixed(2));
+  const lastMileCharge = isInterRegional && requestLastMile ? lastMileFee : 0;
+  const total = Number.parseFloat((subtotal + tax + deliveryFee + parcelTransitFee + lastMileCharge - totalDiscount - totalBargainDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
@@ -163,6 +168,9 @@ export default function CheckoutScreen() {
           const protEnabled = feeConfigs['buyer_protection_enabled'] !== false;
           const protFee = Number(feeConfigs['buyer_protection_fee'] ?? 1);
           setBuyerProtectionFee(protEnabled ? protFee : 0);
+          if (feeConfigs['last_mile_default_fee']) {
+            setLastMileFee(Number(feeConfigs['last_mile_default_fee']));
+          }
         }
 
         if (policyResponse) {
@@ -261,6 +269,7 @@ export default function CheckoutScreen() {
         ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
         ...(appliedPromo && { promoCode: appliedPromo.code }),
         ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
+        ...(isInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
       });
 
       if (res.success) {
@@ -324,8 +333,8 @@ export default function CheckoutScreen() {
               </View>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Delivery Fee</Text>
-                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#B91C1C' }]}>
-                  {isFetchingFee ? '...' : (isWithinRange === false ? 'Unavailable' : `₵${deliveryFee.toFixed(2)}`)}
+                <Text style={S.summaryItemPrice}>
+                  {isFetchingFee ? '...' : `₵${deliveryFee.toFixed(2)}`}
                 </Text>
               </View>
               {isInterRegional && parcelTransitFee > 0 && (
@@ -334,10 +343,10 @@ export default function CheckoutScreen() {
                   <Text style={S.summaryItemPrice}>₵{parcelTransitFee.toFixed(2)}</Text>
                 </View>
               )}
-              {isWithinRange === false && (
-                <View style={S.errorBanner}>
-                  <Ionicons name="alert-circle" size={16} color="#B91C1C" />
-                  <Text style={S.errorText}>Your address is outside this store&apos;s delivery zone.</Text>
+              {isInterRegional && requestLastMile && (
+                <View style={S.summaryRow}>
+                  <Text style={S.summaryItemName}>Last-Mile Home Delivery</Text>
+                  <Text style={S.summaryItemPrice}>₵{lastMileFee.toFixed(2)}</Text>
                 </View>
               )}
               {totalDiscount > 0 && (
@@ -360,6 +369,48 @@ export default function CheckoutScreen() {
                 <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
               </View>
             </View>
+
+            {/* Last-Mile Delivery Option — shown only for inter-regional orders */}
+            {isInterRegional && (
+              <>
+                <Text style={S.sectionTitle}>Parcel Delivery Option</Text>
+                <View style={S.card}>
+                  <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 14, marginBottom: 12 }}>
+                    How would you like to receive your parcel at the destination?
+                  </Text>
+
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: !requestLastMile ? C.navy : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}
+                    onPress={() => setRequestLastMile(false)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: !requestLastMile ? C.navy : '#94A3B8', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {!requestLastMile && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.navy }} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>Pick up from hub</Text>
+                      <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>Collect your parcel from the regional hub — no extra charge</Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Montserrat-Bold', color: '#16a34a', fontSize: 13 }}>Free</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: requestLastMile ? C.lime : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12 }}
+                    onPress={() => setRequestLastMile(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: requestLastMile ? C.lime : '#94A3B8', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {requestLastMile && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.lime }} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>Home delivery by rider</Text>
+                      <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>A local rider picks up from the hub and delivers to your door</Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Montserrat-Bold', color: C.navy, fontSize: 13 }}>₵{lastMileFee.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
             {/* Promo Code */}
             <Text style={S.sectionTitle}>Promo Code</Text>

@@ -99,7 +99,14 @@ const createBargainOffer = async (req, res, next) => {
     });
 
     await repositories.bargains.createHistoryEntry(bargain.id, buyerId, 'buyer', 'submit_offer', price, req.body.buyerMessage || null);
-    await handleBargainNotifications(bargain, product.name, isRejected);
+    await repositories.auditLogs.createLog({
+      userId: buyerId,
+      action: 'bargain_offer_submitted',
+      entityType: 'bargain_offer',
+      entityId: bargain.id,
+      changes: { product_id: productId, offered_price: price, status: bargain.status },
+    }).catch(() => {});
+    await handleBargainNotifications(bargain, product.title, isRejected);
 
     res.status(isRejected ? 200 : 201).json({ success: true, message: 'Offer submitted', bargain });
   } catch (error) {
@@ -121,12 +128,13 @@ const createBargainOffer = async (req, res, next) => {
 const getBuyerOffers = async (req, res, next) => {
   try {
     const buyerId = req.user.id;
-    const { status, page = 1, limit = 20 } = req.query;
+    const { status, productId, page = 1, limit = 20 } = req.query;
     const limitNum = Math.min(Number.parseInt(limit) || 20, 100);
     const offset = (Math.max(Number.parseInt(page) || 1, 1) - 1) * limitNum;
 
     const { data, count } = await repositories.bargains.getBuyerOffers(buyerId, {
       status,
+      productId,
       limit: limitNum,
       offset,
     });
@@ -194,7 +202,14 @@ const handleSellerAccept = async (bargain, sellerId, res) => {
   });
 
   await repositories.bargains.createHistoryEntry(bargain.id, sellerId, 'seller', 'accept_offer', finalPrice);
-  
+  await repositories.auditLogs.createLog({
+    userId: sellerId,
+    action: 'bargain_offer_accepted',
+    entityType: 'bargain_offer',
+    entityId: bargain.id,
+    changes: { final_agreed_price: finalPrice, buyer_id: bargain.buyer_id },
+  }).catch(() => {});
+
   const notificationService = require('../services/notificationService');
   await notificationService.sendNotification({
     userId: bargain.buyer_id,
@@ -227,6 +242,13 @@ const handleSellerCounter = async (bargain, sellerId, counterPrice, sellerMessag
   });
 
   await repositories.bargains.createHistoryEntry(bargain.id, sellerId, 'seller', 'counter_offer', price, sellerMessage?.trim() || null);
+  await repositories.auditLogs.createLog({
+    userId: sellerId,
+    action: 'bargain_offer_countered',
+    entityType: 'bargain_offer',
+    entityId: bargain.id,
+    changes: { counter_price: price, round_number: bargain.round_number + 1 },
+  }).catch(() => {});
 
   const notificationService = require('../services/notificationService');
   await notificationService.sendNotification({
@@ -244,6 +266,13 @@ const handleSellerCounter = async (bargain, sellerId, counterPrice, sellerMessag
 const handleSellerReject = async (bargain, sellerId, res) => {
   const updated = await repositories.bargains.update(bargain.id, { status: 'rejected' });
   await repositories.bargains.createHistoryEntry(bargain.id, sellerId, 'seller', 'reject_offer');
+  await repositories.auditLogs.createLog({
+    userId: sellerId,
+    action: 'bargain_offer_rejected',
+    entityType: 'bargain_offer',
+    entityId: bargain.id,
+    changes: { buyer_id: bargain.buyer_id },
+  }).catch(() => {});
 
   const notificationService = require('../services/notificationService');
   await notificationService.sendNotification({
@@ -308,6 +337,13 @@ const handleBuyerAccept = async (bargain, buyerId, res) => {
   });
 
   await repositories.bargains.createHistoryEntry(bargain.id, buyerId, 'buyer', 'accept_counter', finalPrice);
+  await repositories.auditLogs.createLog({
+    userId: buyerId,
+    action: 'bargain_counter_accepted',
+    entityType: 'bargain_offer',
+    entityId: bargain.id,
+    changes: { final_agreed_price: finalPrice, seller_id: bargain.seller_id },
+  }).catch(() => {});
 
   const notificationService = require('../services/notificationService');
   await notificationService.sendNotification({
@@ -341,6 +377,13 @@ const handleBuyerCounter = async (bargain, buyerId, offeredPrice, buyerMessage, 
   });
 
   await repositories.bargains.createHistoryEntry(bargain.id, buyerId, 'buyer', 'buyer_counter_offer', price, buyerMessage?.trim() || null);
+  await repositories.auditLogs.createLog({
+    userId: buyerId,
+    action: 'bargain_buyer_countered',
+    entityType: 'bargain_offer',
+    entityId: bargain.id,
+    changes: { offered_price: price, round_number: bargain.round_number + 1 },
+  }).catch(() => {});
 
   const notificationService = require('../services/notificationService');
   await notificationService.sendNotification({
@@ -385,6 +428,22 @@ const buyerRespondToBargain = async (req, res, next) => {
     } else if (action === 'reject') {
       const updated = await repositories.bargains.update(bargainId, { status: 'rejected' });
       await repositories.bargains.createHistoryEntry(bargainId, buyerId, 'buyer', 'reject_counter');
+      await repositories.auditLogs.createLog({
+        userId: buyerId,
+        action: 'bargain_counter_rejected',
+        entityType: 'bargain_offer',
+        entityId: bargainId,
+        changes: { seller_id: bargain.seller_id },
+      }).catch(() => {});
+      const notificationService = require('../services/notificationService');
+      await notificationService.sendNotification({
+        userId: bargain.seller_id,
+        type: 'bargain_rejected',
+        title: 'Counter-offer rejected',
+        message: 'The buyer has rejected your counter-offer.',
+        relatedId: bargainId,
+        relatedType: 'bargain_offer',
+      }).catch((e) => logger.warn('[Bargain] buyer-reject-counter notify failed:', e.message));
       res.status(200).json({ success: true, bargain: updated });
     }
   } catch (error) {

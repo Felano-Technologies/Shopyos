@@ -14,12 +14,13 @@ const feeConfigService = require('../services/feeConfigService');
  */
 async function resolveCoordinateFee(store, buyerLat, buyerLng) {
     const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
+    const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
     const baseFee = Number.parseFloat(store.delivery_base_fee) || defaultBaseFee;
     const hasStoreCoords = store.latitude !== null && store.longitude !== null;
     const hasBuyerCoords = buyerLat !== undefined && buyerLng !== undefined;
 
     if (!hasStoreCoords || !hasBuyerCoords) {
-        return { fee: baseFee, distanceKm: null, withinRange: true, note: 'Location not provided – using base fee' };
+        return { fee: baseFee, distanceKm: null, withinRange: true, note: '' };
     }
 
     const lat = Number.parseFloat(buyerLat);
@@ -29,12 +30,9 @@ async function resolveCoordinateFee(store, buyerLat, buyerLng) {
     }
 
     const distanceKm = haversineKm(Number.parseFloat(store.latitude), Number.parseFloat(store.longitude), lat, lng);
-    const calc = calculateDeliveryFee(store, distanceKm);
+    const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);
     const fee = calc.fee ?? baseFee;
-    const note = calc.withinRange
-        ? ''
-        : `This store only delivers within ${store.delivery_max_km} km. You are ${distanceKm.toFixed(2)} km away.`;
-    return { fee, distanceKm, withinRange: calc.withinRange, note };
+    return { fee, distanceKm, withinRange: true, note: '' };
 }
 
 const getDeliveryQuote = async (req, res, next) => {
@@ -60,10 +58,9 @@ const getDeliveryQuote = async (req, res, next) => {
         let estimatedTransitDays = null;
 
         if (storeRegion === targetRegion) {
-            // Intra-regional: distance from store to buyer, capped between min/max
+            // Intra-regional: distance from store to buyer — floor only, no ceiling (Bolt model)
             const minIntra = await feeConfigService.get('delivery_intra_min_fee');
-            const maxIntra = await feeConfigService.get('delivery_intra_max_fee');
-            deliveryFee = Math.max(minIntra, Math.min(fee, maxIntra));
+            deliveryFee = Math.max(minIntra, fee);
         } else {
             // Inter-regional: fee is store → origin hub only (buyer end handled by parcel partner)
             isInterRegional = true;
@@ -73,7 +70,7 @@ const getDeliveryQuote = async (req, res, next) => {
                 : null;
 
             const minIntra = await feeConfigService.get('delivery_intra_min_fee');
-            const maxIntra = await feeConfigService.get('delivery_intra_max_fee');
+            const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
 
             if (originHub?.latitude && originHub?.longitude && store.latitude && store.longitude) {
                 // Calculate distance from store to its nearest hub (intra-regional leg)
@@ -83,13 +80,11 @@ const getDeliveryQuote = async (req, res, next) => {
                     Number.parseFloat(originHub.latitude),
                     Number.parseFloat(originHub.longitude)
                 );
-                const hubCalc = calculateDeliveryFee(store, storeToHubKm);
+                const hubCalc = calculateDeliveryFee(store, storeToHubKm, defaultPerKmFee);
                 const defaultBase = await feeConfigService.get('delivery_default_base_fee');
                 const rawFee = hubCalc.fee ?? (Number.parseFloat(store.delivery_base_fee) || defaultBase);
-                // Store → hub is an intra-regional leg; cap it the same way
-                deliveryFee = Math.max(minIntra, Math.min(rawFee, maxIntra));
+                deliveryFee = Math.max(minIntra, rawFee);
             } else {
-                // No hub coordinates – use intra min fee (store is in the same region as hub)
                 deliveryFee = minIntra;
             }
 
@@ -112,13 +107,13 @@ const getDeliveryQuote = async (req, res, next) => {
             quote: {
                 storeId,
                 distanceKm,
-                deliveryFee: withinRange ? deliveryFee : null,
+                deliveryFee,
                 isInterRegional,
-                parcelTransitFee: withinRange ? parcelTransitFee : 0,
-                estimatedTransitDays: withinRange ? estimatedTransitDays : null,
+                parcelTransitFee,
+                estimatedTransitDays,
                 storeRegion: store.state_province || 'Greater Accra',
-                withinRange,
-                note
+                withinRange: true,
+                note: ''
             }
         });
     } catch (err) {

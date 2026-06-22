@@ -33,6 +33,7 @@ import {
     getReviewComments,
     createReviewComment
 } from '@/services/api';
+import { getAcceptedBargainForProduct, addBargainToCart } from '@/services/bargain';
 // --- Components ---
 import { ReviewCard } from '../../components/ReviewCard';
 import { ReviewCommentsSheet } from '../../components/ReviewCommentsSheet';
@@ -270,12 +271,32 @@ export default function ProductDetails() {
     // Require all options to be selected before allowing add-to-cart when variants exist
     const allOptionsSelected = variantOptions.every((opt) => selectedAttributes[opt.option_name]);
 
-    const handleAddToCart = () => {
+    const handleAddToCart = async () => {
         if (isOutOfStock) return;
         if (variantOptions.length > 0 && !allOptionsSelected) {
             Alert.alert('Select options', 'Please select all options before adding to cart.');
             return;
         }
+
+        if (product.bargaining_enabled) {
+            const bargain = await getAcceptedBargainForProduct(product.id);
+            if (bargain) {
+                await addBargainToCart(bargain.id);
+                useCart.getState().addToCart({
+                    id: product.id,
+                    title: product.title,
+                    price: Number(bargain.original_price),
+                    image: product.image,
+                    category: product.category,
+                    storeId: product.storeId,
+                    bargain_discount: Number(bargain.bargain_discount),
+                    bargain_offer_id: bargain.id,
+                });
+                setSuccessModalVisible(true);
+                return;
+            }
+        }
+
         addToCart({
             id: product.id,
             title: product.title,

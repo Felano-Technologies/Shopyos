@@ -952,7 +952,7 @@ const createUserProfile = async (req, res, next) => {
     }
 
     const user = await repositories.users.createUser({ email, password });
-    await repositories.userProfiles.create({ user_id: user.id, full_name, phone });
+    await repositories.userProfiles.updateByUserId(user.id, { full_name, phone: phone || null });
     await repositories.admin.setUserRoleByUserId(user.id, role);
 
     await repositories.users.db
