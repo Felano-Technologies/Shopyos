@@ -17,7 +17,8 @@ const {
   getUserPresence,
   uploadChatMedia,
   getStickerPacks,
-  createCustomSticker
+  createCustomSticker,
+  getChatContacts,
 } = require('../controllers/messagingController');
 const { protect } = require('../middleware/authMiddleware');
 const { validateStartConversation } = require('../middleware/validators');
@@ -668,5 +669,7 @@ router.get('/conversations/:conversationId/search', searchMessages);
  *         description: Message not found or does not belong to the authenticated user
  */
 router.delete('/messages/:messageId', deleteMessage);
+
+router.get('/contacts', getChatContacts);
 
 module.exports = router;

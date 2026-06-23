@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,6 +17,7 @@ import { getAdminDashboard } from '@/services/api';
 import { getAdminOrders, getAdminStores } from '@/services/admin';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
+import { useAllUnreadCount } from '@/hooks/useChat';
 
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
   delivered:  { bg: '#DCFCE7', text: '#16A34A' },
@@ -39,6 +40,7 @@ type DashboardStats = {
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const { data: chatUnreadCount = 0 } = useAllUnreadCount();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
@@ -379,6 +381,22 @@ export default function AdminDashboard() {
           </View>
         </ScrollView>
         <AdminBottomNav />
+
+        {/* Chat FAB */}
+        <TouchableOpacity
+          style={styles.chatFab}
+          activeOpacity={0.85}
+          onPress={() => router.push('/chat' as any)}
+        >
+          <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.chatFabGrad}>
+            <MaterialCommunityIcons name="chat-processing" size={26} color="#A3E635" />
+          </LinearGradient>
+          {chatUnreadCount > 0 && (
+            <View style={styles.chatFabBadge}>
+              <Text style={styles.chatFabBadgeTxt}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </SafeAreaView>
     </>
   );
@@ -394,6 +412,21 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' },
   safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   screen: { paddingBottom: 40 },
+  chatFab: {
+    position: 'absolute', bottom: 110, right: 18,
+    width: 58, height: 58, borderRadius: 29,
+    elevation: 8, shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    zIndex: 100, overflow: 'visible',
+  },
+  chatFabGrad: { width: '100%', height: '100%', borderRadius: 29, justifyContent: 'center', alignItems: 'center' },
+  chatFabBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
 
   // Hero
   hero: { marginHorizontal: 12, marginTop: 8, borderRadius: 20, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 20, gap: 12 },

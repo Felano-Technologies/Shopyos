@@ -38,7 +38,7 @@ export {
 export {
   getConversations, getMessages, sendMessage, markConversationRead, startConversation,
   deleteMessage, deleteConversation, uploadChatMedia, getStickerPacks, createCustomSticker,
-  getPresence,
+  getPresence, getChatContacts,
 } from './messaging';
 
 export {

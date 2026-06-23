@@ -787,6 +787,289 @@ const createCustomSticker = async (req, res, next) => {
   }
 };
 
+const getChatContacts = async (req, res, next) => {
+  try {
+    const { getPool } = require('../config/postgres');
+    const pool = getPool();
+    const userId = req.user.id;
+    const roles = req.user.roles || [];
+    const sections = [];
+
+    // ── Helper: hub partner contacts (last person to update a parcel at each hub) ──
+    const queryHubContacts = async (whereClause, params) => pool.query(`
+      SELECT DISTINCT ON (o.id)
+        u.id, u.name, u.avatar_url,
+        o.parcel_tracking_number AS tracking,
+        pph.hub_name
+      FROM parcel_status_log psl
+      JOIN orders o ON psl.order_id = o.id
+      JOIN users u ON psl.updated_by = u.id
+      JOIN parcel_partner_hubs pph ON psl.hub_id = pph.id
+      ${whereClause}
+      ORDER BY o.id, psl.created_at DESC
+    `, params);
+
+    // ════════════════════════════════════════
+    // ADMIN — can message anyone
+    // ════════════════════════════════════════
+    if (roles.includes('admin')) {
+      const { rows } = await pool.query(`
+        SELECT u.id, u.name, u.avatar_url,
+               COALESCE(
+                 (SELECT string_agg(r.name, ', ')
+                  FROM user_roles ur JOIN roles r ON ur.role_id = r.id
+                  WHERE ur.user_id = u.id AND ur.is_active = true),
+                 'user'
+               ) AS role_label
+        FROM users u
+        WHERE u.id != $1
+          AND u.is_active = true
+        ORDER BY u.name
+        LIMIT 200
+      `, [userId]);
+      sections.push({
+        title: 'All Users',
+        data: rows.map(r => ({
+          id: r.id, name: r.name, avatar_url: r.avatar_url,
+          role: 'user', context: r.role_label,
+        })),
+      });
+
+    // ════════════════════════════════════════
+    // DRIVER
+    // ════════════════════════════════════════
+    } else if (roles.includes('driver')) {
+      // 1. Buyers with active deliveries
+      const { rows: buyers } = await pool.query(`
+        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        FROM deliveries d
+        JOIN orders o ON d.order_id = o.id
+        JOIN users u ON o.buyer_id = u.id
+        WHERE d.driver_id = $1
+          AND d.status IN ('picked_up', 'in_transit')
+        ORDER BY u.name
+      `, [userId]);
+      if (buyers.length > 0) {
+        sections.push({
+          title: 'My Deliveries',
+          data: buyers.map(r => ({
+            id: r.id, name: r.name, avatar_url: r.avatar_url,
+            role: 'buyer', context: `Order #${r.context}`,
+          })),
+        });
+      }
+
+      // 2. Sellers whose orders this driver is delivering
+      const { rows: sellers } = await pool.query(`
+        SELECT DISTINCT u.id, s.store_name AS name, s.logo_url AS avatar_url,
+               o.order_number AS context
+        FROM deliveries d
+        JOIN orders o ON d.order_id = o.id
+        JOIN stores s ON o.store_id = s.id
+        JOIN users u ON s.owner_id = u.id
+        WHERE d.driver_id = $1
+          AND d.status IN ('en_route_to_pickup', 'arrived_at_pickup', 'picked_up', 'in_transit')
+        ORDER BY s.store_name
+      `, [userId]);
+      if (sellers.length > 0) {
+        sections.push({
+          title: 'Sellers',
+          data: sellers.map(r => ({
+            id: r.id, name: r.name, avatar_url: r.avatar_url,
+            role: 'seller', context: `Order #${r.context}`,
+          })),
+        });
+      }
+
+      // 3. Parcel hub partners for last-mile deliveries this driver handles
+      const { rows: hubs } = await queryHubContacts(`
+        JOIN deliveries d_lm ON o.last_mile_delivery_id = d_lm.id
+        WHERE d_lm.driver_id = $1
+          AND o.status IN ('at_destination_hub', 'ready_for_pickup')
+      `, [userId]);
+      if (hubs.length > 0) {
+        sections.push({
+          title: 'Parcel Hubs',
+          data: hubs.map(h => ({
+            id: h.id, name: h.hub_name || h.name, avatar_url: h.avatar_url,
+            role: 'parcel_partner', context: h.tracking ? `Parcel ${h.tracking}` : 'Active Parcel',
+          })),
+        });
+      }
+
+    // ════════════════════════════════════════
+    // PARCEL PARTNER / HUB
+    // ════════════════════════════════════════
+    } else if (roles.includes('parcel_partner')) {
+      // 1. Buyers whose parcels this partner processed and are still active
+      const { rows: buyers } = await pool.query(`
+        SELECT DISTINCT ON (o.id)
+          u.id, u.name, u.avatar_url,
+          o.parcel_tracking_number AS context
+        FROM parcel_status_log psl
+        JOIN orders o ON psl.order_id = o.id
+        JOIN users u ON o.buyer_id = u.id
+        WHERE psl.updated_by = $1
+          AND o.status IN ('at_origin_hub', 'at_destination_hub', 'ready_for_pickup')
+        ORDER BY o.id, psl.created_at DESC
+      `, [userId]);
+      if (buyers.length > 0) {
+        sections.push({
+          title: 'Parcel Recipients',
+          data: buyers.map(r => ({
+            id: r.id, name: r.name, avatar_url: r.avatar_url,
+            role: 'buyer', context: r.context ? `Parcel ${r.context}` : 'Active Parcel',
+          })),
+        });
+      }
+
+      // 2. Sellers whose parcels this hub partner has processed
+      const { rows: sellers } = await pool.query(`
+        SELECT DISTINCT u.id, s.store_name AS name, s.logo_url AS avatar_url,
+               o.order_number AS context
+        FROM parcel_status_log psl
+        JOIN orders o ON psl.order_id = o.id
+        JOIN stores s ON o.store_id = s.id
+        JOIN users u ON s.owner_id = u.id
+        WHERE psl.updated_by = $1
+          AND o.status IN ('at_origin_hub', 'at_destination_hub', 'ready_for_pickup', 'in_transit_regional')
+        ORDER BY s.store_name
+      `, [userId]);
+      if (sellers.length > 0) {
+        sections.push({
+          title: 'Sellers',
+          data: sellers.map(r => ({
+            id: r.id, name: r.name, avatar_url: r.avatar_url,
+            role: 'seller', context: `Order #${r.context}`,
+          })),
+        });
+      }
+
+      // 3. Last-mile drivers for orders at hubs this partner manages
+      const { rows: drivers } = await pool.query(`
+        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        FROM parcel_status_log psl
+        JOIN orders o ON psl.order_id = o.id
+        JOIN deliveries d ON o.last_mile_delivery_id = d.id
+        JOIN users u ON d.driver_id = u.id
+        WHERE psl.updated_by = $1
+          AND o.status IN ('at_destination_hub', 'ready_for_pickup')
+        ORDER BY u.name
+      `, [userId]);
+      if (drivers.length > 0) {
+        sections.push({
+          title: 'Last-Mile Drivers',
+          data: drivers.map(r => ({
+            id: r.id, name: r.name, avatar_url: r.avatar_url,
+            role: 'driver', context: `Order #${r.context}`,
+          })),
+        });
+      }
+
+    // ════════════════════════════════════════
+    // SELLER
+    // ════════════════════════════════════════
+    } else if (roles.includes('seller')) {
+      // 1. Drivers delivering this seller's orders
+      const { rows: drivers } = await pool.query(`
+        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        FROM orders o
+        JOIN stores s ON o.store_id = s.id
+        JOIN deliveries d ON d.order_id = o.id
+        JOIN users u ON d.driver_id = u.id
+        WHERE s.owner_id = $1
+          AND d.status IN ('en_route_to_pickup', 'arrived_at_pickup', 'picked_up', 'in_transit')
+        ORDER BY u.name
+      `, [userId]);
+      if (drivers.length > 0) {
+        sections.push({
+          title: 'Active Drivers',
+          data: drivers.map(r => ({
+            id: r.id, name: r.name, avatar_url: r.avatar_url,
+            role: 'driver', context: `Order #${r.context}`,
+          })),
+        });
+      }
+
+      // 2. Parcel hub partners handling this seller's parcels
+      const { rows: hubs } = await queryHubContacts(`
+        JOIN stores s ON o.store_id = s.id
+        WHERE s.owner_id = $1
+          AND o.status IN ('at_origin_hub', 'at_destination_hub', 'ready_for_pickup', 'in_transit_regional')
+      `, [userId]);
+      if (hubs.length > 0) {
+        sections.push({
+          title: 'Parcel Hubs',
+          data: hubs.map(h => ({
+            id: h.id, name: h.hub_name || h.name, avatar_url: h.avatar_url,
+            role: 'parcel_partner', context: h.tracking ? `Parcel ${h.tracking}` : 'Active Parcel',
+          })),
+        });
+      }
+
+    // ════════════════════════════════════════
+    // BUYER (default)
+    // ════════════════════════════════════════
+    } else {
+      // 1. All sellers (unrestricted — buyers can enquire before ordering)
+      const { rows: sellers } = await pool.query(`
+        SELECT u.id, s.store_name AS name, s.logo_url AS avatar_url,
+               s.category, s.is_trusted
+        FROM stores s
+        JOIN users u ON s.owner_id = u.id
+        WHERE s.is_active = true
+        ORDER BY s.store_name
+      `);
+      sections.push({
+        title: 'Sellers',
+        data: sellers.map(s => ({
+          id: s.id, name: s.name, avatar_url: s.avatar_url,
+          role: 'seller', context: s.category || null, isTrusted: s.is_trusted,
+        })),
+      });
+
+      // 2. Drivers with active deliveries for this buyer
+      const { rows: drivers } = await pool.query(`
+        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        FROM deliveries d
+        JOIN orders o ON d.order_id = o.id
+        JOIN users u ON d.driver_id = u.id
+        WHERE o.buyer_id = $1
+          AND d.status IN ('picked_up', 'in_transit')
+        ORDER BY u.name
+      `, [userId]);
+      if (drivers.length > 0) {
+        sections.push({
+          title: 'Active Deliveries',
+          data: drivers.map(d => ({
+            id: d.id, name: d.name, avatar_url: d.avatar_url,
+            role: 'driver', context: `Order #${d.context}`,
+          })),
+        });
+      }
+
+      // 3. Parcel hub partners for buyer's active parcels
+      const { rows: hubs } = await queryHubContacts(`
+        WHERE o.buyer_id = $1
+          AND o.status IN ('at_origin_hub', 'at_destination_hub', 'ready_for_pickup')
+      `, [userId]);
+      if (hubs.length > 0) {
+        sections.push({
+          title: 'Parcel Hubs',
+          data: hubs.map(h => ({
+            id: h.id, name: h.hub_name || h.name, avatar_url: h.avatar_url,
+            role: 'parcel_partner', context: h.tracking ? `Parcel ${h.tracking}` : 'Active Parcel',
+          })),
+        });
+      }
+    }
+
+    return res.json({ success: true, sections });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   startConversation,
   getConversations,
@@ -801,5 +1084,6 @@ module.exports = {
   getUserPresence,
   uploadChatMedia,
   getStickerPacks,
-  createCustomSticker
+  createCustomSticker,
+  getChatContacts,
 };

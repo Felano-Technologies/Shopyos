@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getHubs, getDashboardStats, getHubParcels } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
-import { useBuyerUnreadCount } from '@/hooks/useChat';
+import { useAllUnreadCount } from '@/hooks/useChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 
@@ -27,7 +27,7 @@ const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
 export default function ParcelPartnerDashboard() {
   const router = useRouter();
   const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
-  const { data: chatUnreadCount = 0 } = useBuyerUnreadCount();
+  const { data: chatUnreadCount = 0 } = useAllUnreadCount();
   
   const [hubs, setHubs] = useState<any[]>([]);
   const [selectedHub, setSelectedHub] = useState<any | null>(null);

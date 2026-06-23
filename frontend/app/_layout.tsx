@@ -223,12 +223,12 @@ function AppContent() {
               <Stack.Screen name="business/earnings" options={{ animation: 'slide_from_bottom' }} />
 
               {/* --- DRIVER SCREENS --- */}
-              <Stack.Screen name="driver/index" />
-              <Stack.Screen name="driver/dashboard" />
+              <Stack.Screen name="driver/index" options={{ animation: 'none' }} />
+              <Stack.Screen name="driver/dashboard" options={{ animation: 'none' }} />
               <Stack.Screen name="driver/activeOrder" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="driver/earnings" />
-              <Stack.Screen name="driver/history" />
-              <Stack.Screen name="driver/settings" />
+              <Stack.Screen name="driver/earnings" options={{ animation: 'none' }} />
+              <Stack.Screen name="driver/history" options={{ animation: 'none' }} />
+              <Stack.Screen name="driver/settings" options={{ animation: 'none' }} />
               <Stack.Screen name="driver/verification" />
 
               {/* --- PARCEL PARTNER SCREENS --- */}
