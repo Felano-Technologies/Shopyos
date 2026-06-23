@@ -31,6 +31,17 @@ const C = {
   body: '#0F172A',
 };
 
+const GHANA_REGIONS = [
+  'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
+  'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
+  'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North',
+];
+
+function mapIpRegionToGhana(raw: string): string | null {
+  const r = raw.toLowerCase();
+  return GHANA_REGIONS.find(g => r.includes(g.toLowerCase())) ?? null;
+}
+
 export default function CheckoutScreen() {
   const router = useRouter();
   const cartItems = useCart((s) => s.items);
@@ -64,6 +75,7 @@ export default function CheckoutScreen() {
   const [loyaltyBalance, setLoyaltyBalance] = useState(0);
   const [loyaltyValue, setLoyaltyValue] = useState(0);
   const [usePoints, setUsePoints] = useState(false);
+  const [loyaltyExpanded, setLoyaltyExpanded] = useState(false);
 
   // Buyer protection fee from platform config (0 until loaded so nothing incorrect shows during loading)
   const [buyerProtectionFee, setBuyerProtectionFee] = useState<number>(0);
@@ -186,13 +198,26 @@ export default function CheckoutScreen() {
         if (profile) {
           const addr = profile.address_line1 || '';
           const phone = profile.fullPhoneNumber || profile.phone || '';
-          const region = profile.state_province || 'Greater Accra';
           setDeliveryAddress(addr);
           setDeliveryPhone(phone);
-          setDeliveryState(region);
-          setPrefilled({ address: !!addr, phone: !!phone, region: !!profile.state_province });
-          
-          // Use saved coordinates as initial buyerCoords
+
+          if (profile.state_province) {
+            setDeliveryState(profile.state_province);
+            setPrefilled({ address: !!addr, phone: !!phone, region: true });
+          } else {
+            // No saved region — try IP geolocation as fallback
+            setPrefilled({ address: !!addr, phone: !!phone, region: false });
+            try {
+              const ipRes = await fetch('https://ip-api.com/json');
+              const ipData = await ipRes.json();
+              const detected = mapIpRegionToGhana(ipData.region || ipData.regionName || '');
+              if (detected) {
+                setDeliveryState(detected);
+                setPrefilled(prev => ({ ...prev, region: true }));
+              }
+            } catch { /* silent fallback to default 'Greater Accra' */ }
+          }
+
           if (profile.latitude && profile.longitude) {
             setBuyerCoords({ lat: Number(profile.latitude), lng: Number(profile.longitude) });
           }
@@ -455,30 +480,49 @@ export default function CheckoutScreen() {
               )}
             </View>
 
-            {/* Loyalty Points */}
+            {/* Loyalty Points — collapsed by default */}
             {loyaltyBalance > 0 && (
               <>
-                <Text style={S.sectionTitle}>Loyalty Points</Text>
-                <TouchableOpacity style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
-                  <View style={S.loyaltyRow}>
-                    <View style={S.loyaltyIcon}>
-                      <Ionicons name="star" size={20} color={C.lime} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={S.loyaltyTitle}>{loyaltyBalance} points available</Text>
-                      <Text style={S.loyaltySub}>Worth ₵{loyaltyValue.toFixed(2)} off your order</Text>
-                    </View>
-                    <View style={[S.toggle, usePoints && S.toggleOn]}>
-                      <View style={[S.toggleThumb, usePoints && S.toggleThumbOn]} />
-                    </View>
+                <TouchableOpacity
+                  style={S.loyaltyReveal}
+                  onPress={() => setLoyaltyExpanded(p => !p)}
+                  activeOpacity={0.75}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="star" size={16} color={C.lime} />
+                    <Text style={S.loyaltyRevealTxt}>
+                      You have {loyaltyBalance} loyalty points
+                    </Text>
                   </View>
-                  {usePoints && (
-                    <View style={S.loyaltySaving}>
-                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                      <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
-                    </View>
-                  )}
+                  <Ionicons
+                    name={loyaltyExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={C.muted}
+                  />
                 </TouchableOpacity>
+
+                {loyaltyExpanded && (
+                  <TouchableOpacity style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
+                    <View style={S.loyaltyRow}>
+                      <View style={S.loyaltyIcon}>
+                        <Ionicons name="star" size={20} color={C.lime} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={S.loyaltyTitle}>{loyaltyBalance} points available</Text>
+                        <Text style={S.loyaltySub}>Worth ₵{loyaltyValue.toFixed(2)} off your order</Text>
+                      </View>
+                      <View style={[S.toggle, usePoints && S.toggleOn]}>
+                        <View style={[S.toggleThumb, usePoints && S.toggleThumbOn]} />
+                      </View>
+                    </View>
+                    {usePoints && (
+                      <View style={S.loyaltySaving}>
+                        <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                        <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
               </>
             )}
 
@@ -757,6 +801,8 @@ const S = StyleSheet.create({
   promoError: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', marginTop: 8 },
 
   // Loyalty points
+  loyaltyReveal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#F7FEE7', borderRadius: 12, marginBottom: 10 },
+  loyaltyRevealTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.body },
   loyaltyRow: { flexDirection: 'row', alignItems: 'center' },
   loyaltyIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F7FEE7', justifyContent: 'center', alignItems: 'center' },
   loyaltyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body },

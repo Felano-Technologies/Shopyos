@@ -58,6 +58,7 @@ const recommendationRoutes = require('./routes/recommendationRoutes');
 const feeConfigRoutes = require('./routes/feeConfigRoutes');
 const disclaimerRoutes = require('./routes/disclaimerRoutes');
 const parcelPartnerRoutes = require('./routes/parcelPartnerRoutes');
+const supportRoutes = require('./routes/supportRoutes');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
@@ -248,6 +249,7 @@ app.use('/api/v1/recommendations', recommendationRoutes);
 app.use('/api/v1/fee-config', feeConfigRoutes);
 app.use('/api/v1/disclaimers', disclaimerRoutes);
 app.use('/api/v1/parcel-partner', parcelPartnerRoutes);
+app.use('/api/v1/support', supportRoutes);
 
 // Legacy route forwarding for backward compatibility
 const legacyRoutes = {
@@ -293,6 +295,14 @@ if (process.env.NODE_ENV !== 'test') {
       initScheduler();
     } catch (err) {
       logger.error('Failed to start broadcast scheduler:', err.message);
+    }
+
+    // Start payout scheduler (driver nightly + seller weekly auto-payouts)
+    try {
+      const { initPayoutScheduler } = require('./workers/payoutScheduler');
+      initPayoutScheduler();
+    } catch (err) {
+      logger.error('Failed to start payout scheduler:', err.message);
     }
 
     // Start notification worker in-process (connects to CloudAMQP, handles email/SMS queues)

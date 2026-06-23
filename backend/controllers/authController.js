@@ -1,6 +1,7 @@
 const repositories = require('../db/repositories');
 const { toPublicUrl } = require('../config/storage');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const nodemailer = require('nodemailer');
 const crypto = require('node:crypto');
 const { logger } = require('../config/logger');
@@ -810,10 +811,81 @@ const forceResetPassword = async (req, res, next) => {
   }
 };
 
+const ROLE_PRIORITY = { admin: 4, driver: 3, seller: 2, buyer: 1 };
+
+const googleAuth = async (req, res, next) => {
+  const { idToken } = req.body;
+  if (!idToken) return res.status(400).json({ error: 'idToken is required' });
+
+  try {
+    let tokenPayload;
+    try {
+      const { data } = await axios.get('https://oauth2.googleapis.com/tokeninfo', {
+        params: { id_token: idToken }
+      });
+      tokenPayload = data;
+    } catch {
+      return res.status(401).json({ error: 'Invalid Google token' });
+    }
+
+    if (tokenPayload.aud !== process.env.GOOGLE_CLIENT_ID) {
+      return res.status(401).json({ error: 'Token audience mismatch' });
+    }
+
+    const { sub: googleId, email, name, picture } = tokenPayload;
+
+    let user = await repositories.users.findByGoogleId(googleId);
+
+    if (!user) {
+      const existing = await repositories.users.findByEmail(email);
+      if (existing) {
+        await repositories.users.linkGoogleAccount(existing.id, googleId);
+        user = { ...existing, google_id: googleId };
+      } else {
+        user = await repositories.users.createOAuthUser({ email, googleId });
+        await repositories.userProfiles.updateByUserId(user.id, {
+          full_name: name || '',
+          avatar_url: picture || null,
+        });
+      }
+    }
+
+    if (!user.is_active) {
+      return res.status(403).json({ error: 'Account is deactivated' });
+    }
+
+    await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
+
+    const userRoles = await repositories.roles.getUserRoles(user.id);
+    const hasRole = userRoles.length > 0;
+    const roleNames = userRoles.map(r => r?.role?.name).filter(Boolean);
+    const role = roleNames.sort((a, b) => (ROLE_PRIORITY[b] || 0) - (ROLE_PRIORITY[a] || 0))[0] || 'none';
+
+    const accessToken = generateAccessToken(user.id);
+    const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
+    setAuthCookies(res, accessToken, refreshToken);
+
+    logger.info('Google OAuth login', { userId: user.id, email: user.email });
+
+    res.status(200).json({
+      token: accessToken,
+      refreshToken,
+      expiresIn: ACCESS_TOKEN_EXPIRY,
+      role,
+      roles: roleNames,
+      requiresRoleSelection: !hasRole,
+      message: 'Login successful'
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register, login, refreshAccessToken, logout, logoutAll,
   getSessions, revokeSession, getUserData,
   requestPasswordResetOTP, verifyPasswordResetOTP, resetPasswordWithToken,
   resetPassword, confirmResetPassword, forceResetPassword,
-  addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState
+  addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState,
+  googleAuth
 };

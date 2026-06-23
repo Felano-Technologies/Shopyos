@@ -303,7 +303,9 @@ const adminGetTransitRoutes = async (req, res, next) => {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      `SELECT * FROM parcel_transit_config ORDER BY origin_region, dest_region`
+      `SELECT id, origin_region, dest_region, transit_days_min, transit_days_max,
+              route_fee AS transit_fee, is_active, created_at, updated_at
+       FROM parcel_transit_config ORDER BY origin_region, dest_region`
     );
     res.status(200).json({ success: true, data: rows });
   } catch (error) {
@@ -319,11 +321,12 @@ const adminUpsertTransitRoute = async (req, res, next) => {
     }
     const pool = getPool();
     const { rows } = await pool.query(
-      `INSERT INTO parcel_transit_config (origin_region, dest_region, transit_days_min, transit_days_max, transit_fee)
+      `INSERT INTO parcel_transit_config (origin_region, dest_region, transit_days_min, transit_days_max, route_fee)
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (origin_region, dest_region)
-       DO UPDATE SET transit_days_min = $3, transit_days_max = $4, transit_fee = $5, updated_at = NOW()
-       RETURNING *`,
+       DO UPDATE SET transit_days_min = $3, transit_days_max = $4, route_fee = $5, updated_at = NOW()
+       RETURNING id, origin_region, dest_region, transit_days_min, transit_days_max,
+                 route_fee AS transit_fee, is_active, created_at, updated_at`,
       [originRegion, destRegion, transitDaysMin || 3, transitDaysMax || 5, transitFee || 0]
     );
     res.status(200).json({ success: true, route: rows[0] });

@@ -12,8 +12,11 @@ import {
   RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getUserData, logoutUser, storage } from '../services/api';
 import TappableAvatar from '@/components/TappableAvatar';
 
@@ -110,7 +113,8 @@ export default function UserProfile() {
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'left', 'right', 'bottom']}>
+        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={bgColor} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={highlightColor} />
         </View>
@@ -120,7 +124,8 @@ export default function UserProfile() {
 
   if (!user) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'left', 'right', 'bottom']}>
+        <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={bgColor} />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { color: primaryText }]}>
             Failed to load user information.
@@ -131,7 +136,8 @@ export default function UserProfile() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={bgColor} />
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: primaryText }]}>Profile</Text>
@@ -168,10 +174,20 @@ export default function UserProfile() {
           </View>
           
           {user.referral_code && (
-            <View style={{ marginTop: 16, alignItems: 'center', backgroundColor: isDark ? '#2D2D2D' : '#F1F5F9', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 }}>
+            <TouchableOpacity
+              style={{ marginTop: 16, alignItems: 'center', backgroundColor: isDark ? '#2D2D2D' : '#F1F5F9', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
+              onPress={async () => {
+                await Clipboard.setStringAsync(user.referral_code!);
+                CustomInAppToast.show({ type: 'success', title: 'Copied!', message: 'Referral code copied to clipboard.' });
+              }}
+              activeOpacity={0.7}
+            >
               <Text style={{ fontSize: 12, color: secondaryText }}>Your Referral Code</Text>
-              <Text style={{ fontSize: 16, color: primaryText, fontWeight: 'bold', letterSpacing: 1 }}>{user.referral_code}</Text>
-            </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <Text style={{ fontSize: 16, color: primaryText, fontWeight: 'bold', letterSpacing: 1 }}>{user.referral_code}</Text>
+                <Ionicons name="copy-outline" size={16} color={secondaryText} />
+              </View>
+            </TouchableOpacity>
           )}
         </View>
 

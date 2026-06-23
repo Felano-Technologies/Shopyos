@@ -8,7 +8,7 @@
 INSERT INTO platform_fee_config (config_key, config_value, config_type, category, label, description)
 VALUES (
     'delivery_default_per_km_fee',
-    1.00,
+    2.00,
     'fixed',
     'delivery',
     'Default Per-KM Delivery Fee',

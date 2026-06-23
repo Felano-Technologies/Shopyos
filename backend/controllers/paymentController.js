@@ -286,31 +286,55 @@ const handleWebhook = async (req, res) => {
 
         if (event.event === 'charge.success') {
             const metadataType = event.data.metadata?.type;
-            
+
             if (metadataType === 'listing_fee') {
                 const storeId = event.data.metadata?.storeId;
                 if (!storeId) {
                     logger.error('Webhook charge.success missing storeId for listing_fee', { reference: event.data.reference });
                     return res.status(200).send('OK');
                 }
-                
+
                 // Update store listing tier
                 await repositories.stores.update(storeId, {
                     listing_tier: 'paid',
                     listing_fee_paid_at: new Date().toISOString(),
                     listing_fee_reference: event.data.reference
                 });
-                
+
                 logger.info('Listing fee fulfilled', { storeId, reference: event.data.reference });
             } else {
                 const orderId = event.data.metadata?.orderId;
 
                 if (!orderId) {
                     logger.error('Webhook charge.success missing orderId', { reference: event.data.reference });
-                    return res.status(200).send('OK'); // Respond 200 so Paystack doesn't retry
+                    return res.status(200).send('OK');
                 }
 
                 await fulfillPayment(orderId, event.data);
+            }
+        } else if (event.event === 'transfer.success' || event.event === 'transfer.failed') {
+            const reference = event.data?.reference;
+            if (reference) {
+                const payout = await repositories.payouts.findByTransactionReference(reference);
+                if (payout) {
+                    const newStatus = event.event === 'transfer.success' ? 'completed' : 'failed';
+                    await repositories.payouts.updatePayoutStatus(payout.id, newStatus, {
+                        notes: event.event === 'transfer.success'
+                            ? 'Transfer confirmed by Paystack'
+                            : `Transfer failed: ${event.data?.gateway_response || 'unknown reason'}`
+                    });
+
+                    if (event.event === 'transfer.failed') {
+                        const { _refundPayoutBalance } = require('./payoutController');
+                        await _refundPayoutBalance(payout).catch(e =>
+                            logger.error('[Webhook] refund after failed transfer error:', e.message)
+                        );
+                    }
+
+                    logger.info(`[Webhook] Payout ${payout.id} → ${newStatus}`, { reference });
+                } else {
+                    logger.warn('[Webhook] transfer event received for unknown reference', { reference });
+                }
             }
         }
 

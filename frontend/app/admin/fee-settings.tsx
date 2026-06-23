@@ -14,6 +14,7 @@ import {
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { adminColors, adminShadow } from '@/components/admin/adminTheme';
@@ -25,7 +26,7 @@ import {
 } from '@/services/admin';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'buyer_protection' | 'bargaining' | 'flash_sale';
+type Category = 'commission' | 'delivery' | 'advertising' | 'payout' | 'buyer_protection' | 'bargaining' | 'flash_sale' | 'loyalty';
 
 const CATEGORIES: { key: Category; label: string; icon: string }[] = [
   { key: 'commission', label: 'Commission', icon: 'percent' },
@@ -35,6 +36,7 @@ const CATEGORIES: { key: Category; label: string; icon: string }[] = [
   { key: 'buyer_protection', label: 'Protection', icon: 'shield' },
   { key: 'bargaining', label: 'Bargain', icon: 'users' },
   { key: 'flash_sale', label: 'Flash', icon: 'zap' },
+  { key: 'loyalty', label: 'Loyalty', icon: 'star' },
 ];
 
 export default function FeeSettingsScreen() {
@@ -139,18 +141,18 @@ export default function FeeSettingsScreen() {
 
   return (
     <>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <View style={styles.page}>
         {/* Header */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: insets.top + 16 }]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color={adminColors.text} />
+            <Feather name="arrow-left" size={24} color="#FFF" />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
             <Text style={styles.headerTitle}>Fees & Pricing</Text>
             <Text style={styles.headerSubtitle}>Configure system-wide parameters</Text>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Categories Tab Bar */}
         <View style={styles.tabBarContainer}>
@@ -386,9 +388,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
   backButton: {
     padding: 8,
@@ -401,11 +400,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: adminColors.text,
+    color: '#FFF',
   },
   headerSubtitle: {
     fontSize: 13,
-    color: adminColors.textMuted,
+    color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
   },
   tabBarContainer: {

@@ -10,6 +10,7 @@
  *  abena.fashions@test.comâ€” Seller (Abena Fashions)
  *  yaw.foods@test.com     â€” Seller (Yaw's Fresh Groceries)
  *  driver@test.com        â€” Driver
+ *  hub@test.com           â€” Parcel Partner
  */
 
 // Load root docker .env first (has POSTGRES_USER/PASSWORD/DB), then backend .env
@@ -123,10 +124,11 @@ async function seed() {
     console.log('ðŸ“Œ Upserting roles...');
     await db.query(`
       INSERT INTO roles (name, display_name, description) VALUES
-        ('buyer',  'Buyer',  'Can browse and purchase products'),
-        ('seller', 'Seller', 'Can list and sell products'),
-        ('driver', 'Driver', 'Can deliver orders'),
-        ('admin',  'Admin',  'Full platform access')
+        ('buyer',          'Buyer',          'Can browse and purchase products'),
+        ('seller',         'Seller',         'Can list and sell products'),
+        ('driver',         'Driver',         'Can deliver orders'),
+        ('admin',          'Admin',          'Full platform access'),
+        ('parcel_partner', 'Parcel Partner', 'Can manage inter-regional parcels at hubs')
       ON CONFLICT (name) DO NOTHING
     `);
     const { rows: roleRows } = await db.query('SELECT id, name FROM roles');
@@ -244,8 +246,21 @@ async function seed() {
     `, [driverId]);
     console.log('   âœ… Driver created\n');
 
+    // â”€â”€ 6b. Parcel Partner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    console.log('ðŸ”Œ Creating parcel partner...');
+    const hubUserId = await insertUser(db, {
+      email: 'hub@test.com',
+      name: 'Kwabena Agyei',
+      phone: '+233244000007',
+      city: 'Accra',
+      lat: 5.6037,
+      lng: -0.187,
+    });
+    await assignRole(db, hubUserId, roleMap.parcel_partner);
+    console.log('   âœ… Parcel partner created\n');
+
     // â”€â”€ 7. Stores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-    console.log('ðŸ“Œ Creating stores...');
+    console.log('ðŸ”Œ Creating stores...');
     const { rows: [store1] } = await db.query(`
       INSERT INTO stores
         (owner_id, store_name, slug, description, email, phone,

@@ -1,6 +1,49 @@
 import { queryClient } from '@/lib/query/client';
 import { api, extractErrorMessage, API_URL, secureStorage, storage } from './client';
 import { cacheUserProfile, clearUserProfileCache } from './storage';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+export const useGoogleAuth = () =>
+  Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  });
+
+export const signInWithGoogle = async (idToken: string) => {
+  try {
+    const response = await api.post('/auth/google', { idToken });
+    if (response.data.token) {
+      await secureStorage.setItem('userToken', response.data.token);
+      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+      try {
+        const meResponse = await api.get('/auth/me');
+        if (meResponse.data?.id) {
+          await storage.setItem('userId', meResponse.data.id);
+          const { initCartForUser } = require('@/store/cartStore');
+          await initCartForUser(meResponse.data.id);
+        }
+        await cacheUserProfile(meResponse.data);
+      } catch {}
+      try {
+        const pushToken = await storage.getItem('expoPushToken');
+        if (pushToken) await registerPushTokenInBackend(pushToken);
+      } catch {}
+    }
+    const needsRole =
+      response.data.requiresRoleSelection ||
+      response.data.role === 'none' ||
+      !response.data.role ||
+      (response.data.roles?.length === 0);
+    return { ...response.data, needsRole };
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data?.error || `Google sign-in failed: ${error.response.status}`);
+    throw new Error(error.message || 'Network error during Google sign-in');
+  }
+};
 
 export const registerUser = async (
   name: string,

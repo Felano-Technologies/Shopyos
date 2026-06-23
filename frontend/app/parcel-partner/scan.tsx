@@ -10,9 +10,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import QRScanner from '@/components/QRScanner';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
+import { StatusBar } from 'expo-status-bar';
 
 export default function ScanScreen() {
   const router = useRouter();
@@ -90,15 +92,21 @@ export default function ScanScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor="#0C1559" />
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#0C1559" />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Scan / Search</Text>
         <View style={{ width: 24 }} />
       </View>
+      </SafeAreaView>
+      </LinearGradient>
 
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       <View style={styles.content}>
         {/* QR Scanner Trigger */}
         <TouchableOpacity 
@@ -151,24 +159,23 @@ export default function ScanScreen() {
         onClose={() => setScannerVisible(false)}
         onScanned={handleScanned}
       />
-    </SafeAreaView>
+      </View>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0C1559',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    paddingVertical: 14,
   },
   backBtn: {
     padding: 4,
@@ -176,7 +183,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: '#FFF',
   },
   content: {
     flex: 1,

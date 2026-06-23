@@ -73,6 +73,9 @@ export default function OrderTrackingMap() {
   const [routeCoords, setRouteCoords] = useState<Coord[]>([]);
   const [etaMinutes, setEtaMinutes] = useState<number | null>(null);
   const lastRouteFetchCoord = useRef<Coord | null>(null);
+  const mapRef = useRef<any>(null);
+  const lastUpdateTime = useRef<number | null>(null);
+  const [, forceUpdate] = useState(0);
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   useEffect(() => {
@@ -83,6 +86,22 @@ export default function OrderTrackingMap() {
       ])
     ).start();
   }, [pulseAnim]);
+
+  // Auto-fit camera to all visible markers
+  useEffect(() => {
+    const coords = [driverCoord, customerCoord, storeCoord].filter(Boolean) as Coord[];
+    if (coords.length < 2) return;
+    mapRef.current?.fitToCoordinates(coords, {
+      edgePadding: { top: 80, right: 60, bottom: 440, left: 60 },
+      animated: true,
+    });
+  }, [driverCoord, customerCoord, storeCoord]);
+
+  // Stale location ticker — re-renders every 30s to update "last updated X min ago" label
+  useEffect(() => {
+    const id = setInterval(() => forceUpdate(n => n + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const updateRoute = useCallback(async (from: Coord) => {
     if (!customerCoord) return;
@@ -108,6 +127,7 @@ export default function OrderTrackingMap() {
   const handleLocationUpdate = useCallback((data: any) => {
     if (data.deliveryId !== deliveryId) return;
     const coord: Coord = { latitude: data.latitude, longitude: data.longitude };
+    lastUpdateTime.current = Date.now();
     setDriverCoord(coord);
     updateRoute(coord);
   }, [deliveryId, updateRoute]);
@@ -135,9 +155,18 @@ export default function OrderTrackingMap() {
     etaLabel = null;
   } else if (etaMinutes < 1) {
     etaLabel = 'Almost here!';
+  } else if (etaMinutes >= 60) {
+    const h = Math.floor(etaMinutes / 60);
+    const m = etaMinutes % 60;
+    etaLabel = `~${h}h${m > 0 ? ` ${m}m` : ''} away`;
   } else {
-    etaLabel = `Driver arriving in ~${etaMinutes} min${etaMinutes === 1 ? '' : 's'}`;
+    etaLabel = `~${etaMinutes} min away`;
   }
+
+  const staleMs = lastUpdateTime.current ? Date.now() - lastUpdateTime.current : null;
+  const staleLabel = driverCoord && staleMs !== null && staleMs > 120_000
+    ? `Updated ${Math.floor(staleMs / 60_000)} min ago`
+    : null;
 
   const mapRegion = customerCoord
     ? { ...customerCoord, latitudeDelta: 0.05, longitudeDelta: 0.05 }
@@ -150,7 +179,7 @@ export default function OrderTrackingMap() {
       {/* Full-screen map */}
       <View style={styles.mapContainer}>
         {mapRegion ? (
-          <MapView style={StyleSheet.absoluteFillObject} initialRegion={mapRegion}>
+          <MapView ref={mapRef} style={StyleSheet.absoluteFillObject} initialRegion={mapRegion}>
             <UrlTile
               urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
               maximumZ={19}
@@ -159,9 +188,9 @@ export default function OrderTrackingMap() {
             />
             {driverCoord && (
               <Marker coordinate={driverCoord} title="Driver">
-                <View style={styles.driverPin}>
+                <Animated.View style={[styles.driverPin, { transform: [{ scale: pulseAnim }] }]}>
                   <MaterialCommunityIcons name="bike-fast" size={18} color="#FFF" />
-                </View>
+                </Animated.View>
               </Marker>
             )}
             {storeCoord && (
@@ -221,6 +250,9 @@ export default function OrderTrackingMap() {
                   <MaterialCommunityIcons name="clock-fast" size={13} color="#16A34A" />
                   <Text style={styles.etaText}>{etaLabel}</Text>
                 </View>
+              )}
+              {staleLabel && (
+                <Text style={styles.staleText}>{staleLabel}</Text>
               )}
             </View>
             {storeLogo && (
@@ -367,6 +399,7 @@ const styles = StyleSheet.create({
     borderRadius: 20, alignSelf: 'flex-start', marginBottom: 8,
   },
   etaText: { fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#16A34A' },
+  staleText: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 3 },
   progressBar: { height: 4, backgroundColor: '#F1F5F9', borderRadius: 2, overflow: 'hidden' },
   progressFill: { height: '100%', backgroundColor: '#84cc16', borderRadius: 2 },
   divider: { height: 1, backgroundColor: '#F1F5F9', marginBottom: 16 },

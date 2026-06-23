@@ -24,6 +24,7 @@ function routeForUser(user: any): string {
   if (role === 'customer' || role === 'buyer') return '/home';
   if (role === 'seller') return '/business/dashboard';
   if (role === 'driver') return '/driver';
+  if (role === 'parcel_partner') return '/parcel-partner/dashboard';
   if (role === 'admin') return '/admin/dashboard';
   return '/home';
 }

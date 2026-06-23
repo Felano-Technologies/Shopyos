@@ -152,6 +152,8 @@ function AppContent() {
     '/parcel-partner/dashboard',
     '/parcel-partner/parcels',
     '/parcel-partner/scan',
+    '/parcel-partner/notifications',
+    '/parcel-partner/settings',
   ].includes(pathname) && !(activeMode === 'buyer' && !isParcelPartnerRoute);
 
   return (
@@ -207,6 +209,7 @@ function AppContent() {
               <Stack.Screen name="business/orders" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/products" options={{ animation: 'fade' }} />
 
+              <Stack.Screen name="business/community" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/bargains" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/flash-sales" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/flash-sale-submit" options={{ animation: 'slide_from_right' }} />
@@ -229,10 +232,12 @@ function AppContent() {
               <Stack.Screen name="driver/verification" />
 
               {/* --- PARCEL PARTNER SCREENS --- */}
-              <Stack.Screen name="parcel-partner/dashboard" />
-              <Stack.Screen name="parcel-partner/parcels" />
-              <Stack.Screen name="parcel-partner/parcel-detail" />
-              <Stack.Screen name="parcel-partner/scan" />
+              <Stack.Screen name="parcel-partner/dashboard" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/parcels" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/parcel-detail" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="parcel-partner/scan" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/notifications" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/settings" options={{ animation: 'none' }} />
 
               {/* --- CATEGORIES & CHAT --- */}
               <Stack.Screen name="categories/categories" />
@@ -258,9 +263,6 @@ function AppContent() {
 
 
 
-
-              {/* --- ADMIN USER GROUP SCREENS --- */}
-              <Stack.Screen name="admin/user-parcel-partners" options={{ animation: 'slide_from_right' }} />
 
               {/* --- BARGAIN SCREENS --- */}
               <Stack.Screen name="bargain/make-offer" options={{ animation: 'slide_from_bottom' }} />

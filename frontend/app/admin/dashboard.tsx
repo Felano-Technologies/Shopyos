@@ -65,8 +65,8 @@ export default function AdminDashboard() {
       }
       try {
         const [ordersRes, storesRes] = await Promise.all([
-          getAdminOrders({ limit: '5', sortBy: 'created_at', sortDir: 'desc' }),
-          getAdminStores({ limit: '3', sortBy: 'total_revenue', sortDir: 'desc' }),
+          getAdminOrders({ limit: 5 }),
+          getAdminStores({ limit: 3 }),
         ]);
         const ordersArr = Array.isArray(ordersRes?.orders) ? ordersRes.orders : Array.isArray(ordersRes) ? ordersRes : [];
         const storesArr = Array.isArray(storesRes?.stores) ? storesRes.stores : Array.isArray(storesRes) ? storesRes : [];
@@ -134,6 +134,15 @@ export default function AdminDashboard() {
         accentColor: '#475569',
       },
       {
+        label: 'Support',
+        value: 'Tickets',
+        route: '/admin/support',
+        icon: 'alert-circle-outline',
+        iconBg: '#FEE2E2',
+        iconColor: '#DC2626',
+        accentColor: '#DC2626',
+      },
+      {
         label: 'Ads',
         value: 'Review',
         route: '/admin/ads',
@@ -150,6 +159,15 @@ export default function AdminDashboard() {
         iconBg: '#FEE2E2',
         iconColor: '#DC2626',
         accentColor: '#DC2626',
+      },
+      {
+        label: 'Payouts',
+        value: 'Manage',
+        route: '/admin/payouts',
+        icon: 'cash-outline',
+        iconBg: '#EFF6FF',
+        iconColor: '#2563EB',
+        accentColor: '#2563EB',
       },
       {
         label: 'Hubs',

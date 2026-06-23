@@ -7,8 +7,8 @@ import {
     ScrollView,
     TextInput,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
@@ -79,19 +79,37 @@ const ReviewScreen = () => {
             }
         },
         onSuccess: () => {
-            Alert.alert('Thank You!', 'Your feedback helps us improve Shopyos.', [{ text: 'OK', onPress: () => router.push('/order') }]);
+            CustomInAppToast.show({
+                type: 'success',
+                title: 'Thank You!',
+                message: 'Your feedback helps us improve Shopyos.',
+                onPress: () => router.push('/order'),
+            });
+            setTimeout(() => router.push('/order'), 2800);
         },
         onError: (e: any) => {
-            Alert.alert('Error', e.message || 'Failed to submit review');
+            CustomInAppToast.show({
+                type: 'error',
+                title: 'Submission Failed',
+                message: e.message || 'Failed to submit review. Please try again.',
+            });
         },
     });
     const handleSubmit = () => {
         if (storeRating === 0) {
-            Alert.alert('Required', 'Please rate the store');
+            CustomInAppToast.show({
+                type: 'info',
+                title: 'Rating Required',
+                message: 'Please rate the store before submitting.',
+            });
             return;
         }
         if (reviewTerms && !isTermsChecked) {
-            Alert.alert('Agreement Required', 'Please agree to the Review Policy before submitting.');
+            CustomInAppToast.show({
+                type: 'info',
+                title: 'Agreement Required',
+                message: 'Please agree to the Review Policy before submitting.',
+            });
             return;
         }
         submitMutation.mutate();

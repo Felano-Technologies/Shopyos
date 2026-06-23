@@ -13,9 +13,11 @@ import {
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getHubs, getDashboardStats, getHubParcels } from '@/services/api';
 import { useAuthStore } from '@/store/authStore';
+import { useBuyerUnreadCount } from '@/hooks/useChat';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 
@@ -24,7 +26,8 @@ const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
 
 export default function ParcelPartnerDashboard() {
   const router = useRouter();
-  const exitBuyerMode = useAuthStore((s) => s.exitBuyerMode);
+  const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
+  const { data: chatUnreadCount = 0 } = useBuyerUnreadCount();
   
   const [hubs, setHubs] = useState<any[]>([]);
   const [selectedHub, setSelectedHub] = useState<any | null>(null);
@@ -121,7 +124,7 @@ export default function ParcelPartnerDashboard() {
   };
 
   const handleReturnToShopping = () => {
-    exitBuyerMode();
+    switchToBuyerMode('parcel_partner');
     router.replace('/home');
   };
 
@@ -135,26 +138,30 @@ export default function ParcelPartnerDashboard() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor="#0C1559" />
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Logistics Portal</Text>
-          <TouchableOpacity 
-            style={styles.hubSelector} 
+          <TouchableOpacity
+            style={styles.hubSelector}
             onPress={() => setShowHubPicker(!showHubPicker)}
           >
             <Text style={styles.hubSelectorText}>{selectedHub?.hub_name || 'Select Hub'}</Text>
-            <Ionicons name="chevron-down" size={16} color="#0C1559" style={{ marginLeft: 6 }} />
+            <Ionicons name="chevron-down" size={16} color="rgba(255,255,255,0.8)" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleReturnToShopping}>
-          <Text style={styles.logoutText}>Shop</Text>
-          <Feather name="shopping-bag" size={16} color="#64748B" style={{ marginLeft: 5 }} />
+        <TouchableOpacity style={styles.logoutBtn} onPress={() => router.push('/parcel-partner/notifications' as any)}>
+          <Feather name="bell" size={16} color="rgba(255,255,255,0.8)" />
         </TouchableOpacity>
       </View>
+      </SafeAreaView>
+      </LinearGradient>
 
+      <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
       {showHubPicker && (
         <View style={styles.pickerDropdown}>
           <Text style={styles.pickerTitle}>Switch Hub</Text>
@@ -298,15 +305,22 @@ export default function ParcelPartnerDashboard() {
           ))
         )}
       </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// Inline LinearGradient mockup in case Expo LinearGradient is missing
-function LinearGradient({ colors, start, end, style, children }: any) {
-  return (
-    <View style={[style, { backgroundColor: colors[0] }]}>
-      {children}
+      </View>
+      <TouchableOpacity
+        style={styles.chatFab}
+        activeOpacity={0.85}
+        onPress={() => router.push('/chat' as any)}
+      >
+        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.chatFabGrad}>
+          <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />
+        </LinearGradient>
+        {chatUnreadCount > 0 && (
+          <View style={styles.chatFabBadge}>
+            <Text style={styles.chatFabBadgeTxt}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
     </View>
   );
 }
@@ -314,7 +328,7 @@ function LinearGradient({ colors, start, end, style, children }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0C1559',
   },
   loadingContainer: {
     flex: 1,
@@ -334,14 +348,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
   },
   welcomeText: {
     fontSize: 12,
     fontFamily: 'Montserrat-Regular',
-    color: '#64748B',
+    color: 'rgba(255,255,255,0.7)',
   },
   hubSelector: {
     flexDirection: 'row',
@@ -351,7 +362,7 @@ const styles = StyleSheet.create({
   hubSelectorText: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: '#FFF',
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -359,13 +370,31 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.15)',
   },
   logoutText: {
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
-    color: '#64748B',
+    color: '#FFF',
   },
+  chatFab: {
+    position: 'absolute', bottom: 110, right: 18,
+    width: 58, height: 58, borderRadius: 29,
+    elevation: 8, shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    zIndex: 100, overflow: 'visible',
+  },
+  chatFabGrad: {
+    width: '100%', height: '100%', borderRadius: 29,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  chatFabBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   pickerDropdown: {
     backgroundColor: '#FFF',
     borderBottomWidth: 1,

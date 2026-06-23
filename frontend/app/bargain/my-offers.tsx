@@ -399,13 +399,13 @@ export default function MyOffersScreen() {
   return (
     <View style={styles.container}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={C.navy} />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>My Bargains</Text>
         <View style={{ width: 40 }} />
-      </View>
+      </LinearGradient>
 
       {/* Tabs */}
       <View style={styles.tabContainer}>
@@ -539,10 +539,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingBottom: 12,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: C.border,
+    paddingBottom: 14,
   },
   headerBtn: {
     width: 40,
@@ -554,7 +551,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: rf(18),
     fontFamily: 'Montserrat-Bold',
-    color: C.navy,
+    color: '#FFF',
   },
   tabContainer: {
     flexDirection: 'row',

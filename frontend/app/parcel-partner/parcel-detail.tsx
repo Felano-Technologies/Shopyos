@@ -11,9 +11,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { checkInParcel, dispatchParcel, arriveParcel, getTransitInfo } from '@/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { StatusBar } from 'expo-status-bar';
 
 const SELECTED_HUB_KEY = '@shopyos_parcel_partner_hub_id';
 
@@ -131,16 +133,21 @@ export default function ParcelDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
+      <StatusBar style="light" backgroundColor="#0C1559" />
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+      <SafeAreaView edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#0C1559" />
+          <Ionicons name="arrow-back" size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Update Status</Text>
         <View style={{ width: 24 }} />
       </View>
+      </SafeAreaView>
+      </LinearGradient>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
         {/* Package Meta Info */}
         <View style={styles.card}>
           <Text style={styles.orderLabel}>Order ID</Text>
@@ -299,24 +306,22 @@ export default function ParcelDetailScreen() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0C1559',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    paddingVertical: 14,
   },
   backBtn: {
     padding: 4,
@@ -324,7 +329,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 16,
     fontFamily: 'Montserrat-Bold',
-    color: '#0C1559',
+    color: '#FFF',
   },
   scrollContent: {
     padding: 16,

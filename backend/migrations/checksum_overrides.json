@@ -1,3 +1,4 @@
 {
-  "001_initial_schema.sql": "83906cfe5c86bfd8de7ab204072f8858d6fe3f1fa11ccb76f16a8f8a406e34ec"
+  "001_initial_schema.sql": "83906cfe5c86bfd8de7ab204072f8858d6fe3f1fa11ccb76f16a8f8a406e34ec",
+  "019_delivery_fee_scaling.sql": "9336b466ff6b8f3320eba0e043109c399a16f9131cc46e42404badd8f99002af"
 }

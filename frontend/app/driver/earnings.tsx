@@ -4,7 +4,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
-import { getDriverStats, getMyDeliveries, CustomInAppToast } from '@/services/api';
+import { getDriverStats, getMyDeliveries } from '@/services/api';
 
 export default function DriverEarnings() {
   const router = useRouter();
@@ -32,7 +32,7 @@ export default function DriverEarnings() {
           id: d.id || d._id,
           title: `Delivery #${d.order?.order_number || 'N/A'}`,
           time: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          amount: d.status === 'delivered' ? (d.delivery_fee || 15) : 0,
+          amount: d.status === 'delivered' ? (d.driver_earnings || d.delivery_fee || 0) : 0,
           type: d.status === 'delivered' ? 'credit' : 'debit'
         })));
       }
@@ -92,8 +92,8 @@ export default function DriverEarnings() {
             <View style={styles.balanceContainer}>
                 <Text style={styles.balanceLabel}>Total Today</Text>
                 <Text style={styles.balanceValue}>₵{(stats.earnings || 0).toFixed(2)}</Text>
-                <TouchableOpacity style={styles.cashoutBtn} onPress={() => CustomInAppToast.show({ type: 'info', title: 'Payout', message: 'Payouts are processed weekly. You will receive it in your MOMO wallet.' })}>
-                    <Text style={styles.cashoutText}>Request Payout</Text>
+                <TouchableOpacity style={styles.cashoutBtn} onPress={() => router.push('/driver/payout' as any)}>
+                    <Text style={styles.cashoutText}>Manage Payouts</Text>
                     <Feather name="chevron-right" size={16} color="#0C1559" />
                 </TouchableOpacity>
             </View>

@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import React, {  useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
+import { useGoogleAuth, signInWithGoogle } from '@/services/auth';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -27,6 +28,28 @@ const RegisterScreen = () => {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [request, response, promptAsync] = useGoogleAuth();
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params?.id_token;
+      if (!idToken) {
+        CustomInAppToast.show({ type: 'error', title: 'Google Sign-Up Failed', message: 'No token received.' });
+        return;
+      }
+      setLoading(true);
+      signInWithGoogle(idToken)
+        .then(async () => {
+          CustomInAppToast.show({ type: 'success', title: 'Welcome to Shopyos!', message: 'Account created with Google.' });
+          router.push('/role');
+        })
+        .catch((err: Error) => {
+          CustomInAppToast.show({ type: 'error', title: 'Google Sign-Up Failed', message: err.message });
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [response]);
+
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     const cleanCode = callingCode.replace('+', '');
     const formattedNumber = phoneNumber.replace(/^0/, '');
@@ -220,7 +243,22 @@ const RegisterScreen = () => {
               <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </TouchableOpacity>
-          {/* Register (outlined pill) */}
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          {/* Continue with Google */}
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={() => promptAsync()}
+            disabled={!request || loading}
+          >
+            <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+          {/* Already registered */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={() => router.push('/login')}
@@ -360,5 +398,21 @@ const styles = StyleSheet.create({
   disclaimerBoxChecked: { backgroundColor: '#1e3a8a' },
   disclaimerText: { flex: 1, fontSize: 13, color: '#475569', lineHeight: 18 },
   disclaimerLink: { color: '#1e3a8a', fontWeight: '700', textDecorationLine: 'underline' },
+  divider: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 12 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
+  dividerText: { marginHorizontal: 10, color: '#9ca3af', fontSize: 13 },
+  googleButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
 });
 export default RegisterScreen;

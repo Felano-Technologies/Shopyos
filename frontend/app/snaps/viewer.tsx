@@ -551,7 +551,7 @@ const ImagePlayer = React.memo(({ mediaUrl, onLoad, onError }: {
     <Image 
       source={{ uri: mediaUrl }} 
       style={styles.media} 
-      contentFit="cover"
+      contentFit="contain"
       cachePolicy="disk"
       onLoad={onLoad}
       onError={onError}

@@ -52,9 +52,8 @@ const BusinessBottomNav = () => {
   ];
 
   const handlePress = (route: string) => {
-    // Trigger smooth layout transition when switching tabs
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    router.push(route as any);
+    router.replace(route as any);
   };
 
   return (

@@ -109,6 +109,8 @@ router.post('/login', validateLogin, authController.login);
  */
 router.post('/refresh', authController.refreshAccessToken); // NEW: Token refresh
 
+router.post('/google', authController.googleAuth);
+
 router.post('/forgot-password', authController.requestPasswordResetOTP);
 router.post('/forgot-password/verify', authController.verifyPasswordResetOTP);
 router.post('/forgot-password/reset', authController.resetPasswordWithToken);

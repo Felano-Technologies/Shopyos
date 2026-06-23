@@ -20,26 +20,15 @@ const ParcelPartnerBottomNav = () => {
 
   // Parcel Partner Navigation Items
   const navItems = [
-    {
-      name: 'Home',
-      icon: 'home',
-      route: '/parcel-partner/dashboard',
-    },
-    {
-      name: 'Parcels',
-      icon: 'package',
-      route: '/parcel-partner/parcels',
-    },
-    {
-      name: 'Scan',
-      icon: 'camera',
-      route: '/parcel-partner/scan',
-    },
+    { name: 'Home',      icon: 'home',     route: '/parcel-partner/dashboard' },
+    { name: 'Parcels',   icon: 'package',  route: '/parcel-partner/parcels'   },
+    { name: 'Scan',      icon: 'camera',   route: '/parcel-partner/scan'      },
+    { name: 'Settings',  icon: 'settings', route: '/parcel-partner/settings'  },
   ];
 
   const handlePress = (route: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    router.push(route as any);
+    router.replace(route as any);
   };
 
   return (

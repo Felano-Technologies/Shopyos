@@ -816,11 +816,12 @@ const createReviewComment = async (req, res, next) => {
         .single();
       
       const currentComments = rev?.comments_count || 0;
-      await repositories.reviews.db
-        .from(targetTable)
-        .update({ comments_count: currentComments + 1 })
-        .eq('id', reviewId)
-        .catch(() => {});
+      try {
+        await repositories.reviews.db
+          .from(targetTable)
+          .update({ comments_count: currentComments + 1 })
+          .eq('id', reviewId);
+      } catch (_) { /* non-critical counter update */ }
     }
 
     res.status(201).json({ success: true, message: 'Comment added', data: comment });

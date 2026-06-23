@@ -66,9 +66,46 @@ class UserRepository extends BaseRepository {
    */
   async verifyPassword(userId, password) {
     const user = await this.findById(userId);
-    if (!user) return false;
+    if (!user || !user.password_hash) return false;
 
     return bcrypt.compare(password, user.password_hash);
+  }
+
+  async findByGoogleId(googleId) {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .select('*')
+      .eq('google_id', googleId)
+      .is('deleted_at', null)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      throw error;
+    }
+
+    return data;
+  }
+
+  async createOAuthUser({ email, googleId }) {
+    const { data, error } = await this.db
+      .from(this.tableName)
+      .insert({
+        email: email.toLowerCase(),
+        password_hash: null,
+        google_id: googleId,
+        email_verified: true,
+        is_active: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  async linkGoogleAccount(userId, googleId) {
+    return this.update(userId, { google_id: googleId, email_verified: true });
   }
 
   /**
