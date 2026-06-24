@@ -214,19 +214,21 @@ const ReviewScreen = () => {
                     ))}
                 </View>
                 {reviewTerms && (
-                    <View style={styles.disclaimerRow}>
-                        <TouchableOpacity onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
-                            <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
-                                {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
-                            </View>
-                        </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.disclaimerRow}
+                        onPress={() => setIsTermsChecked(!isTermsChecked)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                            {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                        </View>
                         <Text style={styles.disclaimerText}>
                             I agree to the{' '}
                             <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
                                 Review Policy
                             </Text>
                         </Text>
-                    </View>
+                    </TouchableOpacity>
                 )}
                 <TouchableOpacity
                     style={[styles.submitBtnContainer, submitMutation.isPending && { opacity: 0.7 }]}

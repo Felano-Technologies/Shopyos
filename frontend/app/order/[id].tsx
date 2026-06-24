@@ -139,28 +139,34 @@ const OrderDetailsScreen = () => {
   };
 
   const [chatLoading, setChatLoading] = useState(false);
-  const handleChat = async (ownerId: string, storeName: string, logoUrl: string, type: 'buyer' | 'seller' = 'buyer', entityId?: string) => {
-    if (chatLoading || !ownerId) return;
+  const [driverChatLoading, setDriverChatLoading] = useState(false);
+
+  const handleChat = async (
+    ownerId: string, name: string, avatar: string,
+    type: 'buyer' | 'seller' = 'buyer', entityId?: string,
+    setLoading = setChatLoading,
+  ) => {
+    if (!ownerId) return;
     try {
-      setChatLoading(true);
+      setLoading(true);
       const res = await startConversation(ownerId);
       if (res.success && res.conversation) {
         router.push({
           pathname: '/chat/conversation',
           params: {
             conversationId: res.conversation.id,
-            name: storeName,
-            avatar: logoUrl,
+            name,
+            avatar,
             chatType: type,
             entityId: entityId || ownerId,
             participantId: ownerId
           }
         } as any);
       }
-    } catch {
-      Alert.alert("Error", "Could not open chat with the store.");
+    } catch (e: any) {
+      Alert.alert("Error", e?.message || "Could not open chat.");
     } finally {
-      setChatLoading(false);
+      setLoading(false);
     }
   };
   // ── Loading skeleton ────────────────────────────────────────────────────────
@@ -249,7 +255,9 @@ const OrderDetailsScreen = () => {
                 driverPlate: driver?.plate_number,
                 storeName: order.store?.store_name,
                 storeLogo: order.store?.logo || order.store?.logo_url,
-                storeCategory: order.store?.store_category || order.store?.category
+                storeCategory: order.store?.store_category || order.store?.category,
+                orderStatus: order.status,
+                deliveryStatus: delivery?.status
               }
             })}
           >
@@ -349,7 +357,9 @@ const OrderDetailsScreen = () => {
                 driverPlate: driver?.plate_number,
                 storeName: order.store?.store_name,
                 storeLogo: order.store?.logo || order.store?.logo_url,
-                storeCategory: order.store?.store_category || order.store?.category
+                storeCategory: order.store?.store_category || order.store?.category,
+                orderStatus: order.status,
+                deliveryStatus: delivery?.status
               }
             })}
           >
@@ -379,25 +389,30 @@ const OrderDetailsScreen = () => {
                   <Text style={S.ratingTxt}>4.8 · Verified Courier</Text>
                 </View>
               </View>
-              <View style={S.actionBtns}>
-                <TouchableOpacity
-                  style={S.actionBtn}
-                  onPress={() => handleChat(
-                    driver.id,
-                    driver.user_profiles?.full_name || 'Driver',
-                    driver.user_profiles?.avatar_url || '',
-                    'seller' // Chatting with a person (driver), so treat as seller/user type for reporting
-                  )}
-                >
-                  <Ionicons name="chatbubble-ellipses" size={24} color="#0C1559" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={S.actionBtn}
-                  onPress={() => Linking.openURL(`tel:${driver.user_profiles?.phone}`)}
-                >
-                  <Ionicons name="call" size={24} color="#0C1559" />
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                style={S.chatCircle}
+                onPress={() => Linking.openURL(`tel:${driver.user_profiles?.phone}`)}
+              >
+                <Ionicons name="call-outline" size={rs(18)} color={C.navy} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={S.chatCircle}
+                disabled={driverChatLoading}
+                onPress={() => handleChat(
+                  delivery.driver_id,
+                  driver.user_profiles?.full_name || 'Driver',
+                  driver.user_profiles?.avatar_url || '',
+                  'seller',
+                  undefined,
+                  setDriverChatLoading,
+                )}
+              >
+                {driverChatLoading ? (
+                  <ActivityIndicator size="small" color={C.navy} />
+                ) : (
+                  <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />
+                )}
+              </TouchableOpacity>
             </View>
           </View>
         )}

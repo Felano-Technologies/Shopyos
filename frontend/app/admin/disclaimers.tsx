@@ -12,10 +12,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import AdminBottomNav from '@/components/AdminBottomNav';
+import { adminColors, adminShadow } from '@/components/admin/adminTheme';
 import { adminUpdateDisclaimer, adminGetDisclaimerAudit } from '@/services/admin';
 import { getDisclaimerByType } from '@/services/disclaimers';
 
@@ -52,21 +55,6 @@ const DISCLAIMER_TYPES = [
   },
 ];
 
-const COLORS = {
-  background: '#0a0f1e',
-  surface: '#111827',
-  card: '#1a2235',
-  primary: '#6366f1',
-  primaryLight: '#818cf8',
-  success: '#10b981',
-  warning: '#f59e0b',
-  danger: '#ef4444',
-  text: '#f1f5f9',
-  textSecondary: '#94a3b8',
-  border: '#1e293b',
-  accent: '#06b6d4',
-};
-
 type Tab = 'content' | 'audit';
 
 export default function AdminDisclaimersScreen() {
@@ -76,14 +64,12 @@ export default function AdminDisclaimersScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('content');
   const [refreshing, setRefreshing] = useState(false);
 
-  // Selected disclaimer for editing
   const [editModal, setEditModal] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('');
   const [editForm, setEditForm] = useState({ title: '', content: '', version: '' });
   const [saving, setSaving] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
-  // Audit
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [auditFilter, setAuditFilter] = useState('');
   const [loadingAudit, setLoadingAudit] = useState(false);
@@ -103,9 +89,7 @@ export default function AdminDisclaimersScreen() {
   }, [auditFilter]);
 
   useEffect(() => {
-    if (activeTab === 'audit') {
-      loadAudit();
-    }
+    if (activeTab === 'audit') loadAudit();
   }, [activeTab, loadAudit]);
 
   const handleSelectDisclaimer = async (type: string) => {
@@ -149,19 +133,29 @@ export default function AdminDisclaimersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <View style={styles.page}>
+      <StatusBar style="light" />
+
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#0C1559', '#1e3a8a']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 16 }]}
+      >
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Ionicons name="arrow-back" size={22} color={COLORS.text} />
+          <Feather name="arrow-left" size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Disclaimers & Terms</Text>
-        <View style={{ width: 36 }} />
-      </View>
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerTitle}>Disclaimers & Terms</Text>
+          <Text style={styles.headerSubtitle}>Manage platform policies</Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </LinearGradient>
 
       {/* Info Banner */}
       <View style={styles.infoBanner}>
-        <Feather name="info" size={14} color={COLORS.accent} />
+        <Feather name="info" size={14} color={adminColors.navy} />
         <Text style={styles.infoText}>
           Changes take effect immediately. Bump the version number to require users to re-acknowledge.
         </Text>
@@ -186,7 +180,8 @@ export default function AdminDisclaimersScreen() {
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={{ paddingBottom: 120 + insets.bottom }}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {}} tintColor={COLORS.primary} />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => {}} tintColor={adminColors.navy} />}
+          showsVerticalScrollIndicator={false}
         >
           {DISCLAIMER_TYPES.map((dt) => (
             <TouchableOpacity
@@ -195,19 +190,17 @@ export default function AdminDisclaimersScreen() {
               onPress={() => handleSelectDisclaimer(dt.key)}
               activeOpacity={0.75}
             >
-              <View style={styles.cardLeft}>
-                <View style={styles.iconCircle}>
-                  <Feather name={dt.icon as any} size={18} color={COLORS.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{dt.label}</Text>
-                  <Text style={styles.cardDesc}>{dt.description}</Text>
-                  <View style={styles.typePill}>
-                    <Text style={styles.typePillText}>{dt.key}</Text>
-                  </View>
+              <View style={styles.iconCircle}>
+                <Feather name={dt.icon as any} size={18} color={adminColors.navy} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardTitle}>{dt.label}</Text>
+                <Text style={styles.cardDesc}>{dt.description}</Text>
+                <View style={styles.typePill}>
+                  <Text style={styles.typePillText}>{dt.key}</Text>
                 </View>
               </View>
-              <Feather name="chevron-right" size={18} color={COLORS.textSecondary} />
+              <Feather name="chevron-right" size={18} color={adminColors.textSoft} />
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -215,7 +208,7 @@ export default function AdminDisclaimersScreen() {
         <View style={{ flex: 1 }}>
           {/* Filter Row */}
           <View style={styles.filterRow}>
-            <Feather name="filter" size={14} color={COLORS.textSecondary} style={{ marginRight: 8 }} />
+            <Feather name="filter" size={14} color={adminColors.textMuted} style={{ marginRight: 8 }} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
               {['', ...DISCLAIMER_TYPES.map((d) => d.key)].map((key) => (
                 <TouchableOpacity
@@ -232,16 +225,17 @@ export default function AdminDisclaimersScreen() {
           </View>
 
           {loadingAudit ? (
-            <ActivityIndicator color={COLORS.primary} style={{ marginTop: 40 }} />
+            <ActivityIndicator color={adminColors.navy} style={{ marginTop: 40 }} />
           ) : (
             <FlatList
               data={auditLogs}
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 120 + insets.bottom }}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadAudit(true)} tintColor={COLORS.primary} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadAudit(true)} tintColor={adminColors.navy} />}
+              showsVerticalScrollIndicator={false}
               ListEmptyComponent={
                 <View style={styles.emptyState}>
-                  <Feather name="clipboard" size={40} color={COLORS.textSecondary} />
+                  <Feather name="clipboard" size={40} color={adminColors.textSoft} />
                   <Text style={styles.emptyText}>No acknowledgements found</Text>
                 </View>
               }
@@ -256,7 +250,7 @@ export default function AdminDisclaimersScreen() {
                       </View>
                     </View>
                     <Text style={styles.auditMeta}>
-                      User: <Text style={{ color: COLORS.text }}>{item.user_id?.substring(0, 8)}…</Text>
+                      User: <Text style={{ color: adminColors.text }}>{item.user_id?.substring(0, 8)}…</Text>
                       {'  '}•{'  '}
                       {item.context_type ? `${item.context_type}: ${item.context_id?.substring(0, 8)}…` : 'No context'}
                     </Text>
@@ -278,7 +272,7 @@ export default function AdminDisclaimersScreen() {
               {DISCLAIMER_TYPES.find((d) => d.key === selectedType)?.label || 'Edit Disclaimer'}
             </Text>
             {loadingDetail ? (
-              <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 40 }} />
+              <ActivityIndicator color={adminColors.navy} style={{ marginVertical: 40 }} />
             ) : (
               <ScrollView showsVerticalScrollIndicator={false}>
                 <Text style={styles.inputLabel}>Title *</Text>
@@ -287,7 +281,7 @@ export default function AdminDisclaimersScreen() {
                   value={editForm.title}
                   onChangeText={(v) => setEditForm((f) => ({ ...f, title: v }))}
                   placeholder="Disclaimer title"
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={adminColors.textSoft}
                 />
                 <View style={styles.versionRow}>
                   <View style={{ flex: 1 }}>
@@ -297,11 +291,11 @@ export default function AdminDisclaimersScreen() {
                       value={editForm.version}
                       onChangeText={(v) => setEditForm((f) => ({ ...f, version: v }))}
                       placeholder="e.g. 1.0 or 2.1"
-                      placeholderTextColor={COLORS.textSecondary}
+                      placeholderTextColor={adminColors.textSoft}
                     />
                   </View>
                   <View style={styles.versionHint}>
-                    <Feather name="alert-circle" size={14} color={COLORS.warning} />
+                    <Feather name="alert-circle" size={14} color={adminColors.amber} />
                     <Text style={styles.versionHintText}>Bump version to force re-consent</Text>
                   </View>
                 </View>
@@ -311,7 +305,7 @@ export default function AdminDisclaimersScreen() {
                   value={editForm.content}
                   onChangeText={(v) => setEditForm((f) => ({ ...f, content: v }))}
                   placeholder="Enter the full disclaimer text..."
-                  placeholderTextColor={COLORS.textSecondary}
+                  placeholderTextColor={adminColors.textSoft}
                   multiline
                   numberOfLines={10}
                   textAlignVertical="top"
@@ -335,126 +329,130 @@ export default function AdminDisclaimersScreen() {
       </Modal>
 
       <AdminBottomNav />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  page: { flex: 1, backgroundColor: adminColors.appBg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingBottom: 16,
+    gap: 12,
   },
-  backBtn: { padding: 6 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  backBtn: { padding: 4 },
+  headerTitleWrap: { flex: 1 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF' },
+  headerSubtitle: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
   infoBanner: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: COLORS.accent + '18',
+    backgroundColor: '#EEF2FF',
     margin: 16,
+    marginBottom: 0,
     padding: 12,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: COLORS.accent + '44',
+    borderColor: '#C7D2FE',
   },
-  infoText: { fontSize: 12, color: COLORS.accent, flex: 1, lineHeight: 18 },
+  infoText: { fontSize: 12, color: adminColors.navy, flex: 1, lineHeight: 18 },
   tabRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: adminColors.border,
     paddingHorizontal: 16,
+    backgroundColor: adminColors.surface,
+    marginTop: 12,
   },
   tab: { paddingVertical: 12, paddingHorizontal: 16, marginRight: 8 },
-  tabActive: { borderBottomWidth: 2, borderBottomColor: COLORS.primary },
-  tabText: { fontSize: 14, color: COLORS.textSecondary },
-  tabTextActive: { color: COLORS.primary, fontWeight: '600' },
+  tabActive: { borderBottomWidth: 2, borderBottomColor: adminColors.navy },
+  tabText: { fontSize: 14, color: adminColors.textMuted },
+  tabTextActive: { color: adminColors.navy, fontWeight: '700' },
   scroll: { flex: 1, paddingHorizontal: 16, paddingTop: 16 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.card,
+    backgroundColor: adminColors.surface,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: 12,
+    borderColor: adminColors.cardBorder,
+    gap: 14,
+    ...adminShadow,
   },
-  cardLeft: { flexDirection: 'row', alignItems: 'flex-start', flex: 1, gap: 12 },
   iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.primary + '22',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#EEF2FF',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  cardDesc: { fontSize: 12, color: COLORS.textSecondary, lineHeight: 18, marginBottom: 8 },
+  cardTitle: { fontSize: 15, fontWeight: '700', color: adminColors.text, marginBottom: 4 },
+  cardDesc: { fontSize: 12, color: adminColors.textMuted, lineHeight: 18, marginBottom: 8 },
   typePill: {
     alignSelf: 'flex-start',
-    backgroundColor: COLORS.border,
+    backgroundColor: adminColors.surfaceMuted,
     borderRadius: 6,
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  typePillText: { fontSize: 10, color: COLORS.textSecondary, fontFamily: 'monospace' },
+  typePillText: { fontSize: 10, color: adminColors.textSoft, fontFamily: 'monospace' },
   filterRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: adminColors.border,
+    backgroundColor: adminColors.surface,
   },
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
-    backgroundColor: COLORS.card,
+    backgroundColor: adminColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: adminColors.border,
   },
-  filterChipActive: { backgroundColor: COLORS.primary + '33', borderColor: COLORS.primary },
-  filterChipText: { fontSize: 12, color: COLORS.textSecondary },
-  filterChipTextActive: { color: COLORS.primary, fontWeight: '600' },
+  filterChipActive: { backgroundColor: '#EEF2FF', borderColor: adminColors.navy },
+  filterChipText: { fontSize: 12, color: adminColors.textMuted },
+  filterChipTextActive: { color: adminColors.navy, fontWeight: '600' },
   auditRow: {
     flexDirection: 'row',
     gap: 12,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border + '66',
+    borderBottomColor: adminColors.border,
   },
   auditDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: COLORS.success,
+    backgroundColor: adminColors.green,
     marginTop: 4,
   },
   auditHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
-  auditType: { fontSize: 13, fontWeight: '700', color: COLORS.text },
+  auditType: { fontSize: 13, fontWeight: '700', color: adminColors.text },
   versionBadge: {
-    backgroundColor: COLORS.primary + '33',
+    backgroundColor: '#EEF2FF',
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  versionText: { fontSize: 10, color: COLORS.primary, fontWeight: '700' },
-  auditMeta: { fontSize: 11, color: COLORS.textSecondary, marginBottom: 2 },
-  auditDate: { fontSize: 11, color: COLORS.textSecondary + 'aa' },
+  versionText: { fontSize: 10, color: adminColors.navy, fontWeight: '700' },
+  auditMeta: { fontSize: 11, color: adminColors.textMuted, marginBottom: 2 },
+  auditDate: { fontSize: 11, color: adminColors.textSoft },
   emptyState: { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  emptyText: { fontSize: 15, color: COLORS.textSecondary },
+  emptyText: { fontSize: 15, color: adminColors.textMuted },
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalSheet: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: adminColors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -463,22 +461,22 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: COLORS.border,
+    backgroundColor: adminColors.border,
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 20,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 20 },
-  inputLabel: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600', marginBottom: 6, marginTop: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: adminColors.text, marginBottom: 20 },
+  inputLabel: { fontSize: 12, color: adminColors.textMuted, fontWeight: '600', marginBottom: 6, marginTop: 16 },
   input: {
-    backgroundColor: COLORS.card,
+    backgroundColor: adminColors.surfaceSoft,
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    color: COLORS.text,
+    color: adminColors.text,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: adminColors.border,
   },
   textArea: { height: 200, paddingTop: 12 },
   versionRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-end' },
@@ -489,22 +487,22 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingBottom: 10,
   },
-  versionHintText: { fontSize: 11, color: COLORS.warning, lineHeight: 16, flex: 1 },
+  versionHintText: { fontSize: 11, color: adminColors.amber, lineHeight: 16, flex: 1 },
   modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
   cancelBtn: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: adminColors.surfaceMuted,
     alignItems: 'center',
   },
-  cancelBtnText: { fontSize: 15, fontWeight: '600', color: COLORS.textSecondary },
+  cancelBtnText: { fontSize: 15, fontWeight: '600', color: adminColors.textMuted },
   saveBtn: {
     flex: 2,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: COLORS.primary,
+    backgroundColor: adminColors.navy,
     alignItems: 'center',
   },
-  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  saveBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
 });

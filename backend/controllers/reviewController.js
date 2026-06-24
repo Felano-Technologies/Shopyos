@@ -214,7 +214,8 @@ const createDriverReview = async (req, res, next) => {
 
     // Verify delivery exists and was delivered to user
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
-    if (!delivery || delivery.order.buyer_id !== userId) {
+    const buyerId = delivery?.order?.buyer?.id ?? delivery?.order?.buyer_id;
+    if (!delivery || buyerId !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Invalid delivery'

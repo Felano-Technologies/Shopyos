@@ -798,12 +798,13 @@ const getChatContacts = async (req, res, next) => {
     // ── Helper: hub partner contacts (last person to update a parcel at each hub) ──
     const queryHubContacts = async (whereClause, params) => pool.query(`
       SELECT DISTINCT ON (o.id)
-        u.id, u.name, u.avatar_url,
+        u.id, up.full_name AS name, up.avatar_url,
         o.parcel_tracking_number AS tracking,
         pph.hub_name
       FROM parcel_status_log psl
       JOIN orders o ON psl.order_id = o.id
       JOIN users u ON psl.updated_by = u.id
+      JOIN user_profiles up ON up.user_id = u.id
       JOIN parcel_partner_hubs pph ON psl.hub_id = pph.id
       ${whereClause}
       ORDER BY o.id, psl.created_at DESC
@@ -814,7 +815,7 @@ const getChatContacts = async (req, res, next) => {
     // ════════════════════════════════════════
     if (roles.includes('admin')) {
       const { rows } = await pool.query(`
-        SELECT u.id, u.name, u.avatar_url,
+        SELECT u.id, up.full_name AS name, up.avatar_url,
                COALESCE(
                  (SELECT string_agg(r.name, ', ')
                   FROM user_roles ur JOIN roles r ON ur.role_id = r.id
@@ -822,9 +823,10 @@ const getChatContacts = async (req, res, next) => {
                  'user'
                ) AS role_label
         FROM users u
+        JOIN user_profiles up ON up.user_id = u.id
         WHERE u.id != $1
           AND u.is_active = true
-        ORDER BY u.name
+        ORDER BY up.full_name
         LIMIT 200
       `, [userId]);
       sections.push({
@@ -841,13 +843,14 @@ const getChatContacts = async (req, res, next) => {
     } else if (roles.includes('driver')) {
       // 1. Buyers with active deliveries
       const { rows: buyers } = await pool.query(`
-        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        SELECT DISTINCT u.id, up.full_name AS name, up.avatar_url, o.order_number AS context
         FROM deliveries d
         JOIN orders o ON d.order_id = o.id
         JOIN users u ON o.buyer_id = u.id
+        JOIN user_profiles up ON up.user_id = u.id
         WHERE d.driver_id = $1
           AND d.status IN ('picked_up', 'in_transit')
-        ORDER BY u.name
+        ORDER BY up.full_name
       `, [userId]);
       if (buyers.length > 0) {
         sections.push({
@@ -904,11 +907,12 @@ const getChatContacts = async (req, res, next) => {
       // 1. Buyers whose parcels this partner processed and are still active
       const { rows: buyers } = await pool.query(`
         SELECT DISTINCT ON (o.id)
-          u.id, u.name, u.avatar_url,
+          u.id, up.full_name AS name, up.avatar_url,
           o.parcel_tracking_number AS context
         FROM parcel_status_log psl
         JOIN orders o ON psl.order_id = o.id
         JOIN users u ON o.buyer_id = u.id
+        JOIN user_profiles up ON up.user_id = u.id
         WHERE psl.updated_by = $1
           AND o.status IN ('at_origin_hub', 'at_destination_hub', 'ready_for_pickup')
         ORDER BY o.id, psl.created_at DESC
@@ -947,14 +951,15 @@ const getChatContacts = async (req, res, next) => {
 
       // 3. Last-mile drivers for orders at hubs this partner manages
       const { rows: drivers } = await pool.query(`
-        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        SELECT DISTINCT u.id, up.full_name AS name, up.avatar_url, o.order_number AS context
         FROM parcel_status_log psl
         JOIN orders o ON psl.order_id = o.id
         JOIN deliveries d ON o.last_mile_delivery_id = d.id
         JOIN users u ON d.driver_id = u.id
+        JOIN user_profiles up ON up.user_id = u.id
         WHERE psl.updated_by = $1
           AND o.status IN ('at_destination_hub', 'ready_for_pickup')
-        ORDER BY u.name
+        ORDER BY up.full_name
       `, [userId]);
       if (drivers.length > 0) {
         sections.push({
@@ -972,14 +977,15 @@ const getChatContacts = async (req, res, next) => {
     } else if (roles.includes('seller')) {
       // 1. Drivers delivering this seller's orders
       const { rows: drivers } = await pool.query(`
-        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        SELECT DISTINCT u.id, up.full_name AS name, up.avatar_url, o.order_number AS context
         FROM orders o
         JOIN stores s ON o.store_id = s.id
         JOIN deliveries d ON d.order_id = o.id
         JOIN users u ON d.driver_id = u.id
+        JOIN user_profiles up ON up.user_id = u.id
         WHERE s.owner_id = $1
           AND d.status IN ('en_route_to_pickup', 'arrived_at_pickup', 'picked_up', 'in_transit')
-        ORDER BY u.name
+        ORDER BY up.full_name
       `, [userId]);
       if (drivers.length > 0) {
         sections.push({
@@ -1030,13 +1036,14 @@ const getChatContacts = async (req, res, next) => {
 
       // 2. Drivers with active deliveries for this buyer
       const { rows: drivers } = await pool.query(`
-        SELECT DISTINCT u.id, u.name, u.avatar_url, o.order_number AS context
+        SELECT DISTINCT u.id, up.full_name AS name, up.avatar_url, o.order_number AS context
         FROM deliveries d
         JOIN orders o ON d.order_id = o.id
         JOIN users u ON d.driver_id = u.id
+        JOIN user_profiles up ON up.user_id = u.id
         WHERE o.buyer_id = $1
           AND d.status IN ('picked_up', 'in_transit')
-        ORDER BY u.name
+        ORDER BY up.full_name
       `, [userId]);
       if (drivers.length > 0) {
         sections.push({

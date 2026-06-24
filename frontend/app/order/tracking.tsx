@@ -54,6 +54,8 @@ export default function OrderTrackingMap() {
   const storeName = params.storeName as string | undefined;
   const storeLogo = params.storeLogo as string | undefined;
   const storeCategory = params.storeCategory as string | undefined;
+  const orderStatus = (params.orderStatus as string | undefined)?.toLowerCase();
+  const deliveryStatus = (params.deliveryStatus as string | undefined)?.toLowerCase();
 
   const customerCoord = useMemo<Coord | null>(
     () => params.deliveryLatitude && params.deliveryLongitude
@@ -147,8 +149,28 @@ export default function OrderTrackingMap() {
   }, [deliveryId, handleLocationUpdate]);
 
   const bottomSheetHeight = hasDriver ? height * 0.45 : height * 0.35;
-  const statusTitle = hasDriver ? 'Driver is on the way' : 'Looking for a driver…';
-  const progressFillWidth = hasDriver ? '55%' : '25%';
+
+  const DELIVERED_STATUSES = ['delivered', 'completed', 'done'];
+  const isDelivered = DELIVERED_STATUSES.includes(orderStatus ?? '') || DELIVERED_STATUSES.includes(deliveryStatus ?? '');
+
+  let statusTitle: string;
+  let progressFillWidth: string;
+  if (isDelivered) {
+    statusTitle = 'Order Delivered';
+    progressFillWidth = '100%';
+  } else if (deliveryStatus === 'en_route_to_pickup') {
+    statusTitle = 'Driver heading to store';
+    progressFillWidth = '35%';
+  } else if (deliveryStatus === 'arrived_at_pickup') {
+    statusTitle = 'Driver at the store';
+    progressFillWidth = '45%';
+  } else if (hasDriver) {
+    statusTitle = 'Driver is on the way';
+    progressFillWidth = '55%';
+  } else {
+    statusTitle = 'Looking for a driver…';
+    progressFillWidth = '25%';
+  }
 
   let etaLabel: string | null;
   if (etaMinutes === null) {
