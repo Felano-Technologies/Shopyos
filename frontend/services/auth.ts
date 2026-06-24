@@ -1,16 +1,61 @@
 import { queryClient } from '@/lib/query/client';
 import { api, extractErrorMessage, API_URL, secureStorage, storage } from './client';
 import { cacheUserProfile, clearUserProfileCache } from './storage';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
+
+export const useGoogleAuth = () =>
+  Google.useAuthRequest({
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  });
+
+export const signInWithGoogle = async (idToken: string) => {
+  try {
+    const response = await api.post('/auth/google', { idToken });
+    if (response.data.token) {
+      await secureStorage.setItem('userToken', response.data.token);
+      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+      try {
+        const meResponse = await api.get('/auth/me');
+        if (meResponse.data?.id) {
+          await storage.setItem('userId', meResponse.data.id);
+          const { initCartForUser } = require('@/store/cartStore');
+          await initCartForUser(meResponse.data.id);
+        }
+        await cacheUserProfile(meResponse.data);
+      } catch {}
+      try {
+        const pushToken = await storage.getItem('expoPushToken');
+        if (pushToken) await registerPushTokenInBackend(pushToken);
+      } catch {}
+    }
+    const needsRole =
+      response.data.requiresRoleSelection ||
+      response.data.role === 'none' ||
+      !response.data.role ||
+      (response.data.roles?.length === 0);
+    return { ...response.data, needsRole };
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data?.error || `Google sign-in failed: ${error.response.status}`);
+    throw new Error(error.message || 'Network error during Google sign-in');
+  }
+};
 
 export const registerUser = async (
   name: string,
   email: string,
   password: string,
   fullPhoneNumber: string,
-  referralCode?: string
+  referralCode?: string,
+  termsAccepted?: boolean,
+  privacyAccepted?: boolean
 ) => {
   try {
-    const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password, referralCode });
+    const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password, referralCode, termsAccepted, privacyAccepted });
     if (response.data.token) {
       await secureStorage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
@@ -38,18 +83,29 @@ export const registerPushTokenInBackend = async (token: string) => {
   }
 };
 
-export const requestPasswordReset = async (email: string) => {
+export const requestPasswordResetOTP = async (email: string, method: 'email' | 'sms') => {
   try {
-    const response = await api.post('/auth/reset-password', { email });
-    return response.data;
+    const response = await api.post('/auth/forgot-password', { email, method });
+    return response.data as { success: boolean; maskedTarget: string; message: string };
   } catch (error: any) {
+    if (error.response?.data?.error) throw new Error(error.response.data.error);
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 
-export const confirmResetPassword = async (token: string, newPassword: string) => {
+export const verifyPasswordResetOTP = async (email: string, code: string) => {
   try {
-    const response = await api.post('/auth/reset-password/confirm', { token, newPassword });
+    const response = await api.post('/auth/forgot-password/verify', { email, code });
+    return response.data as { success: boolean; resetToken: string };
+  } catch (error: any) {
+    if (error.response?.data?.error) throw new Error(error.response.data.error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const resetPasswordWithToken = async (resetToken: string, newPassword: string) => {
+  try {
+    const response = await api.post('/auth/forgot-password/reset', { resetToken, newPassword });
     return response.data;
   } catch (error: any) {
     if (error.response?.data?.error) throw new Error(error.response.data.error);
@@ -65,6 +121,14 @@ export const logoutUser = async () => {
   } finally {
     queryClient.clear();
     await storage.removeItem('SHOPYOS_QUERY_CACHE');
+    // Clear user-scoped cart before removing userId
+    try {
+      const userId = await storage.getItem('userId');
+      if (userId) {
+        const { clearCartForUser } = require('@/store/cartStore');
+        await clearCartForUser(userId);
+      }
+    } catch {}
     await Promise.all([
       secureStorage.removeItem('userToken'),
       secureStorage.removeItem('refreshToken'),
@@ -73,7 +137,7 @@ export const logoutUser = async () => {
       storage.removeItem('currentBusinessId'),
       storage.removeItem('currentBusinessVerificationStatus'),
       storage.removeItem('userRole'),
-      storage.removeItem('cart'),
+      storage.removeItem('cart-storage'), // remove legacy shared cart key
       clearUserProfileCache(),
     ]);
     try {
@@ -96,7 +160,11 @@ export const loginUser = async (
       if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
       try {
         const meResponse = await api.get('/auth/me');
-        if (meResponse.data?.id) await storage.setItem('userId', meResponse.data.id);
+        if (meResponse.data?.id) {
+          await storage.setItem('userId', meResponse.data.id);
+          const { initCartForUser } = require('@/store/cartStore');
+          await initCartForUser(meResponse.data.id);
+        }
         await cacheUserProfile(meResponse.data);
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
@@ -206,6 +274,16 @@ export const uploadAvatar = async (uri: string, options?: { fileName?: string; m
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to upload avatar');
     throw new Error(error.message || 'Network error during avatar upload');
+  }
+};
+
+export const forceResetPassword = async (newPassword: string) => {
+  try {
+    const response = await api.put('/auth/force-reset-password', { newPassword });
+    return response.data;
+  } catch (error: any) {
+    if (error.response?.data?.error) throw new Error(error.response.data.error);
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 

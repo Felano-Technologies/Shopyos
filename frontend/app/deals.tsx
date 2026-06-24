@@ -15,6 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { DealsSkeleton } from '@/components/skeletons/DealsSkeleton';
 import { useProducts } from '@/hooks/useProducts';
+import { getActiveFlashSale } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -25,10 +26,53 @@ export default function DealsScreen() {
   const { data, isLoading, refetch } = useProducts({ sortBy: 'price_asc' });
   const [refreshing, setRefreshing] = React.useState(false);
 
+  const [flashSale, setFlashSale] = React.useState<any | null>(null);
+  const [flashProducts, setFlashProducts] = React.useState<any[]>([]);
+  const [countdownText, setCountdownText] = React.useState('');
+
+  const fetchFlashSale = async () => {
+    try {
+      const res = await getActiveFlashSale();
+      if (res.success && res.active && res.sale) {
+        setFlashSale(res.sale);
+        setFlashProducts(res.products);
+      } else {
+        setFlashSale(null);
+        setFlashProducts([]);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch active flash sale:', err);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchFlashSale();
+  }, []);
+
+  React.useEffect(() => {
+    if (!flashSale?.endsAt) return;
+    const interval = setInterval(() => {
+      const diff = new Date(flashSale.endsAt).getTime() - Date.now();
+      if (diff <= 0) {
+        setCountdownText('Ended');
+        clearInterval(interval);
+        fetchFlashSale();
+      } else {
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff / (1000 * 60)) % 60);
+        const secs = Math.floor((diff / 1000) % 60);
+        setCountdownText(
+          `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+        );
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [flashSale]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await refetch();
+      await Promise.all([refetch(), fetchFlashSale()]);
     } finally {
       setRefreshing(false);
     }
@@ -143,6 +187,67 @@ export default function DealsScreen() {
         renderItem={renderDeal}
         refreshing={refreshing}
         onRefresh={onRefresh}
+        ListHeaderComponent={
+          flashSale && flashProducts.length > 0 ? (
+            <View style={styles.flashSection}>
+              <View style={styles.flashHeader}>
+                <Text style={styles.flashTitleHeader}>⚡ Flash Sale</Text>
+                <View style={styles.timerContainer}>
+                  <Feather name="clock" size={12} color="#EF4444" />
+                  <Text style={styles.timerText}>{countdownText}</Text>
+                </View>
+              </View>
+              <FlatList
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                data={flashProducts}
+                keyExtractor={(item) => item._id}
+                renderItem={({ item }) => {
+                  const discountPct = Math.round(((item.compare_at_price - item.price) / item.compare_at_price) * 100);
+                  const stockPct = item.stockLimit ? Math.max(0, Math.min(1, (item.stockLimit - item.soldCount) / item.stockLimit)) : 1;
+                  return (
+                    <TouchableOpacity 
+                      style={styles.flashCard}
+                      onPress={() => router.push({
+                        pathname: '/product/details',
+                        params: {
+                          id: item._id,
+                          title: item.name,
+                          price: item.price,
+                          oldPrice: item.compare_at_price,
+                          image: item.images?.[0] || '',
+                          category: item.category
+                        }
+                      })}
+                    >
+                      <View style={styles.flashImageContainer}>
+                        <AppImage source={item.images?.[0] ? { uri: item.images[0] } : require('../assets/images/icon.png')} style={styles.flashImage} />
+                        <View style={styles.flashDiscountTag}>
+                          <Text style={styles.flashDiscountText}>-{discountPct}%</Text>
+                        </View>
+                      </View>
+                      <View style={styles.flashInfo}>
+                        <Text style={styles.flashTitle} numberOfLines={1}>{item.name}</Text>
+                        <View style={styles.flashPriceRow}>
+                          <Text style={styles.flashPrice}>₵{Number(item.price).toFixed(2)}</Text>
+                          <Text style={styles.flashOldPrice}>₵{Number(item.compare_at_price).toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.stockBarBg}>
+                          <View style={[styles.stockBarFill, { width: `${stockPct * 100}%` }]} />
+                        </View>
+                        <Text style={styles.stockLabel}>
+                          {item.stockLimit ? `${item.stockLimit - item.soldCount} left` : 'In Stock'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+              <View style={styles.divider} />
+              <Text style={styles.sectionTitleHeader}>All Offers</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           <View style={{ alignItems: 'center', marginTop: 50 }}>
             <Text style={{ color: '#94A3B8', fontFamily: 'Montserrat-Medium' }}>No deals available at the moment.</Text>
@@ -290,5 +395,129 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 12,
     fontFamily: 'Montserrat-SemiBold',
+  },
+
+  // Flash sale styles
+  flashSection: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  flashHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  flashTitleHeader: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+  },
+  timerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+  },
+  timerText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Bold',
+    color: '#EF4444',
+    marginLeft: 4,
+  },
+  flashCard: {
+    width: 140,
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    marginRight: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    overflow: 'hidden',
+  },
+  flashImageContainer: {
+    height: 100,
+    backgroundColor: '#F8FAFC',
+    position: 'relative',
+  },
+  flashImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  flashDiscountTag: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  flashDiscountText: {
+    color: '#FFF',
+    fontSize: 9,
+    fontFamily: 'Montserrat-Bold',
+  },
+  flashInfo: {
+    padding: 8,
+  },
+  flashTitle: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#1E293B',
+  },
+  flashPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  flashPrice: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Bold',
+    color: '#EF4444',
+    marginRight: 6,
+  },
+  flashOldPrice: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-Regular',
+    color: '#94A3B8',
+    textDecorationLine: 'line-through',
+  },
+  stockBarBg: {
+    height: 4,
+    backgroundColor: '#E2E8F0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  stockBarFill: {
+    height: '100%',
+    backgroundColor: '#EF4444',
+    borderRadius: 2,
+  },
+  stockLabel: {
+    fontSize: 9,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginTop: 4,
+  },
+  sectionTitleHeader: {
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+    marginBottom: 12,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 14,
   },
 });

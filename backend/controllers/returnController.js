@@ -1,9 +1,22 @@
-﻿// controllers/returnController.js
+// controllers/returnController.js
 // Full return & refund flow: buyer creates request, seller responds, admin resolves.
 
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const { logger } = require('../config/logger');
+
+// Lock/unlock the balance_log entry for the order tied to a return
+async function setBalanceLogEligibility(orderId, eligibleAt) {
+    try {
+        const db = require('../config/postgres').getPool();
+        await db.query(
+            `UPDATE balance_logs SET payout_eligible_at = $1 WHERE order_id = $2 AND transaction_type = 'sale'`,
+            [eligibleAt, orderId]
+        );
+    } catch (err) {
+        logger.warn('[Return] setBalanceLogEligibility failed:', err.message);
+    }
+}
 
 // â”€â”€â”€ Buyer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -38,14 +51,26 @@ const createReturnRequest = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Could not determine seller for this order' });
     }
 
+    const subtotal = Number.parseFloat(order.subtotal || 0);
+    const discount = Number.parseFloat(order.discount_amount || 0);
+    const refundableAmount = Math.max(0, subtotal - discount);
+
     const returnReq = await repositories.returns.create({
       order_id: orderId,
       buyer_id: buyerId,
       seller_id: sellerId,
       reason: reason.trim(),
       reason_category: reasonCategory || 'other',
-      evidence_images: evidenceImages.length ? evidenceImages : null
+      evidence_images: evidenceImages.length ? evidenceImages : null,
+      delivery_fee_at_time: order.delivery_fee,
+      refundable_amount: refundableAmount,
+      policy_version: '1.0',
+      disclaimer_acknowledged: true,
+      acknowledged_at: new Date().toISOString()
     });
+
+    // Lock the seller's balance entry for this order while return is open
+    await setBalanceLogEligibility(orderId, null);
 
     // Notify seller
     await notificationService.sendNotification({
@@ -143,6 +168,11 @@ const sellerRespondToReturn = async (req, res, next) => {
       seller_response: sellerResponse?.trim() || null
     });
 
+    // Seller declined → unlock balance immediately (return won't proceed)
+    if (newStatus === 'seller_declined') {
+      await setBalanceLogEligibility(returnReq.order_id, new Date().toISOString());
+    }
+
     const notificationType = action === 'approve' ? 'return_approved' : 'return_declined';
     const notificationTitle = action === 'approve' ? 'Return approved' : 'Return declined';
     const declineReason = sellerResponse ? ` Reason: ${sellerResponse}` : '';
@@ -215,6 +245,19 @@ const adminActOnReturn = async (req, res, next) => {
     const newStatus = statusMap[action];
     const isResolved = ['refund_issued', 'closed'].includes(newStatus);
 
+    if (action === 'refund') {
+      if (refundAmount === undefined || refundAmount === null || Number.parseFloat(refundAmount) <= 0) {
+        return res.status(400).json({ success: false, error: 'Valid refundAmount is required' });
+      }
+      const maxRefund = Number.parseFloat(returnReq.refundable_amount || 0);
+      if (Number.parseFloat(refundAmount) > maxRefund) {
+        return res.status(400).json({
+          success: false,
+          error: `Refund amount cannot exceed the maximum refundable product amount of GHS ${maxRefund}`
+        });
+      }
+    }
+
     const updated = await repositories.returns.update(returnId, {
       status: newStatus,
       admin_notes: adminNotes?.trim() || null,
@@ -223,18 +266,36 @@ const adminActOnReturn = async (req, res, next) => {
     });
 
     if (newStatus === 'refund_issued') {
+      // Deduct refund from seller balance and cancel the balance_log entry
+      const db = require('../config/postgres').getPool();
+      await db.query(
+          `UPDATE balance_logs SET payout_eligible_at = NULL, notes = 'Refund issued — balance cancelled'
+           WHERE order_id = $1 AND transaction_type = 'sale'`,
+          [returnReq.order_id]
+      ).catch(e => logger.warn('[Return] cancel balance_log failed:', e.message));
+
+      // Deduct from store balance
+      const store = await repositories.stores.findById(updated.order?.store_id || null).catch(() => null);
+      if (store) {
+          const newBal = Math.max(0, Number.parseFloat(store.current_balance || 0) - Number.parseFloat(refundAmount));
+          await repositories.stores.update(store.id, { current_balance: newBal }).catch(e =>
+              logger.warn('[Return] deduct store balance failed:', e.message)
+          );
+      }
+
       await notificationService.sendNotification({
         userId: returnReq.buyer_id,
         type: 'refund_issued',
         title: 'Refund issued',
-        message: `â‚µ${refundAmount} has been refunded for your return request.`,
+        message: `₵${refundAmount} has been refunded for your return request.`,
         relatedId: returnId,
         relatedType: 'return_request',
         push: { data: { screen: `order/${returnReq.order_id}` } }
       }).catch(e => logger.warn('[Return] refund notify failed:', e.message));
+    } else if (newStatus === 'closed') {
+      // Return closed without refund — unlock seller balance immediately
+      await setBalanceLogEligibility(returnReq.order_id, new Date().toISOString());
     }
-
-    res.json({ success: true, data: updated });
   } catch (err) {
     next(err);
   }

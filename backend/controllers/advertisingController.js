@@ -1,24 +1,6 @@
 const repositories = require('../db/repositories');
-const { toPublicUrl } = require('../config/storage');
-
-const formatPromotions = (obj) => {
-  if (!obj) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map(formatPromotions);
-  }
-  if (typeof obj === 'object') {
-    const formatted = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if ((key === 'image_url' || key === 'logo_url' || key === 'url') && typeof value === 'string' && value) {
-        formatted[key] = toPublicUrl(value);
-      } else {
-        formatted[key] = formatPromotions(value);
-      }
-    }
-    return formatted;
-  }
-  return obj;
-};
+const { transformImageUrlsAsync } = require('../config/storage');
+const feeConfigService = require('../services/feeConfigService');
 
 /**
  * Create advertising campaign
@@ -47,10 +29,11 @@ const createCampaign = async (req, res, next) => {
     }
 
     // Validate budget
-    if (!budget || budget < 10) {
+    const minAdBudget = await feeConfigService.get('min_ad_budget');
+    if (!budget || budget < minAdBudget) {
       return res.status(400).json({
         success: false,
-        error: 'Minimum budget is GHS 10'
+        error: `Minimum budget is GHS ${minAdBudget}`
       });
     }
 
@@ -76,7 +59,7 @@ const createCampaign = async (req, res, next) => {
     res.status(201).json({
       success: true,
       message: 'Campaign created successfully',
-      campaign: formatPromotions(campaign)
+      campaign: await transformImageUrlsAsync(campaign)
     });
   } catch (error) {
     next(error);
@@ -101,7 +84,7 @@ const getPromotedProducts = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      promotedProducts: formatPromotions(promotedProducts)
+      promotedProducts: await transformImageUrlsAsync(promotedProducts)
     });
   } catch (error) {
     next(error);
@@ -141,7 +124,7 @@ const getMyCampaigns = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      campaigns: formatPromotions(campaigns)
+      campaigns: await transformImageUrlsAsync(campaigns)
     });
   } catch (error) {
     next(error);
@@ -179,7 +162,7 @@ const getCampaignDetails = async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      campaign: formatPromotions({
+      campaign: await transformImageUrlsAsync({
         ...campaign,
         metrics
       })
@@ -228,7 +211,7 @@ const updateCampaignStatus = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Campaign status updated successfully',
-      campaign: formatPromotions(updatedCampaign)
+      campaign: await transformImageUrlsAsync(updatedCampaign)
     });
   } catch (error) {
     next(error);
@@ -245,10 +228,11 @@ const updateCampaignBudget = async (req, res, next) => {
     const { campaignId } = req.params;
     const { budget } = req.body;
 
-    if (!budget || budget < 10) {
+    const minAdBudget = await feeConfigService.get('min_ad_budget');
+    if (!budget || budget < minAdBudget) {
       return res.status(400).json({
         success: false,
-        error: 'Minimum budget is GHS 10'
+        error: `Minimum budget is GHS ${minAdBudget}`
       });
     }
 
@@ -274,7 +258,7 @@ const updateCampaignBudget = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: 'Campaign budget updated successfully',
-      campaign: formatPromotions(updatedCampaign)
+      campaign: await transformImageUrlsAsync(updatedCampaign)
     });
   } catch (error) {
     next(error);
@@ -290,16 +274,26 @@ const recordImpression = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
 
-    // Check if campaign can serve ads
-    const canServe = await repositories.promotedProducts.canServeAd(campaignId);
-    if (!canServe) {
-      return res.status(200).json({
-        success: false,
-        error: 'Campaign is not active'
-      });
-    }
+    // Check if campaign is in banner_campaigns
+    const { data: banner } = await repositories.bannerCampaigns.db
+      .from('banner_campaigns')
+      .select('id')
+      .eq('id', campaignId)
+      .maybeSingle();
 
-    await repositories.promotedProducts.recordImpression(campaignId);
+    if (banner) {
+      await repositories.bannerCampaigns.recordImpression(campaignId);
+    } else {
+      // Check if campaign can serve ads
+      const canServe = await repositories.promotedProducts.canServeAd(campaignId);
+      if (!canServe) {
+        return res.status(200).json({
+          success: false,
+          error: 'Campaign is not active'
+        });
+      }
+      await repositories.promotedProducts.recordImpression(campaignId);
+    }
 
     res.status(200).json({
       success: true,
@@ -319,7 +313,18 @@ const recordClick = async (req, res, next) => {
   try {
     const { campaignId } = req.params;
 
-    await repositories.promotedProducts.recordClick(campaignId);
+    // Check if campaign is in banner_campaigns
+    const { data: banner } = await repositories.bannerCampaigns.db
+      .from('banner_campaigns')
+      .select('id')
+      .eq('id', campaignId)
+      .maybeSingle();
+
+    if (banner) {
+      await repositories.bannerCampaigns.recordClick(campaignId);
+    } else {
+      await repositories.promotedProducts.recordClick(campaignId);
+    }
 
     res.status(200).json({
       success: true,

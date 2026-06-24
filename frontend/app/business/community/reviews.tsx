@@ -211,61 +211,60 @@ export default function ReviewsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F8FAFC' },
-  
-  // --- Search & Filter Styles ---
-  searchSection: { 
-    backgroundColor: '#FFF', 
-    padding: 15, 
-    borderBottomWidth: 1, 
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+
+  searchSection: {
+    backgroundColor: '#FFF',
+    padding: 15,
+    borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     zIndex: 10
   },
-  searchBar: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#F1F5F9', 
-    borderRadius: 14, 
-    paddingHorizontal: 12, 
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingHorizontal: 12,
     height: 48,
     borderWidth: 1,
     borderColor: '#E2E8F0'
   },
-  searchInput: { 
-    flex: 1, 
-    marginLeft: 10, 
-    fontFamily: 'Montserrat-Medium', 
-    fontSize: 14, 
-    color: '#0F172A' 
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#0F172A'
   },
-  filterScroll: { 
-    flexDirection: 'row', 
-    marginTop: 15, 
-    gap: 10 
+  filterScroll: {
+    flexDirection: 'row',
+    marginTop: 15,
+    gap: 10
   },
-  filterChip: { 
-    paddingHorizontal: 16, 
-    paddingVertical: 8, 
-    borderRadius: 20, 
-    backgroundColor: '#F8FAFC', 
-    borderWidth: 1, 
-    borderColor: '#E2E8F0' 
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
   },
-  filterChipActive: { 
-    backgroundColor: '#0C1559', 
-    borderColor: '#0C1559' 
+  filterChipActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559'
   },
-  filterText: { 
-    fontSize: 12, 
-    fontFamily: 'Montserrat-SemiBold', 
-    color: '#64748B' 
+  filterText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#64748B'
   },
-  filterTextActive: { 
-    color: '#FFF' 
+  filterTextActive: {
+    color: '#FFF'
   },
 
-  listContent: { padding: 20, paddingBottom: 100 },
-  card: { backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 16, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowOffset: { width: 0, height: 2 }, shadowRadius: 5 },
+  listContent: { paddingBottom: 100 },
+  card: { backgroundColor: '#FFF', padding: 16, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   avatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9' },
   userName: { fontSize: 15, fontFamily: 'Montserrat-Bold', color: '#0F172A' },

@@ -11,8 +11,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { AdminPanel } from '@/components/admin/AdminShell';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getAdminDashboard, getAdminRevenue } from '@/services/api';
@@ -147,10 +148,10 @@ export default function AdminRevenue() {
         <Text style={styles.headerTitle}>Revenue</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={adminColors.blue} />
-        </View>
+      {loading && !refreshing ? (
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+          <AdminScreenSkeleton metrics={3} rows={5} />
+        </SafeAreaView>
       ) : (
         <FlatList
           data={transactions}

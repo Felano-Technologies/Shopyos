@@ -10,6 +10,16 @@
 
 jest.mock('../../services/rabbitmq');
 jest.mock('nodemailer');
+jest.mock('../../services/feeConfigService', () => ({
+  get: jest.fn().mockImplementation((key) => {
+    if (key === 'delivery_default_base_fee') return Promise.resolve(5);
+    if (key === 'delivery_intra_min_fee') return Promise.resolve(15);
+    if (key === 'delivery_intra_max_fee') return Promise.resolve(30);
+    if (key === 'delivery_inter_min_fee') return Promise.resolve(40);
+    if (key === 'driver_earnings_percentage') return Promise.resolve(85);
+    return Promise.resolve(0);
+  }),
+}));
 
 jest.mock('../../config/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },
@@ -51,6 +61,7 @@ jest.mock('../../db/repositories', () => ({
     findById: jest.fn(),
     updateStatus: jest.fn(),
     cancelOrder: jest.fn(),
+    update: jest.fn(),
     findByOrderNumber: jest.fn(),
     db: mockDbChain,
   },
@@ -496,7 +507,7 @@ describe('OrderController Unit Tests', () => {
       const mockCancelledOrder = { ...mockOrder, status: 'cancelled' };
       repositories.orders.findById.mockResolvedValueOnce(mockOrder);
       repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-id' });
-      repositories.orders.cancelOrder.mockResolvedValueOnce(mockCancelledOrder);
+      repositories.orders.update.mockResolvedValueOnce(mockCancelledOrder);
 
       const req = mockReq({ params: { orderId: 'ord-123' }, body: { reason: 'No need' } });
       const res = mockRes();
@@ -506,11 +517,15 @@ describe('OrderController Unit Tests', () => {
       await cancelOrder(req, res, next);
 
       // Assert
-      expect(repositories.orders.cancelOrder).toHaveBeenCalledWith('ord-123', 'No need');
+      expect(repositories.orders.update).toHaveBeenCalledWith('ord-123', {
+        status: 'cancelled',
+        cancelled_at: expect.any(String),
+        cancellation_reason: 'No need',
+      });
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith({
         success: true,
-        message: 'Order cancelled successfully',
+        message: 'Order cancelled successfully.',
         order: mockCancelledOrder,
       });
     });
@@ -1301,7 +1316,7 @@ describe('OrderController Unit Tests', () => {
       const mockOrder = { id: 'ord-123', buyer_id: 'buyer-user-id', status: 'pending', store_id: 'store-1' };
       repositories.orders.findById.mockResolvedValueOnce(mockOrder);
       repositories.stores.findById.mockResolvedValueOnce({ id: 'store-1', owner_id: 'seller-id' });
-      repositories.orders.cancelOrder.mockResolvedValueOnce({ ...mockOrder, status: 'cancelled' });
+      repositories.orders.update.mockResolvedValueOnce({ ...mockOrder, status: 'cancelled' });
 
       const req = mockReq({ params: { orderId: 'ord-123' }, body: {} }); // no reason
       const res = mockRes();
@@ -1311,7 +1326,11 @@ describe('OrderController Unit Tests', () => {
       await cancelOrder(req, res, next);
 
       // Assert
-      expect(repositories.orders.cancelOrder).toHaveBeenCalledWith('ord-123', 'Cancelled by user');
+      expect(repositories.orders.update).toHaveBeenCalledWith('ord-123', {
+        status: 'cancelled',
+        cancelled_at: expect.any(String),
+        cancellation_reason: 'Cancelled by user',
+      });
     });
 
     // line 662: unexpected error forwarded to next()

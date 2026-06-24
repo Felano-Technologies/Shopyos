@@ -19,11 +19,14 @@ import { InAppToastHost } from '../components/InAppToastHost';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
+import { initCartForUser } from '@/store/cartStore';
+import { storage } from '@/services/api';
 
 // Import task definitions once (safe to import multiple times, but only define once)
 import '../src/background/tasks';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { ImagePreviewProvider } from '@/context/ImagePreviewContext';
+import ParcelPartnerBottomNav from '@/components/ParcelPartnerBottomNav';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -80,11 +83,20 @@ function AppContent() {
     exitBuyerMode();
     if (originalRole === 'driver') {
       router.replace('/driver/dashboard');
+    } else if (originalRole === 'parcel_partner') {
+      router.replace('/parcel-partner/dashboard');
     } else {
       router.replace('/business/dashboard');
     }
   };
 
+
+  // Load the cart for the already-logged-in user on app startup
+  useEffect(() => {
+    storage.getItem('userId').then((uid) => {
+      if (uid) initCartForUser(uid);
+    }).catch(() => {});
+  }, []);
 
   // Apply Push Hook globally
   usePushNotifications();
@@ -109,7 +121,8 @@ function AppContent() {
 
   const shouldShowNav =
     (mainCustomerTabs.includes(pathname) || pathname.startsWith('/categories/categories')) &&
-    !pathname.startsWith('/driver');
+    !pathname.startsWith('/driver') &&
+    !pathname.startsWith('/parcel-partner');
 
   // --- DRIVER NAV LOGIC (hidden when actively browsing buyer routes in buyer mode) ---
   const isDriverRoute = pathname.startsWith('/driver');
@@ -132,6 +145,16 @@ function AppContent() {
     '/business/settings',
     '/business/notifications',
   ].includes(pathname) && !(activeMode === 'buyer' && !isBusinessRoute);
+
+  // --- PARCEL PARTNER NAV LOGIC ---
+  const isParcelPartnerRoute = pathname.startsWith('/parcel-partner');
+  const showParcelPartnerNav = [
+    '/parcel-partner/dashboard',
+    '/parcel-partner/parcels',
+    '/parcel-partner/scan',
+    '/parcel-partner/notifications',
+    '/parcel-partner/settings',
+  ].includes(pathname) && !(activeMode === 'buyer' && !isParcelPartnerRoute);
 
   return (
     <ThemeProvider value={navTheme}>
@@ -186,6 +209,10 @@ function AppContent() {
               <Stack.Screen name="business/orders" options={{ animation: 'fade' }} />
               <Stack.Screen name="business/products" options={{ animation: 'fade' }} />
 
+              <Stack.Screen name="business/community" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/bargains" options={{ animation: 'fade' }} />
+              <Stack.Screen name="business/flash-sales" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="business/flash-sale-submit" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="business/register" />
               <Stack.Screen name="business/verification" />
               <Stack.Screen name="business/verification-status" options={{ animation: 'fade' }} />
@@ -196,13 +223,21 @@ function AppContent() {
               <Stack.Screen name="business/earnings" options={{ animation: 'slide_from_bottom' }} />
 
               {/* --- DRIVER SCREENS --- */}
-              <Stack.Screen name="driver/index" />
-              <Stack.Screen name="driver/dashboard" />
+              <Stack.Screen name="driver/index" options={{ animation: 'none' }} />
+              <Stack.Screen name="driver/dashboard" options={{ animation: 'none' }} />
               <Stack.Screen name="driver/activeOrder" options={{ presentation: 'fullScreenModal' }} />
-              <Stack.Screen name="driver/earnings" />
-              <Stack.Screen name="driver/history" />
-              <Stack.Screen name="driver/settings" />
+              <Stack.Screen name="driver/earnings" options={{ animation: 'none' }} />
+              <Stack.Screen name="driver/history" options={{ animation: 'none' }} />
+              <Stack.Screen name="driver/settings" options={{ animation: 'none' }} />
               <Stack.Screen name="driver/verification" />
+
+              {/* --- PARCEL PARTNER SCREENS --- */}
+              <Stack.Screen name="parcel-partner/dashboard" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/parcels" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/parcel-detail" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="parcel-partner/scan" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/notifications" options={{ animation: 'none' }} />
+              <Stack.Screen name="parcel-partner/settings" options={{ animation: 'none' }} />
 
               {/* --- CATEGORIES & CHAT --- */}
               <Stack.Screen name="categories/categories" />
@@ -229,12 +264,20 @@ function AppContent() {
 
 
 
+              {/* --- BARGAIN SCREENS --- */}
+              <Stack.Screen name="bargain/make-offer" options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="bargain/my-offers" options={{ animation: 'fade' }} />
+
+              {/* --- FORCED PASSWORD RESET --- */}
+              <Stack.Screen name="force-reset-password" options={{ animation: 'fade' }} />
+
               <Stack.Screen name="+not-found" />
             </Stack>
 
             {shouldShowNav && <BottomNav />}
             {isDriverRoute && showDriverNav && <DriverBottomNav />}
             {isBusinessRoute && showBusinessNav && <BusinessBottomNav />}
+            {isParcelPartnerRoute && showParcelPartnerNav && <ParcelPartnerBottomNav />}
 
             <StatusBar style="auto" />
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
@@ -247,7 +290,7 @@ function AppContent() {
               >
                 <Text style={styles.buyerBannerLabel}>Shopping as buyer</Text>
                 <Text style={styles.buyerBannerReturn}>
-                  Return to {originalRole === 'driver' ? 'Driver' : 'Business'} Dashboard →
+                  Return to {originalRole === 'driver' ? 'Driver' : originalRole === 'parcel_partner' ? 'Parcel Partner' : 'Business'} Dashboard →
                 </Text>
               </TouchableOpacity>
             )}

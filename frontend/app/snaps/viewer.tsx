@@ -1,3 +1,4 @@
+/* eslint-disable import/namespace */
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableWithoutFeedback, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -7,9 +8,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { viewSnap } from '@/services/api';
+import { Image } from 'expo-image';
+import { Video, ResizeMode } from 'expo-av';
+import * as FileSystem from 'expo-file-system';
 
 const { width } = Dimensions.get('window');
-const SNAP_DURATION = 5000; // 5 seconds per snap
+const SNAP_DURATION = 10000; // 10 seconds per snap
 
 export default function SnapViewer() {
   const router = useRouter();
@@ -31,14 +35,65 @@ export default function SnapViewer() {
   const [storeIndex, setStoreIndex] = useState(initialIndex);
   const [snapIndex, setSnapIndex] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [isImageLoading, setIsImageLoading] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pressStartTimeRef = useRef<number>(0);
+  const progressRef = useRef<number>(0);
 
   const currentStore = feedData[storeIndex];
   const currentSnap = currentStore?.snaps?.[snapIndex];
 
+  const mediaSource = React.useMemo(() => {
+    if (!currentSnap?.media_url) return null;
+    return { uri: currentSnap.media_url };
+  }, [currentSnap?.media_url]);
+
   useEffect(() => {
     setStoreIndex(initialIndex);
   }, [initialIndex]);
+
+  useEffect(() => {
+    setIsImageLoading(true);
+    setIsPaused(false);
+    setProgress(0);
+    progressRef.current = 0;
+  }, [storeIndex, snapIndex]);
+
+  const isVideoUrl = (url: string) => {
+    if (!url) return false;
+    const cleanUrl = url.split('?')[0].toLowerCase();
+    return cleanUrl.endsWith('.mp4') || 
+           cleanUrl.endsWith('.mov') || 
+           cleanUrl.endsWith('.quicktime') || 
+           cleanUrl.endsWith('.webm');
+  };
+
+  const formatTimeAgo = (createdAt: string) => {
+    if (!createdAt) return '';
+    
+    // Normalize timestamp for strict parsing engines (e.g. Hermes in React Native)
+    // Replace space with 'T' and truncate microsecond fractions beyond 3 digits
+    let normalized = createdAt;
+    if (typeof normalized === 'string') {
+      normalized = normalized.trim().replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1');
+    }
+    
+    const parsedDate = new Date(normalized);
+    const timeMs = parsedDate.getTime();
+    
+    if (isNaN(timeMs)) {
+      return 'now';
+    }
+    
+    const diffMs = Date.now() - timeMs;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'now';
+    if (diffMins < 60) return `${diffMins}m`;
+    const diffHours = Math.floor(diffMins / 60);
+    return `${diffHours}h`;
+  };
 
   const stopTimer = React.useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -63,24 +118,27 @@ export default function SnapViewer() {
       setSnapIndex(feedData[storeIndex - 1].snaps.length - 1);
     } else {
       setProgress(0); // Restart first snap
+      progressRef.current = 0;
     }
   }, [snapIndex, storeIndex, feedData]);
 
   const startTimer = React.useCallback(() => {
     stopTimer();
-    setProgress(0);
     const interval = 50; // Update progress every 50ms
     const step = (interval / SNAP_DURATION) * 100;
+    let currentProgress = progressRef.current;
 
     timerRef.current = setInterval(() => {
-      setProgress((prev) => {
-        if (prev + step >= 100) {
-          stopTimer();
-          goToNext();
-          return 100;
-        }
-        return prev + step;
-      });
+      currentProgress += step;
+      if (currentProgress >= 100) {
+        stopTimer();
+        setProgress(100);
+        progressRef.current = 100;
+        goToNext();
+      } else {
+        setProgress(currentProgress);
+        progressRef.current = currentProgress;
+      }
     }, interval);
   }, [stopTimer, goToNext]);
 
@@ -98,17 +156,74 @@ export default function SnapViewer() {
       viewSnap(currentSnap.id).catch(() => {});
     }
 
-    startTimer();
+    if (!isImageLoading) {
+      startTimer();
+    } else {
+      stopTimer();
+    }
     return () => stopTimer();
-  }, [storeIndex, snapIndex, feedData, currentSnap, currentStore, router, startTimer, stopTimer]);
+  }, [storeIndex, snapIndex, feedData, currentSnap, currentStore, router, startTimer, stopTimer, isImageLoading]);
 
+  // Prefetch next snap video in the background
+  useEffect(() => {
+    if (!feedData || feedData.length === 0 || !currentStore) return;
+    
+    let nextSnap: any = null;
+    if (snapIndex < currentStore.snaps.length - 1) {
+      nextSnap = currentStore.snaps[snapIndex + 1];
+    } else if (storeIndex < feedData.length - 1) {
+      nextSnap = feedData[storeIndex + 1]?.snaps?.[0];
+    }
+    
+    if (nextSnap && nextSnap.media_url && isVideoUrl(nextSnap.media_url)) {
+      const url = nextSnap.media_url;
+      const cleanUrl = url.split('?')[0];
+      const filename = cleanUrl.split('/').pop();
+      if (filename) {
+        const localUri = `${FileSystem.cacheDirectory}snaps_${filename}`;
+        FileSystem.getInfoAsync(localUri).then((info) => {
+          if (!info.exists) {
+            if (__DEV__) console.log('Prefetching next snap video in background:', filename);
+            FileSystem.downloadAsync(url, localUri).catch(() => {});
+          }
+        }).catch(() => {});
+      }
+    }
+  }, [storeIndex, snapIndex, feedData, currentStore]);
+
+
+  const togglePlayPause = () => {
+    setIsPaused(prev => {
+      const nextState = !prev;
+      if (nextState) {
+        stopTimer();
+      } else {
+        startTimer();
+      }
+      return nextState;
+    });
+  };
+
+  const handlePressIn = () => {
+    pressStartTimeRef.current = Date.now();
+    stopTimer();
+    setIsPaused(true);
+  };
+
+  const handlePressOut = () => {
+    setIsPaused(false);
+    startTimer();
+  };
 
   const handlePress = (e: any) => {
-    const x = e.nativeEvent.locationX;
-    if (x < width * 0.3) {
-      goToPrev();
-    } else {
-      goToNext();
+    const pressDuration = Date.now() - pressStartTimeRef.current;
+    if (pressDuration < 300) {
+      const x = e.nativeEvent.locationX;
+      if (x < width * 0.3) {
+        goToPrev();
+      } else {
+        goToNext();
+      }
     }
   };
 
@@ -126,15 +241,54 @@ export default function SnapViewer() {
           <ActivityIndicator size="large" color="#FFF" />
         </View>
       ) : (
-        <>
+        <View style={[styles.mediaContainer, { marginTop: insets.top, marginBottom: insets.bottom }]}>
           {/* Background Media */}
-          <AppImage uri={currentSnap.media_url} style={styles.media} />
+          {isVideoUrl(currentSnap.media_url) ? (
+            <VideoPlayer
+              key={currentSnap.media_url}
+              mediaUrl={currentSnap.media_url}
+              isPaused={isPaused}
+              onLoad={() => setIsImageLoading(false)}
+              onReadyForDisplay={() => setIsImageLoading(false)}
+              onError={(err) => {
+                console.warn('Video load error:', err);
+                setIsImageLoading(false);
+                // Auto-skip to the next snap after a short delay so the user doesn't get stuck
+                setTimeout(() => {
+                  goToNext();
+                }, 1500);
+              }}
+            />
+          ) : (
+            <ImagePlayer
+              key={currentSnap.media_url}
+              mediaUrl={currentSnap.media_url}
+              onLoad={() => setIsImageLoading(false)}
+              onError={() => setIsImageLoading(false)}
+            />
+          )}
+
+          {/* Loading Overlay */}
+          {isImageLoading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#FFF" />
+            </View>
+          )}
+
+          {/* Central Play/Pause Overlay */}
+          {isPaused && (
+            <TouchableOpacity style={styles.pausedOverlay} onPress={togglePlayPause} activeOpacity={0.95}>
+              <View style={styles.playIconCircle}>
+                <Ionicons name="play" size={32} color="#FFF" style={{ marginLeft: 3 }} />
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Top Gradient for text readability */}
           <LinearGradient colors={['rgba(0,0,0,0.6)', 'transparent']} style={styles.topGradient} />
 
           {/* Progress Bars */}
-          <View style={[styles.progressContainer, { top: insets.top || 10 }]}>
+          <View style={styles.progressContainer}>
             {currentStore.snaps.map((snap: any, i: number) => {
               const barWidth = i === snapIndex ? `${progress}%` : i < snapIndex ? '100%' : '0%';
               return (
@@ -146,7 +300,7 @@ export default function SnapViewer() {
           </View>
 
           {/* Header Info */}
-          <View style={[styles.header, { top: (insets.top || 10) + 15 }]}>
+          <View style={styles.header}>
             <View style={styles.storeInfo}>
               {currentStore.store_logo ? (
                 <AppImage uri={currentStore.store_logo} style={styles.avatar} />
@@ -157,19 +311,24 @@ export default function SnapViewer() {
               )}
               <Text style={styles.storeName}>{currentStore.store_name}</Text>
               <Text style={styles.timeAgo}>
-                {Math.round((Date.now() - new Date(currentSnap.created_at).getTime()) / 3600000)}h
+                {formatTimeAgo(currentSnap.created_at)}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
-              <Ionicons name="close" size={28} color="#FFF" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity onPress={togglePlayPause} style={styles.headerBtn} activeOpacity={0.8}>
+                <Ionicons name={isPaused ? "play" : "pause"} size={20} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => router.back()} style={styles.closeBtn}>
+                <Ionicons name="close" size={28} color="#FFF" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Touch Areas for Navigation */}
           <TouchableWithoutFeedback 
             onPress={handlePress}
-            onPressIn={stopTimer}
-            onPressOut={startTimer}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
           >
             <View style={styles.touchArea} />
           </TouchableWithoutFeedback>
@@ -188,7 +347,7 @@ export default function SnapViewer() {
               </TouchableOpacity>
             ) : null}
           </LinearGradient>
-        </>
+        </View>
       )}
     </View>
   );
@@ -199,6 +358,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  mediaContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+    overflow: 'hidden',
+    position: 'relative',
+    borderRadius: 16,
+  },
   media: {
     width: '100%',
     height: '100%',
@@ -207,6 +373,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
   },
   topGradient: {
     position: 'absolute',
@@ -217,8 +390,9 @@ const styles = StyleSheet.create({
   },
   progressContainer: {
     position: 'absolute',
-    left: 10,
-    right: 10,
+    top: 12,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
     gap: 4,
     zIndex: 10,
@@ -236,8 +410,9 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    left: 10,
-    right: 10,
+    top: 24,
+    left: 12,
+    right: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -281,7 +456,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 24,
     paddingTop: 60,
     zIndex: 10,
   },
@@ -307,5 +482,82 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     fontSize: 15,
     fontFamily: 'Montserrat-Bold',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  headerBtn: {
+    padding: 6,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 36,
+    height: 36,
+  },
+  pausedOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 15,
+  },
+  playIconCircle: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
   }
 });
+
+// Memoized Media Players to prevent progress-updates (every 50ms) from re-triggering video rendering/stalls
+const VideoPlayer = React.memo(({ mediaUrl, isPaused, onLoad, onReadyForDisplay, onError }: {
+  mediaUrl: string;
+  isPaused: boolean;
+  onLoad: () => void;
+  onReadyForDisplay: () => void;
+  onError: (err: any) => void;
+}) => {
+  return (
+    <Video
+      source={{ uri: mediaUrl }}
+      style={styles.media}
+      resizeMode={ResizeMode.COVER}
+      shouldPlay={!isPaused}
+      isLooping
+      isMuted={false}
+      onLoad={onLoad}
+      onReadyForDisplay={onReadyForDisplay}
+      onError={onError}
+    />
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.mediaUrl === nextProps.mediaUrl && prevProps.isPaused === nextProps.isPaused;
+});
+VideoPlayer.displayName = 'VideoPlayer';
+
+const ImagePlayer = React.memo(({ mediaUrl, onLoad, onError }: {
+  mediaUrl: string;
+  onLoad: () => void;
+  onError: () => void;
+}) => {
+  return (
+    <Image 
+      source={{ uri: mediaUrl }} 
+      style={styles.media} 
+      contentFit="contain"
+      cachePolicy="disk"
+      onLoad={onLoad}
+      onError={onError}
+    />
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.mediaUrl === nextProps.mediaUrl;
+});
+ImagePlayer.displayName = 'ImagePlayer';

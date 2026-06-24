@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Switch,
@@ -13,7 +14,9 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
-import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
+import { AdminPanel } from '@/components/admin/AdminShell';
+import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors } from '@/components/admin/adminTheme';
 import { getUserData } from '@/services/api';
 import { getAdminPlatformSettings, updateAdminPlatformSettings } from '@/services/admin';
@@ -62,6 +65,8 @@ function SettingItem({
 export default function AdminSettings() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [autoApproveSellers, setAutoApproveSellers] = useState(false);
@@ -69,53 +74,44 @@ export default function AdminSettings() {
   const [profileRole, setProfileRole] = useState('Super Administrator');
   const [profileImage, setProfileImage] = useState<string | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      // Load profile
-      try {
-        const data = await getUserData();
-        const user = data?.user || data || {};
-        if (!mounted) return;
-        const name = user?.name || user?.full_name || 'Admin';
-        const role = user?.role || user?.account_type || 'Super Administrator';
-        const avatar = user?.avatar_url || user?.avatar || null;
-        setProfileName(name);
-        setProfileRole(String(role).replaceAll('_', ' ').replace(/\b\w/g, (m: string) => m.toUpperCase()));
-        setProfileImage(avatar);
-      } catch {
-        // Keep defaults if profile fetch fails.
-      }
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const data = await getUserData();
+      const user = data?.user || data || {};
+      const name = user?.name || user?.full_name || 'Admin';
+      const role = user?.role || user?.account_type || 'Super Administrator';
+      const avatar = user?.avatar_url || user?.avatar || null;
+      setProfileName(name);
+      setProfileRole(String(role).replaceAll('_', ' ').replace(/\b\w/g, (m: string) => m.toUpperCase()));
+      setProfileImage(avatar);
+    } catch {
+      // keep defaults
+    }
 
-      // Load platform settings from API (with localStorage fallback)
-      try {
-        const settings = await getAdminPlatformSettings();
-        if (!mounted) return;
-        setIsMaintenanceMode(settings.maintenance_mode);
-        setAutoApproveSellers(settings.auto_approve_sellers);
-        // Cache locally so next open is instant
-        await storage.setItem('admin:maintenanceMode', String(settings.maintenance_mode)).catch(() => {});
-        await storage.setItem('admin:autoApproveSellers', String(settings.auto_approve_sellers)).catch(() => {});
-      } catch {
-        // Fall back to cached local values if API fails
-        const [maint, autoApprove] = await Promise.all([
-          storage.getItem('admin:maintenanceMode'),
-          storage.getItem('admin:autoApproveSellers'),
-        ]);
-        if (!mounted) return;
-        if (maint !== null) setIsMaintenanceMode(maint === 'true');
-        if (autoApprove !== null) setAutoApproveSellers(autoApprove === 'true');
-      }
+    try {
+      const settings = await getAdminPlatformSettings();
+      setIsMaintenanceMode(settings.maintenance_mode);
+      setAutoApproveSellers(settings.auto_approve_sellers);
+      await storage.setItem('admin:maintenanceMode', String(settings.maintenance_mode)).catch(() => {});
+      await storage.setItem('admin:autoApproveSellers', String(settings.auto_approve_sellers)).catch(() => {});
+    } catch {
+      const [maint, autoApprove] = await Promise.all([
+        storage.getItem('admin:maintenanceMode'),
+        storage.getItem('admin:autoApproveSellers'),
+      ]);
+      if (maint !== null) setIsMaintenanceMode(maint === 'true');
+      if (autoApprove !== null) setAutoApproveSellers(autoApprove === 'true');
+    }
 
-      // Load local-only push notification preference
-      const push = await storage.getItem('admin:pushNotifications');
-      if (!mounted) return;
-      if (push !== null) setPushNotifications(push === 'true');
-    })();
-    return () => {
-      mounted = false;
-    };
+    const push = await storage.getItem('admin:pushNotifications');
+    if (push !== null) setPushNotifications(push === 'true');
+
+    setLoading(false);
+    setRefreshing(false);
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const profileInitial = useMemo(
     () => (profileName || 'A').trim().charAt(0).toUpperCase(),
@@ -129,14 +125,26 @@ export default function AdminSettings() {
     ]);
   };
 
+  if (loading && !refreshing) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <View style={styles.page}>
+          <AdminScreenSkeleton metrics={0} rows={3} cards={2} />
+          <AdminBottomNav />
+        </View>
+      </>
+    );
+  }
+
   return (
     <>
       <StatusBar style="dark" />
-      <AdminShell>
+      <View style={styles.page}>
         <ScrollView
-          style={styles.page}
-          contentContainerStyle={[styles.pageContent, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 12) + 80 }]}
+          contentContainerStyle={[styles.pageContent, { paddingTop: insets.top + 16, paddingBottom: Math.max(insets.bottom, 12) + 120 }]}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={adminColors.navy} />}
         >
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
@@ -204,6 +212,14 @@ export default function AdminSettings() {
                 onPress={() => router.push('/admin/broadcasts' as any)}
                 color={adminColors.blue}
               />
+              <View style={styles.divider} />
+              <SettingItem
+                icon="dollar-sign"
+                label="Fees & Commission"
+                subLabel="Manage commission, delivery, and ad fees"
+                onPress={() => router.push('/admin/fee-settings' as any)}
+                color={adminColors.amber}
+              />
             </AdminPanel>
 
             <AdminPanel style={styles.column}>
@@ -237,6 +253,17 @@ export default function AdminSettings() {
           </View>
 
           <AdminPanel>
+            <Text style={styles.sectionTitle}>Logistics</Text>
+            <SettingItem
+              icon="map-pin"
+              label="Hubs & Transit Routes"
+              subLabel="Manage delivery hubs and inter-regional lanes"
+              onPress={() => router.push('/admin/hubs' as any)}
+              color="#059669"
+            />
+          </AdminPanel>
+
+          <AdminPanel>
             <Text style={styles.sectionTitle}>Content</Text>
             <SettingItem
               icon="tag"
@@ -252,6 +279,14 @@ export default function AdminSettings() {
               subLabel="Manage banner ads and promotions"
               onPress={() => router.push('/admin/ads' as any)}
               color="#0891B2"
+            />
+            <View style={styles.divider} />
+            <SettingItem
+              icon="file-text"
+              label="Disclaimers & Terms"
+              subLabel="Edit platform legal content and view consent logs"
+              onPress={() => router.push('/admin/disclaimers' as any)}
+              color="#D97706"
             />
           </AdminPanel>
 
@@ -275,7 +310,8 @@ export default function AdminSettings() {
             <Text style={styles.logoutText}>Logout Admin Portal</Text>
           </TouchableOpacity>
         </ScrollView>
-      </AdminShell>
+        <AdminBottomNav />
+      </View>
     </>
   );
 }

@@ -141,6 +141,7 @@ describe('AdminController Unit Tests', () => {
       // Arrange
       const mockRow = {
         total_users: 120,
+        total_buyers: 80,
         total_stores: 30,
         total_orders: 450,
         total_revenue: '9800.50',
@@ -162,6 +163,7 @@ describe('AdminController Unit Tests', () => {
         success: true,
         stats: {
           totalUsers: 120,
+          totalBuyers: 80,
           totalStores: 30,
           totalOrders: 450,
           totalRevenue: 9800.5,
@@ -190,6 +192,7 @@ describe('AdminController Unit Tests', () => {
         success: true,
         stats: {
           totalUsers: 0,
+          totalBuyers: 0,
           totalStores: 0,
           totalOrders: 0,
           totalRevenue: 0,

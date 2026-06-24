@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminCreateStore } from '@/services/admin';
+import UserSearchPicker from '@/components/admin/UserSearchPicker';
 
 const HEADER_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
@@ -34,6 +35,18 @@ export default function AdminCreateBusiness() {
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [taxId, setTaxId] = useState('');
   const [autoVerify, setAutoVerify] = useState(false);
+  const [logoUrl, setLogoUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [socialInstagram, setSocialInstagram] = useState('');
+  const [socialFacebook, setSocialFacebook] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState<'bank' | 'momo'>('bank');
+  const [bankName, setBankName] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [stateProvince, setStateProvince] = useState('');
+  const [country, setCountry] = useState('Ghana');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
 
@@ -60,6 +73,18 @@ export default function AdminCreateBusiness() {
         registration_number: registrationNumber.trim() || undefined,
         tax_id: taxId.trim() || undefined,
         auto_verify: autoVerify,
+        logo_url: logoUrl.trim() || undefined,
+        banner_url: bannerUrl.trim() || undefined,
+        website_url: websiteUrl.trim() || undefined,
+        social_instagram: socialInstagram.trim() || undefined,
+        social_facebook: socialFacebook.trim() || undefined,
+        payout_method: payoutMethod,
+        bank_name: bankName.trim() || undefined,
+        account_name: accountName.trim() || undefined,
+        account_number: accountNumber.trim() || undefined,
+        address_line1: addressLine1.trim() || undefined,
+        state_province: stateProvince.trim() || undefined,
+        country: country.trim() || 'Ghana',
       });
       CustomInAppToast.show({ type: 'success', title: 'Store Created', message: `${storeName} has been created.` });
       router.back();
@@ -90,16 +115,12 @@ export default function AdminCreateBusiness() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.formCard}>
-              <Text style={styles.fieldLabel}>Owner User ID</Text>
-              <TextInput
-                style={[styles.input, errors.ownerId ? styles.inputError : null]}
-                placeholder="User UUID"
-                placeholderTextColor="#94A3B8"
-                autoCapitalize="none"
+              <UserSearchPicker
+                label="Owner"
                 value={ownerId}
-                onChangeText={(v) => { setOwnerId(v); setErrors((e) => ({ ...e, ownerId: '' })); }}
+                onSelect={(userId) => { setOwnerId(userId); setErrors((e) => ({ ...e, ownerId: '' })); }}
+                error={errors.ownerId}
               />
-              {errors.ownerId ? <Text style={styles.errorText}>{errors.ownerId}</Text> : null}
 
               <Text style={styles.fieldLabel}>Store Name</Text>
               <TextInput
@@ -180,6 +201,139 @@ export default function AdminCreateBusiness() {
                 onChangeText={setTaxId}
               />
 
+              <Text style={[styles.fieldLabel, styles.sectionHeader]}>Brand & Media</Text>
+
+              <Text style={styles.fieldLabel}>Logo URL (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://example.com/logo.png"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                keyboardType="url"
+                value={logoUrl}
+                onChangeText={setLogoUrl}
+              />
+
+              <Text style={styles.fieldLabel}>Banner / Cover URL (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://example.com/banner.jpg"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                keyboardType="url"
+                value={bannerUrl}
+                onChangeText={setBannerUrl}
+              />
+
+              <Text style={[styles.fieldLabel, styles.sectionHeader]}>Online Presence</Text>
+
+              <Text style={styles.fieldLabel}>Website URL (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="https://mystore.com"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                keyboardType="url"
+                value={websiteUrl}
+                onChangeText={setWebsiteUrl}
+              />
+
+              <Text style={styles.fieldLabel}>Instagram Handle (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="@mystore"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                value={socialInstagram}
+                onChangeText={setSocialInstagram}
+              />
+
+              <Text style={styles.fieldLabel}>Facebook Page (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="facebook.com/mystore"
+                placeholderTextColor="#94A3B8"
+                autoCapitalize="none"
+                value={socialFacebook}
+                onChangeText={setSocialFacebook}
+              />
+
+              <Text style={[styles.fieldLabel, styles.sectionHeader]}>Location</Text>
+
+              <Text style={styles.fieldLabel}>Address Line 1 (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="123 Main Street"
+                placeholderTextColor="#94A3B8"
+                value={addressLine1}
+                onChangeText={setAddressLine1}
+              />
+
+              <Text style={styles.fieldLabel}>Region / State (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Greater Accra"
+                placeholderTextColor="#94A3B8"
+                value={stateProvince}
+                onChangeText={setStateProvince}
+              />
+
+              <Text style={styles.fieldLabel}>Country (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ghana"
+                placeholderTextColor="#94A3B8"
+                value={country}
+                onChangeText={setCountry}
+              />
+
+              <Text style={[styles.fieldLabel, styles.sectionHeader]}>Payout Details</Text>
+
+              <Text style={styles.fieldLabel}>Payout Method</Text>
+              <View style={styles.chipsRow}>
+                {(['bank', 'momo'] as const).map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.chip, payoutMethod === m && styles.chipActive]}
+                    onPress={() => setPayoutMethod(m)}
+                  >
+                    <Text style={[styles.chipText, payoutMethod === m && styles.chipTextActive]}>
+                      {m === 'bank' ? 'Bank Account' : 'Mobile Money'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Bank / MoMo Name (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={payoutMethod === 'bank' ? 'e.g. GCB Bank' : 'e.g. MTN MoMo'}
+                placeholderTextColor="#94A3B8"
+                value={bankName}
+                onChangeText={setBankName}
+              />
+
+              <Text style={styles.fieldLabel}>Account Name (optional)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="John Doe"
+                placeholderTextColor="#94A3B8"
+                value={accountName}
+                onChangeText={setAccountName}
+              />
+
+              <Text style={styles.fieldLabel}>
+                {payoutMethod === 'bank' ? 'Account Number (optional)' : 'Mobile Number (optional)'}
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder={payoutMethod === 'bank' ? '1234567890' : '0241234567'}
+                placeholderTextColor="#94A3B8"
+                keyboardType="number-pad"
+                value={accountNumber}
+                onChangeText={setAccountNumber}
+              />
+
               <View style={styles.toggleRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.toggleLabel}>Auto-Verify</Text>
@@ -258,6 +412,26 @@ const styles = StyleSheet.create({
   multilineInput: { minHeight: 80, textAlignVertical: 'top' },
   inputError: { borderColor: '#DC2626' },
   errorText: { color: '#DC2626', fontSize: 11, fontFamily: 'Montserrat-Regular', marginTop: 4 },
+  sectionHeader: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#EEF2F7',
+    color: '#0C1559',
+    fontSize: 14,
+  },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: 999,
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#D9E2F2',
+  },
+  chipActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
+  chipText: { color: '#1D2B73', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
+  chipTextActive: { color: '#fff' },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

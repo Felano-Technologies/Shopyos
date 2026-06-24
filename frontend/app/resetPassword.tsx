@@ -13,12 +13,12 @@ import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { confirmResetPassword } from '@/services/api';
+import { resetPasswordWithToken } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
 const ResetPasswordScreen = () => {
-  const { token } = useLocalSearchParams();
+  const { resetToken } = useLocalSearchParams();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -26,14 +26,14 @@ const ResetPasswordScreen = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!token) {
+    if (!resetToken) {
       Alert.alert(
-        'Invalid Link',
-        'This password reset link is invalid. Please request a new one.',
+        'Session Expired',
+        'Your reset session is invalid. Please start again.',
         [{ text: 'OK', onPress: () => router.replace('/forgotPassword') }]
       );
     }
-  }, [token]);
+  }, [resetToken]);
 
   const isFormValid = 
     newPassword.length >= 6 && 
@@ -48,7 +48,7 @@ const ResetPasswordScreen = () => {
 
     try {
       setLoading(true);
-      await confirmResetPassword(token as string, newPassword);
+      await resetPasswordWithToken(resetToken as string, newPassword);
       
       Alert.alert(
         'Success!',

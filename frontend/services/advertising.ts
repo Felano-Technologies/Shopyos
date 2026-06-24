@@ -87,16 +87,33 @@ export const getActiveBanners = async () => {
   }
 };
 
-export const uploadSnapImage = async (uri: string) => {
+export const uploadSnapImage = async (uri: string, onProgress?: (progress: number) => void) => {
   try {
     const formData = new FormData();
     const filename = uri.split('/').pop() || 'snap.jpg';
     const match = /\.(\w+)$/.exec(filename);
     const ext = match ? match[1] : null;
-    const type = ext ? `image/${ext === 'jpg' ? 'jpeg' : ext}` : 'image/jpeg';
+    
+    // Set correct MIME type
+    let type = 'image/jpeg';
+    if (ext) {
+      const extLower = ext.toLowerCase();
+      if (['mp4', 'mov', 'webm', 'mkv', 'avi', '3gp', 'quicktime'].includes(extLower)) {
+        type = `video/${extLower === 'mov' || extLower === 'quicktime' ? 'quicktime' : extLower}`;
+      } else {
+        type = `image/${extLower === 'jpg' ? 'jpeg' : extLower}`;
+      }
+    }
+
     formData.append('image', { uri, name: filename, type } as any);
     const response = await api.post('/upload/single?folder=shopyos/snaps', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress && progressEvent.total) {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          onProgress(percentCompleted);
+        }
+      }
     });
     return response.data;
   } catch (error: any) {
@@ -135,6 +152,24 @@ export const viewSnap = async (id: string) => {
 export const deleteSnap = async (id: string) => {
   try {
     const response = await api.delete(`/snaps/${id}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getMySnaps = async (status?: 'active' | 'expired' | 'all') => {
+  try {
+    const response = await api.get('/snaps/my-snaps', { params: { status } });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const repostSnap = async (id: string) => {
+  try {
+    const response = await api.post(`/snaps/${id}/repost`);
     return response.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));

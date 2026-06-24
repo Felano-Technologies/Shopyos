@@ -78,7 +78,8 @@ export default function ProductsScreen() {
           attrColor: p.variantOptions?.find((v: any) => v.option_name === 'color')?.option_values?.join(', ') || '',
           attrSize: p.variantOptions?.find((v: any) => v.option_name === 'size')?.option_values?.join(', ') || '',
           attrMaterial: p.attributes?.material || '', attrStyle: p.attributes?.style || '',
-          attrBrand: p.brand || '', attrConnectivity: p.attributes?.connectivity || ''
+          attrBrand: p.brand || '', attrConnectivity: p.attributes?.connectivity || '',
+          bargainingEnabled: p.bargainingEnabled ?? p.bargaining_enabled ?? true
         })));
       }
     } catch (error) {
@@ -279,6 +280,18 @@ export default function ProductsScreen() {
                 ))}
               </View>
 
+              {/* ── Bargains shortcut ─────────────────────────────────────── */}
+              <TouchableOpacity style={S.bargainCard} onPress={() => router.push('/business/bargains' as any)} activeOpacity={0.85}>
+                <View style={S.bargainIconWrap}>
+                  <Feather name="tag" size={rs(20)} color={C.navy} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={S.bargainCardTitle}>Incoming Bargains</Text>
+                  <Text style={S.bargainCardSub}>Review and respond to buyer price offers</Text>
+                </View>
+                <Feather name="chevron-right" size={rs(18)} color={C.muted} />
+              </TouchableOpacity>
+
               {/* ── Search & Filter chips ─────────────────────────────────── */}
               <View style={S.searchContainer}>
                 <View style={S.searchBar}>
@@ -431,6 +444,11 @@ const S = StyleSheet.create({
   statNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', marginBottom: rs(3) },
   statLbl: { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: rs(6) },
   statBar: { width: rs(20), height: rs(3), borderRadius: rs(2) },
+
+  bargainCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: C.card, borderRadius: rs(16), padding: rs(14), marginHorizontal: rs(16), marginBottom: rs(14), gap: rs(12), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8), borderWidth: 1, borderColor: '#EEF2FF' },
+  bargainIconWrap: { width: rs(40), height: rs(40), borderRadius: rs(12), backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center' },
+  bargainCardTitle: { fontSize: rf(13), fontFamily: 'Montserrat-Bold', color: C.body },
+  bargainCardSub: { fontSize: rf(11), fontFamily: 'Montserrat-Regular', color: C.muted, marginTop: rs(2) },
 
   searchContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: rs(16), gap: rs(10), marginBottom: rs(12) },
   searchBar: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: rs(10), backgroundColor: C.card, borderRadius: rs(14), paddingHorizontal: rs(14), height: rs(44), elevation: 2, shadowColor: C.navy, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: rs(4) },

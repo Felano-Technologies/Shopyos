@@ -10,6 +10,12 @@
 
 jest.mock('../../services/rabbitmq');
 jest.mock('nodemailer');
+jest.mock('../../services/feeConfigService', () => ({
+  get: jest.fn().mockImplementation((key) => {
+    if (key === 'min_payout_amount') return Promise.resolve(50);
+    return Promise.resolve(0);
+  }),
+}));
 
 jest.mock('../../config/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() },

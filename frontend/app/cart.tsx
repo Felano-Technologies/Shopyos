@@ -23,6 +23,8 @@ type CartItem = {
   quantity: number;
   image: string | number;
   category: string;
+  bargain_discount?: number;
+  bargain_offer_id?: string;
 };
 
 type SwipeableProps = {
@@ -76,7 +78,9 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
     }
   };
 
-  const lineTotal = Number(item.price || 0) * item.quantity;
+  const discount = Number(item.bargain_discount || 0);
+  const effectivePrice = Number(item.price || 0) - discount;
+  const lineTotal = effectivePrice * item.quantity;
 
   return (
     <View style={styles.swipeContainer}>
@@ -105,7 +109,14 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
           <Text style={styles.itemCategory}>{item.category}</Text>
           <View style={styles.priceControlRow}>
             <View>
-              <Text style={styles.itemPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+              {discount > 0 ? (
+                <>
+                  <Text style={styles.itemPriceStrikethrough}>₵{Number(item.price).toFixed(2)}</Text>
+                  <Text style={styles.itemPriceBargained}>₵{effectivePrice.toFixed(2)}</Text>
+                </>
+              ) : (
+                <Text style={styles.itemPrice}>₵{Number(item.price || 0).toFixed(2)}</Text>
+              )}
               {item.quantity > 1 && (
                 <Text style={styles.itemSubtotal}>× {item.quantity} = ₵{lineTotal.toFixed(2)}</Text>
               )}
@@ -334,6 +345,8 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginTop: 6,
   },
   itemPrice: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  itemPriceStrikethrough: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', textDecorationLine: 'line-through' },
+  itemPriceBargained: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#16a34a' },
   itemSubtotal: { fontSize: 10, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 1 },
   qtyContainer: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',

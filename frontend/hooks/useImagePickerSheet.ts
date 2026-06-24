@@ -12,10 +12,7 @@
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
-type PickOptions = Omit<
-  ImagePicker.ImagePickerOptions,
-  'mediaTypes'
->;
+type PickOptions = ImagePicker.ImagePickerOptions;
 
 export function useImagePickerSheet() {
   const launch = async (
@@ -23,7 +20,7 @@ export function useImagePickerSheet() {
     opts: PickOptions
   ): Promise<string | null> => {
     const pickerOpts: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaTypeOptions.Images, // default to images
       ...opts,
     };
     const result = useCamera
@@ -35,9 +32,16 @@ export function useImagePickerSheet() {
 
   return (opts: PickOptions = {}): Promise<string | null> =>
     new Promise((resolve) => {
+      const allowsVideo = opts.mediaTypes === ImagePicker.MediaTypeOptions.Videos || 
+                          opts.mediaTypes === ImagePicker.MediaTypeOptions.All;
+      const title = allowsVideo ? 'Add Photo or Video' : 'Add Photo';
+      const message = allowsVideo 
+        ? 'How would you like to add a photo or video?' 
+        : 'How would you like to add a photo?';
+
       Alert.alert(
-        'Add Photo',
-        'How would you like to add a photo?',
+        title,
+        message,
         [
           {
             text: 'Take Photo',

@@ -1,13 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import {
-  View, FlatList, StyleSheet, TouchableOpacity,
+  View, FlatList, SectionList, StyleSheet, TouchableOpacity,
   Text, Alert, TextInput, Modal, ActivityIndicator, Pressable,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useBuyerConversations, useChatActions } from '@/hooks/useChat';
+import { useAllConversations, useChatActions } from '@/hooks/useChat';
 import { CustomInAppToast } from "@/components/InAppToastHost";
-import { startConversation, getAllStores } from '@/services/api';
+import { startConversation, getChatContacts } from '@/services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -32,16 +32,16 @@ const C = {
 
 export default function ChatInbox() {
   const router = useRouter();
-  const { data: buyerConversations = [] } = useBuyerConversations();
+  const { data: buyerConversations = [] } = useAllConversations();
   const { markAsRead, refresh, deleteConversation } = useChatActions();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', 'Unread', 'Read'];
 
-  // New Chat / Choose Merchant Modal State
+  // New Chat Modal State
   const [sellerModalVisible, setSellerModalVisible] = useState(false);
-  const [sellers, setSellers] = useState<any[]>([]);
-  const [sellersLoading, setSellersLoading] = useState(false);
+  const [contactSections, setContactSections] = useState<{ title: string; data: any[] }[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
   const [sellerSearchQuery, setSellerSearchQuery] = useState('');
 
   const totalUnread = buyerConversations.reduce(
@@ -83,58 +83,54 @@ export default function ChatInbox() {
 
   const displayList = [botChat, ...filtered];
 
-  const filteredSellers = sellers.filter((s: any) =>
-    (s.name || '').toLowerCase().includes(sellerSearchQuery.toLowerCase()) ||
-    (s.category || '').toLowerCase().includes(sellerSearchQuery.toLowerCase())
-  );
+  const q = sellerSearchQuery.toLowerCase();
+  const filteredSections = contactSections
+    .map(s => ({
+      ...s,
+      data: s.data.filter((c: any) =>
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.context || '').toLowerCase().includes(q)
+      ),
+    }))
+    .filter(s => s.data.length > 0);
 
-  const startChatWithSeller = async (seller: any) => {
-    const ownerId = seller.ownerId;
-    if (!ownerId) {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Cannot Chat', 
-        message: 'This seller is currently unavailable.' 
-      });
+  const startChatWithContact = async (contact: any) => {
+    if (!contact.id) {
+      CustomInAppToast.show({ type: 'error', title: 'Cannot Chat', message: 'This user is unavailable.' });
       return;
     }
     setSellerModalVisible(false);
     try {
-      const res = await startConversation(ownerId);
+      const res = await startConversation(contact.id);
       if (res.success && res.conversation) {
         router.push({
           pathname: '/chat/conversation',
           params: {
             conversationId: res.conversation.id,
-            name: seller.name,
-            avatar: seller.logo || 'https://api.dicebear.com/7.x/initials/png?seed=' + seller.name,
+            name: contact.name,
+            avatar: contact.avatar_url || ('https://api.dicebear.com/7.x/initials/png?seed=' + contact.name),
             chatType: 'buyer',
-            entityId: seller.id,
-            participantId: ownerId
-          }
+            participantId: contact.id,
+          },
         });
       }
     } catch {
-      CustomInAppToast.show({ 
-        type: 'error', 
-        title: 'Error', 
-        message: 'Could not start conversation.' 
-      });
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not start conversation.' });
     }
   };
 
   const openNewChat = async () => {
     setSellerModalVisible(true);
-    setSellersLoading(true);
+    setContactsLoading(true);
     try {
-      const res = await getAllStores({ limit: 100 });
+      const res = await getChatContacts();
       if (res.success) {
-        setSellers(res.businesses || []);
+        setContactSections(res.sections || []);
       }
     } catch {
-      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load sellers.' });
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not load contacts.' });
     } finally {
-      setSellersLoading(false);
+      setContactsLoading(false);
     }
   };
 
@@ -343,7 +339,7 @@ export default function ChatInbox() {
           <View style={styles.modalSheet}>
             <View style={styles.sheetHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Choose a Merchant</Text>
+              <Text style={styles.modalTitle}>New Conversation</Text>
               <TouchableOpacity style={styles.modalClose} onPress={() => setSellerModalVisible(false)}>
                 <Ionicons name="close" size={16} color={C.navyDeep} />
               </TouchableOpacity>
@@ -354,7 +350,7 @@ export default function ChatInbox() {
               <Feather name="search" size={14} color={C.mutedText} />
               <TextInput
                 style={styles.modalSearchInput}
-                placeholder="Search sellers or categories..."
+                placeholder="Search by name..."
                 placeholderTextColor={C.mutedText}
                 value={sellerSearchQuery}
                 onChangeText={setSellerSearchQuery}
@@ -366,24 +362,28 @@ export default function ChatInbox() {
               )}
             </View>
 
-            {sellersLoading ? (
+            {contactsLoading ? (
               <View style={styles.modalLoading}>
                 <ActivityIndicator size="large" color={C.navyDeep} />
-                <Text style={styles.modalLoadingTxt}>Finding active merchants...</Text>
+                <Text style={styles.modalLoadingTxt}>Loading contacts...</Text>
               </View>
             ) : (
-              <FlatList
-                data={filteredSellers}
+              <SectionList
+                sections={filteredSections}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.modalList}
                 showsVerticalScrollIndicator={false}
-                initialNumToRender={10}
-                maxToRenderPerBatch={10}
-                windowSize={8}
-                ItemSeparatorComponent={ModalSeparator}
+                stickySectionHeadersEnabled={false}
                 ListEmptyComponent={ModalEmptyComponent}
+                renderSectionHeader={({ section }) => (
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionHeaderTxt}>{section.title}</Text>
+                  </View>
+                )}
+                SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
+                ItemSeparatorComponent={ModalSeparator}
                 renderItem={({ item }) => (
-                  <SellerRow item={item} onPress={startChatWithSeller} getInitials={initials} />
+                  <ContactRow item={item} onPress={startChatWithContact} getInitials={initials} />
                 )}
               />
             )}
@@ -621,6 +621,18 @@ const styles = StyleSheet.create({
   modalList: {
     paddingBottom: 24,
   },
+  sectionHeader: {
+    paddingHorizontal: 4,
+    paddingTop: 12,
+    paddingBottom: 6,
+  },
+  sectionHeaderTxt: {
+    fontSize: 11,
+    fontFamily: 'Montserrat-Bold',
+    color: C.navyDeep,
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
+  },
   modalSep: {
     height: 1,
     backgroundColor: 'rgba(12,21,89,0.05)',
@@ -734,9 +746,9 @@ const ModalSeparator = () => <View style={styles.modalSep} />;
 
 const ModalEmptyComponent = () => (
   <View style={styles.modalEmpty}>
-    <Ionicons name="storefront-outline" size={32} color={C.mutedText} />
-    <Text style={styles.modalEmptyTitle}>No sellers found</Text>
-    <Text style={styles.modalEmptyDesc}>Try checking your search keyword.</Text>
+    <Ionicons name="people-outline" size={32} color={C.mutedText} />
+    <Text style={styles.modalEmptyTitle}>No contacts found</Text>
+    <Text style={styles.modalEmptyDesc}>No active conversations available to start.</Text>
   </View>
 );
 
@@ -777,20 +789,27 @@ const InboxEmpty = ({ hasConversations, onBrowse }: InboxEmptyProps) => (
   <ChatEmpty hasConversations={hasConversations} onBrowse={onBrowse} />
 );
 
-type SellerRowProps = Readonly<{
+type ContactRowProps = Readonly<{
   item: any;
   onPress: (item: any) => void;
   getInitials: (name: string) => string;
 }>;
 
-const SellerRow = ({ item, onPress, getInitials }: SellerRowProps) => (
+const ROLE_ICON: Record<string, any> = {
+  seller: 'storefront-outline',
+  driver: 'car-outline',
+  parcel_partner: 'cube-outline',
+  buyer: 'person-outline',
+};
+
+const ContactRow = ({ item, onPress, getInitials }: ContactRowProps) => (
   <TouchableOpacity
     style={styles.modalRow}
     onPress={() => onPress(item)}
     activeOpacity={0.7}
   >
-    {item.logo ? (
-      <AppImage uri={item.logo} style={styles.modalAvatar} />
+    {item.avatar_url ? (
+      <AppImage uri={item.avatar_url} style={styles.modalAvatar} />
     ) : (
       <View style={styles.modalAvatarFallback}>
         <Text style={styles.modalAvatarLetters}>{getInitials(item.name)}</Text>
@@ -805,10 +824,12 @@ const SellerRow = ({ item, onPress, getInitials }: SellerRowProps) => (
           </View>
         )}
       </View>
-      <Text style={styles.modalSellerCat}>{item.category}</Text>
+      {item.context ? (
+        <Text style={styles.modalSellerCat}>{item.context}</Text>
+      ) : null}
     </View>
     <View style={styles.chatActionBtn}>
-      <Ionicons name="chatbubble-ellipses-outline" size={15} color={C.navyDeep} />
+      <Ionicons name={ROLE_ICON[item.role] || 'chatbubble-ellipses-outline'} size={15} color={C.navyDeep} />
     </View>
   </TouchableOpacity>
 );

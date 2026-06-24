@@ -951,9 +951,14 @@ const createUserProfile = async (req, res, next) => {
       return res.status(400).json({ error: 'full_name, email, password and role are required' });
     }
 
-    const user = await repositories.users.createUser({ email, password, phone });
-    await repositories.userProfiles.create({ user_id: user.id, full_name, phone });
+    const user = await repositories.users.createUser({ email, password });
+    await repositories.userProfiles.updateByUserId(user.id, { full_name, phone: phone || null });
     await repositories.admin.setUserRoleByUserId(user.id, role);
+
+    await repositories.users.db
+      .from('users')
+      .update({ password_reset_required: true })
+      .eq('id', user.id);
 
     await notificationService.sendNotification({
       userId: user.id,
@@ -985,6 +990,9 @@ const createStoreAdmin = async (req, res, next) => {
     const {
       owner_id, store_name, description, category, city, phone, email,
       registration_number, tax_id, auto_verify = false,
+      logo_url, banner_url, website_url, social_instagram, social_facebook,
+      payout_method, bank_name, account_name, account_number,
+      address_line1, state_province, country,
     } = req.body;
 
     if (!owner_id || !store_name) {
@@ -998,8 +1006,12 @@ const createStoreAdmin = async (req, res, next) => {
       `INSERT INTO stores
          (owner_id, store_name, description, category, city, phone, email,
           registration_number, tax_id,
-          verification_status, is_verified, verified_at, is_active)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,TRUE)
+          verification_status, is_verified, verified_at, is_active,
+          logo_url, banner_url, website_url, social_instagram, social_facebook,
+          payout_method, bank_name, account_name, account_number,
+          address_line1, state_province, country)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,TRUE,
+               $13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
        RETURNING *`,
       [
         owner_id, store_name, description || null, category || null,
@@ -1008,6 +1020,11 @@ const createStoreAdmin = async (req, res, next) => {
         auto_verify ? 'verified' : 'pending',
         auto_verify,
         auto_verify ? new Date().toISOString() : null,
+        logo_url || null, banner_url || null, website_url || null,
+        social_instagram || null, social_facebook || null,
+        payout_method || 'bank',
+        bank_name || null, account_name || null, account_number || null,
+        address_line1 || null, state_province || null, country || null,
       ]
     );
     const store = rows[0];
@@ -1044,7 +1061,11 @@ const createStoreAdmin = async (req, res, next) => {
 // ─── Create driver profile ────────────────────────────────────────────────────
 const createDriverProfileAdmin = async (req, res, next) => {
   try {
-    const { user_id, vehicle_type, plate_number, license_number, auto_approve = false } = req.body;
+    const {
+      user_id, vehicle_type, plate_number, license_number, auto_approve = false,
+      vehicle_make, vehicle_model, vehicle_year,
+      insurance_policy_number, insurance_expiry_date, license_expiry_date,
+    } = req.body;
     if (!user_id) return res.status(400).json({ error: 'user_id is required' });
 
     const { getPool } = require('../config/postgres');
@@ -1052,10 +1073,17 @@ const createDriverProfileAdmin = async (req, res, next) => {
 
     const { rows } = await db.query(
       `INSERT INTO driver_profiles
-         (user_id, vehicle_type, plate_number, license_number, is_verified)
-       VALUES ($1,$2,$3,$4,$5)
+         (user_id, vehicle_type, license_plate, drivers_license_number, is_verified,
+          vehicle_make, vehicle_model, vehicle_year,
+          insurance_policy_number, insurance_expiry_date, license_expiry_date)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
        RETURNING *`,
-      [user_id, vehicle_type || null, plate_number || null, license_number || null, auto_approve]
+      [
+        user_id, vehicle_type || null, plate_number || null, license_number || null, auto_approve,
+        vehicle_make || null, vehicle_model || null, vehicle_year ? Number.parseInt(vehicle_year) : null,
+        insurance_policy_number || null,
+        insurance_expiry_date || null, license_expiry_date || null,
+      ]
     );
     const driver = rows[0];
 

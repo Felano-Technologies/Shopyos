@@ -12,7 +12,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { safePush } from '@/lib/navigation';
+import { safeReplace } from '@/lib/navigation';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -36,7 +36,7 @@ const BottomNav = () => {
       duration: 200, // Faster duration reduces ghosting
       update: { type: 'easeInEaseOut' },
     });
-    safePush(route);
+    safeReplace(route);
   };
 
   return (

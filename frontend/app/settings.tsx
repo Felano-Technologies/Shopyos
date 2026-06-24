@@ -279,6 +279,12 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
           {renderSettingItem({
+            icon: 'tag',
+            label: 'My Bargains',
+            onPress: () => router.push('/bargain/my-offers')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
             icon: 'credit-card',
             label: 'Payment Methods',
             onPress: () => router.push('/settings/paymentMethods')
@@ -323,6 +329,18 @@ export default function SettingsScreen() {
         {/* Section: Support & Legal */}
         <Text style={styles.sectionHeader}>Support</Text>
         <View style={styles.sectionCard}>
+          {renderSettingItem({
+            icon: 'alert-circle',
+            label: 'Raise a Report',
+            onPress: () => router.push('/support' as any)
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'list',
+            label: 'My Reports',
+            onPress: () => router.push('/support/my-tickets' as any)
+          })}
+          <View style={styles.separator} />
           {renderSettingItem({
             icon: 'help-circle',
             label: 'Help Center',

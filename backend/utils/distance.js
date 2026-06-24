@@ -28,20 +28,18 @@ function haversineKm(lat1, lon1, lat2, lon2) {
 
 /**
  * Calculate the delivery fee for an order based on store settings and distance.
- * @param {Object} store - Store record with delivery_base_fee, delivery_per_km_fee, delivery_max_km
+ * Bolt model: fee = base_fee + distance_km × per_km_rate (floor only, no ceiling).
+ * @param {Object} store - Store record with delivery_base_fee, delivery_per_km_fee
  * @param {number} distanceKm
- * @returns {{ fee: number|null, withinRange: boolean, distanceKm: number }}
+ * @param {number} [defaultPerKmFee=0] - Platform fallback per-km rate when store hasn't set one
+ * @returns {{ fee: number, withinRange: true, distanceKm: number }}
  */
-function calculateDeliveryFee(store, distanceKm) {
+function calculateDeliveryFee(store, distanceKm, defaultPerKmFee = 0) {
     const baseFee = Number.parseFloat(store.delivery_base_fee) || 0;
-    const perKmFee = Number.parseFloat(store.delivery_per_km_fee) || 0;
-    const maxKm = store.delivery_max_km ? Number.parseFloat(store.delivery_max_km) : null;
-
-    const withinRange = maxKm === null || distanceKm <= maxKm;
+    const perKmFee = Number.parseFloat(store.delivery_per_km_fee) || defaultPerKmFee;
     const rawFee = Math.round((baseFee + distanceKm * perKmFee) * 100) / 100;
-    const fee = withinRange ? Math.max(5, rawFee) : null;
 
-    return { fee, withinRange, distanceKm };
+    return { fee: rawFee, withinRange: true, distanceKm };
 }
 
 module.exports = { haversineKm, calculateDeliveryFee };

@@ -302,6 +302,23 @@ export const useSellerUnreadCount = () => {
   return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
 };
 
+export const useAllConversations = () => {
+  const currentUserId = useChatStore((s) => s.currentUserId);
+  const select = useCallback(
+    (data: any[]) => data.map((c) => formatConversation(c, currentUserId)),
+    [currentUserId]
+  );
+  return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
+};
+
+export const useAllUnreadCount = () => {
+  const select = useCallback(
+    (data: any[]) => data.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
+    []
+  );
+  return useQuery({ queryKey: queryKeys.chat.conversations(), ...conversationsQueryOptions, select });
+};
+
 // ── Chat actions hook ─────────────────────────────────────────────────────────
 
 export const useChatActions = () => {

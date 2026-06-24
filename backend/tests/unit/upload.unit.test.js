@@ -100,12 +100,12 @@ describe('upload middleware Unit Tests', () => {
       { originalname: 'anim.gif',   mimetype: 'image/gif'  },
       { originalname: 'thumb.webp', mimetype: 'image/webp' },
       { originalname: 'icon.svg',   mimetype: 'image/svg+xml' },
+      { originalname: 'video.mp4',  mimetype: 'video/mp4' },
     ];
 
     const REJECTED_TYPES = [
       { originalname: 'doc.pdf',   mimetype: 'application/pdf'       },
       { originalname: 'sheet.xls', mimetype: 'application/vnd.ms-excel' },
-      { originalname: 'video.mp4', mimetype: 'video/mp4'              },
       { originalname: 'text.txt',  mimetype: 'text/plain'             },
     ];
 
@@ -136,7 +136,7 @@ describe('upload middleware Unit Tests', () => {
           fileFilter(req, file, (err) => {
             // Assert
             expect(err).toBeInstanceOf(Error);
-            expect(err.message).toMatch(/only image files are allowed/i);
+            expect(err.message).toMatch(/only images.*and short video files.*are allowed/i);
             done();
           });
         });

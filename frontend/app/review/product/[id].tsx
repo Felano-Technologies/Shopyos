@@ -18,6 +18,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { getProductById, createProductReview, getReviewableProducts } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 function StarRating({ currentRating, onRate }: Readonly<{ currentRating: number; onRate: (r: number) => void }>) {
     return (
@@ -75,9 +77,19 @@ const ProductReviewScreen = () => {
         if (id) fetchData();
     }, [fetchData, id]);
     const [eligibilityVisible, setEligibilityVisible] = useState(false);
+    const [reviewTerms, setReviewTerms] = useState<Disclaimer | null>(null);
+    const [isTermsChecked, setIsTermsChecked] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+    useEffect(() => {
+        getDisclaimerByType('review_terms').then(setReviewTerms).catch(() => null);
+    }, []);
     const handleSubmit = async () => {
         if (rating === 0) {
             Alert.alert('Required', 'Please give a star rating');
+            return;
+        }
+        if (reviewTerms && !isTermsChecked) {
+            Alert.alert('Agreement Required', 'Please agree to the Review Policy before posting.');
             return;
         }
         try {
@@ -153,6 +165,21 @@ const ProductReviewScreen = () => {
                         />
                     </View>
                 </View>
+                {reviewTerms && (
+                    <View style={styles.disclaimerRow}>
+                        <TouchableOpacity style={styles.disclaimerCheckbox} onPress={() => setIsTermsChecked(!isTermsChecked)} activeOpacity={0.8}>
+                            <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                                {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                            </View>
+                        </TouchableOpacity>
+                        <Text style={styles.disclaimerText}>
+                            I agree to the{' '}
+                            <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+                                Review Policy
+                            </Text>
+                        </Text>
+                    </View>
+                )}
                 <TouchableOpacity
                     style={[styles.submitBtnContainer, submitting && { opacity: 0.7 }]}
                     onPress={handleSubmit}
@@ -167,6 +194,12 @@ const ProductReviewScreen = () => {
                     </LinearGradient>
                 </TouchableOpacity>
             </ScrollView>
+            <DisclaimerModal
+                type="review_terms"
+                visible={showTermsModal}
+                onClose={() => setShowTermsModal(false)}
+                onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+            />
             {/* Purchase Required Modal */}
             <Modal visible={eligibilityVisible} animationType="fade" transparent onRequestClose={() => setEligibilityVisible(false)}>
                 <View style={styles.eligibilityOverlay}>
@@ -214,6 +247,12 @@ const styles = StyleSheet.create({
     
     commentInput: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 15, minHeight: 120, textAlignVertical: 'top', fontFamily: 'Montserrat-Medium', fontSize: 14, color: '#334155', borderWidth: 1, borderColor: '#F1F5F9' },
     
+    disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 12, paddingHorizontal: 4 },
+    disclaimerCheckbox: { padding: 4 },
+    disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+    disclaimerBoxChecked: { backgroundColor: '#0C1559' },
+    disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
+    disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
     submitBtnContainer: { marginTop: 10, borderRadius: 20, overflow: 'hidden' },
     submitBtn: { paddingVertical: 18, alignItems: 'center' },
     submitBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },

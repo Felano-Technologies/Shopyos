@@ -8,31 +8,35 @@ import {
   Dimensions,
   Alert,
   ActivityIndicator,
-  Modal,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { requestPasswordReset } from '@/services/api';
-import LottieView from 'lottie-react-native';
+import { router } from 'expo-router';
+import { requestPasswordResetOTP } from '@/services/api';
 
 const { width } = Dimensions.get('window');
 
+type Method = 'email' | 'sms';
+
 const ForgotPasswordScreen = () => {
   const [email, setEmail] = useState('');
+  const [method, setMethod] = useState<Method>('email');
   const [sending, setSending] = useState(false);
-  const [successVisible, setSuccessVisible] = useState(false);
 
-  const handleRequestReset = async () => {
+  const handleSend = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) return;
 
     try {
       setSending(true);
-      await requestPasswordReset(normalizedEmail);
-      setSuccessVisible(true);
+      const result = await requestPasswordResetOTP(normalizedEmail, method);
+      router.push({
+        pathname: '/forgotPasswordOTP',
+        params: { email: normalizedEmail, method, maskedTarget: result.maskedTarget },
+      });
     } catch (error: unknown) {
-      Alert.alert('Request Failed', error instanceof Error ? error.message : 'Could not send reset email. Please try again.');
+      Alert.alert('Failed', error instanceof Error ? error.message : 'Could not send code. Please try again.');
     } finally {
       setSending(false);
     }
@@ -42,19 +46,17 @@ const ForgotPasswordScreen = () => {
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
 
-      {/* Banner Image */}
       <AppImage
         source={require('../assets/images/forgotpassword.png')}
         style={styles.banner}
       />
 
-      {/* Title and Description */}
       <Text style={styles.title}>Forgotten Password?</Text>
       <Text style={styles.subtitle}>
-        Please Enter Your Email Address To {'\n'}Receive a Verification Code.
+        Enter your email and choose how you'd{'\n'}like to receive your verification code.
       </Text>
 
-      {/* Input Field */}
+      {/* Email input */}
       <View style={styles.inputContainer}>
         <Ionicons name="mail-sharp" size={20} color="#000" style={styles.icon} />
         <TextInput
@@ -64,47 +66,58 @@ const ForgotPasswordScreen = () => {
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
+          autoCapitalize="none"
         />
       </View>
 
-      {/* Verify Button */}
+      {/* Method selector */}
+      <Text style={styles.methodLabel}>Send code via</Text>
+      <View style={styles.methodRow}>
+        <TouchableOpacity
+          style={[styles.methodCard, method === 'email' && styles.methodCardActive]}
+          onPress={() => setMethod('email')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="mail-outline"
+            size={22}
+            color={method === 'email' ? '#1e3a8a' : '#64748b'}
+          />
+          <Text style={[styles.methodText, method === 'email' && styles.methodTextActive]}>
+            Email
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.methodCard, method === 'sms' && styles.methodCardActive]}
+          onPress={() => setMethod('sms')}
+          activeOpacity={0.8}
+        >
+          <Ionicons
+            name="chatbubble-outline"
+            size={22}
+            color={method === 'sms' ? '#1e3a8a' : '#64748b'}
+          />
+          <Text style={[styles.methodText, method === 'sms' && styles.methodTextActive]}>
+            SMS
+          </Text>
+          <Text style={styles.methodHint}>Phone on your account</Text>
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity
-        style={[styles.verifyButton, (!email || sending) && { opacity: 0.4 }]}
+        style={[styles.sendButton, (!email || sending) && { opacity: 0.4 }]}
         disabled={!email || sending}
-        onPress={handleRequestReset}
+        onPress={handleSend}
+        activeOpacity={0.8}
       >
-        {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.verifyText}>Send Reset Link</Text>}
+        {sending ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.sendText}>Send Code</Text>
+        )}
       </TouchableOpacity>
 
-      <Modal
-        visible={successVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSuccessVisible(false)}
-      >
-        <View style={styles.successOverlay}>
-          <View style={styles.successCard}>
-            <LottieView
-              source={require('../assets/animations/reset-success.json')}
-              autoPlay
-              loop
-              style={styles.successArt}
-            />
-            <Text style={styles.successTitle}>Email Sent</Text>
-            <Text style={styles.successMessage}>
-              Your reset link is on the way. Please check your inbox and spam folder.
-            </Text>
-            <TouchableOpacity
-              style={styles.successButton}
-              onPress={() => setSuccessVisible(false)}
-            >
-              <Text style={styles.successButtonText}>Back</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Footer Logos */}
       <View style={styles.bottomLogos}>
         <AppImage
           source={require('../assets/images/adaptive-icon.png')}
@@ -153,10 +166,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#EEF2FF',
-    borderWidth: 0,
     borderRadius: 14,
     width: '90%',
-    marginTop: 30,
+    marginTop: 24,
     paddingHorizontal: 10,
     height: 50,
   },
@@ -168,15 +180,57 @@ const styles = StyleSheet.create({
     color: '#000',
     fontSize: 14,
   },
-  verifyButton: {
+  methodLabel: {
+    alignSelf: 'flex-start',
+    marginLeft: '5%',
+    marginTop: 20,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  methodRow: {
+    flexDirection: 'row',
+    width: '90%',
+    marginTop: 10,
+    gap: 12,
+  },
+  methodCard: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#F8FAFC',
+    gap: 4,
+  },
+  methodCardActive: {
+    borderColor: '#1e3a8a',
+    backgroundColor: '#EEF2FF',
+  },
+  methodText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
+  },
+  methodTextActive: {
+    color: '#1e3a8a',
+  },
+  methodHint: {
+    fontSize: 10,
+    color: '#94a3b8',
+    textAlign: 'center',
+  },
+  sendButton: {
     backgroundColor: '#1e3a8a',
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
     width: '90%',
-    marginTop: 40,
+    marginTop: 28,
   },
-  verifyText: {
+  sendText: {
     color: '#fff',
     fontSize: 17,
     fontWeight: '700',
@@ -186,7 +240,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '90%',
-    marginTop: 210,
+    marginTop: 'auto',
+    paddingBottom: 20,
   },
   circleLogo: {
     width: 140,
@@ -198,59 +253,5 @@ const styles = StyleSheet.create({
     width: 130,
     height: 32,
     resizeMode: 'contain',
-  },
-  successOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  successCard: {
-    width: '100%',
-    maxWidth: 360,
-    backgroundColor: '#FFF',
-    borderRadius: 28,
-    paddingHorizontal: 24,
-    paddingVertical: 26,
-    alignItems: 'center',
-  },
-  successArt: {
-    width: 170,
-    height: 130,
-    marginBottom: 10,
-  },
-  successBackdropArt: {
-    width: 150,
-    height: 70,
-    resizeMode: 'contain',
-    marginBottom: -8,
-    opacity: 0.35,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontFamily: 'Montserrat-Bold',
-    color: '#0F172A',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  successMessage: {
-    fontSize: 14,
-    fontFamily: 'Montserrat-Medium',
-    color: '#64748B',
-    lineHeight: 21,
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  successButton: {
-    backgroundColor: '#0F172A',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 999,
-  },
-  successButtonText: {
-    color: '#FFF',
-    fontSize: 14,
-    fontFamily: 'Montserrat-Bold',
   },
 });

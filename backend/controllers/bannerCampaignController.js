@@ -1,41 +1,29 @@
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary } = require('../utils/uploadHelpers');
-const { toPublicUrl } = require('../config/storage');
-
-const formatBanners = (obj) => {
-  if (!obj) return obj;
-  if (Array.isArray(obj)) {
-    return obj.map(formatBanners);
-  }
-  if (typeof obj === 'object') {
-    const formatted = {};
-    for (const [key, value] of Object.entries(obj)) {
-      if (key === 'banner_url' && typeof value === 'string' && value) {
-        formatted[key] = toPublicUrl(value);
-      } else {
-        formatted[key] = formatBanners(value);
-      }
-    }
-    return formatted;
-  }
-  return obj;
-};
-
-// Flat duration-based pricing (GHS)
-const DURATION_PRICING = { 1: 1, 7: 10, 30: 50 };
+const { transformImageUrlsAsync } = require('../config/storage');
+const feeConfigService = require('../services/feeConfigService');
 
 // Placements randomly assigned by the system at approval time
 const PLACEMENTS = ['Home Top Banner', 'Search Highlight', 'Category Featured'];
 
-const calcCost = (days) => {
-  if (DURATION_PRICING[days] !== undefined) return DURATION_PRICING[days];
-  // prorate: use per-day rate of the weekly tier
-  return Math.round(days * (10 / 7) * 100) / 100;
+const calcCost = async (days) => {
+  const dailyFee = await feeConfigService.get('banner_campaign_daily_fee');
+  const weeklyFee = await feeConfigService.get('banner_campaign_weekly_fee');
+  const monthlyFee = await feeConfigService.get('banner_campaign_monthly_fee');
+
+  if (days === 1) return dailyFee;
+  if (days === 7) return weeklyFee;
+  if (days === 30) return monthlyFee;
+
+  if (days <= 7) {
+    return Math.round(days * (weeklyFee / 7) * 100) / 100;
+  }
+  return Math.round(days * (monthlyFee / 30) * 100) / 100;
 };
 
 exports.createCampaign = async (req, res, next) => {
   try {
-    const { title, duration } = req.body;
+    const { title, duration, productId } = req.body;
 
     const storeResults = await repositories.stores.findByOwner(req.user.id);
     const store = Array.isArray(storeResults) ? storeResults[0] : (storeResults?.data?.[0] || storeResults.data);
@@ -55,13 +43,14 @@ exports.createCampaign = async (req, res, next) => {
     }
 
     const durationDays = Number.parseInt(duration);
-    const totalCost = calcCost(durationDays);
+    const totalCost = await calcCost(durationDays);
 
     const uploadResult = await uploadFileToCloudinary(req.file, 'shopyos/banner-campaigns');
 
     const campaign = await repositories.bannerCampaigns.createCampaign({
       store_id,
       title,
+      product_id: productId || null,
       placement: 'Pending Assignment',
       duration_days: durationDays,
       paid_amount: totalCost,
@@ -69,7 +58,7 @@ exports.createCampaign = async (req, res, next) => {
       banner_url: uploadResult.url,
     });
 
-    res.status(201).json({ success: true, campaign: formatBanners(campaign) });
+    res.status(201).json({ success: true, campaign: await transformImageUrlsAsync(campaign) });
   } catch (error) {
     next(error);
   }
@@ -87,7 +76,7 @@ exports.getMyCampaigns = async (req, res, next) => {
 
     const store_id = store.id;
     const campaigns = await repositories.bannerCampaigns.getMyCampaigns(store_id);
-    res.status(200).json({ success: true, campaigns: formatBanners(campaigns) });
+    res.status(200).json({ success: true, campaigns: await transformImageUrlsAsync(campaigns) });
   } catch (error) {
     next(error);
   }
@@ -96,7 +85,7 @@ exports.getMyCampaigns = async (req, res, next) => {
 exports.getAllCampaigns = async (req, res, next) => {
   try {
     const campaigns = await repositories.bannerCampaigns.getAllCampaigns();
-    res.status(200).json({ success: true, campaigns: formatBanners(campaigns) });
+    res.status(200).json({ success: true, campaigns: await transformImageUrlsAsync(campaigns) });
   } catch (error) {
     next(error);
   }
@@ -118,7 +107,7 @@ exports.updateCampaignStatus = async (req, res, next) => {
 
     const updated = await repositories.bannerCampaigns.updateCampaign(id, updateData);
 
-    res.status(200).json({ success: true, campaign: formatBanners(updated) });
+    res.status(200).json({ success: true, campaign: await transformImageUrlsAsync(updated) });
   } catch (error) {
     next(error);
   }
@@ -127,7 +116,7 @@ exports.updateCampaignStatus = async (req, res, next) => {
 exports.getActiveBanners = async (req, res, next) => {
   try {
     const activeAds = await repositories.bannerCampaigns.getActiveBanners();
-    res.status(200).json({ success: true, banners: formatBanners(activeAds) });
+    res.status(200).json({ success: true, banners: await transformImageUrlsAsync(activeAds) });
   } catch (error) {
     next(error);
   }
@@ -139,7 +128,7 @@ exports.getActiveBanners = async (req, res, next) => {
  */
 exports.adminCreateCampaign = async (req, res, next) => {
   try {
-    const { storeId, title, duration } = req.body;
+    const { storeId, title, duration, productId } = req.body;
     if (!storeId || !title || !duration) {
       return res.status(400).json({ error: 'storeId, title and duration are required' });
     }
@@ -159,6 +148,7 @@ exports.adminCreateCampaign = async (req, res, next) => {
     const campaign = await repositories.bannerCampaigns.createCampaign({
       store_id: storeId,
       title,
+      product_id: productId || null,
       placement,
       duration_days: durationDays,
       paid_amount: totalCost,
@@ -187,7 +177,7 @@ exports.adminCreateCampaign = async (req, res, next) => {
       }).catch(() => {});
     }
 
-    res.status(201).json({ success: true, campaign: formatBanners(campaign) });
+    res.status(201).json({ success: true, campaign: await transformImageUrlsAsync(campaign) });
   } catch (error) {
     next(error);
   }
@@ -203,7 +193,7 @@ const PAYSTACK_BASE_URL = 'https://api.paystack.co';
  */
 exports.initializeCampaignPayment = async (req, res, next) => {
   try {
-    const { campaignId, email } = req.body;
+    const { campaignId, email, callbackUrl } = req.body;
     
     if (!campaignId || !email) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -230,7 +220,7 @@ exports.initializeCampaignPayment = async (req, res, next) => {
       email,
       amount: amountInPesewas,
       currency: 'GHS',
-      callback_url: `${process.env.FRONTEND_URL}/business/promotions?reference=${campaign.id}`,
+      callback_url: callbackUrl ? `${callbackUrl}?reference=${campaign.id}` : `${process.env.FRONTEND_URL}/business/promotions?reference=${campaign.id}`,
       metadata: {
         type: 'BANNER_AD',
         campaignId: campaign.id,

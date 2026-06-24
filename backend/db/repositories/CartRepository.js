@@ -51,6 +51,8 @@ class CartRepository extends BaseRepository {
           product_id,
           quantity,
           added_at,
+          bargain_offer_id,
+          bargain_discount,
           products (
             id,
             title,
@@ -123,6 +125,39 @@ class CartRepository extends BaseRepository {
         [cart.id, productId, variantId, quantity, price]
       );
       if (error) throw error;
+      return rows[0];
+    }
+  }
+
+  /**
+   * Add a bargained item to cart with its bargain references
+   */
+  async addBargainItem(userId, productId, price, discount, bargainOfferId) {
+    const cart = await this.getOrCreateCart(userId);
+    const { rows: existing } = await this.db.query(
+      `SELECT * FROM cart_items
+       WHERE cart_id = $1 AND product_id = $2
+       LIMIT 1`,
+      [cart.id, productId]
+    );
+    const existingItem = existing[0] || null;
+
+    if (existingItem) {
+      const { rows } = await this.db.query(
+        `UPDATE cart_items
+         SET quantity = 1, price_at_add = $1, bargain_discount = $2, bargain_offer_id = $3, updated_at = NOW()
+         WHERE id = $4
+         RETURNING *`,
+        [price, discount, bargainOfferId, existingItem.id]
+      );
+      return rows[0];
+    } else {
+      const { rows } = await this.db.query(
+        `INSERT INTO cart_items (cart_id, product_id, quantity, price_at_add, bargain_discount, bargain_offer_id)
+         VALUES ($1, $2, 1, $3, $4, $5)
+         RETURNING *`,
+        [cart.id, productId, price, discount, bargainOfferId]
+      );
       return rows[0];
     }
   }

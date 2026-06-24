@@ -1,4 +1,4 @@
-﻿// controllers/orderController.js
+// controllers/orderController.js
 // Order management controller
 
 const repositories = require('../db/repositories');
@@ -9,6 +9,7 @@ const notificationService = require('../services/notificationService');
 const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
 const { creditPoints, deductPoints, calcPointsDiscount } = require('./loyaltyController');
 const { getPool } = require('../config/postgres');
+const feeConfigService = require('../services/feeConfigService');
 
 /**
  * Generate unique order number
@@ -58,7 +59,7 @@ async function validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng) {
 
 async function processStoreOrder({ storeId, items, cart, req, userId, validatedPromo, validatedLoyaltyPoints, pool }) {
   const deliveryState = req.body.deliveryState || 'Greater Accra';
-  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack' } = req.body;
+  const { buyerLat, buyerLng, deliveryAddress, deliveryCountry, deliveryPhone, deliveryNotes, paymentMethod = 'paystack', requestLastMile = false, lastMileFee } = req.body;
 
   let subtotal = 0;
   const orderItems = items.map(item => {
@@ -70,7 +71,41 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
 
   const tax = 1;
   const store = await repositories.stores.findById(storeId);
-  const deliveryFee = calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState);
+  const deliveryFee = await calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState);
+
+  const storeRegion = (store?.state_province || 'Greater Accra').trim().toLowerCase();
+  const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
+
+  let transitFee = 0;
+  let isInterRegional = false;
+  let originHub = null;
+  let destHub = null;
+  let estArrivalDate = null;
+
+  if (storeRegion !== targetRegion) {
+    isInterRegional = true;
+    if (repositories.parcelPartner) {
+      originHub = await repositories.parcelPartner.getHubByRegionName(store?.state_province || 'Greater Accra');
+      destHub = await repositories.parcelPartner.getHubByRegionName(deliveryState || 'Greater Accra');
+
+      const transitConfig = await repositories.parcelPartner.getTransitConfig(
+        store?.state_province || 'Greater Accra',
+        deliveryState || 'Greater Accra'
+      );
+
+      const feeConfigService = require('../services/feeConfigService');
+      transitFee = Number(transitConfig?.route_fee ?? await feeConfigService.get('parcel_partner_base_fee'));
+      const transitDaysMin = transitConfig ? transitConfig.transit_days_min : 2;
+
+      estArrivalDate = new Date();
+      estArrivalDate.setDate(estArrivalDate.getDate() + transitDaysMin);
+    } else {
+      const feeConfigService = require('../services/feeConfigService');
+      transitFee = Number(await feeConfigService.get('parcel_partner_base_fee') || 25);
+      estArrivalDate = new Date();
+      estArrivalDate.setDate(estArrivalDate.getDate() + 2);
+    }
+  }
 
   const totalSubtotal = cart.cart_items.reduce((sum, i) => sum + i.products.price * i.quantity, 0);
   const storeShare = totalSubtotal > 0 ? subtotal / totalSubtotal : 1;
@@ -89,8 +124,18 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     subtotal
   );
   const storePointsUsed = validPoints;
+  let totalBargainDiscount = 0;
+  for (const item of items) {
+    if (item.bargain_offer_id) {
+      totalBargainDiscount += (Number(item.bargain_discount) || 0) * item.quantity;
+    }
+  }
+
   const discountAmount = Number.parseFloat((promoDiscount + loyaltyDiscount).toFixed(2));
-  const totalAmount = Number.parseFloat((subtotal + tax + deliveryFee - discountAmount).toFixed(2));
+  const lastMileCharge = isInterRegional && requestLastMile
+    ? Number.parseFloat(lastMileFee ?? await feeConfigService.get('last_mile_default_fee') ?? 15)
+    : 0;
+  const totalAmount = Number.parseFloat((subtotal + tax + deliveryFee + transitFee + lastMileCharge - discountAmount - totalBargainDiscount).toFixed(2));
 
   const orderData = {
     order_number: generateOrderNumber(),
@@ -116,6 +161,59 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   if (paymentMethod === 'momo') dbPaymentMethod = 'mobile_money';
 
   const order = await repositories.orders.createOrderWithItems(orderData, orderItems, dbPaymentMethod);
+
+  if (isInterRegional) {
+    await pool.query(
+      `UPDATE orders
+       SET order_type = 'inter_regional',
+           origin_region = $1,
+           destination_region = $2,
+           origin_hub_id = $3,
+           destination_hub_id = $4,
+           parcel_transit_fee = $5,
+           estimated_hub_arrival = $6,
+           last_mile_requested = $7,
+           last_mile_fee = $8
+       WHERE id = $9`,
+      [
+        store?.state_province || 'Greater Accra',
+        deliveryState || 'Greater Accra',
+        originHub?.id || null,
+        destHub?.id || null,
+        transitFee,
+        estArrivalDate.toISOString().split('T')[0],
+        requestLastMile ? true : false,
+        lastMileCharge,
+        order.id
+      ]
+    );
+    order.order_type = 'inter_regional';
+    order.origin_region = store?.state_province || 'Greater Accra';
+    order.destination_region = deliveryState || 'Greater Accra';
+    order.origin_hub_id = originHub?.id || null;
+    order.destination_hub_id = destHub?.id || null;
+    order.parcel_transit_fee = transitFee;
+    order.estimated_hub_arrival = estArrivalDate.toISOString().split('T')[0];
+    order.last_mile_requested = requestLastMile;
+    order.last_mile_fee = lastMileCharge;
+  }
+
+  if (totalBargainDiscount > 0) {
+    await pool.query('UPDATE orders SET bargain_discount = $1 WHERE id = $2', [totalBargainDiscount, order.id]);
+    order.bargain_discount = totalBargainDiscount;
+  }
+  for (const item of items) {
+    if (item.bargain_offer_id) {
+      await pool.query(
+        'UPDATE order_items SET bargain_offer_id = $1, bargain_discount = $2 WHERE order_id = $3 AND product_id = $4',
+        [item.bargain_offer_id, item.bargain_discount, order.id, item.product_id]
+      );
+      await pool.query(
+        "UPDATE bargain_offers SET status = 'checked_out', updated_at = NOW() WHERE id = $1",
+        [item.bargain_offer_id]
+      );
+    }
+  }
 
   await notificationService.sendNotification({
     userId, type: 'order_placed', title: 'Order Placed Successfully',
@@ -164,10 +262,10 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   return order;
 }
 
-function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
-  const baseFee = Number.parseFloat(store?.delivery_base_fee) || 5;
-  const storeRegion = (store?.state_province || 'Greater Accra').trim().toLowerCase();
-  const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
+async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
+  const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
+  const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
+  const baseFee = Number.parseFloat(store?.delivery_base_fee) || defaultBaseFee;
 
   let fee = baseFee;
   if (store?.latitude && store?.longitude && buyerLat !== undefined && buyerLng !== undefined) {
@@ -175,13 +273,13 @@ function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
       Number.parseFloat(store.latitude), Number.parseFloat(store.longitude),
       Number.parseFloat(buyerLat), Number.parseFloat(buyerLng)
     );
-    const calc = calculateDeliveryFee(store, distanceKm);
+    const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);
     fee = calc.fee ?? baseFee;
   }
 
-  return storeRegion === targetRegion
-    ? Math.max(15, Math.min(fee, 30))
-    : Math.max(fee, 40);
+  // Floor only — no ceiling (Bolt model: fee scales linearly with distance)
+  const minIntra = await feeConfigService.get('delivery_intra_min_fee');
+  return Math.max(minIntra, fee);
 }
 
 /**
@@ -223,12 +321,6 @@ const createOrder = async (req, res, next) => {
       const sid = item.products.store_id;
       if (!itemsByStore[sid]) itemsByStore[sid] = [];
       itemsByStore[sid].push(item);
-    }
-
-    // Ensure ALL stores are within delivery range before creating any orders.
-    const outOfRangeStore = await validateStoreDeliveryRanges(itemsByStore, buyerLat, buyerLng);
-    if (outOfRangeStore) {
-      return res.status(400).json({ success: false, error: `Delivery address is outside the delivery radius for ${outOfRangeStore}` });
     }
 
     const createdOrders = [];
@@ -454,7 +546,7 @@ async function createAndDispatchDelivery(order, store, orderId) {
     deliveryLatitude: order.delivery_latitude || 0,
     deliveryLongitude: order.delivery_longitude || 0,
     deliveryFee: deliveryFeeVal,
-    driverEarnings: deliveryFeeVal * 0.85
+    driverEarnings: deliveryFeeVal * ((await feeConfigService.get('driver_earnings_percentage')) / 100)
   });
   logger.info(`Automatically created delivery for order ${order.order_number}`);
   await notifyNearbyDrivers(store, newDelivery, deliveryFeeVal);
@@ -636,15 +728,28 @@ const cancelOrder = async (req, res, next) => {
       }
     }
 
-    // Cancel order
-    const cancelledOrder = await repositories.orders.cancelOrder(
-      orderId,
-      reason || 'Cancelled by user'
-    );
+    // Cancel order & handle refund deductions based on payment status
+    let refundMessage = '';
+    const updateFields = {
+      status: 'cancelled',
+      cancelled_at: new Date().toISOString(),
+      cancellation_reason: reason || 'Cancelled by user'
+    };
+
+    if (order.status === 'paid' || order.status === 'confirmed') {
+      const subtotal = Number.parseFloat(order.subtotal || 0);
+      const discount = Number.parseFloat(order.discount_amount || 0);
+      const refundAmount = Math.max(0, subtotal - discount);
+      
+      updateFields.escrow_status = 'REFUNDED';
+      refundMessage = ` Refund of GHS ${refundAmount.toFixed(2)} processed (delivery fee of GHS ${Number.parseFloat(order.delivery_fee || 0).toFixed(2)} is non-refundable).`;
+    }
+
+    const cancelledOrder = await repositories.orders.update(orderId, updateFields);
 
     res.status(200).json({
       success: true,
-      message: 'Order cancelled successfully',
+      message: `Order cancelled successfully.${refundMessage}`,
       order: cancelledOrder
     });
   } catch (error) {

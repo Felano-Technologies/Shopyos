@@ -8,12 +8,12 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 
-const endpoint = process.env.STORAGE_ENDPOINT;
-const region = process.env.STORAGE_REGION;
-const bucket = process.env.STORAGE_BUCKET;
-const accessKeyId = process.env.STORAGE_ACCESS_KEY;
-const secretAccessKey = process.env.STORAGE_SECRET_KEY;
-const publicBaseUrl = (process.env.STORAGE_PUBLIC_URL || '').replace(/\/$/, '');
+const endpoint = (process.env.STORAGE_ENDPOINT || '').trim();
+const region = (process.env.STORAGE_REGION || '').trim();
+const bucket = (process.env.STORAGE_BUCKET || '').trim();
+const accessKeyId = (process.env.STORAGE_ACCESS_KEY || '').trim();
+const secretAccessKey = (process.env.STORAGE_SECRET_KEY || '').trim();
+const publicBaseUrl = (process.env.STORAGE_PUBLIC_URL || '').trim().replace(/\/$/, '');
 
 if (!endpoint || !region || !bucket || !accessKeyId || !secretAccessKey || !publicBaseUrl) {
   throw new Error('Missing STORAGE_* environment variables for object storage');
@@ -64,6 +64,15 @@ const toPublicUrl = (key) => {
 };
 
 const parseInputToBuffer = (input) => {
+  if (input && typeof input === 'object' && Buffer.isBuffer(input.buffer)) {
+    const ext = path.extname(input.originalname || '') || '';
+    return { 
+      buffer: input.buffer, 
+      mimeType: input.mimetype || 'application/octet-stream', 
+      extension: ext 
+    };
+  }
+
   if (Buffer.isBuffer(input)) {
     return { buffer: input, mimeType: 'application/octet-stream', extension: '' };
   }

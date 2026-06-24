@@ -54,6 +54,15 @@ export const startConversation = async (participantId: string) => {
   }
 };
 
+export const getChatContacts = async () => {
+  try {
+    const response = await api.get('/messaging/contacts');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const deleteMessage = async (messageId: string) => {
   try {
     const response = await api.delete(`/messaging/messages/${messageId}`);

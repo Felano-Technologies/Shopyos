@@ -14,30 +14,41 @@ import { MaterialCommunityIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useSellerConversations, useChatActions } from '@/hooks/useChat';
 
 const { height } = Dimensions.get('window');
+const SUPPORT_BOT_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function MessagesScreen() {
   const router = useRouter();
-  // Fetch only SELLER chats from Global Context
   const { data: sellerConversations = [] } = useSellerConversations();
   const { markAsRead, refresh } = useChatActions();
- 
-  // Refresh when screen focuses 
+
   React.useEffect(() => {
     refresh?.();
   }, [refresh]);
 
-  // --- NEW: Search and Filter States ---
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const filters = ['All', 'Unread', 'Read'];
 
-  // --- NEW: Filter Logic ---
+  const existingBotChat = sellerConversations.find((c: any) => c.otherParticipant?.id === SUPPORT_BOT_ID);
+
+  const botChat = {
+    id: existingBotChat?.id || 'pinned-bot',
+    name: 'Shopyos Bot',
+    avatar: 'https://api.dicebear.com/7.x/bottts/png?seed=shopyos&backgroundColor=0C1559',
+    lastMessage: existingBotChat?.lastMessage || 'Hi! How can we help your business today?',
+    time: existingBotChat?.time || '',
+    unread: existingBotChat?.unread || 0,
+    online: true,
+    isPinnedBot: true,
+    otherParticipant: { id: SUPPORT_BOT_ID }
+  };
+
   const filteredConversations = sellerConversations.filter((chat: any) => {
-    // Safely handle missing text
+    if (chat.otherParticipant?.id === SUPPORT_BOT_ID) return false;
     const nameMatch = (chat.name || '').toLowerCase().includes(searchQuery.toLowerCase());
     const msgMatch = (chat.lastMessage || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSearch = nameMatch || msgMatch;
-    
+
     let matchesFilter = true;
     if (activeFilter === 'Unread') matchesFilter = chat.unread > 0;
     if (activeFilter === 'Read') matchesFilter = chat.unread === 0;
@@ -45,16 +56,18 @@ export default function MessagesScreen() {
     return matchesSearch && matchesFilter;
   });
 
+  const displayList = [botChat, ...filteredConversations];
+
   const openChat = (item: any) => {
-    if (item.unread > 0) markAsRead(item.id, 'seller');
+    if (!item.isPinnedBot && item.unread > 0) markAsRead(item.id, 'seller');
 
     router.push({
       pathname: '/chat/conversation',
       params: {
-        conversationId: item.id,
+        conversationId: item.isPinnedBot ? undefined : item.id,
         name: item.name,
         avatar: item.avatar,
-        chatType: 'seller', // Important: Tells conversation screen this is a business chat
+        chatType: 'seller',
         entityId: item.otherParticipant?.id,
         participantId: item.otherParticipant?.id
       }
@@ -62,8 +75,8 @@ export default function MessagesScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.chatCard} 
+    <TouchableOpacity
+      style={[styles.chatCard, item.isPinnedBot && styles.chatCardBot]}
       activeOpacity={0.7}
       onPress={() => openChat(item)}
     >
@@ -71,21 +84,28 @@ export default function MessagesScreen() {
         <AppImage uri={item.avatar} style={styles.avatar} />
         {item.online && <View style={styles.onlineDot} />}
       </View>
-      
+
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+            {item.isPinnedBot && (
+              <View style={styles.botBadge}>
+                <Text style={styles.botBadgeText}>Support</Text>
+              </View>
+            )}
+          </View>
           <Text style={styles.time}>{item.time}</Text>
         </View>
-        
+
         <View style={styles.footer}>
-          <Text 
-            style={[styles.message, item.unread > 0 && styles.messageBold]} 
+          <Text
+            style={[styles.message, item.unread > 0 && styles.messageBold]}
             numberOfLines={1}
           >
             {item.lastMessage}
           </Text>
-          
+
           {item.unread > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{item.unread}</Text>
@@ -98,8 +118,8 @@ export default function MessagesScreen() {
 
   return (
     <View style={styles.container}>
-      
-      {/* --- NEW: Search & Filter Header --- */}
+
+      {/* Search & Filter Header */}
       <View style={styles.searchSection}>
         <View style={styles.searchBar}>
           <Feather name="search" size={18} color="#94A3B8" />
@@ -119,8 +139,8 @@ export default function MessagesScreen() {
 
         <View style={styles.filterScroll}>
           {filters.map(filter => (
-            <TouchableOpacity 
-              key={filter} 
+            <TouchableOpacity
+              key={filter}
               style={[styles.filterChip, activeFilter === filter && styles.filterChipActive]}
               onPress={() => setActiveFilter(filter)}
             >
@@ -132,31 +152,32 @@ export default function MessagesScreen() {
         </View>
       </View>
 
-      {/* --- Chat List --- */}
+      {/* Chat List */}
       <FlatList
-        data={filteredConversations}
+        data={displayList}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
-            <View style={styles.emptyState}>
-                <View style={styles.emptyIconBg}>
-                    <MaterialCommunityIcons 
-                        name={searchQuery ? "text-box-search-outline" : "message-text-outline"} 
-                        size={40} 
-                        color="#94A3B8" 
-                    />
-                </View>
-                <Text style={styles.emptyTitle}>
-                    {searchQuery ? 'No Results Found' : 'No Messages Yet'}
-                </Text>
-                <Text style={styles.emptySub}>
-                    {searchQuery 
-                        ? 'Try adjusting your search or selecting a different filter.' 
-                        : 'When customers contact your business, their messages will appear here.'}
-                </Text>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconBg}>
+              <MaterialCommunityIcons
+                name={searchQuery ? 'text-box-search-outline' : 'message-text-outline'}
+                size={40}
+                color="#94A3B8"
+              />
             </View>
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? 'No Results Found' : 'No Messages Yet'}
+            </Text>
+            <Text style={styles.emptySub}>
+              {searchQuery
+                ? 'Try adjusting your search or selecting a different filter.'
+                : 'When customers contact your business, their messages will appear here.'}
+            </Text>
+          </View>
         }
       />
     </View>
@@ -164,162 +185,173 @@ export default function MessagesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F8FAFC' 
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  
-  // --- Search & Filter Styles ---
-  searchSection: { 
-    backgroundColor: '#FFF', 
-    padding: 15, 
-    borderBottomWidth: 1, 
+
+  searchSection: {
+    backgroundColor: '#FFF',
+    padding: 15,
+    borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     zIndex: 10
   },
-  searchBar: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#F1F5F9', 
-    borderRadius: 14, 
-    paddingHorizontal: 12, 
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 14,
+    paddingHorizontal: 12,
     height: 48,
     borderWidth: 1,
     borderColor: '#E2E8F0'
   },
-  searchInput: { 
-    flex: 1, 
-    marginLeft: 10, 
-    fontFamily: 'Montserrat-Medium', 
-    fontSize: 14, 
-    color: '#0F172A' 
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontFamily: 'Montserrat-Medium',
+    fontSize: 14,
+    color: '#0F172A'
   },
-  filterScroll: { 
-    flexDirection: 'row', 
-    marginTop: 15, 
-    gap: 10 
+  filterScroll: {
+    flexDirection: 'row',
+    marginTop: 15,
+    gap: 10
   },
-  filterChip: { 
-    paddingHorizontal: 16, 
-    paddingVertical: 8, 
-    borderRadius: 20, 
-    backgroundColor: '#F8FAFC', 
-    borderWidth: 1, 
-    borderColor: '#E2E8F0' 
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0'
   },
-  filterChipActive: { 
-    backgroundColor: '#0C1559', 
-    borderColor: '#0C1559' 
+  filterChipActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559'
   },
-  filterText: { 
-    fontSize: 12, 
-    fontFamily: 'Montserrat-SemiBold', 
-    color: '#64748B' 
+  filterText: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#64748B'
   },
-  filterTextActive: { 
-    color: '#FFF' 
+  filterTextActive: {
+    color: '#FFF'
   },
 
-  listContent: { 
-    padding: 20, 
-    paddingBottom: 100 
+  listContent: {
+    paddingBottom: 100,
   },
-  
-  // --- Chat Card ---
-  chatCard: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    backgroundColor: '#FFFFFF', 
-    padding: 16, 
-    borderRadius: 16, 
-    marginBottom: 12, 
-    shadowColor: "#0C1559", 
-    shadowOffset: { width: 0, height: 4 }, 
-    shadowOpacity: 0.05, 
-    shadowRadius: 10, 
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.6)', 
+
+  separator: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginLeft: 88,
   },
-  
-  // --- Avatar ---
+
+  chatCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+  },
+  chatCardBot: {
+    backgroundColor: '#F8FAFF',
+  },
+
   avatarContainer: {
     position: 'relative',
     marginRight: 16,
   },
-  avatar: { 
-    width: 56, 
-    height: 56, 
-    borderRadius: 28, 
-    backgroundColor: '#F1F5F9', 
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#F1F5F9',
   },
-  onlineDot: { 
-    width: 14, 
-    height: 14, 
-    borderRadius: 7, 
-    backgroundColor: '#22C55E', 
-    position: 'absolute', 
-    bottom: 0, 
-    right: 0, 
-    borderWidth: 2.5, 
-    borderColor: '#FFF' 
-  },
-  
-  // --- Content ---
-  content: { flex: 1 },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    marginBottom: 6,
-    alignItems: 'center',
-  },
-  name: { 
-    fontSize: 16, 
-    fontFamily: 'Montserrat-Bold', 
-    color: '#0F172A',
-    maxWidth: '75%',
-  },
-  time: { 
-    fontSize: 12, 
-    fontFamily: 'Montserrat-Medium', 
-    color: '#94A3B8' 
-  },
-  
-  // --- Message & Footer ---
-  footer: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center' 
-  },
-  message: { 
-    flex: 1, 
-    fontSize: 14, 
-    fontFamily: 'Montserrat-Medium', 
-    color: '#64748B', 
-    marginRight: 10 
-  },
-  messageBold: { 
-    color: '#0F172A', 
-    fontFamily: 'Montserrat-Bold' 
-  },
-  
-  // --- Badge ---
-  badge: { 
-    backgroundColor: '#0C1559', 
-    minWidth: 22, 
-    height: 22, 
-    borderRadius: 11, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    paddingHorizontal: 6 
-  },
-  badgeText: { 
-    color: '#FFF', 
-    fontSize: 11, 
-    fontFamily: 'Montserrat-Bold' 
+  onlineDot: {
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: '#22C55E',
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    borderWidth: 2,
+    borderColor: '#FFF'
   },
 
-  // --- Empty State ---
+  content: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 5,
+    alignItems: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    marginRight: 8,
+  },
+  name: {
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    flexShrink: 1,
+  },
+  botBadge: {
+    backgroundColor: '#EEF2FF',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  botBadgeText: {
+    fontSize: 10,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#0C1559',
+  },
+  time: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Medium',
+    color: '#94A3B8'
+  },
+
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  message: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginRight: 10
+  },
+  messageBold: {
+    color: '#0F172A',
+    fontFamily: 'Montserrat-Bold'
+  },
+
+  badge: {
+    backgroundColor: '#0C1559',
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5
+  },
+  badgeText: {
+    color: '#FFF',
+    fontSize: 10,
+    fontFamily: 'Montserrat-Bold'
+  },
+
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',

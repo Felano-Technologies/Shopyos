@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,14 +8,16 @@ import {
   View,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getAdminDashboard } from '@/services/api';
 import { getAdminOrders, getAdminStores } from '@/services/admin';
-import { useAdminBreakpoint } from '@/components/admin/adminTheme';
+import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
+import { useAllUnreadCount } from '@/hooks/useChat';
 
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
   delivered:  { bg: '#DCFCE7', text: '#16A34A' },
@@ -38,7 +40,7 @@ type DashboardStats = {
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { isDesktop } = useAdminBreakpoint();
+  const { data: chatUnreadCount = 0 } = useAllUnreadCount();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
@@ -55,7 +57,8 @@ export default function AdminDashboard() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [topStores, setTopStores] = useState<any[]>([]);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
     try {
       const dashRes = await getAdminDashboard();
 
@@ -64,8 +67,8 @@ export default function AdminDashboard() {
       }
       try {
         const [ordersRes, storesRes] = await Promise.all([
-          getAdminOrders({ limit: '5', sortBy: 'created_at', sortDir: 'desc' }),
-          getAdminStores({ limit: '3', sortBy: 'total_revenue', sortDir: 'desc' }),
+          getAdminOrders({ limit: 5 }),
+          getAdminStores({ limit: 3 }),
         ]);
         const ordersArr = Array.isArray(ordersRes?.orders) ? ordersRes.orders : Array.isArray(ordersRes) ? ordersRes : [];
         const storesArr = Array.isArray(storesRes?.stores) ? storesRes.stores : Array.isArray(storesRes) ? storesRes : [];
@@ -133,6 +136,15 @@ export default function AdminDashboard() {
         accentColor: '#475569',
       },
       {
+        label: 'Support',
+        value: 'Tickets',
+        route: '/admin/support',
+        icon: 'alert-circle-outline',
+        iconBg: '#FEE2E2',
+        iconColor: '#DC2626',
+        accentColor: '#DC2626',
+      },
+      {
         label: 'Ads',
         value: 'Review',
         route: '/admin/ads',
@@ -141,15 +153,46 @@ export default function AdminDashboard() {
         iconColor: '#0891B2',
         accentColor: '#0891B2',
       },
+      {
+        label: 'Flash Sales',
+        value: 'Manage',
+        route: '/admin/flash-sales',
+        icon: 'flash-outline',
+        iconBg: '#FEE2E2',
+        iconColor: '#DC2626',
+        accentColor: '#DC2626',
+      },
+      {
+        label: 'Payouts',
+        value: 'Manage',
+        route: '/admin/payouts',
+        icon: 'cash-outline',
+        iconBg: '#EFF6FF',
+        iconColor: '#2563EB',
+        accentColor: '#2563EB',
+      },
+      {
+        label: 'Hubs',
+        value: 'Logistics',
+        route: '/admin/hubs',
+        icon: 'location-outline',
+        iconBg: '#D1FAE5',
+        iconColor: '#059669',
+        accentColor: '#059669',
+      },
     ],
     [stats],
   );
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#1E88E5" />
-      </View>
+      <>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <AdminScreenSkeleton metrics={6} rows={3} cards={2} />
+          <AdminBottomNav />
+        </SafeAreaView>
+      </>
     );
   }
 
@@ -157,7 +200,12 @@ export default function AdminDashboard() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.screen}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.screen}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor="#1E88E5" />}
+        >
+
 
           {/* HERO */}
           <LinearGradient
@@ -192,18 +240,18 @@ export default function AdminDashboard() {
             </Text>
           </LinearGradient>
 
-          {/* BODY — two-column on desktop */}
-          <View style={[styles.body, isDesktop && styles.bodyDesktop]}>
+          {/* BODY */}
+          <View style={styles.body}>
 
-            {/* LEFT / MAIN COLUMN */}
-            <View style={[styles.mainCol, isDesktop && { flex: 1 }]}>
+            {/* MAIN COLUMN */}
+            <View style={styles.mainCol}>
 
               {/* METRIC CARDS */}
               <View style={styles.metricGrid}>
                 {metricCards.map((item) => (
                   <TouchableOpacity
                     key={item.label}
-                    style={[styles.metricCard, { flexBasis: isDesktop ? '30%' : '47%', flexGrow: 1 }]}
+                    style={[styles.metricCard, { flexBasis: '47%', flexGrow: 1 }]}
                     onPress={() => router.push(item.route as any)}
                     activeOpacity={0.9}
                   >
@@ -266,8 +314,8 @@ export default function AdminDashboard() {
               </View>
             </View>
 
-            {/* RIGHT SIDEBAR */}
-            <View style={[styles.sideCol, isDesktop && styles.sideColDesktop]}>
+            {/* SIDE COLUMN */}
+            <View style={styles.sideCol}>
 
               {/* TOP STORES */}
               <View style={styles.card}>
@@ -332,6 +380,23 @@ export default function AdminDashboard() {
             </View>
           </View>
         </ScrollView>
+        <AdminBottomNav />
+
+        {/* Chat FAB */}
+        <TouchableOpacity
+          style={styles.chatFab}
+          activeOpacity={0.85}
+          onPress={() => router.push('/chat' as any)}
+        >
+          <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.chatFabGrad}>
+            <MaterialCommunityIcons name="chat-processing" size={26} color="#A3E635" />
+          </LinearGradient>
+          {chatUnreadCount > 0 && (
+            <View style={styles.chatFabBadge}>
+              <Text style={styles.chatFabBadgeTxt}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </SafeAreaView>
     </>
   );
@@ -347,6 +412,21 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' },
   safeArea: { flex: 1, backgroundColor: '#F5F7FA' },
   screen: { paddingBottom: 40 },
+  chatFab: {
+    position: 'absolute', bottom: 110, right: 18,
+    width: 58, height: 58, borderRadius: 29,
+    elevation: 8, shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    zIndex: 100, overflow: 'visible',
+  },
+  chatFabGrad: { width: '100%', height: '100%', borderRadius: 29, justifyContent: 'center', alignItems: 'center' },
+  chatFabBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
 
   // Hero
   hero: { marginHorizontal: 12, marginTop: 8, borderRadius: 20, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 20, gap: 12 },
@@ -361,11 +441,9 @@ const styles = StyleSheet.create({
   heroDate: { color: 'rgba(255,255,255,0.65)', fontSize: 12, fontFamily: 'Montserrat-Regular' },
 
   // Body layout
-  body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 40, gap: 12 },
-  bodyDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
+  body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 120, gap: 12 },
   mainCol: { gap: 12 },
   sideCol: { gap: 12 },
-  sideColDesktop: { width: 300, marginLeft: 12 },
 
   // Metric cards
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

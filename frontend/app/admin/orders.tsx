@@ -15,7 +15,9 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { adminColors } from '@/components/admin/adminTheme';
+import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getAdminOrders } from '@/services/api';
 import { updateOrderStatus } from '@/services/orders';
@@ -67,7 +69,6 @@ const ORDER_STATUSES = ['pending', 'processing', 'ready_for_pickup', 'in_transit
 
 export default function AdminOrders() {
   const router = useRouter();
-  const { isDesktop } = useAdminBreakpoint();
   const searchQuery = '';
   const [activeStatus, setActiveStatus] = useState('All');
   const [orders, setOrders] = useState<OrderItem[]>([]);
@@ -229,9 +230,13 @@ export default function AdminOrders() {
 
   if (loading && !refreshing) {
     return (
-      <View style={styles.loadingWrap}>
-        <ActivityIndicator size="large" color="#1E88E5" />
-      </View>
+      <>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <AdminScreenSkeleton metrics={5} rows={5} cards={1} />
+          <AdminBottomNav />
+        </SafeAreaView>
+      </>
     );
   }
 
@@ -239,7 +244,7 @@ export default function AdminOrders() {
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <View style={[styles.canvas, isDesktop && styles.desktopCanvas]}>
+        <View style={styles.canvas}>
           <ScrollView
             style={styles.scrollView}
             showsVerticalScrollIndicator={false}
@@ -288,7 +293,7 @@ export default function AdminOrders() {
             <View style={styles.listHeaderWrap}>
               <View style={styles.summaryRow}>
                 {summary.map((item) => (
-                  <View key={item.label} style={[styles.statCard, { flexBasis: isDesktop ? '17%' : '47%', flexGrow: 1 }]}>
+                  <View key={item.label} style={[styles.statCard, { flexBasis: '47%', flexGrow: 1 }]}>
                     <View style={[styles.statIcon, { backgroundColor: item.iconBg }]}>
                       <Ionicons name={item.icon} size={16} color={item.iconColor} />
                     </View>
@@ -340,27 +345,25 @@ export default function AdminOrders() {
               )}
             </View>
 
-            {!isDesktop && (
-              <View style={styles.quickLinksRow}>
-                {[
-                  { label: 'Stores',     icon: 'storefront-outline',  route: '/admin/stores',     color: '#0C1559', bg: '#EEF2FF' },
-                  { label: 'Revenue',    icon: 'wallet-outline',      route: '/admin/revenue',    color: '#16A34A', bg: '#DCFCE7' },
-                  { label: 'Deliveries', icon: 'bicycle-outline',     route: '/admin/deliveries', color: '#D97706', bg: '#FEF3C7' },
-                ].map((link) => (
-                  <TouchableOpacity
-                    key={link.label}
-                    style={styles.quickLink}
-                    onPress={() => router.push(link.route as any)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={[styles.quickLinkIcon, { backgroundColor: link.bg }]}>
-                      <Ionicons name={link.icon as any} size={20} color={link.color} />
-                    </View>
-                    <Text style={[styles.quickLinkLabel, { color: link.color }]}>{link.label}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
+            <View style={styles.quickLinksRow}>
+              {[
+                { label: 'Stores',     icon: 'storefront-outline',  route: '/admin/stores',     color: '#0C1559', bg: '#EEF2FF' },
+                { label: 'Revenue',    icon: 'wallet-outline',      route: '/admin/revenue',    color: '#16A34A', bg: '#DCFCE7' },
+                { label: 'Deliveries', icon: 'bicycle-outline',     route: '/admin/deliveries', color: '#D97706', bg: '#FEF3C7' },
+              ].map((link) => (
+                <TouchableOpacity
+                  key={link.label}
+                  style={styles.quickLink}
+                  onPress={() => router.push(link.route as any)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.quickLinkIcon, { backgroundColor: link.bg }]}>
+                    <Ionicons name={link.icon as any} size={20} color={link.color} />
+                  </View>
+                  <Text style={[styles.quickLinkLabel, { color: link.color }]}>{link.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
             <View style={styles.cardSection}>
               <View style={styles.sectionHeaderRow}>
@@ -421,6 +424,7 @@ export default function AdminOrders() {
             </View>
           </ScrollView>
         </View>
+        <AdminBottomNav />
       </SafeAreaView>
 
       {/* Status update bottom sheet */}
@@ -499,7 +503,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     flexGrow: 1,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
 
   heroPanel: {
@@ -758,11 +762,6 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
-  },
-  desktopCanvas: {
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
   },
   orderRowCompact: {
     paddingVertical: 8,

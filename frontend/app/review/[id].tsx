@@ -7,8 +7,8 @@ import {
     ScrollView,
     TextInput,
     ActivityIndicator,
-    Alert,
 } from 'react-native';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
@@ -19,6 +19,8 @@ import { useMutation } from '@tanstack/react-query';
 import { createProductReview, createStoreReview, createDriverReview } from '@/services/api';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
 
 function StarRating({ rating, onRate, size = 32 }: Readonly<{ rating: number; onRate: (r: number) => void; size?: number }>) {
     return (
@@ -49,6 +51,13 @@ const ReviewScreen = () => {
     const [storeComment, setStoreComment] = useState('');
     const [driverRating, setDriverRating] = useState(0);
     const [driverComment, setDriverComment] = useState('');
+    const [reviewTerms, setReviewTerms] = useState<Disclaimer | null>(null);
+    const [isTermsChecked, setIsTermsChecked] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+
+    useEffect(() => {
+        getDisclaimerByType('review_terms').then(setReviewTerms).catch(() => null);
+    }, []);
 
     useEffect(() => {
         if (order?.order_items) {
@@ -70,15 +79,37 @@ const ReviewScreen = () => {
             }
         },
         onSuccess: () => {
-            Alert.alert('Thank You!', 'Your feedback helps us improve Shopyos.', [{ text: 'OK', onPress: () => router.push('/order') }]);
+            CustomInAppToast.show({
+                type: 'success',
+                title: 'Thank You!',
+                message: 'Your feedback helps us improve Shopyos.',
+                onPress: () => router.push('/order'),
+            });
+            setTimeout(() => router.push('/order'), 2800);
         },
         onError: (e: any) => {
-            Alert.alert('Error', e.message || 'Failed to submit review');
+            CustomInAppToast.show({
+                type: 'error',
+                title: 'Submission Failed',
+                message: e.message || 'Failed to submit review. Please try again.',
+            });
         },
     });
     const handleSubmit = () => {
         if (storeRating === 0) {
-            Alert.alert('Required', 'Please rate the store');
+            CustomInAppToast.show({
+                type: 'info',
+                title: 'Rating Required',
+                message: 'Please rate the store before submitting.',
+            });
+            return;
+        }
+        if (reviewTerms && !isTermsChecked) {
+            CustomInAppToast.show({
+                type: 'info',
+                title: 'Agreement Required',
+                message: 'Please agree to the Review Policy before submitting.',
+            });
             return;
         }
         submitMutation.mutate();
@@ -182,6 +213,23 @@ const ReviewScreen = () => {
                         </View>
                     ))}
                 </View>
+                {reviewTerms && (
+                    <TouchableOpacity
+                        style={styles.disclaimerRow}
+                        onPress={() => setIsTermsChecked(!isTermsChecked)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[styles.disclaimerBox, isTermsChecked && styles.disclaimerBoxChecked]}>
+                            {isTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                        </View>
+                        <Text style={styles.disclaimerText}>
+                            I agree to the{' '}
+                            <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+                                Review Policy
+                            </Text>
+                        </Text>
+                    </TouchableOpacity>
+                )}
                 <TouchableOpacity
                     style={[styles.submitBtnContainer, submitMutation.isPending && { opacity: 0.7 }]}
                     onPress={handleSubmit}
@@ -196,6 +244,12 @@ const ReviewScreen = () => {
                     </LinearGradient>
                 </TouchableOpacity>
             </ScrollView>
+            <DisclaimerModal
+                type="review_terms"
+                visible={showTermsModal}
+                onClose={() => setShowTermsModal(false)}
+                onAcknowledge={() => { setIsTermsChecked(true); setShowTermsModal(false); }}
+            />
         </View>
     );
 };
@@ -225,5 +279,10 @@ const styles = StyleSheet.create({
     submitBtnContainer: { marginTop: 10, borderRadius: 20, overflow: 'hidden' },
     submitBtn: { paddingVertical: 18, alignItems: 'center' },
     submitBtnText: { color: '#0C1559', fontSize: 16, fontFamily: 'Montserrat-Bold' },
+    disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 12, paddingHorizontal: 4 },
+    disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+    disclaimerBoxChecked: { backgroundColor: '#0C1559' },
+    disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
+    disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
 });
 export default ReviewScreen;

@@ -98,17 +98,8 @@ class DriverRepository extends BaseRepository {
     const { getPool } = require('../../config/postgres');
     const db = getPool();
     const { rows } = await db.query(`
-      SELECT 
-        d.user_id,
-        u.email,
-        p.full_name,
-        p.phone,
-        p.latitude,
-        p.longitude
-      FROM driver_profiles d
-      JOIN users u ON d.user_id = u.id
-      JOIN user_profiles p ON d.user_id = p.user_id
-      WHERE d.is_available = TRUE AND d.is_verified = TRUE
+      SELECT user_id, email, full_name, phone, latitude, longitude
+      FROM vw_available_drivers
     `);
     return rows || [];
   }

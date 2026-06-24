@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -16,6 +15,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
@@ -234,9 +234,9 @@ export default function AdminSellers() {
         </View>
 
         {loading && !refreshing ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={adminColors.navy} />
-          </View>
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+            <AdminScreenSkeleton metrics={4} rows={4} />
+          </SafeAreaView>
         ) : (
           <FlatList
             data={sellers}

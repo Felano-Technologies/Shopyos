@@ -222,6 +222,22 @@ export default function BusinessSettingsScreen() {
             <Text style={S.groupLabel}>Support</Text>
             <SettingGroup>
               <SettingRow
+                icon="alert-circle-outline" iconColor={C.muted} iconBg="#F1F5F9"
+                label="Raise a Report"
+                onPress={() => router.push('/support' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
+              />
+              <Divider />
+              <SettingRow
+                icon="list-outline" iconColor={C.muted} iconBg="#F1F5F9"
+                label="My Reports"
+                onPress={() => router.push('/support/my-tickets' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={() => setNotificationsOn(v => !v)}
+              />
+              <Divider />
+              <SettingRow
                 icon="help-circle-outline" iconColor={C.muted} iconBg="#F1F5F9"
                 label="Help Center"
                 disabled={!isBusinessVerified}

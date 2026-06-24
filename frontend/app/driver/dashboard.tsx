@@ -19,6 +19,7 @@ import * as Location from 'expo-location';
 import { getDriverProfile, getUserData, CustomInAppToast, updateDriverAvailability } from '@/services/api';
 import { useAvailableDeliveries, useActiveDeliveries, useDriverStats, useAssignDriver } from '@/hooks/useDelivery';
 import { useDriverGuard } from '@/hooks/useDriverGuard';
+import { useAllUnreadCount } from '@/hooks/useChat';
 import LocationDisclosure from '@/components/ui/LocationDisclosure';
 import {
   
@@ -92,6 +93,7 @@ function ActiveMissionCard({ delivery, onPress }: Readonly<{ delivery: any; onPr
 
 export default function Dashboard() {
   const router = useRouter();
+  const { data: chatUnreadCount = 0 } = useAllUnreadCount();
   const { profile: initialProfile, isChecking } = useDriverGuard();
   const [profile, setProfile] = useState<any>(initialProfile);
   const [isOnline, setIsOnline] = useState(false);
@@ -432,6 +434,22 @@ export default function Dashboard() {
         onDecline={() => setShowDisclosure(false)}
         context="driver"
       />
+
+      {/* Chat FAB */}
+      <TouchableOpacity
+        style={styles.chatFab}
+        activeOpacity={0.85}
+        onPress={() => router.push('/chat' as any)}
+      >
+        <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.chatFabGrad}>
+          <MaterialCommunityIcons name="chat-processing" size={26} color="#fff" />
+        </LinearGradient>
+        {chatUnreadCount > 0 && (
+          <View style={styles.chatFabBadge}>
+            <Text style={styles.chatFabBadgeTxt}>{chatUnreadCount > 99 ? '99+' : chatUnreadCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -488,6 +506,21 @@ const styles = StyleSheet.create({
   offlineSub: { fontSize: 14, fontFamily: 'Montserrat-Regular', color: '#64748B', textAlign: 'center', width: '80%', marginBottom: 30 },
   goOnlineBtn: { backgroundColor: '#0C1559', paddingHorizontal: 40, paddingVertical: 15, borderRadius: 30 },
   goOnlineText: { color: '#FFF', fontFamily: 'Montserrat-Bold', fontSize: 16 },
+  chatFab: {
+    position: 'absolute', bottom: 110, right: 18,
+    width: 58, height: 58, borderRadius: 29,
+    elevation: 8, shadowColor: '#0C1559',
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8,
+    zIndex: 100, overflow: 'visible',
+  },
+  chatFabGrad: { width: '100%', height: '100%', borderRadius: 29, justifyContent: 'center', alignItems: 'center' },
+  chatFabBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#ff0101', borderWidth: 1.5, borderColor: '#0C1559',
+    justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4,
+  },
+  chatFabBadgeTxt: { color: '#fff', fontSize: 9, fontFamily: 'Montserrat-Bold' },
   // Online State
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', textTransform: 'uppercase', marginBottom: 10 },

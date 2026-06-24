@@ -1,13 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const { protect, admin } = require('../middleware/authMiddleware');
-const { getActiveSale, createSale, endSale } = require('../controllers/flashSaleController');
+const requireDisclaimer = require('../middleware/requireDisclaimer');
+const {
+  getActiveSale,
+  getSlotsList,
+  submitFlashSale,
+  getSellerSales,
+  cancelFlashSale,
+  createSlot,
+  getAdminSales,
+  reviewFlashSale
+} = require('../controllers/flashSaleController');
 
-// Public — any buyer can fetch the current flash sale for the home screen
+// --- Public Endpoints ---
 router.get('/active', getActiveSale);
+router.get('/slots', getSlotsList);
 
-// Admin-only — only platform admins can create or end flash sales
-router.post('/', protect, admin, createSale);
-router.patch('/:id/end', protect, admin, endSale);
+// --- Seller Endpoints ---
+// Seller submission requires flash sale terms disclaimer acknowledgement
+router.post('/submit', protect, requireDisclaimer('flash_sale_terms'), submitFlashSale);
+router.get('/my-sales', protect, getSellerSales);
+router.delete('/:id/cancel', protect, cancelFlashSale);
+
+// --- Admin Endpoints ---
+router.post('/slots', protect, admin, createSlot);
+router.get('/admin/sales', protect, admin, getAdminSales);
+router.patch('/:id/review', protect, admin, reviewFlashSale);
 
 module.exports = router;

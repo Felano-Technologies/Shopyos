@@ -1,4 +1,4 @@
-﻿// middleware/upload.js
+// middleware/upload.js
 // Multer configuration for handling file uploads
 
 const multer = require('multer');
@@ -11,14 +11,14 @@ const storage = multer.memoryStorage();
 // File filter function
 const fileFilter = (req, file, cb) => {
   // Allowed file types
-  const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
+  const allowedTypes = /jpeg|jpg|png|gif|webp|svg|mp4|mov|quicktime|webm|mkv|avi|3gp/;
   const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
   const mimetype = allowedTypes.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
   } else {
-    cb(new Error('Only image files are allowed (jpeg, jpg, png, gif, webp, svg)'));
+    cb(new Error('Only images (jpeg, jpg, png, gif, webp, svg) and short video files (mp4, mov, webm, mkv, avi, 3gp) are allowed'));
   }
 };
 
@@ -26,7 +26,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max file size
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
   },
   fileFilter: fileFilter
 });

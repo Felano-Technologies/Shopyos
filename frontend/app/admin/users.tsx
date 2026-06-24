@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,50 +13,75 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { adminColors } from '@/components/admin/adminTheme';
+import AdminBottomNav from '@/components/AdminBottomNav';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { getAdminUserStats } from '@/services/api';
 
 const DARK_GRADIENT = ['#01217B', '#0C2E8A', '#0E5E1A'] as [string, string, string];
 
-type Stats = { total: number; active: number; sellers: number; drivers: number; buyers?: number };
+type Stats = { total: number; active: number; sellers: number; drivers: number; buyers?: number; parcel_partners?: number };
 
 export default function AdminUsers() {
   const router = useRouter();
-  const { isDesktop } = useAdminBreakpoint();
   const [stats, setStats] = useState<Stats>({ total: 0, active: 0, sellers: 0, drivers: 0 });
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    getAdminUserStats()
-      .then((res) => { if (res?.stats) setStats(res.stats); })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+  const loadStats = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    try {
+      const res = await getAdminUserStats();
+      if (res?.stats) setStats(res.stats);
+    } catch {}
+    finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  const buyerCount = stats.buyers ?? Math.max(stats.total - stats.sellers - stats.drivers, 0);
+  useEffect(() => { loadStats(); }, [loadStats]);
+
+  const buyerCount = stats.buyers ?? Math.max(stats.total - stats.sellers - stats.drivers - (stats.parcel_partners ?? 0), 0);
+  const parcelPartnerCount = stats.parcel_partners ?? 0;
 
   const summaryItems = [
-    { label: 'Total',   value: stats.total,   icon: 'people-outline' as const,              color: '#3B82F6' },
-    { label: 'Active',  value: stats.active,  icon: 'checkmark-circle-outline' as const,    color: '#22C55E' },
-    { label: 'Buyers',  value: buyerCount,    icon: 'person-outline' as const,              color: '#8B5CF6' },
-    { label: 'Sellers', value: stats.sellers, icon: 'storefront-outline' as const,          color: '#F59E0B' },
-    { label: 'Drivers', value: stats.drivers, icon: 'car-outline' as const,                 color: '#0C1559' },
+    { label: 'Total',    value: stats.total,        icon: 'people-outline' as const,              color: '#3B82F6' },
+    { label: 'Active',   value: stats.active,        icon: 'checkmark-circle-outline' as const,    color: '#22C55E' },
+    { label: 'Buyers',   value: buyerCount,           icon: 'person-outline' as const,              color: '#8B5CF6' },
+    { label: 'Sellers',  value: stats.sellers,        icon: 'storefront-outline' as const,          color: '#F59E0B' },
+    { label: 'Drivers',  value: stats.drivers,        icon: 'car-outline' as const,                 color: '#0C1559' },
+    { label: 'Parcels',  value: parcelPartnerCount,   icon: 'cube-outline' as const,                color: '#0891B2' },
   ];
 
   const groupItems = [
-    { title: 'Buyers',  count: buyerCount,    icon: 'person-outline' as const,     bg: '#DBEAFE', color: '#2563EB', route: '/admin/user-buyers' as any },
-    { title: 'Sellers', count: stats.sellers, icon: 'storefront-outline' as const, bg: '#FEF3C7', color: '#D97706', route: '/admin/user-sellers' as any },
-    { title: 'Drivers', count: stats.drivers, icon: 'car-outline' as const,        bg: '#DCFCE7', color: '#16A34A', route: '/admin/driverVerifications' as any },
+    { title: 'Buyers',          count: buyerCount,          icon: 'person-outline' as const,      bg: '#DBEAFE', color: '#2563EB', route: '/admin/user-buyers' as any },
+    { title: 'Sellers',         count: stats.sellers,        icon: 'storefront-outline' as const,  bg: '#FEF3C7', color: '#D97706', route: '/admin/user-sellers' as any },
+    { title: 'Drivers',         count: stats.drivers,        icon: 'car-outline' as const,         bg: '#DCFCE7', color: '#16A34A', route: '/admin/driverVerifications' as any },
+    { title: 'Parcel Partners', count: parcelPartnerCount,  icon: 'cube-outline' as const,         bg: '#CFFAFE', color: '#0891B2', route: '/admin/user-parcel-partners' as any },
   ];
+
+  if (loading && !refreshing) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+          <AdminScreenSkeleton metrics={5} rows={3} cards={0} />
+          <AdminBottomNav />
+        </SafeAreaView>
+      </>
+    );
+  }
 
   return (
     <>
       <StatusBar style="light" />
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
         <ScrollView
-          style={[styles.canvas, isDesktop && styles.desktopCanvas]}
+          style={styles.canvas}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStats(true)} tintColor="#0A2EA8" />}
         >
           {/* ── Header ─────────────────────────────────────────────── */}
           <LinearGradient
@@ -95,28 +120,22 @@ export default function AdminUsers() {
           {/* ── Page title ─────────────────────────────────────────── */}
           <View style={styles.pageHead}>
             <Text style={styles.pageTitle}>User Management</Text>
-            <Text style={styles.pageSubtitle}>Buyers · Sellers · Drivers · Admins</Text>
+            <Text style={styles.pageSubtitle}>Buyers · Sellers · Drivers · Parcel Partners · Admins</Text>
           </View>
 
           {/* ── Stats strip ────────────────────────────────────────── */}
-          {loading ? (
-            <View style={styles.statsLoading}>
-              <ActivityIndicator size="small" color="#0A2EA8" />
-            </View>
-          ) : (
-            <View style={styles.statsRow}>
-              {summaryItems.map((item) => (
-                <View key={item.label} style={[styles.statCard, { flexBasis: isDesktop ? '18%' : '47%', flexGrow: 1 }]}>
-                  <View style={[styles.statIconWrap, { backgroundColor: item.color + '22' }]}>
-                    <Ionicons name={item.icon} size={16} color={item.color} />
-                  </View>
-                  <Text style={styles.statValue}>{item.value.toLocaleString()}</Text>
-                  <Text style={styles.statLabel}>{item.label}</Text>
-                  <View style={[styles.statBar, { backgroundColor: item.color }]} />
+          <View style={styles.statsRow}>
+            {summaryItems.map((item) => (
+              <View key={item.label} style={[styles.statCard, { flexBasis: '47%', flexGrow: 1 }]}>
+                <View style={[styles.statIconWrap, { backgroundColor: item.color + '22' }]}>
+                  <Ionicons name={item.icon} size={16} color={item.color} />
                 </View>
-              ))}
-            </View>
-          )}
+                <Text style={styles.statValue}>{item.value.toLocaleString()}</Text>
+                <Text style={styles.statLabel}>{item.label}</Text>
+                <View style={[styles.statBar, { backgroundColor: item.color }]} />
+              </View>
+            ))}
+          </View>
 
           {/* ── Section label ─────────────────────────────────────── */}
           <Text style={styles.sectionLabel}>User Groups</Text>
@@ -134,7 +153,7 @@ export default function AdminUsers() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.groupTitle}>{item.title}</Text>
-                <Text style={styles.groupCount}>{loading ? '—' : item.count} users</Text>
+                <Text style={styles.groupCount}>{item.count} users</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
             </TouchableOpacity>
@@ -215,9 +234,22 @@ export default function AdminUsers() {
               <Text style={styles.quickTitle}>New Driver</Text>
               <Text style={styles.quickSub}>Driver profile</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickCard}
+              activeOpacity={0.85}
+              onPress={() => router.push({ pathname: '/admin/create-user' as any, params: { defaultRole: 'parcel_partner' } })}
+            >
+              <View style={[styles.quickIcon, { backgroundColor: '#CFFAFE' }]}>
+                <Ionicons name="cube-outline" size={22} color="#0891B2" />
+              </View>
+              <Text style={styles.quickTitle}>New Partner</Text>
+              <Text style={styles.quickSub}>Parcel partner</Text>
+            </TouchableOpacity>
           </View>
 
         </ScrollView>
+        <AdminBottomNav />
       </SafeAreaView>
     </>
   );
@@ -232,14 +264,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F5F7FA',
   },
-  desktopCanvas: {
-    maxWidth: 1200,
-    alignSelf: 'center',
-    width: '100%',
-  },
   scrollContent: {
     paddingHorizontal: 12,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
 
   // Header
@@ -351,10 +378,6 @@ const styles = StyleSheet.create({
   },
 
   // Stats
-  statsLoading: {
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
   statsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

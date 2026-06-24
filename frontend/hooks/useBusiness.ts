@@ -66,7 +66,7 @@ export const useMyCampaigns = () => {
   return useQuery({
     queryKey: queryKeys.business.campaigns(),
     queryFn: async () => {
-      const response = await ApiService.getMyCampaigns();
+      const response = await ApiService.getMyBannerCampaigns();
       return response;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -79,7 +79,7 @@ export const useCreateCampaign = () => {
   
   return useMutation({
     mutationFn: async (campaignData: any) => {
-      return await ApiService.createCampaign(campaignData);
+      return await ApiService.createBannerCampaign(campaignData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.business.campaigns() });

@@ -1,4 +1,4 @@
-﻿'use strict';
+'use strict';
 
 /**
  * tests/unit/snapController.unit.test.js
@@ -43,7 +43,7 @@ function mockRes() {
 
 describe('SnapController Unit Tests', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockDb.query.mockReset();
   });
 
   // ── createSnap ──────────────────────────────────────────────────────
@@ -161,20 +161,67 @@ describe('SnapController Unit Tests', () => {
 
   // ── viewSnap ────────────────────────────────────────────────────────
   describe('viewSnap', () => {
-    test('test_viewSnap_validId_incrementsViewCountAndReturns200Success', async () => {
+    test('test_viewSnap_guestUser_alwaysIncrementsViewCountAndReturns200Success', async () => {
       // Arrange
-      mockDb.query.mockResolvedValueOnce({ rowCount: 1 });
+      mockDb.query.mockResolvedValueOnce({ rowCount: 1 }); // Insert returns 1 (new guest)
+      mockDb.query.mockResolvedValueOnce({ rowCount: 1 }); // Update returns 1
 
-      const req = mockReq({ params: { id: 'snap-123' } });
+      const req = mockReq({ params: { id: 'snap-123' }, user: null, ip: '127.0.0.1' });
       const res = mockRes();
 
       // Act
       await snapController.viewSnap(req, res);
 
       // Assert
-      expect(mockDb.query).toHaveBeenCalledWith(
+      expect(mockDb.query).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('INSERT INTO snap_views'),
+        ['snap-123', '127.0.0.1']
+      );
+      expect(mockDb.query).toHaveBeenNthCalledWith(2,
         expect.stringContaining('UPDATE snaps SET view_count'),
         ['snap-123']
+      );
+      expect(res.json).toHaveBeenCalledWith({ success: true });
+    });
+
+    test('test_viewSnap_authenticatedUserFirstTime_registersViewAndIncrements', async () => {
+      // Arrange
+      mockDb.query.mockResolvedValueOnce({ rowCount: 1 }); // Insert returns 1
+      mockDb.query.mockResolvedValueOnce({ rowCount: 1 }); // Update returns 1
+
+      const req = mockReq({ params: { id: 'snap-123' }, user: { id: 'user-789' }, ip: '127.0.0.1' });
+      const res = mockRes();
+
+      // Act
+      await snapController.viewSnap(req, res);
+
+      // Assert
+      expect(mockDb.query).toHaveBeenNthCalledWith(1,
+        expect.stringContaining('INSERT INTO snap_views'),
+        ['snap-123', 'user-789', '127.0.0.1']
+      );
+      expect(mockDb.query).toHaveBeenNthCalledWith(2,
+        expect.stringContaining('UPDATE snaps SET view_count'),
+        ['snap-123']
+      );
+      expect(res.json).toHaveBeenCalledWith({ success: true });
+    });
+
+    test('test_viewSnap_authenticatedUserRepeatView_doesNotIncrement', async () => {
+      // Arrange
+      mockDb.query.mockResolvedValueOnce({ rowCount: 0 }); // Insert returns 0 (duplicate conflict)
+
+      const req = mockReq({ params: { id: 'snap-123' }, user: { id: 'user-789' }, ip: '127.0.0.1' });
+      const res = mockRes();
+
+      // Act
+      await snapController.viewSnap(req, res);
+
+      // Assert
+      expect(mockDb.query).toHaveBeenCalledTimes(1);
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO snap_views'),
+        ['snap-123', 'user-789', '127.0.0.1']
       );
       expect(res.json).toHaveBeenCalledWith({ success: true });
     });
@@ -239,6 +286,106 @@ describe('SnapController Unit Tests', () => {
 
       // Act
       await snapController.deleteSnap(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Server Error' });
+    });
+  });
+
+  // ── getMySnaps ──────────────────────────────────────────────────────
+  describe('getMySnaps', () => {
+    test('test_getMySnaps_validCall_returns200AndSnapsList', async () => {
+      // Arrange
+      const mockSnaps = [
+        { id: 's-1', media_url: 'image1.jpg', caption: 'Active snap', expires_at: new Date(Date.now() + 10000).toISOString() }
+      ];
+      mockDb.query.mockResolvedValueOnce({ rows: mockSnaps });
+
+      const req = mockReq({ query: { status: 'active' } });
+      const res = mockRes();
+
+      // Act
+      await snapController.getMySnaps(req, res);
+
+      // Assert
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('SELECT sn.*'),
+        ['store-123']
+      );
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        snaps: [
+          { ...mockSnaps[0], media_url: 'http://mocked-public-url/image1.jpg' }
+        ]
+      });
+    });
+
+    test('test_getMySnaps_databaseFails_returns500ServerError', async () => {
+      // Arrange
+      mockDb.query.mockRejectedValueOnce(new Error('DB Select Error'));
+
+      const req = mockReq();
+      const res = mockRes();
+
+      // Act
+      await snapController.getMySnaps(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Server Error' });
+    });
+  });
+
+  // ── repostSnap ──────────────────────────────────────────────────────
+  describe('repostSnap', () => {
+    test('test_repostSnap_validOwner_updatesExpiresAtAndReturns200', async () => {
+      // Arrange
+      const mockSnap = { id: 's-1', store_id: 'store-123', media_url: 'image1.jpg', expiration_notified: false };
+      mockDb.query.mockResolvedValueOnce({ rows: [mockSnap] });
+
+      const req = mockReq({ params: { id: 's-1' } });
+      const res = mockRes();
+
+      // Act
+      await snapController.repostSnap(req, res);
+
+      // Assert
+      expect(mockDb.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE snaps'),
+        ['s-1', 'store-123']
+      );
+      expect(res.json).toHaveBeenCalledWith({
+        success: true,
+        snap: { ...mockSnap, media_url: 'http://mocked-public-url/image1.jpg' },
+        message: 'Snap reposted successfully'
+      });
+    });
+
+    test('test_repostSnap_notFoundOrUnauthorized_returns404NotFound', async () => {
+      // Arrange
+      mockDb.query.mockResolvedValueOnce({ rows: [] });
+
+      const req = mockReq({ params: { id: 's-1' } });
+      const res = mockRes();
+
+      // Act
+      await snapController.repostSnap(req, res);
+
+      // Assert
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Snap not found or unauthorized' });
+    });
+
+    test('test_repostSnap_databaseFails_returns500ServerError', async () => {
+      // Arrange
+      mockDb.query.mockRejectedValueOnce(new Error('DB Update Error'));
+
+      const req = mockReq({ params: { id: 's-1' } });
+      const res = mockRes();
+
+      // Act
+      await snapController.repostSnap(req, res);
 
       // Assert
       expect(res.status).toHaveBeenCalledWith(500);

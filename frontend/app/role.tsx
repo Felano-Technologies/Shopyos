@@ -1,4 +1,3 @@
-// app/role-selection.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -11,250 +10,187 @@ import {
 import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { CustomInAppToast } from "@/components/InAppToastHost";
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { updateUserRole } from '@/services/api';
-// 1. Define the Role Type
+
+type RoleId = 'customer' | 'seller' | 'driver' | 'parcel_partner';
+
 type Role = {
-  id: string;
-  image: number;
+  id: RoleId;
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  description: string;
+  color: string;
+  bg: string;
 };
-// 2. Move RoleCard OUTSIDE the main component
-const RoleCard = ({ 
-  role, 
-  isSelected, 
-  onSelect 
-}: { 
-  role: Role; 
-  isSelected: boolean; 
-  onSelect: (id: string) => void;
-}) => (
-  <TouchableOpacity
-    style={[
-      styles.roleCard,
-      {
-        borderColor: isSelected ? '#84cc16' : 'transparent',
-        borderWidth: isSelected ? 3 : 0,
-      },
-    ]}
-    onPress={() => onSelect(role.id)}
-    activeOpacity={0.9} // Increased opacity so it doesn't fade too much on press
-  >
-    <AppImage source={role.image} style={styles.roleImage} />
-    {/* Optional: Add an overlay to highlight the image itself slightly */}
-    {isSelected && <View style={styles.selectedOverlay} />}
-  </TouchableOpacity>
-);
+
+const ROLES: Role[] = [
+  {
+    id: 'customer',
+    icon: 'bag-handle-outline',
+    label: 'Customer',
+    description: 'Shop, order, and track deliveries',
+    color: '#2563EB',
+    bg: '#DBEAFE',
+  },
+  {
+    id: 'seller',
+    icon: 'storefront-outline',
+    label: 'Seller',
+    description: 'List products and manage your store',
+    color: '#D97706',
+    bg: '#FEF3C7',
+  },
+  {
+    id: 'driver',
+    icon: 'bicycle-outline',
+    label: 'Driver',
+    description: 'Pick up and deliver orders to customers',
+    color: '#16A34A',
+    bg: '#DCFCE7',
+  },
+  {
+    id: 'parcel_partner',
+    icon: 'cube-outline',
+    label: 'Parcel Partner',
+    description: 'Manage a logistics hub and handle parcels',
+    color: '#7C3AED',
+    bg: '#EDE9FE',
+  },
+];
+
 const RoleSelectionScreen = () => {
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleId | null>(null);
   const [loading, setLoading] = useState(false);
-  const roles: Role[] = [
-    { id: 'customer', image: require('../assets/images/customer.jpg'), label: 'Customer' },
-    { id: 'seller', image: require('../assets/images/seller.jpg'), label: 'Seller' },
-    { id: 'driver', image: require('../assets/images/driver.jpg'), label: 'Driver' },
-  ];
+
   const handleRoleSelection = async () => {
     if (!selectedRole) {
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Selection Required',
-        message: 'Please select a role to continue.',
-      });
+      CustomInAppToast.show({ type: 'info', title: 'Selection Required', message: 'Please select a role to continue.' });
       return;
     }
     setLoading(true);
     try {
       const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
-      
-      // Call the API to save the role
       await updateUserRole(backendRole);
-      
-      CustomInAppToast.show({
-        type: 'success',
-        title: 'Success! 🎉',
-        message: `You are now a ${selectedRole}!`,
-      });
-      
-      // Use a slightly longer delay to ensure the backend has processed and the user sees the success toast
+      CustomInAppToast.show({ type: 'success', title: 'Success!', message: `Welcome as a ${ROLES.find(r => r.id === selectedRole)?.label}!` });
       setTimeout(() => {
-        if (selectedRole === 'customer') {
-          router.replace('/home');
-        } else if (selectedRole === 'seller') {
-          router.replace('/business/dashboard');
-        } else if (selectedRole === 'driver') {
-          router.replace('/driver/dashboard');
-        }
+        if (selectedRole === 'customer') router.replace('/home');
+        else if (selectedRole === 'seller') router.replace('/business/dashboard');
+        else if (selectedRole === 'driver') router.replace('/driver/dashboard');
+        else if (selectedRole === 'parcel_partner') router.replace('/parcel-partner/dashboard');
       }, 1000);
-      
     } catch (error: any) {
-      console.error('Error saving role:', error);
-      CustomInAppToast.show({
-        type: 'error',
-        title: 'Error ❌',
-        message: error.response?.data?.error || 'Failed to save your role selection.',
-      });
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.response?.data?.error || 'Failed to save your role selection.' });
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" translucent backgroundColor="transparent" />
       <SafeAreaView style={{ flex: 1, width: '100%' }}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContainer}
+          contentContainerStyle={styles.scroll}
         >
-          {/* Logo */}
           <AppImage
             source={require('../assets/images/icondark.png')}
             style={styles.logo}
+            contentFit="contain"
           />
-          {/* Role Images */}
-          <View style={styles.rolesContainer}>
-            {roles.map((role) => (
-              <RoleCard 
-                key={role.id} 
-                role={role} 
-                isSelected={selectedRole === role.id}
-                onSelect={setSelectedRole}
-              />
-            ))}
+
+          <Text style={styles.heading}>What brings you here?</Text>
+          <Text style={styles.sub}>Select your role to personalise your experience</Text>
+
+          <View style={styles.grid}>
+            {ROLES.map(role => {
+              const selected = selectedRole === role.id;
+              return (
+                <TouchableOpacity
+                  key={role.id}
+                  style={[styles.card, selected && { borderColor: '#84cc16', borderWidth: 2.5 }]}
+                  onPress={() => setSelectedRole(role.id)}
+                  activeOpacity={0.85}
+                >
+                  <View style={[styles.iconBox, { backgroundColor: role.bg }]}>
+                    <Ionicons name={role.icon} size={28} color={role.color} />
+                  </View>
+                  <View style={styles.cardText}>
+                    <Text style={[styles.cardLabel, selected && { color: '#0C1559' }]}>{role.label}</Text>
+                    <Text style={styles.cardDesc}>{role.description}</Text>
+                  </View>
+                  <View style={[styles.radio, selected && styles.radioSelected]}>
+                    {selected && <View style={styles.radioDot} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-          {/* Instruction */}
-          <Text style={styles.instructionText}>
-            Select your role to continue registration
-          </Text>
-          {/* Continue Button */}
+
           <TouchableOpacity
-            style={[
-              styles.continueButton,
-              {
-                backgroundColor: selectedRole ? '#84cc16' : '#9CA3AF',
-                opacity: selectedRole ? 1 : 0.6,
-              },
-            ]}
+            style={[styles.continueBtn, !selectedRole && styles.continueBtnDisabled]}
             onPress={handleRoleSelection}
             disabled={!selectedRole || loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="#0C1559" />
             ) : (
-              <Text style={styles.continueText}>Continue</Text>
+              <Text style={styles.continueTxt}>Continue</Text>
             )}
           </TouchableOpacity>
-          {/* Bottom Logos */}
-          <View style={styles.bottomLogos}>
-            <AppImage
-              source={require('../assets/images/icon.png')}
-              style={styles.circleLogo}
-            />
-            <AppImage
-              source={require('../assets/images/icondark.png')}
-              style={styles.brandLogo}
-            />
-          </View>
         </ScrollView>
       </SafeAreaView>
     </View>
   );
 };
+
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#e9f0ff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scrollContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 10,
-    flexGrow: 1,
-  },
-  logo: {
-    width: 202,
-    height: 50,
-    resizeMode: 'contain',
-    marginBottom: 15,
-    marginTop: 15,
-  },
-  rolesContainer: {
-    width: '92%',
-    marginBottom: 15,
-  },
-  roleCard: {
-    borderRadius: 18,
-    marginBottom: 22,
-    overflow: 'hidden',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 5,
-    // Ensure height is fixed so borders don't jump layout
-    height: 160, 
-    position: 'relative',
-  },
-  roleImage: {
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
-  },
-  // Optional: Adds a subtle tint to selected image
-  selectedOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(132, 204, 22, 0.1)', // Very light green tint
-  },
-  instructionText: {
-    fontSize: 14,
-    color: '#4B5563',
-    textAlign: 'center',
-    marginTop: 5,
-    marginBottom: 15,
-  },
-  continueButton: {
-    width: 250,
-    height: 50,
-    borderRadius: 25,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 4,
-    marginBottom: 40,
-  },
-  continueText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  bottomLogos: {
+  container: { flex: 1, backgroundColor: '#F0F4FF' },
+  scroll: { alignItems: 'center', paddingHorizontal: 20, paddingVertical: 24 },
+  logo: { width: 160, height: 44, marginBottom: 28 },
+  heading: { fontSize: 22, fontWeight: '700', color: '#0C1559', textAlign: 'center', marginBottom: 6 },
+  sub: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 28 },
+  grid: { width: '100%', gap: 12, marginBottom: 32 },
+  card: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#FFF',
+    borderRadius: 16,
+    padding: 16,
+    gap: 14,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  iconBox: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  cardText: { flex: 1 },
+  cardLabel: { fontSize: 15, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
+  cardDesc: { fontSize: 12, color: '#64748B', lineHeight: 16 },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: '#CBD5E1', alignItems: 'center', justifyContent: 'center' },
+  radioSelected: { borderColor: '#84cc16' },
+  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: '#84cc16' },
+  continueBtn: {
     width: '100%',
-    marginTop: 26,
-    paddingHorizontal: 6,
-    marginBottom: -20,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#84cc16',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#84cc16',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  circleLogo: {
-    width: 150,
-    height: 150,
-    resizeMode: 'contain',
-    marginLeft: -50,
-    marginBottom: -200,
-  },
-  brandLogo: {
-    width: 90,
-    height: 30,
-    resizeMode: 'contain',
-    marginLeft: -50,
-    marginBottom: -200,
-  },
+  continueBtnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0 },
+  continueTxt: { fontSize: 16, fontWeight: '700', color: '#0C1559' },
 });
+
 export default RoleSelectionScreen;

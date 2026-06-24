@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
@@ -197,10 +198,10 @@ export default function AdminApprovals() {
           })}
         </View>
 
-        {loading ? (
-          <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#0C1559" />
-          </View>
+        {loading && !refreshing ? (
+          <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+            <AdminScreenSkeleton metrics={4} rows={4} />
+          </SafeAreaView>
         ) : (
           <FlatList
             data={activeList}

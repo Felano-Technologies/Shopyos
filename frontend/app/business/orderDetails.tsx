@@ -82,6 +82,14 @@ export default function OrderDetailsScreen() {
             avatar:  o.buyer?.user_profiles?.avatar_url,
             address: o.delivery_address_line1 || o.delivery_address || o.deliveries?.[0]?.delivery_address || 'No address provided',
           },
+          delivery: {
+            id:            o.deliveries?.[0]?.id,
+            status:        o.deliveries?.[0]?.status,
+            deliveryLat:   o.deliveries?.[0]?.delivery_latitude,
+            deliveryLng:   o.deliveries?.[0]?.delivery_longitude,
+            pickupLat:     o.deliveries?.[0]?.pickup_latitude,
+            pickupLng:     o.deliveries?.[0]?.pickup_longitude,
+          },
           driver: o.deliveries?.[0]?.driver ? {
             id:      o.deliveries[0].driver._id || o.deliveries[0].driver.id,
             name:    o.deliveries[0].driver.user_profiles?.full_name || 'Driver',
@@ -90,6 +98,7 @@ export default function OrderDetailsScreen() {
             vehicle: o.deliveries[0].vehicle_type || 'Vehicle',
             plate:   o.deliveries[0].plate_number,
           } : null,
+          storeName: o.store?.store_name || o.stores?.store_name,
           items: mappedItems,
           payment: {
             subtotal:      Number.parseFloat(o.subtotal || o.subtotal_amount || 0),
@@ -339,12 +348,29 @@ export default function OrderDetailsScreen() {
               <Text style={S.addressTxt}>{order.customer.address}</Text>
               <TouchableOpacity
                 style={S.mapBtn}
-                onPress={() => Linking.openURL(
-                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customer.address)}`
-                )}
+                onPress={() => router.push({
+                  pathname: '/order/tracking',
+                  params: {
+                    deliveryId:       order.delivery.id,
+                    deliveryAddress:  order.customer.address,
+                    orderNumber:      order.orderNumber,
+                    deliveryLatitude:  order.delivery.deliveryLat,
+                    deliveryLongitude: order.delivery.deliveryLng,
+                    storeLatitude:     order.delivery.pickupLat,
+                    storeLongitude:    order.delivery.pickupLng,
+                    driverName:        order.driver?.name,
+                    driverAvatar:      order.driver?.avatar,
+                    driverPhone:       order.driver?.phone,
+                    driverVehicle:     order.driver?.vehicle,
+                    driverPlate:       order.driver?.plate,
+                    storeName:         order.storeName,
+                    orderStatus:       order.status,
+                    deliveryStatus:    order.delivery.status,
+                  },
+                } as any)}
               >
                 <Feather name="map-pin" size={rs(12)} color={C.navy} />
-                <Text style={S.mapBtnTxt}>Open in Maps</Text>
+                <Text style={S.mapBtnTxt}>Track on Map</Text>
               </TouchableOpacity>
             </View>
           </View>

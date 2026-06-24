@@ -214,7 +214,8 @@ const createDriverReview = async (req, res, next) => {
 
     // Verify delivery exists and was delivered to user
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
-    if (!delivery || delivery.order.buyer_id !== userId) {
+    const buyerId = delivery?.order?.buyer?.id ?? delivery?.order?.buyer_id;
+    if (!delivery || buyerId !== userId) {
       return res.status(403).json({
         success: false,
         error: 'Invalid delivery'
@@ -816,11 +817,12 @@ const createReviewComment = async (req, res, next) => {
         .single();
       
       const currentComments = rev?.comments_count || 0;
-      await repositories.reviews.db
-        .from(targetTable)
-        .update({ comments_count: currentComments + 1 })
-        .eq('id', reviewId)
-        .catch(() => {});
+      try {
+        await repositories.reviews.db
+          .from(targetTable)
+          .update({ comments_count: currentComments + 1 })
+          .eq('id', reviewId);
+      } catch (_) { /* non-critical counter update */ }
     }
 
     res.status(201).json({ success: true, message: 'Comment added', data: comment });

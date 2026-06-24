@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import { storage } from '@/services/storage';
 
 type Product = {
@@ -11,6 +10,8 @@ type Product = {
   storeId?: string;
   variantId?: string | null;
   variantAttributes?: Record<string, string>;
+  bargain_discount?: number;
+  bargain_offer_id?: string;
 };
 
 type CartItem = Product & { quantity: number };
@@ -24,48 +25,74 @@ type CartStore = {
   clearCart: () => void;
 };
 
-// Each (productId, variantId) pair is a unique line item
 const itemKey = (id: string, variantId?: string | null) => `${id}:${variantId ?? ''}`;
+const cartStorageKey = (userId: string) => `cart-v2-${userId}`;
 
-export const useCart = create<CartStore>()(
-  persist(
-    (set, get) => ({
-      items: [],
-      get cartCount() {
-        return get().items.reduce((sum, item) => sum + item.quantity, 0);
-      },
-      addToCart: (product) =>
-        set((state) => {
-          const key = itemKey(product.id, product.variantId);
-          const existing = state.items.find((i) => itemKey(i.id, i.variantId) === key);
-          if (existing) {
-            return {
-              items: state.items.map((i) =>
-                itemKey(i.id, i.variantId) === key ? { ...i, quantity: i.quantity + 1 } : i
-              ),
-            };
-          }
-          return { items: [...state.items, { ...product, quantity: 1 }] };
-        }),
-      removeFromCart: (id, variantId) =>
-        set((state) => {
-          const key = itemKey(id, variantId);
-          return { items: state.items.filter((i) => itemKey(i.id, i.variantId) !== key) };
-        }),
-      updateQuantity: (id, change, variantId) =>
-        set((state) => {
-          const key = itemKey(id, variantId);
-          return {
-            items: state.items.map((i) =>
-              itemKey(i.id, i.variantId) === key ? { ...i, quantity: Math.max(1, i.quantity + change) } : i
-            ),
-          };
-        }),
-      clearCart: () => set({ items: [] }),
+let _currentUserId: string | null = null;
+
+export const useCart = create<CartStore>((set, get) => ({
+  items: [],
+  get cartCount() {
+    return get().items.reduce((sum, item) => sum + item.quantity, 0);
+  },
+  addToCart: (product) =>
+    set((state) => {
+      const key = itemKey(product.id, product.variantId);
+      const existing = state.items.find((i) => itemKey(i.id, i.variantId) === key);
+      if (existing) {
+        return {
+          items: state.items.map((i) =>
+            itemKey(i.id, i.variantId) === key ? { ...i, quantity: i.quantity + 1 } : i
+          ),
+        };
+      }
+      return { items: [...state.items, { ...product, quantity: 1 }] };
     }),
-    {
-      name: 'cart-storage',
-      storage: createJSONStorage(() => storage),
-    }
-  )
-);
+  removeFromCart: (id, variantId) =>
+    set((state) => ({
+      items: state.items.filter((i) => itemKey(i.id, i.variantId) !== itemKey(id, variantId)),
+    })),
+  updateQuantity: (id, change, variantId) =>
+    set((state) => ({
+      items: state.items.map((i) =>
+        itemKey(i.id, i.variantId) === itemKey(id, variantId)
+          ? { ...i, quantity: Math.max(1, i.quantity + change) }
+          : i
+      ),
+    })),
+  clearCart: () => set({ items: [] }),
+}));
+
+// Auto-persist to the current user's scoped key on every state change
+useCart.subscribe((state) => {
+  if (!_currentUserId) return;
+  const uid = _currentUserId;
+  storage.setItem(cartStorageKey(uid), JSON.stringify(state.items)).catch(() => {});
+});
+
+/**
+ * Load the cart for a specific user from their scoped storage key.
+ * Call this after login and on app startup when a session already exists.
+ */
+export async function initCartForUser(userId: string): Promise<void> {
+  _currentUserId = userId;
+  try {
+    const raw = await storage.getItem(cartStorageKey(userId));
+    const items: CartItem[] = raw ? JSON.parse(raw) : [];
+    useCart.setState({ items });
+  } catch {
+    useCart.setState({ items: [] });
+  }
+}
+
+/**
+ * Clear the in-memory cart and remove the user's persisted cart.
+ * Call this on logout.
+ */
+export async function clearCartForUser(userId: string): Promise<void> {
+  useCart.setState({ items: [] });
+  _currentUserId = null;
+  try {
+    await storage.removeItem(cartStorageKey(userId));
+  } catch {}
+}

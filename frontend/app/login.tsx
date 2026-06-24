@@ -1,11 +1,12 @@
 import { router } from 'expo-router';
-import React, {  useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
+import { useGoogleAuth, signInWithGoogle } from '@/services/auth';
 import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
 
@@ -34,16 +35,19 @@ function navigateByRole(role: string | undefined) {
     router.push('/business/dashboard');
   } else if (userRole === 'driver') {
     router.push('/driver');
+  } else if (userRole === 'parcel_partner') {
+    router.push('/parcel-partner/dashboard');
   } else if (userRole === 'admin') {
     router.replace('/admin/dashboard');
   }
 }
 
 const DEV_ACCOUNTS = [
-  { label: 'Admin',  email: 'shoyosecommercehub@gmail.com',  password: 'Shopyos@2026' },
-  { label: 'Buyer',  email: 'kwame@test.com',      password: 'Password123!' },
-  { label: 'Seller', email: 'kofi.sells@test.com', password: 'Password123!' },
-  { label: 'Driver', email: 'driver@test.com',     password: 'Password123!' },
+  { label: 'Admin',   email: 'shoyosecommercehub@gmail.com', password: 'Shopyos@2026' },
+  { label: 'Buyer',   email: 'kwame@test.com',               password: 'Password123!' },
+  { label: 'Seller',  email: 'kofi.sells@test.com',          password: 'Password123!' },
+  { label: 'Driver',  email: 'driver@test.com',              password: 'Password123!' },
+  { label: 'Hub',     email: 'hub@test.com',                 password: 'Password123!' },
 ];
 
 const LoginScreen = () => {
@@ -52,6 +56,32 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [request, response, promptAsync] = useGoogleAuth();
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params?.id_token;
+      if (!idToken) {
+        CustomInAppToast.show({ type: 'error', title: 'Google Sign-In Failed', message: 'No token received.' });
+        return;
+      }
+      setLoading(true);
+      signInWithGoogle(idToken)
+        .then(async (data) => {
+          await refresh();
+          CustomInAppToast.show({ type: 'success', title: 'Welcome!', message: 'Signed in with Google.' });
+          if (data.needsRole) {
+            router.push('/role');
+          } else {
+            navigateByRole(data.role);
+          }
+        })
+        .catch((err) => {
+          CustomInAppToast.show({ type: 'error', title: 'Google Sign-In Failed', message: err.message });
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [response]);
   const handleLogin = async () => {
     try {
       setLoading(true);
@@ -60,7 +90,9 @@ const LoginScreen = () => {
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
         await refresh();
-        if (response.needsRole) {
+        if (response.passwordResetRequired) {
+          router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
+        } else if (response.needsRole) {
           router.push('/role');
         } else {
           navigateByRole(response.role);
@@ -82,7 +114,9 @@ const LoginScreen = () => {
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
         await refresh();
-        if (response.needsRole) {
+        if (response.passwordResetRequired) {
+          router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
+        } else if (response.needsRole) {
           router.push('/role');
         } else {
           navigateByRole(response.role);
@@ -167,6 +201,21 @@ const LoginScreen = () => {
               ) : (
                 <Text style={styles.signInText}>Sign in</Text>
               )}
+            </TouchableOpacity>
+            {/* Divider */}
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            {/* Continue with Google */}
+            <TouchableOpacity
+              style={styles.googleButton}
+              onPress={() => promptAsync()}
+              disabled={!request || loading}
+            >
+              <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
+              <Text style={styles.googleButtonText}>Continue with Google</Text>
             </TouchableOpacity>
             {/* Register (outlined pill) */}
             <TouchableOpacity
@@ -294,6 +343,39 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     textTransform: 'none',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    marginVertical: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    marginHorizontal: 10,
+    color: '#9ca3af',
+    fontSize: 13,
+  },
+  googleButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  googleButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '600',
   },
   registerButton: {
     width: '100%',

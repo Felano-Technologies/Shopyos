@@ -49,7 +49,7 @@ const DriverBottomNav = () => {
   const handlePress = (route: string) => {
     // Trigger smooth layout transition
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    router.push(route as any);
+    router.replace(route as any);
   };
 
   return (

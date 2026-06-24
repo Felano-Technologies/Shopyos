@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   TextInput, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Linking, RefreshControl
+  ActivityIndicator, RefreshControl, Modal
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import {  useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,8 +12,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { initializeBannerPayment, verifyBannerPayment } from '@/services/api';
-import { useMyCampaigns, useCreateCampaign } from '@/hooks/useBusiness';
+import { useMyCampaigns, useCreateCampaign, useActiveBusiness, useStoreProducts } from '@/hooks/useBusiness';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
 import { CustomInAppToast } from "@/components/InAppToastHost";
+import * as WebBrowser from 'expo-web-browser';
+import * as ExpoLinking from 'expo-linking';
 const DURATION_TIERS = [
   { days: 1,  label: '1 Day',   price: 1  },
   { days: 7,  label: '1 Week',  price: 10 },
@@ -58,6 +62,21 @@ export default function PromotionsScreen() {
   const [duration, setDuration] = useState(DURATION_TIERS[1]); // default: 1 week
   const [bannerUri, setBannerUri] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [campaignType, setCampaignType] = useState<'store' | 'product'>('store');
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
+  const [productPickerVisible, setProductPickerVisible] = useState(false);
+  const [adTerms, setAdTerms] = useState<Disclaimer | null>(null);
+  const [isAdTermsChecked, setIsAdTermsChecked] = useState(false);
+  const [showAdTermsModal, setShowAdTermsModal] = useState(false);
+
+  useEffect(() => {
+    getDisclaimerByType('advertising_terms').then(setAdTerms).catch(() => null);
+  }, []);
+
+  const { activeBusiness } = useActiveBusiness();
+  const storeId = activeBusiness?.id || activeBusiness?._id || '';
+  const { data: productsData } = useStoreProducts(storeId);
+  const products = productsData?.products || [];
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -88,9 +107,22 @@ export default function PromotionsScreen() {
   };
   const handleSubmit = () => {
     if (!adTitle || !bannerUri) return;
+    if (campaignType === 'product' && !selectedProduct) {
+      CustomInAppToast.show({ type: 'error', title: 'Product Required', message: 'Please select a product for your campaign.' });
+      return;
+    }
+    if (adTerms && !isAdTermsChecked) {
+      CustomInAppToast.show({ type: 'error', title: 'Agreement Required', message: 'Please agree to the Advertising Terms before submitting.' });
+      return;
+    }
+
     const formData = new FormData();
     formData.append('title', adTitle);
     formData.append('duration', duration.days.toString());
+    if (campaignType === 'product' && selectedProduct) {
+      formData.append('productId', selectedProduct.id || selectedProduct._id);
+    }
+
     const filename = bannerUri.split('/').pop();
     const match = /\.(\w+)$/.exec(filename || '');
     const type = match ? `image/${match[1]}` : 'image';
@@ -102,6 +134,8 @@ export default function PromotionsScreen() {
         setActiveTab('campaigns');
         setAdTitle('');
         setBannerUri(null);
+        setCampaignType('store');
+        setSelectedProduct(null);
       },
       onError: (error: any) => {
         CustomInAppToast.show({ type: 'error', title: 'Submission Failed', message: error.message || 'Check your internet connection and try again' });
@@ -110,10 +144,25 @@ export default function PromotionsScreen() {
   };
   const handlePayAd = async (campaignId: string) => {
     try {
-      const res = await initializeBannerPayment({ campaignId, email: 'merchant@shopyos.com' });
+      const callbackUrl = ExpoLinking.createURL('/business/promotions');
+      const res = await initializeBannerPayment({
+        campaignId,
+        email: 'merchant@shopyos.com',
+        callbackUrl,
+      });
       if (res.success && res.data.authorization_url) {
         CustomInAppToast.show({ type: 'success', title: 'Opening Checkout', message: 'Redirecting to Paystack secure payment page...' });
-        Linking.openURL(res.data.authorization_url);
+        
+        // Open Paystack checkout in auth session for auto-closure
+        const result = await WebBrowser.openAuthSessionAsync(res.data.authorization_url, callbackUrl);
+        
+        if (result.type === 'success' || result.type === 'cancel' || result.type === 'dismiss') {
+          verifyAndApplyReference({
+            reference: res.data.reference,
+            refetchCampaigns,
+            replaceRoute: () => router.replace('/business/promotions'),
+          });
+        }
       }
     } catch (error: unknown) {
       CustomInAppToast.show({ type: 'error', title: 'Initialisation Failed', message: error instanceof Error ? error.message : 'Could not reach payment provider' });
@@ -217,7 +266,7 @@ export default function PromotionsScreen() {
                             <Text style={styles.payBtnTextSmall}>Pay Now</Text>
                           </TouchableOpacity>
                         ) : (
-                          <Text style={styles.campClicks}>{(camp.clicks || 0).toLocaleString()} Clicks</Text>
+                          <Text style={styles.campClicks}>{(camp.clicks || 0).toLocaleString()} {camp.clicks === 1 ? 'Click' : 'Clicks'}</Text>
                         )}
                       </View>
                     </View>
@@ -242,6 +291,87 @@ export default function PromotionsScreen() {
                 value={adTitle}
                 onChangeText={setAdTitle}
               />
+              <Text style={styles.inputLabel}>Campaign Type</Text>
+              <View style={styles.typeRow}>
+                <TouchableOpacity
+                  style={[styles.typeCard, campaignType === 'store' && styles.typeCardActive]}
+                  onPress={() => {
+                    setCampaignType('store');
+                    setSelectedProduct(null);
+                  }}
+                >
+                  <Ionicons name="storefront-outline" size={18} color={campaignType === 'store' ? '#FFF' : '#0C1559'} />
+                  <Text style={[styles.typeCardText, campaignType === 'store' && styles.typeCardTextActive]}>Store Ad</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.typeCard, campaignType === 'product' && styles.typeCardActive]}
+                  onPress={() => setCampaignType('product')}
+                >
+                  <Ionicons name="pricetag-outline" size={18} color={campaignType === 'product' ? '#FFF' : '#0C1559'} />
+                  <Text style={[styles.typeCardText, campaignType === 'product' && styles.typeCardTextActive]}>Product Ad</Text>
+                </TouchableOpacity>
+              </View>
+
+              {campaignType === 'product' && (
+                <>
+                  <Text style={styles.inputLabel}>Select Product</Text>
+                  <TouchableOpacity
+                    style={styles.productPickerTrigger}
+                    onPress={() => setProductPickerVisible(true)}
+                  >
+                    <Text style={[styles.productPickerText, !selectedProduct && { color: '#94A3B8' }]}>
+                      {selectedProduct ? selectedProduct.name : 'Choose product to promote'}
+                    </Text>
+                    <Ionicons name="chevron-down" size={16} color="#64748B" />
+                  </TouchableOpacity>
+                </>
+              )}
+
+              <Modal
+                visible={productPickerVisible}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setProductPickerVisible(false)}
+              >
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContent}>
+                    <View style={styles.modalHeader}>
+                      <Text style={styles.modalTitle}>Select Product</Text>
+                      <TouchableOpacity onPress={() => setProductPickerVisible(false)}>
+                        <Ionicons name="close" size={24} color="#0F172A" />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView style={styles.productList} showsVerticalScrollIndicator={false}>
+                      {products.length === 0 ? (
+                        <Text style={styles.noProductsText}>No products found in your store.</Text>
+                      ) : (
+                        products.map((prod: any) => (
+                          <TouchableOpacity
+                            key={prod.id || prod._id}
+                            style={[
+                              styles.productItem,
+                              selectedProduct?.id === prod.id && styles.productItemActive
+                            ]}
+                            onPress={() => {
+                              setSelectedProduct(prod);
+                              setProductPickerVisible(false);
+                            }}
+                          >
+                            <View style={styles.productItemInfo}>
+                              <Text style={styles.productItemName}>{prod.name}</Text>
+                              <Text style={styles.productItemPrice}>₵{prod.price}</Text>
+                            </View>
+                            {selectedProduct?.id === prod.id && (
+                              <Ionicons name="checkmark-circle" size={20} color="#0C1559" />
+                            )}
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </ScrollView>
+                  </View>
+                </View>
+              </Modal>
+
               <Text style={styles.inputLabel}>Duration</Text>
               <View style={styles.durationRow}>
                 {DURATION_TIERS.map(tier => (
@@ -289,6 +419,21 @@ export default function PromotionsScreen() {
                   <Text style={styles.totalValue}>₵{duration.price}</Text>
                 </View>
               </View>
+              {adTerms && (
+                <View style={styles.disclaimerRow}>
+                  <TouchableOpacity onPress={() => setIsAdTermsChecked(!isAdTermsChecked)} activeOpacity={0.8}>
+                    <View style={[styles.disclaimerBox, isAdTermsChecked && styles.disclaimerBoxChecked]}>
+                      {isAdTermsChecked && <Ionicons name="checkmark" size={13} color="#FFF" />}
+                    </View>
+                  </TouchableOpacity>
+                  <Text style={styles.disclaimerText}>
+                    I agree to the{' '}
+                    <Text style={styles.disclaimerLink} onPress={() => setShowAdTermsModal(true)}>
+                      Advertising Terms
+                    </Text>
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 style={[styles.submitBtn, (!adTitle || !bannerUri || createCampaignMutation.isPending) && styles.submitBtnDisabled]}
                 disabled={!adTitle || !bannerUri || !duration || createCampaignMutation.isPending}
@@ -307,6 +452,12 @@ export default function PromotionsScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <DisclaimerModal
+        type="advertising_terms"
+        visible={showAdTermsModal}
+        onClose={() => setShowAdTermsModal(false)}
+        onAcknowledge={() => { setIsAdTermsChecked(true); setShowAdTermsModal(false); }}
+      />
     </View>
   );
 }
@@ -372,4 +523,27 @@ const styles = StyleSheet.create({
   submitBtnText: { color: '#FFF', fontSize: 15, fontFamily: 'Montserrat-Bold' },
   payBtnSmall: { backgroundColor: '#0C1559', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   payBtnTextSmall: { color: '#FFF', fontSize: 12, fontFamily: 'Montserrat-Bold' },
+  typeRow: { flexDirection: 'row', gap: 10, marginBottom: 15 },
+  typeCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, padding: 15, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, backgroundColor: '#FFF', justifyContent: 'center' },
+  typeCardActive: { backgroundColor: '#0C1559', borderColor: '#0C1559' },
+  typeCardText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#0C1559' },
+  typeCardTextActive: { color: '#FFF' },
+  productPickerTrigger: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 15, marginBottom: 15 },
+  productPickerText: { fontSize: 14, fontFamily: 'Montserrat-Medium', color: '#0F172A' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 30, borderTopRightRadius: 30, maxHeight: '50%', padding: 20 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 18, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  productList: { marginBottom: 20 },
+  productItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  productItemActive: { backgroundColor: '#F8FAFC' },
+  productItemInfo: { flex: 1 },
+  productItemName: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#0F172A' },
+  productItemPrice: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#64748B', marginTop: 2 },
+  noProductsText: { textAlign: 'center', color: '#94A3B8', marginVertical: 30, fontFamily: 'Montserrat-Medium' },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, paddingHorizontal: 4 },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#0C1559', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: '#0C1559' },
+  disclaimerText: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Medium', color: '#475569', lineHeight: 18 },
+  disclaimerLink: { color: '#0C1559', fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
 });

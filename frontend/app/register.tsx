@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import React, {  useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
+import { useGoogleAuth, signInWithGoogle } from '@/services/auth';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -10,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Swiper from 'react-native-swiper';
+import DisclaimerModal from '@/components/DisclaimerModal';
 const { width } = Dimensions.get('window');
 
 const RegisterScreen = () => {
@@ -22,16 +24,50 @@ const RegisterScreen = () => {
   const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [loading, setLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [request, response, promptAsync] = useGoogleAuth();
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params?.id_token;
+      if (!idToken) {
+        CustomInAppToast.show({ type: 'error', title: 'Google Sign-Up Failed', message: 'No token received.' });
+        return;
+      }
+      setLoading(true);
+      signInWithGoogle(idToken)
+        .then(async () => {
+          CustomInAppToast.show({ type: 'success', title: 'Welcome to Shopyos!', message: 'Account created with Google.' });
+          router.push('/role');
+        })
+        .catch((err: Error) => {
+          CustomInAppToast.show({ type: 'error', title: 'Google Sign-Up Failed', message: err.message });
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [response]);
+
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     const cleanCode = callingCode.replace('+', '');
     const formattedNumber = phoneNumber.replace(/^0/, '');
     return `+${cleanCode}${formattedNumber}`;
   };
   const handleRegister = async () => {
+    if (!termsAccepted || !privacyAccepted) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Agreement Required',
+        message: 'Please accept the Terms of Service and Privacy Policy to continue.',
+      });
+      return;
+    }
     try {
       const fullPhoneNumber = formatPhoneNumber(callingCode, phoneNumber);
       setLoading(true);
-      const data = await registerUser(name, email, password, fullPhoneNumber, referralCode);
+      const data = await registerUser(name, email, password, fullPhoneNumber, referralCode, termsAccepted, privacyAccepted);
       if (data.message === "User created successfully") {
         CustomInAppToast.show({
           type: 'success',
@@ -61,6 +97,7 @@ const RegisterScreen = () => {
   const content = (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -171,6 +208,33 @@ const RegisterScreen = () => {
               onChangeText={setReferralCode}
             />
           </View>
+          {/* Disclaimer checkboxes */}
+          <View style={styles.disclaimerRow}>
+            <TouchableOpacity onPress={() => setTermsAccepted(!termsAccepted)} activeOpacity={0.8}>
+              <View style={[styles.disclaimerBox, termsAccepted && styles.disclaimerBoxChecked]}>
+                {termsAccepted && <Ionicons name="checkmark" size={13} color="#FFF" />}
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.disclaimerText}>
+              I agree to the{' '}
+              <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+                Terms of Service
+              </Text>
+            </Text>
+          </View>
+          <View style={[styles.disclaimerRow, { marginBottom: 16 }]}>
+            <TouchableOpacity onPress={() => setPrivacyAccepted(!privacyAccepted)} activeOpacity={0.8}>
+              <View style={[styles.disclaimerBox, privacyAccepted && styles.disclaimerBoxChecked]}>
+                {privacyAccepted && <Ionicons name="checkmark" size={13} color="#FFF" />}
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.disclaimerText}>
+              I agree to the{' '}
+              <Text style={styles.disclaimerLink} onPress={() => setShowPrivacyModal(true)}>
+                Privacy Policy
+              </Text>
+            </Text>
+          </View>
           {/* Sign Up Button */}
           <TouchableOpacity style={styles.button} onPress={handleRegister}>
             {loading ? (
@@ -179,7 +243,22 @@ const RegisterScreen = () => {
               <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </TouchableOpacity>
-          {/* Register (outlined pill) */}
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          {/* Continue with Google */}
+          <TouchableOpacity
+            style={styles.googleButton}
+            onPress={() => promptAsync()}
+            disabled={!request || loading}
+          >
+            <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
+            <Text style={styles.googleButtonText}>Continue with Google</Text>
+          </TouchableOpacity>
+          {/* Already registered */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={() => router.push('/login')}
@@ -193,6 +272,18 @@ const RegisterScreen = () => {
             <AppImage source={require('../assets/images/icondark.png')} style={styles.brandLogo} contentFit="contain" />
           </View>
         </View>
+        <DisclaimerModal
+          type="terms_of_service"
+          visible={showTermsModal}
+          onClose={() => setShowTermsModal(false)}
+          onAcknowledge={() => { setTermsAccepted(true); setShowTermsModal(false); }}
+        />
+        <DisclaimerModal
+          type="privacy_policy"
+          visible={showPrivacyModal}
+          onClose={() => setShowPrivacyModal(false)}
+          onAcknowledge={() => { setPrivacyAccepted(true); setShowPrivacyModal(false); }}
+        />
       </ScrollView>
     </Pressable>
   );
@@ -221,7 +312,7 @@ const RegisterScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { flexGrow: 1, alignItems: 'center', paddingTop: 16, paddingBottom: 40 },
+  scrollContent: { alignItems: 'center', paddingTop: 16, paddingBottom: 80 },
   bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
@@ -271,23 +362,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     width: '100%',
-    marginTop: -70,
-    paddingHorizontal: 1,
-    marginBottom: 10,
+    marginTop: 24,
+    paddingHorizontal: 8,
   },
   circleLogo: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     resizeMode: 'contain',
-    marginLeft: -40,
-    marginBottom: -240,
   },
   brandLogo: {
-    width: 100,
-    height: 100,
+    width: 80,
+    height: 80,
     resizeMode: 'contain',
-    marginLeft: -40,
-    marginBottom: -240,
   },
   loginButton: {
     width: '90%',
@@ -307,5 +393,26 @@ const styles = StyleSheet.create({
     color: '#1e3a8a',
     fontWeight: '700',
   },
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: 8, paddingHorizontal: 4 },
+  disclaimerBox: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, borderColor: '#1e3a8a', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
+  disclaimerBoxChecked: { backgroundColor: '#1e3a8a' },
+  disclaimerText: { flex: 1, fontSize: 13, color: '#475569', lineHeight: 18 },
+  disclaimerLink: { color: '#1e3a8a', fontWeight: '700', textDecorationLine: 'underline' },
+  divider: { flexDirection: 'row', alignItems: 'center', width: '100%', marginVertical: 12 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
+  dividerText: { marginHorizontal: 10, color: '#9ca3af', fontSize: 13 },
+  googleButton: {
+    width: '100%',
+    height: 50,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
 });
 export default RegisterScreen;

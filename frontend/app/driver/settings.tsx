@@ -227,6 +227,11 @@ export default function DriverSettings() {
           <SettingRow icon="map" label="Navigation App" value="Google Maps" />
           <SettingRow icon="bell" label="Sound & Notification" value="On" />
         </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          <SettingRow icon="alert-circle" label="Raise a Report" onPress={() => router.push('/support' as any)} />
+          <SettingRow icon="list" label="My Reports" onPress={() => router.push('/support/my-tickets' as any)} />
+        </View>
         <TouchableOpacity
           style={styles.shopBtn}
           onPress={() => {

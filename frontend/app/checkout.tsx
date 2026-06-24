@@ -4,7 +4,7 @@ import {
   TextInput, Platform, ActivityIndicator, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
@@ -15,8 +15,10 @@ import { useCart } from '@/store/cartStore';
 import {
   createOrder, addToCart as apiAddToCart, clearBackendCart,
   getUserData, getPaymentMethods, getDeliveryQuote, getProductById,
-  getLoyaltyBalance, validatePromoCode,
+  getLoyaltyBalance, validatePromoCode, getPublicFeeConfigs,
 } from '@/services/api';
+import DisclaimerModal from '@/components/DisclaimerModal';
+import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
 const C = {
   navy: '#0C1559',
@@ -28,6 +30,17 @@ const C = {
   subtle: '#94A3B8',
   body: '#0F172A',
 };
+
+const GHANA_REGIONS = [
+  'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
+  'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
+  'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North',
+];
+
+function mapIpRegionToGhana(raw: string): string | null {
+  const r = raw.toLowerCase();
+  return GHANA_REGIONS.find(g => r.includes(g.toLowerCase())) ?? null;
+}
 
 export default function CheckoutScreen() {
   const router = useRouter();
@@ -47,6 +60,11 @@ export default function CheckoutScreen() {
   const [deliveryState, setDeliveryState] = useState('Greater Accra');
   const [prefilled, setPrefilled] = useState({ address: false, phone: false, region: false });
 
+  // Disclaimer states
+  const [refundPolicy, setRefundPolicy] = useState<Disclaimer | null>(null);
+  const [isDisclaimerChecked, setIsDisclaimerChecked] = useState(false);
+  const [showDisclaimerModal, setShowDisclaimerModal] = useState(false);
+
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<{ id: string; code: string; discountAmount: number; label: string } | null>(null);
@@ -57,6 +75,10 @@ export default function CheckoutScreen() {
   const [loyaltyBalance, setLoyaltyBalance] = useState(0);
   const [loyaltyValue, setLoyaltyValue] = useState(0);
   const [usePoints, setUsePoints] = useState(false);
+  const [loyaltyExpanded, setLoyaltyExpanded] = useState(false);
+
+  // Buyer protection fee from platform config (0 until loaded so nothing incorrect shows during loading)
+  const [buyerProtectionFee, setBuyerProtectionFee] = useState<number>(0);
 
   // Delivery fee state
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
@@ -64,6 +86,16 @@ export default function CheckoutScreen() {
   const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
   const [deliveryNote, setDeliveryNote] = useState<string | null>(null);
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Inter-Regional states
+  const [isInterRegional, setIsInterRegional] = useState(false);
+  const [parcelTransitFee, setParcelTransitFee] = useState(0);
+  const [estimatedTransitDays, setEstimatedTransitDays] = useState<number | null>(null);
+  const [storeRegionName, setStoreRegionName] = useState<string | null>(null);
+
+  // Last-mile home delivery option (inter-regional only)
+  const [requestLastMile, setRequestLastMile] = useState(false);
+  const [lastMileFee, setLastMileFee] = useState(15);
 
   // Get buyer location once on mount
   useEffect(() => {
@@ -104,9 +136,13 @@ export default function CheckoutScreen() {
       try {
         const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
         if (res?.success) {
-          const { withinRange, deliveryFee: fee, note } = res.quote || {};
+          const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, storeRegion, note } = res.quote || {};
           setIsWithinRange(withinRange);
           setDeliveryNote(note || null);
+          setIsInterRegional(!!isInter);
+          setParcelTransitFee(transit || 0);
+          setEstimatedTransitDays(days || null);
+          setStoreRegionName(storeRegion || null);
           if (withinRange && fee !== null) {
             setDeliveryFee(fee);
           } else {
@@ -121,20 +157,37 @@ export default function CheckoutScreen() {
     })();
   }, [buyerCoords, cartItems, deliveryState]);
 
-  const tax = 1;
+  const tax = buyerProtectionFee;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const pointsDiscount = usePoints ? loyaltyValue : 0;
   const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
-  const total = Number.parseFloat((subtotal + tax + deliveryFee - totalDiscount).toFixed(2));
+  const totalBargainDiscount = cartItems.reduce((sum, item) => sum + (Number(item.bargain_discount) || 0) * item.quantity, 0);
+  const lastMileCharge = isInterRegional && requestLastMile ? lastMileFee : 0;
+  const total = Number.parseFloat((subtotal + tax + deliveryFee + parcelTransitFee + lastMileCharge - totalDiscount - totalBargainDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
       try {
-        const [profileResponse, paymentResponse, loyaltyResponse] = await Promise.all([
+        const [profileResponse, paymentResponse, loyaltyResponse, policyResponse, feeConfigs] = await Promise.all([
           getUserData(),
           getPaymentMethods(),
           getLoyaltyBalance().catch(() => null),
+          getDisclaimerByType('refund_policy').catch(() => null),
+          getPublicFeeConfigs().catch(() => null),
         ]);
+
+        if (feeConfigs) {
+          const protEnabled = feeConfigs['buyer_protection_enabled'] !== false;
+          const protFee = Number(feeConfigs['buyer_protection_fee'] ?? 1);
+          setBuyerProtectionFee(protEnabled ? protFee : 0);
+          if (feeConfigs['last_mile_default_fee']) {
+            setLastMileFee(Number(feeConfigs['last_mile_default_fee']));
+          }
+        }
+
+        if (policyResponse) {
+          setRefundPolicy(policyResponse);
+        }
 
         if (loyaltyResponse?.success) {
           setLoyaltyBalance(loyaltyResponse.balance);
@@ -145,13 +198,26 @@ export default function CheckoutScreen() {
         if (profile) {
           const addr = profile.address_line1 || '';
           const phone = profile.fullPhoneNumber || profile.phone || '';
-          const region = profile.state_province || 'Greater Accra';
           setDeliveryAddress(addr);
           setDeliveryPhone(phone);
-          setDeliveryState(region);
-          setPrefilled({ address: !!addr, phone: !!phone, region: !!profile.state_province });
-          
-          // Use saved coordinates as initial buyerCoords
+
+          if (profile.state_province) {
+            setDeliveryState(profile.state_province);
+            setPrefilled({ address: !!addr, phone: !!phone, region: true });
+          } else {
+            // No saved region — try IP geolocation as fallback
+            setPrefilled({ address: !!addr, phone: !!phone, region: false });
+            try {
+              const ipRes = await fetch('https://ip-api.com/json');
+              const ipData = await ipRes.json();
+              const detected = mapIpRegionToGhana(ipData.region || ipData.regionName || '');
+              if (detected) {
+                setDeliveryState(detected);
+                setPrefilled(prev => ({ ...prev, region: true }));
+              }
+            } catch { /* silent fallback to default 'Greater Accra' */ }
+          }
+
           if (profile.latitude && profile.longitude) {
             setBuyerCoords({ lat: Number(profile.latitude), lng: Number(profile.longitude) });
           }
@@ -190,6 +256,20 @@ export default function CheckoutScreen() {
     }
   };
 
+  const handleDisclaimerCheck = async () => {
+    if (!refundPolicy) return;
+    const nextVal = !isDisclaimerChecked;
+    setIsDisclaimerChecked(nextVal);
+    if (nextVal) {
+      try {
+        await acknowledgeDisclaimer('refund_policy', refundPolicy.version);
+      } catch (err) {
+        console.error('Failed to acknowledge disclaimer:', err);
+        setIsDisclaimerChecked(false);
+      }
+    }
+  };
+
   const handlePlaceOrder = async () => {
     if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
       CustomInAppToast.show({ type: 'error', title: 'Required Info', message: 'Please provide address and phone number.' });
@@ -214,6 +294,7 @@ export default function CheckoutScreen() {
         ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
         ...(appliedPromo && { promoCode: appliedPromo.code }),
         ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
+        ...(isInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
       });
 
       if (res.success) {
@@ -277,14 +358,20 @@ export default function CheckoutScreen() {
               </View>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Delivery Fee</Text>
-                <Text style={[S.summaryItemPrice, isWithinRange === false && { color: '#B91C1C' }]}>
-                  {isFetchingFee ? '...' : (isWithinRange === false ? 'Unavailable' : `₵${deliveryFee.toFixed(2)}`)}
+                <Text style={S.summaryItemPrice}>
+                  {isFetchingFee ? '...' : `₵${deliveryFee.toFixed(2)}`}
                 </Text>
               </View>
-              {isWithinRange === false && (
-                <View style={S.errorBanner}>
-                  <Ionicons name="alert-circle" size={16} color="#B91C1C" />
-                  <Text style={S.errorText}>Your address is outside this store&apos;s delivery zone.</Text>
+              {isInterRegional && parcelTransitFee > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={S.summaryItemName}>Cross-Region Courier Fee</Text>
+                  <Text style={S.summaryItemPrice}>₵{parcelTransitFee.toFixed(2)}</Text>
+                </View>
+              )}
+              {isInterRegional && requestLastMile && (
+                <View style={S.summaryRow}>
+                  <Text style={S.summaryItemName}>Last-Mile Home Delivery</Text>
+                  <Text style={S.summaryItemPrice}>₵{lastMileFee.toFixed(2)}</Text>
                 </View>
               )}
               {totalDiscount > 0 && (
@@ -295,12 +382,60 @@ export default function CheckoutScreen() {
                   <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalDiscount.toFixed(2)}</Text>
                 </View>
               )}
+              {totalBargainDiscount > 0 && (
+                <View style={S.summaryRow}>
+                  <Text style={[S.summaryItemName, { color: '#16a34a' }]}>Bargain Discount</Text>
+                  <Text style={[S.summaryItemPrice, { color: '#16a34a' }]}>−₵{totalBargainDiscount.toFixed(2)}</Text>
+                </View>
+              )}
               <View style={S.divider} />
               <View style={S.summaryRow}>
                 <Text style={[S.summaryItemName, { fontFamily: 'Montserrat-Bold', color: C.navy }]}>Total Payable</Text>
                 <Text style={[S.summaryItemPrice, { fontSize: 18, color: C.lime, fontFamily: 'Montserrat-Bold' }]}>₵{Number(total || 0).toFixed(2)}</Text>
               </View>
             </View>
+
+            {/* Last-Mile Delivery Option — shown only for inter-regional orders */}
+            {isInterRegional && (
+              <>
+                <Text style={S.sectionTitle}>Parcel Delivery Option</Text>
+                <View style={S.card}>
+                  <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 14, marginBottom: 12 }}>
+                    How would you like to receive your parcel at the destination?
+                  </Text>
+
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: !requestLastMile ? C.navy : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}
+                    onPress={() => setRequestLastMile(false)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: !requestLastMile ? C.navy : '#94A3B8', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {!requestLastMile && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.navy }} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>Pick up from hub</Text>
+                      <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>Collect your parcel from the regional hub — no extra charge</Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Montserrat-Bold', color: '#16a34a', fontSize: 13 }}>Free</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: requestLastMile ? C.lime : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12 }}
+                    onPress={() => setRequestLastMile(true)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: requestLastMile ? C.lime : '#94A3B8', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {requestLastMile && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: C.lime }} />}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontFamily: 'Montserrat-SemiBold', color: C.body, fontSize: 13 }}>Home delivery by rider</Text>
+                      <Text style={{ fontFamily: 'Montserrat-Regular', color: C.muted, fontSize: 12, marginTop: 2 }}>A local rider picks up from the hub and delivers to your door</Text>
+                    </View>
+                    <Text style={{ fontFamily: 'Montserrat-Bold', color: C.navy, fontSize: 13 }}>₵{lastMileFee.toFixed(2)}</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
             {/* Promo Code */}
             <Text style={S.sectionTitle}>Promo Code</Text>
@@ -345,30 +480,49 @@ export default function CheckoutScreen() {
               )}
             </View>
 
-            {/* Loyalty Points */}
+            {/* Loyalty Points — collapsed by default */}
             {loyaltyBalance > 0 && (
               <>
-                <Text style={S.sectionTitle}>Loyalty Points</Text>
-                <TouchableOpacity style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
-                  <View style={S.loyaltyRow}>
-                    <View style={S.loyaltyIcon}>
-                      <Ionicons name="star" size={20} color={C.lime} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={S.loyaltyTitle}>{loyaltyBalance} points available</Text>
-                      <Text style={S.loyaltySub}>Worth ₵{loyaltyValue.toFixed(2)} off your order</Text>
-                    </View>
-                    <View style={[S.toggle, usePoints && S.toggleOn]}>
-                      <View style={[S.toggleThumb, usePoints && S.toggleThumbOn]} />
-                    </View>
+                <TouchableOpacity
+                  style={S.loyaltyReveal}
+                  onPress={() => setLoyaltyExpanded(p => !p)}
+                  activeOpacity={0.75}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Ionicons name="star" size={16} color={C.lime} />
+                    <Text style={S.loyaltyRevealTxt}>
+                      You have {loyaltyBalance} loyalty points
+                    </Text>
                   </View>
-                  {usePoints && (
-                    <View style={S.loyaltySaving}>
-                      <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
-                      <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
-                    </View>
-                  )}
+                  <Ionicons
+                    name={loyaltyExpanded ? 'chevron-up' : 'chevron-down'}
+                    size={16}
+                    color={C.muted}
+                  />
                 </TouchableOpacity>
+
+                {loyaltyExpanded && (
+                  <TouchableOpacity style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
+                    <View style={S.loyaltyRow}>
+                      <View style={S.loyaltyIcon}>
+                        <Ionicons name="star" size={20} color={C.lime} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={S.loyaltyTitle}>{loyaltyBalance} points available</Text>
+                        <Text style={S.loyaltySub}>Worth ₵{loyaltyValue.toFixed(2)} off your order</Text>
+                      </View>
+                      <View style={[S.toggle, usePoints && S.toggleOn]}>
+                        <View style={[S.toggleThumb, usePoints && S.toggleThumbOn]} />
+                      </View>
+                    </View>
+                    {usePoints && (
+                      <View style={S.loyaltySaving}>
+                        <Ionicons name="checkmark-circle" size={14} color="#16a34a" />
+                        <Text style={S.loyaltySavingTxt}>−₵{pointsDiscount.toFixed(2)} applied</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                )}
               </>
             )}
 
@@ -423,7 +577,11 @@ export default function CheckoutScreen() {
                   <Text style={S.inputLabel}>Region / State <Text style={{ color: '#ef4444' }}>*</Text></Text>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 5 }}>
-                  {['Greater Accra', 'Ashanti', 'Central', 'Eastern', 'Western', 'Northern', 'Volta'].map((reg) => (
+                  {[
+                    'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
+                    'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
+                    'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North'
+                  ].map((reg) => (
                     <TouchableOpacity
                       key={reg}
                       style={[S.regionChip, deliveryState === reg && S.regionChipActive]}
@@ -434,6 +592,35 @@ export default function CheckoutScreen() {
                   ))}
                 </ScrollView>
               </View>
+
+              {isInterRegional && (
+                <View style={S.interRegionalCard}>
+                  <View style={S.interRegionalHeader}>
+                    <Ionicons name="bus-outline" size={18} color="#0C1559" />
+                    <Text style={S.interRegionalTitle}>Cross-Region Shipment</Text>
+                  </View>
+                  <Text style={S.interRegionalText}>
+                    This order will ship from {storeRegionName || 'merchant region'} to {deliveryState}.
+                    It will be routed via our Parcel Partner hubs.
+                  </Text>
+                  {estimatedTransitDays && (
+                    <Text style={S.interRegionalTransit}>
+                      Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDays} days</Text> to destination hub.
+                    </Text>
+                  )}
+                  <View style={S.interRegionalBreakdown}>
+                    <Text style={S.breakdownTitle}>Delivery Breakdown:</Text>
+                    <View style={S.breakdownRow}>
+                      <Text style={S.breakdownLabel}>Store to Origin Hub:</Text>
+                      <Text style={S.breakdownValue}>₵{deliveryFee.toFixed(2)}</Text>
+                    </View>
+                    <View style={S.breakdownRow}>
+                      <Text style={S.breakdownLabel}>Inter-Hub Transit Fee:</Text>
+                      <Text style={S.breakdownValue}>₵{parcelTransitFee.toFixed(2)}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
               {showAddressNudge && (
                 <TouchableOpacity
                   style={S.profileNudge}
@@ -488,11 +675,35 @@ export default function CheckoutScreen() {
               </View>
             )}
 
+            {/* Disclaimer Row */}
+            {refundPolicy && (
+              <View style={S.disclaimerRow}>
+                <TouchableOpacity
+                  style={S.disclaimerCheckbox}
+                  onPress={handleDisclaimerCheck}
+                  activeOpacity={0.8}
+                >
+                  <View style={[S.checkbox, isDisclaimerChecked && S.checkboxChecked]}>
+                    {isDisclaimerChecked && <Feather name="check" size={14} color="#FFFFFF" />}
+                  </View>
+                </TouchableOpacity>
+                <Text style={S.disclaimerText}>
+                  I agree to the{' '}
+                  <Text
+                    style={S.disclaimerLink}
+                    onPress={() => setShowDisclaimerModal(true)}
+                  >
+                    Refund & Return Policy
+                  </Text>
+                </Text>
+              </View>
+            )}
+
             {/* Place Order */}
             <TouchableOpacity
-              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true) && { opacity: 0.6 }]}
+              style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
-              disabled={isOrdering || isWithinRange !== true}
+              disabled={isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)}
             >
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.placeOrderGradient}>
                 {isOrdering
@@ -505,6 +716,19 @@ export default function CheckoutScreen() {
             <View style={{ height: 40 }} />
           </ScrollView>
         </KeyboardAvoidingView>
+      )}
+
+      {refundPolicy && (
+        <DisclaimerModal
+          type="refund_policy"
+          visible={showDisclaimerModal}
+          required={true}
+          onClose={() => setShowDisclaimerModal(false)}
+          onAcknowledge={() => {
+            setIsDisclaimerChecked(true);
+            setShowDisclaimerModal(false);
+          }}
+        />
       )}
     </View>
   );
@@ -577,6 +801,8 @@ const S = StyleSheet.create({
   promoError: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#B91C1C', marginTop: 8 },
 
   // Loyalty points
+  loyaltyReveal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, paddingHorizontal: 14, backgroundColor: '#F7FEE7', borderRadius: 12, marginBottom: 10 },
+  loyaltyRevealTxt: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: C.body },
   loyaltyRow: { flexDirection: 'row', alignItems: 'center' },
   loyaltyIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F7FEE7', justifyContent: 'center', alignItems: 'center' },
   loyaltyTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.body },
@@ -587,6 +813,22 @@ const S = StyleSheet.create({
   toggleOn: { backgroundColor: C.lime },
   toggleThumb: { width: 20, height: 20, borderRadius: 10, backgroundColor: '#fff', elevation: 2 },
   toggleThumbOn: { alignSelf: 'flex-end' },
+
+  disclaimerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 15, paddingHorizontal: 4 },
+  disclaimerCheckbox: { padding: 4 },
+  disclaimerText: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.body, flex: 1, lineHeight: 18 },
+  disclaimerLink: { color: C.navy, fontFamily: 'Montserrat-Bold', textDecorationLine: 'underline' },
+
+  interRegionalCard: { backgroundColor: '#EFF6FF', borderRadius: 18, padding: 16, marginTop: 12, marginBottom: 16, borderWidth: 1, borderColor: '#BFDBFE' },
+  interRegionalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  interRegionalTitle: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#1E3A8A' },
+  interRegionalText: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#1E3A8A', lineHeight: 18 },
+  interRegionalTransit: { fontSize: 12, fontFamily: 'Montserrat-Medium', color: '#1E3A8A', marginTop: 8 },
+  interRegionalBreakdown: { marginTop: 12, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#DBEAFE' },
+  breakdownTitle: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#1E3A8A', marginBottom: 6 },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  breakdownLabel: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#60A5FA' },
+  breakdownValue: { fontSize: 11, fontFamily: 'Montserrat-Bold', color: '#1E3A8A' },
 });
 
 type PaymentOptionProps = Readonly<{

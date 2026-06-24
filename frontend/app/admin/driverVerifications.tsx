@@ -5,10 +5,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, ActivityIndicator, RefreshControl,
+  Dimensions, RefreshControl,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -266,8 +267,10 @@ export default function DriverVerificationsScreen() {
 
         {/* Desktop canvas */}
         <View style={S.desktopCanvas}>
-          {loading ? (
-            <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>
+          {loading && !refreshing ? (
+            <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
+              <AdminScreenSkeleton metrics={4} rows={4} />
+            </SafeAreaView>
           ) : (
             <FlatList
               data={filtered}

@@ -571,19 +571,24 @@ function initScheduler() {
     }
   });
 
-  // Every minute: expire flash sales whose ends_at has passed
+  // Every minute: activate approved flash sales and expire ended ones
   cron.schedule('* * * * *', async () => {
     try {
-      const expired = await repositories.flashSales.expireEnded();
+      const activated = await repositories.flashSales.activateApprovedSales();
+      if (activated.length > 0) {
+        logger.info(`[Scheduler] Activated ${activated.length} approved flash sale(s)`);
+      }
+      
+      const expired = await repositories.flashSales.expireEndedSales();
       if (expired.length > 0) {
-        logger.info(`[Scheduler] Expired ${expired.length} flash sale(s): ${expired.map(s => s.id).join(', ')}`);
+        logger.info(`[Scheduler] Expired ${expired.length} live flash sale(s)`);
       }
     } catch (err) {
-      logger.error('[Scheduler] Flash sale expiry error:', err.message);
+      logger.error('[Scheduler] Flash sale activation/expiry worker error:', err.message);
     }
   });
 
-  // 3:00 AM daily: recompute product–product similarity scores for recommendations
+  // Every 15 minutes: recompute product–product similarity scores for recommendations
   cron.schedule('0 3 * * *', () => {
     const recommendationService = require('../services/recommendationService');
     recommendationService.computeAndStoreSimilarities().catch(err =>
@@ -591,7 +596,43 @@ function initScheduler() {
     );
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM)');
+  // Every 5 minutes: check for expired snaps and alert sellers
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      const db = require('../config/postgres').getPool();
+      const notificationService = require('../services/notificationService');
+
+      // Find expired snaps that haven't been notified yet
+      const { rows } = await db.query(`
+        SELECT s.id, s.caption, st.owner_id, st.store_name
+        FROM snaps s
+        JOIN stores st ON s.store_id = st.id
+        WHERE s.expires_at <= NOW() AND s.expiration_notified = FALSE
+      `);
+
+      if (rows.length === 0) return;
+
+      logger.info(`[Scheduler] Found ${rows.length} expired snap(s) to notify`);
+
+      for (const snap of rows) {
+        await notificationService.sendNotification({
+          userId: snap.owner_id,
+          type: 'promotion_ending',
+          title: 'Snap Expired 📷',
+          message: `Your snap "${snap.caption || 'Store Snap'}" has expired. Repost it to keep attracting customers!`,
+          relatedId: snap.id,
+          relatedType: 'snap',
+          push: { data: { screen: 'my_snaps' } }
+        }).catch(err => logger.error(`[Scheduler] Failed to send snap expiration notification to user ${snap.owner_id}:`, err.message));
+
+        await db.query('UPDATE snaps SET expiration_notified = TRUE WHERE id = $1', [snap.id]);
+      }
+    } catch (err) {
+      logger.error('[Scheduler] Snap expiration sweep error:', err.message);
+    }
+  });
+
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts };

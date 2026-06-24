@@ -11,7 +11,8 @@
       "Bash(npm run *)",
       "Bash(docker run *)",
       "PowerShell(docker run --rm shopyos-backend sh -c \"cat /app/backend/migrations/checksum_overrides.json && echo '---' && grep -n 'checksumOverrides' /app/backend/scripts/applyMigrations.js\")",
-      "Bash(docker compose *)"
+      "Bash(docker compose *)",
+      "Bash(npm install *)"
     ]
   }
 }

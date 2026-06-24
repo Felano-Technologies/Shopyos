@@ -98,9 +98,13 @@ const getLoyaltyTransactions = async (req, res, next) => {
     const pool = getPool();
     const { limit = 20, offset = 0 } = req.query;
     const { rows } = await pool.query(
-      `SELECT lt.*, o.order_number
+      `SELECT lt.*,
+              o.order_number,
+              up.full_name AS related_user_name,
+              up.avatar_url AS related_user_avatar
        FROM loyalty_transactions lt
        LEFT JOIN orders o ON o.id = lt.order_id
+       LEFT JOIN user_profiles up ON up.user_id = lt.related_user_id
        WHERE lt.user_id = $1
        ORDER BY lt.created_at DESC
        LIMIT $2 OFFSET $3`,

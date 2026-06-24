@@ -17,11 +17,13 @@ import { getLoyaltyBalance, getLoyaltyTransactions } from '@/services/api';
 interface LoyaltyTransaction {
   id: string;
   order_id: string | null;
-  type: 'earn' | 'redeem';
+  type: 'earn' | 'redeem' | 'referral' | 'expire' | 'admin_adjustment';
   points: number;
   description: string;
   created_at: string;
   order_number: string | null;
+  related_user_name: string | null;
+  related_user_avatar: string | null;
 }
 
 function ListHeader({ balance, redeemableValue, lifetimeEarned }: Readonly<{
@@ -73,6 +75,12 @@ function ListHeader({ balance, redeemableValue, lifetimeEarned }: Readonly<{
             <Feather name="percent" size={16} color="#16A34A" />
           </View>
           <Text style={styles.howText}>Redeem up to 20% of your order total</Text>
+        </View>
+        <View style={styles.howRow}>
+          <View style={[styles.howIcon, { backgroundColor: '#FEE2E2' }]}>
+            <Feather name="users" size={16} color="#DC2626" />
+          </View>
+          <Text style={styles.howText}>Invite friends with your referral code and earn bonus points when they place their first order</Text>
         </View>
       </View>
 
@@ -164,60 +172,74 @@ export default function LoyaltyPointsScreen() {
   };
 
   const renderTransaction = ({ item }: { item: LoyaltyTransaction }) => {
-    const isEarn = item.type === 'earn';
+    const isPositive = item.type === 'earn' || item.type === 'referral' || item.type === 'admin_adjustment';
+    const isReferral = item.type === 'referral';
+
+    const iconName = isReferral ? 'users' : item.type === 'redeem' ? 'gift' : 'trending-up';
+    const iconBg = isReferral ? '#FEE2E2' : isPositive ? '#DCFCE7' : '#FEF2F2';
+    const iconColor = isReferral ? '#DC2626' : isPositive ? '#16A34A' : '#DC2626';
+    const pointsColor = isPositive ? '#16A34A' : '#DC2626';
+
     return (
       <View style={styles.txCard}>
-        <View style={[styles.txIconBox, { backgroundColor: isEarn ? '#DCFCE7' : '#FEF2F2' }]}>
-          <Feather
-            name={isEarn ? 'trending-up' : 'gift'}
-            size={18}
-            color={isEarn ? '#16A34A' : '#DC2626'}
-          />
+        <View style={[styles.txIconBox, { backgroundColor: iconBg }]}>
+          <Feather name={iconName as any} size={18} color={iconColor} />
         </View>
         <View style={styles.txDetails}>
-          <Text style={styles.txDescription}>{item.description}</Text>
-          {item.order_number && (
+          {isReferral && item.related_user_name ? (
+            <>
+              <Text style={styles.txDescription}>Referral Bonus</Text>
+              <Text style={styles.txOrderNum}>{item.related_user_name} placed their first order</Text>
+            </>
+          ) : (
+            <Text style={styles.txDescription}>{item.description}</Text>
+          )}
+          {!isReferral && item.order_number && (
             <Text style={styles.txOrderNum}>Order #{item.order_number}</Text>
           )}
           <Text style={styles.txDate}>{formatDate(item.created_at)}</Text>
         </View>
-        <Text style={[styles.txPoints, { color: isEarn ? '#16A34A' : '#DC2626' }]}>
-          {isEarn ? '+' : ''}{item.points} pts
+        <Text style={[styles.txPoints, { color: pointsColor }]}>
+          {isPositive ? '+' : ''}{item.points} pts
         </Text>
       </View>
     );
   };
 
+  const headerBlock = (
+    <View style={styles.header}>
+      <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <Feather name="arrow-left" size={22} color="#FFF" />
+      </TouchableOpacity>
+      <Text style={styles.headerTitle}>Loyalty Points</Text>
+      <View style={{ width: 40 }} />
+    </View>
+  );
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <View style={styles.container}>
         <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={22} color="#FFF" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Loyalty Points</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View style={styles.loadingContainer}>
+        <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
+          {headerBlock}
+        </SafeAreaView>
+        <View style={[styles.loadingContainer, { backgroundColor: '#F8FAFC' }]}>
           <ActivityIndicator size="large" color="#0C1559" />
         </View>
-      </SafeAreaView>
+        <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0C1559" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={22} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Loyalty Points</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <SafeAreaView edges={['top', 'left', 'right']} style={{ backgroundColor: '#0C1559' }}>
+        {headerBlock}
+      </SafeAreaView>
 
       <FlatList
+        style={{ flex: 1, backgroundColor: '#F8FAFC' }}
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={renderTransaction}
@@ -237,14 +259,15 @@ export default function LoyaltyPointsScreen() {
           />
         }
       />
-    </SafeAreaView>
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#0C1559',
   },
   header: {
     backgroundColor: '#0C1559',

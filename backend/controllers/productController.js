@@ -41,7 +41,9 @@ const createProduct = async (req, res, next) => {
       tags,
       variants,
       variantOptions,
-      attributes
+      attributes,
+      bargainingEnabled,
+      minBargainPrice
     } = req.body;
 
     // Validate required fields
@@ -104,7 +106,9 @@ const createProduct = async (req, res, next) => {
       brand: brand || null,
       tags: parsedTags,
       attributes: attributes && typeof attributes === 'object' ? attributes : null,
-      is_active: true
+      is_active: true,
+      bargaining_enabled: true,
+      min_bargain_price: minBargainPrice ? Number.parseFloat(minBargainPrice) : null
     });
 
     // Create inventory record
@@ -295,6 +299,8 @@ const getProductById = async (req, res, next) => {
         ownerId: product.stores.owner_id,
         logo: await resolveImageUrl(product.stores.logo_url)
       } : null,
+      bargaining_enabled: product.bargaining_enabled ?? true,
+      min_bargain_price: product.min_bargain_price || null,
       createdAt: product.created_at,
       updatedAt: product.updated_at
     };
@@ -393,6 +399,8 @@ function buildProductUpdateData(updateData) {
   if (updateData.tags)                    d.tags = _resolveTags(updateData.tags);
   if (updateData.attributes !== undefined) d.attributes = _resolveAttributes(updateData.attributes);
   if (updateData.isActive !== undefined)  d.is_active = String(updateData.isActive) === 'true';
+  if (updateData.bargainingEnabled !== undefined) d.bargaining_enabled = Boolean(updateData.bargainingEnabled);
+  if (updateData.minBargainPrice !== undefined)   d.min_bargain_price = updateData.minBargainPrice === null ? null : Number.parseFloat(updateData.minBargainPrice);
   return d;
 }
 
