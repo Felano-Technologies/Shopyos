@@ -76,8 +76,9 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
     try {
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
       liveCoords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-    } catch { }
-  }
+    } catch (e) {
+      console.warn('Failed to get location:', e);
+    }
 
   if (!liveCoords && profileData?.city) {
     const txt = profileData.city + (profileData.country ? `, ${profileData.country}` : '');
@@ -93,8 +94,9 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
         const cc = JSON.parse(cachedCoordsStr);
         if (Math.abs(cc.latitude - liveCoords.latitude) > 0.005 || Math.abs(cc.longitude - liveCoords.longitude) > 0.005)
           shouldGeocode = true;
-      } catch { }
-    } else shouldGeocode = true;
+      } catch (e) {
+        console.warn('Failed to parse cached coords:', e);
+      } else shouldGeocode = true;
     if (shouldGeocode) {
       try {
         const [info] = await Location.reverseGeocodeAsync(liveCoords);
@@ -105,8 +107,9 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
           await storage.setItem('CACHED_LOCATION_TEXT', txt);
           await storage.setItem('CACHED_LOCATION_COORDS', JSON.stringify(liveCoords));
         }
-      } catch { }
-    }
+      } catch (e) {
+        console.warn('Failed to reverse geocode:', e);
+      }
   } else if (!cachedTxt) setLocation('Location unavailable');
 }
 

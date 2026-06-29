@@ -56,6 +56,7 @@ const SECTIONS: Section[] = [
       { label: 'Orders',     route: '/admin/orders' },
       { label: 'Deliveries', route: '/admin/deliveries' },
       { label: 'Revenue',    route: '/admin/revenue' },
+      { label: 'Listing Fees', route: '/admin/listing-fees' },
     ],
   },
   {

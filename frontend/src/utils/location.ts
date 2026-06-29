@@ -6,6 +6,7 @@
 import * as Location from 'expo-location';
 import { Alert } from 'react-native';
 import { updateUserLocation } from '../../services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 /**
  * Request foreground location permission
@@ -54,10 +55,7 @@ export const updateUserLocationOnce = async (showAlert: boolean = true): Promise
     const hasPermission = await requestForegroundPermission();
     if (!hasPermission) {
       if (showAlert) {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is required to provide you with better service.'
-        );
+        CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Location permission is required to provide you with better service.' });
       }
       return null;
     }

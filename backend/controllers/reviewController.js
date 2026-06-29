@@ -1,6 +1,7 @@
 ﻿// controllers/reviewController.js
 // Reviews and ratings management controller
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { invalidateReviews } = require('../config/cacheInvalidation');
 const { resolveImageUrl } = require('../config/storage');
@@ -17,26 +18,17 @@ const createProductReview = async (req, res, next) => {
 
     // Validate input
     if (!productId || !rating) {
-      return res.status(400).json({
-        success: false,
-        error: 'Product ID and rating are required'
-      });
+      return ApiResponse.error(res, 'Product ID and rating are required', 400);
     }
 
     if (rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        error: 'Rating must be between 1 and 5'
-      });
+      return ApiResponse.error(res, 'Rating must be between 1 and 5', 400);
     }
 
     // Check if user has already reviewed this product
     const existingReview = await repositories.reviews.findProductReviewByUser(userId, productId);
     if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already reviewed this product'
-      });
+      return ApiResponse.error(res, 'You have already reviewed this product', 400);
     }
 
     // Verify user has purchased the product via a completed order
@@ -44,11 +36,7 @@ const createProductReview = async (req, res, next) => {
     if (orderId) {
       const order = await repositories.orders.findById(orderId);
       if (!order || order.buyer_id !== userId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You can only review products from your own orders.',
-          code: 'ORDER_REQUIRED'
-        });
+        return ApiResponse.error(res, 'You can only review products from your own orders.', 403);
       }
     } else {
       // No orderId provided â€” check if user has ANY delivered order containing this product
@@ -61,11 +49,7 @@ const createProductReview = async (req, res, next) => {
         .limit(1);
 
       if (!userOrders || userOrders.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: 'You need to purchase and receive this product before leaving a review.',
-          code: 'PURCHASE_REQUIRED'
-        });
+        return ApiResponse.error(res, 'You need to purchase and receive this product before leaving a review.', 403);
       }
       finalOrderId = userOrders[0].id;
     }
@@ -82,11 +66,7 @@ const createProductReview = async (req, res, next) => {
 
     await invalidateReviews(productId, null);
 
-    res.status(201).json({
-      success: true,
-      message: 'Review created successfully',
-      review
-    });
+    ApiResponse.withEntity(res, 'review', review, 'Review created successfully', null, 201);
   } catch (error) {
     next(error);
   }
@@ -104,26 +84,17 @@ const createStoreReview = async (req, res, next) => {
 
     // Validate input
     if (!storeId || !rating) {
-      return res.status(400).json({
-        success: false,
-        error: 'Store ID and rating are required'
-      });
+      return ApiResponse.error(res, 'Store ID and rating are required', 400);
     }
 
     if (rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        error: 'Rating must be between 1 and 5'
-      });
+      return ApiResponse.error(res, 'Rating must be between 1 and 5', 400);
     }
 
     // Check if user has already reviewed this store
     const existingReview = await repositories.reviews.findStoreReviewByUser(userId, storeId);
     if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already reviewed this store'
-      });
+      return ApiResponse.error(res, 'You have already reviewed this store', 400);
     }
 
     // Verify user has ordered from the store
@@ -131,11 +102,7 @@ const createStoreReview = async (req, res, next) => {
     if (orderId) {
       const order = await repositories.orders.findById(orderId);
       if (!order || order.buyer_id !== userId || order.store_id !== storeId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You can only review stores you have ordered from.',
-          code: 'ORDER_REQUIRED'
-        });
+        return ApiResponse.error(res, 'You can only review stores you have ordered from.', 403);
       }
     } else {
       // No orderId provided â€” check if user has ANY delivered order from this store
@@ -148,11 +115,7 @@ const createStoreReview = async (req, res, next) => {
         .limit(1);
 
       if (!userOrders || userOrders.length === 0) {
-        return res.status(403).json({
-          success: false,
-          error: 'You need to place and receive an order from this store before leaving a review.',
-          code: 'PURCHASE_REQUIRED'
-        });
+        return ApiResponse.error(res, 'You need to place and receive an order from this store before leaving a review.', 403);
       }
       finalOrderId = userOrders[0].id;
     }
@@ -168,11 +131,7 @@ const createStoreReview = async (req, res, next) => {
 
     await invalidateReviews(null, storeId);
 
-    res.status(201).json({
-      success: true,
-      message: 'Store review created successfully',
-      review
-    });
+    ApiResponse.withEntity(res, 'review', review, 'Store review created successfully', null, 201);
   } catch (error) {
     next(error);
   }
@@ -190,43 +149,28 @@ const createDriverReview = async (req, res, next) => {
 
     // Validate input
     if (!driverId || !deliveryId || !rating) {
-      return res.status(400).json({
-        success: false,
-        error: 'Driver ID, delivery ID, and rating are required'
-      });
+      return ApiResponse.error(res, 'Driver ID, delivery ID, and rating are required', 400);
     }
 
     if (rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        error: 'Rating must be between 1 and 5'
-      });
+      return ApiResponse.error(res, 'Rating must be between 1 and 5', 400);
     }
 
     // Check if user has already reviewed this driver for this delivery
     const existingReview = await repositories.reviews.findDriverReviewByDelivery(userId, deliveryId);
     if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already reviewed this driver for this delivery'
-      });
+      return ApiResponse.error(res, 'You have already reviewed this driver for this delivery', 400);
     }
 
     // Verify delivery exists and was delivered to user
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
     const buyerId = delivery?.order?.buyer?.id ?? delivery?.order?.buyer_id;
     if (!delivery || buyerId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Invalid delivery'
-      });
+      return ApiResponse.error(res, 'Invalid delivery', 403);
     }
 
     if (delivery.driver_id !== driverId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Driver mismatch'
-      });
+      return ApiResponse.error(res, 'Driver mismatch', 400);
     }
 
     // Create review
@@ -238,11 +182,7 @@ const createDriverReview = async (req, res, next) => {
       reviewText: reviewText || null
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Driver review created successfully',
-      review
-    });
+    ApiResponse.withEntity(res, 'review', review, 'Driver review created successfully', null, 201);
   } catch (error) {
     next(error);
   }
@@ -437,19 +377,7 @@ const getDriverReviews = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: reviews,
-      stats,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1
-      }
-    });
+    ApiResponse.success(res, { reviews: mappedReviews, stats }, null, { page: currentPage, limit: limitNum, total: totalCount, pages: totalPages });
   } catch (error) {
     next(error);
   }

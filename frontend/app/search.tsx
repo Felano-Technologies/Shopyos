@@ -16,7 +16,8 @@ import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { HeroAd } from '@/components/home/HeroCarousel';
-import { useProducts, useProductSearch } from '@/hooks/useProducts';
+import { useProducts, useProductSearch, useInfiniteProducts } from '@/hooks/useProducts';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from '@/store/cartStore';
@@ -363,7 +364,9 @@ export default function SearchScreen() {
       try {
         const res = await getActiveBanners();
         if (res?.banners?.length > 0) setSearchAds(res.banners);
-      } catch { }
+      } catch (e) {
+        console.error('Failed to load search banner ads:', e);
+      }
     })();
   }, []);
 
@@ -436,14 +439,21 @@ export default function SearchScreen() {
     return name !== 'automotive' && name !== 'toys';
   });
   const filters = buildFilters(category, gender, sortBy, params);
-  const isActive = query.length >= 2;
-  const { data: allData, isLoading: loadingAll, refetch: refetchAll } = useProducts(filters, 50);
-  const { data: searchData, isLoading: loadingSearch, refetch: refetchSearch } = useProductSearch(query, filters, 50);
-  const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(query, category, 10);
-  const loading = isActive ? loadingSearch : loadingAll;
-  const activeProducts = searchData?.success ? searchData.products : [];
-  const browseProducts = allData?.success ? allData.products : [];
-  const products = isActive ? activeProducts : browseProducts;
+  const isActive = debouncedQuery.length >= 2;
+  const {
+    data: infiniteData,
+    isLoading: loadingProducts,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+    refetch: refetchProducts,
+  } = useInfiniteProducts(filters, 20);
+  const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(debouncedQuery, category, 10);
+  const loading = loadingProducts && !infiniteData;
+  const products = useMemo(
+    () => (infiniteData?.pages || []).flatMap(p => (p.success ? p.products || [] : [])),
+    [infiniteData]
+  );
   const showStores = isActive || !!category;
   const stores = useMemo(
     () => showStores && storeSearchData?.success ? (storeSearchData.data || storeSearchData.businesses || []) : [],
@@ -460,14 +470,15 @@ export default function SearchScreen() {
     Animated.timing(slideAnim, { toValue: sortOpen ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [slideAnim, sortOpen]);
 
+  const debouncedQuery = useDebounce(query, 300);
   const handleChangeText = (text: string) => { setQuery(text); if (category) setCategory(null); };
   const handleSubmit = () => { if (query.trim().length >= 2) saveRecent(query.trim()); Keyboard.dismiss(); };
   const handleAddToCart = useCallback((item: any) => addItemToCart(item, addToCart, setAddingId), [addToCart, setAddingId]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try { await Promise.all([refetchAll(), refetchSearch(), refetchStores()]); }
+    try { await Promise.all([refetchProducts(), refetchStores()]); }
     finally { setRefreshing(false); }
-  }, [refetchAll, refetchSearch, refetchStores]);
+  }, [refetchProducts, refetchStores]);
 
   const headingTop = isActive ? 'Results for' : 'Discover';
   const renderListHeader = useCallback(() => (
@@ -599,9 +610,9 @@ export default function SearchScreen() {
                 )}
                 <Animated.View style={{ flex: 1, opacity: loading ? 0.6 : fadeAnim }}>
                   {viewMode === 'grid' ? (
-                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
+                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={C.navy} /> : null} />
                   ) : (
-                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
+                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={C.navy} /> : null} />
                   )}
                 </Animated.View>
               </View>
@@ -905,11 +916,8 @@ const styles = StyleSheet.create({
     backgroundColor: C2.card,
     borderRadius: 22,
     overflow: 'hidden',
-    elevation: 5,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   gridImgWrap: { width: '100%', height: 136, position: 'relative' },
   gridImg: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -1025,11 +1033,8 @@ const styles = StyleSheet.create({
     padding: 14,
     marginHorizontal: 14,
     marginBottom: 10,
-    elevation: 8,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   featImg: {
     width: 78,
@@ -1073,11 +1078,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 12,
     marginBottom: 10,
-    elevation: 3,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   listImg: {
     width: 72, height: 72,

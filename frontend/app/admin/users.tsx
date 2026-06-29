@@ -33,8 +33,9 @@ export default function AdminUsers() {
     try {
       const res = await getAdminUserStats();
       if (res?.stats) setStats(res.stats);
-    } catch {}
-    finally {
+    } catch (e) {
+      console.error('Failed to load admin user stats:', e);
+    }
       setLoading(false);
       setRefreshing(false);
     }

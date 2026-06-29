@@ -6,8 +6,9 @@ export const useSnapFeed = () => {
   return useQuery({
     queryKey: queryKeys.snaps.feed(),
     queryFn: () => getSnapFeed(),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnMount: true,
   });
 };
 

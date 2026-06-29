@@ -93,7 +93,7 @@ class ProductRepository extends BaseRepository {
 
     const verifiedStoreIds = await this._getVerifiedStoreIds(minRating);
     const storeFilter = verifiedStoreIds.length > 0 ? verifiedStoreIds : ['00000000-0000-0000-0000-000000000000'];
-    const filterOpts = { query, category, gender, minPrice, maxPrice, material, style, brand };
+    const filterOpts = { category, gender, minPrice, maxPrice, material, style, brand, colorIds: null, sizeIds: null };
 
     if (color) {
       const colorIds = await this._getVariantOptionProductIds('color', color);
@@ -106,20 +106,34 @@ class ProductRepository extends BaseRepository {
       filterOpts.sizeIds = sizeIds;
     }
 
-    let dbQuery = this._applySearchFilters(
-      this.db.from(this.tableName)
-        .select('*, stores:store_id (id, store_name, slug), product_images (image_url, is_primary)')
-        .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter),
-      filterOpts
-    );
+    let searchProductIds = null;
+    if (query) {
+      const { rows } = await this.db.query(
+        `SELECT id FROM products
+         WHERE to_tsvector('english', coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || coalesce(category, ''))
+               @@ websearch_to_tsquery('english', $1)`,
+        [query]
+      );
+      searchProductIds = rows.map(r => r.id);
+      if (!searchProductIds.length) return { data: [], count: 0 };
+    }
+
+    let dbQuery = this.db.from(this.tableName)
+      .select('*, stores:store_id (id, store_name, slug), product_images (image_url, is_primary)')
+      .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter);
+
+    if (searchProductIds) dbQuery = dbQuery.in('id', searchProductIds);
+
+    dbQuery = this._applySearchFilters(dbQuery, filterOpts);
     dbQuery = dbQuery.order('is_promoted', { ascending: false }).order(sortBy, { ascending }).range(offset, offset + limit - 1);
 
-    const countQuery = this._applySearchFilters(
-      this.db.from(this.tableName)
-        .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
-        .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter),
-      filterOpts
-    );
+    let countQuery = this.db.from(this.tableName)
+      .select('id, stores:store_id(store_name)', { count: 'exact', head: true })
+      .eq('is_active', true).eq('is_in_stock', true).is('deleted_at', null).in('store_id', storeFilter);
+
+    if (searchProductIds) countQuery = countQuery.in('id', searchProductIds);
+
+    countQuery = this._applySearchFilters(countQuery, filterOpts);
 
     const [{ data, error }, { count, error: countError }] = await Promise.all([dbQuery, countQuery]);
 
@@ -145,14 +159,7 @@ class ProductRepository extends BaseRepository {
     return verifiedStoreIds;
   }
 
-  _applySearchFilters(q, { query, category, gender, minPrice, maxPrice, material, style, brand, colorIds, sizeIds }) {
-    if (query) {
-      const searchTerms = query.trim().split(/\s+/).filter(Boolean);
-      for (const term of searchTerms) {
-        const pattern = `%${term}%`;
-        q = q.or(`title.ilike.${pattern},description.ilike.${pattern},category.ilike.${pattern},stores.store_name.ilike.${pattern}`);
-      }
-    }
+  _applySearchFilters(q, { category, gender, minPrice, maxPrice, material, style, brand, colorIds, sizeIds }) {
     if (category) q = q.ilike('category', String(category).trim());
     if (gender) q = q.eq('gender', gender);
     if (minPrice != null) q = q.gte('price', minPrice);

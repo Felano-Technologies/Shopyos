@@ -259,9 +259,9 @@ export default function DealsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F0F4FC' 
+  container: {
+    flex: 1,
+    backgroundColor: '#fff'
   },
   
   // Header

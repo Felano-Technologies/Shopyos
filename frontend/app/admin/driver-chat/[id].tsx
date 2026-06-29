@@ -6,6 +6,7 @@ import {
  Keyboard } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -215,7 +216,7 @@ export default function AdminDriverChatThread() {
   const handleCall = () => {
     if (!driverPhone) return;
     Linking.openURL(`tel:${driverPhone}`).catch(() =>
-      Alert.alert('Error', 'Could not open phone dialer.')
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not open phone dialer.' })
     );
   };
 

@@ -161,9 +161,17 @@ export const getBusinessDashboard = async (businessId: string) => {
   }
 };
 
-export const getBusinessAnalytics = async (businessId: string, timeframe: 'week' | 'month' | 'year') => {
+export const getBusinessAnalytics = async (
+  businessId: string,
+  timeframe: 'week' | 'month' | 'year',
+  startDate?: string,
+  endDate?: string,
+) => {
   try {
-    const response = await api.get(`/business/analytics/${businessId}?timeframe=${timeframe}`);
+    const params: Record<string, string> = { timeframe };
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    const response = await api.get(`/business/analytics/${businessId}`, { params });
     return response.data.data || response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to fetch analytics');

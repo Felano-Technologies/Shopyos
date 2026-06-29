@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../store/cartStore';
+import { SEO } from '../components/SEO';
 
 export const Cart: React.FC = () => {
   const items = useCart((s) => s.items);
@@ -20,6 +21,7 @@ export const Cart: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in mt-4">
+      <SEO title="Shopping Cart" />
       <h2 className="text-2xl md:text-3xl font-bold text-body">Shopping Cart</h2>
 
       {items.length === 0 ? (
@@ -59,6 +61,7 @@ export const Cart: React.FC = () => {
                   <button
                     onClick={() => updateQuantity(item.id, -1, item.variantId)}
                     className="px-3 h-full bg-white hover:bg-gray-100 font-bold transition-colors text-body text-sm border-r border-gray-200"
+                    aria-label={`Decrease quantity of ${item.title}`}
                   >
                     -
                   </button>
@@ -66,6 +69,7 @@ export const Cart: React.FC = () => {
                   <button
                     onClick={() => updateQuantity(item.id, 1, item.variantId)}
                     className="px-3 h-full bg-white hover:bg-gray-100 font-bold transition-colors text-body text-sm border-l border-gray-200"
+                    aria-label={`Increase quantity of ${item.title}`}
                   >
                     +
                   </button>
@@ -80,6 +84,7 @@ export const Cart: React.FC = () => {
                     onClick={() => removeFromCart(item.id, item.variantId)}
                     className="text-red-500 hover:text-red-700 text-2xl font-light p-1 transition-colors leading-none"
                     title="Remove item"
+                    aria-label={`Remove ${item.title} from cart`}
                   >
                     &times;
                   </button>
@@ -90,6 +95,7 @@ export const Cart: React.FC = () => {
             <button
               onClick={clearCart}
               className="text-red-500 hover:text-red-700 font-semibold text-sm self-start mt-2 transition-colors px-2"
+              aria-label="Clear all items from cart"
             >
               Clear All Items
             </button>
@@ -118,6 +124,7 @@ export const Cart: React.FC = () => {
             <button
               onClick={handleCheckout}
               className="w-full bg-navy hover:bg-navy-mid text-white font-bold py-3.5 rounded-[16px] text-sm transition-colors shadow-md mt-2"
+              aria-label="Proceed to checkout"
             >
               Proceed to Checkout
             </button>

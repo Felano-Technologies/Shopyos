@@ -39,10 +39,10 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn(),
 }));
 
-// Mock react-native Alert
-jest.mock('react-native', () => ({
+// Mock CustomInAppToast
+jest.mock('@/components/InAppToastHost', () => ({
   __esModule: true,
-  Alert: { alert: jest.fn() },
+  CustomInAppToast: { show: jest.fn() },
 }));
 
 // Mock profile API and keys
@@ -55,7 +55,7 @@ jest.mock('@/lib/query/api', () => ({
 }));
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { profileApi } from '@/lib/query/api';
 import { useProfile, useUpdateProfile } from '../../hooks/useProfile';
 import { queryKeys } from '@/lib/query/keys';
@@ -136,13 +136,13 @@ describe('useProfile Hooks Unit Tests', () => {
       queryKeys.profile.current(),
       previousProfile
     );
-    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to update profile');
+    expect(CustomInAppToast.show).toHaveBeenCalledWith({ type: 'error', title: 'Error', message: 'Failed to update profile' });
 
     // Verify onSuccess invalidates keys and shows success alert
     config.onSuccess();
     expect(mockQueryClientInstance.invalidateQueries).toHaveBeenCalledWith({
       queryKey: queryKeys.profile.current(),
     });
-    expect(Alert.alert).toHaveBeenCalledWith('Success', 'Profile updated successfully');
+    expect(CustomInAppToast.show).toHaveBeenCalledWith({ type: 'success', title: 'Success', message: 'Profile updated successfully' });
   });
 });

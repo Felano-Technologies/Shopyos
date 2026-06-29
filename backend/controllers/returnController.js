@@ -1,6 +1,7 @@
 // controllers/returnController.js
 // Full return & refund flow: buyer creates request, seller responds, admin resolves.
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const { logger } = require('../config/logger');
@@ -29,26 +30,26 @@ const createReturnRequest = async (req, res, next) => {
     const { orderId, reason, reasonCategory, evidenceImages = [] } = req.body;
 
     if (!orderId || !reason?.trim()) {
-      return res.status(400).json({ success: false, error: 'orderId and reason are required' });
+      return ApiResponse.error(res, 'orderId and reason are required', 400);
     }
 
     const order = await repositories.orders.findById(orderId);
     if (!order || order.buyer_id !== buyerId) {
-      return res.status(404).json({ success: false, error: 'Order not found' });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
     if (!['delivered', 'completed'].includes(order.status)) {
-      return res.status(400).json({ success: false, error: 'Returns can only be requested for delivered orders' });
+      return ApiResponse.error(res, 'Returns can only be requested for delivered orders', 400);
     }
 
     // Prevent duplicate open requests for the same order
     const open = await repositories.returns.getOpenByOrderId(orderId);
     if (open) {
-      return res.status(400).json({ success: false, error: 'A return request is already open for this order' });
+      return ApiResponse.error(res, 'A return request is already open for this order', 400);
     }
 
     const sellerId = order.seller_id || order.store?.owner_id;
     if (!sellerId) {
-      return res.status(400).json({ success: false, error: 'Could not determine seller for this order' });
+      return ApiResponse.error(res, 'Could not determine seller for this order', 400);
     }
 
     const subtotal = Number.parseFloat(order.subtotal || 0);
@@ -83,7 +84,7 @@ const createReturnRequest = async (req, res, next) => {
       push: { data: { screen: 'business/orders', returnId: returnReq.id } }
     }).catch(e => logger.warn('[Return] seller notify failed:', e.message));
 
-    return res.status(201).json({ success: true, data: returnReq });
+    return ApiResponse.created(res, returnReq);
   } catch (err) {
     next(err);
   }
@@ -102,11 +103,7 @@ const getBuyerReturns = async (req, res, next) => {
     const totalPages = Math.ceil(count / limitNum);
     const currentPage = Math.floor(offset / limitNum) + 1;
 
-    res.json({
-      success: true,
-      data,
-      pagination: { totalItems: count, totalPages, currentPage, itemsPerPage: limitNum, hasNext: currentPage < totalPages, hasPrev: currentPage > 1 }
-    });
+    ApiResponse.paginated(res, data, { page: currentPage, limit: limitNum, total: count, pages: totalPages });
   } catch (err) {
     next(err);
   }
@@ -131,11 +128,7 @@ const getSellerReturns = async (req, res, next) => {
     const totalPages = Math.ceil(count / limitNum);
     const currentPage = Math.floor(offset / limitNum) + 1;
 
-    res.json({
-      success: true,
-      data,
-      pagination: { totalItems: count, totalPages, currentPage, itemsPerPage: limitNum, hasNext: currentPage < totalPages, hasPrev: currentPage > 1 }
-    });
+    ApiResponse.paginated(res, data, { page: currentPage, limit: limitNum, total: count, pages: totalPages });
   } catch (err) {
     next(err);
   }
@@ -151,15 +144,15 @@ const sellerRespondToReturn = async (req, res, next) => {
     const sellerId = req.user.id;
 
     if (!['approve', 'decline'].includes(action)) {
-      return res.status(400).json({ success: false, error: "action must be 'approve' or 'decline'" });
+      return ApiResponse.error(res, "action must be 'approve' or 'decline'", 400);
     }
 
     const returnReq = await repositories.returns.findById(returnId);
     if (!returnReq || returnReq.seller_id !== sellerId) {
-      return res.status(404).json({ success: false, error: 'Return request not found' });
+      return ApiResponse.error(res, 'Return request not found', 404);
     }
     if (returnReq.status !== 'pending') {
-      return res.status(400).json({ success: false, error: 'This request has already been actioned' });
+      return ApiResponse.error(res, 'This request has already been actioned', 400);
     }
 
     const newStatus = action === 'approve' ? 'seller_approved' : 'seller_declined';
@@ -189,7 +182,7 @@ const sellerRespondToReturn = async (req, res, next) => {
       push: { data: { screen: `order/${returnReq.order_id}` } }
     }).catch(e => logger.warn('[Return] buyer notify failed:', e.message));
 
-    res.json({ success: true, data: updated });
+    ApiResponse.success(res, updated);
   } catch (err) {
     next(err);
   }
@@ -213,11 +206,7 @@ const getAdminReturns = async (req, res, next) => {
     const totalPages = Math.ceil(count / limitNum);
     const currentPage = Math.floor(offset / limitNum) + 1;
 
-    res.json({
-      success: true,
-      data,
-      pagination: { totalItems: count, totalPages, currentPage, itemsPerPage: limitNum, hasNext: currentPage < totalPages, hasPrev: currentPage > 1 }
-    });
+    ApiResponse.paginated(res, data, { page: currentPage, limit: limitNum, total: count, pages: totalPages });
   } catch (err) {
     next(err);
   }
@@ -233,12 +222,12 @@ const adminActOnReturn = async (req, res, next) => {
 
     const validActions = ['refund', 'escalate', 'close'];
     if (!validActions.includes(action)) {
-      return res.status(400).json({ success: false, error: `action must be one of: ${validActions.join(', ')}` });
+      return ApiResponse.error(res, `action must be one of: ${validActions.join(', ')}`, 400);
     }
 
     const returnReq = await repositories.returns.findById(returnId);
     if (!returnReq) {
-      return res.status(404).json({ success: false, error: 'Return request not found' });
+      return ApiResponse.error(res, 'Return request not found', 404);
     }
 
     const statusMap = { refund: 'refund_issued', escalate: 'admin_review', close: 'closed' };
@@ -247,14 +236,11 @@ const adminActOnReturn = async (req, res, next) => {
 
     if (action === 'refund') {
       if (refundAmount === undefined || refundAmount === null || Number.parseFloat(refundAmount) <= 0) {
-        return res.status(400).json({ success: false, error: 'Valid refundAmount is required' });
+        return ApiResponse.error(res, 'Valid refundAmount is required', 400);
       }
       const maxRefund = Number.parseFloat(returnReq.refundable_amount || 0);
       if (Number.parseFloat(refundAmount) > maxRefund) {
-        return res.status(400).json({
-          success: false,
-          error: `Refund amount cannot exceed the maximum refundable product amount of GHS ${maxRefund}`
-        });
+        return ApiResponse.error(res, `Refund amount cannot exceed the maximum refundable product amount of GHS ${maxRefund}`, 400);
       }
     }
 

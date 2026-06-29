@@ -23,6 +23,45 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         registerType: 'autoUpdate',
         injectRegister: 'auto',
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          runtimeCaching: [
+            {
+              urlPattern: /^https?:\/\/.*\/api\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'api-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24,
+                },
+                networkTimeoutSeconds: 10,
+              },
+            },
+            {
+              urlPattern: /^https?:\/\/.*\.(?:png|jpg|jpeg|svg|gif|webp|ico)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'image-cache',
+                expiration: {
+                  maxEntries: 200,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                },
+              },
+            },
+            {
+              urlPattern: /^https?:\/\/.*\.(?:js|css)$/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'static-resources',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 7,
+                },
+              },
+            },
+          ],
+        },
         manifest: {
           name: 'Shopyos Marketplace',
           short_name: 'Shopyos',
@@ -31,6 +70,8 @@ export default defineConfig(({ mode }) => {
           background_color: '#e9f0ff',
           display: 'standalone',
           orientation: 'portrait-primary',
+          start_url: '/',
+          scope: '/',
           icons: [
             {
               src: 'icon-192.png',

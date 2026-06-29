@@ -4,11 +4,13 @@ import {
   Alert, Dimensions, Switch, ActivityIndicator,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import {  logoutUser } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
@@ -45,10 +47,7 @@ export default function BusinessSettingsScreen() {
   const { activeBusiness: businessData, isLoading: profileLoading } = useActiveBusiness();
   const isBusinessVerified = businessData?.verificationStatus === 'verified';
   const handleRestrictedAction = () => {
-    Alert.alert(
-      'Verification Required',
-      'Complete verification to access this setting. You can still edit your profile or log out.'
-    );
+    CustomInAppToast.show({ type: 'info', title: 'Verification Required', message: 'Complete verification to access this setting. You can still edit your profile or log out.' });
   };
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
   if (isChecking || !isVerified) {
@@ -56,14 +55,16 @@ export default function BusinessSettingsScreen() {
   }
   const statusInfo   = getStatus(businessData?.verificationStatus);
   const initials     = (businessData?.businessName ?? 'B').charAt(0).toUpperCase();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const confirmLogout = () => {
-    Alert.alert('Log Out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Log Out', style: 'destructive',
-        onPress: async () => { await logoutUser(); router.replace('/login'); },
-      },
-    ]);
+    setShowLogoutConfirm(true);
+  };
+
+  const handleConfirmLogout = async () => {
+    setShowLogoutConfirm(false);
+    await logoutUser();
+    router.replace('/login');
   };
   return (
     <View style={S.root}>
@@ -277,6 +278,18 @@ export default function BusinessSettingsScreen() {
             <Text style={S.version}>Version 1.0.9</Text>
           </View>
         </ScrollView>
+
+        <ConfirmModal
+          visible={showLogoutConfirm}
+          onClose={() => setShowLogoutConfirm(false)}
+          title="Log Out"
+          message="Are you sure you want to log out?"
+          icon="⚠️"
+          actions={[
+            { label: 'Cancel', onPress: () => setShowLogoutConfirm(false), variant: 'cancel' },
+            { label: 'Log Out', onPress: handleConfirmLogout, variant: 'destructive' },
+          ]}
+        />
       </SafeAreaView>
     </View>
   );

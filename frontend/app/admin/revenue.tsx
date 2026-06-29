@@ -7,8 +7,10 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Dimensions,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +18,10 @@ import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { getAdminDashboard, getAdminRevenue } from '@/services/api';
+import { LineChart } from 'react-native-chart-kit';
+import { getAdminDashboard, getAdminRevenue, getAdminRevenueBreakdown } from '@/services/api';
+
+const { width: SW } = Dimensions.get('window');
 
 const STATUS_PILL: Record<string, { bg: string; text: string }> = {
   paid:     { bg: '#DCFCE7', text: '#16A34A' },
@@ -52,6 +57,15 @@ const STAT_CARDS = [
   },
 ];
 
+const SOURCE_CARDS = [
+  { key: 'buyer_protection_fees', label: 'Buyer Protection', icon: 'shield-checkmark', color: '#1E40AF', bg: '#DBEAFE' },
+  { key: 'ad_revenue', label: 'Ad Revenue', icon: 'megaphone', color: '#65A30D', bg: '#ECFCCB' },
+  { key: 'platform_commission', label: 'Commission', icon: 'trending-up', color: '#2563EB', bg: '#DBEAFE' },
+  { key: 'delivery_fees_retained', label: 'Delivery Retained', icon: 'car', color: '#EA580C', bg: '#FED7AA' },
+];
+
+type Period = 'week' | 'month' | 'year';
+
 export default function AdminRevenue() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -59,21 +73,25 @@ export default function AdminRevenue() {
   const [refreshing, setRefreshing] = useState(false);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [period, setPeriod] = useState<Period>('month');
+  const [breakdown, setBreakdown] = useState<any>(null);
 
   const loadData = async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const [dashRes, revRes] = await Promise.all([
+      const [dashRes, revRes, bdRes] = await Promise.all([
         getAdminDashboard(),
         getAdminRevenue({ limit: 50 }),
+        getAdminRevenueBreakdown(period),
       ]);
       if (dashRes?.stats?.totalRevenue !== undefined) {
         setTotalRevenue(dashRes.stats.totalRevenue);
       }
       const txs = Array.isArray(revRes?.transactions) ? revRes.transactions : [];
       setTransactions(txs);
+      if (bdRes.success) setBreakdown(bdRes);
     } catch (error: any) {
       CustomInAppToast.show({
         type: 'error',
@@ -88,7 +106,7 @@ export default function AdminRevenue() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [period]);
 
   const summary = useMemo(() => {
     const payoutCount = transactions.length;
@@ -99,6 +117,26 @@ export default function AdminRevenue() {
       `₵${avg.toFixed(2)}`,
     ];
   }, [totalRevenue, transactions]);
+
+  const chartConfig = {
+    backgroundGradientFrom: '#fff',
+    backgroundGradientTo: '#fff',
+    decimalPlaces: 0,
+    color: (o = 1) => `rgba(12,21,89,${o})`,
+    labelColor: () => '#64748B',
+    propsForDots: { r: '4', strokeWidth: '2' },
+    propsForBackgroundLines: { strokeDasharray: '5', stroke: 'rgba(0,0,0,0.05)' },
+  };
+
+  const hasChart = breakdown?.chart?.labels?.length > 0;
+
+  const getSourceValue = (key: string) => {
+    if (!breakdown?.sources) return 0;
+    const source = breakdown.sources[key];
+    if (!source) return 0;
+    if (typeof source === 'object') return source.total || 0;
+    return source;
+  };
 
   const listHeader = (
     <>
@@ -116,18 +154,93 @@ export default function AdminRevenue() {
         ))}
       </View>
 
-      {/* Hero card */}
-      <AdminPanel style={styles.heroCard}>
-        <Text style={styles.heroLabel}>Total commission earned</Text>
-        {loading ? (
-          <ActivityIndicator color="#FFFFFF" style={{ marginTop: 12 }} />
-        ) : (
-          <Text style={styles.heroValue}>
-            ₵{totalRevenue.toLocaleString('en-GH', { minimumFractionDigits: 2 })}
-          </Text>
-        )}
-        <Text style={styles.heroSub}>{transactions.length} completed payments recorded</Text>
-      </AdminPanel>
+      {/* Period toggle */}
+      <View style={styles.periodRow}>
+        {(['week', 'month', 'year'] as Period[]).map((p) => (
+          <TouchableOpacity
+            key={p}
+            style={[styles.periodBtn, period === p && styles.periodBtnActive]}
+            onPress={() => setPeriod(p)}
+          >
+            <Text style={[styles.periodText, period === p && styles.periodTextActive]}>
+              {p.charAt(0).toUpperCase() + p.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Revenue source cards */}
+      {breakdown?.sources && (
+        <>
+          <View style={styles.sourceGrid}>
+            {SOURCE_CARDS.map((card) => {
+              const value = getSourceValue(card.key);
+              return (
+                <View key={card.key} style={styles.sourceCard}>
+                  <View style={[styles.sourceIcon, { backgroundColor: card.bg }]}>
+                    <Ionicons name={card.icon as any} size={18} color={card.color} />
+                  </View>
+                  <Text style={styles.sourceLabel}>{card.label}</Text>
+                  <Text style={[styles.sourceValue, { color: card.color }]}>
+                    ₵{(value || 0).toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Grand total banner */}
+          <AdminPanel style={styles.heroCard}>
+            <Text style={styles.heroLabel}>Platform Revenue This Period</Text>
+            <Text style={styles.heroValue}>
+              ₵{(breakdown.grand_total || 0).toLocaleString('en-GH', { minimumFractionDigits: 2 })}
+            </Text>
+          </AdminPanel>
+        </>
+      )}
+
+      {/* Chart */}
+      {hasChart && (
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Revenue by Source</Text>
+          <LineChart
+            data={{
+              labels: breakdown.chart.labels,
+              datasets: breakdown.chart.datasets.map((ds: any) => ({
+                ...ds,
+                color: () =>
+                  ds.label === 'Buyer Protection' ? '#1E40AF' :
+                  ds.label === 'Ad Revenue' ? '#65A30D' :
+                  ds.label === 'Commission' ? '#2563EB' : '#EA580C',
+              })),
+            }}
+            width={SW - 56}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            style={{ borderRadius: 12 }}
+            withInnerLines
+            withOuterLines={false}
+            withVerticalLines={false}
+            yAxisLabel="₵"
+            yAxisInterval={1}
+          />
+        </View>
+      )}
+
+      {/* Top ad spenders */}
+      {breakdown?.top_ad_spenders?.length > 0 && (
+        <View style={styles.spendersCard}>
+          <Text style={styles.chartTitle}>Top Ad Spenders</Text>
+          {breakdown.top_ad_spenders.map((s: any, i: number) => (
+            <View key={s.store_name} style={styles.spenderRow}>
+              <Text style={styles.spenderRank}>#{i + 1}</Text>
+              <Text style={styles.spenderName} numberOfLines={1}>{s.store_name}</Text>
+              <Text style={styles.spenderValue}>₵{(s.spent || 0).toFixed(2)}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* List section header */}
       <AdminPanel style={styles.listPanel}>
@@ -141,12 +254,12 @@ export default function AdminRevenue() {
       <StatusBar style="dark" />
 
       {/* Compact header */}
-      <View style={styles.header}>
+      <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={20} color="#FFFFFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Revenue</Text>
-      </View>
+      </LinearGradient>
 
       {loading && !refreshing ? (
         <SafeAreaView style={{ flex: 1, backgroundColor: '#F5F7FA' }} edges={['top', 'left', 'right']}>
@@ -243,7 +356,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // Stat cards
   summaryRow: {
     flexDirection: 'row',
     gap: 10,
@@ -288,7 +400,67 @@ const styles = StyleSheet.create({
     height: 3,
   },
 
-  // Hero card
+  periodRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  periodBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  periodBtnActive: {
+    backgroundColor: '#0C1559',
+    borderColor: '#0C1559',
+  },
+  periodText: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#64748B',
+  },
+  periodTextActive: {
+    color: '#FFFFFF',
+  },
+
+  sourceGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 12,
+    gap: 10,
+  },
+  sourceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    width: '48%',
+    flexGrow: 1,
+  },
+  sourceIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  sourceLabel: {
+    fontSize: 11,
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginBottom: 4,
+  },
+  sourceValue: {
+    fontSize: 16,
+    fontFamily: 'Montserrat-Bold',
+  },
+
   heroCard: {
     backgroundColor: '#0C1559',
     borderRadius: 16,
@@ -305,17 +477,60 @@ const styles = StyleSheet.create({
   heroValue: {
     color: '#FFFFFF',
     fontFamily: 'Montserrat-Bold',
-    fontSize: 32,
-    marginTop: 10,
-  },
-  heroSub: {
-    color: 'rgba(255,255,255,0.7)',
-    fontFamily: 'Montserrat-Regular',
-    fontSize: 13,
-    marginTop: 6,
+    fontSize: 28,
+    marginTop: 8,
   },
 
-  // List panel header
+  chartCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+  },
+  chartTitle: {
+    fontSize: 15,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: 12,
+  },
+
+  spendersCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 12,
+    marginBottom: 12,
+  },
+  spenderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  spenderRank: {
+    fontSize: 12,
+    fontFamily: 'Montserrat-Bold',
+    color: '#64748B',
+    width: 24,
+  },
+  spenderName: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#0F172A',
+  },
+  spenderValue: {
+    fontSize: 13,
+    fontFamily: 'Montserrat-Bold',
+    color: '#0C1559',
+  },
+
   listPanel: {
     marginHorizontal: 12,
     marginBottom: 0,
@@ -338,7 +553,6 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  // Transaction row wrapper (white card continuation)
   itemRowWrap: {
     backgroundColor: '#FFFFFF',
     marginHorizontal: 12,
@@ -346,8 +560,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
   },
-
-  // Transaction row
   itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -398,7 +610,6 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
 
-  // Empty state
   emptyState: {
     alignItems: 'center',
     paddingVertical: 44,

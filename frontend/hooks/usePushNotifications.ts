@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { registerPushTokenInBackend, storage } from '../services/api';
 import { getCachedUserProfile } from '../services/storage';
 import { getRouteFromPushData } from '../utils/notificationRouting';
@@ -166,11 +167,11 @@ async function registerForPushNotificationsAsync() {
             finalStatus = status;
         }
         if (finalStatus !== 'granted') {
-            Alert.alert('Permission needed', 'Failed to get push token for push notification!');
+            CustomInAppToast.show({ type: 'error', title: 'Permission needed', message: 'Failed to get push token for push notification!' });
             return;
         }
     } else {
-        Alert.alert('Must use physical device for Push Notifications');
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Must use physical device for Push Notifications' });
     }
 
     try {
@@ -194,11 +195,7 @@ async function registerForPushNotificationsAsync() {
         });
         
         if (error.code === 'EXPERIENCE_NOT_FOUND') {
-            Alert.alert(
-                'Push Notifications Unavailable',
-                'Push notifications require a development build. Please use a dev client or production build instead of Expo Go.',
-                [{ text: 'OK' }]
-            );
+            CustomInAppToast.show({ type: 'error', title: 'Push Notifications Unavailable', message: 'Push notifications require a development build. Please use a dev client or production build instead of Expo Go.' });
         }
     }
 

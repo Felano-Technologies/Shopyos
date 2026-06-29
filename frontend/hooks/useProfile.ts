@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { profileApi, UserProfile } from '@/lib/query/api';
 import { queryKeys } from '@/lib/query/keys';
-import { Alert } from 'react-native';
 import { useEffect } from 'react';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { cacheUserProfile } from '@/services/storage';
 import { useAuthStore } from '@/store/authStore';
 
@@ -49,12 +49,12 @@ export const useUpdateProfile = () => {
         queryClient.setQueryData(queryKeys.profile.current(), context.previousProfile);
       }
       
-      Alert.alert('Error', error.userMessage || 'Failed to update profile');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.userMessage || 'Failed to update profile' });
     },
     
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.profile.current() });
-      Alert.alert('Success', 'Profile updated successfully');
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Profile updated successfully' });
     },
   });
 };

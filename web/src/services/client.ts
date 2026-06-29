@@ -145,7 +145,9 @@ async function handleTokenExpired(_error: any, originalRequest: any): Promise<an
       const { socketService } = await import('./socket');
       const sock = socketService.getSocket();
       if (sock) sock.auth = { token: newAccessToken };
-    } catch {}
+    } catch (e) {
+      console.error('Failed to update socket auth token:', e);
+    }
 
     processQueue(null, newAccessToken);
     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
@@ -156,7 +158,9 @@ async function handleTokenExpired(_error: any, originalRequest: any): Promise<an
       await secureStorage.removeItem('userToken');
       await secureStorage.removeItem('refreshToken');
       await storage.removeItem('userId');
-    } catch {}
+    } catch (e) {
+      console.error('Error clearing tokens:', e);
+    }
     throw refreshError;
   } finally {
     isRefreshing = false;

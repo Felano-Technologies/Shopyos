@@ -1,6 +1,7 @@
 // controllers/disclaimerController.js
 const repositories = require('../db/repositories');
 const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
+const ApiResponse = require('../utils/apiResponse');
 
 /**
  * Get active disclaimer by type (with caching)
@@ -12,16 +13,16 @@ const getDisclaimer = async (req, res, next) => {
     const cached = await cacheGet(cacheKey);
 
     if (cached) {
-      return res.status(200).json({ success: true, disclaimer: cached });
+      return ApiResponse.withEntity(res, 'disclaimer', cached);
     }
 
     const disclaimer = await repositories.disclaimers.getByType(type);
     if (!disclaimer) {
-      return res.status(404).json({ success: false, error: 'Disclaimer not found' });
+      return ApiResponse.error(res, 'Disclaimer not found', 404);
     }
 
     await cacheSet(cacheKey, disclaimer, 300);
-    res.status(200).json({ success: true, disclaimer });
+    ApiResponse.withEntity(res, 'disclaimer', disclaimer);
   } catch (error) {
     next(error);
   }
@@ -38,14 +39,14 @@ const acknowledgeDisclaimer = async (req, res, next) => {
     const userAgent = req.headers['user-agent'] || 'unknown';
 
     if (!disclaimerType || !version) {
-      return res.status(400).json({ success: false, error: 'disclaimerType and version are required' });
+      return ApiResponse.error(res, 'disclaimerType and version are required', 400);
     }
 
     const ack = await repositories.disclaimers.createAcknowledgement(
       userId, disclaimerType, version, contextId, contextType, ip, userAgent
     );
 
-    res.status(201).json({ success: true, acknowledgement: ack });
+    ApiResponse.withEntity(res, 'acknowledgement', ack, null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -60,11 +61,11 @@ const checkAcknowledgement = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!type) {
-      return res.status(400).json({ success: false, error: 'Disclaimer type is required' });
+      return ApiResponse.error(res, 'Disclaimer type is required', 400);
     }
 
     const ack = await repositories.disclaimers.checkAcknowledgement(userId, type, version, contextId);
-    res.status(200).json({ success: true, acknowledged: ack !== null, acknowledgement: ack });
+    ApiResponse.success(res, { acknowledged: ack !== null, acknowledgement: ack });
   } catch (error) {
     next(error);
   }
@@ -79,18 +80,18 @@ const updateDisclaimer = async (req, res, next) => {
     const { title, content, version } = req.body;
 
     if (!title || !content || !version) {
-      return res.status(400).json({ success: false, error: 'Title, content, and version are required' });
+      return ApiResponse.error(res, 'Title, content, and version are required', 400);
     }
 
     const updated = await repositories.disclaimers.updateDisclaimer(type, title, content, version, req.user.id);
     if (!updated) {
-      return res.status(404).json({ success: false, error: 'Disclaimer not found' });
+      return ApiResponse.error(res, 'Disclaimer not found', 404);
     }
 
     // Invalidate Redis cache
     await cacheDel(`disclaimer:${type}`);
 
-    res.status(200).json({ success: true, disclaimer: updated });
+    ApiResponse.withEntity(res, 'disclaimer', updated);
   } catch (error) {
     next(error);
   }
@@ -105,7 +106,7 @@ const getAcknowledgementsAudit = async (req, res, next) => {
     const maxLimit = limit ? parseInt(limit, 10) : 50;
 
     const audit = await repositories.disclaimers.getAcknowledgementsAudit(type, maxLimit);
-    res.status(200).json({ success: true, audit });
+    ApiResponse.withEntity(res, 'audit', audit);
   } catch (error) {
     next(error);
   }

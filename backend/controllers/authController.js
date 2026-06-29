@@ -18,6 +18,7 @@ const {
   generateRefreshToken,
   hashToken
 } = require('../config/auth');
+const ApiResponse = require('../utils/apiResponse');
 
 let _transporter = null;
 const getTransporter = () => {
@@ -89,12 +90,12 @@ const register = async (req, res, next) => {
   const { name, email, password, fullPhoneNumber, referralCode, termsAccepted, privacyAccepted } = req.body;
 
   if (!termsAccepted || !privacyAccepted) {
-    return res.status(400).json({ error: 'You must accept the Terms of Service and Privacy Policy to register.' });
+    return ApiResponse.error(res, 'You must accept the Terms of Service and Privacy Policy to register.', 400);
   }
 
   try {
     const existingUser = await repositories.users.findByEmail(email);
-    if (existingUser) return res.status(400).json({ error: 'User already exists' });
+    if (existingUser) return ApiResponse.error(res, 'User already exists', 400);
 
     const user = await repositories.users.createUser({ email, password });
     const cleanPhone = sanitizePhone(fullPhoneNumber);
@@ -158,13 +159,12 @@ const register = async (req, res, next) => {
     if (email) rabbitMQService.publishMessage('email', publishPayload);
     if (cleanPhone) rabbitMQService.publishMessage('sms', { ...publishPayload, eventType: 'WELCOME_SMS', phone: cleanPhone });
 
-    res.status(201).json({
-      message: 'User created successfully',
+    ApiResponse.created(res, {
       requiresRoleSelection: true,
       token: accessToken,
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY
-    });
+    }, 'User created successfully');
   } catch (err) {
     next(err);
   }
@@ -175,10 +175,10 @@ const login = async (req, res, next) => {
 
   try {
     const user = await repositories.users.findByEmail(email);
-    if (!user) return res.status(400).json({ error: 'Invalid credentials' });
+    if (!user) return ApiResponse.error(res, 'Invalid credentials', 400);
 
     const isMatch = await repositories.users.verifyPassword(user.id, password);
-    if (!isMatch) return res.status(400).json({ error: 'Invalid credentials' });
+    if (!isMatch) return ApiResponse.error(res, 'Invalid credentials', 400);
 
     if (latitude && longitude) {
       await repositories.userProfiles.updateByUserId(user.id, { latitude, longitude });
@@ -200,16 +200,15 @@ const login = async (req, res, next) => {
     const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
     setAuthCookies(res, accessToken, refreshToken);
 
-    res.status(200).json({
+    ApiResponse.success(res, {
       token: accessToken,
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY,
       role,
       roles: roleNames,
       requiresRoleSelection: !hasRole,
-      passwordResetRequired: user.password_reset_required === true,
-      message: 'Login successful'
-    });
+      passwordResetRequired: user.password_reset_required === true
+    }, 'Login successful');
   } catch (err) {
     next(err);
   }
@@ -220,7 +219,7 @@ const login = async (req, res, next) => {
 const refreshAccessToken = async (req, res, next) => {
   try {
     const incomingToken = req.body.refreshToken || req.cookies?.[REFRESH_COOKIE_NAME];
-    if (!incomingToken) return res.status(401).json({ error: 'Refresh token required' });
+    if (!incomingToken) return ApiResponse.error(res, 'Refresh token required', 401);
 
     const tokenHash = hashToken(incomingToken);
 
@@ -230,7 +229,7 @@ const refreshAccessToken = async (req, res, next) => {
       .eq('token_hash', tokenHash)
       .single();
 
-    if (lookupError || !storedToken) return res.status(401).json({ error: 'Invalid refresh token' });
+    if (lookupError || !storedToken) return ApiResponse.error(res, 'Invalid refresh token', 401);
 
     if (storedToken.is_revoked) {
       logger.warn('Refresh token reuse detected — revoking family', {
@@ -243,15 +242,15 @@ const refreshAccessToken = async (req, res, next) => {
         .eq('family_id', storedToken.family_id);
 
       await cacheDel(`shopyos:users:${storedToken.user_id}:auth`);
-      return res.status(401).json({ error: 'Token compromised — all sessions revoked. Please log in again.' });
+      return ApiResponse.error(res, 'Token compromised — all sessions revoked. Please log in again.', 401);
     }
 
     if (new Date(storedToken.expires_at) < new Date()) {
-      return res.status(401).json({ error: 'Refresh token expired' });
+      return ApiResponse.error(res, 'Refresh token expired', 401);
     }
 
     const user = await repositories.users.findById(storedToken.user_id);
-    if (!user?.is_active) return res.status(401).json({ error: 'Account not found or deactivated' });
+    if (!user?.is_active) return ApiResponse.error(res, 'Account not found or deactivated', 401);
 
     await repositories.users.db
       .from('refresh_tokens')
@@ -270,12 +269,11 @@ const refreshAccessToken = async (req, res, next) => {
     await cacheDel(`shopyos:users:${user.id}:auth`);
     setAuthCookies(res, accessToken, newRefreshToken);
 
-    res.status(200).json({
+    ApiResponse.success(res, {
       token: accessToken,
       refreshToken: newRefreshToken,
-      expiresIn: ACCESS_TOKEN_EXPIRY,
-      message: 'Tokens refreshed successfully'
-    });
+      expiresIn: ACCESS_TOKEN_EXPIRY
+    }, 'Tokens refreshed successfully');
   } catch (error) {
     next(error);
   }
@@ -308,11 +306,11 @@ const logout = async (req, res, _next) => {
 
     if (req.user?.id) await cacheDel(`shopyos:users:${req.user.id}:auth`);
     clearAuthCookies(res);
-    res.status(200).json({ success: true, message: 'Logged out successfully' });
+    ApiResponse.success(res, null, 'Logged out successfully');
   } catch (error) {
     logger.error('Logout error', { error: error.message });
     clearAuthCookies(res);
-    res.status(200).json({ success: true, message: 'Logged out' });
+    ApiResponse.success(res, null, 'Logged out');
   }
 };
 
@@ -333,7 +331,7 @@ const logoutAll = async (req, res, next) => {
     clearAuthCookies(res);
 
     const revokedCount = data?.length || 0;
-    res.status(200).json({ success: true, message: `Logged out from all ${revokedCount} session(s)`, revokedSessions: revokedCount });
+    ApiResponse.success(res, { revokedSessions: revokedCount }, `Logged out from all ${revokedCount} session(s)`);
   } catch (error) {
     next(error);
   }
@@ -351,8 +349,7 @@ const getSessions = async (req, res, next) => {
 
     if (error) throw error;
 
-    res.status(200).json({
-      success: true,
+    ApiResponse.success(res, {
       sessions: (sessions || []).map(s => ({
         id: s.id, device: s.device_info, ip: s.ip_address, createdAt: s.created_at, expiresAt: s.expires_at
       })),
@@ -373,9 +370,9 @@ const revokeSession = async (req, res, next) => {
       .select('id');
 
     if (error) throw error;
-    if (!data?.length) return res.status(404).json({ error: 'Session not found' });
+    if (!data?.length) return ApiResponse.error(res, 'Session not found', 404);
 
-    res.status(200).json({ success: true, message: 'Session revoked' });
+    ApiResponse.success(res, null, 'Session revoked');
   } catch (error) {
     next(error);
   }
@@ -396,12 +393,12 @@ const requestPasswordResetOTP = async (req, res, next) => {
   const { email, method } = req.body;
 
   if (!email || !method || !['email', 'sms'].includes(method)) {
-    return res.status(400).json({ error: 'Email and method (email or sms) are required' });
+    return ApiResponse.error(res, 'Email and method (email or sms) are required', 400);
   }
 
   try {
     const user = await repositories.users.findByEmail(email.trim().toLowerCase());
-    if (!user) return res.status(404).json({ error: 'No account found with that email address' });
+    if (!user) return ApiResponse.error(res, 'No account found with that email address', 404);
 
     let deliveryTarget = user.email;
     let maskedTarget = maskEmail(user.email);
@@ -409,7 +406,7 @@ const requestPasswordResetOTP = async (req, res, next) => {
     if (method === 'sms') {
       const profile = await repositories.userProfiles.findByUserId(user.id);
       if (!profile?.phone) {
-        return res.status(400).json({ error: 'No phone number on file. Please use email instead.' });
+        return ApiResponse.error(res, 'No phone number on file. Please use email instead.', 400);
       }
       deliveryTarget = profile.phone;
       maskedTarget = maskPhone(profile.phone);
@@ -421,7 +418,7 @@ const requestPasswordResetOTP = async (req, res, next) => {
       const elapsed = (Date.now() - new Date(existing.sentAt).getTime()) / 1000;
       if (elapsed < 60) {
         const waitSeconds = Math.ceil(60 - elapsed);
-        return res.status(429).json({ error: `Please wait ${waitSeconds} seconds before resending` });
+        return ApiResponse.error(res, `Please wait ${waitSeconds} seconds before resending`, 429);
       }
     }
 
@@ -450,7 +447,7 @@ const requestPasswordResetOTP = async (req, res, next) => {
     }
 
     logger.info('Password reset OTP sent', { userId: user.id, method });
-    res.status(200).json({ success: true, maskedTarget, message: `Code sent to ${maskedTarget}` });
+    ApiResponse.success(res, { maskedTarget }, `Code sent to ${maskedTarget}`);
   } catch (err) {
     next(err);
   }
@@ -460,20 +457,20 @@ const verifyPasswordResetOTP = async (req, res, next) => {
   const { email, code } = req.body;
 
   if (!email || !code) {
-    return res.status(400).json({ error: 'Email and code are required' });
+    return ApiResponse.error(res, 'Email and code are required', 400);
   }
 
   try {
     const user = await repositories.users.findByEmail(email.trim().toLowerCase());
-    if (!user) return res.status(404).json({ error: 'No account found with that email address' });
+    if (!user) return ApiResponse.error(res, 'No account found with that email address', 404);
 
     const stored = await cacheGet(`pwd_otp:${user.id}`);
     if (!stored) {
-      return res.status(400).json({ error: 'Code has expired or was never requested' });
+      return ApiResponse.error(res, 'Code has expired or was never requested', 400);
     }
 
     if (stored.code !== code.trim()) {
-      return res.status(400).json({ error: 'Invalid code. Please try again.' });
+      return ApiResponse.error(res, 'Invalid code. Please try again.', 400);
     }
 
     // OTP verified — issue a short-lived reset session token
@@ -482,7 +479,7 @@ const verifyPasswordResetOTP = async (req, res, next) => {
     await cacheDel(`pwd_otp:${user.id}`);
 
     logger.info('Password reset OTP verified', { userId: user.id });
-    res.status(200).json({ success: true, resetToken });
+    ApiResponse.success(res, { resetToken });
   } catch (err) {
     next(err);
   }
@@ -492,17 +489,17 @@ const resetPasswordWithToken = async (req, res, next) => {
   const { resetToken, newPassword } = req.body;
 
   if (!resetToken || !newPassword) {
-    return res.status(400).json({ error: 'Reset token and new password are required' });
+    return ApiResponse.error(res, 'Reset token and new password are required', 400);
   }
 
   if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return ApiResponse.error(res, 'Password must be at least 6 characters', 400);
   }
 
   try {
     const session = await cacheGet(`pwd_reset_token:${resetToken}`);
     if (!session?.userId) {
-      return res.status(400).json({ error: 'Reset session has expired. Please start again.' });
+      return ApiResponse.error(res, 'Reset session has expired. Please start again.', 400);
     }
 
     await repositories.users.updatePassword(session.userId, newPassword);
@@ -517,7 +514,7 @@ const resetPasswordWithToken = async (req, res, next) => {
     await cacheDel(`shopyos:users:${session.userId}:auth`);
 
     logger.info('Password reset successful', { userId: session.userId });
-    res.status(200).json({ success: true, message: 'Password reset successfully. Please log in.' });
+    ApiResponse.success(res, null, 'Password reset successfully. Please log in.');
   } catch (err) {
     next(err);
   }
@@ -540,7 +537,7 @@ const updateProfile = async (req, res, next) => {
     const profile = await repositories.userProfiles.updateByUserId(userId, updates);
     await cacheDel(`shopyos:users:${userId}:auth`);
 
-    res.status(200).json({ success: true, data: profile, message: 'Profile updated successfully' });
+    ApiResponse.success(res, profile, 'Profile updated successfully');
   } catch (error) {
     next(error);
   }
@@ -549,12 +546,12 @@ const updateProfile = async (req, res, next) => {
 const getUserData = async (req, res, next) => {
   try {
     const user = await repositories.users.findById(req.user.id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return ApiResponse.error(res, 'User not found', 404);
 
     const profile = await repositories.userProfiles.findByUserId(user.id);
     const userRoles = await repositories.roles.getUserRoles(user.id);
 
-    res.status(200).json({
+    ApiResponse.withEntity(res, 'user', {
       id: user.id,
       email: user.email,
       name: profile?.full_name || user.email,
@@ -592,14 +589,14 @@ const addRole = async (req, res, next) => {
   try {
     const validRoles = ['buyer', 'seller', 'driver'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ success: false, error: 'Invalid role. Must be buyer, seller, or driver' });
+      return ApiResponse.error(res, 'Invalid role. Must be buyer, seller, or driver', 400);
     }
 
     const hasRole = await repositories.roles.userHasRole(userId, role);
-    if (hasRole) return res.status(400).json({ success: false, error: `You already have the ${role} role` });
+    if (hasRole) return ApiResponse.error(res, `You already have the ${role} role`, 400);
 
     const roleData = await repositories.roles.findByName(role);
-    if (!roleData) return res.status(404).json({ success: false, error: 'Role not found' });
+    if (!roleData) return ApiResponse.error(res, 'Role not found', 404);
 
     await repositories.roles.assignRoleToUser(userId, roleData.id);
     await cacheDel(`shopyos:users:${userId}:auth`);
@@ -620,7 +617,7 @@ const addRole = async (req, res, next) => {
     if (user?.email) rabbitMQService.publishMessage('email', payload);
     if (profile?.phone) rabbitMQService.publishMessage('sms', { ...payload, eventType: 'ROLE_SELECTED_SMS' });
 
-    res.status(200).json({ success: true, message: `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully` });
+    ApiResponse.success(res, null, `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully`);
   } catch (error) {
     next(error);
   }
@@ -630,15 +627,12 @@ const getUserRoles = async (req, res, next) => {
   try {
     const roles = await repositories.roles.getUserRoles(req.user.id);
 
-    res.status(200).json({
-      success: true,
-      roles: roles
-        .filter(r => r?.role)
-        .map(r => ({
-          id: r.id, name: r.role.name, displayName: r.role.display_name,
-          description: r.role.description, assignedAt: r.assigned_at
-        }))
-    });
+    ApiResponse.withEntity(res, 'roles', roles
+      .filter(r => r?.role)
+      .map(r => ({
+        id: r.id, name: r.role.name, displayName: r.role.display_name,
+        description: r.role.description, assignedAt: r.assigned_at
+      })));
   } catch (error) {
     next(error);
   }
@@ -649,21 +643,21 @@ const updateUserRole = async (req, res, next) => {
     const { role } = req.body;
     const userId = req.user.id;
 
-    if (!role) return res.status(400).json({ success: false, error: 'Role is required' });
+    if (!role) return ApiResponse.error(res, 'Role is required', 400);
 
     const roleMapping = { customer: 'buyer', buyer: 'buyer', seller: 'seller', driver: 'driver', none: 'none' };
     const mappedRole = roleMapping[role];
     if (!mappedRole) {
-      return res.status(400).json({ success: false, error: 'Invalid role. Must be one of: customer, buyer, seller, driver, none' });
+      return ApiResponse.error(res, 'Invalid role. Must be one of: customer, buyer, seller, driver, none', 400);
     }
 
     const user = await repositories.users.findById(userId);
-    if (!user) return res.status(404).json({ success: false, error: 'User not found' });
+    if (!user) return ApiResponse.error(res, 'User not found', 404);
 
     await repositories.users.setRole(userId, mappedRole);
     await cacheDel(`shopyos:users:${userId}:auth`);
 
-    res.status(200).json({ success: true, message: 'Role updated successfully' });
+    ApiResponse.success(res, null, 'Role updated successfully');
   } catch (error) {
     next(error);
   }
@@ -675,7 +669,7 @@ const updateUserLocation = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!latitude || !longitude) {
-      return res.status(400).json({ success: false, error: 'Latitude and longitude are required' });
+      return ApiResponse.error(res, 'Latitude and longitude are required', 400);
     }
 
     // Update user profile with location
@@ -684,7 +678,7 @@ const updateUserLocation = async (req, res, next) => {
       longitude: Number.parseFloat(longitude)
     });
 
-    res.status(200).json({ success: true, message: 'Location updated successfully' });
+    ApiResponse.success(res, null, 'Location updated successfully');
   } catch (error) {
     logger.error('Error updating user location:', error);
     next(error);
@@ -697,7 +691,7 @@ const updateOnboardingState = async (req, res, next) => {
     const { screen, completed = true } = req.body;
 
     if (!screen) {
-      return res.status(400).json({ success: false, error: 'Screen key is required' });
+      return ApiResponse.error(res, 'Screen key is required', 400);
     }
 
     const profile = await repositories.userProfiles.findByUserId(userId);
@@ -714,11 +708,7 @@ const updateOnboardingState = async (req, res, next) => {
 
     await cacheDel(`shopyos:users:${userId}:auth`);
 
-    res.status(200).json({ 
-      success: true, 
-      data: updatedProfile.onboarding_state,
-      message: `Onboarding for ${screen} updated` 
-    });
+    ApiResponse.success(res, updatedProfile.onboarding_state, `Onboarding for ${screen} updated`);
   } catch (error) {
     logger.error('Error updating onboarding state:', error);
     next(error);
@@ -730,7 +720,7 @@ const resetPassword = async (req, res, next) => {
   try {
     const user = await repositories.users.findByEmail(email);
     if (!user) {
-      return res.status(400).json({ error: 'User not found' });
+      return ApiResponse.error(res, 'User not found', 400);
     }
 
     const token = crypto.randomBytes(32).toString('hex');
@@ -745,7 +735,7 @@ const resetPassword = async (req, res, next) => {
       html: `<p>Click <a href="${resetUrl}">here</a> to reset your password. This link expires in 1 hour.</p>`,
     });
 
-    res.status(200).json({ success: true, message: 'Recovery email sent' });
+    ApiResponse.success(res, null, 'Recovery email sent');
   } catch (err) {
     next(err);
   }
@@ -755,10 +745,10 @@ const confirmResetPassword = async (req, res, next) => {
   const { token, newPassword } = req.body;
 
   if (!token || !newPassword) {
-    return res.status(400).json({ error: 'Token and new password are required' });
+    return ApiResponse.error(res, 'Token and new password are required', 400);
   }
   if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return ApiResponse.error(res, 'Password must be at least 6 characters', 400);
   }
 
   try {
@@ -769,10 +759,10 @@ const confirmResetPassword = async (req, res, next) => {
       .single();
 
     if (error || !user) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
+      return ApiResponse.error(res, 'Invalid or expired reset token', 400);
     }
     if (new Date(user.password_reset_expires) < new Date()) {
-      return res.status(400).json({ error: 'Reset token has expired. Please request a new one.' });
+      return ApiResponse.error(res, 'Reset token has expired. Please request a new one.', 400);
     }
 
     await repositories.users.updatePassword(user.id, newPassword);
@@ -783,7 +773,7 @@ const confirmResetPassword = async (req, res, next) => {
       .eq('user_id', user.id);
 
     logger.info('Password reset via token', { userId: user.id });
-    res.status(200).json({ success: true, message: 'Password reset successful. Please log in.' });
+    ApiResponse.success(res, null, 'Password reset successful. Please log in.');
   } catch (err) {
     next(err);
   }
@@ -794,7 +784,7 @@ const forceResetPassword = async (req, res, next) => {
   const userId = req.user.id;
 
   if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    return ApiResponse.error(res, 'Password must be at least 6 characters', 400);
   }
 
   try {
@@ -805,7 +795,7 @@ const forceResetPassword = async (req, res, next) => {
       .eq('id', userId);
 
     logger.info('Forced password reset complete', { userId });
-    res.status(200).json({ success: true, message: 'Password updated successfully' });
+    ApiResponse.success(res, null, 'Password updated successfully');
   } catch (error) {
     next(error);
   }
@@ -815,7 +805,7 @@ const ROLE_PRIORITY = { admin: 4, driver: 3, seller: 2, buyer: 1 };
 
 const googleAuth = async (req, res, next) => {
   const { idToken } = req.body;
-  if (!idToken) return res.status(400).json({ error: 'idToken is required' });
+  if (!idToken) return ApiResponse.error(res, 'idToken is required', 400);
 
   try {
     let tokenPayload;
@@ -825,11 +815,11 @@ const googleAuth = async (req, res, next) => {
       });
       tokenPayload = data;
     } catch {
-      return res.status(401).json({ error: 'Invalid Google token' });
+      return ApiResponse.error(res, 'Invalid Google token', 401);
     }
 
     if (tokenPayload.aud !== process.env.GOOGLE_CLIENT_ID) {
-      return res.status(401).json({ error: 'Token audience mismatch' });
+      return ApiResponse.error(res, 'Token audience mismatch', 401);
     }
 
     const { sub: googleId, email, name, picture } = tokenPayload;
@@ -851,7 +841,7 @@ const googleAuth = async (req, res, next) => {
     }
 
     if (!user.is_active) {
-      return res.status(403).json({ error: 'Account is deactivated' });
+      return ApiResponse.error(res, 'Account is deactivated', 403);
     }
 
     await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
@@ -867,15 +857,14 @@ const googleAuth = async (req, res, next) => {
 
     logger.info('Google OAuth login', { userId: user.id, email: user.email });
 
-    res.status(200).json({
+    ApiResponse.success(res, {
       token: accessToken,
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY,
       role,
       roles: roleNames,
-      requiresRoleSelection: !hasRole,
-      message: 'Login successful'
-    });
+      requiresRoleSelection: !hasRole
+    }, 'Login successful');
   } catch (err) {
     next(err);
   }

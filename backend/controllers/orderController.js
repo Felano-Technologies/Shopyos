@@ -1,6 +1,7 @@
 // controllers/orderController.js
 // Order management controller
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const crypto = require('node:crypto');
 const { logger } = require('../config/logger');
@@ -69,12 +70,12 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     return { product_id: item.product_id, product_title: item.products.title, quantity: item.quantity, price, subtotal: itemSubtotal };
   });
 
-  const tax = 1;
+  const tax = Number(await feeConfigService.get('default_tax_amount', 1));
   const store = await repositories.stores.findById(storeId);
   const deliveryFee = await calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState);
 
-  const storeRegion = (store?.state_province || 'Greater Accra').trim().toLowerCase();
-  const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
+  const storeRegion = store?.state_province?.trim().toLowerCase() || null;
+  const targetRegion = (deliveryState || '').trim().toLowerCase();
 
   let transitFee = 0;
   let isInterRegional = false;
@@ -82,7 +83,7 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   let destHub = null;
   let estArrivalDate = null;
 
-  if (storeRegion !== targetRegion) {
+  if (storeRegion && targetRegion && storeRegion !== targetRegion) {
     isInterRegional = true;
     if (repositories.parcelPartner) {
       originHub = await repositories.parcelPartner.getHubByRegionName(store?.state_province || 'Greater Accra');
@@ -118,7 +119,7 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
     promoDiscount = Number.parseFloat((Math.min(rawPromoDiscount, totalSubtotal) * storeShare).toFixed(2));
   }
 
-  const { validPoints, discountAmount: loyaltyDiscount } = calcPointsDiscount(
+  const { validPoints, discountAmount: loyaltyDiscount } = await calcPointsDiscount(
     Math.round(validatedLoyaltyPoints * storeShare),
     Math.round(validatedLoyaltyPoints * storeShare),
     subtotal
@@ -294,19 +295,19 @@ const createOrder = async (req, res, next) => {
     const { buyerLat, buyerLng } = req.body;
 
     if (!deliveryAddress || !deliveryCity || !deliveryPhone) {
-      return res.status(400).json({ success: false, error: 'Delivery address, city, and phone are required' });
+      return ApiResponse.error(res, 'Delivery address, city, and phone are required', 400);
     }
 
     const cart = await repositories.carts.getCartWithItems(userId);
     if (!cart?.cart_items?.length) {
-      return res.status(400).json({ success: false, error: 'Cart is empty' });
+      return ApiResponse.error(res, 'Cart is empty', 400);
     }
 
     const pool = getPool();
     let validatedPromo = null;
     if (promoCode) {
       const result = await validatePromoCode(pool, promoCode, userId);
-      if (result.error) return res.status(400).json({ success: false, error: result.error });
+      if (result.error) return ApiResponse.error(res, result.error, 400);
       validatedPromo = result.promo;
     }
 
@@ -336,7 +337,8 @@ const createOrder = async (req, res, next) => {
 
     await repositories.carts.clearCart(userId);
 
-    res.status(201).json({ success: true, message: 'Order(s) created successfully', orders: createdOrders, count: createdOrders.length });
+    ApiResponse.withEntity(res, 'orders', createdOrders, 'Order(s) created successfully', null, 201);
+    res.locals._orderCount = createdOrders.length;
   } catch (error) {
     next(error);
   }
@@ -364,17 +366,13 @@ const getMyOrders = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: orders,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1
-      }
+    ApiResponse.paginated(res, orders, {
+      totalItems: totalCount,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      itemsPerPage: limitNum,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
     });
   } catch (error) {
     next(error);
@@ -395,20 +393,14 @@ const getStoreOrders = async (req, res, next) => {
     // Verify store ownership
     const store = await repositories.stores.findById(storeId);
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Store not found'
-      });
+      return ApiResponse.error(res, 'Store not found', 404);
     }
 
     if (store.owner_id !== userId) {
       // Allow admins to view any store's orders
       const isAdmin = req.user.roles?.includes('admin');
       if (!isAdmin) {
-        return res.status(403).json({
-          success: false,
-          error: 'Not authorized to view these orders'
-        });
+        return ApiResponse.error(res, 'Not authorized to view these orders', 403);
       }
     }
 
@@ -424,17 +416,13 @@ const getStoreOrders = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: orders,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1
-      }
+    ApiResponse.paginated(res, orders, {
+      totalItems: totalCount,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      itemsPerPage: limitNum,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
     });
   } catch (error) {
     next(error);
@@ -454,10 +442,7 @@ const getOrderDetails = async (req, res, next) => {
     const order = await repositories.orders.getOrderDetails(orderId);
 
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     // Fast checks first â€” use the store data already embedded in the join result
@@ -471,16 +456,10 @@ const getOrderDetails = async (req, res, next) => {
       : false;
 
     if (!isBuyer && !isSeller && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view this order'
-      });
+      return ApiResponse.error(res, 'Not authorized to view this order', 403);
     }
 
-    res.status(200).json({
-      success: true,
-      order
-    });
+    ApiResponse.withEntity(res, 'order', order);
   } catch (error) {
     next(error);
   }
@@ -596,20 +575,14 @@ const updateOrderStatus = async (req, res, next) => {
     ];
 
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status',
-        validStatuses
-      });
+      const err = { error: 'Invalid status', validStatuses };
+      return ApiResponse.error(res, 'Invalid status', 400, err);
     }
 
     // Get order
     const order = await repositories.orders.findById(orderId);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     // Verify authorization (store owner or admin)
@@ -618,20 +591,14 @@ const updateOrderStatus = async (req, res, next) => {
     const isAdmin = await repositories.users.hasRole(userId, 'admin');
 
     if (!isSeller && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this order'
-      });
+      return ApiResponse.error(res, 'Not authorized to update this order', 403);
     }
 
     // Enforce role boundary: sellers cannot set orders to in_transit, delivered, or completed
     if (isSeller && !isAdmin) {
       const forbiddenStatusesForSeller = ['in_transit', 'delivered', 'completed'];
       if (forbiddenStatusesForSeller.includes(status)) {
-        return res.status(403).json({
-          success: false,
-          error: `Sellers are not authorized to update order status to ${status}. This is managed by the delivery flow.`
-        });
+        return ApiResponse.error(res, `Sellers are not authorized to update order status to ${status}. This is managed by the delivery flow.`, 403);
       }
     }
 
@@ -655,11 +622,7 @@ const updateOrderStatus = async (req, res, next) => {
       await cacheDelPattern(`shopyos:stores:analytics:${order.store_id}*`);
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Order status updated',
-      order: updatedOrder
-    });
+    ApiResponse.withEntity(res, 'order', updatedOrder, 'Order status updated');
   } catch (error) {
     next(error);
   }
@@ -694,25 +657,19 @@ const cancelOrder = async (req, res, next) => {
       : false;
 
     if (!isBuyer && !isSeller && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to cancel this order'
-      });
+      return ApiResponse.error(res, 'Not authorized to cancel this order', 403);
     }
 
     // Buyers can only cancel while the order is still 'pending'.
-    // Sellers and admins retain a broader window (pending â†’ confirmed).
+    // Sellers and admins retain a broader window (pending → confirmed).
     const cancellableStatuses = (isBuyer && !isAdmin)
       ? ['pending']
       : ['pending', 'paid', 'confirmed'];
 
     if (!cancellableStatuses.includes(order.status)) {
-      return res.status(400).json({
-        success: false,
-        error: isBuyer
-          ? 'Orders can only be cancelled while they are pending'
-          : `Order cannot be cancelled in '${order.status}' status`
-      });
+      return ApiResponse.error(res, isBuyer
+        ? 'Orders can only be cancelled while they are pending'
+        : `Order cannot be cancelled in '${order.status}' status`, 400);
     }
 
     // Buyers have a 5-minute cancellation window after placing the order.
@@ -721,10 +678,7 @@ const cancelOrder = async (req, res, next) => {
     if (isBuyer && !isAdmin) {
       const ageMinutes = (Date.now() - new Date(order.created_at).getTime()) / 60000;
       if (ageMinutes > CANCEL_WINDOW_MINUTES) {
-        return res.status(400).json({
-          success: false,
-          error: `Orders can only be cancelled within ${CANCEL_WINDOW_MINUTES} minutes of placing. Please contact the seller to request a cancellation.`
-        });
+        return ApiResponse.error(res, `Orders can only be cancelled within ${CANCEL_WINDOW_MINUTES} minutes of placing. Please contact the seller to request a cancellation.`, 400);
       }
     }
 
@@ -740,18 +694,14 @@ const cancelOrder = async (req, res, next) => {
       const subtotal = Number.parseFloat(order.subtotal || 0);
       const discount = Number.parseFloat(order.discount_amount || 0);
       const refundAmount = Math.max(0, subtotal - discount);
-      
+
       updateFields.escrow_status = 'REFUNDED';
       refundMessage = ` Refund of GHS ${refundAmount.toFixed(2)} processed (delivery fee of GHS ${Number.parseFloat(order.delivery_fee || 0).toFixed(2)} is non-refundable).`;
     }
 
     const cancelledOrder = await repositories.orders.update(orderId, updateFields);
 
-    res.status(200).json({
-      success: true,
-      message: `Order cancelled successfully.${refundMessage}`,
-      order: cancelledOrder
-    });
+    ApiResponse.withEntity(res, 'order', cancelledOrder, `Order cancelled successfully.${refundMessage}`);
   } catch (error) {
     next(error);
   }
@@ -770,10 +720,7 @@ const getOrderByNumber = async (req, res, next) => {
     const order = await repositories.orders.findByOrderNumber(orderNumber);
 
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     // Verify access
@@ -783,19 +730,13 @@ const getOrderByNumber = async (req, res, next) => {
     const isAdmin = await repositories.users.hasRole(userId, 'admin');
 
     if (!isBuyer && !isSeller && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view this order'
-      });
+      return ApiResponse.error(res, 'Not authorized to view this order', 403);
     }
 
     // Get full details
     const orderDetails = await repositories.orders.getOrderDetails(order.id);
 
-    res.status(200).json({
-      success: true,
-      order: orderDetails
-    });
+    ApiResponse.withEntity(res, 'order', orderDetails);
   } catch (error) {
     next(error);
   }
@@ -809,10 +750,7 @@ const getOrderByNumber = async (req, res, next) => {
 const verifyPayment = async (req, res, next) => {
   // â”€â”€ Guard: this endpoint is dev-only â”€â”€
   if (process.env.NODE_ENV === 'production') {
-    return res.status(404).json({
-      success: false,
-      error: 'This endpoint is not available in production. Use the Paystack payment flow instead.'
-    });
+    return ApiResponse.error(res, 'This endpoint is not available in production. Use the Paystack payment flow instead.', 404);
   }
 
   try {
@@ -822,15 +760,15 @@ const verifyPayment = async (req, res, next) => {
 
     const order = await repositories.orders.findById(orderId);
     if (!order) {
-      return res.status(404).json({ success: false, error: 'Order not found' });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     if (order.buyer_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized' });
+      return ApiResponse.error(res, 'Not authorized', 403);
     }
 
     if (status !== 'success') {
-      return res.status(400).json({ success: false, error: 'Payment failed simulation' });
+      return ApiResponse.error(res, 'Payment failed simulation', 400);
     }
 
     // Update payment record in DB
@@ -860,11 +798,7 @@ const verifyPayment = async (req, res, next) => {
       push: { data: { screen: 'order', orderId: order.id } }
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'Payment verified successfully',
-      order: updatedOrder
-    });
+    ApiResponse.withEntity(res, 'order', updatedOrder, 'Payment verified successfully');
   } catch (error) {
     next(error);
   }
@@ -882,12 +816,12 @@ const confirmDelivery = async (req, res, next) => {
 
     // Get order
     const order = await repositories.orders.findById(orderId);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
-    
-    if (order.buyer_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
-    
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
+
+    if (order.buyer_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
+
     if (order.escrow_status !== 'HELD') {
-       return res.status(400).json({ success: false, error: 'Funds are not currently held in escrow for this order' });
+       return ApiResponse.error(res, 'Funds are not currently held in escrow for this order', 400);
     }
 
     // Atomic delivery confirmation via RPC
@@ -904,7 +838,7 @@ const confirmDelivery = async (req, res, next) => {
 
     // Fetch updated order for response and notifications
     const updatedOrder = await repositories.orders.getOrderDetails(orderId);
-    
+
     // Notify seller
     if (updatedOrder?.store?.owner_id) {
         const sellerPayout = rpcResult.seller_payout;
@@ -912,18 +846,14 @@ const confirmDelivery = async (req, res, next) => {
             userId: updatedOrder.store.owner_id,
             type: 'payout_released',
             title: 'Order Completed & Payout Released',
-            message: `Buyer confirmed delivery for order #${updatedOrder.order_number}. â‚µ${sellerPayout.toFixed(2)} has been added to your balance.`,
+            message: `Buyer confirmed delivery for order #${updatedOrder.order_number}. ₵${sellerPayout.toFixed(2)} has been added to your balance.`,
             relatedId: updatedOrder.id,
             relatedType: 'order',
             data: { orderId: updatedOrder.id, orderNumber: updatedOrder.order_number, amount: sellerPayout }
         }).catch(e => logger.error('Seller payout notification failed', e));
     }
 
-    res.status(200).json({
-        success: true,
-        message: 'Delivery confirmed. Funds released to seller and driver.',
-        order: updatedOrder
-    });
+    ApiResponse.withEntity(res, 'order', updatedOrder, 'Delivery confirmed. Funds released to seller and driver.');
   } catch (error) {
     next(error);
   }

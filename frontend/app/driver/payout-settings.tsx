@@ -8,6 +8,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { updateDriverPayoutMethod } from '@/services/payments';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useProfile } from '@/hooks/useProfile';
 
 const MOMO_NETWORKS = ['MTN', 'Vodafone', 'AirtelTigo'] as const;
@@ -46,12 +47,12 @@ export default function DriverPayoutSettings() {
   const handleSave = async () => {
     if (methodTab === 'momo') {
       if (!momoPhone.trim() || !momoName.trim()) {
-        Alert.alert('Missing Info', 'Enter your MOMO phone number and full name.');
+        CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Enter your MOMO phone number and full name.' });
         return;
       }
     } else {
       if (!bankAccount.trim() || !bankName.trim()) {
-        Alert.alert('Missing Info', 'Enter your account number and account holder name.');
+        CustomInAppToast.show({ type: 'error', title: 'Missing Info', message: 'Enter your account number and account holder name.' });
         return;
       }
     }
@@ -68,11 +69,10 @@ export default function DriverPayoutSettings() {
       });
 
       await refetch();
-      Alert.alert('Saved', 'Payout method updated successfully.', [
-        { text: 'OK', onPress: () => router.back() },
-      ]);
+      CustomInAppToast.show({ type: 'success', title: 'Saved', message: 'Payout method updated successfully.' });
+      router.back();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to save payout method.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to save payout method.' });
     } finally {
       setSaving(false);
     }

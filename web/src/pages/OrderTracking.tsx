@@ -4,6 +4,7 @@ import { useOrderDetail } from '../hooks/useOrders';
 import { socketService } from '../services/socket';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
+import { SEO } from '../components/SEO';
 
 // Fix Leaflet broken default marker icon image asset references in Vite builds
 import icon from 'leaflet/dist/images/marker-icon.png';
@@ -108,6 +109,7 @@ export const OrderTracking: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in mt-4">
+      <SEO title={order ? `Order #${order.id.slice(0, 8)}` : 'Order Tracking'} />
       <div className="flex justify-between items-center bg-white p-4 rounded-[16px] shadow-sm border border-gray-100">
         <h2 className="text-xl md:text-2xl font-bold text-body">Order #{order.id.slice(0, 8)}</h2>
         <button onClick={() => navigate('/orders')} className="text-navy font-bold hover:underline text-sm flex items-center gap-2">

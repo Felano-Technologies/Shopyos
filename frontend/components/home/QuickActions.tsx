@@ -39,11 +39,8 @@ const S = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#0C1559',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   item: { alignItems: 'center', gap: 8, width: 60 },
   icon: {

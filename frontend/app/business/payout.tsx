@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import {
   getPayoutHistory, requestPayout, getSellerLockedBalance
 } from '@/services/payments';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import DisclaimerModal from '@/components/DisclaimerModal';
@@ -117,11 +118,11 @@ export default function PayoutScreen() {
 
   const handleWithdraw = () => {
     if (payoutTerms && !isTermsChecked) {
-      Alert.alert('Agreement Required', 'Please agree to the Payout Terms before withdrawing.');
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'Please agree to the Payout Terms before withdrawing.' });
       return;
     }
     if (balance <= 0) {
-      Alert.alert('Insufficient Balance', 'You have no available balance to withdraw.');
+      CustomInAppToast.show({ type: 'error', title: 'Insufficient Balance', message: 'You have no available balance to withdraw.' });
       return;
     }
     setWithdrawAmount(balance.toFixed(2));
@@ -131,44 +132,32 @@ export default function PayoutScreen() {
   const confirmWithdraw = async () => {
     const amount = Number.parseFloat(withdrawAmount);
     if (!amount || amount <= 0) {
-      Alert.alert('Invalid Amount', 'Enter a valid withdrawal amount.');
+      CustomInAppToast.show({ type: 'error', title: 'Invalid Amount', message: 'Enter a valid withdrawal amount.' });
       return;
     }
     if (amount > balance) {
-      Alert.alert('Insufficient Balance', 'Amount exceeds your available balance.');
+      CustomInAppToast.show({ type: 'error', title: 'Insufficient Balance', message: 'Amount exceeds your available balance.' });
       return;
     }
     setShowAmountInput(false);
-    Alert.alert(
-      'Confirm Withdrawal',
-      `Request a payout of ₵${amount.toFixed(2)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Withdraw',
-          onPress: async () => {
-            setIsWithdrawing(true);
-            try {
-              await requestPayout({
-                storeId: activeBusiness._id,
-                amount,
-                method: activeBusiness.payout_method,
-                details: activeBusiness.payout_details
-              });
-              Alert.alert('Request Sent', 'Your payout request has been submitted.');
-              if (activeBusiness) {
-                setBalance(prev => prev - amount);
-                await fetchHistory(activeBusiness._id);
-              }
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Payout request failed.');
-            } finally {
-              setIsWithdrawing(false);
-            }
-          },
-        },
-      ]
-    );
+    setIsWithdrawing(true);
+    try {
+      await requestPayout({
+        storeId: activeBusiness._id,
+        amount,
+        method: activeBusiness.payout_method,
+        details: activeBusiness.payout_details
+      });
+      CustomInAppToast.show({ type: 'success', title: 'Request Sent', message: 'Your payout request has been submitted.' });
+      if (activeBusiness) {
+        setBalance(prev => prev - amount);
+        await fetchHistory(activeBusiness._id);
+      }
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Payout request failed.' });
+    } finally {
+      setIsWithdrawing(false);
+    }
   };
 
   const renderHistoryItem = ({ item }: { item: any }) => (

@@ -108,7 +108,7 @@ export default function ParcelNotificationsScreen() {
 
   const handleItemPress = useCallback(async (item: any) => {
     setReadIds((prev) => new Set([...prev, item.id]));
-    try { await markOneMutation.mutateAsync(item.id); } catch { }
+    try { await markOneMutation.mutateAsync(item.id); } catch (e) { console.error('Failed to mark notification read:', e); }
     const route = getRouteFromNotification(item.raw, 'buyer');
     if (route) router.push(route as any);
   }, [markOneMutation, router]);

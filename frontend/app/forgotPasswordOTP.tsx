@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -80,7 +81,7 @@ const ForgotPasswordOTPScreen = () => {
       const result = await verifyPasswordResetOTP(email, otp.join(''));
       router.replace({ pathname: '/resetPassword', params: { resetToken: result.resetToken } });
     } catch (error: unknown) {
-      Alert.alert('Invalid Code', error instanceof Error ? error.message : 'Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Invalid Code', message: error instanceof Error ? error.message : 'Please try again.' });
       setOtp(['', '', '', '', '', '']);
       inputs.current[0]?.focus();
     } finally {
@@ -97,7 +98,7 @@ const ForgotPasswordOTPScreen = () => {
       inputs.current[0]?.focus();
       startCountdown();
     } catch (error: unknown) {
-      Alert.alert('Resend Failed', error instanceof Error ? error.message : 'Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Resend Failed', message: error instanceof Error ? error.message : 'Please try again.' });
     } finally {
       setResending(false);
     }

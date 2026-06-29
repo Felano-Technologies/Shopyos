@@ -12,9 +12,11 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { getStoreProducts, deleteProduct } from '@/services/api';
 
 const { width: SW } = Dimensions.get('window');
@@ -52,6 +54,7 @@ export default function ProductsScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
@@ -93,14 +96,15 @@ export default function ProductsScreen() {
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const confirmDeleteProduct = (id: string) => {
-    Alert.alert('Delete Product', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await deleteProduct(id); loadProducts(true); }
-          catch { Alert.alert('Error', 'Failed to delete product'); }
-        }
-      },
-    ]);
+    setDeleteTargetId(id);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
+    setDeleteTargetId(null);
+    try { await deleteProduct(id); loadProducts(true); }
+          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to delete product' }); }
   };
 
   const filtered = useMemo(() => {
@@ -398,6 +402,18 @@ export default function ProductsScreen() {
             </View>
           </View>
         </Modal>
+
+        <ConfirmModal
+          visible={deleteTargetId !== null}
+          onClose={() => setDeleteTargetId(null)}
+          title="Delete Product"
+          message="Are you sure?"
+          icon="🗑️"
+          actions={[
+            { label: 'Cancel', onPress: () => setDeleteTargetId(null), variant: 'cancel' },
+            { label: 'Delete', onPress: handleDeleteProduct, variant: 'destructive' },
+          ]}
+        />
       </SafeAreaView>
     </View>
   );

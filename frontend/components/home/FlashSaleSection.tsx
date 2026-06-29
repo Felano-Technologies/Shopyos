@@ -38,7 +38,7 @@ type Props = Readonly<{
   saleTitle?: string;
 }>;
 
-export function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, endsAt, saleTitle }: Props) {
+export const FlashSaleSection = React.memo(function FlashSaleSection({ products, loading, onPressProduct, onSeeAll, endsAt, saleTitle }: Props) {
   const [time, setTime] = useState(endsAt ? getTimeLeft(endsAt) : { h: 0, m: 0, s: 0, expired: false });
 
   useEffect(() => {
@@ -166,11 +166,8 @@ const S = StyleSheet.create({
     backgroundColor: C.card,
     borderRadius: 14,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   imgWrap: { width: '100%', height: 120, position: 'relative' },
   img: { width: '100%', height: '100%' },

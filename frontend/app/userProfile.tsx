@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getUserData, logoutUser, storage } from '../services/api';
 import TappableAvatar from '@/components/TappableAvatar';
@@ -42,23 +43,16 @@ export default function UserProfile() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logoutUser();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
+    setShowConfirm(true);
+  };
+
+  const confirmLogoutAction = async () => {
+    setShowConfirm(false);
+    await logoutUser();
+    router.replace('/login');
   };
 
   const fetchUserDetails = useCallback(async () => {
@@ -78,10 +72,7 @@ export default function UserProfile() {
       });
     } catch (error) {
       console.warn('Failed to fetch user details:', error);
-      Alert.alert(
-        'Error',
-        'Unable to load user details. Please try again later.'
-      );
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Unable to load user details. Please try again later.' });
     } finally {
       setLoading(false);
     }
@@ -255,6 +246,18 @@ export default function UserProfile() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowConfirm(false), variant: 'cancel' },
+          { label: 'Log Out', onPress: confirmLogoutAction, variant: 'destructive' },
+        ]}
+      />
     </SafeAreaView>
   );
 }

@@ -73,33 +73,20 @@ export default function BusinessFlashSales() {
     }
   }, [activeTab]);
 
-  const handleCancelCampaign = (campaignId: string) => {
-    Alert.alert(
-      'Cancel Campaign',
-      'Are you sure you want to cancel this flash sale? Any reserved stock will be returned to your inventory.',
-      [
-        { text: 'No', style: 'cancel' },
-        {
-          text: 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await cancelFlashSale(campaignId);
-              if (res.success) {
-                CustomInAppToast.show({
-                  type: 'success',
-                  title: 'Campaign Cancelled',
-                  message: 'Your flash sale campaign has been cancelled.'
-                });
-                fetchCampaigns();
-              }
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to cancel flash sale.');
-            }
-          }
-        }
-      ]
-    );
+  const handleCancelCampaign = async (campaignId: string) => {
+    try {
+      const res = await cancelFlashSale(campaignId);
+      if (res.success) {
+        CustomInAppToast.show({
+          type: 'success',
+          title: 'Campaign Cancelled',
+          message: 'Your flash sale campaign has been cancelled.'
+        });
+        fetchCampaigns();
+      }
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to cancel flash sale.' });
+    }
   };
 
   const getStatusColor = (status: string) => {

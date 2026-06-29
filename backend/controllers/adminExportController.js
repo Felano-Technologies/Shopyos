@@ -1,6 +1,7 @@
 // controllers/adminExportController.js
 // Generic export handler for admin list screens (XLSX + CSV)
 
+const ApiResponse = require('../utils/apiResponse');
 const ExcelJS = require('exceljs');
 const { format: csvFormat } = require('fast-csv');
 const { getPool } = require('../config/postgres');
@@ -181,7 +182,7 @@ exports.exportResource = async (req, res, next) => {
     const config = RESOURCE_CONFIG[resource];
 
     if (!config) {
-      return res.status(400).json({ error: `Unknown export resource: ${resource}` });
+      return ApiResponse.error(res, `Unknown export resource: ${resource}`, 400);
     }
 
     const params = [];

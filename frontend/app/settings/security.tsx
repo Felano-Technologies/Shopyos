@@ -17,6 +17,7 @@ import { Ionicons, Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { storage } from '@/services/api';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -207,7 +208,9 @@ export default function SecurityPrivacySettings() {
           if (val !== null) updates[key] = JSON.parse(val);
         }
         setToggles((prev) => ({ ...prev, ...updates }));
-      } catch {}
+      } catch (e) {
+        console.error('Failed to load security toggle settings:', e);
+      }
     })();
   }, []);
 
@@ -216,7 +219,9 @@ export default function SecurityPrivacySettings() {
     setToggles((prev) => ({ ...prev, [key]: value }));
     try {
       await storage.setItem(key, JSON.stringify(value));
-    } catch {}
+    } catch (e) {
+      console.error('Failed to save toggle setting:', e);
+    }
   };
 
   const switchSection = (section: Section) => {
@@ -224,27 +229,19 @@ export default function SecurityPrivacySettings() {
     setActiveSection(section);
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This permanently deletes your account and all associated data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete My Account',
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert(
-              'Request Submitted',
-              'Your account deletion request has been received and will be processed within 30 days.'
-            ),
-        },
-      ]
-    );
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAccount = () => {
+    setShowDeleteConfirm(false);
+    CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received and will be processed within 30 days.' });
   };
 
   const handleDownloadData = () =>
-    Alert.alert('Data Export', "We'll email you a download link within 24 hours.");
+    CustomInAppToast.show({ type: 'info', title: 'Data Export', message: "We'll email you a download link within 24 hours." });
 
   return (
     <View style={styles.mainContainer}>
@@ -451,6 +448,18 @@ export default function SecurityPrivacySettings() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Account"
+        message="This permanently deletes your account and all associated data. This cannot be undone."
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowDeleteConfirm(false), variant: 'cancel' },
+          { label: 'Delete My Account', onPress: confirmDeleteAccount, variant: 'destructive' },
+        ]}
+      />
     </View>
   );
 }

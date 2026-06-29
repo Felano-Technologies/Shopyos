@@ -7,6 +7,8 @@ const sharp = require('sharp');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const { LRUCache } = require('lru-cache');
+const { envInt } = require('./envConfig');
 
 const endpoint = (process.env.STORAGE_ENDPOINT || '').trim();
 const region = (process.env.STORAGE_REGION || '').trim();
@@ -29,20 +31,22 @@ const s3 = new S3Client({
 // ── Presigned URL cache ───────────────────────────────────────────────────────
 // In-memory cache: key → { url, expiresAt }. 6-day cache TTL gives a 1-day
 // buffer before the 7-day (604800s) presigned URL itself expires.
-const PRESIGN_TTL_S = 7 * 24 * 60 * 60;           // 604800s — S3/Tigris SigV4 max
-const CACHE_TTL_MS  = 6 * 24 * 60 * 60 * 1000;    // 518400000ms
+const PRESIGN_TTL_S = envInt('PRESIGN_URL_TTL_SECONDS', 7 * 24 * 60 * 60);  // default 604800s
+const CACHE_TTL_MS  = envInt('PRESIGN_CACHE_TTL_MS', 6 * 24 * 60 * 60 * 1000); // default 518400000ms
 
-const _urlCache = new Map();
+// Bounded LRU cache prevents unbounded memory growth
+const _urlCache = new LRUCache({
+  max: envInt('PRESIGN_CACHE_MAX_SIZE', 10000),
+  ttl: CACHE_TTL_MS,
+  updateAgeOnGet: true,
+});
 
 function _getCached(key) {
-  const entry = _urlCache.get(key);
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) { _urlCache.delete(key); return null; }
-  return entry.url;
+  return _urlCache.get(key) || null;
 }
 
 function _setCached(key, url) {
-  _urlCache.set(key, { url, expiresAt: Date.now() + CACHE_TTL_MS });
+  _urlCache.set(key, url);
 }
 
 const sanitizeFilename = (name = 'file') => name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -116,15 +120,15 @@ const maybeTransform = async (buffer, options = {}) => {
   if (options.format) {
     const fmt = options.format.toLowerCase();
     if (fmt === 'jpeg' || fmt === 'jpg') {
-      image.jpeg({ quality: options.quality || 85 });
+      image.jpeg({ quality: options.quality || envInt('IMAGE_QUALITY_JPEG', 85) });
       contentType = 'image/jpeg';
       finalExt = '.jpg';
     } else if (fmt === 'png') {
-      image.png({ quality: options.quality || 90 });
+      image.png({ quality: options.quality || envInt('IMAGE_QUALITY_PNG', 90) });
       contentType = 'image/png';
       finalExt = '.png';
     } else if (fmt === 'webp') {
-      image.webp({ quality: options.quality || 85 });
+      image.webp({ quality: options.quality || envInt('IMAGE_QUALITY_WEBP', 85) });
       contentType = 'image/webp';
       finalExt = '.webp';
     }
@@ -162,6 +166,70 @@ const resolveImageUrl = async (keyOrUrl) => {
   const url = await getPresignedReadUrl(key);
   _setCached(key, url);
   return url;
+};
+
+/**
+ * Batch resolve multiple image URLs in one call.
+ * Each URL is checked against the LRU cache first; uncached keys are fetched
+ * together, avoiding N consecutive S3 round-trips in list endpoints.
+ */
+const resolveImageUrls = async (keyOrUrls) => {
+  if (!Array.isArray(keyOrUrls)) return [];
+  if (keyOrUrls.length === 0) return [];
+
+  const results = [];
+  const uncached = [];
+  const uncachedIdx = [];
+
+  // Phase 1: Check cache for each URL
+  for (let i = 0; i < keyOrUrls.length; i++) {
+    const keyOrUrl = keyOrUrls[i];
+    if (!keyOrUrl) {
+      results.push(null);
+      continue;
+    }
+
+    // External URLs pass through
+    if (
+      (keyOrUrl.startsWith('http://') || keyOrUrl.startsWith('https://')) &&
+      !keyOrUrl.startsWith(publicBaseUrl)
+    ) {
+      results.push(keyOrUrl);
+      continue;
+    }
+
+    const key = extractObjectKey(keyOrUrl);
+    if (!key) {
+      results.push(null);
+      continue;
+    }
+
+    const cached = _getCached(key);
+    if (cached) {
+      results.push(cached);
+    } else {
+      results.push(null); // placeholder
+      uncached.push(key);
+      uncachedIdx.push(i);
+    }
+  }
+
+  // Phase 2: Batch fetch all uncached URLs
+  if (uncached.length > 0) {
+    const batchResults = await Promise.all(
+      uncached.map(key => getPresignedReadUrl(key))
+    );
+
+    for (let j = 0; j < batchResults.length; j++) {
+      const idx = uncachedIdx[j];
+      const key = uncached[j];
+      const url = batchResults[j];
+      results[idx] = url;
+      _setCached(key, url);
+    }
+  }
+
+  return results;
 };
 
 const uploadImage = async (imageInput, folder = 'shopyos', options = {}) => {
@@ -304,6 +372,7 @@ module.exports = {
   getPresignedUploadUrl,
   getPresignedReadUrl,
   resolveImageUrl,
+  resolveImageUrls,
   extractObjectKey,
   toPublicUrl,
   transformImageUrls,

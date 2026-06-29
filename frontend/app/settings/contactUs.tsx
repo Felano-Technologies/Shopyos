@@ -14,6 +14,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -33,14 +34,13 @@ export default function ContactUsScreen() {
 
   const handleSend = () => {
     if (!message.trim()) {
-      Alert.alert('Missing Message', 'Please enter a message before sending.');
+      CustomInAppToast.show({ type: 'error', title: 'Missing Message', message: 'Please enter a message before sending.' });
       return;
     }
     
     // Simulate sending
-    Alert.alert('Message Sent', 'Our support team will get back to you shortly.', [
-        { text: 'OK', onPress: () => router.back() }
-    ]);
+    CustomInAppToast.show({ type: 'success', title: 'Message Sent', message: 'Our support team will get back to you shortly.' });
+    router.back();
   };
 
   const handleContactPress = (action: string) => {

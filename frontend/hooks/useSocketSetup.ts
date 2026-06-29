@@ -96,7 +96,9 @@ export const useSocketSetup = () => {
             uid = me.id;
             await storage.setItem('userId', uid!);
           }
-        } catch {}
+        } catch (e) {
+          console.error('Failed to fetch user data for socket setup:', e);
+        }
       }
       if (uid) setCurrentUserId(uid);
     })();
@@ -134,7 +136,9 @@ export const useSocketSetup = () => {
         if (!token) return;
         await socketService.connect();
         await socketService.onNewMessage(handleNewMessage);
-      } catch {}
+      } catch (e) {
+        console.error('Failed to initialize socket:', e);
+      }
     };
 
     initSocket();

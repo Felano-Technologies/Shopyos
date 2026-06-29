@@ -88,7 +88,7 @@ const LoginScreen = () => {
       const { latitude, longitude } = await getDeviceLocation();
       const response = await loginUser(email, password, latitude, longitude);
       if (response.message === 'Login successful') {
-        CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
+        CustomInAppToast.show({ type: 'success', title: 'Login Successful', message: 'Welcome back!' });
         await refresh();
         if (response.passwordResetRequired) {
           router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
@@ -98,10 +98,10 @@ const LoginScreen = () => {
           navigateByRole(response.role);
         }
       } else {
-        CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
+        CustomInAppToast.show({ type: 'error', title: 'Login Failed', message: response.message || 'Please try again.' });
       }
     } catch (error: unknown) {
-      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error instanceof Error ? error.message : 'Something went wrong.' });
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
       setLoading(false);
     }
@@ -112,7 +112,7 @@ const LoginScreen = () => {
       const { latitude, longitude } = await getDeviceLocation();
       const response = await loginUser(quickEmail, quickPassword, latitude, longitude);
       if (response.message === 'Login successful') {
-        CustomInAppToast.show({ type: 'success', title: 'Login Successful 😊', message: 'Welcome back! 🎉' });
+        CustomInAppToast.show({ type: 'success', title: 'Login Successful', message: 'Welcome back!' });
         await refresh();
         if (response.passwordResetRequired) {
           router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
@@ -122,10 +122,10 @@ const LoginScreen = () => {
           navigateByRole(response.role);
         }
       } else {
-        CustomInAppToast.show({ type: 'error', title: 'Login Failed ❌', message: response.message || 'Please try again.' });
+        CustomInAppToast.show({ type: 'error', title: 'Login Failed', message: response.message || 'Please try again.' });
       }
     } catch (error: unknown) {
-      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed ⚠️', message: error instanceof Error ? error.message : 'Something went wrong.' });
+      CustomInAppToast.show({ type: 'error', title: 'Sign In Failed', message: error instanceof Error ? error.message : 'Something went wrong.' });
     } finally {
       setLoading(false);
     }

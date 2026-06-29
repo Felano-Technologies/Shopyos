@@ -577,9 +577,7 @@ const styles = StyleSheet.create({
   popularCard: {
     width: 148, backgroundColor: C.card, borderRadius: 22,
     overflow: 'hidden', marginRight: 12,
-    borderWidth: 1, borderColor: '#E2E8F0',
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   // The image wrapper — logo fills this area entirely
   popularImgWrap: {
@@ -634,9 +632,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 12,
     backgroundColor: C.card, borderRadius: 20, padding: 13,
     marginHorizontal: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: '#E2E8F0',
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8,
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   storeRowLogo: {
     width: 56, height: 56, borderRadius: 16, resizeMode: 'cover', backgroundColor: '#dbeafe',

@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const axios = require('axios');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
+const feeConfigService = require('../services/feeConfigService');
 
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_BASE_URL = 'https://api.paystack.co';
@@ -269,10 +270,17 @@ const verifyPayment = async (req, res, next) => {
  */
 const handleWebhook = async (req, res) => {
     try {
-        // Verify webhook signature
+        // Verify webhook signature using the raw body buffer
+        // express.raw({ type: 'application/json' }) ensures req.body is a Buffer
+        const rawBody = req.body;
+        if (!Buffer.isBuffer(rawBody)) {
+            logger.warn('Webhook received non-buffer body — ensure express.raw() middleware is applied');
+            return res.status(400).send('Invalid payload format');
+        }
+
         const hash = crypto
             .createHmac('sha512', PAYSTACK_SECRET_KEY)
-            .update(JSON.stringify(req.body))
+            .update(rawBody)
             .digest('hex');
 
         if (hash !== req.headers['x-paystack-signature']) {
@@ -280,7 +288,7 @@ const handleWebhook = async (req, res) => {
             return res.status(401).send('Invalid signature');
         }
 
-        const event = req.body;
+        const event = JSON.parse(rawBody);
 
         logger.info('Paystack webhook received', { event: event.event, reference: event.data?.reference });
 
@@ -435,7 +443,8 @@ const initializeListingFee = async (req, res, next) => {
             return res.status(400).json({ success: false, error: 'Listing fee already paid for this store' });
         }
 
-        const amountInPesewas = 50 * 100; // â‚µ50
+        const listingFeeGHS = Number(await feeConfigService.get('listing_fee_amount'));
+        const amountInPesewas = listingFeeGHS * 100;
 
         const payload = {
             email,

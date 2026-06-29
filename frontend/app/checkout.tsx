@@ -42,6 +42,35 @@ function mapIpRegionToGhana(raw: string): string | null {
   return GHANA_REGIONS.find(g => r.includes(g.toLowerCase())) ?? null;
 }
 
+type StoreQuote = {
+  deliveryFee: number;
+  isInterRegional: boolean;
+  parcelTransitFee: number;
+  estimatedTransitDays: number | null;
+  storeRegion: string | null;
+  withinRange: boolean;
+  note: string | null;
+};
+
+type StoreGroup = {
+  storeId: string;
+  storeName: string;
+  storeLogo?: string;
+  items: any[];
+};
+
+function groupByStore(items: any[]): StoreGroup[] {
+  const map: Record<string, StoreGroup> = {};
+  for (const item of items) {
+    const sid = item.storeId ?? 'unknown';
+    if (!map[sid]) {
+      map[sid] = { storeId: sid, storeName: item.storeName ?? 'Store', storeLogo: item.storeLogo, items: [] };
+    }
+    map[sid].items.push(item);
+  }
+  return Object.values(map);
+}
+
 export default function CheckoutScreen() {
   const router = useRouter();
   const cartItems = useCart((s) => s.items);
@@ -80,18 +109,10 @@ export default function CheckoutScreen() {
   // Buyer protection fee from platform config (0 until loaded so nothing incorrect shows during loading)
   const [buyerProtectionFee, setBuyerProtectionFee] = useState<number>(0);
 
-  // Delivery fee state
-  const [deliveryFee, setDeliveryFee] = useState<number>(0);
+  // Delivery fee state — one quote per store
+  const [storeQuotes, setStoreQuotes] = useState<Record<string, StoreQuote>>({});
   const [isFetchingFee, setIsFetchingFee] = useState(false);
-  const [isWithinRange, setIsWithinRange] = useState<boolean | null>(null);
-  const [deliveryNote, setDeliveryNote] = useState<string | null>(null);
   const [buyerCoords, setBuyerCoords] = useState<{ lat: number; lng: number } | null>(null);
-
-  // Inter-Regional states
-  const [isInterRegional, setIsInterRegional] = useState(false);
-  const [parcelTransitFee, setParcelTransitFee] = useState(0);
-  const [estimatedTransitDays, setEstimatedTransitDays] = useState<number | null>(null);
-  const [storeRegionName, setStoreRegionName] = useState<string | null>(null);
 
   // Last-mile home delivery option (inter-regional only)
   const [requestLastMile, setRequestLastMile] = useState(false);
@@ -113,57 +134,71 @@ export default function CheckoutScreen() {
     })();
   }, []);
 
-  // Fetch delivery quote whenever buyer location is known
+  // Fetch delivery quotes for every distinct store in the cart
   useEffect(() => {
     if (cartItems.length === 0) return;
 
+    const groups = groupByStore(cartItems);
+
     (async () => {
-      let storeId = (cartItems[0] as any).storeId ?? (cartItems[0] as any).store_id ?? (cartItems[0] as any).business_id;
-      
-      // Fallback for legacy cart items
-      if (!storeId && cartItems[0].id) {
-        try {
-          const prodRes = await getProductById(cartItems[0].id);
-          if (prodRes.success) {
-            storeId = prodRes.product.store_id || prodRes.product.store?._id || prodRes.product.store?.id || prodRes.product.businessId || prodRes.product.business_id;
-          }
-        } catch { /* Fail silently */ }
-      }
-
-      if (!storeId) return;
-
       setIsFetchingFee(true);
-      try {
-        const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
-        if (res?.success) {
-          const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, storeRegion, note } = res.quote || {};
-          setIsWithinRange(withinRange);
-          setDeliveryNote(note || null);
-          setIsInterRegional(!!isInter);
-          setParcelTransitFee(transit || 0);
-          setEstimatedTransitDays(days || null);
-          setStoreRegionName(storeRegion || null);
-          if (withinRange && fee !== null) {
-            setDeliveryFee(fee);
-          } else {
-            setDeliveryFee(0);
-          }
+      const newQuotes: Record<string, StoreQuote> = {};
+
+      await Promise.all(groups.map(async (group) => {
+        let { storeId } = group;
+
+        // Fallback for legacy cart items without storeId
+        if (storeId === 'unknown' && group.items[0]?.id) {
+          try {
+            const prodRes = await getProductById(group.items[0].id);
+            if (prodRes.success) {
+              storeId = prodRes.product.store_id || prodRes.product.store?._id || prodRes.product.businessId || '';
+            }
+          } catch { /* fail silently */ }
         }
-      } catch {
-        // Eligibility remains null (unknown) if quote fails
-      } finally {
-        setIsFetchingFee(false);
-      }
+
+        if (!storeId || storeId === 'unknown') return;
+
+        try {
+          const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
+          if (res?.success) {
+            const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, storeRegion, note } = res.quote || {};
+            newQuotes[storeId] = {
+              deliveryFee: withinRange && fee != null ? fee : 0,
+              isInterRegional: !!isInter,
+              parcelTransitFee: transit || 0,
+              estimatedTransitDays: days || null,
+              storeRegion: storeRegion || null,
+              withinRange: !!withinRange,
+              note: note || null,
+            };
+          }
+        } catch { /* quote unavailable for this store */ }
+      }));
+
+      setStoreQuotes(newQuotes);
+      setIsFetchingFee(false);
     })();
   }, [buyerCoords, cartItems, deliveryState]);
+
+  const storeGroups = groupByStore(cartItems);
+  const storeQuoteList = Object.values(storeQuotes);
+  const totalDeliveryFee = storeQuoteList.reduce((s, q) => s + q.deliveryFee, 0);
+  const totalTransitFee = storeQuoteList.reduce((s, q) => s + q.parcelTransitFee, 0);
+  const isAnyInterRegional = storeQuoteList.some(q => q.isInterRegional);
+  const isWithinRange = storeQuoteList.length > 0 && storeQuoteList.every(q => q.withinRange);
+  const deliveryNote = storeQuoteList.find(q => !q.withinRange)?.note ?? null;
+  const firstInterRegGroup = storeGroups.find(g => storeQuotes[g.storeId]?.isInterRegional);
+  const storeRegionName = firstInterRegGroup ? (storeQuotes[firstInterRegGroup.storeId]?.storeRegion ?? null) : null;
+  const estimatedTransitDays = storeQuoteList.filter(q => q.isInterRegional).reduce((max, q) => Math.max(max, q.estimatedTransitDays ?? 0), 0) || null;
 
   const tax = buyerProtectionFee;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
   const pointsDiscount = usePoints ? loyaltyValue : 0;
   const totalDiscount = Number.parseFloat((promoDiscount + pointsDiscount).toFixed(2));
   const totalBargainDiscount = cartItems.reduce((sum, item) => sum + (Number(item.bargain_discount) || 0) * item.quantity, 0);
-  const lastMileCharge = isInterRegional && requestLastMile ? lastMileFee : 0;
-  const total = Number.parseFloat((subtotal + tax + deliveryFee + parcelTransitFee + lastMileCharge - totalDiscount - totalBargainDiscount).toFixed(2));
+  const lastMileCharge = isAnyInterRegional && requestLastMile ? lastMileFee : 0;
+  const total = Number.parseFloat((subtotal + tax + totalDeliveryFee + totalTransitFee + lastMileCharge - totalDiscount - totalBargainDiscount).toFixed(2));
 
   useEffect(() => {
     (async () => {
@@ -294,7 +329,7 @@ export default function CheckoutScreen() {
         ...(buyerCoords && { buyerLat: buyerCoords.lat, buyerLng: buyerCoords.lng }),
         ...(appliedPromo && { promoCode: appliedPromo.code }),
         ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
-        ...(isInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
+        ...(isAnyInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
       });
 
       if (res.success) {
@@ -337,17 +372,66 @@ export default function CheckoutScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={S.scroll} showsVerticalScrollIndicator={false}>
 
-            {/* Order Summary */}
+            {/* Order Summary — one card per store */}
             <Text style={S.sectionTitle}>Order Summary</Text>
-            <View style={S.card}>
-              {cartItems.map((item) => (
-                <View key={item.id} style={S.summaryRow}>
-                  <Text style={S.summaryItemName} numberOfLines={1}>{item.title}</Text>
-                  <Text style={S.summaryItemQty}>x{item.quantity}</Text>
-                  <Text style={S.summaryItemPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
+            {storeGroups.map((group) => {
+              const quote = storeQuotes[group.storeId];
+              return (
+                <View key={group.storeId} style={[S.card, { marginBottom: 8 }]}>
+                  {/* Store header */}
+                  <View style={S.storeHeader}>
+                    <View style={S.storeAvatar}>
+                      <Text style={S.storeAvatarText}>{group.storeName.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <Text style={S.storeNameTxt} numberOfLines={1}>{group.storeName}</Text>
+                    {quote?.isInterRegional && (
+                      <View style={S.interRegBadge}>
+                        <Ionicons name="bus-outline" size={10} color="#1E3A8A" />
+                        <Text style={S.interRegBadgeText}>Cross-region</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  {/* Items for this store */}
+                  {group.items.map((item: any) => (
+                    <View key={item.id + (item.variantId ?? '')} style={S.summaryRow}>
+                      <Text style={S.summaryItemName} numberOfLines={1}>{item.title}</Text>
+                      <Text style={S.summaryItemQty}>x{item.quantity}</Text>
+                      <Text style={S.summaryItemPrice}>₵{(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</Text>
+                    </View>
+                  ))}
+
+                  <View style={S.divider} />
+
+                  {/* Per-store delivery fee */}
+                  <View style={S.summaryRow}>
+                    <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>Delivery</Text>
+                    <Text style={[S.summaryItemPrice, { fontSize: 13 }]}>
+                      {isFetchingFee
+                        ? '...'
+                        : quote == null
+                          ? '...'
+                          : !quote.withinRange
+                            ? 'Not available'
+                            : `₵${quote.deliveryFee.toFixed(2)}`}
+                    </Text>
+                  </View>
                 </View>
-              ))}
-              <View style={S.divider} />
+              );
+            })}
+
+            {/* Multi-store notice */}
+            {storeGroups.length > 1 && (
+              <View style={S.multiStoreBanner}>
+                <Ionicons name="information-circle-outline" size={16} color="#1E40AF" />
+                <Text style={S.multiStoreBannerText}>
+                  {storeGroups.length} stores · {storeGroups.length} separate deliveries
+                </Text>
+              </View>
+            )}
+
+            {/* Totals card */}
+            <View style={S.card}>
               <View style={S.summaryRow}>
                 <Text style={S.summaryItemName}>Subtotal</Text>
                 <Text style={S.summaryItemPrice}>₵{Number(subtotal || 0).toFixed(2)}</Text>
@@ -357,18 +441,20 @@ export default function CheckoutScreen() {
                 <Text style={S.summaryItemPrice}>₵{Number(tax || 0).toFixed(2)}</Text>
               </View>
               <View style={S.summaryRow}>
-                <Text style={S.summaryItemName}>Delivery Fee</Text>
+                <Text style={S.summaryItemName}>
+                  {storeGroups.length > 1 ? `Delivery (${storeGroups.length} stores)` : 'Delivery Fee'}
+                </Text>
                 <Text style={S.summaryItemPrice}>
-                  {isFetchingFee ? '...' : `₵${deliveryFee.toFixed(2)}`}
+                  {isFetchingFee ? '...' : `₵${totalDeliveryFee.toFixed(2)}`}
                 </Text>
               </View>
-              {isInterRegional && parcelTransitFee > 0 && (
+              {isAnyInterRegional && totalTransitFee > 0 && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryItemName}>Cross-Region Courier Fee</Text>
-                  <Text style={S.summaryItemPrice}>₵{parcelTransitFee.toFixed(2)}</Text>
+                  <Text style={S.summaryItemPrice}>₵{totalTransitFee.toFixed(2)}</Text>
                 </View>
               )}
-              {isInterRegional && requestLastMile && (
+              {isAnyInterRegional && requestLastMile && (
                 <View style={S.summaryRow}>
                   <Text style={S.summaryItemName}>Last-Mile Home Delivery</Text>
                   <Text style={S.summaryItemPrice}>₵{lastMileFee.toFixed(2)}</Text>
@@ -396,7 +482,7 @@ export default function CheckoutScreen() {
             </View>
 
             {/* Last-Mile Delivery Option — shown only for inter-regional orders */}
-            {isInterRegional && (
+            {isAnyInterRegional && (
               <>
                 <Text style={S.sectionTitle}>Parcel Delivery Option</Text>
                 <View style={S.card}>
@@ -593,32 +679,31 @@ export default function CheckoutScreen() {
                 </ScrollView>
               </View>
 
-              {isInterRegional && (
+              {isAnyInterRegional && (
                 <View style={S.interRegionalCard}>
                   <View style={S.interRegionalHeader}>
                     <Ionicons name="bus-outline" size={18} color="#0C1559" />
                     <Text style={S.interRegionalTitle}>Cross-Region Shipment</Text>
                   </View>
                   <Text style={S.interRegionalText}>
-                    This order will ship from {storeRegionName || 'merchant region'} to {deliveryState}.
-                    It will be routed via our Parcel Partner hubs.
+                    {storeGroups.filter(g => storeQuotes[g.storeId]?.isInterRegional).length > 1
+                      ? `Some stores will ship cross-region to ${deliveryState} via our Parcel Partner hubs.`
+                      : `This order will ship from ${storeRegionName || 'merchant region'} to ${deliveryState} via our Parcel Partner hubs.`}
                   </Text>
                   {estimatedTransitDays && (
                     <Text style={S.interRegionalTransit}>
                       Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDays} days</Text> to destination hub.
                     </Text>
                   )}
-                  <View style={S.interRegionalBreakdown}>
-                    <Text style={S.breakdownTitle}>Delivery Breakdown:</Text>
-                    <View style={S.breakdownRow}>
-                      <Text style={S.breakdownLabel}>Store to Origin Hub:</Text>
-                      <Text style={S.breakdownValue}>₵{deliveryFee.toFixed(2)}</Text>
+                  {totalTransitFee > 0 && (
+                    <View style={S.interRegionalBreakdown}>
+                      <Text style={S.breakdownTitle}>Cross-Region Fees:</Text>
+                      <View style={S.breakdownRow}>
+                        <Text style={S.breakdownLabel}>Inter-Hub Transit Fee:</Text>
+                        <Text style={S.breakdownValue}>₵{totalTransitFee.toFixed(2)}</Text>
+                      </View>
                     </View>
-                    <View style={S.breakdownRow}>
-                      <Text style={S.breakdownLabel}>Inter-Hub Transit Fee:</Text>
-                      <Text style={S.breakdownValue}>₵{parcelTransitFee.toFixed(2)}</Text>
-                    </View>
-                  </View>
+                  )}
                 </View>
               )}
               {showAddressNudge && (
@@ -652,25 +737,25 @@ export default function CheckoutScreen() {
             />
 
             {/* Status Messages for User */}
-            {!isFetchingFee && isWithinRange === false && (
+            {!isFetchingFee && storeQuoteList.length > 0 && !isWithinRange && (
               <View style={[S.errorBanner, { marginTop: 20, marginBottom: -10 }]}>
                 <Ionicons name="alert-circle" size={18} color="#B91C1C" />
-                <Text style={S.errorText}>{deliveryNote || "Delivery unavailable: Outside store's radius."}</Text>
+                <Text style={S.errorText}>{deliveryNote || "Delivery unavailable: Outside store's delivery radius."}</Text>
               </View>
             )}
             {isFetchingFee && (
               <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10, backgroundColor: '#EFF6FF' }]}>
                 <ActivityIndicator size="small" color="#1E40AF" style={{ marginRight: 8 }} />
-                <Text style={[S.profileNudgeText, { color: '#1E40AF' }]}>Calculating delivery fee...</Text>
+                <Text style={[S.profileNudgeText, { color: '#1E40AF' }]}>Calculating delivery fees...</Text>
               </View>
             )}
-            {!isFetchingFee && isWithinRange === null && (
+            {!isFetchingFee && storeQuoteList.length === 0 && (
               <View style={[S.profileNudge, { marginTop: 20, marginBottom: -10, backgroundColor: '#FFF7ED' }]}>
                 <Ionicons name="location-outline" size={18} color="#C2410C" />
                 <Text style={[S.profileNudgeText, { color: '#C2410C' }]}>
-                  {!buyerCoords 
-                    ? "Waiting for GPS location..." 
-                    : "Identifying store for delivery calculation..."}
+                  {!buyerCoords
+                    ? "Waiting for GPS location..."
+                    : "Identifying stores for delivery calculation..."}
                 </Text>
               </View>
             )}
@@ -752,6 +837,15 @@ const S = StyleSheet.create({
   summaryItemQty: { fontSize: 13, fontFamily: 'Montserrat-Medium', color: C.muted, marginHorizontal: 8 },
   summaryItemPrice: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: C.navy },
   divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: 12 },
+
+  storeHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
+  storeAvatar: { width: 28, height: 28, borderRadius: 8, backgroundColor: C.navy, justifyContent: 'center', alignItems: 'center' },
+  storeAvatarText: { fontSize: 13, fontFamily: 'Montserrat-Bold', color: '#FFF' },
+  storeNameTxt: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body },
+  interRegBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
+  interRegBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#1E3A8A' },
+  multiStoreBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 8 },
+  multiStoreBannerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#1E40AF' },
 
   inputGroup: { marginBottom: 16 },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },

@@ -3,10 +3,14 @@
 
 const multer = require('multer');
 const path = require('node:path');
+const { envInt } = require('../config/envConfig');
 
 // Configure memory storage (files stored in memory as Buffer)
 // Better for Cloudinary uploads as we don't need to save to disk
 const storage = multer.memoryStorage();
+
+// Max upload file size in bytes (default 100MB)
+const MAX_UPLOAD_SIZE = envInt('MAX_UPLOAD_SIZE_BYTES', 100 * 1024 * 1024);
 
 // File filter function
 const fileFilter = (req, file, cb) => {
@@ -26,7 +30,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024, // 100MB max file size
+    fileSize: MAX_UPLOAD_SIZE,
   },
   fileFilter: fileFilter
 });

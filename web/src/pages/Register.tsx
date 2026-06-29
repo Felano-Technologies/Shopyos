@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { registerUser } from '../services/auth';
+import { SEO } from '../components/SEO';
 
 export const Register: React.FC = () => {
   const [name, setName] = useState('');
@@ -38,6 +39,7 @@ export const Register: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[80vh] p-4">
+      <SEO title="Create Account" />
       <div className="bg-white animate-fade-in w-full max-w-[460px] p-8 md:p-10 rounded-[24px] shadow-sm border border-gray-100">
         <div className="flex justify-center mb-6">
           <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-16 h-16 object-contain rounded-2xl shadow-sm" />
@@ -134,6 +136,7 @@ export const Register: React.FC = () => {
             type="submit"
             disabled={loading}
             className="bg-navy text-white hover:bg-navy-mid font-bold py-3.5 rounded-[16px] text-sm transition-colors mt-4 shadow-sm disabled:opacity-50"
+            aria-label="Create your account"
           >
             {loading ? 'Creating Account...' : 'Create Account'}
           </button>

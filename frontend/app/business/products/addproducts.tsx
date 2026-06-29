@@ -11,6 +11,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { createProduct, uploadProductImages, updateProduct, getAllCategories, initializeListingFee } from '@/services/api';
 import { useActiveBusiness } from '@/hooks/useBusiness';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import * as WebBrowser from 'expo-web-browser';
 
 const { width: SW } = Dimensions.get('window');
@@ -101,13 +102,14 @@ export default function ManageProductScreen() {
         setAttrStyle(item.attrStyle || ''); setAttrBrand(item.attrBrand || '');
         setAttrConnectivity(item.attrConnectivity || '');
         setBargainingEnabled(item.bargainingEnabled ?? true);
-      } catch {}
-    }
+      } catch (e) {
+        console.error('Failed to parse product data for editing:', e);
+      }
   }, [productData]);
 
   const handleSave = async () => {
     if (!name || !price || !stock || !category) {
-      Alert.alert('Missing Fields', 'Please fill in Name, Price, Quantity, and Category.'); return;
+      CustomInAppToast.show({ type: 'error', title: 'Missing Fields', message: 'Please fill in Name, Price, Quantity, and Category.' }); return;
     }
     setIsSubmitting(true);
     try {
@@ -127,24 +129,20 @@ export default function ManageProductScreen() {
         await updateProduct(editingId, { ...payload, bargainingEnabled });
         if (image && !image.startsWith('http')) await uploadProductImages(editingId, [image]);
       } else {
-        if (!image) { Alert.alert('Missing Image', 'Please add an image.'); setIsSubmitting(false); return; }
+        if (!image) { CustomInAppToast.show({ type: 'error', title: 'Missing Image', message: 'Please add an image.' }); setIsSubmitting(false); return; }
         const res = await createProduct(payload);
         if (res.success && res.product) await uploadProductImages(res.product._id, [image]);
       }
       router.back();
     } catch (e: any) {
       if (e.code === 'LISTING_FEE_REQUIRED') {
-        Alert.alert('Limit Reached', e.message, [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Pay ₵50', onPress: async () => {
-            if(businessId && activeBusiness?.email) {
-              const res = await initializeListingFee({ storeId: businessId, email: activeBusiness.email });
-              if (res.success && res.data?.authorization_url) WebBrowser.openBrowserAsync(res.data.authorization_url);
-            }
-          }}
-        ]);
+        CustomInAppToast.show({ type: 'error', title: 'Limit Reached', message: e.message });
+        if(businessId && activeBusiness?.email) {
+          const res = await initializeListingFee({ storeId: businessId, email: activeBusiness.email });
+          if (res.success && res.data?.authorization_url) WebBrowser.openBrowserAsync(res.data.authorization_url);
+        }
       } else {
-        Alert.alert('Error', e.message || 'Operation failed');
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Operation failed' });
       }
     } finally {
       setIsSubmitting(false);

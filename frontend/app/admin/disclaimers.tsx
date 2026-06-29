@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather, Ionicons } from '@expo/vector-icons';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -81,7 +82,7 @@ export default function AdminDisclaimersScreen() {
       const logs = await adminGetDisclaimerAudit(auditFilter || undefined, 100);
       setAuditLogs(logs);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to load audit logs');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load audit logs' });
     } finally {
       setLoadingAudit(false);
       setRefreshing(false);
@@ -108,7 +109,7 @@ export default function AdminDisclaimersScreen() {
 
   const handleSaveDisclaimer = async () => {
     if (!editForm.title.trim() || !editForm.content.trim() || !editForm.version.trim()) {
-      Alert.alert('Validation', 'Title, content, and version are required');
+      CustomInAppToast.show({ type: 'error', title: 'Validation', message: 'Title, content, and version are required' });
       return;
     }
     setSaving(true);
@@ -118,10 +119,10 @@ export default function AdminDisclaimersScreen() {
         content: editForm.content,
         version: editForm.version,
       });
-      Alert.alert('Success', `"${editForm.title}" has been updated and the cache has been cleared.`);
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: `"${editForm.title}" has been updated and the cache has been cleared.` });
       setEditModal(false);
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to update disclaimer');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to update disclaimer' });
     } finally {
       setSaving(false);
     }

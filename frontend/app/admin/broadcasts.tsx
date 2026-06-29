@@ -18,6 +18,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { api } from '@/services/api';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 type RecipientType = 'all' | 'customers' | 'stores' | 'drivers';
 type CampaignType = 'manual' | 'holiday' | 'daily_engagement';
@@ -78,7 +80,7 @@ async function confirmCancelBroadcast(
     await api.delete(`/admin/scheduled-notifications/${id}`);
     setBroadcasts((previous) => previous.filter((broadcast) => broadcast.id !== id));
   } catch {
-    Alert.alert('Error', 'Could not cancel notification');
+    CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not cancel notification' });
   }
 }
 
@@ -99,6 +101,7 @@ export default function AdminNotificationsScreen() {
   const [loadingHoliday, setLoadingHoliday] = useState(false);
   const [tab, setTab] = useState<'queue' | 'automated'>('queue');
   const [testingNotif, setTestingNotif] = useState(false);
+  const [cancelBroadcastId, setCancelBroadcastId] = useState<string | null>(null);
 
   const fetchBroadcasts = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -135,16 +138,16 @@ export default function AdminNotificationsScreen() {
 
   const handleSubmit = async () => {
     if (!title.trim() || !message.trim()) {
-      Alert.alert('Missing fields', 'Title and message are required.');
+      CustomInAppToast.show({ type: 'error', title: 'Missing fields', message: 'Title and message are required.' });
       return;
     }
     if (!sendEmail && !sendSms && !sendPush) {
-      Alert.alert('No channel', 'Enable at least one channel.');
+      CustomInAppToast.show({ type: 'error', title: 'No channel', message: 'Enable at least one channel.' });
       return;
     }
     const mins = Number.parseInt(scheduleIn, 10);
     if (Number.isNaN(mins) || mins < 1) {
-      Alert.alert('Invalid time', 'Enter a number of minutes >= 1.');
+      CustomInAppToast.show({ type: 'error', title: 'Invalid time', message: 'Enter a number of minutes >= 1.' });
       return;
     }
 
@@ -162,30 +165,34 @@ export default function AdminNotificationsScreen() {
       });
       const json = res.data;
       if (!json.success) throw new Error(json.message);
-      Alert.alert('Scheduled ✓', `Broadcast queued for ${fmt(scheduled_at)}`);
+      CustomInAppToast.show({ type: 'success', title: 'Scheduled ✓', message: `Broadcast queued for ${fmt(scheduled_at)}` });
       setTitle('');
       setMessage('');
       fetchBroadcasts();
     } catch (error: any) {
-      Alert.alert('Error', error.message ?? 'Failed to schedule notification');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message ?? 'Failed to schedule notification' });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleCancel = (id: string) => {
-    Alert.alert('Cancel broadcast?', 'This cannot be undone.', [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes, cancel', style: 'destructive', onPress: () => confirmCancelBroadcast(id, setBroadcasts) },
-    ]);
+    setCancelBroadcastId(id);
+  };
+
+  const confirmCancelBroadcastAction = () => {
+    if (!cancelBroadcastId) return;
+    const id = cancelBroadcastId;
+    setCancelBroadcastId(null);
+    confirmCancelBroadcast(id, setBroadcasts);
   };
 
   const triggerSweep = async () => {
     try {
       await api.post('/admin/scheduled-notifications/trigger-sweep');
-      Alert.alert('Sweep triggered', 'Daily marketing sweep is running. Check logs.');
+      CustomInAppToast.show({ type: 'success', title: 'Sweep triggered', message: 'Daily marketing sweep is running. Check logs.' });
     } catch {
-      Alert.alert('Error', 'Could not trigger sweep');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not trigger sweep' });
     }
   };
 
@@ -194,9 +201,9 @@ export default function AdminNotificationsScreen() {
     try {
       const res = await api.post('/admin/scheduled-notifications/send-test');
       const json = res.data;
-      Alert.alert(json.success ? 'Test sent ✓' : 'Test failed', json.message);
+      CustomInAppToast.show({ type: json.success ? 'success' : 'error', title: json.success ? 'Test sent ✓' : 'Test failed', message: json.message });
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message ?? error.message ?? 'Request failed');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.response?.data?.message ?? error.message ?? 'Request failed' });
     } finally {
       setTestingNotif(false);
     }
@@ -523,6 +530,18 @@ export default function AdminNotificationsScreen() {
           </ScrollView>
         </View>
       </SafeAreaView>
+
+      <ConfirmModal
+        visible={cancelBroadcastId !== null}
+        onClose={() => setCancelBroadcastId(null)}
+        title="Cancel broadcast?"
+        message="This cannot be undone."
+        icon="⚠️"
+        actions={[
+          { label: 'No', onPress: () => setCancelBroadcastId(null), variant: 'cancel' },
+          { label: 'Yes, cancel', onPress: confirmCancelBroadcastAction, variant: 'destructive' },
+        ]}
+      />
     </>
   );
 }

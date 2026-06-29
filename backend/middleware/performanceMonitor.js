@@ -40,8 +40,9 @@ const metrics = {
     startedAt: new Date().toISOString()
 };
 
-const SLOW_THRESHOLD_MS = 1000;
-const MEMORY_WARN_MB = 256;     // Warn when heap exceeds this
+const { envInt } = require('../config/envConfig');
+const SLOW_THRESHOLD_MS = envInt('SLOW_REQUEST_THRESHOLD_MS', 1000);
+const MEMORY_WARN_MB = envInt('MEMORY_WARN_MB', 256);
 
 /**
  * Express middleware — tracks response time, status codes, active connections,

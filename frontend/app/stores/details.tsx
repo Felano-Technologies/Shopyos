@@ -68,7 +68,7 @@ async function submitReview(params: {
   fetchReviews: () => void;
 }) {
   if (params.userRating === 0) {
-    Alert.alert("Rating Required", "Please select a star rating.");
+    CustomInAppToast.show({ type: 'info', title: 'Rating Required', message: "Please select a star rating." });
     return;
   }
   try {
@@ -94,9 +94,9 @@ async function submitReview(params: {
       params.setReviewModalVisible(false);
       params.setReviewEligibilityVisible(true);
     } else if (message.includes('already reviewed')) {
-      Alert.alert("Already Reviewed", "You have already reviewed this store. You can update your existing review from your profile.");
+      CustomInAppToast.show({ type: 'info', title: 'Already Reviewed', message: "You have already reviewed this store. You can update your existing review from your profile." });
     } else {
-      Alert.alert("Error", error.message || "Failed to post review");
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || "Failed to post review" });
     }
   } finally {
     params.setIsSubmittingReview(false);
@@ -356,7 +356,7 @@ export default function StoreDetailsScreen() {
         const updated = await getReviewComments(selectedReviewId);
         setActiveComments(updated.comments);
       }
-    } catch (err: unknown) { Alert.alert("Error", err instanceof Error ? err.message : "Could not post comment"); }
+    } catch (err: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: err instanceof Error ? err.message : "Could not post comment" }); }
     finally { setCommentSubmitting(false); }
   };
   const handleChat = () => startChat({

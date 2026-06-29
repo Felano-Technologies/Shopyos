@@ -1,4 +1,5 @@
 // controllers/bargainController.js
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 
@@ -75,10 +76,7 @@ const createBargainOffer = async (req, res, next) => {
     const store = await repositories.stores.findById(product.store_id);
     const sellerId = store?.owner_id;
     if (!sellerId || sellerId === buyerId) {
-      return res.status(400).json({
-        success: false,
-        error: sellerId === buyerId ? 'Sellers cannot bargain on their own products' : 'Could not determine seller',
-      });
+      return ApiResponse.error(res, sellerId === buyerId ? 'Sellers cannot bargain on their own products' : 'Could not determine seller', 400);
     }
 
     const { maxRounds, expiresAt } = await getBargainConfig();
@@ -108,13 +106,13 @@ const createBargainOffer = async (req, res, next) => {
     }).catch(() => {});
     await handleBargainNotifications(bargain, product.title, isRejected);
 
-    res.status(isRejected ? 200 : 201).json({ success: true, message: 'Offer submitted', bargain });
+    ApiResponse.withEntity(res, 'bargain', bargain, 'Offer submitted', null, isRejected ? 200 : 201);
   } catch (error) {
     if (error.message.includes('required') || error.message.includes('must be') || error.message.includes('not enabled') || error.message.includes('less than') || error.message.includes('already have')) {
-      return res.status(400).json({ success: false, error: error.message });
+      return ApiResponse.error(res, error.message, 400);
     }
     if (error.message === 'Product not found') {
-      return res.status(404).json({ success: false, error: error.message });
+      return ApiResponse.error(res, error.message, 404);
     }
     next(error);
   }
@@ -139,15 +137,11 @@ const getBuyerOffers = async (req, res, next) => {
       offset,
     });
 
-    res.status(200).json({
-      success: true,
-      data,
-      pagination: {
-        totalItems: count,
-        totalPages: Math.ceil(count / limitNum),
-        currentPage: Math.floor(offset / limitNum) + 1,
-        itemsPerPage: limitNum,
-      },
+    ApiResponse.paginated(res, data, {
+      totalItems: count,
+      totalPages: Math.ceil(count / limitNum),
+      currentPage: Math.floor(offset / limitNum) + 1,
+      itemsPerPage: limitNum,
     });
   } catch (error) {
     next(error);
@@ -172,15 +166,11 @@ const getSellerOffers = async (req, res, next) => {
       offset,
     });
 
-    res.status(200).json({
-      success: true,
-      data,
-      pagination: {
-        totalItems: count,
-        totalPages: Math.ceil(count / limitNum),
-        currentPage: Math.floor(offset / limitNum) + 1,
-        itemsPerPage: limitNum,
-      },
+    ApiResponse.paginated(res, data, {
+      totalItems: count,
+      totalPages: Math.ceil(count / limitNum),
+      currentPage: Math.floor(offset / limitNum) + 1,
+      itemsPerPage: limitNum,
     });
   } catch (error) {
     next(error);
@@ -220,16 +210,16 @@ const handleSellerAccept = async (bargain, sellerId, res) => {
     relatedType: 'bargain_offer',
   }).catch((e) => logger.warn('[Bargain] accept notify failed:', e.message));
 
-  res.status(200).json({ success: true, bargain: updated });
+  ApiResponse.withEntity(res, 'bargain', updated);
 };
 
 const handleSellerCounter = async (bargain, sellerId, counterPrice, sellerMessage, res) => {
   if (bargain.round_number >= bargain.max_rounds) {
-    return res.status(400).json({ success: false, error: 'Maximum bargaining rounds reached. Cannot counter again.' });
+    return ApiResponse.error(res, 'Maximum bargaining rounds reached. Cannot counter again.', 400);
   }
   const price = Number.parseFloat(counterPrice);
   if (Number.isNaN(price) || price <= 0 || price >= Number.parseFloat(bargain.original_price)) {
-    return res.status(400).json({ success: false, error: 'Counter price must be positive and less than original price.' });
+    return ApiResponse.error(res, 'Counter price must be positive and less than original price.', 400);
   }
 
   const { expiresAt } = await getBargainConfig();
@@ -260,7 +250,7 @@ const handleSellerCounter = async (bargain, sellerId, counterPrice, sellerMessag
     relatedType: 'bargain_offer',
   }).catch((e) => logger.warn('[Bargain] counter notify failed:', e.message));
 
-  res.status(200).json({ success: true, bargain: updated });
+  ApiResponse.withEntity(res, 'bargain', updated);
 };
 
 const handleSellerReject = async (bargain, sellerId, res) => {
@@ -284,7 +274,7 @@ const handleSellerReject = async (bargain, sellerId, res) => {
     relatedType: 'bargain_offer',
   }).catch((e) => logger.warn('[Bargain] reject notify failed:', e.message));
 
-  res.status(200).json({ success: true, bargain: updated });
+  ApiResponse.withEntity(res, 'bargain', updated);
 };
 
 /**
@@ -299,15 +289,15 @@ const respondToBargain = async (req, res, next) => {
     const sellerId = req.user.id;
 
     if (!['accept', 'counter', 'reject'].includes(action)) {
-      return res.status(400).json({ success: false, error: 'Invalid action. Must be accept, counter, or reject.' });
+      return ApiResponse.error(res, 'Invalid action. Must be accept, counter, or reject.', 400);
     }
 
     const bargain = await repositories.bargains.findById(bargainId);
     if (!bargain || bargain.seller_id !== sellerId) {
-      return res.status(404).json({ success: false, error: 'Bargain offer not found' });
+      return ApiResponse.error(res, 'Bargain offer not found', 404);
     }
     if (!['pending', 'countered'].includes(bargain.status)) {
-      return res.status(400).json({ success: false, error: 'Bargain is no longer active for responses.' });
+      return ApiResponse.error(res, 'Bargain is no longer active for responses.', 400);
     }
 
     if (action === 'accept') {
@@ -355,16 +345,16 @@ const handleBuyerAccept = async (bargain, buyerId, res) => {
     relatedType: 'bargain_offer',
   }).catch((e) => logger.warn('[Bargain] buyer accept notify failed:', e.message));
 
-  res.status(200).json({ success: true, bargain: updated });
+  ApiResponse.withEntity(res, 'bargain', updated);
 };
 
 const handleBuyerCounter = async (bargain, buyerId, offeredPrice, buyerMessage, res) => {
   if (bargain.round_number >= bargain.max_rounds) {
-    return res.status(400).json({ success: false, error: 'Maximum bargaining rounds reached. Cannot counter again.' });
+    return ApiResponse.error(res, 'Maximum bargaining rounds reached. Cannot counter again.', 400);
   }
   const price = Number.parseFloat(offeredPrice);
   if (Number.isNaN(price) || price <= 0 || price >= Number.parseFloat(bargain.counter_price || bargain.original_price)) {
-    return res.status(400).json({ success: false, error: 'Counter-offer price must be positive and less than the previous counter price.' });
+    return ApiResponse.error(res, 'Counter-offer price must be positive and less than the previous counter price.', 400);
   }
 
   const { expiresAt } = await getBargainConfig();
@@ -395,7 +385,7 @@ const handleBuyerCounter = async (bargain, buyerId, offeredPrice, buyerMessage, 
     relatedType: 'bargain_offer',
   }).catch((e) => logger.warn('[Bargain] buyer counter notify failed:', e.message));
 
-  res.status(200).json({ success: true, bargain: updated });
+  ApiResponse.withEntity(res, 'bargain', updated);
 };
 
 /**
@@ -410,15 +400,15 @@ const buyerRespondToBargain = async (req, res, next) => {
     const buyerId = req.user.id;
 
     if (!['accept', 'counter', 'reject'].includes(action)) {
-      return res.status(400).json({ success: false, error: 'Invalid action. Must be accept, counter, or reject.' });
+      return ApiResponse.error(res, 'Invalid action. Must be accept, counter, or reject.', 400);
     }
 
     const bargain = await repositories.bargains.findById(bargainId);
     if (!bargain || bargain.buyer_id !== buyerId) {
-      return res.status(404).json({ success: false, error: 'Bargain offer not found' });
+      return ApiResponse.error(res, 'Bargain offer not found', 404);
     }
     if (bargain.status !== 'countered') {
-      return res.status(400).json({ success: false, error: 'No active seller counter-offer to respond to.' });
+      return ApiResponse.error(res, 'No active seller counter-offer to respond to.', 400);
     }
 
     if (action === 'accept') {
@@ -444,7 +434,7 @@ const buyerRespondToBargain = async (req, res, next) => {
         relatedId: bargainId,
         relatedType: 'bargain_offer',
       }).catch((e) => logger.warn('[Bargain] buyer-reject-counter notify failed:', e.message));
-      res.status(200).json({ success: true, bargain: updated });
+      ApiResponse.withEntity(res, 'bargain', updated);
     }
   } catch (error) {
     next(error);
@@ -463,16 +453,16 @@ const withdrawBargainOffer = async (req, res, next) => {
 
     const bargain = await repositories.bargains.findById(bargainId);
     if (!bargain || bargain.buyer_id !== buyerId) {
-      return res.status(404).json({ success: false, error: 'Bargain offer not found' });
+      return ApiResponse.error(res, 'Bargain offer not found', 404);
     }
     if (!['pending', 'countered'].includes(bargain.status)) {
-      return res.status(400).json({ success: false, error: 'Only pending or countered offers can be withdrawn.' });
+      return ApiResponse.error(res, 'Only pending or countered offers can be withdrawn.', 400);
     }
 
     const updated = await repositories.bargains.update(bargainId, { status: 'withdrawn' });
     await repositories.bargains.createHistoryEntry(bargainId, buyerId, 'buyer', 'withdraw_offer');
 
-    res.status(200).json({ success: true, message: 'Offer withdrawn successfully', bargain: updated });
+    ApiResponse.withEntity(res, 'bargain', updated, 'Offer withdrawn successfully');
   } catch (error) {
     next(error);
   }
@@ -490,11 +480,11 @@ const getBargainHistory = async (req, res, next) => {
 
     const bargain = await repositories.bargains.findById(bargainId);
     if (!bargain || (bargain.buyer_id !== userId && bargain.seller_id !== userId)) {
-      return res.status(404).json({ success: false, error: 'Bargain offer not found' });
+      return ApiResponse.error(res, 'Bargain offer not found', 404);
     }
 
     const history = await repositories.bargains.getBargainHistory(bargainId);
-    res.status(200).json({ success: true, history });
+    ApiResponse.withEntity(res, 'history', history);
   } catch (error) {
     next(error);
   }
@@ -512,13 +502,13 @@ const addBargainToCart = async (req, res, next) => {
 
     const bargain = await repositories.bargains.findById(bargainId);
     if (!bargain || bargain.buyer_id !== buyerId) {
-      return res.status(404).json({ success: false, error: 'Bargain offer not found' });
+      return ApiResponse.error(res, 'Bargain offer not found', 404);
     }
     if (bargain.status !== 'accepted') {
-      return res.status(400).json({ success: false, error: 'Only accepted bargain offers can be added to cart' });
+      return ApiResponse.error(res, 'Only accepted bargain offers can be added to cart', 400);
     }
     if (new Date(bargain.checkout_window_end).getTime() < Date.now()) {
-      return res.status(400).json({ success: false, error: 'Bargain checkout window has expired' });
+      return ApiResponse.error(res, 'Bargain checkout window has expired', 400);
     }
 
     const price = Number.parseFloat(bargain.original_price);
@@ -534,12 +524,7 @@ const addBargainToCart = async (req, res, next) => {
 
     const cart = await repositories.carts.getCartWithItems(buyerId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Bargained item added to cart',
-      cartItem,
-      cart
-    });
+    ApiResponse.success(res, { cartItem, cart }, 'Bargained item added to cart');
   } catch (error) {
     next(error);
   }

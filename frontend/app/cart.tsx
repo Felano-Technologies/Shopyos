@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity, Platform,
-  Animated, PanResponder, Alert,
+  Animated, PanResponder,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useNavigation } from 'expo-router';
@@ -37,6 +38,7 @@ type SwipeableProps = {
 };
 
 const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, refQty, measureElement, removeFromCart, updateQuantity }: Readonly<SwipeableProps>) {
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
   const SWIPE_THRESHOLD = -60;
 
@@ -65,14 +67,7 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
 
   const handleDecrement = () => {
     if (item.quantity === 1) {
-      Alert.alert(
-        'Remove Item',
-        `Remove "${item.title}" from your cart?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Remove', style: 'destructive', onPress: () => removeFromCart(item.id) },
-        ]
-      );
+      setShowRemoveConfirm(true);
     } else {
       updateQuantity(item.id, -1);
     }
@@ -145,6 +140,17 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
           </View>
         </View>
       </Animated.View>
+      <ConfirmModal
+        visible={showRemoveConfirm}
+        onClose={() => setShowRemoveConfirm(false)}
+        title="Remove Item"
+        message={`Remove "${item.title}" from your cart?`}
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowRemoveConfirm(false), variant: 'cancel' },
+          { label: 'Remove', onPress: () => { setShowRemoveConfirm(false); removeFromCart(item.id); }, variant: 'destructive' },
+        ]}
+      />
     </View>
   );
 });
@@ -165,7 +171,9 @@ export default function CartScreen() {
       try {
         const res = await getActiveBanners();
         if (res?.banners?.length > 0) setCartAds(res.banners);
-      } catch { }
+      } catch (e) {
+        console.error('Failed to load banner ads:', e);
+      }
     })();
   }, []);
 

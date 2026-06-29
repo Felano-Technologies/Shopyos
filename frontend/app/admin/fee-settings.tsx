@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { adminColors, adminShadow } from '@/components/admin/adminTheme';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   getAdminFeeConfigs,
   updateAdminFeeConfig,
@@ -64,7 +65,7 @@ export default function FeeSettingsScreen() {
       const data = await getAdminFeeConfigs();
       setConfigs(data);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to load fee configurations');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || 'Failed to load fee configurations' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -89,28 +90,28 @@ export default function FeeSettingsScreen() {
     if (!editingConfig) return;
     const parsed = parseFloat(editValue);
     if (isNaN(parsed)) {
-      Alert.alert('Validation Error', 'Please enter a valid numeric value');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Please enter a valid numeric value' });
       return;
     }
 
     // Min/Max client checks
     if (editingConfig.min_value !== null && parsed < parseFloat(editingConfig.min_value!)) {
-      Alert.alert('Validation Error', `Value cannot be less than ${parseFloat(editingConfig.min_value!)}`);
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: `Value cannot be less than ${parseFloat(editingConfig.min_value!)}` });
       return;
     }
     if (editingConfig.max_value !== null && parsed > parseFloat(editingConfig.max_value!)) {
-      Alert.alert('Validation Error', `Value cannot be greater than ${parseFloat(editingConfig.max_value!)}`);
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: `Value cannot be greater than ${parseFloat(editingConfig.max_value!)}` });
       return;
     }
 
     setSaving(true);
     try {
       await updateAdminFeeConfig(editingConfig.config_key, parsed, editReason || undefined);
-      Alert.alert('Success', `${editingConfig.label} updated successfully`);
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: `${editingConfig.label} updated successfully` });
       setEditingConfig(null);
       await loadData();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to update configuration');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || 'Failed to update configuration' });
     } finally {
       setSaving(false);
     }
@@ -123,7 +124,7 @@ export default function FeeSettingsScreen() {
       const logs = await getAdminFeeConfigAudit(config.config_key);
       setAuditLogs(logs);
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to fetch audit log');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || 'Failed to fetch audit log' });
       setAuditConfig(null);
     } finally {
       setLoadingAudit(false);

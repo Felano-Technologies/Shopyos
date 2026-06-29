@@ -21,7 +21,7 @@ export const Header: React.FC = () => {
           SHOPYOS
         </Link>
         {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold">
+        <nav className="hidden md:flex items-center gap-6 text-sm font-semibold" aria-label="Main navigation">
           <Link to="/" className="hover:text-lime transition-colors text-body">Marketplace</Link>
           <Link to="/search" className="hover:text-lime transition-colors text-body">Search</Link>
           {isAuthenticated && <Link to="/orders" className="hover:text-lime transition-colors text-body">My Orders</Link>}
@@ -30,23 +30,23 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-4">
-        <Link to="/search" className="md:hidden p-2 text-navy hover:bg-gray-100 rounded-full transition-colors">
+        <Link to="/search" className="md:hidden p-2 text-navy hover:bg-gray-100 rounded-full transition-colors" aria-label="Search">
           <FiSearch size={20} />
         </Link>
-        <Link to="/cart" className="relative p-2 text-navy hover:bg-gray-100 rounded-full transition-colors">
+        <Link to="/cart" className="relative p-2 text-navy hover:bg-gray-100 rounded-full transition-colors" aria-label="Shopping cart">
           <FiShoppingCart size={20} />
         </Link>
         {isAuthenticated ? (
           <div className="hidden md:flex items-center gap-4">
-            <Link to="/profile" className="p-2 text-navy hover:bg-gray-100 rounded-full transition-colors">
+            <Link to="/profile" className="p-2 text-navy hover:bg-gray-100 rounded-full transition-colors" aria-label="Profile">
               <FiUser size={20} />
             </Link>
-            <button onClick={logout} className="p-2 text-sale hover:bg-red-50 rounded-full transition-colors" title="Logout">
+            <button onClick={logout} className="p-2 text-sale hover:bg-red-50 rounded-full transition-colors" title="Logout" aria-label="Logout">
               <FiLogOut size={20} />
             </button>
           </div>
         ) : (
-          <button onClick={() => navigate('/login')} className="hidden md:block bg-navy text-white hover:bg-navy-mid px-5 py-2 rounded-full font-bold text-sm transition-colors">
+          <button onClick={() => navigate('/login')} className="hidden md:block bg-navy text-white hover:bg-navy-mid px-5 py-2 rounded-full font-bold text-sm transition-colors" aria-label="Sign in to your account">
             Login
           </button>
         )}

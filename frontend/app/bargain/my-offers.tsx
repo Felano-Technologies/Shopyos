@@ -17,6 +17,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import AppImage from '@/components/AppImage';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   getBuyerOffers,
   buyerRespondToBargain,
@@ -75,7 +76,7 @@ export default function MyOffersScreen() {
         setOffers(res.data);
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to load bargain offers');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to load bargain offers' });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -91,78 +92,40 @@ export default function MyOffersScreen() {
     fetchOffers(false);
   };
 
-  const handleWithdraw = (bargainId: string) => {
-    Alert.alert(
-      'Withdraw Offer',
-      'Are you sure you want to withdraw this bargaining offer?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Withdraw',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await withdrawBargainOffer(bargainId);
-              if (res.success) {
-                Alert.alert('Success', 'Offer withdrawn successfully.');
-                fetchOffers(false);
-              }
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to withdraw offer.');
-            }
-          },
-        },
-      ]
-    );
+  const handleWithdraw = async (bargainId: string) => {
+    try {
+      const res = await withdrawBargainOffer(bargainId);
+      if (res.success) {
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Offer withdrawn successfully.' });
+        fetchOffers(false);
+      }
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to withdraw offer.' });
+    }
   };
 
   const handleAcceptCounter = async (bargainId: string) => {
-    Alert.alert(
-      'Accept Counter Offer',
-      'Do you accept the counter price offered by the seller?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Accept',
-          onPress: async () => {
-            try {
-              const res = await buyerRespondToBargain(bargainId, 'accepted');
-              if (res.success) {
-                Alert.alert('Success', 'Offer accepted! You can now add it to your cart.');
-                fetchOffers(false);
-              }
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to accept counter offer.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      const res = await buyerRespondToBargain(bargainId, 'accepted');
+      if (res.success) {
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Offer accepted! You can now add it to your cart.' });
+        fetchOffers(false);
+      }
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to accept counter offer.' });
+    }
   };
 
   const handleDeclineCounter = async (bargainId: string) => {
-    Alert.alert(
-      'Decline Counter Offer',
-      'Reject this counter offer and close the bargain session?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject Offer',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await buyerRespondToBargain(bargainId, 'rejected');
-              if (res.success) {
-                Alert.alert('Offer Rejected', 'You have declined the seller\'s offer.');
-                fetchOffers(false);
-              }
-            } catch (err: any) {
-              Alert.alert('Error', err.message || 'Failed to decline offer.');
-            }
-          },
-        },
-      ]
-    );
+    try {
+      const res = await buyerRespondToBargain(bargainId, 'rejected');
+      if (res.success) {
+        CustomInAppToast.show({ type: 'info', title: 'Offer Rejected', message: 'You have declined the seller\'s offer.' });
+        fetchOffers(false);
+      }
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to decline offer.' });
+    }
   };
 
   const openCounterModal = (bargain: BargainOffer) => {
@@ -175,18 +138,18 @@ export default function MyOffersScreen() {
   const submitCounter = async () => {
     if (!selectedBargain) return;
     if (!counterPrice.trim()) {
-      Alert.alert('Validation Error', 'Please enter your counter offer price.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Please enter your counter offer price.' });
       return;
     }
 
     const priceNum = Number(counterPrice);
     if (isNaN(priceNum) || priceNum <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid price.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Please enter a valid price.' });
       return;
     }
 
     if (priceNum >= Number(selectedBargain.original_price)) {
-      Alert.alert('Validation Error', 'Counter price must be lower than the listed price.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Counter price must be lower than the listed price.' });
       return;
     }
 
@@ -199,12 +162,12 @@ export default function MyOffersScreen() {
         counterMessage.trim() || undefined
       );
       if (res.success) {
-        Alert.alert('Success', 'Your counter offer has been sent!');
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Your counter offer has been sent!' });
         setCounterModalVisible(false);
         fetchOffers(false);
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to send counter offer.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to send counter offer.' });
     } finally {
       setSubmittingCounter(false);
     }
@@ -227,17 +190,12 @@ export default function MyOffersScreen() {
             bargain_offer_id: offer.id,
           });
         }
-        Alert.alert('Success', 'Product added to cart with your bargaining discount!', [
-          {
-            text: 'Go to Cart',
-            onPress: () => router.push('/cart'),
-          },
-          { text: 'OK' },
-        ]);
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Product added to cart with your bargaining discount!' });
+        router.push('/cart');
         fetchOffers(false);
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to add bargain to cart.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to add bargain to cart.' });
     }
   };
 

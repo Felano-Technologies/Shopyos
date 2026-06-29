@@ -18,6 +18,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -222,7 +223,7 @@ export default function ProductDetails() {
                 const updated = await getReviewComments(selectedReviewId);
                 setActiveComments(updated.comments);
             }
-        } catch (err: unknown) { Alert.alert("Error", err instanceof Error ? err.message : "Could not post comment"); }
+        } catch (err: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: err instanceof Error ? err.message : "Could not post comment" }); }
         finally { setCommentSubmitting(false); }
     };
     const toggleFavorite = async () => {
@@ -234,12 +235,12 @@ export default function ProductDetails() {
                 await addToFavorites(product.id);
                 setIsLiked(true);
             }
-        } catch (error: unknown) { Alert.alert("Error", error instanceof Error ? error.message : "Failed to update favorites"); }
+        } catch (error: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to update favorites" }); }
     };
     const handleChat = async () => {
         try {
             if (!product.sellerId) {
-                Alert.alert("Error", "Seller information not available");
+                CustomInAppToast.show({ type: 'error', title: 'Error', message: "Seller information not available" });
                 return;
             }
             const res = await startConversation(product.sellerId);
@@ -256,7 +257,7 @@ export default function ProductDetails() {
                     }
                 });
             }
-        } catch (error: unknown) { Alert.alert("Error", error instanceof Error ? error.message : "Failed to start chat with seller"); }
+        } catch (error: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to start chat with seller" }); }
     };
     const handleAttributeSelect = (optionName: string, value: string) => {
         const next = { ...selectedAttributes, [optionName]: value };
@@ -274,7 +275,7 @@ export default function ProductDetails() {
     const handleAddToCart = async () => {
         if (isOutOfStock) return;
         if (variantOptions.length > 0 && !allOptionsSelected) {
-            Alert.alert('Select options', 'Please select all options before adding to cart.');
+            CustomInAppToast.show({ type: 'info', title: 'Select options', message: 'Please select all options before adding to cart.' });
             return;
         }
 
@@ -289,6 +290,8 @@ export default function ProductDetails() {
                     image: product.image,
                     category: product.category,
                     storeId: product.storeId,
+                    storeName: product.sellerName,
+                    storeLogo: product.storeImage,
                     bargain_discount: Number(bargain.bargain_discount),
                     bargain_offer_id: bargain.id,
                 });
@@ -304,6 +307,8 @@ export default function ProductDetails() {
             image: product.image,
             category: product.category,
             storeId: product.storeId,
+            storeName: product.sellerName,
+            storeLogo: product.storeImage,
             variantId: selectedVariant?.id || null,
             variantAttributes: selectedVariant?.attributes || undefined,
         });

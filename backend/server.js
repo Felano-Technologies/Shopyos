@@ -8,6 +8,9 @@ const path = require('node:path');
 const cookieParser = require('cookie-parser');
 const { randomUUID } = require('node:crypto');
 
+// Global async error catcher — patches express to catch promise rejections
+require('express-async-errors');
+
 dotenv.config();
 
 const validateEnv = require('./utils/validateEnv');
@@ -59,12 +62,13 @@ const feeConfigRoutes = require('./routes/feeConfigRoutes');
 const disclaimerRoutes = require('./routes/disclaimerRoutes');
 const parcelPartnerRoutes = require('./routes/parcelPartnerRoutes');
 const supportRoutes = require('./routes/supportRoutes');
+const buyerAnalyticsRoutes = require('./routes/buyerAnalyticsRoutes');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter } = require('./middleware/rateLimiter');
+const { apiLimiter, authLimiter, uploadLimiter, orderLimiter, messageLimiter, authRefreshLimiter, webhookLimiter, productCreateLimiter, cartLimiter } = require('./middleware/rateLimiter');
 const productionConfig = require('./config/production');
 
 const app = express();
@@ -100,6 +104,11 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 app.use(cors(productionConfig.cors));
 app.use(compression());
+
+// Raw JSON body capture for Paystack webhook HMAC verification
+// MUST come before express.json() to ensure the raw buffer is available
+app.use('/api/v1/payments/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
@@ -179,8 +188,9 @@ app.get('/metrics', async (req, res) => {
 });
 
 app.get('/api/v1/system/logs', (req, res) => {
-  // Simple protection so not just anyone can read logs
-  if (req.query.secret !== 'debug123') {
+  // Protected by ADMIN_SECRET env variable — must match to access logs
+  const adminSecret = process.env.ADMIN_SECRET;
+  if (!adminSecret || req.query.secret !== adminSecret) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
   res.status(200).json({
@@ -213,9 +223,13 @@ app.get('/api/v1', (req, res) => {
 app.use('/api/v1/auth/login', authLimiter);
 app.use('/api/v1/auth/register', authLimiter);
 app.use('/api/v1/auth/forgot-password', authLimiter);
+app.use('/api/v1/auth/refresh', authRefreshLimiter);
+app.use('/api/v1/payments/webhook', webhookLimiter);
 app.use('/api/v1/upload', uploadLimiter);
 app.use('/api/v1/orders/create', orderLimiter);
 app.use('/api/v1/messaging', messageLimiter);
+app.use('/api/v1/products', productCreateLimiter);
+app.use('/api/v1/cart', cartLimiter);
 app.use('/api', apiLimiter);
 
 app.use(maintenanceMode);
@@ -250,6 +264,7 @@ app.use('/api/v1/fee-config', feeConfigRoutes);
 app.use('/api/v1/disclaimers', disclaimerRoutes);
 app.use('/api/v1/parcel-partner', parcelPartnerRoutes);
 app.use('/api/v1/support', supportRoutes);
+app.use('/api/v1/buyers', buyerAnalyticsRoutes);
 
 // Legacy route forwarding for backward compatibility
 const legacyRoutes = {
@@ -312,20 +327,40 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 const gracefulShutdown = async (signal) => {
-  logger.warn(`Received ${signal}, shutting down...`);
+  const isError = signal === 'uncaughtException';
+  logger.warn(`${signal} received — starting graceful shutdown...`);
 
-  // Close Socket.IO connections
-  if (io) {
-    io.close(() => {
-      logger.info('Socket.IO connections closed');
-    });
+  const forceExit = setTimeout(() => {
+    logger.error('Forced shutdown after timeout');
+    process.exit(isError ? 1 : 0);
+  }, 60000);
+
+  try {
+    // Stop accepting new requests
+    server.close(() => logger.info('HTTP server closed'));
+
+    // Close Socket.IO connections
+    if (io) {
+      io.close(() => {
+        logger.info('Socket.IO connections closed');
+      });
+    }
+
+    // Close infrastructure connections
+    await Promise.allSettled([
+      redisDisconnect().catch(() => {}),
+      // Wait briefly for in-flight DB queries
+      new Promise(resolve => setTimeout(resolve, 5000)),
+    ]);
+
+    logger.info('Graceful shutdown complete');
+    clearTimeout(forceExit);
+    process.exit(isError ? 1 : 0);
+  } catch (err) {
+    logger.error('Shutdown error:', err);
+    clearTimeout(forceExit);
+    process.exit(1);
   }
-
-  server.close(async () => {
-    await redisDisconnect();
-    process.exit(0);
-  });
-  setTimeout(() => { process.exit(1); }, 30000);
 };
 
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));

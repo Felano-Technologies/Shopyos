@@ -12,6 +12,8 @@ import { StatusBar } from 'expo-status-bar';
 import { format } from 'date-fns';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { cancelOrder, startConversation, confirmDelivery } from '@/services/api';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { createReturnRequest } from '@/services/orders';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { queryKeys } from '@/lib/query/keys';
@@ -43,9 +45,9 @@ async function submitReturnRequest(orderId: string, reason: string | undefined) 
   if (!reason?.trim()) return;
   try {
     await createReturnRequest({ orderId, reason: reason.trim() });
-    Alert.alert('Submitted', 'Your return request has been sent to the seller.');
+    CustomInAppToast.show({ type: 'success', title: 'Submitted', message: 'Your return request has been sent to the seller.' });
   } catch (e: any) {
-    Alert.alert('Error', e.message || 'Failed to submit return request');
+    CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to submit return request' });
   }
 }
 const C = {
@@ -103,9 +105,9 @@ const OrderDetailsScreen = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.orders.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
-      Alert.alert('Success', 'Order cancelled successfully');
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Order cancelled successfully' });
     },
-    onError: (e: any) => Alert.alert('Error', e.message || 'Failed to cancel order'),
+    onError: (e: any) => CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to cancel order' }),
   });
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -114,24 +116,28 @@ const OrderDetailsScreen = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.orders.lists() });
       qc.invalidateQueries({ queryKey: queryKeys.orders.detail(orderId) });
-      Alert.alert('Success', 'Delivery confirmed. Thank you!');
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Delivery confirmed. Thank you!' });
     },
-    onError: (e: any) => Alert.alert('Error', e.message || 'Failed to confirm delivery'),
+    onError: (e: any) => CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to confirm delivery' }),
   });
 
   const cancelWindowExpired = order
     ? Date.now() - new Date(order.created_at).getTime() > CANCEL_WINDOW_MS
     : false;
 
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
   const handleCancelOrder = () => {
     if (cancelWindowExpired) {
-      Alert.alert('Cannot Cancel', 'Orders can only be cancelled within 5 minutes of being placed.');
+      CustomInAppToast.show({ type: 'error', title: 'Cannot Cancel', message: 'Orders can only be cancelled within 5 minutes of being placed.' });
       return;
     }
-    Alert.alert('Cancel Order', 'Are you sure you want to cancel this order?', [
-      { text: 'No', style: 'cancel' },
-      { text: 'Yes, Cancel', style: 'destructive', onPress: () => cancelMutation.mutate() },
-    ]);
+    setShowCancelConfirm(true);
+  };
+
+  const confirmCancelOrder = () => {
+    setShowCancelConfirm(false);
+    cancelMutation.mutate();
   };
 
   const handleRequestReturn = () => {
@@ -164,7 +170,7 @@ const OrderDetailsScreen = () => {
         } as any);
       }
     } catch (e: any) {
-      Alert.alert("Error", e?.message || "Could not open chat.");
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e?.message || "Could not open chat." });
     } finally {
       setLoading(false);
     }
@@ -222,7 +228,7 @@ const OrderDetailsScreen = () => {
       : itemsSubtotal + deliveryFee + taxAmount - discount;
   // Date string
   let dateStr = '';
-  try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch { }
+  try { dateStr = format(new Date(order.created_at), 'MMM dd, yyyy • hh:mm a'); } catch (e) { console.error('Failed to format order date:', e); }
   const isLiveTrackable = ['ready_for_pickup', 'picked_up', 'in_transit'].includes(order.status.toLowerCase());
   return (
     <View style={S.root}>
@@ -631,6 +637,18 @@ const OrderDetailsScreen = () => {
           </View>
         )}
       </ScrollView>
+
+      <ConfirmModal
+        visible={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        title="Cancel Order"
+        message="Are you sure you want to cancel this order?"
+        icon="⚠️"
+        actions={[
+          { label: 'No', onPress: () => setShowCancelConfirm(false), variant: 'cancel' },
+          { label: 'Yes, Cancel', onPress: confirmCancelOrder, variant: 'destructive' },
+        ]}
+      />
     </View>
   );
 };
@@ -731,8 +749,7 @@ const S = StyleSheet.create({
   card: {
     flexDirection: 'row', alignItems: 'center', gap: rs(12),
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   // Driver
   driverAvatar: { width: rs(50), height: rs(50), borderRadius: rs(25), backgroundColor: '#F1F5F9' },
@@ -755,8 +772,7 @@ const S = StyleSheet.create({
   // Info card
   infoCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
   infoIcon: { width: rs(36), height: rs(36), borderRadius: rs(11), justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
@@ -766,8 +782,7 @@ const S = StyleSheet.create({
   // Items card
   itemsCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(14),
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: rs(12) },
   itemImg: { width: rs(52), height: rs(52), borderRadius: rs(12), backgroundColor: '#F8FAFC' },
@@ -779,8 +794,7 @@ const S = StyleSheet.create({
   // Payment card
   payCard: {
     backgroundColor: C.card, borderRadius: rs(20), padding: rs(16),
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(10),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: rs(10) },
   priceLbl: { fontSize: rf(13), fontFamily: 'Montserrat-Medium', color: C.muted },
@@ -839,11 +853,8 @@ const S = StyleSheet.create({
     marginBottom: rs(20),
     borderRadius: rs(20),
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(4) },
-    shadowOpacity: 0.15,
-    shadowRadius: rs(10),
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   pinCardGrad: {
     padding: rs(18),

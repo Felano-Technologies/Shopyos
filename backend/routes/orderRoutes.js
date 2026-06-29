@@ -3,6 +3,7 @@
 
 const express = require('express');
 const router = express.Router();
+const { cacheMiddleware } = require('../middleware/cache');
 const {
   createOrder,
   getMyOrders,
@@ -140,7 +141,7 @@ router.post('/create', requireDisclaimer('refund_policy'), validateCreateOrder, 
 // @route   GET /api/orders/my-orders
 // @desc    Get user's orders
 // @access  Private
-router.get('/my-orders', getMyOrders);
+router.get('/my-orders', cacheMiddleware((req) => `shopyos:orders:user:${req.user?.id}:${req.query.page || 1}`, 30), getMyOrders);
 
 /**
  * @swagger

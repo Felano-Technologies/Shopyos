@@ -1,3 +1,4 @@
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { invalidateCategories } = require('../config/cacheInvalidation');
@@ -30,22 +31,22 @@ class CategoryController {
                 product_count: countMap[cat.name] || 0
             })).sort((a, b) => b.product_count - a.product_count);
 
-            return res.status(200).json({ success: true, categories: result });
+            return ApiResponse.withEntity(res, 'categories', result);
         } catch (error) {
             logger.error('Fetch categories error:', error);
-            return res.status(500).json({ success: false, message: 'Server Error' });
+            return ApiResponse.error(res, 'Server Error', 500);
         }
     }
 
     create = async (req, res, next) => {
         try {
             const { name, description } = req.body;
-            if (!name) return res.status(400).json({ success: false, error: 'Name is required' });
+            if (!name) return ApiResponse.error(res, 'Name is required', 400);
 
             const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
 
             const { data: existing } = await this.repo.db.from('categories').select('id').eq('name', name).single();
-            if (existing) return res.status(400).json({ success: false, error: 'Category already exists' });
+            if (existing) return ApiResponse.error(res, 'Category already exists', 400);
 
             const { data: category, error } = await this.repo.db
                 .from('categories')
@@ -55,7 +56,7 @@ class CategoryController {
 
             if (error) throw error;
             await invalidateCategories();
-            res.status(201).json({ success: true, category });
+            ApiResponse.withEntity(res, 'category', category, null, null, 201);
         } catch (error) {
             next(error);
         }
@@ -70,7 +71,7 @@ class CategoryController {
                 .from('categories').select('*').eq('id', id).single();
 
             if (fetchError || !currentCategory) {
-                return res.status(404).json({ success: false, error: 'Category not found' });
+                return ApiResponse.error(res, 'Category not found', 404);
             }
 
             const updates = { updated_at: new Date() };
@@ -91,7 +92,7 @@ class CategoryController {
             }
 
             await invalidateCategories();
-            res.status(200).json({ success: true, category });
+            ApiResponse.withEntity(res, 'category', category);
         } catch (error) {
             next(error);
         }
@@ -103,7 +104,7 @@ class CategoryController {
             const { force } = req.query;
 
             const { data: category } = await this.repo.db.from('categories').select('name').eq('id', id).single();
-            if (!category) return res.status(404).json({ success: false, error: 'Category not found' });
+            if (!category) return ApiResponse.error(res, 'Category not found', 404);
 
             const { count, error: countError } = await this.repo.db
                 .from('products')
@@ -114,18 +115,14 @@ class CategoryController {
             if (countError) throw countError;
 
             if (count > 0 && force !== 'true') {
-                return res.status(400).json({
-                    success: false,
-                    error: `Cannot delete category. It is used by ${count} products.`,
-                    requiresConfirmation: true, productCount: count
-                });
+                return ApiResponse.error(res, `Cannot delete category. It is used by ${count} products.`, 400);
             }
 
             const { error } = await this.repo.db.from('categories').delete().eq('id', id);
             if (error) throw error;
 
             await invalidateCategories();
-            res.status(200).json({ success: true, message: 'Category deleted successfully' });
+            ApiResponse.success(res, null, 'Category deleted successfully');
         } catch (error) {
             next(error);
         }

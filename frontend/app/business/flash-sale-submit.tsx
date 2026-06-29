@@ -99,11 +99,11 @@ export default function FlashSaleSubmit() {
 
   const handleSubmit = async () => {
     if (!campaignTitle.trim()) {
-      Alert.alert('Required Field', 'Please enter a title for your campaign.');
+      CustomInAppToast.show({ type: 'error', title: 'Required Field', message: 'Please enter a title for your campaign.' });
       return;
     }
     if (selectedProductIds.length === 0) {
-      Alert.alert('Required Field', 'Please select at least one product for the flash sale.');
+      CustomInAppToast.show({ type: 'error', title: 'Required Field', message: 'Please select at least one product for the flash sale.' });
       return;
     }
 
@@ -116,15 +116,15 @@ export default function FlashSaleSubmit() {
       const stockLimitNum = parseInt(config?.stockLimit || '');
 
       if (isNaN(flashPriceNum) || flashPriceNum <= 0) {
-        Alert.alert('Invalid Price', `Please enter a valid flash sale price for ${prod?.title}.`);
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Please enter a valid flash sale price for ${prod?.title}.` });
         return;
       }
       if (flashPriceNum >= Number(prod?.price)) {
-        Alert.alert('Invalid Price', `Flash price for ${prod?.title} must be less than original price (₵${Number(prod?.price).toFixed(2)}).`);
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Price', message: `Flash price for ${prod?.title} must be less than original price (₵${Number(prod?.price).toFixed(2)}).` });
         return;
       }
       if (isNaN(stockLimitNum) || stockLimitNum <= 0) {
-        Alert.alert('Invalid Stock', `Please enter a valid stock reservation limit for ${prod?.title}.`);
+        CustomInAppToast.show({ type: 'error', title: 'Invalid Stock', message: `Please enter a valid stock reservation limit for ${prod?.title}.` });
         return;
       }
 
@@ -136,7 +136,7 @@ export default function FlashSaleSubmit() {
     }
 
     if (flashSalePolicy && !isDisclaimerChecked) {
-      Alert.alert('Agreement Required', 'You must agree to the Flash Sale Terms & Conditions to submit.');
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'You must agree to the Flash Sale Terms & Conditions to submit.' });
       return;
     }
 
@@ -165,7 +165,7 @@ export default function FlashSaleSubmit() {
       }
     } catch (err: any) {
       console.error('Error submitting flash sale:', err);
-      Alert.alert('Submission Failed', err.message || 'An error occurred during submission.');
+      CustomInAppToast.show({ type: 'error', title: 'Submission Failed', message: err.message || 'An error occurred during submission.' });
     } finally {
       setSubmitting(false);
     }

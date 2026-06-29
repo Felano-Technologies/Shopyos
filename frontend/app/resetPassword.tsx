@@ -13,6 +13,7 @@ import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { resetPasswordWithToken } from '@/services/api';
 
 const { width } = Dimensions.get('window');
@@ -27,11 +28,8 @@ const ResetPasswordScreen = () => {
 
   useEffect(() => {
     if (!resetToken) {
-      Alert.alert(
-        'Session Expired',
-        'Your reset session is invalid. Please start again.',
-        [{ text: 'OK', onPress: () => router.replace('/forgotPassword') }]
-      );
+      CustomInAppToast.show({ type: 'error', title: 'Session Expired', message: 'Your reset session is invalid. Please start again.' });
+      router.replace('/forgotPassword');
     }
   }, [resetToken]);
 
@@ -42,7 +40,7 @@ const ResetPasswordScreen = () => {
 
   const handleResetPassword = async () => {
     if (!isFormValid) {
-      Alert.alert('Invalid Input', 'Please ensure both passwords match and are at least 6 characters.');
+      CustomInAppToast.show({ type: 'error', title: 'Invalid Input', message: 'Please ensure both passwords match and are at least 6 characters.' });
       return;
     }
 
@@ -50,21 +48,10 @@ const ResetPasswordScreen = () => {
       setLoading(true);
       await resetPasswordWithToken(resetToken as string, newPassword);
       
-      Alert.alert(
-        'Success!',
-        'Your password has been reset successfully. Please log in with your new password.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/login')
-          }
-        ]
-      );
+      CustomInAppToast.show({ type: 'success', title: 'Success!', message: 'Your password has been reset successfully. Please log in with your new password.' });
+      router.replace('/login');
     } catch (error: unknown) {
-      Alert.alert(
-        'Reset Failed',
-        error instanceof Error ? error.message : 'Failed to reset password. The link may have expired. Please request a new one.'
-      );
+      CustomInAppToast.show({ type: 'error', title: 'Reset Failed', message: error instanceof Error ? error.message : 'Failed to reset password. The link may have expired. Please request a new one.' });
     } finally {
       setLoading(false);
     }

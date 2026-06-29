@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  TextInput, ActivityIndicator, Alert, Modal,
+  TextInput, ActivityIndicator, Modal,
   Dimensions, RefreshControl,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -14,6 +14,7 @@ import {
   getAllCategories, createCategory,
   updateCategory, deleteCategory
 } from '@/services/api';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 
 const { width: SW } = Dimensions.get('window');
@@ -113,42 +114,24 @@ export default function AdminCategories() {
     }
   };
 
-  const handleDelete = (cat: Category) => {
-    Alert.alert(
-      'Delete Category',
-      `Are you sure you want to delete "${cat.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-             try {
-               await deleteCategory(cat.id);
-               CustomInAppToast.show({ type: 'success', title: 'Deleted', message: 'Category removed' });
-               loadCategories();
-             } catch (e: any) {
-               if (e.requiresConfirmation) {
-                 Alert.alert(
-                   'Warning',
-                   e.error + ' Force delete?',
-                   [
-                     { text: 'Cancel', style: 'cancel' },
-                     { text: 'Force Delete', style: 'destructive', onPress: async () => {
-                        await deleteCategory(cat.id, true);
-                        loadCategories();
-                        CustomInAppToast.show({ type: 'success', title: 'Deleted', message: 'Category removed' });
-                     }}
-                   ]
-                 );
-               } else {
-                 CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to delete' });
-               }
-             }
-          }
+  const handleDelete = async (cat: Category) => {
+    try {
+      await deleteCategory(cat.id);
+      CustomInAppToast.show({ type: 'success', title: 'Deleted', message: 'Category removed' });
+      loadCategories();
+    } catch (e: any) {
+      if (e.requiresConfirmation) {
+        try {
+          await deleteCategory(cat.id, true);
+          loadCategories();
+          CustomInAppToast.show({ type: 'success', title: 'Deleted', message: 'Category removed' });
+        } catch (err2: any) {
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: err2.message || 'Failed to delete' });
         }
-      ]
-    );
+      } else {
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to delete' });
+      }
+    }
   };
 
   const openAddModal = () => {

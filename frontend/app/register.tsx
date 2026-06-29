@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
@@ -29,6 +29,20 @@ const RegisterScreen = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [request, response, promptAsync] = useGoogleAuth();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (field: string, value: string) => {
+    let err = '';
+    if (field === 'name' && !value.trim()) err = 'Full name is required';
+    if (field === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) err = 'Enter a valid email address';
+    if (field === 'password' && value.length < 6) err = 'Password must be at least 6 characters';
+    if (field === 'phoneNumber' && value.replace(/\D/g, '').length < 6) err = 'Enter a valid phone number';
+    setErrors((prev) => ({ ...prev, [field]: err }));
+  };
+
+  const isFormValid = useMemo(() => {
+    return name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6 && phoneNumber.replace(/\D/g, '').length >= 6;
+  }, [name, email, password, phoneNumber]);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -56,6 +70,14 @@ const RegisterScreen = () => {
     return `+${cleanCode}${formattedNumber}`;
   };
   const handleRegister = async () => {
+    const fieldErrors: Record<string, string> = {};
+    if (!name.trim()) fieldErrors.name = 'Full name is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fieldErrors.email = 'Enter a valid email address';
+    if (password.length < 6) fieldErrors.password = 'Password must be at least 6 characters';
+    if (phoneNumber.replace(/\D/g, '').length < 6) fieldErrors.phoneNumber = 'Enter a valid phone number';
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) return;
+
     if (!termsAccepted || !privacyAccepted) {
       CustomInAppToast.show({
         type: 'error',
@@ -72,7 +94,7 @@ const RegisterScreen = () => {
         CustomInAppToast.show({
           type: 'success',
           title: 'Sign up Successful',
-          message: 'Welcome! 🎉',
+          message: 'Welcome!',
         });
         router.push('/login');
       } else {
@@ -136,9 +158,10 @@ const RegisterScreen = () => {
               placeholderTextColor="#666"
               autoCorrect={false}
               value={name}
-              onChangeText={setName}
+              onChangeText={(v) => { setName(v); setErrors((e) => ({ ...e, name: '' })); }}
             />
           </View>
+          {errors.name ? <Text style={styles.fieldError}>{errors.name}</Text> : null}
           <View style={styles.inputContainer}>
             <Ionicons name="mail" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
@@ -149,9 +172,10 @@ const RegisterScreen = () => {
               autoCapitalize="none"
               autoCorrect={false}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: '' })); }}
             />
           </View>
+          {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
           <View style={styles.inputContainer}>
             <TouchableOpacity
               style={styles.countryCodeButton}
@@ -166,7 +190,7 @@ const RegisterScreen = () => {
               placeholderTextColor="#666"
               keyboardType="phone-pad"
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangeText={(v) => { setPhoneNumber(v); setErrors((e) => ({ ...e, phoneNumber: '' })); }}
             />
             <CountryPicker
               visible={showCountryPicker}
@@ -176,6 +200,7 @@ const RegisterScreen = () => {
               }}
             />
           </View>
+          {errors.phoneNumber ? <Text style={styles.fieldError}>{errors.phoneNumber}</Text> : null}
           <View style={styles.inputContainer}>
             <Ionicons name="lock-closed" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
@@ -186,7 +211,7 @@ const RegisterScreen = () => {
               autoCapitalize="none"
               autoCorrect={false}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: '' })); }}
             />
             <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
               <Ionicons
@@ -196,6 +221,7 @@ const RegisterScreen = () => {
               />
             </TouchableOpacity>
           </View>
+          {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
           <View style={styles.inputContainer}>
             <Ionicons name="gift" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
@@ -236,7 +262,7 @@ const RegisterScreen = () => {
             </Text>
           </View>
           {/* Sign Up Button */}
-          <TouchableOpacity style={styles.button} onPress={handleRegister}>
+          <TouchableOpacity style={[styles.button, !isFormValid && styles.buttonDisabled]} onPress={handleRegister} disabled={loading || !isFormValid}>
             {loading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
@@ -414,5 +440,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
+  fieldError: { color: '#DC2626', fontSize: 12, marginTop: -8, marginBottom: 8, paddingHorizontal: 16 },
+  buttonDisabled: { opacity: 0.5 },
 });
 export default RegisterScreen;

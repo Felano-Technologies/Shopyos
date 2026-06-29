@@ -1,6 +1,7 @@
 ﻿// controllers/deliveryController.js
 // Delivery tracking and management controller
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
@@ -27,19 +28,13 @@ const createDelivery = async (req, res, next) => {
 
     // Validate required fields
     if (!orderId || !pickupAddress || !deliveryAddress) {
-      return res.status(400).json({
-        success: false,
-        error: 'Order ID, pickup address, and delivery address are required'
-      });
+      return ApiResponse.error(res, 'Order ID, pickup address, and delivery address are required', 400);
     }
 
     // Verify order exists and user has permission
     const order = await repositories.orders.findById(orderId);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     // Verify seller owns the store or is admin
@@ -48,19 +43,13 @@ const createDelivery = async (req, res, next) => {
     const isAdmin = await repositories.users.hasRole(userId, 'admin');
 
     if (!isSeller && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to create delivery for this order'
-      });
+      return ApiResponse.error(res, 'Not authorized to create delivery for this order', 403);
     }
 
     // Check if delivery already exists
     const existingDelivery = await repositories.deliveries.findByOrderId(orderId);
     if (existingDelivery) {
-      return res.status(400).json({
-        success: false,
-        error: 'Delivery already exists for this order'
-      });
+      return ApiResponse.error(res, 'Delivery already exists for this order', 400);
     }
 
     // Create delivery
@@ -76,11 +65,7 @@ const createDelivery = async (req, res, next) => {
       estimatedDeliveryTime
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Delivery created successfully',
-      delivery
-    });
+    ApiResponse.withEntity(res, 'delivery', delivery, 'Delivery created successfully', null, 201);
   } catch (error) {
     next(error);
   }
@@ -100,11 +85,7 @@ const getAvailableDeliveries = async (req, res, next) => {
       offset: Number.parseInt(offset)
     });
 
-    res.status(200).json({
-      success: true,
-      deliveries,
-      count: deliveries.length
-    });
+    ApiResponse.success(res, { deliveries, count: deliveries.length });
   } catch (error) {
     next(error);
   }
@@ -123,24 +104,15 @@ const assignDriver = async (req, res, next) => {
     // Verify delivery exists and is available
     const delivery = await repositories.deliveries.findById(deliveryId);
     if (!delivery) {
-      return res.status(404).json({
-        success: false,
-        error: 'Delivery not found'
-      });
+      return ApiResponse.error(res, 'Delivery not found', 404);
     }
 
     if (delivery.driver_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'Delivery already assigned to another driver'
-      });
+      return ApiResponse.error(res, 'Delivery already assigned to another driver', 400);
     }
 
     if (delivery.status !== 'unassigned') {
-      return res.status(400).json({
-        success: false,
-        error: `Delivery cannot be assigned in ${delivery.status} status`
-      });
+      return ApiResponse.error(res, `Delivery cannot be assigned in ${delivery.status} status`, 400);
     }
 
     // Assign driver
@@ -155,11 +127,7 @@ const assignDriver = async (req, res, next) => {
       await notificationService.sendOrderNotification(order.buyer_id, order, 'assigned');
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Delivery assigned successfully',
-      delivery: updatedDelivery
-    });
+    ApiResponse.withEntity(res, 'delivery', updatedDelivery, 'Delivery assigned successfully');
   } catch (error) {
     next(error);
   }
@@ -181,11 +149,7 @@ const getMyDeliveries = async (req, res, next) => {
       offset: Number.parseInt(offset)
     });
 
-    res.status(200).json({
-      success: true,
-      deliveries,
-      count: deliveries.length
-    });
+    ApiResponse.success(res, { deliveries, count: deliveries.length });
   } catch (error) {
     next(error);
   }
@@ -202,11 +166,7 @@ const getActiveDeliveries = async (req, res, next) => {
 
     const deliveries = await repositories.deliveries.getActiveDeliveries(driverId);
 
-    res.status(200).json({
-      success: true,
-      deliveries,
-      count: deliveries.length
-    });
+    ApiResponse.success(res, { deliveries, count: deliveries.length });
   } catch (error) {
     next(error);
   }
@@ -225,10 +185,7 @@ const getDeliveryDetails = async (req, res, next) => {
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
 
     if (!delivery) {
-      return res.status(404).json({
-        success: false,
-        error: 'Delivery not found'
-      });
+      return ApiResponse.error(res, 'Delivery not found', 404);
     }
 
     // Verify access (buyer, seller, driver, or admin)
@@ -238,16 +195,10 @@ const getDeliveryDetails = async (req, res, next) => {
     const isAdmin = await repositories.users.hasRole(userId, 'admin');
 
     if (!isBuyer && !isSeller && !isDriver && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view this delivery'
-      });
+      return ApiResponse.error(res, 'Not authorized to view this delivery', 403);
     }
 
-    res.status(200).json({
-      success: true,
-      delivery
-    });
+    ApiResponse.withEntity(res, 'delivery', delivery);
   } catch (error) {
     next(error);
   }
@@ -363,27 +314,17 @@ const updateDeliveryStatus = async (req, res, next) => {
     const driverId = req.user.id;
 
     if (!_VALID_DELIVERY_STATUSES.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status',
-        validStatuses: _VALID_DELIVERY_STATUSES
-      });
+      return ApiResponse.error(res, 'Invalid status', 400);
     }
 
     const isOwner = await repositories.deliveries.verifyDriverOwnership(deliveryId, driverId);
     if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this delivery'
-      });
+      return ApiResponse.error(res, 'Not authorized to update this delivery', 403);
     }
 
     // Enforce role boundary: drivers must verify PIN via verify-pin endpoint, not direct status change
     if (status === 'delivered') {
-      return res.status(400).json({
-        success: false,
-        error: "To complete delivery, you must verify the customer's 6-digit PIN. Please use the verification endpoint."
-      });
+      return ApiResponse.error(res, "To complete delivery, you must verify the customer's 6-digit PIN. Please use the verification endpoint.", 400);
     }
 
     const updatedDelivery = await repositories.deliveries.updateStatus(deliveryId, status);
@@ -391,11 +332,7 @@ const updateDeliveryStatus = async (req, res, next) => {
 
     await _applyDeliveryStatusSideEffects(status, order, driverId, updatedDelivery);
 
-    res.status(200).json({
-      success: true,
-      message: 'Delivery status updated',
-      delivery: updatedDelivery
-    });
+    ApiResponse.withEntity(res, 'delivery', updatedDelivery, 'Delivery status updated');
   } catch (error) {
     next(error);
   }
@@ -414,19 +351,13 @@ const addLocationUpdate = async (req, res, next) => {
 
     // Validate coordinates
     if (!latitude || !longitude) {
-      return res.status(400).json({
-        success: false,
-        error: 'Latitude and longitude are required'
-      });
+      return ApiResponse.error(res, 'Latitude and longitude are required', 400);
     }
 
     // Verify driver owns delivery
     const isOwner = await repositories.deliveries.verifyDriverOwnership(deliveryId, driverId);
     if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this delivery'
-      });
+      return ApiResponse.error(res, 'Not authorized to update this delivery', 403);
     }
 
     // Add location update
@@ -463,11 +394,7 @@ const addLocationUpdate = async (req, res, next) => {
       console.error('[addLocationUpdate] Socket/cache emit failed:', socketErr.message);
     }
 
-    res.status(201).json({
-      success: true,
-      message: 'Location updated',
-      locationUpdate
-    });
+    ApiResponse.withEntity(res, 'locationUpdate', locationUpdate, 'Location updated', null, 201);
   } catch (error) {
     next(error);
   }
@@ -487,10 +414,7 @@ const getLocationUpdates = async (req, res, next) => {
     // Get delivery to verify access
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
     if (!delivery) {
-      return res.status(404).json({
-        success: false,
-        error: 'Delivery not found'
-      });
+      return ApiResponse.error(res, 'Delivery not found', 404);
     }
 
     // Verify access
@@ -499,10 +423,7 @@ const getLocationUpdates = async (req, res, next) => {
     const isDriver = delivery.driver_id === userId;
 
     if (!isBuyer && !isSeller && !isDriver) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view location updates'
-      });
+      return ApiResponse.error(res, 'Not authorized to view location updates', 403);
     }
 
     const locationUpdates = await repositories.deliveries.getLocationUpdates(
@@ -510,11 +431,7 @@ const getLocationUpdates = async (req, res, next) => {
       Number.parseInt(limit)
     );
 
-    res.status(200).json({
-      success: true,
-      locationUpdates,
-      count: locationUpdates.length
-    });
+    ApiResponse.success(res, { locationUpdates, count: locationUpdates.length });
   } catch (error) {
     next(error);
   }
@@ -533,10 +450,7 @@ const getLatestLocation = async (req, res, next) => {
     // Get delivery to verify access
     const delivery = await repositories.deliveries.getDeliveryDetails(deliveryId);
     if (!delivery) {
-      return res.status(404).json({
-        success: false,
-        error: 'Delivery not found'
-      });
+      return ApiResponse.error(res, 'Delivery not found', 404);
     }
 
     // Verify access
@@ -545,20 +459,14 @@ const getLatestLocation = async (req, res, next) => {
     const isDriver = delivery.driver_id === userId;
 
     if (!isBuyer && !isSeller && !isDriver) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view location'
-      });
+      return ApiResponse.error(res, 'Not authorized to view location', 403);
     }
 
     const { cacheGet } = require('../config/redis');
     const cached = await cacheGet(`delivery:location:${deliveryId}`);
     const location = cached ?? await repositories.deliveries.getLatestLocation(deliveryId);
 
-    res.status(200).json({
-      success: true,
-      location
-    });
+    ApiResponse.withEntity(res, 'location', location);
   } catch (error) {
     next(error);
   }
@@ -577,10 +485,7 @@ const getDeliveryByOrder = async (req, res, next) => {
     // Verify order access
     const order = await repositories.orders.findById(orderId);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     const store = await repositories.stores.findById(order.store_id);
@@ -589,28 +494,19 @@ const getDeliveryByOrder = async (req, res, next) => {
     const isAdmin = await repositories.users.hasRole(userId, 'admin');
 
     if (!isBuyer && !isSeller && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view this delivery'
-      });
+      return ApiResponse.error(res, 'Not authorized to view this delivery', 403);
     }
 
     const delivery = await repositories.deliveries.findByOrderId(orderId);
 
     if (!delivery) {
-      return res.status(404).json({
-        success: false,
-        error: 'Delivery not found for this order'
-      });
+      return ApiResponse.error(res, 'Delivery not found for this order', 404);
     }
 
     // Get full details
     const deliveryDetails = await repositories.deliveries.getDeliveryDetails(delivery.id);
 
-    res.status(200).json({
-      success: true,
-      delivery: deliveryDetails
-    });
+    ApiResponse.withEntity(res, 'delivery', deliveryDetails);
   } catch (error) {
     next(error);
   }
@@ -624,30 +520,106 @@ const getDeliveryByOrder = async (req, res, next) => {
 const getDriverStats = async (req, res, next) => {
   try {
     const driverId = req.user.id;
-    const { timeframe = 'today' } = req.query;
+    const { view = 'weekly' } = req.query;
 
-    let startDate = new Date();
-    startDate.setHours(0, 0, 0, 0);
+    const db = require('../config/postgres').getPool();
+    const now = new Date();
 
-    if (timeframe === 'week') {
-      startDate.setDate(startDate.getDate() - 7);
-    } else if (timeframe === 'month') {
-      startDate.setMonth(startDate.getMonth() - 1);
-    }
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const endDate = new Date();
+    const [monthSummary, weekChart, monthChart, breakdown, rating] = await Promise.all([
+      db.query(`
+        SELECT
+          COALESCE(SUM(d.driver_earnings), 0) AS total_earned_this_month,
+          COUNT(d.id) AS total_deliveries_this_month
+        FROM deliveries d
+        WHERE d.driver_id = $1
+          AND d.status = 'delivered'
+          AND d.delivered_at >= $2
+      `, [driverId, startOfMonth]),
+      db.query(`
+        SELECT
+          TO_CHAR(d.delivered_at, 'Dy') AS label,
+          COALESCE(SUM(d.driver_earnings), 0) AS earnings
+        FROM deliveries d
+        WHERE d.driver_id = $1
+          AND d.status = 'delivered'
+          AND d.delivered_at >= NOW() - INTERVAL '7 days'
+        GROUP BY DATE(d.delivered_at), TO_CHAR(d.delivered_at, 'Dy')
+        ORDER BY DATE(d.delivered_at)
+      `, [driverId]),
+      db.query(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', d.delivered_at), 'Mon') AS label,
+          COALESCE(SUM(d.driver_earnings), 0) AS earnings
+        FROM deliveries d
+        WHERE d.driver_id = $1
+          AND d.status = 'delivered'
+          AND d.delivered_at >= NOW() - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', d.delivered_at)
+        ORDER BY DATE_TRUNC('month', d.delivered_at)
+      `, [driverId]),
+      db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN wl.transaction_type = 'earning' THEN wl.amount ELSE 0 END), 0) AS base_delivery_fees,
+          COALESCE(SUM(CASE WHEN wl.transaction_type = 'referral_reward' THEN wl.amount ELSE 0 END), 0) AS bonuses_and_rewards
+        FROM wallet_logs wl
+        WHERE wl.user_id = $1
+          AND wl.created_at >= $2
+      `, [driverId, startOfMonth]),
+      db.query(`
+        SELECT
+          COALESCE(AVG(dr.rating)::numeric(10,2), 0) AS average,
+          COUNT(dr.id) AS total_reviews
+        FROM driver_reviews dr
+        WHERE dr.driver_id = $1
+      `, [driverId]),
+    ]);
 
-    const stats = await repositories.deliveries.getDriverStats(driverId, startDate, endDate);
+    const summary = monthSummary.rows[0] || { total_earned_this_month: 0, total_deliveries_this_month: 0 };
+    const totalDeliveries = parseInt(summary.total_deliveries_this_month, 10);
+    const totalEarnedMonth = parseFloat(summary.total_earned_this_month);
 
-    // Calculate earnings (placeholder: 15 per completed delivery)
-    const earnings = stats.completed * 15;
+    const chartRows = view === 'monthly' ? monthChart.rows : weekChart.rows;
+    const chartLabels = chartRows.map(r => r.label) || [];
+    const chartData = chartRows.map(r => parseFloat(r.earnings)) || [];
 
-    res.status(200).json({
-      success: true,
-      stats: {
-        ...stats,
-        earnings
-      }
+    const bd = breakdown.rows[0] || { base_delivery_fees: 0, bonuses_and_rewards: 0 };
+    const baseFees = parseFloat(bd.base_delivery_fees);
+    const bonuses = parseFloat(bd.bonuses_and_rewards);
+
+    const r = rating.rows[0] || { average: 0, total_reviews: 0 };
+
+    const [lifetimeResult] = await Promise.all([
+      db.query(`
+        SELECT COALESCE(SUM(driver_earnings), 0) AS total_earned_lifetime
+        FROM deliveries
+        WHERE driver_id = $1 AND status = 'delivered'
+      `, [driverId]),
+    ]);
+
+    const totalLifetime = parseFloat(lifetimeResult.rows[0]?.total_earned_lifetime || 0);
+
+    ApiResponse.success(res, {
+      summary: {
+        total_earned_lifetime: totalLifetime,
+        total_earned_this_month: totalEarnedMonth,
+        total_deliveries_this_month: totalDeliveries,
+        avg_per_delivery: totalDeliveries > 0 ? totalEarnedMonth / totalDeliveries : 0,
+      },
+      chart: {
+        labels: chartLabels,
+        data: chartData,
+      },
+      breakdown: {
+        base_delivery_fees: baseFees,
+        bonuses_and_rewards: bonuses,
+        total: baseFees + bonuses,
+      },
+      rating: {
+        average: parseFloat(r.average),
+        total_reviews: parseInt(r.total_reviews, 10),
+      },
     });
   } catch (error) {
     next(error);
@@ -666,12 +638,12 @@ const verifyDeliveryPin = async (req, res, next) => {
     const driverId = req.user.id;
 
     if (!pin) {
-      return res.status(400).json({ success: false, error: 'Verification PIN is required' });
+      return ApiResponse.error(res, 'Verification PIN is required', 400);
     }
 
     const delivery = await repositories.deliveries.findById(deliveryId);
     if (!delivery) {
-      return res.status(404).json({ success: false, error: 'Delivery not found' });
+      return ApiResponse.error(res, 'Delivery not found', 404);
     }
 
     // Call atomic verification RPC
@@ -683,7 +655,7 @@ const verifyDeliveryPin = async (req, res, next) => {
 
     if (rpcError) throw rpcError;
     if (!result.success) {
-      return res.status(400).json(result);
+      return ApiResponse.error(res, result.error || 'Verification failed', 400);
     }
 
     // Notify customer
@@ -692,7 +664,7 @@ const verifyDeliveryPin = async (req, res, next) => {
       await notificationService.sendOrderNotification(order.buyer_id, order, 'delivered');
     }
 
-    res.status(200).json(result);
+    ApiResponse.success(res, result);
   } catch (error) {
     next(error);
   }

@@ -1,11 +1,12 @@
 // controllers/paymentMethodController.js
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 
 const getPaymentMethods = async (req, res, next) => {
     try {
         const userId = req.user.id;
         const methods = await repositories.paymentMethods.findByUserId(userId);
-        res.status(200).json({ success: true, data: methods });
+        ApiResponse.success(res, methods);
     } catch (error) {
         next(error);
     }
@@ -25,7 +26,7 @@ const addPaymentMethod = async (req, res, next) => {
             is_default: !!is_default
         });
 
-        res.status(201).json({ success: true, data: method });
+        ApiResponse.created(res, method);
     } catch (error) {
         next(error);
     }
@@ -39,11 +40,11 @@ const deletePaymentMethod = async (req, res, next) => {
         // Verify ownership
         const method = await repositories.paymentMethods.findById(id);
         if (!method || method.user_id !== userId) {
-            return res.status(404).json({ success: false, error: 'Payment method not found' });
+            return ApiResponse.error(res, 'Payment method not found', 404);
         }
 
         await repositories.paymentMethods.delete(id);
-        res.status(200).json({ success: true, message: 'Payment method deleted' });
+        ApiResponse.success(res, null, 'Payment method deleted');
     } catch (error) {
         next(error);
     }
@@ -55,7 +56,7 @@ const setDefaultMethod = async (req, res, next) => {
         const { id } = req.params;
 
         const method = await repositories.paymentMethods.setDefault(userId, id);
-        res.status(200).json({ success: true, data: method });
+        ApiResponse.success(res, method);
     } catch (error) {
         next(error);
     }

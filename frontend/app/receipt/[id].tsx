@@ -13,6 +13,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import  { captureRef } from 'react-native-view-shot';
 import { getOrderDetails } from '@/services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Install before use:
@@ -157,7 +158,7 @@ export default function ReceiptScreen() {
       // Step 4 — share/save via OS sheet
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert('Saved', `Receipt PDF saved to:\n${uri}`);
+        CustomInAppToast.show({ type: 'success', title: 'Saved', message: `Receipt PDF saved to:\n${uri}` });
         return;
       }
 
@@ -169,7 +170,7 @@ export default function ReceiptScreen() {
 
     } catch (e: any) {
       console.error('PDF export error:', e);
-      Alert.alert('Error', e.message || 'Could not generate PDF');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not generate PDF' });
     } finally {
       setDownloading(false);
     }
@@ -185,8 +186,9 @@ export default function ReceiptScreen() {
           `Date: ${safeFormat(order?.created_at, 'MMM dd, yyyy')}\n` +
           `Paid via: ${payMethod}`,
       });
-    } catch {}
-  };
+    } catch (e) {
+      console.error('Failed to share receipt:', e);
+    }
 
   // ── States ────────────────────────────────────────────────────────────────
   if (loading) {

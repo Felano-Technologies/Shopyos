@@ -92,7 +92,9 @@ export const logoutUser = async () => {
     try {
       const { socketService } = await import('./socket');
       socketService.disconnect();
-    } catch {}
+    } catch (e) {
+      console.error('Failed to disconnect socket on logout:', e);
+    }
   }
 };
 
@@ -184,7 +186,7 @@ export const uploadAvatar = async (file: File) => {
 
     const raw = await response.text();
     let parsed: any = null;
-    try { parsed = raw ? JSON.parse(raw) : null; } catch {}
+    try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = null; }
 
     if (!response.ok) {
       const msg = parsed?.error || `Failed to upload avatar (${response.status})`;

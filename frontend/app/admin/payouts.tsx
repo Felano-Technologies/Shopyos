@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  ActivityIndicator, RefreshControl, TextInput, ScrollView, Alert,
+  ActivityIndicator, RefreshControl, TextInput, ScrollView,
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import { getAdminPayoutList, getAdminPayoutSummary, processAdminPayout, bulkProcessPayouts } from '@/services/payments';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 const STATUS_FILTERS = ['All', 'Pending', 'Processing', 'Completed', 'Failed'] as const;
 const TYPE_FILTERS = ['All', 'Sellers', 'Drivers'] as const;
@@ -100,55 +101,29 @@ export default function AdminPayoutsScreen() {
     });
   };
 
-  const handleSingleAction = (payout: any, action: 'approve' | 'reject') => {
-    Alert.alert(
-      `${action === 'approve' ? 'Approve' : 'Reject'} Payout`,
-      `Are you sure you want to ${action} ₵${Number.parseFloat(payout.amount).toFixed(2)} for ${payout.store_name || payout.driver_name || 'unknown'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: action === 'approve' ? 'Approve' : 'Reject',
-          style: action === 'reject' ? 'destructive' : 'default',
-          onPress: async () => {
-            try {
-              await processAdminPayout(payout.id, action);
-              await fetchPayouts(1);
-              await fetchSummary();
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Action failed');
-            }
-          }
-        }
-      ]
-    );
+  const handleSingleAction = async (payout: any, action: 'approve' | 'reject') => {
+    try {
+      await processAdminPayout(payout.id, action);
+      await fetchPayouts(1);
+      await fetchSummary();
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Action failed' });
+    }
   };
 
   const handleBulkAction = async (action: 'approve' | 'reject') => {
     if (selectedIds.size === 0) return;
-    Alert.alert(
-      `Bulk ${action === 'approve' ? 'Approve' : 'Reject'}`,
-      `${action === 'approve' ? 'Approve' : 'Reject'} ${selectedIds.size} payout(s)?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: `Yes, ${action === 'approve' ? 'Approve All' : 'Reject All'}`,
-          style: action === 'reject' ? 'destructive' : 'default',
-          onPress: async () => {
-            setBulkLoading(true);
-            try {
-              await bulkProcessPayouts(Array.from(selectedIds), action);
-              setSelectedIds(new Set());
-              await fetchPayouts(1);
-              await fetchSummary();
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Bulk action failed');
-            } finally {
-              setBulkLoading(false);
-            }
-          }
-        }
-      ]
-    );
+    setBulkLoading(true);
+    try {
+      await bulkProcessPayouts(Array.from(selectedIds), action);
+      setSelectedIds(new Set());
+      await fetchPayouts(1);
+      await fetchSummary();
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Bulk action failed' });
+    } finally {
+      setBulkLoading(false);
+    }
   };
 
   // Summary helpers

@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 interface DisclaimerModalProps {
   type: string;
@@ -46,7 +47,7 @@ export default function DisclaimerModal({
           setLoading(false);
         })
         .catch((err) => {
-          Alert.alert('Error', 'Failed to load policy terms. Please try again.');
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to load policy terms. Please try again.' });
           setLoading(false);
           onClose();
         });
@@ -66,7 +67,7 @@ export default function DisclaimerModal({
       onAcknowledge(ack.id);
       onClose();
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to submit agreement. Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to submit agreement. Please try again.' });
     } finally {
       setSubmitting(false);
     }

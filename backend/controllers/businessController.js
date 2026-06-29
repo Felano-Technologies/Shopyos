@@ -1,4 +1,5 @@
-﻿const repositories = require('../db/repositories');
+﻿const ApiResponse = require('../utils/apiResponse');
+const repositories = require('../db/repositories');
 const { resolveImageUrl } = require('../config/storage');
 const { uploadFileToCloudinary, deleteImage, extractPublicId } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
@@ -118,13 +119,13 @@ const createBusiness = async (req, res, next) => {
     // Validate required fields
     const validationError = _validateBusinessFields(req.body);
     if (validationError) {
-      return res.status(400).json({ success: false, error: validationError });
+      return ApiResponse.error(res, validationError, 400);
     }
 
     // Check if user exists
     const user = await repositories.users.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
+      return ApiResponse.error(res, 'User not found', 404);
     }
 
     // Check if business name already exists for this user
@@ -132,10 +133,7 @@ const createBusiness = async (req, res, next) => {
     const existingStores = Array.isArray(existingStoresResult) ? existingStoresResult : (existingStoresResult?.data || []);
 
     if (existingStores.length >= 3) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have reached the maximum limit of 3 business profiles'
-      });
+      return ApiResponse.error(res, 'You have reached the maximum limit of 3 business profiles', 400);
     }
 
     const nameExists = existingStores.some(
@@ -143,7 +141,7 @@ const createBusiness = async (req, res, next) => {
     );
 
     if (nameExists) {
-      return res.status(400).json({ success: false, error: 'You already have a business with this name' });
+      return ApiResponse.error(res, 'You already have a business with this name', 400);
     }
 
     // Generate slug from business name
@@ -167,7 +165,7 @@ const createBusiness = async (req, res, next) => {
         await _uploadBusinessFiles(req, fileUrls);
       } catch (uploadError) {
         logger.error('Error uploading business files:', uploadError);
-        return res.status(500).json({ success: false, error: 'Failed to upload documents' });
+        return ApiResponse.error(res, 'Failed to upload documents', 500);
       }
     }
 
@@ -182,6 +180,7 @@ const createBusiness = async (req, res, next) => {
       email: email || null,
       address_line1: address,
       city,
+      state_province: req.body.stateProvince || req.body.state_province || null,
       country,
       website_url: website || null,
       social_instagram: instagram || null,
@@ -225,6 +224,8 @@ const createBusiness = async (req, res, next) => {
       phone: store.phone,
       address: store.address_line1,
       city: store.city,
+      stateProvince: store.state_province || null,
+      state_province: store.state_province || null,
       country: store.country,
       website: store.website_url || '',
       socialMedia: {
@@ -245,11 +246,7 @@ const createBusiness = async (req, res, next) => {
 
     await invalidateStore('all');
 
-    res.status(201).json({
-      success: true,
-      message: 'Business created successfully',
-      business: response
-    });
+    ApiResponse.withEntity(res, 'business', response, 'Business created successfully', null, 201);
 
   } catch (error) {
     next(error);
@@ -288,6 +285,8 @@ const getMyBusinesses = async (req, res, next) => {
       email: store.email,
       address: store.address_line1,
       city: store.city,
+      stateProvince: store.state_province || null,
+      state_province: store.state_province || null,
       country: store.country,
       website: store.website_url || '',
       socialMedia: {
@@ -311,17 +310,13 @@ const getMyBusinesses = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: businesses,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1
-      }
+    ApiResponse.paginated(res, businesses, {
+      totalItems: totalCount,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      itemsPerPage: limitNum,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1
     });
 
   } catch (error) {
@@ -340,10 +335,7 @@ const getBusinessById = async (req, res, next) => {
     const store = await repositories.stores.findById(businessId);
 
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Business not found'
-      });
+      return ApiResponse.error(res, 'Business not found', 404);
     }
 
     // Verify ownership removed to allow public viewing
@@ -365,6 +357,8 @@ const getBusinessById = async (req, res, next) => {
       email: store.email,
       address: store.address_line1,
       city: store.city,
+      stateProvince: store.state_province || null,
+      state_province: store.state_province || null,
       country: store.country,
       website: store.website_url || '',
       socialMedia: {
@@ -389,10 +383,7 @@ const getBusinessById = async (req, res, next) => {
         .then(res => res.count || 0)
     };
 
-    res.status(200).json({
-      success: true,
-      business
-    });
+    ApiResponse.withEntity(res, 'business', business);
 
   } catch (error) {
     next(error);
@@ -448,6 +439,8 @@ const _mapUpdateFields = (updateData, mappedData) => {
   if (updateData.email) mappedData.email = updateData.email;
   if (updateData.address) mappedData.address_line1 = updateData.address;
   if (updateData.city) mappedData.city = updateData.city;
+  if (updateData.stateProvince !== undefined) mappedData.state_province = updateData.stateProvince;
+  if (updateData.state_province !== undefined) mappedData.state_province = updateData.state_province;
   if (updateData.country) mappedData.country = updateData.country;
   if (updateData.website) mappedData.website_url = updateData.website;
   if (updateData.instagram) mappedData.social_instagram = updateData.instagram;
@@ -535,11 +528,11 @@ const updateBusiness = async (req, res, next) => {
     const store = await repositories.stores.findById(businessId);
 
     if (!store) {
-      return res.status(404).json({ success: false, error: 'Business not found' });
+      return ApiResponse.error(res, 'Business not found', 404);
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized to update this business' });
+      return ApiResponse.error(res, 'Not authorized to update this business', 403);
     }
 
     // Map old field names to new schema
@@ -551,7 +544,7 @@ const updateBusiness = async (req, res, next) => {
         await _uploadUpdateFiles(req, mappedData);
       } catch (uploadError) {
         logger.error('Error uploading business files during update:', uploadError);
-        return res.status(500).json({ success: false, error: 'Failed to upload documents' });
+        return ApiResponse.error(res, 'Failed to upload documents', 500);
       }
     }
 
@@ -577,6 +570,8 @@ const updateBusiness = async (req, res, next) => {
       email: updatedStore.email,
       address: updatedStore.address_line1,
       city: updatedStore.city,
+      stateProvince: updatedStore.state_province || null,
+      state_province: updatedStore.state_province || null,
       country: updatedStore.country,
       website: updatedStore.website_url || '',
       socialMedia: {
@@ -595,11 +590,7 @@ const updateBusiness = async (req, res, next) => {
 
     await invalidateStore(businessId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Business updated successfully',
-      business
-    });
+    ApiResponse.withEntity(res, 'business', business, 'Business updated successfully');
 
   } catch (error) {
     next(error);
@@ -618,17 +609,11 @@ const deleteBusiness = async (req, res, next) => {
     const store = await repositories.stores.findById(businessId);
 
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Business not found'
-      });
+      return ApiResponse.error(res, 'Business not found', 404);
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to delete this business'
-      });
+      return ApiResponse.error(res, 'Not authorized to delete this business', 403);
     }
 
     // Delete images from Cloudinary if they exist
@@ -658,10 +643,7 @@ const deleteBusiness = async (req, res, next) => {
 
     await invalidateStore(businessId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Business deleted successfully'
-    });
+    ApiResponse.success(res, null, 'Business deleted successfully');
 
   } catch (error) {
     next(error);
@@ -677,26 +659,17 @@ const uploadLogo = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No logo file uploaded'
-      });
+      return ApiResponse.error(res, 'No logo file uploaded', 400);
     }
 
     // Verify ownership
     const store = await repositories.stores.findById(businessId);
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Business not found'
-      });
+      return ApiResponse.error(res, 'Business not found', 404);
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized'
-      });
+      return ApiResponse.error(res, 'Not authorized', 403);
     }
 
     // Delete old logo if exists
@@ -720,11 +693,7 @@ const uploadLogo = async (req, res, next) => {
 
     await invalidateStore(businessId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Logo uploaded successfully',
-      logo: await resolveImageUrl(result.url)
-    });
+    ApiResponse.withEntity(res, 'logo', await resolveImageUrl(result.url), 'Logo uploaded successfully');
 
   } catch (error) {
     next(error);
@@ -740,26 +709,17 @@ const uploadBanner = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No banner file uploaded'
-      });
+      return ApiResponse.error(res, 'No banner file uploaded', 400);
     }
 
     // Verify ownership
     const store = await repositories.stores.findById(businessId);
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Business not found'
-      });
+      return ApiResponse.error(res, 'Business not found', 404);
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized'
-      });
+      return ApiResponse.error(res, 'Not authorized', 403);
     }
 
     // Delete old banner if exists
@@ -783,11 +743,7 @@ const uploadBanner = async (req, res, next) => {
 
     await invalidateStore(businessId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Banner uploaded successfully',
-      banner: await resolveImageUrl(result.url)
-    });
+    ApiResponse.withEntity(res, 'banner', await resolveImageUrl(result.url), 'Banner uploaded successfully');
 
   } catch (error) {
     next(error);
@@ -805,11 +761,19 @@ const getBusinessDashboard = async (req, res, next) => {
     // Verify ownership
     const store = await repositories.stores.findById(businessId);
     if (!store) {
-      return res.status(404).json({ success: false, error: 'Business not found' });
+      return ApiResponse.error(res, 'Business not found', 404);
     }
     if (store.owner_id !== userId) {
-      return res.status(403).json({ success: false, error: 'Not authorized' });
+      return ApiResponse.error(res, 'Not authorized', 403);
     }
+
+    // Fetch listing fee config
+    const [freeLimitConfig, listingFeeConfig] = await Promise.all([
+      repositories.feeConfig.getByKey('listing_free_product_limit'),
+      repositories.feeConfig.getByKey('listing_fee_amount')
+    ]);
+    const freeLimit = freeLimitConfig ? Number(freeLimitConfig.config_value) : 10;
+    const listingFee = listingFeeConfig ? Number(listingFeeConfig.config_value) : 50;
 
     // Fetch counts and recent orders in parallel
     const [totalProducts, totalOrders, pendingOrders, completedOrders, recentOrdersResult, weeklyOrders, revenueStats, followersCount] = await Promise.all([
@@ -915,13 +879,18 @@ const getBusinessDashboard = async (req, res, next) => {
           labels: chartLabels,
           datasets: [{ data: chartData }]
         }
+      },
+      listing_status: {
+        tier: store.listing_tier || 'free',
+        product_count: totalProducts,
+        free_limit: freeLimit,
+        listing_fee: listingFee,
+        listing_fee_paid_at: store.listing_fee_paid_at || null,
+        payment_url: '/api/v1/payments/listing-fee/initialize'
       }
     };
 
-    res.status(200).json({
-      success: true,
-      data: dashboardData
-    });
+    ApiResponse.success(res, dashboardData);
 
   } catch (error) {
     next(error);
@@ -935,40 +904,77 @@ const getBusinessAnalytics = async (req, res, next) => {
   try {
     const businessId = req.params.id;
     const userId = req.user.id;
-    const { timeframe = 'week' } = req.query; // week, month, year
+    const { timeframe = 'week', startDate: startDateParam, endDate: endDateParam } = req.query;
 
-    // Verify ownership
     const store = await repositories.stores.findById(businessId);
-    if (!store) return res.status(404).json({ success: false, error: 'Business not found' });
-    if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+    if (!store) return ApiResponse.error(res, 'Business not found', 404);
+    if (store.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
 
-    // Calculate Date Range
-    const startDate = new Date();
+    const useCustomRange = startDateParam && endDateParam;
+    let startDate;
+    let endDate;
 
-    if (timeframe === 'month') startDate.setMonth(startDate.getMonth() - 1);
-    else if (timeframe === 'year') startDate.setFullYear(startDate.getFullYear() - 1);
-    else startDate.setDate(startDate.getDate() - 7); // Default week
+    if (useCustomRange) {
+      startDate = new Date(startDateParam);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate = new Date();
+      endDate = new Date();
+      if (timeframe === 'month') startDate.setMonth(startDate.getMonth() - 1);
+      else if (timeframe === 'year') startDate.setFullYear(startDate.getFullYear() - 1);
+      else startDate.setDate(startDate.getDate() - 7);
+    }
 
-    // Fetch Orders in Range
-    // Note: In a real production app, use DB aggregation. For now, we fetch and aggregate in JS.
-    const [ordersResult, revenueStats] = await Promise.all([
+    const db = require('../config/postgres').getPool();
+
+    const [ordersResult, revenueStats, repeatResult, categoryResult] = await Promise.all([
       repositories.orders.findAll({
         where: { store_id: businessId },
         select: '*, order_items(product_title, quantity, price), payments(amount)',
         limit: 1000
       }),
-      repositories.orders.getStoreRevenueStats(businessId)
+      repositories.orders.getStoreRevenueStats(businessId),
+      db.query(`
+        SELECT
+          COUNT(DISTINCT o.buyer_id) AS total_buyers,
+          COUNT(DISTINCT CASE WHEN buyer_order_counts.order_count >= 2 THEN o.buyer_id END) AS repeat_buyers
+        FROM orders o
+        LEFT JOIN (
+          SELECT buyer_id, COUNT(*) AS order_count
+          FROM orders
+          WHERE store_id = $1
+            AND status NOT IN ('cancelled', 'refunded')
+            AND created_at >= $2
+          GROUP BY buyer_id
+        ) buyer_order_counts ON o.buyer_id = buyer_order_counts.buyer_id
+        WHERE o.store_id = $1
+          AND o.status NOT IN ('cancelled', 'refunded')
+          AND o.created_at >= $2
+      `, [businessId, startDate]),
+      db.query(`
+        SELECT p.category, COUNT(oi.id) AS item_count
+        FROM order_items oi
+        JOIN orders o ON oi.order_id = o.id
+        JOIN products p ON oi.product_id = p.id
+        WHERE o.store_id = $1
+          AND o.status NOT IN ('cancelled', 'refunded')
+          AND o.created_at >= $2
+          AND p.category IS NOT NULL
+        GROUP BY p.category
+        ORDER BY item_count DESC
+      `, [businessId, startDate]),
     ]);
 
     const orders = ordersResult?.data || [];
-    const filteredOrders = orders.filter(o => new Date(o.created_at) >= startDate);
-
-    // 2. Process chart data (Weekly Sales - only from recent orders)
-    // Optimization: In a real app, join products table or store category in order_items. 
-    // For now, we'll skip detailed category breakdown or mock it, or fetch product details if needed.
+    const filteredOrders = orders.filter(o => {
+      const d = new Date(o.created_at);
+      return d >= startDate && (!useCustomRange || d <= endDate);
+    });
 
     const paidStatuses = new Set(['paid', 'confirmed', 'ready_for_pickup', 'assigned', 'picked_up', 'in_transit']);
     const completedStatuses = new Set(['delivered', 'completed']);
+    const excludedStatuses = new Set(['cancelled', 'refunded']);
 
     let totalRevenue = 0;
     let pendingRevenue = 0;
@@ -995,6 +1001,8 @@ const getBusinessAnalytics = async (req, res, next) => {
         totalOrders += 1;
       }
 
+      if (excludedStatuses.has(status)) return;
+
       order.order_items?.forEach(item => {
         if (!productSales[item.product_title]) {
           productSales[item.product_title] = { name: item.product_title, sales: 0, revenue: 0 };
@@ -1004,23 +1012,68 @@ const getBusinessAnalytics = async (req, res, next) => {
       });
     });
 
-    // Top Products
     const topProducts = Object.values(productSales)
       .sort((a, b) => b.sales - a.sales)
       .slice(0, 5)
-      .map(p => ({ ...p, color: '#2563EB' })); // Add colors dynamically if needed
+      .map(p => ({ ...p, color: '#2563EB' }));
 
-    // Chart Data (Revenue over time)
     const chartLabels = [];
     const chartData = [];
 
-    if (timeframe === 'week') {
+    if (useCustomRange) {
+      const diffDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays <= 14) {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayMap = {};
+        for (let i = diffDays; i >= 0; i--) {
+          const d = new Date(startDate);
+          d.setDate(d.getDate() + i);
+          const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+          dayMap[key] = days[d.getDay()];
+        }
+        for (const [key, label] of Object.entries(dayMap)) {
+          chartLabels.push(label);
+          const dayRevenue = filteredOrders
+            .filter(o => {
+              const od = new Date(o.created_at);
+              const ok = `${od.getFullYear()}-${od.getMonth()}-${od.getDate()}`;
+              return ok === key && paidStatuses.has(o.status.toLowerCase());
+            })
+            .reduce((sum, o) => {
+              const amt = Number.parseFloat(o.total_amount || 0);
+              return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
+            }, 0);
+          chartData.push(dayRevenue);
+        }
+      } else {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const monthMap = new Set();
+        const d = new Date(startDate);
+        while (d <= endDate) {
+          monthMap.add(`${d.getFullYear()}-${d.getMonth()}`);
+          d.setMonth(d.getMonth() + 1);
+        }
+        for (const key of monthMap) {
+          const [y, m] = key.split('-').map(Number);
+          chartLabels.push(monthNames[m]);
+          const mthRevenue = filteredOrders
+            .filter(o => {
+              const od = new Date(o.created_at);
+              return od.getFullYear() === y && od.getMonth() === m && paidStatuses.has(o.status.toLowerCase());
+            })
+            .reduce((sum, o) => {
+              const amt = Number.parseFloat(o.total_amount || 0);
+              return o.status.toLowerCase() === 'refunded' ? sum - amt : sum + amt;
+            }, 0);
+          chartData.push(mthRevenue);
+        }
+      }
+    } else if (timeframe === 'week') {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       for (let i = 6; i >= 0; i--) {
         const d = new Date();
         d.setDate(d.getDate() - i);
         chartLabels.push(days[d.getDay()]);
-
         const dayRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
@@ -1035,12 +1088,10 @@ const getBusinessAnalytics = async (req, res, next) => {
     } else if (timeframe === 'month') {
       for (let i = 3; i >= 0; i--) {
         chartLabels.push(`Wk ${4-i}`);
-        
         const endWk = new Date();
         endWk.setDate(endWk.getDate() - (i*7));
         const startWk = new Date();
         startWk.setDate(endWk.getDate() - 7);
-
         const wkRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
@@ -1058,7 +1109,6 @@ const getBusinessAnalytics = async (req, res, next) => {
         const d = new Date();
         d.setMonth(d.getMonth() - i);
         chartLabels.push(monthNames[d.getMonth()]);
-
         const mthRevenue = filteredOrders
           .filter(o => {
             const od = new Date(o.created_at);
@@ -1072,22 +1122,31 @@ const getBusinessAnalytics = async (req, res, next) => {
       }
     }
 
-    res.status(200).json({
-      success: true,
-      data: {
-        stats: {
-          revenue: totalRevenue,
-          pending: pendingRevenue || 0,
-          orders: totalOrders,
-          growth: 0 // calc vs previous period if needed
-        },
-        chart: {
-          labels: chartLabels,
-          datasets: [{ data: chartData }]
-        },
-        topProducts,
-        categoryDistribution: [] // Placeholder
-      }
+    const repeatRow = repeatResult.rows[0] || { total_buyers: 0, repeat_buyers: 0 };
+    const totalBuyers = parseInt(repeatRow.total_buyers, 10);
+    const repeatBuyers = parseInt(repeatRow.repeat_buyers, 10);
+    const repeatCustomerRate = totalBuyers > 0 ? Math.round((repeatBuyers / totalBuyers) * 100) : 0;
+
+    const categoryDistribution = (categoryResult.rows || []).map(r => ({
+      name: r.category,
+      sales: parseInt(r.item_count, 10),
+      color: '#2563EB',
+    }));
+
+    ApiResponse.success(res, {
+      stats: {
+        revenue: totalRevenue,
+        pending: pendingRevenue || 0,
+        orders: totalOrders,
+        growth: 0,
+        repeat_customer_rate: repeatCustomerRate,
+      },
+      chart: {
+        labels: chartLabels,
+        datasets: [{ data: chartData }]
+      },
+      topProducts,
+      categoryDistribution,
     });
 
   } catch (error) {
@@ -1205,18 +1264,14 @@ const getAllBusinesses = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: mapped,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1,
-        sortConfig: { field: sortBy, direction: sort.ascending ? 'asc' : 'desc' }
-      }
+    ApiResponse.paginated(res, mapped, {
+      totalItems: totalCount,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      itemsPerPage: limitNum,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1,
+      sortConfig: { field: sortBy, direction: sort.ascending ? 'asc' : 'desc' }
     });
   } catch (error) {
     next(error);
@@ -1235,10 +1290,7 @@ const followBusiness = async (req, res, next) => {
 
     await invalidateStore(businessId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Store followed successfully'
-    });
+    ApiResponse.success(res, null, 'Store followed successfully');
   } catch (error) {
     next(error);
   }
@@ -1256,10 +1308,7 @@ const unfollowBusiness = async (req, res, next) => {
 
     await invalidateStore(businessId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Store unfollowed successfully'
-    });
+    ApiResponse.success(res, null, 'Store unfollowed successfully');
   } catch (error) {
     next(error);
   }
@@ -1275,8 +1324,8 @@ const getBusinessReviews = async (req, res, next) => {
 
     // Verify ownership
     const store = await repositories.stores.findById(businessId);
-    if (!store) return res.status(404).json({ success: false, error: 'Business not found' });
-    if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+    if (!store) return ApiResponse.error(res, 'Business not found', 404);
+    if (store.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
 
     // 1. Fetch store reviews
     const { data: storeReviews } = await repositories.reviews.db
@@ -1367,7 +1416,7 @@ const getBusinessReviews = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({ success: true, reviews: allReviews });
+    ApiResponse.withEntity(res, 'reviews', allReviews);
   } catch (error) {
     next(error);
   }

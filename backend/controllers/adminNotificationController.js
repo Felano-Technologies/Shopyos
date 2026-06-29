@@ -1,6 +1,7 @@
 // controllers/adminNotificationController.js
 // Handles CRUD for scheduled broadcasts and exposes holiday preview / sweep triggers.
 
+const ApiResponse     = require('../utils/apiResponse');
 const repositories     = require('../db/repositories');
 const holidayService   = require('../services/holidayService');
 const aiService        = require('../services/aiService');
@@ -22,10 +23,10 @@ exports.getScheduledNotifications = async (req, res) => {
       repositories.scheduledNotifications.countForAdmin({ status, campaign_type })
     ]);
 
-    return res.status(200).json({ success: true, data, total });
+    return ApiResponse.success(res, { data, total });
   } catch (err) {
     logger.error('[AdminNotif] getScheduledNotifications error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to fetch notifications' });
+    return ApiResponse.error(res, 'Failed to fetch notifications', 500);
   }
 };
 
@@ -42,22 +43,22 @@ exports.createScheduledNotification = async (req, res) => {
 
     // Basic validation
     if (!title || !message) {
-      return res.status(400).json({ success: false, message: 'title and message are required' });
+      return ApiResponse.error(res, 'title and message are required', 400);
     }
     if (!send_email && !send_sms && !send_push) {
-      return res.status(400).json({ success: false, message: 'Select at least one channel (email, sms, push)' });
+      return ApiResponse.error(res, 'Select at least one channel (email, sms, push)', 400);
     }
     if (!scheduled_at) {
-      return res.status(400).json({ success: false, message: 'scheduled_at is required' });
+      return ApiResponse.error(res, 'scheduled_at is required', 400);
     }
 
     const scheduledDate = new Date(scheduled_at);
     if (Number.isNaN(scheduledDate.valueOf()) || scheduledDate <= new Date()) {
-      return res.status(400).json({ success: false, message: 'scheduled_at must be a valid future date' });
+      return ApiResponse.error(res, 'scheduled_at must be a valid future date', 400);
     }
 
     if (recipient_type === 'specific' && !recipient_ids?.length) {
-      return res.status(400).json({ success: false, message: 'recipient_ids required when targeting specific users' });
+      return ApiResponse.error(res, 'recipient_ids required when targeting specific users', 400);
     }
 
     const record = await repositories.scheduledNotifications.create({
@@ -75,10 +76,10 @@ exports.createScheduledNotification = async (req, res) => {
     });
 
     logger.info(`[AdminNotif] Scheduled broadcast created: "${title}" → ${scheduledDate.toISOString()}`);
-    return res.status(201).json({ success: true, message: 'Notification scheduled', data: record });
+    return ApiResponse.created(res, record, 'Notification scheduled');
   } catch (err) {
     logger.error('[AdminNotif] createScheduledNotification error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to create notification' });
+    return ApiResponse.error(res, 'Failed to create notification', 500);
   }
 };
 
@@ -90,21 +91,18 @@ exports.cancelScheduledNotification = async (req, res) => {
 
     const record = await repositories.scheduledNotifications.findById(id);
     if (!record) {
-      return res.status(404).json({ success: false, message: 'Notification not found' });
+      return ApiResponse.error(res, 'Notification not found', 404);
     }
     if (record.status !== 'pending') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot cancel a notification with status: ${record.status}`
-      });
+      return ApiResponse.error(res, `Cannot cancel a notification with status: ${record.status}`, 400);
     }
 
     await repositories.scheduledNotifications.delete(id);
     logger.info(`[AdminNotif] Scheduled broadcast cancelled: ${id}`);
-    return res.status(200).json({ success: true, message: 'Scheduled notification cancelled' });
+    return ApiResponse.success(res, null, 'Scheduled notification cancelled');
   } catch (err) {
     logger.error('[AdminNotif] cancelScheduledNotification error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to cancel notification' });
+    return ApiResponse.error(res, 'Failed to cancel notification', 500);
   }
 };
 
@@ -118,8 +116,7 @@ exports.previewHolidayCampaign = async (req, res) => {
     if (!holiday) {
       // Return upcoming holidays as bonus UX
       const upcoming = await holidayService.getUpcomingHolidays();
-      return res.status(200).json({
-        success: true,
+      return ApiResponse.success(res, {
         isHoliday: false,
         message: 'Today is not a public holiday in Ghana.',
         upcomingHolidays: upcoming.slice(0, 5)
@@ -130,8 +127,7 @@ exports.previewHolidayCampaign = async (req, res) => {
       holidayName: holiday.localName
     });
 
-    return res.status(200).json({
-      success: true,
+    return ApiResponse.success(res, {
       isHoliday: true,
       holidayName: holiday.localName,
       aiRecommendation: aiDraft,
@@ -139,7 +135,7 @@ exports.previewHolidayCampaign = async (req, res) => {
     });
   } catch (err) {
     logger.error('[AdminNotif] previewHolidayCampaign error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to preview holiday campaign' });
+    return ApiResponse.error(res, 'Failed to preview holiday campaign', 500);
   }
 };
 
@@ -155,13 +151,10 @@ exports.triggerMarketingSweep = async (req, res) => {
     setImmediate(() => executeDailyMarketingSweep());
 
     logger.info('[AdminNotif] Daily marketing sweep triggered manually by admin');
-    return res.status(200).json({
-      success: true,
-      message: 'Daily marketing sweep triggered. Check logs for progress.'
-    });
+    return ApiResponse.success(res, null, 'Daily marketing sweep triggered. Check logs for progress.');
   } catch (err) {
     logger.error('[AdminNotif] triggerMarketingSweep error:', err);
-    return res.status(500).json({ success: false, message: 'Failed to trigger sweep' });
+    return ApiResponse.error(res, 'Failed to trigger sweep', 500);
   }
 };
 
@@ -173,7 +166,7 @@ exports.sendTestNotification = async (req, res) => {
   try {
     const adminId = req.user?.id;
     if (!adminId) {
-      return res.status(401).json({ success: false, message: 'Unauthorized' });
+      return ApiResponse.error(res, 'Unauthorized', 401);
     }
 
     const notificationService = require('../services/notificationService');
@@ -192,18 +185,12 @@ exports.sendTestNotification = async (req, res) => {
 
     if (result) {
       logger.info(`[AdminNotif] Test notification sent to admin ${adminId}`);
-      return res.status(200).json({
-        success: true,
-        message: 'Test notification delivered. Check your in-app notification bell and (if a push token is registered) your device.'
-      });
+      return ApiResponse.success(res, null, 'Test notification delivered. Check your in-app notification bell and (if a push token is registered) your device.');
     } else {
-      return res.status(500).json({
-        success: false,
-        message: 'sendNotification returned false — check server logs for the DB or push error. Most likely cause: missing notification_type enum value. Run migration 044.'
-      });
+      return ApiResponse.error(res, 'sendNotification returned false — check server logs for the DB or push error. Most likely cause: missing notification_type enum value. Run migration 044.', 500);
     }
   } catch (err) {
     logger.error('[AdminNotif] sendTestNotification error:', err);
-    return res.status(500).json({ success: false, message: err.message });
+    return ApiResponse.error(res, err.message, 500);
   }
 };

@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrders } from '../hooks/useOrders';
+import { SEO } from '../components/SEO';
 
 export const Orders: React.FC = () => {
   const { data: ordersData, isLoading, error } = useOrders();
@@ -31,6 +32,7 @@ export const Orders: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in mt-4">
+      <SEO title="My Orders" />
       <h2 className="text-2xl md:text-3xl font-bold text-body">My Orders</h2>
 
       {orders.length === 0 ? (

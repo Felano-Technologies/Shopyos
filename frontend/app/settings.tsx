@@ -303,6 +303,12 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
           {renderSettingItem({
+            icon: 'bar-chart-2',
+            label: 'Shopping Stats',
+            onPress: () => router.push('/analytics')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
             icon: 'refresh-ccw',
             label: 'My Returns',
             onPress: () => router.push('/returns')

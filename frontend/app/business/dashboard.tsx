@@ -300,6 +300,49 @@ const BusinessDashboard = () => {
                   <AppImage source={require('../../assets/images/splash-icon.png')} style={styles.fadedLogo} />
                 </View>
 
+                {/* --- LISTING STATUS BANNER --- */}
+                {(() => {
+                  const ls = dashboardData?.listing_status;
+                  if (!ls) return null;
+                  const usage = ls.product_count / ls.free_limit;
+                  let bg: [string, string];
+                  let icon: string;
+                  let label: string;
+                  if (ls.tier === 'paid') {
+                    bg = ['#16A34A', '#15803D'];
+                    icon = 'check-circle';
+                    label = 'Unlimited Listing \u2713';
+                  } else if (usage >= 1) {
+                    bg = ['#DC2626', '#B91C1C'];
+                    icon = 'alert-circle';
+                    label = `Listing fee required \u2022 \u20B5${ls.listing_fee}`;
+                  } else if (usage >= 0.8) {
+                    bg = ['#D97706', '#B45309'];
+                    icon = 'alert-triangle';
+                    label = `${ls.product_count}/${ls.free_limit} products used`;
+                  } else {
+                    bg = ['#2563EB', '#1D4ED8'];
+                    icon = 'info';
+                    label = `Free listing: ${ls.product_count}/${ls.free_limit} products used`;
+                  }
+                  return (
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (ls.tier !== 'paid') {
+                          router.push('/business/products/addproducts');
+                        }
+                      }}
+                      activeOpacity={ls.tier === 'paid' ? 1 : 0.8}
+                    >
+                      <LinearGradient colors={bg} start={{x:0,y:0}} end={{x:1,y:0}} style={styles.listingBanner}>
+                        <Feather name={icon as any} size={18} color="#FFF" />
+                        <Text style={styles.listingBannerText}>{label}</Text>
+                        {ls.tier !== 'paid' && <Feather name="chevron-right" size={16} color="rgba(255,255,255,0.7)" />}
+                      </LinearGradient>
+                    </TouchableOpacity>
+                  );
+                })()}
+
                 {/* --- FLOATING STATS --- */}
                 <View style={styles.floatingStatsContainer} ref={refStats} onLayout={() => measureElement(refStats, 'stats')}>
                   {isTourActive && (
@@ -612,6 +655,8 @@ const styles = StyleSheet.create({
   businessName: { color: '#FFF', fontSize: 20, fontFamily: 'Montserrat-Bold' },
   ratingRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 4 },
   ratingText: { color: '#FFF', fontSize: 11, fontFamily: 'Montserrat-SemiBold', marginLeft: 4 },
+  listingBanner: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, marginTop: 8, marginBottom: 4, borderRadius: 12, padding: 14, gap: 10 },
+  listingBannerText: { flex: 1, color: '#FFF', fontSize: 13, fontFamily: 'Montserrat-SemiBold' },
   floatingStatsContainer: { flexDirection: 'row', backgroundColor: '#FFF', marginHorizontal: 20, marginTop: -5, borderRadius: 16, padding: 20, elevation: 10, shadowColor: '#0C1559', shadowOpacity: 0.1, shadowRadius: 20, justifyContent: 'space-between', alignItems: 'center', position: 'relative', overflow: 'hidden' },
   statsPulse: { position: 'absolute', top: -15, left: -15, width: 80, height: 80, opacity: 0.15 },
   statItem: { alignItems: 'center', flex: 1, zIndex: 1 },

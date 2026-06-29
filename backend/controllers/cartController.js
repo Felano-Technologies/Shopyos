@@ -1,6 +1,7 @@
 // controllers/cartController.js
 // Cart management controller
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 
 /**
@@ -15,26 +16,17 @@ const addToCart = async (req, res, next) => {
 
     // Validate input
     if (!productId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Product ID is required'
-      });
+      return ApiResponse.error(res, 'Product ID is required', 400);
     }
 
     if (quantity < 1) {
-      return res.status(400).json({
-        success: false,
-        error: 'Quantity must be at least 1'
-      });
+      return ApiResponse.error(res, 'Quantity must be at least 1', 400);
     }
 
     // Verify product exists and is available
     const product = await repositories.products.findById(productId);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     // Resolve variant and effective price
@@ -43,10 +35,10 @@ const addToCart = async (req, res, next) => {
     if (variantId) {
       const variant = await repositories.productVariants.findWithProduct(variantId);
       if (!variant || variant.product_id !== productId) {
-        return res.status(400).json({ success: false, error: 'Variant does not belong to this product' });
+        return ApiResponse.error(res, 'Variant does not belong to this product', 400);
       }
       if (!variant.is_active || !variant.product_active) {
-        return res.status(400).json({ success: false, error: 'This variant is not available' });
+        return ApiResponse.error(res, 'This variant is not available', 400);
       }
       // Variant price overrides base price when set
       effectivePrice = variant.price ?? product.price;
@@ -60,11 +52,8 @@ const addToCart = async (req, res, next) => {
       const availableStock = inventory.stock_quantity - (inventory.reserved_quantity || 0);
 
       if (availableStock < quantity) {
-        return res.status(400).json({
-          success: false,
-          error: 'Insufficient stock',
-          available: availableStock
-        });
+        const details = { available: availableStock };
+        return ApiResponse.error(res, 'Insufficient stock', 400, details);
       }
     }
 
@@ -76,15 +65,10 @@ const addToCart = async (req, res, next) => {
 
     // Reset abandonment tracking so a new inactivity window starts now
     setImmediate(() =>
-      repositories.carts.touchLastActivity(userId).catch(() => {})
+      repositories.carts.touchLastActivity(userId).catch((e) => console.error('Touch last activity failed:', e))
     );
 
-    res.status(200).json({
-      success: true,
-      message: 'Item added to cart',
-      cartItem,
-      cart
-    });
+    ApiResponse.success(res, { cartItem, cart }, 'Item added to cart');
   } catch (error) {
     next(error);
   }
@@ -102,20 +86,13 @@ const getCart = async (req, res, next) => {
     const cart = await repositories.carts.getCartWithItems(userId);
 
     if (!cart) {
-      return res.status(200).json({
-        success: true,
-        cart: null,
-        items: [],
-        subtotal: 0,
-        itemCount: 0
-      });
+      return ApiResponse.success(res, { cart: null, items: [], subtotal: 0, itemCount: 0 });
     }
 
     // Calculate totals
     const cartTotal = await repositories.carts.getCartTotal(userId);
 
-    res.status(200).json({
-      success: true,
+    ApiResponse.success(res, {
       cart: {
         id: cart.id,
         userId: cart.user_id,
@@ -144,19 +121,13 @@ const updateCartItem = async (req, res, next) => {
 
     // Validate quantity
     if (!quantity || quantity < 1) {
-      return res.status(400).json({
-        success: false,
-        error: 'Quantity must be at least 1'
-      });
+      return ApiResponse.error(res, 'Quantity must be at least 1', 400);
     }
 
     // Verify ownership
     const isOwner = await repositories.carts.verifyCartItemOwnership(userId, itemId);
     if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this cart item'
-      });
+      return ApiResponse.error(res, 'Not authorized to update this cart item', 403);
     }
 
     // Update quantity
@@ -165,12 +136,7 @@ const updateCartItem = async (req, res, next) => {
     // Get updated cart
     const cart = await repositories.carts.getCartWithItems(userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Cart item updated',
-      cartItem: updatedItem,
-      cart
-    });
+    ApiResponse.success(res, { cartItem: updatedItem, cart }, 'Cart item updated');
   } catch (error) {
     next(error);
   }
@@ -189,10 +155,7 @@ const removeFromCart = async (req, res, next) => {
     // Verify ownership
     const isOwner = await repositories.carts.verifyCartItemOwnership(userId, itemId);
     if (!isOwner) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to remove this cart item'
-      });
+      return ApiResponse.error(res, 'Not authorized to remove this cart item', 403);
     }
 
     // Remove item
@@ -201,11 +164,7 @@ const removeFromCart = async (req, res, next) => {
     // Get updated cart
     const cart = await repositories.carts.getCartWithItems(userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Item removed from cart',
-      cart
-    });
+    ApiResponse.success(res, { cart }, 'Item removed from cart');
   } catch (error) {
     next(error);
   }
@@ -222,14 +181,7 @@ const clearCart = async (req, res, next) => {
 
     await repositories.carts.clearCart(userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Cart cleared',
-      cart: null,
-      items: [],
-      subtotal: 0,
-      itemCount: 0
-    });
+    ApiResponse.success(res, { cart: null, items: [], subtotal: 0, itemCount: 0 }, 'Cart cleared');
   } catch (error) {
     next(error);
   }
@@ -246,10 +198,7 @@ const getCartItemCount = async (req, res, next) => {
 
     const count = await repositories.carts.getCartItemCount(userId);
 
-    res.status(200).json({
-      success: true,
-      count
-    });
+    ApiResponse.withEntity(res, 'count', count);
   } catch (error) {
     next(error);
   }

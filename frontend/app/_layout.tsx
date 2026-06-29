@@ -16,6 +16,7 @@ import { useUnreadNotificationCount } from '../hooks/useNotifications';
 import { useSocketSetup } from '../hooks/useSocketSetup';
 import Toast, { BaseToast, ErrorToast } from 'react-native-toast-message';
 import { InAppToastHost } from '../components/InAppToastHost';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { OnboardingProvider } from '@/context/OnboardingContext';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuthStore } from '@/store/authStore';
@@ -279,6 +280,7 @@ function AppContent() {
             {isBusinessRoute && showBusinessNav && <BusinessBottomNav />}
             {isParcelPartnerRoute && showParcelPartnerNav && <ParcelPartnerBottomNav />}
 
+            <OfflineBanner />
             <StatusBar style="auto" />
             <Toast config={toastConfig} topOffset={50} visibilityTime={4000} />
             <InAppToastHost />
