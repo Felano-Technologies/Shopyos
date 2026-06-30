@@ -1,6 +1,7 @@
 ﻿// controllers/messagingController.js
 // Messaging system controller
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
@@ -44,27 +45,18 @@ const startConversation = async (req, res, next) => {
 
     // Validate input
     if (!participantId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Participant ID is required'
-      });
+      return ApiResponse.error(res, 'Participant ID is required', 400);
     }
 
     // Cannot start conversation with self
     if (participantId === userId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Cannot start conversation with yourself'
-      });
+      return ApiResponse.error(res, 'Cannot start conversation with yourself', 400);
     }
 
     // Verify participant exists
     const participant = await repositories.users.findById(participantId);
     if (!participant) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
+      return ApiResponse.error(res, 'User not found', 404);
     }
 
     // Get or create conversation
@@ -76,10 +68,7 @@ const startConversation = async (req, res, next) => {
     // Get conversation details
     const details = await repositories.conversations.getConversationDetails(conversation.id);
 
-    res.status(200).json({
-      success: true,
-      conversation: await formatAvatars(details)
-    });
+    ApiResponse.withEntity(res, 'conversation', await formatAvatars(details));
   } catch (error) {
     next(error);
   }
@@ -100,11 +89,7 @@ const getConversations = async (req, res, next) => {
       offset: Number.parseInt(offset)
     });
 
-    res.status(200).json({
-      success: true,
-      conversations: await formatAvatars(conversations),
-      count: conversations.length
-    });
+    res.json({ success: true, conversations: await formatAvatars(conversations), count: conversations.length });
   } catch (error) {
     next(error);
   }
@@ -123,25 +108,16 @@ const getConversationDetails = async (req, res, next) => {
     // Verify user is participant
     const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this conversation'
-      });
+      return ApiResponse.error(res, 'Not authorized to access this conversation', 403);
     }
 
     const conversation = await repositories.conversations.getConversationDetails(conversationId);
 
     if (!conversation) {
-      return res.status(404).json({
-        success: false,
-        error: 'Conversation not found'
-      });
+      return ApiResponse.error(res, 'Conversation not found', 404);
     }
 
-    res.status(200).json({
-      success: true,
-      conversation: await formatAvatars(conversation)
-    });
+    ApiResponse.withEntity(res, 'conversation', await formatAvatars(conversation));
   } catch (error) {
     next(error);
   }
@@ -222,19 +198,13 @@ const sendMessage = async (req, res, next) => {
 
     // Validate input â€” content only required for text messages
     if (messageType === 'text' && (!content || content.trim() === '')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message content is required'
-      });
+      return ApiResponse.error(res, 'Message content is required', 400);
     }
 
     // Verify user is participant
     const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to send messages in this conversation'
-      });
+      return ApiResponse.error(res, 'Not authorized to send messages in this conversation', 403);
     }
 
     // Moderate content before sending if content exists
@@ -290,10 +260,7 @@ const sendMessage = async (req, res, next) => {
     });
 
     // Send response immediately â€” don't wait for notifications
-    res.status(201).json({
-      success: true,
-      message: formattedMessage
-    });
+    ApiResponse.withEntity(res, 'message', formattedMessage, null, null, 201);
 
     // Fire-and-forget: send notification to recipient after responding
     (async () => {
@@ -363,10 +330,7 @@ const getMessages = async (req, res, next) => {
     // Verify user is participant
     const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access these messages'
-      });
+      return ApiResponse.error(res, 'Not authorized to access these messages', 403);
     }
 
     const messages = await repositories.messages.getConversationMessages(conversationId, {
@@ -375,11 +339,7 @@ const getMessages = async (req, res, next) => {
       beforeMessageId
     });
 
-    res.status(200).json({
-      success: true,
-      messages: await formatAvatars(messages),
-      count: messages.length
-    });
+    res.json({ success: true, messages: await formatAvatars(messages), count: messages.length });
   } catch (error) {
     next(error);
   }
@@ -398,19 +358,12 @@ const markConversationAsRead = async (req, res, next) => {
     // Verify user is participant
     const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this conversation'
-      });
+      return ApiResponse.error(res, 'Not authorized to access this conversation', 403);
     }
 
     const updatedCount = await repositories.messages.markConversationAsRead(conversationId, userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Messages marked as read',
-      updatedCount
-    });
+    res.json({ success: true, message: 'Messages marked as read', updatedCount });
   } catch (error) {
     next(error);
   }
@@ -428,10 +381,7 @@ const deleteMessage = async (req, res, next) => {
 
     await repositories.messages.deleteMessage(messageId, userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Message deleted'
-    });
+    ApiResponse.success(res, null, 'Message deleted');
   } catch (error) {
     next(error);
   }
@@ -449,19 +399,13 @@ const searchMessages = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!q || q.trim() === '') {
-      return res.status(400).json({
-        success: false,
-        error: 'Search query is required'
-      });
+      return ApiResponse.error(res, 'Search query is required', 400);
     }
 
     // Verify user is participant
     const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to search in this conversation'
-      });
+      return ApiResponse.error(res, 'Not authorized to search in this conversation', 403);
     }
 
     const messages = await repositories.messages.searchMessages(
@@ -470,12 +414,7 @@ const searchMessages = async (req, res, next) => {
       Number.parseInt(limit)
     );
 
-    res.status(200).json({
-      success: true,
-      messages,
-      count: messages.length,
-      searchTerm: q.trim()
-    });
+    res.json({ success: true, messages, count: messages.length, searchTerm: q.trim() });
   } catch (error) {
     next(error);
   }
@@ -492,10 +431,7 @@ const getUnreadCount = async (req, res, next) => {
 
     const count = await repositories.conversations.getUnreadConversationsCount(userId);
 
-    res.status(200).json({
-      success: true,
-      unreadCount: count
-    });
+    ApiResponse.withEntity(res, 'unreadCount', count);
   } catch (error) {
     next(error);
   }
@@ -518,7 +454,7 @@ const deleteConversation = async (req, res, next) => {
     );
 
     if (!isParticipant) {
-      return res.status(403).json({ success: false, error: 'Not authorized to delete this conversation' });
+      return ApiResponse.error(res, 'Not authorized to delete this conversation', 403);
     }
 
     // Hard delete the conversation (cascades to messages)
@@ -527,7 +463,7 @@ const deleteConversation = async (req, res, next) => {
     // Emit event to inform other participant if needed
     emitToConversation(conversationId, 'conversation:deleted', { conversationId });
 
-    res.json({ success: true, message: 'Conversation deleted successfully' });
+    ApiResponse.success(res, null, 'Conversation deleted successfully');
   } catch (error) {
     logger.error(`Error deleting conversation: ${error.message}`);
     next(error);
@@ -545,26 +481,17 @@ const uploadChatMedia = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No file uploaded'
-      });
+      return ApiResponse.error(res, 'No file uploaded', 400);
     }
 
     if (!conversationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Conversation ID is required'
-      });
+      return ApiResponse.error(res, 'Conversation ID is required', 400);
     }
 
     // Verify user is participant of conversation
     const isParticipant = await repositories.conversations.isParticipant(conversationId, userId);
     if (!isParticipant) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to upload media to this conversation'
-      });
+      return ApiResponse.error(res, 'Not authorized to upload media to this conversation', 403);
     }
 
     // Upload to S3/MinIO
@@ -583,13 +510,10 @@ const uploadChatMedia = async (req, res, next) => {
       ContentType: req.file.mimetype,
     }));
 
-    res.status(200).json({
-      success: true,
-      media: {
-        url: await resolveImageUrl(key),
-        mimeType: req.file.mimetype,
-        size: req.file.size
-      }
+    ApiResponse.withEntity(res, 'media', {
+      url: await resolveImageUrl(key),
+      mimeType: req.file.mimetype,
+      size: req.file.size
     });
   } catch (error) {
     next(error);
@@ -616,22 +540,16 @@ const getUserPresence = async (req, res, next) => {
     // 2. Fetch profile from DB to get the most recent db state
     const profile = await repositories.userProfiles.findByUserId(userId);
     if (!profile) {
-      return res.status(404).json({
-        success: false,
-        error: 'User profile not found'
-      });
+      return ApiResponse.error(res, 'User profile not found', 404);
     }
 
     // Cache is ground truth for active connection, DB is backup
     const finalOnline = isOnline || profile.is_online || false;
 
-    res.status(200).json({
-      success: true,
-      presence: {
-        userId,
-        isOnline: finalOnline,
-        lastSeen: profile.last_seen || new Date().toISOString()
-      }
+    ApiResponse.withEntity(res, 'presence', {
+      userId,
+      isOnline: finalOnline,
+      lastSeen: profile.last_seen || new Date().toISOString()
     });
   } catch (error) {
     next(error);
@@ -734,10 +652,7 @@ const getStickerPacks = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      packs
-    });
+    ApiResponse.withEntity(res, 'packs', packs);
   } catch (error) {
     next(error);
   }
@@ -753,10 +668,7 @@ const createCustomSticker = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        error: 'No image uploaded'
-      });
+      return ApiResponse.error(res, 'No image uploaded', 400);
     }
 
     const crypto = require('node:crypto');
@@ -774,13 +686,10 @@ const createCustomSticker = async (req, res, next) => {
       ContentType: req.file.mimetype,
     }));
 
-    res.status(200).json({
-      success: true,
-      sticker: {
-        id: `${now}-${random}`,
-        url: await resolveImageUrl(key),
-        label: 'Custom'
-      }
+    ApiResponse.withEntity(res, 'sticker', {
+      id: `${now}-${random}`,
+      url: await resolveImageUrl(key),
+      label: 'Custom'
     });
   } catch (error) {
     next(error);
@@ -1071,7 +980,7 @@ const getChatContacts = async (req, res, next) => {
       }
     }
 
-    return res.json({ success: true, sections });
+    return ApiResponse.withEntity(res, 'sections', sections);
   } catch (error) {
     next(error);
   }

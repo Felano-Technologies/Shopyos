@@ -642,10 +642,7 @@ const cancelOrder = async (req, res, next) => {
     // Get order
     const order = await repositories.orders.findById(orderId);
     if (!order) {
-      return res.status(404).json({
-        success: false,
-        error: 'Order not found'
-      });
+      return ApiResponse.error(res, 'Order not found', 404);
     }
 
     // Verify authorization
@@ -833,7 +830,7 @@ const confirmDelivery = async (req, res, next) => {
 
     if (rpcError) throw rpcError;
     if (!rpcResult.success) {
-      return res.status(400).json(rpcResult);
+      return ApiResponse.error(res, rpcResult.error || 'Delivery confirmation failed', 400);
     }
 
     // Fetch updated order for response and notifications

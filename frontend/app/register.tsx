@@ -153,6 +153,8 @@ const RegisterScreen = () => {
           <View style={styles.inputContainer}>
             <Ionicons name="person" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Full name"
+              accessibilityRole="none"
               style={styles.input}
               placeholder="Enter your name"
               placeholderTextColor="#666"
@@ -165,6 +167,8 @@ const RegisterScreen = () => {
           <View style={styles.inputContainer}>
             <Ionicons name="mail" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Email address"
+              accessibilityRole="none"
               style={styles.input}
               placeholder="Enter your email"
               placeholderTextColor="#666"
@@ -178,6 +182,8 @@ const RegisterScreen = () => {
           {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
           <View style={styles.inputContainer}>
             <TouchableOpacity
+              accessibilityLabel="Select country code"
+              accessibilityRole="button"
               style={styles.countryCodeButton}
               onPress={() => setShowCountryPicker(true)}
             >
@@ -185,6 +191,8 @@ const RegisterScreen = () => {
               <Ionicons name="chevron-down-sharp" size={16} color="#444" />
             </TouchableOpacity>
             <TextInput
+              accessibilityLabel="Phone number"
+              accessibilityRole="none"
               style={[styles.input, styles.phoneInput]}
               placeholder="Phone number"
               placeholderTextColor="#666"
@@ -204,6 +212,8 @@ const RegisterScreen = () => {
           <View style={styles.inputContainer}>
             <Ionicons name="lock-closed" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Password"
+              accessibilityRole="none"
               style={[styles.input, styles.passwordInput]}
               placeholder="Password"
               placeholderTextColor="#666"
@@ -213,7 +223,7 @@ const RegisterScreen = () => {
               value={password}
               onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: '' })); }}
             />
-            <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+            <TouchableOpacity accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} accessibilityRole="button" style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
               <Ionicons
                 name={showPassword ? 'eye' : 'eye-off'}
                 size={20}
@@ -225,6 +235,8 @@ const RegisterScreen = () => {
           <View style={styles.inputContainer}>
             <Ionicons name="gift" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Referral code"
+              accessibilityRole="none"
               style={styles.input}
               placeholder="Referral Code (Optional)"
               placeholderTextColor="#666"
@@ -236,33 +248,33 @@ const RegisterScreen = () => {
           </View>
           {/* Disclaimer checkboxes */}
           <View style={styles.disclaimerRow}>
-            <TouchableOpacity onPress={() => setTermsAccepted(!termsAccepted)} activeOpacity={0.8}>
+            <TouchableOpacity accessibilityLabel="Accept terms of service" accessibilityRole="checkbox" onPress={() => setTermsAccepted(!termsAccepted)} activeOpacity={0.8}>
               <View style={[styles.disclaimerBox, termsAccepted && styles.disclaimerBoxChecked]}>
                 {termsAccepted && <Ionicons name="checkmark" size={13} color="#FFF" />}
               </View>
             </TouchableOpacity>
             <Text style={styles.disclaimerText}>
               I agree to the{' '}
-              <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+              <Text style={styles.disclaimerLink} accessibilityRole="link" accessibilityLabel="View terms of service" onPress={() => setShowTermsModal(true)}>
                 Terms of Service
               </Text>
             </Text>
           </View>
           <View style={[styles.disclaimerRow, { marginBottom: 16 }]}>
-            <TouchableOpacity onPress={() => setPrivacyAccepted(!privacyAccepted)} activeOpacity={0.8}>
+            <TouchableOpacity accessibilityLabel="Accept privacy policy" accessibilityRole="checkbox" onPress={() => setPrivacyAccepted(!privacyAccepted)} activeOpacity={0.8}>
               <View style={[styles.disclaimerBox, privacyAccepted && styles.disclaimerBoxChecked]}>
                 {privacyAccepted && <Ionicons name="checkmark" size={13} color="#FFF" />}
               </View>
             </TouchableOpacity>
             <Text style={styles.disclaimerText}>
               I agree to the{' '}
-              <Text style={styles.disclaimerLink} onPress={() => setShowPrivacyModal(true)}>
+              <Text style={styles.disclaimerLink} accessibilityRole="link" accessibilityLabel="View privacy policy" onPress={() => setShowPrivacyModal(true)}>
                 Privacy Policy
               </Text>
             </Text>
           </View>
           {/* Sign Up Button */}
-          <TouchableOpacity style={[styles.button, !isFormValid && styles.buttonDisabled]} onPress={handleRegister} disabled={loading || !isFormValid}>
+          <TouchableOpacity accessibilityLabel="Create account" accessibilityRole="button" style={[styles.button, !isFormValid && styles.buttonDisabled]} onPress={handleRegister} disabled={loading || !isFormValid}>
             {loading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
@@ -277,6 +289,8 @@ const RegisterScreen = () => {
           </View>
           {/* Continue with Google */}
           <TouchableOpacity
+            accessibilityLabel="Continue with Google"
+            accessibilityRole="button"
             style={styles.googleButton}
             onPress={() => promptAsync()}
             disabled={!request || loading}
@@ -286,6 +300,8 @@ const RegisterScreen = () => {
           </TouchableOpacity>
           {/* Already registered */}
           <TouchableOpacity
+            accessibilityLabel="Sign in to existing account"
+            accessibilityRole="button"
             style={styles.loginButton}
             onPress={() => router.push('/login')}
           >

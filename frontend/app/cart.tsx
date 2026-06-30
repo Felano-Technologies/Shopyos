@@ -80,7 +80,7 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
   return (
     <View style={styles.swipeContainer}>
       <View style={styles.deleteBackground}>
-        <TouchableOpacity onPress={handleDelete} style={styles.deleteAction}>
+        <TouchableOpacity accessibilityLabel="Remove item from cart" accessibilityRole="button" onPress={handleDelete} style={styles.deleteAction}>
           <Feather name="trash-2" size={22} color="#FFF" />
           <Text style={styles.deleteActionText}>Remove</Text>
         </TouchableOpacity>
@@ -97,7 +97,7 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
         <View style={styles.itemDetails}>
           <View style={styles.titleRow}>
             <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
-            <TouchableOpacity onPress={handleDelete} style={styles.deleteBtn}>
+            <TouchableOpacity accessibilityLabel="Delete item" accessibilityRole="button" onPress={handleDelete} style={styles.deleteBtn}>
               <Feather name="trash-2" size={16} color="#EF4444" />
             </TouchableOpacity>
           </View>
@@ -121,19 +121,23 @@ const SwipeableCartItem = React.memo(function SwipeableCartItem({ item, index, r
               ref={index === 0 ? refQty : undefined}
               onLayout={index === 0 ? () => measureElement(refQty, 'qty') : undefined}
             >
-              <TouchableOpacity
-                style={[styles.qtyBtn, item.quantity === 1 && styles.qtyBtnDanger]}
-                onPress={handleDecrement}
-              >
+<TouchableOpacity
+                                                accessibilityLabel="Decrease quantity"
+                                                accessibilityRole="button"
+                                                style={[styles.qtyBtn, item.quantity === 1 && styles.qtyBtnDanger]}
+                                                onPress={handleDecrement}
+                                              >
                 {item.quantity === 1
                   ? <Feather name="trash-2" size={12} color="#EF4444" />
                   : <Feather name="minus" size={14} color="#0C1559" />}
               </TouchableOpacity>
               <Text style={styles.qtyText}>{item.quantity}</Text>
-              <TouchableOpacity
-                style={[styles.qtyBtn, styles.qtyBtnActive]}
-                onPress={() => updateQuantity(item.id, 1)}
-              >
+<TouchableOpacity
+                                                accessibilityLabel="Increase quantity"
+                                                accessibilityRole="button"
+                                                style={[styles.qtyBtn, styles.qtyBtnActive]}
+                                                onPress={() => updateQuantity(item.id, 1)}
+                                              >
                 <Feather name="plus" size={14} color="#FFF" />
               </TouchableOpacity>
             </View>
@@ -233,7 +237,7 @@ export default function CartScreen() {
       <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.header}>
         <SafeAreaView edges={['top', 'left', 'right']} style={styles.headerSafe}>
           <View style={styles.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.backBtn}>
               <Ionicons name="arrow-back" size={24} color="#FFF" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>My Cart</Text>
@@ -270,7 +274,7 @@ export default function CartScreen() {
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="cart-outline" size={80} color="#CBD5E1" />
             <Text style={styles.emptyText}>Your cart is empty</Text>
-            <TouchableOpacity style={styles.shopBtn} onPress={() => router.back()}>
+            <TouchableOpacity accessibilityLabel="Start shopping" accessibilityRole="button" style={styles.shopBtn} onPress={() => router.back()}>
               <Text style={styles.shopBtnText}>Start Shopping</Text>
             </TouchableOpacity>
           </View>
@@ -286,6 +290,8 @@ export default function CartScreen() {
               <Text style={styles.totalValue}>₵{total.toFixed(2)}</Text>
             </View>
             <TouchableOpacity
+              accessibilityLabel="Proceed to checkout"
+              accessibilityRole="button"
               style={styles.checkoutBtn}
               onPress={() => router.push('/checkout' as any)}
               ref={refCheckout}

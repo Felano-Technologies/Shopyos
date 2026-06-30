@@ -53,6 +53,8 @@ function SectionPill({
 }>) {
   return (
     <TouchableOpacity
+      accessibilityLabel={label}
+      accessibilityRole="button"
       onPress={onPress}
       style={[styles.catPill, active && styles.catPillActive]}
     >
@@ -83,6 +85,8 @@ function ToggleRow({
           <Text style={styles.rowSubtitle}>{subtitle}</Text>
         </View>
         <Switch
+          accessibilityLabel={`${title}: ${value ? 'enabled' : 'disabled'}`}
+          accessibilityRole="switch"
           value={value}
           onValueChange={onValueChange}
           trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
@@ -110,7 +114,7 @@ function LinkRow({
   danger?: boolean;
 }>) {
   return (
-    <TouchableOpacity style={styles.rowCard} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity accessibilityLabel={title} accessibilityRole="button" style={styles.rowCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowInner}>
         <View style={[styles.rowIconWrap, danger && { backgroundColor: '#FEF2F2' }]}>
           {icon}
@@ -267,7 +271,7 @@ export default function SecurityPrivacySettings() {
         >
           <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
             <View style={styles.headerContent}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.backBtn}>
                 <Ionicons name="arrow-back" size={22} color="#FFF" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Privacy & Security</Text>
@@ -441,6 +445,8 @@ export default function SecurityPrivacySettings() {
             <Text style={styles.supportText}>Our support team is available 24/7.</Text>
           </View>
           <TouchableOpacity
+            accessibilityLabel="Contact support"
+            accessibilityRole="button"
             style={styles.contactBtn}
             onPress={() => router.push('/settings/contactUs' as any)}
           >

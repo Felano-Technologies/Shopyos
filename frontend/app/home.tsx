@@ -336,7 +336,7 @@ const refChat = useRef<View>(null);
             ref={refGreeting}
             onLayout={() => measureElement(refGreeting, 'greeting')}
           >
-            <TouchableOpacity style={S.locationRow} onPress={() => safePush('/settings')}>
+            <TouchableOpacity accessibilityLabel="Select delivery location" accessibilityRole="button" style={S.locationRow} onPress={() => safePush('/settings')}>
               <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
               <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
               <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.45)" />
@@ -355,7 +355,7 @@ const refChat = useRef<View>(null);
                 ref={refActions}
                 onLayout={() => measureElement(refActions, 'actions')}
               >
-                <TouchableOpacity style={S.headerBtn} onPress={() => safePush('/cart')}>
+                <TouchableOpacity accessibilityLabel="Open cart" accessibilityRole="button" style={S.headerBtn} onPress={() => safePush('/cart')}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {cartCount > 0 && (
                     <View style={S.hdrBadge}>
@@ -363,7 +363,7 @@ const refChat = useRef<View>(null);
                     </View>
                   )}
                 </TouchableOpacity>
-                <TouchableOpacity style={S.headerBtn} onPress={() => safePush('/notification')}>
+                <TouchableOpacity accessibilityLabel="Open notifications" accessibilityRole="button" style={S.headerBtn} onPress={() => safePush('/notification')}>
                   <Ionicons name="notifications-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {unreadNotifCount > 0 && (
                     <View style={S.hdrBadge}>
@@ -545,6 +545,8 @@ const refChat = useRef<View>(null);
 
         {/* ── Chat FAB ─────────────────────────────────────────────────────── */}
         <TouchableOpacity
+          accessibilityLabel="Open chat"
+          accessibilityRole="button"
           style={S.chatFab}
           activeOpacity={0.85}
           ref={refChat}

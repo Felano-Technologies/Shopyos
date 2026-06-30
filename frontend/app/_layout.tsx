@@ -286,6 +286,8 @@ function AppContent() {
             <InAppToastHost />
             {activeMode === 'buyer' && (
               <TouchableOpacity
+                accessibilityLabel="Return to original dashboard"
+                accessibilityRole="button"
                 style={[styles.buyerBanner, { top: insets.top }]}
                 onPress={handleReturnFromBuyerMode}
                 activeOpacity={0.85}

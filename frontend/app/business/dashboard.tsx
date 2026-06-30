@@ -141,7 +141,7 @@ const BusinessDashboard = () => {
           <View style={styles.topBar}>
             <AppImage source={require('../../assets/images/iconwhite.png')} style={styles.appLogo} contentFit="contain" />
             <View style={styles.topIcons}>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
+              <TouchableOpacity accessibilityLabel="Open notifications" accessibilityRole="button" style={styles.iconBtn} onPress={() => router.push('/business/notifications')}>
                 <Ionicons name="notifications-outline" size={22} color="#FFF" />
                 {unreadCount > 0 && (
                   <View style={styles.badgeContainer}>
@@ -149,12 +149,12 @@ const BusinessDashboard = () => {
                   </View>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
+              <TouchableOpacity accessibilityLabel="Open settings" accessibilityRole="button" style={styles.iconBtn} onPress={() => router.push('/business/settings')}>
                 <Ionicons name="settings-outline" size={22} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>
-          <TouchableOpacity style={styles.businessProfile} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
+          <TouchableOpacity accessibilityLabel="Switch business profile" accessibilityRole="button" style={styles.businessProfile} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
             <View style={styles.logoWrapper}>
               {(selectedBusiness?.logo_url || selectedBusiness?.logo) ? (
                 <AppImage uri={selectedBusiness.logo_url || selectedBusiness.logo} style={styles.businessLogo} />
@@ -327,6 +327,8 @@ const BusinessDashboard = () => {
                   }
                   return (
                     <TouchableOpacity
+                      accessibilityLabel={label}
+                      accessibilityRole="button"
                       onPress={() => {
                         if (ls.tier !== 'paid') {
                           router.push('/business/products/addproducts');
@@ -384,6 +386,8 @@ const BusinessDashboard = () => {
                       { icon: 'zap', family: 'Feather', bg: ['#EF4444', '#DC2626'] as [string, string], accent: '#EF4444', label: 'Flash Sales', sub: 'Run limited deals', route: '/business/flash-sales' },
                     ].map((item) => (
                       <TouchableOpacity
+                        accessibilityLabel={item.label}
+                        accessibilityRole="button"
                         key={item.label}
                         style={[styles.actionPill, { borderLeftColor: item.accent }]}
                         onPress={() => router.push(item.route as any)}
@@ -416,6 +420,8 @@ const BusinessDashboard = () => {
                         <View style={styles.timeframeTabs}>
                           {(['weekly', 'monthly', 'yearly'] as const).map((t) => (
                             <TouchableOpacity
+                              accessibilityLabel={`View ${t} revenue`}
+                              accessibilityRole="button"
                               key={t}
                               style={[styles.timeframeTab, timeframe === t && styles.timeframeTabActive]}
                               onPress={() => setTimeframe(t)}
@@ -460,7 +466,7 @@ const BusinessDashboard = () => {
                 <View style={styles.sectionContainer}>
                   <View style={styles.sectionHeaderRow}>
                     <Text style={styles.sectionTitle}>Recent Orders</Text>
-                    <TouchableOpacity onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
+                    <TouchableOpacity accessibilityLabel="View all orders" accessibilityRole="button" onPress={() => router.push('/business/orders')}><Text style={styles.seeAllText}>View All</Text></TouchableOpacity>
                   </View>
                   {recentOrders.length > 0 ? (
                     recentOrders.map((order: Order, idx: number) => (
@@ -518,13 +524,15 @@ const BusinessDashboard = () => {
             <View style={styles.alertIconCircle}><MaterialCommunityIcons name="store-alert" size={40} color="#0C1559" /></View>
             <Text style={styles.alertTitle}>No Business Found</Text>
             <Text style={styles.alertMessage}>You have not set up a store yet. Create your business profile to start selling.</Text>
-            <TouchableOpacity style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.replace('/business/register'); }}>
+            <TouchableOpacity accessibilityLabel="Create business profile" accessibilityRole="button" style={styles.alertButton} onPress={() => { setShowNoBusinessModal(false); router.replace('/business/register'); }}>
               <Text style={styles.alertButtonText}>Create Business</Text>
               <Feather name="arrow-right" size={18} color="#FFF" />
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
               <TouchableOpacity
+                accessibilityLabel="Go to home page"
+                accessibilityRole="button"
                 style={[styles.outlineButton, { flex: 1 }]}
                 onPress={() => { setShowNoBusinessModal(false); router.replace('/'); }}
               >
@@ -532,6 +540,8 @@ const BusinessDashboard = () => {
               </TouchableOpacity>
 
               <TouchableOpacity
+                accessibilityLabel="Log out"
+                accessibilityRole="button"
                 style={[styles.outlineButton, { flex: 1, borderColor: '#EF4444' }]}
                 onPress={handleLogout}
               >
@@ -549,7 +559,7 @@ const BusinessDashboard = () => {
           <View style={styles.switcherSheet}>
             <View style={styles.switcherHeader}>
               <Text style={styles.switcherTitle}>Switch Profile</Text>
-              <TouchableOpacity onPress={() => setShowSwitcher(false)}>
+              <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" onPress={() => setShowSwitcher(false)}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -559,6 +569,8 @@ const BusinessDashboard = () => {
                 const active = biz._id === selectedBusiness?._id;
                 return (
                   <TouchableOpacity
+                    accessibilityLabel={`Switch to ${biz.businessName}`}
+                    accessibilityRole="button"
                     key={biz._id}
                     style={[styles.switcherCard, active && styles.switcherCardActive]}
                     onPress={async () => {
@@ -590,6 +602,8 @@ const BusinessDashboard = () => {
               
               {businesses.length < 3 && (
                 <TouchableOpacity
+                  accessibilityLabel="Register another store"
+                  accessibilityRole="button"
                   style={styles.switcherAddCard}
                   onPress={() => {
                     setShowSwitcher(false);

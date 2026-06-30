@@ -1,4 +1,5 @@
 // controllers/parcelPartnerController.js
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const notificationService = require('../services/notificationService');
 const { getPool } = require('../config/postgres');
@@ -6,7 +7,7 @@ const { getPool } = require('../config/postgres');
 const getHubs = async (req, res, next) => {
   try {
     const hubs = await repositories.parcelPartner.getHubs();
-    res.status(200).json({ success: true, data: hubs });
+    ApiResponse.success(res, hubs);
   } catch (error) {
     next(error);
   }
@@ -15,11 +16,11 @@ const getHubs = async (req, res, next) => {
 const getDashboardStats = async (req, res, next) => {
   try {
     const { hubId } = req.query;
-    if (!hubId) return res.status(400).json({ success: false, error: 'hubId is required' });
+    if (!hubId) return ApiResponse.error(res, 'hubId is required', 400);
 
     const pool = getPool();
     const stats = await queryHubStats(pool, hubId);
-    res.status(200).json({ success: true, data: stats });
+    ApiResponse.success(res, stats);
   } catch (error) {
     next(error);
   }
@@ -28,11 +29,11 @@ const getDashboardStats = async (req, res, next) => {
 const getHubParcels = async (req, res, next) => {
   try {
     const { hubId, status } = req.query;
-    if (!hubId) return res.status(400).json({ success: false, error: 'hubId is required' });
+    if (!hubId) return ApiResponse.error(res, 'hubId is required', 400);
 
     const pool = getPool();
     const parcels = await queryHubParcels(pool, hubId, status);
-    res.status(200).json({ success: true, data: parcels });
+    ApiResponse.success(res, parcels);
   } catch (error) {
     next(error);
   }
@@ -45,10 +46,10 @@ const checkInParcel = async (req, res, next) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.findById(orderId);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
 
     const hub = await repositories.parcelPartner.getHubById(hubId);
-    if (!hub) return res.status(404).json({ success: false, error: 'Hub not found' });
+    if (!hub) return ApiResponse.error(res, 'Hub not found', 404);
 
     const trackingNum = `SPY-PRC-${orderId.substring(0, 8).toUpperCase()}`;
     await updateOrderOnCheckIn(orderId, trackingNum);
@@ -56,7 +57,7 @@ const checkInParcel = async (req, res, next) => {
     await repositories.parcelPartner.createStatusLog(orderId, 'at_origin_hub', hubId, userId, notes, photoUrl);
     await notifyBuyerCheckIn(order, hub);
 
-    res.status(200).json({ success: true, message: 'Parcel checked in successfully', trackingNumber: trackingNum });
+    ApiResponse.success(res, { trackingNumber: trackingNum }, 'Parcel checked in successfully');
   } catch (error) {
     next(error);
   }
@@ -69,7 +70,7 @@ const dispatchParcel = async (req, res, next) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.findById(orderId);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
 
     const hub = await repositories.parcelPartner.getHubById(hubId);
     const destHub = await repositories.parcelPartner.getHubById(order.destination_hub_id);
@@ -80,7 +81,7 @@ const dispatchParcel = async (req, res, next) => {
     await repositories.parcelPartner.createStatusLog(orderId, 'in_transit_regional', hubId, userId, notes, photoUrl);
     await notifyBuyerDispatch(order, estArrival);
 
-    res.status(200).json({ success: true, message: 'Parcel dispatched successfully', estimatedArrival: estArrival });
+    ApiResponse.success(res, { estimatedArrival: estArrival }, 'Parcel dispatched successfully');
   } catch (error) {
     next(error);
   }
@@ -93,16 +94,16 @@ const arriveParcel = async (req, res, next) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.findById(orderId);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
 
     const hub = await repositories.parcelPartner.getHubById(hubId);
-    if (!hub) return res.status(404).json({ success: false, error: 'Hub not found' });
+    if (!hub) return ApiResponse.error(res, 'Hub not found', 404);
 
     await updateOrderOnArrival(orderId);
     await repositories.parcelPartner.createStatusLog(orderId, 'at_destination_hub', hubId, userId, notes, photoUrl);
     await notifyBuyerArrival(order, hub);
 
-    res.status(200).json({ success: true, message: 'Parcel marked as arrived at destination hub' });
+    ApiResponse.success(res, null, 'Parcel marked as arrived at destination hub');
   } catch (error) {
     next(error);
   }
@@ -235,7 +236,7 @@ const adminGetAllHubs = async (req, res, next) => {
        LEFT JOIN ghana_regions r ON h.region_id = r.id
        ORDER BY h.hub_name`
     );
-    res.status(200).json({ success: true, data: rows });
+    ApiResponse.success(res, rows);
   } catch (error) {
     next(error);
   }
@@ -245,7 +246,7 @@ const adminCreateHub = async (req, res, next) => {
   try {
     const { regionId, hubName, partnerName, address, phone, latitude, longitude } = req.body;
     if (!regionId || !hubName || !partnerName) {
-      return res.status(400).json({ success: false, error: 'regionId, hubName and partnerName are required' });
+      return ApiResponse.error(res, 'regionId, hubName and partnerName are required', 400);
     }
     const pool = getPool();
     const { rows } = await pool.query(
@@ -253,7 +254,7 @@ const adminCreateHub = async (req, res, next) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [regionId, hubName, partnerName, address || null, phone || null, latitude || null, longitude || null]
     );
-    res.status(201).json({ success: true, hub: rows[0] });
+    ApiResponse.withEntity(res, 'hub', rows[0], null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -274,10 +275,10 @@ const adminUpdateHub = async (req, res, next) => {
            longitude = COALESCE($6, longitude),
            updated_at = NOW()
        WHERE id = $7 RETURNING *`,
-      [hubName, partnerName, address, phone, latitude, longitude, hubId]
+       [hubName, partnerName, address, phone, latitude, longitude, hubId]
     );
-    if (!rows[0]) return res.status(404).json({ success: false, error: 'Hub not found' });
-    res.status(200).json({ success: true, hub: rows[0] });
+    if (!rows[0]) return ApiResponse.error(res, 'Hub not found', 404);
+    ApiResponse.withEntity(res, 'hub', rows[0]);
   } catch (error) {
     next(error);
   }
@@ -292,8 +293,8 @@ const adminToggleHub = async (req, res, next) => {
        WHERE id = $1 RETURNING id, hub_name, is_active`,
       [hubId]
     );
-    if (!rows[0]) return res.status(404).json({ success: false, error: 'Hub not found' });
-    res.status(200).json({ success: true, hub: rows[0] });
+    if (!rows[0]) return ApiResponse.error(res, 'Hub not found', 404);
+    ApiResponse.withEntity(res, 'hub', rows[0]);
   } catch (error) {
     next(error);
   }
@@ -307,7 +308,7 @@ const adminGetTransitRoutes = async (req, res, next) => {
               route_fee AS transit_fee, is_active, created_at, updated_at
        FROM parcel_transit_config ORDER BY origin_region, dest_region`
     );
-    res.status(200).json({ success: true, data: rows });
+    ApiResponse.success(res, rows);
   } catch (error) {
     next(error);
   }
@@ -317,7 +318,7 @@ const adminUpsertTransitRoute = async (req, res, next) => {
   try {
     const { originRegion, destRegion, transitDaysMin, transitDaysMax, transitFee } = req.body;
     if (!originRegion || !destRegion) {
-      return res.status(400).json({ success: false, error: 'originRegion and destRegion are required' });
+      return ApiResponse.error(res, 'originRegion and destRegion are required', 400);
     }
     const pool = getPool();
     const { rows } = await pool.query(
@@ -329,7 +330,7 @@ const adminUpsertTransitRoute = async (req, res, next) => {
                  route_fee AS transit_fee, is_active, created_at, updated_at`,
       [originRegion, destRegion, transitDaysMin || 3, transitDaysMax || 5, transitFee || 0]
     );
-    res.status(200).json({ success: true, route: rows[0] });
+    ApiResponse.withEntity(res, 'route', rows[0]);
   } catch (error) {
     next(error);
   }

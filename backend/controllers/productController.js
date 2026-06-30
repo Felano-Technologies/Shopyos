@@ -74,9 +74,7 @@ const createProduct = async (req, res, next) => {
 
     if (productCount >= freeLimit && store.listing_tier !== 'paid') {
       const listingFeeAmount = await feeConfigService.get('listing_fee_amount', 50);
-      return res.status(402).json({
-        success: false,
-        error: 'Free listing limit reached.',
+      return ApiResponse.error(res, 'Free listing limit reached.', 402, {
         code: 'LISTING_FEE_REQUIRED',
         message: `Pay a one-time ₵${listingFeeAmount} platform fee to unlock unlimited listings.`,
         paymentUrl: '/api/v1/payments/listing-fee/initialize'
@@ -102,8 +100,6 @@ const createProduct = async (req, res, next) => {
         } catch (e) {
           logger.error('[ListingLimit] Warning notification failed:', e.message);
         }
-      });
-    }
       });
     }
 

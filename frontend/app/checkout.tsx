@@ -355,7 +355,7 @@ export default function CheckoutScreen() {
       <LinearGradient colors={[C.navy, C.navyMid]} style={S.header}>
         <SafeAreaView edges={['top', 'left', 'right']}>
           <View style={S.headerRow}>
-            <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
+            <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={S.backBtn}>
               <Ionicons name="arrow-back" size={22} color="#FFF" />
             </TouchableOpacity>
             <Text style={S.headerTitle}>Checkout</Text>
@@ -491,6 +491,8 @@ export default function CheckoutScreen() {
                   </Text>
 
                   <TouchableOpacity
+                    accessibilityLabel="Pick up from hub"
+                    accessibilityRole="button"
                     style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: !requestLastMile ? C.navy : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, marginBottom: 8 }}
                     onPress={() => setRequestLastMile(false)}
                     activeOpacity={0.7}
@@ -506,6 +508,8 @@ export default function CheckoutScreen() {
                   </TouchableOpacity>
 
                   <TouchableOpacity
+                    accessibilityLabel="Home delivery by rider"
+                    accessibilityRole="button"
                     style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderWidth: 1.5, borderColor: requestLastMile ? C.lime : '#E2E8F0', borderRadius: 10, paddingHorizontal: 12 }}
                     onPress={() => setRequestLastMile(true)}
                     activeOpacity={0.7}
@@ -533,13 +537,15 @@ export default function CheckoutScreen() {
                     <Text style={S.promoAppliedCode}>{appliedPromo.code}</Text>
                     <Text style={S.promoAppliedSub}>{appliedPromo.label} — saving ₵{appliedPromo.discountAmount.toFixed(2)}</Text>
                   </View>
-                  <TouchableOpacity onPress={() => setAppliedPromo(null)}>
+                  <TouchableOpacity accessibilityLabel="Remove promo code" accessibilityRole="button" onPress={() => setAppliedPromo(null)}>
                     <Ionicons name="close-circle" size={22} color={C.muted} />
                   </TouchableOpacity>
                 </View>
               ) : (
                 <View style={S.promoRow}>
                   <TextInput
+                    accessibilityLabel="Enter promo code"
+                    accessibilityRole="none"
                     style={S.promoInput}
                     placeholder="Enter promo code"
                     placeholderTextColor={C.subtle}
@@ -550,6 +556,8 @@ export default function CheckoutScreen() {
                     onSubmitEditing={handleApplyPromo}
                   />
                   <TouchableOpacity
+                    accessibilityLabel="Apply promo code"
+                    accessibilityRole="button"
                     style={[S.promoBtn, (!promoInput.trim() || isValidatingPromo) && { opacity: 0.5 }]}
                     onPress={handleApplyPromo}
                     disabled={!promoInput.trim() || isValidatingPromo}
@@ -570,6 +578,8 @@ export default function CheckoutScreen() {
             {loyaltyBalance > 0 && (
               <>
                 <TouchableOpacity
+                  accessibilityLabel="Show loyalty points"
+                  accessibilityRole="button"
                   style={S.loyaltyReveal}
                   onPress={() => setLoyaltyExpanded(p => !p)}
                   activeOpacity={0.75}
@@ -588,7 +598,7 @@ export default function CheckoutScreen() {
                 </TouchableOpacity>
 
                 {loyaltyExpanded && (
-                  <TouchableOpacity style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
+                  <TouchableOpacity accessibilityLabel="Toggle loyalty points" accessibilityRole="button" style={S.card} onPress={() => setUsePoints(p => !p)} activeOpacity={0.8}>
                     <View style={S.loyaltyRow}>
                       <View style={S.loyaltyIcon}>
                         <Ionicons name="star" size={20} color={C.lime} />
@@ -628,6 +638,8 @@ export default function CheckoutScreen() {
                 <View style={S.inputWrapper}>
                   <Ionicons name="location-outline" size={18} color={C.muted} style={{ marginRight: 10 }} />
                   <TextInput
+                    accessibilityLabel="Delivery address"
+                    accessibilityRole="none"
                     style={S.input}
                     placeholder="House No, Street Name, Area"
                     placeholderTextColor={C.subtle}
@@ -649,6 +661,8 @@ export default function CheckoutScreen() {
                 <View style={S.inputWrapper}>
                   <Ionicons name="call-outline" size={18} color={C.muted} style={{ marginRight: 10 }} />
                   <TextInput
+                    accessibilityLabel="Phone number"
+                    accessibilityRole="none"
                     style={S.input}
                     placeholder="024 XXX XXXX"
                     placeholderTextColor={C.subtle}
@@ -669,6 +683,8 @@ export default function CheckoutScreen() {
                     'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North'
                   ].map((reg) => (
                     <TouchableOpacity
+                      accessibilityLabel={`Select region ${reg}`}
+                      accessibilityRole="button"
                       key={reg}
                       style={[S.regionChip, deliveryState === reg && S.regionChipActive]}
                       onPress={() => setDeliveryState(reg)}
@@ -708,6 +724,8 @@ export default function CheckoutScreen() {
               )}
               {showAddressNudge && (
                 <TouchableOpacity
+                  accessibilityLabel="Edit profile to auto-fill details"
+                  accessibilityRole="button"
                   style={S.profileNudge}
                   onPress={() => router.push('/settings/Account' as any)}
                 >
@@ -715,7 +733,7 @@ export default function CheckoutScreen() {
                   <Text style={S.profileNudgeText}>Add address & phone in your profile to auto-fill next time</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity style={S.checkboxRow} onPress={() => setSaveAddress(!saveAddress)}>
+              <TouchableOpacity accessibilityLabel="Save delivery information for next time" accessibilityRole="checkbox" style={S.checkboxRow} onPress={() => setSaveAddress(!saveAddress)}>
                 <View style={[S.checkbox, saveAddress && S.checkboxChecked]}>
                   {saveAddress && <Ionicons name="checkmark" size={13} color="#FFF" />}
                 </View>
@@ -764,6 +782,8 @@ export default function CheckoutScreen() {
             {refundPolicy && (
               <View style={S.disclaimerRow}>
                 <TouchableOpacity
+                  accessibilityLabel="Accept refund and return policy"
+                  accessibilityRole="checkbox"
                   style={S.disclaimerCheckbox}
                   onPress={handleDisclaimerCheck}
                   activeOpacity={0.8}
@@ -786,6 +806,8 @@ export default function CheckoutScreen() {
 
             {/* Place Order */}
             <TouchableOpacity
+              accessibilityLabel="Place order"
+              accessibilityRole="button"
               style={[S.placeOrderBtn, (isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)) && { opacity: 0.6 }]}
               onPress={handlePlaceOrder}
               disabled={isOrdering || isWithinRange !== true || (refundPolicy !== null && !isDisclaimerChecked)}
@@ -948,6 +970,8 @@ const PaymentOption = ({
   return (
     <View style={{ marginBottom: 12 }}>
       <TouchableOpacity
+        accessibilityLabel={`Select ${label}`}
+        accessibilityRole="button"
         style={[S.paymentOption, isSelected && S.paymentOptionSelected]}
         onPress={() => {
           onSelectType(type);
@@ -971,6 +995,8 @@ const PaymentOption = ({
         <View style={S.savedBox}>
           {filteredSaved.map((m) => (
             <TouchableOpacity
+              accessibilityLabel={`Select saved ${m.title}`}
+              accessibilityRole="button"
               key={m.id}
               style={[S.savedItem, selectedMethodId === m.id && S.savedItemActive]}
               onPress={() => onSelectMethodId(m.id)}

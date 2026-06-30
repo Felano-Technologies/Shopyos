@@ -167,7 +167,7 @@ export default function OrderDetailsScreen() {
         <StatusBar style="light" />
         <LinearGradient colors={[C.navy, C.navyMid]} style={[S.header, { paddingTop: insets.top + rs(12) }]}>
           <View style={S.hdrRow}>
-            <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+            <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" style={S.backBtn} onPress={() => router.back()}>
               <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
             <Text style={S.hdrTitle}>Order Details</Text>
@@ -230,11 +230,11 @@ export default function OrderDetailsScreen() {
           >
             <View style={S.hdrGlow} pointerEvents="none" />
             <View style={S.hdrRow}>
-              <TouchableOpacity style={S.backBtn} onPress={() => router.back()}>
+              <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" style={S.backBtn} onPress={() => router.back()}>
                 <Ionicons name="chevron-back" size={rs(22)} color="rgba(255,255,255,0.85)" />
               </TouchableOpacity>
               <Text style={S.hdrTitle}>Order Details</Text>
-              <TouchableOpacity style={S.backBtn} onPress={fetchOrder}>
+              <TouchableOpacity accessibilityLabel="Refresh order details" accessibilityRole="button" style={S.backBtn} onPress={fetchOrder}>
                 <Ionicons name="refresh" size={rs(18)} color="rgba(255,255,255,0.85)" />
               </TouchableOpacity>
             </View>
@@ -281,6 +281,8 @@ export default function OrderDetailsScreen() {
               <View style={S.actionRow}>
                 {currentStatus === 'paid' && (
                   <TouchableOpacity
+                    accessibilityLabel="Confirm order"
+                    accessibilityRole="button"
                     style={[S.actionBtn, { backgroundColor: '#DBEAFE' }]}
                     onPress={() => confirmAction('Confirmed', 'confirmed')}
                     disabled={updating}
@@ -291,6 +293,8 @@ export default function OrderDetailsScreen() {
                 )}
                 {currentStatus === 'confirmed' && (
                   <TouchableOpacity
+                    accessibilityLabel="Mark order ready for pickup"
+                    accessibilityRole="button"
                     style={[S.actionBtn, { backgroundColor: '#F0FDF4' }]}
                     onPress={() => confirmAction('Ready', 'ready_for_pickup')}
                     disabled={updating}
@@ -300,6 +304,8 @@ export default function OrderDetailsScreen() {
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity
+                  accessibilityLabel="Cancel order"
+                  accessibilityRole="button"
                   style={[S.actionBtn, { backgroundColor: '#FEF2F2' }]}
                   onPress={() => confirmAction('Cancelled', 'cancelled')}
                   disabled={updating}
@@ -329,6 +335,8 @@ export default function OrderDetailsScreen() {
                 </View>
                 <View style={S.actionBtns}>
                   <TouchableOpacity
+                    accessibilityLabel="Chat with customer"
+                    accessibilityRole="button"
                     style={S.iconBtn}
                     onPress={() => handleChat(order.customer.id, order.customer.name, order.customer.avatar || '')}
                     disabled={chatLoading}
@@ -336,6 +344,8 @@ export default function OrderDetailsScreen() {
                     {chatLoading ? <ActivityIndicator size="small" color={C.navy} /> : <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />}
                   </TouchableOpacity>
                   <TouchableOpacity
+                    accessibilityLabel={`Call customer at ${order.customer.phone}`}
+                    accessibilityRole="button"
                     style={S.iconBtn}
                     onPress={() => Linking.openURL(`tel:${order.customer.phone}`)}
                   >
@@ -350,6 +360,8 @@ export default function OrderDetailsScreen() {
               </View>
               <Text style={S.addressTxt}>{order.customer.address}</Text>
               <TouchableOpacity
+                accessibilityLabel="Track order on map"
+                accessibilityRole="button"
                 style={S.mapBtn}
                 onPress={() => router.push({
                   pathname: '/order/tracking',
@@ -395,19 +407,23 @@ export default function OrderDetailsScreen() {
                         <Text style={S.customerPhone}>{order.driver.vehicle} · {order.driver.plate || 'No Plate'}</Text>
                      </View>
                      <View style={S.actionBtns}>
-                        <TouchableOpacity
-                           style={S.iconBtn}
-                           onPress={() => handleChat(order.driver.id, order.driver.name, order.driver.avatar || '')}
-                           disabled={chatLoading}
-                        >
-                           {chatLoading ? <ActivityIndicator size="small" color={C.navy} /> : <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                           style={S.iconBtn}
-                           onPress={() => Linking.openURL(`tel:${order.driver.phone}`)}
-                        >
-                           <Ionicons name="call" size={rs(18)} color={C.navy} />
-                        </TouchableOpacity>
+                         <TouchableOpacity
+                            accessibilityLabel="Chat with driver"
+                            accessibilityRole="button"
+                            style={S.iconBtn}
+                            onPress={() => handleChat(order.driver.id, order.driver.name, order.driver.avatar || '')}
+                            disabled={chatLoading}
+                         >
+                            {chatLoading ? <ActivityIndicator size="small" color={C.navy} /> : <Ionicons name="chatbubble-ellipses-outline" size={rs(18)} color={C.navy} />}
+                         </TouchableOpacity>
+                         <TouchableOpacity
+                            accessibilityLabel={`Call driver at ${order.driver.phone}`}
+                            accessibilityRole="button"
+                            style={S.iconBtn}
+                            onPress={() => Linking.openURL(`tel:${order.driver.phone}`)}
+                         >
+                            <Ionicons name="call" size={rs(18)} color={C.navy} />
+                         </TouchableOpacity>
                      </View>
                   </View>
                </View>

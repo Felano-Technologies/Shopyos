@@ -154,6 +154,8 @@ const LoginScreen = () => {
             <View style={styles.inputContainer}>
               <Ionicons name="mail" size={20} color="#333" />
               <TextInput
+                accessibilityLabel="Email address"
+                accessibilityRole="none"
                 style={styles.input}
                 placeholder="Enter your email"
                 placeholderTextColor="#888"
@@ -167,6 +169,8 @@ const LoginScreen = () => {
             <View style={styles.inputContainer}>
               <Ionicons name="lock-closed" size={20} color="#333" />
               <TextInput
+                accessibilityLabel="Password"
+                accessibilityRole="none"
                 style={styles.input}
                 placeholder="Password"
                 placeholderTextColor="#888"
@@ -176,6 +180,8 @@ const LoginScreen = () => {
                 onChangeText={setPassword}
               />
               <TouchableOpacity
+                accessibilityLabel={showPassword ? 'Hide password' : 'Show password'}
+                accessibilityRole="button"
                 onPress={() => setShowPassword(!showPassword)}
                 style={styles.eyeIcon}
               >
@@ -187,11 +193,13 @@ const LoginScreen = () => {
               </TouchableOpacity>
             </View>
             {/* Forgot Password */}
-            <TouchableOpacity onPress={() => router.push('/forgotPassword')}>
+            <TouchableOpacity accessibilityLabel="Reset forgotten password" accessibilityRole="link" onPress={() => router.push('/forgotPassword')}>
               <Text style={styles.forgotPassword}>Forgot password?</Text>
             </TouchableOpacity>
             {/* Sign in (solid pill) */}
             <TouchableOpacity
+              accessibilityLabel="Sign in to account"
+              accessibilityRole="button"
               style={[styles.signInButton, loading && styles.disabledButton]}
               onPress={handleLogin}
               disabled={loading}
@@ -210,6 +218,8 @@ const LoginScreen = () => {
             </View>
             {/* Continue with Google */}
             <TouchableOpacity
+              accessibilityLabel="Continue with Google"
+              accessibilityRole="button"
               style={styles.googleButton}
               onPress={() => promptAsync()}
               disabled={!request || loading}
@@ -219,6 +229,8 @@ const LoginScreen = () => {
             </TouchableOpacity>
             {/* Register (outlined pill) */}
             <TouchableOpacity
+              accessibilityLabel="Create a new account"
+              accessibilityRole="button"
               style={styles.registerButton}
               onPress={() => router.push('/register')}
             >
@@ -233,6 +245,8 @@ const LoginScreen = () => {
                 <View style={styles.devButtonRow}>
                   {DEV_ACCOUNTS.map((account) => (
                     <TouchableOpacity
+                      accessibilityLabel={`Quick login as ${account.label}`}
+                      accessibilityRole="button"
                       key={account.label}
                       style={styles.devButton}
                       onPress={() => handleQuickLogin(account.email, account.password)}
