@@ -71,10 +71,6 @@ INSERT INTO platform_fee_config (config_key, config_value, config_type, category
 -- Flash Sales
 ('flash_sale_max_duration_hours', 72.00, 'integer', 'flash_sale', 'Max Flash Sale Duration', 'Maximum hours a flash sale can run', 1, 168),
 ('flash_sale_min_discount_pct',  10.00, 'percentage', 'flash_sale', 'Min Discount Percentage', 'Minimum discount required for flash sale', 5, 90),
-('flash_sale_max_concurrent',    10.00, 'integer', 'flash_sale', 'Max Concurrent Flash Sales', 'Maximum flash sales displayed at once platform-wide', 1, 50),
-
--- Listing Fees
-('listing_free_product_limit',  10.00, 'integer',   'payout', 'Free Listing Product Limit', 'Max free products before listing fee required', 1, 1000),
-('listing_fee_amount',          50.00, 'fixed',     'payout', 'Listing Fee Amount (GHS)', 'One-time fee to unlock unlimited listings', 1, 500)
+('flash_sale_max_concurrent',    10.00, 'integer', 'flash_sale', 'Max Concurrent Flash Sales', 'Maximum flash sales displayed at once platform-wide', 1, 50)
 
 ON CONFLICT (config_key) DO NOTHING;
