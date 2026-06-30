@@ -5,6 +5,7 @@ const notificationService = require('../services/notificationService');
 const { haversineKm } = require('../utils/distance');
 const { logger } = require('../config/logger');
 const { getPool } = require('../config/postgres');
+const ApiResponse = require('../utils/apiResponse');
 
 const requestLastMile = async (req, res, next) => {
   try {
@@ -12,11 +13,11 @@ const requestLastMile = async (req, res, next) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.findById(orderId);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
-    if (order.buyer_id !== userId) return res.status(403).json({ success: false, error: 'Unauthorized' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
+    if (order.buyer_id !== userId) return ApiResponse.error(res, 'Unauthorized', 403);
 
     if (order.status !== 'at_destination_hub') {
-      return res.status(400).json({ success: false, error: 'Order must be at destination hub' });
+      return ApiResponse.error(res, 'Order must be at destination hub', 400);
     }
 
     const lastMileFee = await feeConfigService.get('last_mile_default_fee');
@@ -24,12 +25,7 @@ const requestLastMile = async (req, res, next) => {
 
     await updateOrderLastMile(orderId, lastMileFee, delivery.id);
 
-    res.status(200).json({
-      success: true,
-      message: 'Last-mile delivery requested successfully',
-      fee: lastMileFee,
-      deliveryId: delivery.id
-    });
+    ApiResponse.success(res, { fee: lastMileFee, deliveryId: delivery.id }, 'Last-mile delivery requested successfully');
   } catch (error) {
     next(error);
   }
@@ -41,27 +37,24 @@ const getTransitInfo = async (req, res, next) => {
     const userId = req.user.id;
 
     const order = await repositories.orders.findById(orderId);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
     if (order.buyer_id !== userId && order.store_id !== req.user.storeId && !req.user.roles?.includes('parcel_partner') && !req.user.roles?.includes('admin')) {
-      return res.status(403).json({ success: false, error: 'Unauthorized' });
+      return ApiResponse.error(res, 'Unauthorized', 403);
     }
 
     const history = await repositories.parcelPartner.getStatusHistory(orderId);
     const originHub = order.origin_hub_id ? await repositories.parcelPartner.getHubById(order.origin_hub_id) : null;
     const destHub = order.destination_hub_id ? await repositories.parcelPartner.getHubById(order.destination_hub_id) : null;
 
-    res.status(200).json({
-      success: true,
-      data: {
-        trackingNumber: order.parcel_tracking_number,
-        orderStatus: order.status,
-        originHub,
-        destinationHub: destHub,
-        estimatedHubArrival: order.estimated_hub_arrival,
-        lastMileRequested: order.last_mile_requested,
-        lastMileFee: order.last_mile_fee,
-        history
-      }
+    ApiResponse.success(res, {
+      trackingNumber: order.parcel_tracking_number,
+      orderStatus: order.status,
+      originHub,
+      destinationHub: destHub,
+      estimatedHubArrival: order.estimated_hub_arrival,
+      lastMileRequested: order.last_mile_requested,
+      lastMileFee: order.last_mile_fee,
+      history
     });
   } catch (error) {
     next(error);

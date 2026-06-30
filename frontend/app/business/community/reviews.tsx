@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useBusinessReviews, useReplyToReview, useActiveBusiness } from '@/hooks/useBusiness';
 
 export default function ReviewsScreen() {
@@ -52,10 +53,10 @@ export default function ReviewsScreen() {
     replyToReviewMutate({ reviewId: selectedReview.id, text: replyText }, {
       onSuccess: () => {
         setReplyModalVisible(false);
-        Alert.alert("Success", "Reply posted!");
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: "Reply posted!" });
       },
       onError: () => {
-        Alert.alert("Error", "Failed to post reply.");
+        CustomInAppToast.show({ type: 'error', title: 'Error', message: "Failed to post reply." });
       }
     });
   };

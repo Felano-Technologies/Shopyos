@@ -1,7 +1,9 @@
 const crypto = require('node:crypto');
+const { envInt } = require('./envConfig');
 
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY_DAYS = 7;
+const ACCESS_TOKEN_EXPIRY_MINUTES = envInt('ACCESS_TOKEN_EXPIRY_MINUTES', 15);
+const ACCESS_TOKEN_EXPIRY = `${ACCESS_TOKEN_EXPIRY_MINUTES}m`;
+const REFRESH_TOKEN_EXPIRY_DAYS = envInt('REFRESH_TOKEN_EXPIRY_DAYS', 7);
 const REFRESH_TOKEN_EXPIRY_MS = REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
 const ACCESS_TOKEN_BLACKLIST_PREFIX = 'shopyos:blacklist:access:';

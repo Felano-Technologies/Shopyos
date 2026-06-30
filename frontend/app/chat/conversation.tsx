@@ -21,6 +21,7 @@ import {
 } from '../../services/api';
 import { useMessages, useChatActions } from '@/hooks/useChat';
 import { socketService } from '../../services/socket';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { ReportModal } from '../../components/ReportModal';
 import MediaMessage from '../../components/chat/MediaMessage';
@@ -224,6 +225,10 @@ export default function ConversationScreen() {
   const [moreVisible, setMoreVisible] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
   const [isBotTyping, setIsBotTyping] = useState(false);
+  const [showDeleteMsgConfirm, setShowDeleteMsgConfirm] = useState(false);
+  const [showBlockConfirm, setShowBlockConfirm] = useState(false);
+  const [showDeleteChatConfirm, setShowDeleteChatConfirm] = useState(false);
+  const [showAttachMedia, setShowAttachMedia] = useState(false);
 
   // Presence & media states
   const [isOnline, setIsOnline] = useState(false);
@@ -248,7 +253,9 @@ export default function ConversationScreen() {
         markConversationRead(conversationId).catch(() => {}),
         markNotificationsReadByConversation(conversationId).catch(() => {}),
       ]);
-    } catch {}
+    } catch (e) {
+      console.error('Failed to mark conversation as read:', e);
+    }
   }, [conversationId]);
 
   // Load user ID
@@ -259,7 +266,9 @@ export default function ConversationScreen() {
         try {
           const me = await getUserData();
           if (me?.id) { uid = me.id; await storage.setItem('userId', me.id); }
-        } catch {}
+        } catch (e) {
+          console.error('Failed to load user ID:', e);
+        }
       }
       setCurrentUserId(uid);
     })();
@@ -345,7 +354,9 @@ export default function ConversationScreen() {
             if (cid === conversationId && alive) setIsBotTyping(false);
           });
         }
-      } catch {}
+      } catch (e) {
+        if (__DEV__) console.error('Socket setup error:', e);
+      }
     })();
     return () => {
       alive = false;
@@ -366,11 +377,7 @@ export default function ConversationScreen() {
   // ---- Media, Voice, Sticker Handlers ----
 
   const handleAttachMedia = async () => {
-    Alert.alert('Attach Media', 'Choose an attachment type', [
-      { text: '\u{1F4F7} Photo (Max 10MB)', onPress: () => handlePickMedia('image') },
-      { text: '\u{1F3AC} Video (Max 20MB)', onPress: () => handlePickMedia('video') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    setShowAttachMedia(true);
   };
 
   const handlePickMedia = async (type: 'image' | 'video') => {
@@ -498,38 +505,36 @@ export default function ConversationScreen() {
       return;
     }
     setMenuVisible(false);
-    Alert.alert('Delete Message', 'Remove this message?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await apiDeleteMessage(selectedMsg.id); removeMessage(selectedMsg.id); }
-          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete message.' }); }
-        },
-      },
-    ]);
+    setShowDeleteMsgConfirm(true);
+  };
+
+  const confirmDeleteMessage = async () => {
+    setShowDeleteMsgConfirm(false);
+    if (!selectedMsg) return;
+    try { await apiDeleteMessage(selectedMsg.id); removeMessage(selectedMsg.id); }
+    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete message.' }); }
   };
   const doBlockUser = () => {
     setMoreVisible(false);
+    setShowBlockConfirm(true);
+  };
+
+  const confirmBlockUser = async () => {
+    setShowBlockConfirm(false);
     const otherUserId = messages.find(m => m.sender_id !== currentUserId)?.sender_id || participantId;
     if (!otherUserId) return;
-    Alert.alert('Block User', `Block ${displayName}? You will no longer receive messages from them.`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Block', style: 'destructive', onPress: async () => {
-          try { await blockUser(otherUserId); router.back(); }
-          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not block user.' }); }
-        },
-      },
-    ]);
+    try { await blockUser(otherUserId); router.back(); }
+    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not block user.' }); }
   };
   const doClearChat = () => {
     setMoreVisible(false);
-    Alert.alert('Delete Chat', 'This will permanently delete all messages in this conversation.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await deleteConversation(conversationId); router.back(); }
-          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete conversation.' }); }
-        },
-      },
-    ]);
+    setShowDeleteChatConfirm(true);
+  };
+
+  const confirmDeleteChat = async () => {
+    setShowDeleteChatConfirm(false);
+    try { await deleteConversation(conversationId); router.back(); }
+    catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not delete conversation.' }); }
   };
   const doReportUser = () => { setMoreVisible(false); setReportVisible(true); };
 
@@ -931,6 +936,54 @@ export default function ConversationScreen() {
         entityType={chatType === 'buyer' ? 'store' : 'user'}
         entityId={entityId || (messages.find(m => m.sender_id !== currentUserId)?.sender_id || '')}
         entityName={displayName}
+      />
+
+      <ConfirmModal
+        visible={showDeleteMsgConfirm}
+        onClose={() => setShowDeleteMsgConfirm(false)}
+        title="Delete Message"
+        message="Remove this message?"
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowDeleteMsgConfirm(false), variant: 'cancel' },
+          { label: 'Delete', onPress: confirmDeleteMessage, variant: 'destructive' },
+        ]}
+      />
+
+      <ConfirmModal
+        visible={showBlockConfirm}
+        onClose={() => setShowBlockConfirm(false)}
+        title="Block User"
+        message={`Block ${displayName}? You will no longer receive messages from them.`}
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowBlockConfirm(false), variant: 'cancel' },
+          { label: 'Block', onPress: confirmBlockUser, variant: 'destructive' },
+        ]}
+      />
+
+      <ConfirmModal
+        visible={showDeleteChatConfirm}
+        onClose={() => setShowDeleteChatConfirm(false)}
+        title="Delete Chat"
+        message="This will permanently delete all messages in this conversation."
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowDeleteChatConfirm(false), variant: 'cancel' },
+          { label: 'Delete', onPress: confirmDeleteChat, variant: 'destructive' },
+        ]}
+      />
+
+      <ConfirmModal
+        visible={showAttachMedia}
+        onClose={() => setShowAttachMedia(false)}
+        title="Attach Media"
+        message="Choose an attachment type"
+        actions={[
+          { label: '\u{1F4F7} Photo (Max 10MB)', onPress: () => { setShowAttachMedia(false); handlePickMedia('image'); } },
+          { label: '\u{1F3AC} Video (Max 20MB)', onPress: () => { setShowAttachMedia(false); handlePickMedia('video'); } },
+          { label: 'Cancel', onPress: () => setShowAttachMedia(false), variant: 'cancel' },
+        ]}
       />
     </View>
   );

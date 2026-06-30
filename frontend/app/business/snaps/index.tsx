@@ -60,28 +60,19 @@ export default function SnapsDashboardScreen() {
     }, [fetchSnaps])
   );
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete Snap',
-      'Are you sure you want to permanently delete this snap?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const res = await deleteSnap(id);
-              if (res?.success) {
-                CustomInAppToast.show({ 
-                  type: 'success', 
-                  title: 'Deleted', 
-                  message: 'Snap deleted successfully' 
+  const handleDelete = async (id: string) => {
+    try {
+      const res = await deleteSnap(id);
+      if (res?.success) {
+        CustomInAppToast.show({ 
+          type: 'success', 
+          title: 'Deleted', 
+          message: 'Snap deleted successfully' 
                 });
                 setSnaps(prev => prev.filter(s => s.id !== id));
               }
             } catch (e: any) {
-              Alert.alert('Error', e.message || 'Could not delete snap.');
+              CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not delete snap.' });
             }
           }
         }
@@ -102,7 +93,7 @@ export default function SnapsDashboardScreen() {
         await fetchSnaps();
       }
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Could not repost snap.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not repost snap.' });
     } finally {
       setLoading(false);
     }

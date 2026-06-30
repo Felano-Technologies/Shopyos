@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
@@ -29,6 +29,20 @@ const RegisterScreen = () => {
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [request, response, promptAsync] = useGoogleAuth();
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const validateField = (field: string, value: string) => {
+    let err = '';
+    if (field === 'name' && !value.trim()) err = 'Full name is required';
+    if (field === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) err = 'Enter a valid email address';
+    if (field === 'password' && value.length < 6) err = 'Password must be at least 6 characters';
+    if (field === 'phoneNumber' && value.replace(/\D/g, '').length < 6) err = 'Enter a valid phone number';
+    setErrors((prev) => ({ ...prev, [field]: err }));
+  };
+
+  const isFormValid = useMemo(() => {
+    return name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6 && phoneNumber.replace(/\D/g, '').length >= 6;
+  }, [name, email, password, phoneNumber]);
 
   useEffect(() => {
     if (response?.type === 'success') {
@@ -56,6 +70,14 @@ const RegisterScreen = () => {
     return `+${cleanCode}${formattedNumber}`;
   };
   const handleRegister = async () => {
+    const fieldErrors: Record<string, string> = {};
+    if (!name.trim()) fieldErrors.name = 'Full name is required';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fieldErrors.email = 'Enter a valid email address';
+    if (password.length < 6) fieldErrors.password = 'Password must be at least 6 characters';
+    if (phoneNumber.replace(/\D/g, '').length < 6) fieldErrors.phoneNumber = 'Enter a valid phone number';
+    setErrors(fieldErrors);
+    if (Object.keys(fieldErrors).length > 0) return;
+
     if (!termsAccepted || !privacyAccepted) {
       CustomInAppToast.show({
         type: 'error',
@@ -72,7 +94,7 @@ const RegisterScreen = () => {
         CustomInAppToast.show({
           type: 'success',
           title: 'Sign up Successful',
-          message: 'Welcome! 🎉',
+          message: 'Welcome!',
         });
         router.push('/login');
       } else {
@@ -131,17 +153,22 @@ const RegisterScreen = () => {
           <View style={styles.inputContainer}>
             <Ionicons name="person" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Full name"
+              accessibilityRole="none"
               style={styles.input}
               placeholder="Enter your name"
               placeholderTextColor="#666"
               autoCorrect={false}
               value={name}
-              onChangeText={setName}
+              onChangeText={(v) => { setName(v); setErrors((e) => ({ ...e, name: '' })); }}
             />
           </View>
+          {errors.name ? <Text style={styles.fieldError}>{errors.name}</Text> : null}
           <View style={styles.inputContainer}>
             <Ionicons name="mail" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Email address"
+              accessibilityRole="none"
               style={styles.input}
               placeholder="Enter your email"
               placeholderTextColor="#666"
@@ -149,11 +176,14 @@ const RegisterScreen = () => {
               autoCapitalize="none"
               autoCorrect={false}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); setErrors((e) => ({ ...e, email: '' })); }}
             />
           </View>
+          {errors.email ? <Text style={styles.fieldError}>{errors.email}</Text> : null}
           <View style={styles.inputContainer}>
             <TouchableOpacity
+              accessibilityLabel="Select country code"
+              accessibilityRole="button"
               style={styles.countryCodeButton}
               onPress={() => setShowCountryPicker(true)}
             >
@@ -161,12 +191,14 @@ const RegisterScreen = () => {
               <Ionicons name="chevron-down-sharp" size={16} color="#444" />
             </TouchableOpacity>
             <TextInput
+              accessibilityLabel="Phone number"
+              accessibilityRole="none"
               style={[styles.input, styles.phoneInput]}
               placeholder="Phone number"
               placeholderTextColor="#666"
               keyboardType="phone-pad"
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangeText={(v) => { setPhoneNumber(v); setErrors((e) => ({ ...e, phoneNumber: '' })); }}
             />
             <CountryPicker
               visible={showCountryPicker}
@@ -176,9 +208,12 @@ const RegisterScreen = () => {
               }}
             />
           </View>
+          {errors.phoneNumber ? <Text style={styles.fieldError}>{errors.phoneNumber}</Text> : null}
           <View style={styles.inputContainer}>
             <Ionicons name="lock-closed" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Password"
+              accessibilityRole="none"
               style={[styles.input, styles.passwordInput]}
               placeholder="Password"
               placeholderTextColor="#666"
@@ -186,9 +221,9 @@ const RegisterScreen = () => {
               autoCapitalize="none"
               autoCorrect={false}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(v) => { setPassword(v); setErrors((e) => ({ ...e, password: '' })); }}
             />
-            <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
+            <TouchableOpacity accessibilityLabel={showPassword ? 'Hide password' : 'Show password'} accessibilityRole="button" style={styles.eyeIcon} onPress={() => setShowPassword(!showPassword)}>
               <Ionicons
                 name={showPassword ? 'eye' : 'eye-off'}
                 size={20}
@@ -196,9 +231,12 @@ const RegisterScreen = () => {
               />
             </TouchableOpacity>
           </View>
+          {errors.password ? <Text style={styles.fieldError}>{errors.password}</Text> : null}
           <View style={styles.inputContainer}>
             <Ionicons name="gift" size={20} color="#1b1b1b" style={styles.inputIcon} />
             <TextInput
+              accessibilityLabel="Referral code"
+              accessibilityRole="none"
               style={styles.input}
               placeholder="Referral Code (Optional)"
               placeholderTextColor="#666"
@@ -210,33 +248,33 @@ const RegisterScreen = () => {
           </View>
           {/* Disclaimer checkboxes */}
           <View style={styles.disclaimerRow}>
-            <TouchableOpacity onPress={() => setTermsAccepted(!termsAccepted)} activeOpacity={0.8}>
+            <TouchableOpacity accessibilityLabel="Accept terms of service" accessibilityRole="checkbox" onPress={() => setTermsAccepted(!termsAccepted)} activeOpacity={0.8}>
               <View style={[styles.disclaimerBox, termsAccepted && styles.disclaimerBoxChecked]}>
                 {termsAccepted && <Ionicons name="checkmark" size={13} color="#FFF" />}
               </View>
             </TouchableOpacity>
             <Text style={styles.disclaimerText}>
               I agree to the{' '}
-              <Text style={styles.disclaimerLink} onPress={() => setShowTermsModal(true)}>
+              <Text style={styles.disclaimerLink} accessibilityRole="link" accessibilityLabel="View terms of service" onPress={() => setShowTermsModal(true)}>
                 Terms of Service
               </Text>
             </Text>
           </View>
           <View style={[styles.disclaimerRow, { marginBottom: 16 }]}>
-            <TouchableOpacity onPress={() => setPrivacyAccepted(!privacyAccepted)} activeOpacity={0.8}>
+            <TouchableOpacity accessibilityLabel="Accept privacy policy" accessibilityRole="checkbox" onPress={() => setPrivacyAccepted(!privacyAccepted)} activeOpacity={0.8}>
               <View style={[styles.disclaimerBox, privacyAccepted && styles.disclaimerBoxChecked]}>
                 {privacyAccepted && <Ionicons name="checkmark" size={13} color="#FFF" />}
               </View>
             </TouchableOpacity>
             <Text style={styles.disclaimerText}>
               I agree to the{' '}
-              <Text style={styles.disclaimerLink} onPress={() => setShowPrivacyModal(true)}>
+              <Text style={styles.disclaimerLink} accessibilityRole="link" accessibilityLabel="View privacy policy" onPress={() => setShowPrivacyModal(true)}>
                 Privacy Policy
               </Text>
             </Text>
           </View>
           {/* Sign Up Button */}
-          <TouchableOpacity style={styles.button} onPress={handleRegister}>
+          <TouchableOpacity accessibilityLabel="Create account" accessibilityRole="button" style={[styles.button, !isFormValid && styles.buttonDisabled]} onPress={handleRegister} disabled={loading || !isFormValid}>
             {loading ? (
               <ActivityIndicator size="small" color="#FFF" />
             ) : (
@@ -251,6 +289,8 @@ const RegisterScreen = () => {
           </View>
           {/* Continue with Google */}
           <TouchableOpacity
+            accessibilityLabel="Continue with Google"
+            accessibilityRole="button"
             style={styles.googleButton}
             onPress={() => promptAsync()}
             disabled={!request || loading}
@@ -260,6 +300,8 @@ const RegisterScreen = () => {
           </TouchableOpacity>
           {/* Already registered */}
           <TouchableOpacity
+            accessibilityLabel="Sign in to existing account"
+            accessibilityRole="button"
             style={styles.loginButton}
             onPress={() => router.push('/login')}
           >
@@ -414,5 +456,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   googleButtonText: { color: '#374151', fontSize: 16, fontWeight: '600' },
+  fieldError: { color: '#DC2626', fontSize: 12, marginTop: -8, marginBottom: 8, paddingHorizontal: 16 },
+  buttonDisabled: { opacity: 0.5 },
 });
 export default RegisterScreen;

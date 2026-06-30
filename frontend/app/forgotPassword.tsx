@@ -13,6 +13,7 @@ import AppImage from '@/components/AppImage';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { requestPasswordResetOTP } from '@/services/api';
 
 const { width } = Dimensions.get('window');
@@ -36,7 +37,7 @@ const ForgotPasswordScreen = () => {
         params: { email: normalizedEmail, method, maskedTarget: result.maskedTarget },
       });
     } catch (error: unknown) {
-      Alert.alert('Failed', error instanceof Error ? error.message : 'Could not send code. Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Failed', message: error instanceof Error ? error.message : 'Could not send code. Please try again.' });
     } finally {
       setSending(false);
     }

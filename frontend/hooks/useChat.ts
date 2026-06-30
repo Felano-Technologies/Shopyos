@@ -336,7 +336,7 @@ export const useChatActions = () => {
 
   const markAsRead = useCallback(
     async (id: string) => {
-      try { await socketService.markConversationRead(id); } catch {}
+      try { await socketService.markConversationRead(id); } catch (e) { console.error('Failed to mark conversation read:', e); }
       queryClient.invalidateQueries({ queryKey: convKey });
     },
     [queryClient]

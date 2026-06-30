@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { verifyPasswordResetOTP, resetPasswordWithToken } from '../services/auth';
+import { SEO } from '../components/SEO';
 
 export const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -49,6 +50,7 @@ export const ResetPassword: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[75vh] p-4">
+      <SEO title="Reset Password" />
       <div className="bg-white animate-fade-in w-full max-w-[420px] p-8 md:p-10 rounded-[24px] shadow-sm border border-gray-100">
         <div className="flex justify-center mb-6">
           <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-16 h-16 object-contain rounded-2xl shadow-sm" />

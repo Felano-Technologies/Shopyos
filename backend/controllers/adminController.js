@@ -1,6 +1,7 @@
 // controllers/adminController.js
 // Admin controller for user management, store verification, and platform analytics
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
@@ -34,18 +35,15 @@ const getDashboard = async (req, res, next) => {
 
     const s = rows[0] || {};
 
-    res.status(200).json({
-      success: true,
-      stats: {
-        totalUsers: s.total_users || 0,
-        totalBuyers: s.total_buyers || 0,
-        totalStores: s.total_stores || 0,
-        totalOrders: s.total_orders || 0,
-        totalRevenue: Number.parseFloat(s.total_revenue) || 0,
-        pendingPayouts: 0,
-        activePromotions: 0,
-        pendingDriverVerifications: s.pending_driver_verifications || 0,
-      }
+    ApiResponse.withEntity(res, 'stats', {
+      totalUsers: s.total_users || 0,
+      totalBuyers: s.total_buyers || 0,
+      totalStores: s.total_stores || 0,
+      totalOrders: s.total_orders || 0,
+      totalRevenue: Number.parseFloat(s.total_revenue) || 0,
+      pendingPayouts: 0,
+      activePromotions: 0,
+      pendingDriverVerifications: s.pending_driver_verifications || 0,
     });
   } catch (error) {
     next(error);
@@ -69,13 +67,9 @@ const getAllUsers = async (req, res, next) => {
       search
     });
 
-    res.status(200).json({
-      success: true,
-      users,
-      pagination: {
-        limit: Number.parseInt(limit) || 50,
-        offset: Number.parseInt(offset) || 0
-      }
+    ApiResponse.withEntity(res, 'users', users, null, {
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0
     });
   } catch (error) {
     next(error);
@@ -90,7 +84,7 @@ const getAllUsers = async (req, res, next) => {
 const getUserStats = async (req, res, next) => {
   try {
     const stats = await repositories.admin.getUserStats();
-    res.status(200).json({ success: true, stats });
+    ApiResponse.withEntity(res, 'stats', stats);
   } catch (error) {
     next(error);
   }
@@ -107,10 +101,7 @@ const updateUserStatus = async (req, res, next) => {
     const { status, reason } = req.body;
 
     if (!['active', 'suspended', 'banned'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status. Must be active, suspended, or banned'
-      });
+      return ApiResponse.error(res, 'Invalid status. Must be active, suspended, or banned', 400);
     }
 
     const user = await repositories.admin.updateUserStatus(userId, status, reason);
@@ -126,11 +117,7 @@ const updateUserStatus = async (req, res, next) => {
       userAgent: req.headers['user-agent']
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'User status updated successfully',
-      user
-    });
+    ApiResponse.withEntity(res, 'user', user, 'User status updated successfully');
   } catch (error) {
     next(error);
   }
@@ -147,10 +134,7 @@ const updateUserRole = async (req, res, next) => {
     const { role } = req.body;
 
     if (!['buyer', 'seller', 'driver', 'admin'].includes(role)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid role'
-      });
+      return ApiResponse.error(res, 'Invalid role', 400);
     }
 
     const user = await repositories.admin.updateUserRole(userId, role);
@@ -166,11 +150,7 @@ const updateUserRole = async (req, res, next) => {
       userAgent: req.headers['user-agent']
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'User role updated successfully',
-      user
-    });
+    ApiResponse.withEntity(res, 'user', user, 'User role updated successfully');
   } catch (error) {
     next(error);
   }
@@ -193,13 +173,9 @@ const getAllStores = async (req, res, next) => {
       id
     });
 
-    res.status(200).json({
-      success: true,
-      stores,
-      pagination: {
-        limit: Number.parseInt(limit) || 50,
-        offset: Number.parseInt(offset) || 0
-      }
+    ApiResponse.withEntity(res, 'stores', stores, null, {
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0
     });
   } catch (error) {
     next(error);
@@ -217,10 +193,7 @@ const verifyStore = async (req, res, next) => {
     const { status, reason } = req.body;
 
     if (!['pending', 'verified', 'rejected'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid verification status'
-      });
+      return ApiResponse.error(res, 'Invalid verification status', 400);
     }
 
     // 1. Fetch current store details to check for documents
@@ -299,11 +272,7 @@ const verifyStore = async (req, res, next) => {
     });
 
     const storeStatusMessage = status === 'verified' ? 'approved' : status === 'rejected' ? 'rejected' : 'updated';
-    res.status(200).json({
-      success: true,
-      message: `Store ${storeStatusMessage} successfully`,
-      store
-    });
+    ApiResponse.withEntity(res, 'store', store, `Store ${storeStatusMessage} successfully`);
   } catch (error) {
     next(error);
   }
@@ -320,10 +289,7 @@ const updateStoreStatus = async (req, res, next) => {
     const { status } = req.body;
 
     if (!['active', 'inactive', 'suspended'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status'
-      });
+      return ApiResponse.error(res, 'Invalid status', 400);
     }
 
     const store = await repositories.admin.updateStoreStatus(storeId, status);
@@ -339,11 +305,7 @@ const updateStoreStatus = async (req, res, next) => {
       userAgent: req.headers['user-agent']
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'Store status updated successfully',
-      store
-    });
+    ApiResponse.withEntity(res, 'store', store, 'Store status updated successfully');
   } catch (error) {
     next(error);
   }
@@ -365,13 +327,9 @@ const getAllReports = async (req, res, next) => {
       offset: Number.parseInt(offset) || 0
     });
 
-    res.status(200).json({
-      success: true,
-      reports,
-      pagination: {
-        limit: Number.parseInt(limit) || 50,
-        offset: Number.parseInt(offset) || 0
-      }
+    ApiResponse.withEntity(res, 'reports', reports, null, {
+      limit: Number.parseInt(limit) || 50,
+      offset: Number.parseInt(offset) || 0
     });
   } catch (error) {
     next(error);
@@ -388,10 +346,7 @@ const getReportDetails = async (req, res, next) => {
     const { reportId } = req.params;
     const report = await repositories.reports.getReportDetails(reportId);
 
-    res.status(200).json({
-      success: true,
-      report
-    });
+    ApiResponse.withEntity(res, 'report', report);
   } catch (error) {
     next(error);
   }
@@ -408,10 +363,7 @@ const updateReportStatus = async (req, res, next) => {
     const { status, resolution } = req.body;
 
     if (!['pending', 'under_review', 'resolved', 'dismissed'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status'
-      });
+      return ApiResponse.error(res, 'Invalid status', 400);
     }
 
     const report = await repositories.reports.updateReportStatus(
@@ -432,11 +384,7 @@ const updateReportStatus = async (req, res, next) => {
       userAgent: req.headers['user-agent']
     });
 
-    res.status(200).json({
-      success: true,
-      message: 'Report status updated successfully',
-      report
-    });
+    ApiResponse.withEntity(res, 'report', report, 'Report status updated successfully');
   } catch (error) {
     next(error);
   }
@@ -461,13 +409,9 @@ const getAuditLogs = async (req, res, next) => {
       offset: Number.parseInt(offset) || 0
     });
 
-    res.status(200).json({
-      success: true,
-      logs,
-      pagination: {
-        limit: Number.parseInt(limit) || 100,
-        offset: Number.parseInt(offset) || 0
-      }
+    ApiResponse.withEntity(res, 'logs', logs, null, {
+      limit: Number.parseInt(limit) || 100,
+      offset: Number.parseInt(offset) || 0
     });
   } catch (error) {
     next(error);
@@ -484,10 +428,7 @@ const getEntityHistory = async (req, res, next) => {
     const { entityType, entityId } = req.params;
     const history = await repositories.auditLogs.getEntityHistory(entityId, entityType);
 
-    res.status(200).json({
-      success: true,
-      history
-    });
+    ApiResponse.withEntity(res, 'history', history);
   } catch (error) {
     next(error);
   }
@@ -509,10 +450,7 @@ const getAllPayouts = async (req, res, next) => {
       offset: Number.parseInt(offset) || 0
     });
 
-    res.status(200).json({
-      success: true,
-      data: Array.isArray(payouts) ? payouts : (payouts?.data || [])
-    });
+    ApiResponse.success(res, Array.isArray(payouts) ? payouts : (payouts?.data || []));
   } catch (error) {
     next(error);
   }
@@ -529,7 +467,7 @@ const updatePayoutStatus = async (req, res, next) => {
     const { status, notes } = req.body;
 
     const payout = await repositories.payouts.findById(payoutId);
-    if (!payout) return res.status(404).json({ success: false, error: 'Payout not found' });
+    if (!payout) return ApiResponse.error(res, 'Payout not found', 404);
 
     // Update status
     const updated = await repositories.payouts.update(payoutId, {
@@ -538,11 +476,7 @@ const updatePayoutStatus = async (req, res, next) => {
       notes: notes || payout.notes
     });
 
-    res.status(200).json({
-      success: true,
-      message: `Payout ${status} successfully`,
-      data: updated
-    });
+    ApiResponse.success(res, updated, `Payout ${status} successfully`);
   } catch (error) {
     next(error);
   }
@@ -561,7 +495,7 @@ const getAllOrders = async (req, res, next) => {
       status,
       search,
     });
-    res.status(200).json({ success: true, orders });
+    ApiResponse.withEntity(res, 'orders', orders);
   } catch (error) {
     next(error);
   }
@@ -588,7 +522,7 @@ const getAllEscrows = async (req, res, next) => {
     const { data: escrows, error } = await query;
     if (error) throw error;
 
-    res.status(200).json({ success: true, escrows });
+    ApiResponse.withEntity(res, 'escrows', escrows);
   } catch (error) {
     next(error);
   }
@@ -604,9 +538,9 @@ const refundEscrow = async (req, res, next) => {
     const { reason } = req.body;
 
     const order = await repositories.orders.findById(id);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
     if (order.escrow_status !== 'HELD' && order.escrow_status !== 'DISPUTED') {
-      return res.status(400).json({ success: false, error: 'Order is not in an escrow holding state' });
+      return ApiResponse.error(res, 'Order is not in an escrow holding state', 400);
     }
 
     // For now, we update the status atomically so concurrent requests
@@ -621,10 +555,7 @@ const refundEscrow = async (req, res, next) => {
     if (error) throw error;
 
     if (!updatedOrders || updatedOrders.length === 0) {
-      return res.status(409).json({
-        success: false,
-        error: 'Order escrow status changed before the refund could be applied'
-      });
+      return ApiResponse.error(res, 'Order escrow status changed before the refund could be applied', 409);
     }
 
     const updatedOrder = updatedOrders[0];
@@ -635,7 +566,7 @@ const refundEscrow = async (req, res, next) => {
       changes: { status: 'refunded', reason }, ipAddress: req.ip, userAgent: req.headers['user-agent']
     });
 
-    res.status(200).json({ success: true, message: 'Escrow refunded successfully', order: updatedOrder });
+    ApiResponse.withEntity(res, 'order', updatedOrder, 'Escrow refunded successfully');
   } catch (error) {
     next(error);
   }
@@ -651,9 +582,9 @@ const releaseEscrow = async (req, res, next) => {
     const { reason } = req.body;
 
     const order = await repositories.orders.findById(id);
-    if (!order) return res.status(404).json({ success: false, error: 'Order not found' });
+    if (!order) return ApiResponse.error(res, 'Order not found', 404);
     if (order.escrow_status !== 'HELD' && order.escrow_status !== 'DISPUTED') {
-      return res.status(400).json({ success: false, error: 'Order is not in an escrow holding state' });
+      return ApiResponse.error(res, 'Order is not in an escrow holding state', 400);
     }
 
     // Use the atomic delivery confirmation RPC for consistent fund release
@@ -665,7 +596,7 @@ const releaseEscrow = async (req, res, next) => {
 
     if (rpcError) throw rpcError;
     if (!rpcResult.success) {
-      return res.status(400).json(rpcResult);
+      return ApiResponse.error(res, rpcResult.message || rpcResult.error || 'Failed to release escrow', 400);
     }
 
     // Fetch updated order for response
@@ -677,7 +608,7 @@ const releaseEscrow = async (req, res, next) => {
       changes: { status: 'completed', reason }, ipAddress: req.ip, userAgent: req.headers['user-agent']
     });
 
-    res.status(200).json({ success: true, message: 'Escrow released successfully', order: updatedOrder });
+    ApiResponse.withEntity(res, 'order', updatedOrder, 'Escrow released successfully');
   } catch (error) {
     next(error);
   }
@@ -695,7 +626,152 @@ const getRevenue = async (req, res, next) => {
       offset: Number.parseInt(offset) || 0,
     });
     const total = transactions.reduce((sum, t) => sum + Number.parseFloat(t.amount || 0), 0);
-    res.status(200).json({ success: true, transactions, total });
+    ApiResponse.success(res, { transactions, total });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getRevenueBreakdown = async (req, res, next) => {
+  try {
+    const { period = 'month' } = req.query;
+    const db = require('../config/postgres').getPool();
+
+    const now = new Date();
+    let startDate;
+    if (period === 'week') {
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - 7);
+    } else if (period === 'year') {
+      startDate = new Date(now.getFullYear(), 0, 1);
+    } else {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    const [
+      feeConfigResult,
+      ordersResult,
+      bannerResult,
+      promotedResult,
+      deliveryResult,
+      chartResult,
+      topSpendersResult,
+    ] = await Promise.all([
+      db.query(`SELECT config_key, config_value FROM platform_fee_config WHERE config_key IN ('buyer_protection_fee', 'buyer_protection_enabled')`),
+      db.query(`
+        SELECT
+          COUNT(o.id) AS order_count,
+          COALESCE(SUM(o.platform_fee), 0) AS total_platform_fee
+        FROM orders o
+        WHERE o.status IN ('completed', 'delivered')
+          AND o.created_at >= $1
+      `, [startDate]),
+      db.query(`
+        SELECT
+          COALESCE(SUM(
+            bc.daily_fee * GREATEST(
+              LEAST(COALESCE(bc.end_date, NOW()), NOW()) - GREATEST(COALESCE(bc.start_date, NOW()), $1),
+              '0 days'
+            )
+          ), 0) AS banner_revenue,
+          COUNT(bc.id) FILTER (WHERE bc.status = 'Active') AS active_campaigns
+        FROM banner_campaigns bc
+        WHERE bc.status = 'Active'
+          AND (bc.start_date IS NULL OR bc.start_date <= NOW())
+          AND (bc.end_date IS NULL OR bc.end_date >= $1)
+      `, [startDate]),
+      db.query(`
+        SELECT COALESCE(SUM(pp.spent_amount), 0) AS promoted_product_spend
+        FROM promoted_products pp
+        WHERE pp.is_active = true
+          AND pp.start_date >= $1
+      `, [startDate]),
+      db.query(`
+        SELECT COALESCE(SUM(d.delivery_fee - COALESCE(d.driver_earnings, 0)), 0) AS delivery_retained
+        FROM deliveries d
+        WHERE d.status = 'delivered'
+          AND d.delivered_at >= $1
+          AND (d.delivery_fee - COALESCE(d.driver_earnings, 0)) > 0
+      `, [startDate]),
+      db.query(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', o.created_at), 'Mon') AS label,
+          COALESCE(SUM(o.platform_fee), 0) AS buyer_protection,
+          COALESCE(SUM(o.platform_fee), 0) AS commission
+        FROM orders o
+        WHERE o.status IN ('completed', 'delivered')
+          AND o.created_at >= $1
+        GROUP BY DATE_TRUNC('month', o.created_at)
+        ORDER BY DATE_TRUNC('month', o.created_at)
+      `, [startDate]),
+      db.query(`
+        SELECT s.store_name, COALESCE(SUM(pp.spent_amount), 0) AS spent
+        FROM promoted_products pp
+        JOIN stores s ON pp.store_id = s.id
+        WHERE pp.is_active = true
+          AND pp.start_date >= $1
+        GROUP BY s.id, s.store_name
+        ORDER BY spent DESC
+        LIMIT 5
+      `, [startDate]),
+    ]);
+
+    const feeConfig = Object.fromEntries(
+      (feeConfigResult.rows || []).map(r => [r.config_key, parseFloat(r.config_value)])
+    );
+    const buyerProtectionFee = feeConfig['buyer_protection_fee'] || 2.00;
+    const orderCount = parseInt(ordersResult.rows[0]?.order_count || 0, 10);
+    const totalPlatformFee = parseFloat(ordersResult.rows[0]?.total_platform_fee || 0);
+    const bannerRevenue = parseFloat(bannerResult.rows[0]?.banner_revenue || 0);
+    const activeCampaigns = parseInt(bannerResult.rows[0]?.active_campaigns || 0, 10);
+    const promotedSpend = parseFloat(promotedResult.rows[0]?.promoted_product_spend || 0);
+    const deliveryRetained = parseFloat(deliveryResult.rows[0]?.delivery_retained || 0);
+
+    const buyerProtectionTotal = buyerProtectionFee * orderCount;
+    const platformCommission = totalPlatformFee - buyerProtectionTotal;
+    const adRevenue = bannerRevenue + promotedSpend;
+
+    const chartLabels = [];
+    const chartBuyerProtection = [];
+    const chartAdRevenue = [];
+    const chartCommission = [];
+
+    (chartResult.rows || []).forEach(row => {
+      chartLabels.push(row.label);
+      const bp = buyerProtectionTotal > 0 && orderCount > 0
+        ? (parseFloat(row.buyer_protection) * buyerProtectionTotal / totalPlatformFee)
+        : 0;
+      chartBuyerProtection.push(Math.round(bp * 100) / 100);
+      chartAdRevenue.push(adRevenue > 0 ? adRevenue / Math.max(chartResult.rows.length, 1) : 0);
+      chartCommission.push(parseFloat(row.commission) - bp);
+    });
+
+    ApiResponse.success(res, {
+      sources: {
+        buyer_protection_fees: { total: buyerProtectionTotal, order_count: orderCount },
+        ad_revenue: {
+          total: adRevenue,
+          banner_revenue: Math.round(bannerRevenue * 100) / 100,
+          promoted_product_spend: Math.round(promotedSpend * 100) / 100,
+          active_campaigns: activeCampaigns,
+        },
+        platform_commission: { total: Math.round(platformCommission * 100) / 100 },
+        delivery_fees_retained: { total: Math.round(deliveryRetained * 100) / 100 },
+      },
+      grand_total: Math.round((buyerProtectionTotal + adRevenue + platformCommission + deliveryRetained) * 100) / 100,
+      chart: {
+        labels: chartLabels,
+        datasets: [
+          { label: 'Buyer Protection', data: chartBuyerProtection },
+          { label: 'Ad Revenue', data: chartAdRevenue.map(() => Math.round(adRevenue / Math.max(chartLabels.length, 1) * 100) / 100) },
+          { label: 'Commission', data: chartCommission.map(v => Math.round(v * 100) / 100) },
+        ],
+      },
+      top_ad_spenders: (topSpendersResult.rows || []).map(r => ({
+        store_name: r.store_name,
+        spent: parseFloat(r.spent),
+      })),
+    });
   } catch (error) {
     next(error);
   }
@@ -708,7 +784,7 @@ const getRevenue = async (req, res, next) => {
 const getDriverVerifications = async (req, res, next) => {
   try {
     const drivers = await repositories.admin.getDriverVerifications();
-    res.status(200).json({ success: true, drivers });
+    ApiResponse.withEntity(res, 'drivers', drivers);
   } catch (error) {
     next(error);
   }
@@ -722,8 +798,8 @@ const getDriverVerificationDetails = async (req, res, next) => {
   try {
     const { id } = req.params;
     const driver = await repositories.admin.getDriverVerificationDetails(id);
-    if (!driver) return res.status(404).json({ success: false, error: 'Driver not found' });
-    res.status(200).json({ success: true, driver });
+    if (!driver) return ApiResponse.error(res, 'Driver not found', 404);
+    ApiResponse.withEntity(res, 'driver', driver);
   } catch (error) {
     next(error);
   }
@@ -777,7 +853,7 @@ const approveDriverVerification = async (req, res, next) => {
       }
     }
 
-    res.status(200).json({ success: true, message: 'Driver approved successfully', driver });
+    ApiResponse.withEntity(res, 'driver', driver, 'Driver approved successfully');
   } catch (error) {
     next(error);
   }
@@ -791,7 +867,7 @@ const rejectDriverVerification = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    if (!reason) return res.status(400).json({ success: false, error: 'Reason is required' });
+    if (!reason) return ApiResponse.error(res, 'Reason is required', 400);
     const driver = await repositories.admin.rejectDriver(id, reason);
 
     if (driver?.user_id) {
@@ -835,7 +911,7 @@ const rejectDriverVerification = async (req, res, next) => {
       }
     }
 
-    res.status(200).json({ success: true, message: 'Driver rejected successfully', driver });
+    ApiResponse.withEntity(res, 'driver', driver, 'Driver rejected successfully');
   } catch (error) {
     next(error);
   }
@@ -873,7 +949,7 @@ const deleteUser = async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(200).json({ success: true, message: 'User deleted successfully' });
+    ApiResponse.success(res, null, 'User deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -903,7 +979,7 @@ const resetUserSession = async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(200).json({ success: true, message: 'User session reset. They will need to log in again.' });
+    ApiResponse.success(res, null, 'User session reset. They will need to log in again.');
   } catch (error) {
     next(error);
   }
@@ -937,7 +1013,7 @@ const disableUserSession = async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(200).json({ success: true, message: 'User session disabled and account deactivated.' });
+    ApiResponse.success(res, null, 'User session disabled and account deactivated.');
   } catch (error) {
     next(error);
   }
@@ -948,7 +1024,7 @@ const createUserProfile = async (req, res, next) => {
   try {
     const { full_name, email, phone, password, role } = req.body;
     if (!full_name || !email || !password || !role) {
-      return res.status(400).json({ error: 'full_name, email, password and role are required' });
+      return ApiResponse.error(res, 'full_name, email, password and role are required', 400);
     }
 
     const user = await repositories.users.createUser({ email, password });
@@ -978,7 +1054,7 @@ const createUserProfile = async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(201).json({ success: true, user: { id: user.id, email, full_name, role } });
+    ApiResponse.withEntity(res, 'user', { id: user.id, email, full_name, role }, null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -996,7 +1072,7 @@ const createStoreAdmin = async (req, res, next) => {
     } = req.body;
 
     if (!owner_id || !store_name) {
-      return res.status(400).json({ error: 'owner_id and store_name are required' });
+      return ApiResponse.error(res, 'owner_id and store_name are required', 400);
     }
 
     const { getPool } = require('../config/postgres');
@@ -1052,7 +1128,7 @@ const createStoreAdmin = async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(201).json({ success: true, store });
+    ApiResponse.withEntity(res, 'store', store, null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -1066,7 +1142,7 @@ const createDriverProfileAdmin = async (req, res, next) => {
       vehicle_make, vehicle_model, vehicle_year,
       insurance_policy_number, insurance_expiry_date, license_expiry_date,
     } = req.body;
-    if (!user_id) return res.status(400).json({ error: 'user_id is required' });
+    if (!user_id) return ApiResponse.error(res, 'user_id is required', 400);
 
     const { getPool } = require('../config/postgres');
     const db = getPool();
@@ -1114,7 +1190,7 @@ const createDriverProfileAdmin = async (req, res, next) => {
       userAgent: req.headers['user-agent'],
     });
 
-    res.status(201).json({ success: true, driver });
+    ApiResponse.withEntity(res, 'driver', driver, null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -1148,8 +1224,8 @@ const getDriverStatsAdmin = async (req, res, next) => {
       GROUP BY dp.id, dp.user_id, up.full_name, dp.vehicle_type, dp.is_verified
     `, [id]);
 
-    if (!rows.length) return res.status(404).json({ error: 'Driver not found' });
-    res.status(200).json({ success: true, stats: rows[0] });
+    if (!rows.length) return ApiResponse.error(res, 'Driver not found', 404);
+    ApiResponse.withEntity(res, 'stats', rows[0]);
   } catch (error) {
     next(error);
   }
@@ -1180,7 +1256,7 @@ const getDriverHistoryAdmin = async (req, res, next) => {
       LIMIT $2 OFFSET $3
     `, [id, limit, offset]);
 
-    res.status(200).json({ success: true, deliveries: rows });
+    ApiResponse.withEntity(res, 'deliveries', rows);
   } catch (error) {
     next(error);
   }
@@ -1191,12 +1267,9 @@ const getDriverHistoryAdmin = async (req, res, next) => {
 const getPlatformSettings = async (req, res, next) => {
   try {
     const settings = await repositories.adminSettings.getSettings();
-    res.status(200).json({
-      success: true,
-      settings: {
-        maintenance_mode: settings.maintenance_mode,
-        auto_approve_sellers: settings.auto_approve_sellers,
-      },
+    ApiResponse.withEntity(res, 'settings', {
+      maintenance_mode: settings.maintenance_mode,
+      auto_approve_sellers: settings.auto_approve_sellers,
     });
   } catch (error) {
     next(error);
@@ -1210,18 +1283,18 @@ const updatePlatformSettings = async (req, res, next) => {
 
     if (maintenance_mode !== undefined) {
       if (typeof maintenance_mode !== 'boolean') {
-        return res.status(400).json({ success: false, error: 'maintenance_mode must be a boolean' });
+        return ApiResponse.error(res, 'maintenance_mode must be a boolean', 400);
       }
       updates.maintenance_mode = maintenance_mode;
     }
     if (auto_approve_sellers !== undefined) {
       if (typeof auto_approve_sellers !== 'boolean') {
-        return res.status(400).json({ success: false, error: 'auto_approve_sellers must be a boolean' });
+        return ApiResponse.error(res, 'auto_approve_sellers must be a boolean', 400);
       }
       updates.auto_approve_sellers = auto_approve_sellers;
     }
     if (!Object.keys(updates).length) {
-      return res.status(400).json({ success: false, error: 'No valid fields provided' });
+      return ApiResponse.error(res, 'No valid fields provided', 400);
     }
 
     const settings = await repositories.adminSettings.updateSettings(updates, req.user.id);
@@ -1239,12 +1312,9 @@ const updatePlatformSettings = async (req, res, next) => {
       await cacheSet('shopyos:platform:maintenance_mode', updates.maintenance_mode, 10).catch(() => {});
     }
 
-    res.status(200).json({
-      success: true,
-      settings: {
-        maintenance_mode: settings.maintenance_mode,
-        auto_approve_sellers: settings.auto_approve_sellers,
-      },
+    ApiResponse.withEntity(res, 'settings', {
+      maintenance_mode: settings.maintenance_mode,
+      auto_approve_sellers: settings.auto_approve_sellers,
     });
   } catch (error) {
     next(error);
@@ -1269,6 +1339,7 @@ module.exports = {
   updatePayoutStatus,
   getAllOrders,
   getRevenue,
+  getRevenueBreakdown,
   getDriverVerifications,
   getDriverVerificationDetails,
   approveDriverVerification,

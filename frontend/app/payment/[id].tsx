@@ -61,7 +61,7 @@ export default function PaymentProcessingScreen() {
                 const { authorization_url, reference } = initRes.data;
                 
                 if (!authorization_url) {
-                    console.error('❌ No authorization URL in response:', initRes.data);
+                    console.error('No authorization URL in response:', initRes.data);
                     setErrorMessage('Payment provider did not return a valid payment URL');
                     setStatus('failed');
                     return;
@@ -82,12 +82,12 @@ export default function PaymentProcessingScreen() {
                     handleVerify(reference);
                 }
             } else {
-                console.error('❌ Payment initialization failed:', initRes.error);
+                console.error('Payment initialization failed:', initRes.error);
                 setErrorMessage(initRes.error || 'Failed to initialize payment');
                 setStatus('failed');
             }
         } catch (e: any) {
-            console.error("❌ Payment Init Error:", e);
+            console.error("Payment Init Error:", e);
             setErrorMessage(e.message || 'An unexpected error occurred');
             setStatus('failed');
         }
@@ -128,14 +128,14 @@ export default function PaymentProcessingScreen() {
                 }
 
                 // Max attempts reached
-                console.error('❌ Max verification attempts reached');
+                console.error('Max verification attempts reached');
                 setErrorMessage(res.error || 'Could not confirm payment. If you were charged, it will be reconciled automatically.');
                 setStatus('failed');
             };
 
             await check();
         } catch (e: any) {
-            console.error("❌ Verification Error:", e);
+            console.error("Verification Error:", e);
             setErrorMessage(e.message || 'Verification failed');
             setStatus('failed');
         }

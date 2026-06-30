@@ -20,6 +20,7 @@ const {
   updateReportStatus,
   getAllOrders,
   getRevenue,
+  getRevenueBreakdown,
   getDriverVerifications,
   getDriverVerificationDetails,
   approveDriverVerification,
@@ -48,6 +49,7 @@ const {
   sendTestNotification
 } = require('../controllers/adminNotificationController');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { cacheMiddleware } = require('../middleware/cache');
 const adminExportController = require('../controllers/adminExportController');
 const {
   getFeeConfigs,
@@ -67,6 +69,9 @@ const {
   updateDisclaimer,
   getAcknowledgementsAudit,
 } = require('../controllers/disclaimerController');
+const {
+  getListingFees,
+} = require('../controllers/listingFeeController');
 
 // All admin routes require authentication and admin role
 router.use(protect);
@@ -156,7 +161,7 @@ router.get('/disclaimers/audit', getAcknowledgementsAudit);
  *       403:
  *         description: Forbidden — admin role required
  */
-router.get('/dashboard', getDashboard);
+router.get('/dashboard', cacheMiddleware(() => 'shopyos:admin:dashboard', 300), getDashboard);
 
 // User Management
 /**
@@ -851,6 +856,7 @@ router.get('/orders', getAllOrders);
  *         description: Forbidden — admin role required
  */
 router.get('/revenue', getRevenue);
+router.get('/revenue-breakdown', getRevenueBreakdown);
 
 // Driver Management
 /**
@@ -1122,6 +1128,9 @@ router.put('/escrows/:id/refund', refundEscrow);
  *         description: Escrow not found
  */
 router.put('/escrows/:id/release', releaseEscrow);
+
+// Listing Fees
+router.get('/listing-fees', getListingFees);
 
 // Export
 /**

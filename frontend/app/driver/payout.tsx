@@ -8,6 +8,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useRouter, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { getDriverPayoutHistory, requestDriverPayout } from '@/services/payments';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useProfile } from '@/hooks/useProfile';
 
 const STATUS_FILTERS = ['All', 'Completed', 'Pending', 'Failed'] as const;
@@ -74,11 +75,11 @@ export default function DriverPayoutScreen() {
 
   const handleRequestPayout = () => {
     if (!payoutMethod) {
-      Alert.alert('No Payout Method', 'Please set up a payout method first.');
+      CustomInAppToast.show({ type: 'error', title: 'No Payout Method', message: 'Please set up a payout method first.' });
       return;
     }
     if (walletBalance < 10) {
-      Alert.alert('Insufficient Balance', 'Minimum payout amount is GHS 10.');
+      CustomInAppToast.show({ type: 'error', title: 'Insufficient Balance', message: 'Minimum payout amount is GHS 10.' });
       return;
     }
     setRequestAmount(walletBalance.toFixed(2));
@@ -88,18 +89,18 @@ export default function DriverPayoutScreen() {
   const confirmRequest = async () => {
     const amount = Number.parseFloat(requestAmount);
     if (!amount || amount < 10) {
-      Alert.alert('Invalid Amount', 'Minimum payout is GHS 10.');
+      CustomInAppToast.show({ type: 'error', title: 'Invalid Amount', message: 'Minimum payout is GHS 10.' });
       return;
     }
     setShowAmountSheet(false);
     setIsRequesting(true);
     try {
       await requestDriverPayout(amount);
-      Alert.alert('Request Sent', 'Your payout has been requested and will be processed shortly.');
+      CustomInAppToast.show({ type: 'success', title: 'Request Sent', message: 'Your payout has been requested and will be processed shortly.' });
       setWalletBalance(prev => prev - amount);
       await fetchHistory();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Payout request failed.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Payout request failed.' });
     } finally {
       setIsRequesting(false);
     }

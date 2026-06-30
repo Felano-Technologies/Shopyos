@@ -1,3 +1,4 @@
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { transformImageUrlsAsync } = require('../config/storage');
 const feeConfigService = require('../services/feeConfigService');
@@ -14,37 +15,25 @@ const createCampaign = async (req, res, next) => {
     // Verify product ownership
     const product = await repositories.products.findById(productId);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     const store = await repositories.stores.findById(product.store_id);
     if (!store || store.owner_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: 'Unauthorized - Product not owned by your store'
-      });
+      return ApiResponse.error(res, 'Unauthorized - Product not owned by your store', 403);
     }
 
     // Validate budget
     const minAdBudget = await feeConfigService.get('min_ad_budget');
     if (!budget || budget < minAdBudget) {
-      return res.status(400).json({
-        success: false,
-        error: `Minimum budget is GHS ${minAdBudget}`
-      });
+      return ApiResponse.error(res, `Minimum budget is GHS ${minAdBudget}`, 400);
     }
 
     // Validate dates
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (end <= start) {
-      return res.status(400).json({
-        success: false,
-        error: 'End date must be after start date'
-      });
+      return ApiResponse.error(res, 'End date must be after start date', 400);
     }
 
     const campaign = await repositories.promotedProducts.createCampaign({
@@ -56,11 +45,7 @@ const createCampaign = async (req, res, next) => {
       targetAudience
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Campaign created successfully',
-      campaign: await transformImageUrlsAsync(campaign)
-    });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync(campaign), 'Campaign created successfully', null, 201);
   } catch (error) {
     next(error);
   }
@@ -82,10 +67,7 @@ const getPromotedProducts = async (req, res, next) => {
       maxPrice: maxPrice ? Number.parseFloat(maxPrice) : undefined
     });
 
-    res.status(200).json({
-      success: true,
-      promotedProducts: await transformImageUrlsAsync(promotedProducts)
-    });
+    ApiResponse.withEntity(res, 'promotedProducts', await transformImageUrlsAsync(promotedProducts));
   } catch (error) {
     next(error);
   }
@@ -103,10 +85,7 @@ const getMyCampaigns = async (req, res, next) => {
     // Get user's stores
     const stores = await repositories.stores.findByOwnerId(req.user.id);
     if (!stores || stores.length === 0) {
-      return res.status(200).json({
-        success: true,
-        campaigns: []
-      });
+      return ApiResponse.withEntity(res, 'campaigns', []);
     }
 
     // Get campaigns for all user's stores
@@ -122,10 +101,7 @@ const getMyCampaigns = async (req, res, next) => {
 
     const campaigns = allCampaigns.flat();
 
-    res.status(200).json({
-      success: true,
-      campaigns: await transformImageUrlsAsync(campaigns)
-    });
+    ApiResponse.withEntity(res, 'campaigns', await transformImageUrlsAsync(campaigns));
   } catch (error) {
     next(error);
   }
@@ -142,31 +118,22 @@ const getCampaignDetails = async (req, res, next) => {
 
     const campaign = await repositories.promotedProducts.getCampaignDetails(campaignId);
     if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        error: 'Campaign not found'
-      });
+      return ApiResponse.error(res, 'Campaign not found', 404);
     }
 
     // Verify ownership
     const store = await repositories.stores.findById(campaign.store_id);
     if (store.owner_id !== req.user.id && req.user.role !== 'admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Unauthorized'
-      });
+      return ApiResponse.error(res, 'Unauthorized', 403);
     }
 
     // Get performance metrics
     const metrics = await repositories.promotedProducts.getCampaignMetrics(campaignId);
 
-    res.status(200).json({
-      success: true,
-      campaign: await transformImageUrlsAsync({
-        ...campaign,
-        metrics
-      })
-    });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync({
+      ...campaign,
+      metrics
+    }));
   } catch (error) {
     next(error);
   }
@@ -183,36 +150,23 @@ const updateCampaignStatus = async (req, res, next) => {
     const { status } = req.body;
 
     if (!['active', 'paused', 'completed', 'cancelled'].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid status'
-      });
+      return ApiResponse.error(res, 'Invalid status', 400);
     }
 
     const campaign = await repositories.promotedProducts.getCampaignDetails(campaignId);
     if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        error: 'Campaign not found'
-      });
+      return ApiResponse.error(res, 'Campaign not found', 404);
     }
 
     // Verify ownership
     const store = await repositories.stores.findById(campaign.store_id);
     if (store.owner_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: 'Unauthorized'
-      });
+      return ApiResponse.error(res, 'Unauthorized', 403);
     }
 
     const updatedCampaign = await repositories.promotedProducts.updateCampaignStatus(campaignId, status);
 
-    res.status(200).json({
-      success: true,
-      message: 'Campaign status updated successfully',
-      campaign: await transformImageUrlsAsync(updatedCampaign)
-    });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync(updatedCampaign), 'Campaign status updated successfully');
   } catch (error) {
     next(error);
   }
@@ -230,36 +184,23 @@ const updateCampaignBudget = async (req, res, next) => {
 
     const minAdBudget = await feeConfigService.get('min_ad_budget');
     if (!budget || budget < minAdBudget) {
-      return res.status(400).json({
-        success: false,
-        error: `Minimum budget is GHS ${minAdBudget}`
-      });
+      return ApiResponse.error(res, `Minimum budget is GHS ${minAdBudget}`, 400);
     }
 
     const campaign = await repositories.promotedProducts.getCampaignDetails(campaignId);
     if (!campaign) {
-      return res.status(404).json({
-        success: false,
-        error: 'Campaign not found'
-      });
+      return ApiResponse.error(res, 'Campaign not found', 404);
     }
 
     // Verify ownership
     const store = await repositories.stores.findById(campaign.store_id);
     if (store.owner_id !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        error: 'Unauthorized'
-      });
+      return ApiResponse.error(res, 'Unauthorized', 403);
     }
 
     const updatedCampaign = await repositories.promotedProducts.updateCampaignBudget(campaignId, budget);
 
-    res.status(200).json({
-      success: true,
-      message: 'Campaign budget updated successfully',
-      campaign: await transformImageUrlsAsync(updatedCampaign)
-    });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync(updatedCampaign), 'Campaign budget updated successfully');
   } catch (error) {
     next(error);
   }
@@ -287,18 +228,12 @@ const recordImpression = async (req, res, next) => {
       // Check if campaign can serve ads
       const canServe = await repositories.promotedProducts.canServeAd(campaignId);
       if (!canServe) {
-        return res.status(200).json({
-          success: false,
-          error: 'Campaign is not active'
-        });
+        return ApiResponse.error(res, 'Campaign is not active', 200);
       }
       await repositories.promotedProducts.recordImpression(campaignId);
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Impression recorded'
-    });
+    ApiResponse.success(res, null, 'Impression recorded');
   } catch (error) {
     next(error);
   }
@@ -326,10 +261,7 @@ const recordClick = async (req, res, next) => {
       await repositories.promotedProducts.recordClick(campaignId);
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Click recorded'
-    });
+    ApiResponse.success(res, null, 'Click recorded');
   } catch (error) {
     next(error);
   }
@@ -345,10 +277,7 @@ const createReport = async (req, res, next) => {
     const { reportedId, reportedType, reason, description } = req.body;
 
     if (!['product', 'store', 'review', 'user'].includes(reportedType)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid reported type'
-      });
+      return ApiResponse.error(res, 'Invalid reported type', 400);
     }
 
     // Check if user already reported this entity
@@ -359,10 +288,7 @@ const createReport = async (req, res, next) => {
     );
 
     if (hasReported) {
-      return res.status(400).json({
-        success: false,
-        error: 'You have already reported this item'
-      });
+      return ApiResponse.error(res, 'You have already reported this item', 400);
     }
 
     const report = await repositories.reports.createReport({
@@ -373,11 +299,7 @@ const createReport = async (req, res, next) => {
       description
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Report submitted successfully',
-      report
-    });
+    ApiResponse.withEntity(res, 'report', report, 'Report submitted successfully', null, 201);
   } catch (error) {
     next(error);
   }

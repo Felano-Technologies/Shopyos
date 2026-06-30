@@ -2,18 +2,20 @@
 const repositories = require('../db/repositories');
 const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
 const { logger } = require('../config/logger');
+const { envInt } = require('../config/envConfig');
 
 class FeeConfigService {
   constructor() {
-    this.cacheTtl = 300; // 5 minutes
+    this.cacheTtl = envInt('FEE_CONFIG_CACHE_TTL', 300);
   }
 
   /**
    * Get parsed config value by key (with Redis caching)
    * @param {string} key - Config parameter key
+   * @param {number|null} [defaultValue=null] - Optional fallback if key not found
    * @returns {Promise<number>} Parsed numeric value
    */
-  async get(key) {
+  async get(key, defaultValue = null) {
     const cacheKey = `fee_config:${key}`;
     const cached = await cacheGet(cacheKey);
 
@@ -23,6 +25,9 @@ class FeeConfigService {
 
     const config = await repositories.feeConfig.getByKey(key);
     if (!config) {
+      if (defaultValue !== null) {
+        return defaultValue;
+      }
       logger.error(`Required platform fee configuration missing: ${key}`);
       throw new Error(`Platform configuration parameter '${key}' is missing`);
     }

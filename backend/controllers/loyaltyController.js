@@ -1,9 +1,30 @@
 ﻿const { getPool } = require('../config/postgres');
+const feeConfigService = require('../services/feeConfigService');
+const ApiResponse = require('../utils/apiResponse');
 
-// Conversion constants
-const POINTS_PER_CURRENCY_UNIT = 1;   // earn 1 pt per â‚µ1 spent
-const POINTS_TO_CURRENCY = 100;        // 100 pts = â‚µ1 discount
-const MAX_REDEEM_PERCENT = 0.2;       // can redeem at most 20% of subtotal
+// Cached config values — refreshed on first call and periodically
+let _loyaltyCache = null;
+let _loyaltyCacheTime = 0;
+const LOYALTY_CACHE_TTL = 60000; // 1 minute
+
+const getLoyaltyConfig = async () => {
+  const now = Date.now();
+  if (_loyaltyCache && now - _loyaltyCacheTime < LOYALTY_CACHE_TTL) {
+    return _loyaltyCache;
+  }
+  const [ptsPerCurrency, ptsToCurrency, maxRedeemPct] = await Promise.all([
+    feeConfigService.get('loyalty_points_per_currency'),
+    feeConfigService.get('loyalty_points_to_currency'),
+    feeConfigService.get('loyalty_max_redeem_percent'),
+  ]);
+  _loyaltyCache = {
+    POINTS_PER_CURRENCY_UNIT: ptsPerCurrency,
+    POINTS_TO_CURRENCY: ptsToCurrency,
+    MAX_REDEEM_PERCENT: maxRedeemPct / 100,
+  };
+  _loyaltyCacheTime = now;
+  return _loyaltyCache;
+};
 
 /**
  * @route  GET /api/v1/loyalty/balance
@@ -12,6 +33,7 @@ const MAX_REDEEM_PERCENT = 0.2;       // can redeem at most 20% of subtotal
  */
 const getBalance = async (req, res, next) => {
   try {
+    const cfg = await getLoyaltyConfig();
     const pool = getPool();
     const { rows } = await pool.query(
       `SELECT balance, lifetime_earned FROM loyalty_points WHERE user_id = $1`,
@@ -20,9 +42,9 @@ const getBalance = async (req, res, next) => {
 
     const balance = rows[0]?.balance ?? 0;
     const lifetimeEarned = rows[0]?.lifetime_earned ?? 0;
-    const redeemableValue = Number.parseFloat((balance / POINTS_TO_CURRENCY).toFixed(2));
+    const redeemableValue = Number.parseFloat((balance / cfg.POINTS_TO_CURRENCY).toFixed(2));
 
-    return res.json({ success: true, balance, lifetimeEarned, redeemableValue });
+    return ApiResponse.success(res, { balance, lifetimeEarned, redeemableValue });
   } catch (error) {
     next(error);
   }
@@ -34,7 +56,8 @@ const getBalance = async (req, res, next) => {
  * Intended to be called from orderController â€” not a route handler.
  */
 const creditPoints = async (userId, orderId, subtotal, pool) => {
-  const points = Math.floor(Number.parseFloat(subtotal) * POINTS_PER_CURRENCY_UNIT);
+  const cfg = await getLoyaltyConfig();
+  const points = Math.floor(Number.parseFloat(subtotal) * cfg.POINTS_PER_CURRENCY_UNIT);
   if (points <= 0) return;
 
   await pool.query(
@@ -60,6 +83,7 @@ const creditPoints = async (userId, orderId, subtotal, pool) => {
  */
 const deductPoints = async (userId, orderId, points, pool) => {
   if (points <= 0) return;
+  const cfg = await getLoyaltyConfig();
 
   await pool.query(
     `UPDATE loyalty_points
@@ -71,7 +95,7 @@ const deductPoints = async (userId, orderId, points, pool) => {
   await pool.query(
     `INSERT INTO loyalty_transactions (user_id, order_id, type, points, description)
      VALUES ($1, $2, 'redeem', $3, $4)`,
-    [userId, orderId, -points, `Redeemed ${points} pts (â‚µ${(points / POINTS_TO_CURRENCY).toFixed(2)} off)`]
+    [userId, orderId, -points, `Redeemed ${points} pts (₵${(points / cfg.POINTS_TO_CURRENCY).toFixed(2)} off)`]
   );
 };
 
@@ -80,11 +104,12 @@ const deductPoints = async (userId, orderId, points, pool) => {
  * against the user's balance and the 20% cap.
  * Returns { validPoints, discountAmount } â€” both may be adjusted downward.
  */
-const calcPointsDiscount = (requestedPoints, userBalance, subtotal) => {
+const calcPointsDiscount = async (requestedPoints, userBalance, subtotal) => {
+  const cfg = await getLoyaltyConfig();
   const maxByBalance = Math.min(requestedPoints, userBalance);
-  const maxByCap = Math.floor((subtotal * MAX_REDEEM_PERCENT) * POINTS_TO_CURRENCY);
+  const maxByCap = Math.floor((subtotal * cfg.MAX_REDEEM_PERCENT) * cfg.POINTS_TO_CURRENCY);
   const validPoints = Math.max(0, Math.min(maxByBalance, maxByCap));
-  const discountAmount = Number.parseFloat((validPoints / POINTS_TO_CURRENCY).toFixed(2));
+  const discountAmount = Number.parseFloat((validPoints / cfg.POINTS_TO_CURRENCY).toFixed(2));
   return { validPoints, discountAmount };
 };
 
@@ -110,10 +135,10 @@ const getLoyaltyTransactions = async (req, res, next) => {
        LIMIT $2 OFFSET $3`,
       [req.user.id, Number.parseInt(limit), Number.parseInt(offset)]
     );
-    return res.json({ success: true, transactions: rows });
+    return ApiResponse.withEntity(res, 'transactions', rows);
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { getBalance, getLoyaltyTransactions, creditPoints, deductPoints, calcPointsDiscount, POINTS_TO_CURRENCY };
+module.exports = { getBalance, getLoyaltyTransactions, creditPoints, deductPoints, calcPointsDiscount };

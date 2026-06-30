@@ -1,23 +1,19 @@
 const repositories = require('../db/repositories');
 const feeConfigService = require('../services/feeConfigService');
 const { getPool } = require('../config/postgres');
+const ApiResponse = require('../utils/apiResponse');
 
 // --- Buyer/Public Endpoints ---
 
 const getActiveSale = async (req, res, next) => {
   try {
     const result = await repositories.flashSales.getActiveSale();
-    if (!result) return res.status(200).json({ success: true, active: false, sale: null, products: [] });
+    if (!result) return ApiResponse.success(res, { active: false, sale: null, products: [] });
 
     const { sale, items } = result;
     const products = formatFlashSaleProducts(items);
 
-    return res.status(200).json({
-      success: true,
-      active: true,
-      sale: { id: sale.id, title: sale.title, startsAt: sale.starts_at, endsAt: sale.ends_at },
-      products
-    });
+    return ApiResponse.success(res, { active: true, sale: { id: sale.id, title: sale.title, startsAt: sale.starts_at, endsAt: sale.ends_at }, products });
   } catch (error) {
     next(error);
   }
@@ -27,7 +23,7 @@ const getSlotsList = async (req, res, next) => {
   try {
     const upcoming = req.query.upcoming === 'true';
     const slots = await repositories.flashSales.getSlots({ upcoming });
-    res.status(200).json({ success: true, data: slots });
+    ApiResponse.success(res, slots);
   } catch (error) {
     next(error);
   }
@@ -39,7 +35,7 @@ const submitFlashSale = async (req, res, next) => {
   try {
     const { slotId, title, description, products } = req.body;
     const storeId = req.user.storeId; // seller store
-    if (!storeId) return res.status(403).json({ success: false, error: 'Seller store profile required' });
+    if (!storeId) return ApiResponse.error(res, 'Seller store profile required', 403);
 
     await validateSellerSubmission(slotId, products, storeId);
 
@@ -57,7 +53,7 @@ const submitFlashSale = async (req, res, next) => {
     });
 
     await repositories.flashSales.addProducts(sale.id, products, storeId);
-    res.status(201).json({ success: true, message: 'Flash sale submitted for review', saleId: sale.id });
+    ApiResponse.withEntity(res, 'saleId', sale.id, 'Flash sale submitted for review', null, 201);
   } catch (error) {
     next(error);
   }
@@ -66,10 +62,10 @@ const submitFlashSale = async (req, res, next) => {
 const getSellerSales = async (req, res, next) => {
   try {
     const storeId = req.user.storeId;
-    if (!storeId) return res.status(403).json({ success: false, error: 'Seller store profile required' });
+    if (!storeId) return ApiResponse.error(res, 'Seller store profile required', 403);
 
     const sales = await repositories.flashSales.getSellerSales(storeId, req.query.status);
-    res.status(200).json({ success: true, data: sales });
+    ApiResponse.success(res, sales);
   } catch (error) {
     next(error);
   }
@@ -81,10 +77,10 @@ const cancelFlashSale = async (req, res, next) => {
     const storeId = req.user.storeId;
 
     const sale = await repositories.flashSales.findById(id);
-    if (!sale || sale.store_id !== storeId) return res.status(404).json({ success: false, error: 'Flash sale not found' });
+    if (!sale || sale.store_id !== storeId) return ApiResponse.error(res, 'Flash sale not found', 404);
 
     if (sale.status === 'live' || sale.status === 'ended') {
-      return res.status(400).json({ success: false, error: 'Cannot cancel active or ended flash sales' });
+      return ApiResponse.error(res, 'Cannot cancel active or ended flash sales', 400);
     }
 
     const pool = getPool();
@@ -93,7 +89,7 @@ const cancelFlashSale = async (req, res, next) => {
     }
 
     await repositories.flashSales.update(id, { status: 'cancelled', is_active: false });
-    res.status(200).json({ success: true, message: 'Flash sale cancelled successfully' });
+    ApiResponse.success(res, null, 'Flash sale cancelled successfully');
   } catch (error) {
     next(error);
   }
@@ -104,7 +100,7 @@ const cancelFlashSale = async (req, res, next) => {
 const createSlot = async (req, res, next) => {
   try {
     const { title, startTime, endTime, maxItems } = req.body;
-    if (!title || !startTime || !endTime) return res.status(400).json({ success: false, error: 'title, startTime, and endTime are required' });
+    if (!title || !startTime || !endTime) return ApiResponse.error(res, 'title, startTime, and endTime are required', 400);
 
     const slot = await repositories.flashSales.createSlot({
       title,
@@ -114,7 +110,7 @@ const createSlot = async (req, res, next) => {
       created_by: req.user.id
     });
 
-    res.status(201).json({ success: true, data: slot });
+    ApiResponse.created(res, slot);
   } catch (error) {
     next(error);
   }
@@ -123,7 +119,7 @@ const createSlot = async (req, res, next) => {
 const getAdminSales = async (req, res, next) => {
   try {
     const sales = await repositories.flashSales.getAdminSales(req.query.status);
-    res.status(200).json({ success: true, data: sales });
+    ApiResponse.success(res, sales);
   } catch (error) {
     next(error);
   }
@@ -133,10 +129,10 @@ const reviewFlashSale = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { status, adminNotes } = req.body;
-    if (!['approved', 'rejected'].includes(status)) return res.status(400).json({ success: false, error: 'Status must be approved or rejected' });
+    if (!['approved', 'rejected'].includes(status)) return ApiResponse.error(res, 'Status must be approved or rejected', 400);
 
     const sale = await repositories.flashSales.findById(id);
-    if (!sale) return res.status(404).json({ success: false, error: 'Flash sale not found' });
+    if (!sale) return ApiResponse.error(res, 'Flash sale not found', 404);
 
     const pool = getPool();
     if (status === 'approved' && sale.status !== 'approved') {
@@ -150,7 +146,7 @@ const reviewFlashSale = async (req, res, next) => {
       reviewed_at: new Date().toISOString()
     });
 
-    res.status(200).json({ success: true, message: `Flash sale has been ${status}` });
+    ApiResponse.success(res, null, `Flash sale has been ${status}`);
   } catch (error) {
     next(error);
   }

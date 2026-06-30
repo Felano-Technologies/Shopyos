@@ -1,17 +1,31 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useProducts } from '../hooks/useProducts';
+import { useInfiniteProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { useCart } from '../store/cartStore';
 import { Skeleton } from '../components/common/Skeleton';
+import { SEO } from '../components/SEO';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export const Home: React.FC = () => {
   const { data: categories, isLoading: catsLoading } = useCategories();
-  const { data: productsData, isLoading: prodsLoading } = useProducts();
+  const {
+    data: productsData,
+    isLoading: prodsLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteProducts();
   const addToCart = useCart((s) => s.addToCart);
   const navigate = useNavigate();
 
-  const products = productsData?.products || [];
+  const products = productsData?.pages?.flatMap(p => p.products ?? p.data ?? []) || [];
+
+  const { sentinelRef } = useInfiniteScroll({
+    hasMore: !!hasNextPage,
+    isLoading: isFetchingNextPage,
+    onLoadMore: fetchNextPage,
+  });
 
   const handleProductClick = (id: string) => {
     navigate(`/product/${id}`);
@@ -34,6 +48,7 @@ export const Home: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in">
+      <SEO title="Home" />
       {/* Premium Hero Section */}
       <section className="relative overflow-hidden bg-gradient-to-br from-navy to-navy-mid text-white py-12 md:py-16 px-6 md:px-8 rounded-2xl text-center shadow-lg">
         <div className="relative z-10 max-w-xl mx-auto">
@@ -50,6 +65,7 @@ export const Home: React.FC = () => {
             <button
               onClick={() => navigate('/search')}
               className="bg-white text-navy hover:bg-gray-100 font-bold px-6 py-2.5 rounded-full text-sm transition-colors shadow-md"
+              aria-label="Start shopping"
             >
               Start Shopping →
             </button>
@@ -63,7 +79,7 @@ export const Home: React.FC = () => {
       <section>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg md:text-xl font-bold text-body">Shop by Category</h3>
-          <button className="text-sm font-bold text-navy hover:underline">SEE ALL</button>
+          <button className="text-sm font-bold text-navy hover:underline" aria-label="See all categories">SEE ALL</button>
         </div>
         
         {catsLoading ? (
@@ -151,16 +167,23 @@ export const Home: React.FC = () => {
                     <button
                       onClick={(e) => handleAddToCart(e, prod)}
                       className="bg-navy/10 text-navy hover:bg-navy hover:text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-lg transition-colors"
+                      aria-label={`Add ${prod.name} to cart`}
                     >
                       +
                     </button>
                   </div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+          )}
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
+            </div>
+          )}
+          <div ref={sentinelRef} />
+        </section>
     </div>
   );
 };

@@ -68,7 +68,7 @@ async function submitReview(params: {
   fetchReviews: () => void;
 }) {
   if (params.userRating === 0) {
-    Alert.alert("Rating Required", "Please select a star rating.");
+    CustomInAppToast.show({ type: 'info', title: 'Rating Required', message: "Please select a star rating." });
     return;
   }
   try {
@@ -94,9 +94,9 @@ async function submitReview(params: {
       params.setReviewModalVisible(false);
       params.setReviewEligibilityVisible(true);
     } else if (message.includes('already reviewed')) {
-      Alert.alert("Already Reviewed", "You have already reviewed this store. You can update your existing review from your profile.");
+      CustomInAppToast.show({ type: 'info', title: 'Already Reviewed', message: "You have already reviewed this store. You can update your existing review from your profile." });
     } else {
-      Alert.alert("Error", error.message || "Failed to post review");
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.message || "Failed to post review" });
     }
   } finally {
     params.setIsSubmittingReview(false);
@@ -356,7 +356,7 @@ export default function StoreDetailsScreen() {
         const updated = await getReviewComments(selectedReviewId);
         setActiveComments(updated.comments);
       }
-    } catch (err: unknown) { Alert.alert("Error", err instanceof Error ? err.message : "Could not post comment"); }
+    } catch (err: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: err instanceof Error ? err.message : "Could not post comment" }); }
     finally { setCommentSubmitting(false); }
   };
   const handleChat = () => startChat({
@@ -383,7 +383,7 @@ export default function StoreDetailsScreen() {
           <View style={styles.catalogueContainer}>
             <View style={styles.catalogueHeader}>
               <Text style={styles.sectionTitle}>Featured Items</Text>
-              <TouchableOpacity style={styles.filterBtn}><Feather name="sliders" size={16} color="#0F172A" /></TouchableOpacity>
+              <TouchableOpacity accessibilityLabel="Filter products" accessibilityRole="button" style={styles.filterBtn}><Feather name="sliders" size={16} color="#0F172A" /></TouchableOpacity>
             </View>
             <FlatList
               data={products}
@@ -392,7 +392,7 @@ export default function StoreDetailsScreen() {
               scrollEnabled={false}
               columnWrapperStyle={{ justifyContent: 'space-between' }}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.productCard} onPress={() => router.push({ pathname: '/product/details', params: { id: item._id } })}>
+                <TouchableOpacity accessibilityLabel={item.name} accessibilityRole="button" style={styles.productCard} onPress={() => router.push({ pathname: '/product/details', params: { id: item._id } })}>
                   <AppImage uri={item.images?.[0] || undefined} source={item.images?.[0] ? undefined : require('../../assets/images/icon.png')} style={styles.productImage} />
                   <View style={styles.productInfo}>
                     <Text style={styles.productTitle} numberOfLines={1}>{item.name}</Text>
@@ -409,15 +409,15 @@ export default function StoreDetailsScreen() {
           <View style={styles.aboutContainer}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
             <View style={styles.contactGrid}>
-              <TouchableOpacity style={styles.contactCard} onPress={() => store.phone && Linking.openURL(`tel:${store.phone}`)}>
+              <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" style={styles.contactCard} onPress={() => store.phone && Linking.openURL(`tel:${store.phone}`)}>
                 <View style={[styles.contactIcon, { backgroundColor: '#DCFCE7' }]}><Feather name="phone" size={20} color="#15803D" /></View>
                 <Text style={styles.contactLabel}>Call Store</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactCard} onPress={() => store.email && Linking.openURL(`mailto:${store.email}`)}>
+              <TouchableOpacity accessibilityLabel="Email store" accessibilityRole="button" style={styles.contactCard} onPress={() => store.email && Linking.openURL(`mailto:${store.email}`)}>
                 <View style={[styles.contactIcon, { backgroundColor: '#DBEAFE' }]}><Feather name="mail" size={20} color="#1E40AF" /></View>
                 <Text style={styles.contactLabel}>Email Us</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactCard} onPress={handleDirections}>
+              <TouchableOpacity accessibilityLabel="Get directions to store" accessibilityRole="button" style={styles.contactCard} onPress={handleDirections}>
                 <View style={[styles.contactIcon, { backgroundColor: '#FEF3C7' }]}><Feather name="map-pin" size={20} color="#B45309" /></View>
                 <Text style={styles.contactLabel}>Directions</Text>
               </TouchableOpacity>
@@ -472,7 +472,7 @@ export default function StoreDetailsScreen() {
                     </View>
                 </Marker>
               </MapView>
-              <TouchableOpacity style={styles.mapOverlayBtn} onPress={handleDirections}>
+              <TouchableOpacity accessibilityLabel="Get directions to store" accessibilityRole="button" style={styles.mapOverlayBtn} onPress={handleDirections}>
                  <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.dirBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                     <Text style={styles.dirBtnText}>Get Directions</Text>
                     <Feather name="navigation" size={14} color="#FFF" style={{ marginLeft: 8 }} />
@@ -495,7 +495,7 @@ export default function StoreDetailsScreen() {
                 </View>
                 <Text style={styles.totalReviews}>Based on {reviews.length} reviews</Text>
               </View>
-              <TouchableOpacity style={styles.writeBtn} onPress={() => setReviewModalVisible(true)}>
+              <TouchableOpacity accessibilityLabel="Write a review" accessibilityRole="button" style={styles.writeBtn} onPress={() => setReviewModalVisible(true)}>
                 <Text style={styles.writeBtnText}>Write Review</Text>
               </TouchableOpacity>
             </View>
@@ -542,19 +542,19 @@ export default function StoreDetailsScreen() {
             style={styles.coverOverlay}
           />
           <SafeAreaView style={styles.safeHeader} edges={['top']}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
+            <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.iconBtn}><Ionicons name="arrow-back" size={24} color="#FFF" /></TouchableOpacity>
             <View style={{ flexDirection: 'row', gap: 10 }}>
                {store.phone ? (
-                 <TouchableOpacity style={styles.iconBtn} onPress={() => Linking.openURL(`tel:${store.phone}`)}>
-                   <Ionicons name="call-outline" size={22} color="#FFF" />
-                 </TouchableOpacity>
-               ) : null}
-               <TouchableOpacity style={styles.iconBtn} onPress={handleShare}>
-                 <Ionicons name="share-social-outline" size={22} color="#FFF" />
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.iconBtn} onPress={() => setReportVisible(true)}>
-                 <Ionicons name="flag-outline" size={22} color="#EF4444" />
-               </TouchableOpacity>
+                 <TouchableOpacity accessibilityLabel="Call store" accessibilityRole="button" style={styles.iconBtn} onPress={() => Linking.openURL(`tel:${store.phone}`)}>
+                    <Ionicons name="call-outline" size={22} color="#FFF" />
+                  </TouchableOpacity>
+                ) : null}
+                <TouchableOpacity accessibilityLabel="Share store" accessibilityRole="button" style={styles.iconBtn} onPress={handleShare}>
+                  <Ionicons name="share-social-outline" size={22} color="#FFF" />
+                </TouchableOpacity>
+                <TouchableOpacity accessibilityLabel="Report store" accessibilityRole="button" style={styles.iconBtn} onPress={() => setReportVisible(true)}>
+                  <Ionicons name="flag-outline" size={22} color="#EF4444" />
+                </TouchableOpacity>
             </View>
           </SafeAreaView>
         </View>
@@ -582,25 +582,27 @@ export default function StoreDetailsScreen() {
           </View>
         </View>
         <View style={styles.actionRow}>
-          <TouchableOpacity style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
+          <TouchableOpacity accessibilityLabel="Chat with store" accessibilityRole="button" style={styles.primaryActionBtn} onPress={handleChat} disabled={chatLoading}>
             {chatLoading ? <ActivityIndicator size="small" color="#FFF" /> : <><Ionicons name="chatbubble-ellipses-outline" size={20} color="#FFF" /><Text style={styles.primaryActionText}>Chat</Text></>}
           </TouchableOpacity>
           {store.phone ? (
             <TouchableOpacity 
+              accessibilityLabel="Call store"
+              accessibilityRole="button"
               style={styles.callActionButton} 
               onPress={() => Linking.openURL(`tel:${store.phone}`)}
             >
               <Ionicons name="call" size={22} color="#0C1559" />
             </TouchableOpacity>
           ) : null}
-          <TouchableOpacity style={[styles.secondaryActionBtn, isFollowing && styles.followingBtn]} onPress={handleFollow}>
+          <TouchableOpacity accessibilityLabel={isFollowing ? 'Unfollow store' : 'Follow store'} accessibilityRole="button" style={[styles.secondaryActionBtn, isFollowing && styles.followingBtn]} onPress={handleFollow}>
             <Ionicons name={isFollowing ? "checkmark-circle" : "notifications-outline"} size={20} color={isFollowing ? "#FFF" : "#0C1559"} />
             <Text style={[styles.secondaryActionText, isFollowing && styles.followingText]}>{isFollowing ? 'Following' : 'Follow'}</Text>
           </TouchableOpacity>
         </View>
         <View style={styles.tabContainer}>
           {['Catalogue', 'About', 'Reviews'].map((tab) => (
-            <TouchableOpacity key={tab} style={styles.tabItem} onPress={() => setActiveTab(tab)}>
+            <TouchableOpacity accessibilityLabel={tab} accessibilityRole="button" key={tab} style={styles.tabItem} onPress={() => setActiveTab(tab)}>
               <Text style={[styles.tabText, activeTab === tab && styles.activeTabText]}>{tab}</Text>
               {activeTab === tab && <View style={styles.activeIndicator} />}
             </TouchableOpacity>
@@ -611,7 +613,7 @@ export default function StoreDetailsScreen() {
       {/* --- MAP PICKER ACTION SHEET --- */}
       <Modal visible={mapPickerVisible} animationType="slide" transparent onRequestClose={() => setMapPickerVisible(false)}>
         <View style={styles.pickerOverlay}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setMapPickerVisible(false)} />
+          <TouchableOpacity accessibilityLabel="Close navigation picker" accessibilityRole="button" style={{ flex: 1 }} onPress={() => setMapPickerVisible(false)} />
           <View style={styles.pickerContent}>
              <View style={styles.pickerHeader}>
                 <View style={styles.dragHandle} />
@@ -619,18 +621,18 @@ export default function StoreDetailsScreen() {
              </View>
              
              <View style={styles.pickerOptions}>
-                <TouchableOpacity style={styles.pickerOption} onPress={() => openExternalMap('google')}>
+                <TouchableOpacity accessibilityLabel="Open in Google Maps" accessibilityRole="button" style={styles.pickerOption} onPress={() => openExternalMap('google')}>
                    <View style={styles.pickerIconBg}><Ionicons name="logo-google" size={24} color="#4285F4" /></View>
                    <Text style={styles.pickerText}>Google Maps</Text>
                 </TouchableOpacity>
                 {Platform.OS === 'ios' && (
-                  <TouchableOpacity style={styles.pickerOption} onPress={() => openExternalMap('apple')}>
+                  <TouchableOpacity accessibilityLabel="Open in Apple Maps" accessibilityRole="button" style={styles.pickerOption} onPress={() => openExternalMap('apple')}>
                     <View style={styles.pickerIconBg}><Ionicons name="map-outline" size={24} color="#000" /></View>
                     <Text style={styles.pickerText}>Apple Maps</Text>
                   </TouchableOpacity>
                 )}
              </View>
-             <TouchableOpacity style={styles.pickerCancel} onPress={() => setMapPickerVisible(false)}>
+             <TouchableOpacity accessibilityLabel="Cancel navigation" accessibilityRole="button" style={styles.pickerCancel} onPress={() => setMapPickerVisible(false)}>
                 <Text style={styles.pickerCancelText}>Cancel</Text>
              </TouchableOpacity>
           </View>
@@ -645,7 +647,7 @@ export default function StoreDetailsScreen() {
                 <Text style={styles.modalTitle}>Write a Review</Text>
                 <Text style={styles.modalSubtitle}>Share your experience with the community</Text>
               </View>
-              <TouchableOpacity onPress={() => setReviewModalVisible(false)} style={styles.closeCircle}>
+              <TouchableOpacity accessibilityLabel="Close review form" accessibilityRole="button" onPress={() => setReviewModalVisible(false)} style={styles.closeCircle}>
                 <Ionicons name="close" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
@@ -657,7 +659,7 @@ export default function StoreDetailsScreen() {
                     const starName = s <= userRating ? "star" : "star-o";
                     const starColor = s <= userRating ? "#FACC15" : "#E2E8F0";
                     return (
-                      <TouchableOpacity key={s} onPress={() => setUserRating(s)}>
+                      <TouchableOpacity accessibilityLabel={`Rate ${s} star${s > 1 ? 's' : ''}`} accessibilityRole="button" key={s} onPress={() => setUserRating(s)}>
                         <FontAwesome name={starName} size={38} color={starColor} style={{ marginHorizontal: 6 }} />
                       </TouchableOpacity>
                     );
@@ -680,6 +682,8 @@ export default function StoreDetailsScreen() {
                   <Text style={styles.charCount}>{userComment.length}/500</Text>
                 </View>
                 <TextInput
+                  accessibilityLabel="Write your review"
+                  accessibilityRole="none"
                   style={styles.modalInput}
                   placeholder="What did you like or dislike? How was the service?"
                   placeholderTextColor="#94A3B8"
@@ -690,6 +694,8 @@ export default function StoreDetailsScreen() {
                 />
               </View>
               <TouchableOpacity 
+                accessibilityLabel="Submit review"
+                accessibilityRole="button"
                 style={[styles.submitReviewBtn, (isSubmittingReview || userRating === 0) && { opacity: 0.6 }]} 
                 onPress={handleSubmitReview} 
                 disabled={isSubmittingReview || userRating === 0}
@@ -718,6 +724,8 @@ export default function StoreDetailsScreen() {
               To ensure authentic reviews, you can only review stores and products after placing and receiving an order. This helps keep our community trustworthy!
             </Text>
             <TouchableOpacity
+              accessibilityLabel="View my orders"
+              accessibilityRole="button"
               style={styles.eligibilityButton}
               onPress={() => {
                 setReviewEligibilityVisible(false);
@@ -727,6 +735,8 @@ export default function StoreDetailsScreen() {
               <Text style={styles.eligibilityButtonText}>View My Orders</Text>
             </TouchableOpacity>
             <TouchableOpacity
+              accessibilityLabel="Maybe later"
+              accessibilityRole="button"
               style={styles.eligibilityDismiss}
               onPress={() => setReviewEligibilityVisible(false)}
             >

@@ -95,7 +95,9 @@ const OrdersScreen = () => {
       try {
         const res = await getActiveBanners();
         if (res?.banners?.length > 0) setOrderAds(res.banners);
-      } catch { }
+      } catch (e) {
+        console.error('Failed to load order banner ads:', e);
+      }
     })();
   }, []);
 
@@ -224,7 +226,7 @@ const OrdersScreen = () => {
     const showTrack = cfg.timelineStep >= 0 && cfg.timelineStep <= 2;
 
     let dateStr = '';
-    try { dateStr = format(new Date(item.date), 'MMM dd, yyyy'); } catch {}
+    try { dateStr = format(new Date(item.date), 'MMM dd, yyyy'); } catch (e) { console.error('Failed to format order date:', e); }
 
     return (
       <TouchableOpacity
@@ -649,8 +651,7 @@ const S = StyleSheet.create({
   card: {
     backgroundColor: C.card, borderRadius: rs(22),
     marginHorizontal: rs(14), marginBottom: rs(12), overflow: 'hidden',
-    elevation: 4, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.07, shadowRadius: rs(12),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   cardBar:  { height: rs(3) },
   cardBody: { padding: rs(14) },

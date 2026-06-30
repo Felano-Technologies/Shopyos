@@ -16,7 +16,7 @@ export const BottomNav: React.FC = () => {
 
   return (
     <div className="md:hidden fixed bottom-4 left-0 right-0 z-50 flex justify-center pointer-events-none">
-      <div className="flex flex-row bg-white w-[90%] h-[60px] rounded-[30px] px-2 items-center justify-center border border-gray-100 shadow-[0_6px_15px_rgba(0,0,0,0.1)] pointer-events-auto overflow-hidden relative">
+      <nav className="flex flex-row bg-white w-[90%] h-[60px] rounded-[30px] px-2 items-center justify-center border border-gray-100 shadow-[0_6px_15px_rgba(0,0,0,0.1)] pointer-events-auto overflow-hidden relative" aria-label="Bottom navigation">
         {navItems.map((item) => {
           const isActive = path === item.route || (item.route !== '/' && path.startsWith(item.route));
           const Icon = item.icon;
@@ -28,6 +28,7 @@ export const BottomNav: React.FC = () => {
               className={`relative flex items-center justify-center h-12 transition-all duration-300 rounded-full ${
                 isActive ? 'flex-[2.8] mx-1 bg-gradient-to-r from-navy to-navy-mid' : 'flex-1'
               }`}
+              aria-label={item.name}
             >
               <div className="flex flex-row items-center justify-center px-3">
                 <Icon size={isActive ? 20 : 22} color={isActive ? '#FFF' : '#94A3B8'} />
@@ -40,7 +41,7 @@ export const BottomNav: React.FC = () => {
             </Link>
           );
         })}
-      </div>
+      </nav>
     </div>
   );
 };

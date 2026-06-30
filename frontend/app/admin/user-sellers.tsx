@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   RefreshControl,
@@ -18,6 +17,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors, useAdminBreakpoint } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
 import { adminDeleteUser, adminResetUserSession, adminDisableUserSession } from '@/services/admin';
 
@@ -62,6 +62,8 @@ export default function AdminSellers() {
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [menuUser, setMenuUser] = useState<SellerItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SellerItem | null>(null);
+  const [disableTarget, setDisableTarget] = useState<SellerItem | null>(null);
 
   const loadSellers = useCallback(async (isRefresh = false) => {
     try {
@@ -85,52 +87,37 @@ export default function AdminSellers() {
 
   useEffect(() => { loadSellers(); }, [loadSellers]);
 
-  const handleStatusChange = (user: SellerItem) => {
+  const handleStatusChange = async (user: SellerItem) => {
     const isActive = (user.account_status || 'active') === 'active';
-    Alert.alert(
-      isActive ? 'Suspend Seller' : 'Reactivate Seller',
-      isActive
-        ? `Suspend ${user.full_name || user.email}? Their store will be inaccessible.`
-        : `Reactivate ${user.full_name || user.email}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: isActive ? 'Suspend' : 'Reactivate',
-          style: isActive ? 'destructive' : 'default',
-          onPress: async () => {
-            try {
-              setActionLoading(user.id);
-              await adminUpdateUserStatus(user.id, isActive ? 'suspended' : 'active');
-              CustomInAppToast.show({
-                type: 'success',
-                title: isActive ? 'Seller Suspended' : 'Seller Reactivated',
-                message: 'Account status updated.',
-              });
-              loadSellers();
-            } catch (error: any) {
-              CustomInAppToast.show({ type: 'error', title: 'Action Failed', message: error.message });
-            } finally { setActionLoading(null); }
-          },
-        },
-      ],
-    );
+    try {
+      setActionLoading(user.id);
+      await adminUpdateUserStatus(user.id, isActive ? 'suspended' : 'active');
+      CustomInAppToast.show({
+        type: 'success',
+        title: isActive ? 'Seller Suspended' : 'Seller Reactivated',
+        message: 'Account status updated.',
+      });
+      loadSellers();
+    } catch (error: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Action Failed', message: error.message });
+    } finally { setActionLoading(null); }
   };
 
   const handleDeleteUser = async (user: SellerItem) => {
-    Alert.alert('Delete Seller', `Permanently delete ${user.full_name || user.email}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-        try {
-          setActionLoading(user.id);
-          setMenuUser(null);
-          await adminDeleteUser(user.id);
-          setSellers(prev => prev.filter(u => u.id !== user.id));
-          CustomInAppToast.show({ type: 'success', title: 'Seller Deleted', message: 'Account removed.' });
-        } catch (err: any) {
-          CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
-        } finally { setActionLoading(null); }
-      }},
-    ]);
+    setDeleteTarget(user);
+  };
+
+  const executeDeleteUser = async () => {
+    if (!deleteTarget) return;
+    try {
+      setActionLoading(deleteTarget.id);
+      setMenuUser(null);
+      await adminDeleteUser(deleteTarget.id);
+      setSellers(prev => prev.filter(u => u.id !== deleteTarget.id));
+      CustomInAppToast.show({ type: 'success', title: 'Seller Deleted', message: 'Account removed.' });
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+    } finally { setActionLoading(null); setDeleteTarget(null); }
   };
 
   const handleResetSession = async (user: SellerItem) => {
@@ -145,20 +132,20 @@ export default function AdminSellers() {
   };
 
   const handleDisableSession = async (user: SellerItem) => {
-    Alert.alert('Disable Session', `Deactivate ${user.full_name || user.email} and revoke all access?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Disable', style: 'destructive', onPress: async () => {
-        try {
-          setActionLoading(user.id);
-          setMenuUser(null);
-          await adminDisableUserSession(user.id);
-          setSellers(prev => prev.map(u => u.id === user.id ? { ...u, account_status: 'suspended' } : u));
-          CustomInAppToast.show({ type: 'success', title: 'Session Disabled', message: 'Seller deactivated and logged out.' });
-        } catch (err: any) {
-          CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
-        } finally { setActionLoading(null); }
-      }},
-    ]);
+    setDisableTarget(user);
+  };
+
+  const executeDisableSession = async () => {
+    if (!disableTarget) return;
+    try {
+      setActionLoading(disableTarget.id);
+      setMenuUser(null);
+      await adminDisableUserSession(disableTarget.id);
+      setSellers(prev => prev.map(u => u.id === disableTarget.id ? { ...u, account_status: 'suspended' } : u));
+      CustomInAppToast.show({ type: 'success', title: 'Session Disabled', message: 'Seller deactivated and logged out.' });
+    } catch (err: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message });
+    } finally { setActionLoading(null); setDisableTarget(null); }
   };
 
   const renderSeller = ({ item }: { item: SellerItem }) => {
@@ -299,6 +286,27 @@ export default function AdminSellers() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Seller"
+        message={`Permanently delete ${deleteTarget?.full_name || deleteTarget?.email || 'this seller'}?`}
+        actions={[
+          { label: 'Cancel', variant: 'cancel', onPress: () => setDeleteTarget(null) },
+          { label: 'Delete', variant: 'destructive', onPress: executeDeleteUser },
+        ]}
+      />
+      <ConfirmModal
+        visible={!!disableTarget}
+        onClose={() => setDisableTarget(null)}
+        title="Disable Session"
+        message={`Deactivate ${disableTarget?.full_name || disableTarget?.email || 'this seller'} and revoke all access?`}
+        actions={[
+          { label: 'Cancel', variant: 'cancel', onPress: () => setDisableTarget(null) },
+          { label: 'Disable', variant: 'destructive', onPress: executeDisableSession },
+        ]}
+      />
     </>
   );
 }

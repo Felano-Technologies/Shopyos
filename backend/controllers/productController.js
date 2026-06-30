@@ -1,5 +1,6 @@
-﻿const repositories = require('../db/repositories');
-const { resolveImageUrl } = require('../config/storage');
+﻿const ApiResponse = require('../utils/apiResponse');
+const repositories = require('../db/repositories');
+const { resolveImageUrl, resolveImageUrls } = require('../config/storage');
 const {
   uploadMultipleFilesToCloudinary,
   deleteImage,
@@ -7,6 +8,7 @@ const {
 } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
 const { invalidateProduct } = require('../config/cacheInvalidation');
+const feeConfigService = require('../services/feeConfigService');
 
 async function persistProductVariants(productId, variants, variantOptions) {
   if (!Array.isArray(variants) || !variants.length) return [[], []];
@@ -48,26 +50,17 @@ const createProduct = async (req, res, next) => {
 
     // Validate required fields
     if (!storeId || !name || !price) {
-      return res.status(400).json({
-        success: false,
-        error: 'Please provide store ID, product name, and price'
-      });
+      return ApiResponse.error(res, 'Please provide store ID, product name, and price', 400);
     }
 
     // Verify store ownership
     const store = await repositories.stores.findById(storeId);
     if (!store) {
-      return res.status(404).json({
-        success: false,
-        error: 'Store not found'
-      });
+      return ApiResponse.error(res, 'Store not found', 404);
     }
 
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to add products to this store'
-      });
+      return ApiResponse.error(res, 'Not authorized to add products to this store', 403);
     }
 
     // Check listing limits and tier
@@ -77,13 +70,36 @@ const createProduct = async (req, res, next) => {
       .eq('store_id', storeId)
       .is('deleted_at', null);
 
-    if (productCount >= 100 && store.listing_tier !== 'paid') {
-      return res.status(402).json({
-        success: false,
-        error: 'Free listing limit reached.',
+    const freeLimit = Number(await feeConfigService.get('free_listing_limit', 100));
+
+    if (productCount >= freeLimit && store.listing_tier !== 'paid') {
+      const listingFeeAmount = await feeConfigService.get('listing_fee_amount', 50);
+      return ApiResponse.error(res, 'Free listing limit reached.', 402, {
         code: 'LISTING_FEE_REQUIRED',
-        message: 'Pay a one-time â‚µ50 platform fee to unlock unlimited listings.',
+        message: `Pay a one-time ₵${listingFeeAmount} platform fee to unlock unlimited listings.`,
         paymentUrl: '/api/v1/payments/listing-fee/initialize'
+      });
+    }
+
+    // Proactive 80% warning notification
+    if (store.listing_tier !== 'paid' && productCount >= Math.floor(freeLimit * 0.8) && productCount < freeLimit) {
+      setImmediate(async () => {
+        try {
+          const feeAmount = await feeConfigService.get('listing_fee_amount', 50);
+          const notificationService = require('../services/notificationService');
+          await notificationService.sendNotification({
+            userId: store.owner_id,
+            type: 'listing_limit_warning',
+            title: 'Listing limit almost reached',
+            message: `You've used ${productCount} of ${freeLimit} free listings. Pay a one-time ₵${feeAmount} fee to unlock unlimited products.`,
+            relatedId: storeId,
+            relatedType: 'store',
+            push: { data: { screen: 'business/dashboard', storeId } }
+          });
+          logger.info(`[ListingLimit] Sent 80% warning to store ${storeId} (${productCount}/${freeLimit})`);
+        } catch (e) {
+          logger.error('[ListingLimit] Warning notification failed:', e.message);
+        }
       });
     }
 
@@ -124,25 +140,21 @@ const createProduct = async (req, res, next) => {
     // Persist variants and option metadata if provided
     const [createdVariants, createdOptions] = await persistProductVariants(product.id, variants, variantOptions);
 
-    res.status(201).json({
-      success: true,
-      message: 'Product created successfully',
-      product: {
-        _id: product.id,
-        businessId: storeId,
-        name: product.title,
-        description: product.description,
-        price: product.price,
-        compareAtPrice: product.compare_at_price,
-        category: product.category,
-        gender: product.gender,
-        images: [],
-        variants: createdVariants,
-        variantOptions: createdOptions,
-        createdAt: product.created_at,
-        updatedAt: product.updated_at
-      }
-    });
+    ApiResponse.withEntity(res, 'product', {
+      _id: product.id,
+      businessId: storeId,
+      name: product.title,
+      description: product.description,
+      price: product.price,
+      compareAtPrice: product.compare_at_price,
+      category: product.category,
+      gender: product.gender,
+      images: [],
+      variants: createdVariants,
+      variantOptions: createdOptions,
+      createdAt: product.created_at,
+      updatedAt: product.updated_at
+    }, 'Product created successfully', null, 201);
 
     await invalidateProduct(product.id, storeId);
 
@@ -162,10 +174,8 @@ const getStoreProducts = async (req, res, next) => {
     // Only expose products from verified stores to the public
     const store = await repositories.stores.findById(storeId);
     if (!store?.is_verified) {
-      return res.status(200).json({
-        success: true,
-        data: [],
-        pagination: { totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: Number.parseInt(limit), hasNext: false, hasPrev: false, sortConfig: null }
+      return ApiResponse.paginated(res, [], {
+        totalItems: 0, totalPages: 0, currentPage: 1, itemsPerPage: Number.parseInt(limit), hasNext: false, hasPrev: false, sortConfig: null
       });
     }
 
@@ -179,14 +189,14 @@ const getStoreProducts = async (req, res, next) => {
       select: '*, inventory(quantity), product_images(image_url)'
     });
 
-    // Format for backward compatibility
+    // Format for backward compatibility with batch image resolution
     const formattedProducts = await Promise.all(rawProducts.map(async p => ({
       _id: p.id,
       businessId: p.store_id,
       name: p.title,
       description: p.description,
       price: p.price,
-      images: await Promise.all((p.product_images || []).map(img => resolveImageUrl(img.image_url))),
+      images: await resolveImageUrls((p.product_images || []).map(img => img.image_url)),
       category: p.category,
       gender: p.gender,
       sku: p.sku,
@@ -199,18 +209,14 @@ const getStoreProducts = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: formattedProducts,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1,
-        sortConfig: null // inherited default order
-      }
+    ApiResponse.paginated(res, formattedProducts, {
+      totalItems: totalCount,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      itemsPerPage: limitNum,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1,
+      sortConfig: null
     });
 
   } catch (error) {
@@ -228,27 +234,18 @@ const getProductById = async (req, res, next) => {
     // Check if ID is valid UUID
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(id)) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     // Do not expose products from unverified stores
     if (!product.stores?.is_verified) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     // Increment view count
@@ -280,7 +277,7 @@ const getProductById = async (req, res, next) => {
       name: product.title,
       description: product.description,
       price: product.price,
-      images: await Promise.all((product.product_images || []).map(img => resolveImageUrl(img.image_url))),
+      images: await resolveImageUrls((product.product_images || []).map(img => img.image_url)),
       category: product.category,
       gender: product.gender,
       brand: product.brand,
@@ -305,10 +302,7 @@ const getProductById = async (req, res, next) => {
       updatedAt: product.updated_at
     };
 
-    res.status(200).json({
-      success: true,
-      product: formattedProduct
-    });
+    ApiResponse.withEntity(res, 'product', formattedProduct);
 
   } catch (error) {
     next(error);
@@ -362,10 +356,7 @@ const getCategories = async (req, res, next) => {
       }));
     }
 
-    res.status(200).json({
-      success: true,
-      categories
-    });
+    ApiResponse.withEntity(res, 'categories', categories);
   } catch (error) {
     next(error);
   }
@@ -419,19 +410,13 @@ const updateProduct = async (req, res, next) => {
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     // Verify store ownership
     const store = await repositories.stores.findById(product.store_id);
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this product'
-      });
+      return ApiResponse.error(res, 'Not authorized to update this product', 403);
     }
 
     const mappedData = buildProductUpdateData(updateData);
@@ -490,22 +475,18 @@ const updateProduct = async (req, res, next) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Product updated successfully',
-      product: {
-        _id: updated.id,
-        businessId: updated.store_id,
-        name: updated.title,
-        description: updated.description,
-        price: updated.price,
-        compareAtPrice: updated.compare_at_price,
-        category: updated.category,
-        gender: updated.gender,
-        updatedAt: updated.updated_at,
-        isActive: updated.is_active
-      }
-    });
+    ApiResponse.withEntity(res, 'product', {
+      _id: updated.id,
+      businessId: updated.store_id,
+      name: updated.title,
+      description: updated.description,
+      price: updated.price,
+      compareAtPrice: updated.compare_at_price,
+      category: updated.category,
+      gender: updated.gender,
+      updatedAt: updated.updated_at,
+      isActive: updated.is_active
+    }, 'Product updated successfully');
 
     await invalidateProduct(id, updated.store_id);
 
@@ -526,19 +507,13 @@ const deleteProduct = async (req, res, next) => {
     const product = await repositories.products.getProductDetails(id);
 
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     // Verify store ownership
     const store = await repositories.stores.findById(product.store_id);
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to delete this product'
-      });
+      return ApiResponse.error(res, 'Not authorized to delete this product', 403);
     }
 
     // Delete product images from Cloudinary
@@ -555,10 +530,7 @@ const deleteProduct = async (req, res, next) => {
     // Soft delete product
     await repositories.products.softDelete(id);
 
-    res.status(200).json({
-      success: true,
-      message: 'Product deleted successfully'
-    });
+    ApiResponse.success(res, null, 'Product deleted successfully');
 
     await invalidateProduct(id, product.store_id);
 
@@ -576,35 +548,23 @@ const uploadProductImages = async (req, res, next) => {
     const userId = req.user.id;
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No images uploaded'
-      });
+      return ApiResponse.error(res, 'No images uploaded', 400);
     }
 
     // Get product and verify ownership
     const product = await repositories.products.findById(id);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     const store = await repositories.stores.findById(product.store_id);
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized'
-      });
+      return ApiResponse.error(res, 'Not authorized', 403);
     }
 
     // Limit to 5 images
     if (req.files.length > 5) {
-      return res.status(400).json({
-        success: false,
-        error: 'Maximum 5 images allowed per product'
-      });
+      return ApiResponse.error(res, 'Maximum 5 images allowed per product', 400);
     }
 
     // Upload images to Cloudinary
@@ -634,11 +594,7 @@ const uploadProductImages = async (req, res, next) => {
       .from('product_images')
       .insert(imageInserts);
 
-    res.status(200).json({
-      success: true,
-      message: `${uploadResults.length} images uploaded successfully`,
-      images: await Promise.all(uploadResults.map(r => resolveImageUrl(r.url)))
-    });
+    ApiResponse.withEntity(res, 'images', await Promise.all(uploadResults.map(r => resolveImageUrl(r.url))), `${uploadResults.length} images uploaded successfully`);
 
   } catch (error) {
     next(error);
@@ -656,18 +612,12 @@ const deleteProductImage = async (req, res, next) => {
     // Verify ownership
     const product = await repositories.products.findById(id);
     if (!product) {
-      return res.status(404).json({
-        success: false,
-        error: 'Product not found'
-      });
+      return ApiResponse.error(res, 'Product not found', 404);
     }
 
     const store = await repositories.stores.findById(product.store_id);
     if (store.owner_id !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized'
-      });
+      return ApiResponse.error(res, 'Not authorized', 403);
     }
 
     // Get image record
@@ -679,10 +629,7 @@ const deleteProductImage = async (req, res, next) => {
       .single();
 
     if (!image) {
-      return res.status(404).json({
-        success: false,
-        error: 'Image not found'
-      });
+      return ApiResponse.error(res, 'Image not found', 404);
     }
 
     // Delete from Cloudinary
@@ -698,10 +645,7 @@ const deleteProductImage = async (req, res, next) => {
       .delete()
       .eq('id', imageId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Image deleted successfully'
-    });
+    ApiResponse.success(res, null, 'Image deleted successfully');
 
   } catch (error) {
     next(error);
@@ -775,15 +719,15 @@ const searchProducts = async (req, res, next) => {
       name: p.title,
       description: p.description,
       price: p.price,
-      images: await Promise.all((p.product_images || []).map(img => resolveImageUrl(img.image_url))),
+      images: await resolveImageUrls((p.product_images || []).map(img => img.image_url)),
       category: p.category,
       gender: p.gender,
       salesCount: p.total_sales || p.sales_count || 0,
       averageRating: p.avg_rating || 0,
       reviewCount: p.review_count || 0,
       store: p.stores ? {
-        store_name: p.stores.store_name,  // keep canonical field name
-        name: p.stores.store_name,        // alias for legacy frontend reads
+        store_name: p.stores.store_name,
+        name: p.stores.store_name,
         slug: p.stores.slug,
         logo_url: await resolveImageUrl(p.stores.logo_url),
         rating: p.stores.average_rating
@@ -793,18 +737,14 @@ const searchProducts = async (req, res, next) => {
     const currentPage = Math.floor(offsetNum / limitNum) + 1;
     const totalPages = Math.ceil(totalCount / limitNum);
 
-    res.status(200).json({
-      success: true,
-      data: formattedProducts,
-      pagination: {
-        totalItems: totalCount,
-        totalPages: totalPages,
-        currentPage: currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1,
-        sortConfig: { field: sortBy, direction: sortAscending ? 'asc' : 'desc' }
-      }
+    ApiResponse.paginated(res, formattedProducts, {
+      totalItems: totalCount,
+      totalPages: totalPages,
+      currentPage: currentPage,
+      itemsPerPage: limitNum,
+      hasNext: currentPage < totalPages,
+      hasPrev: currentPage > 1,
+      sortConfig: { field: sortBy, direction: sortAscending ? 'asc' : 'desc' }
     });
 
   } catch (error) {

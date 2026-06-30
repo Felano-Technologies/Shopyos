@@ -12,9 +12,11 @@ import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import BusinessBottomNav from '@/components/BusinessBottomNav';
 import { router } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { getStoreProducts, deleteProduct } from '@/services/api';
 
 const { width: SW } = Dimensions.get('window');
@@ -52,6 +54,7 @@ export default function ProductsScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
   const businessId = activeBusiness?._id;
@@ -93,14 +96,15 @@ export default function ProductsScreen() {
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const confirmDeleteProduct = (id: string) => {
-    Alert.alert('Delete Product', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: async () => {
-          try { await deleteProduct(id); loadProducts(true); }
-          catch { Alert.alert('Error', 'Failed to delete product'); }
-        }
-      },
-    ]);
+    setDeleteTargetId(id);
+  };
+
+  const handleDeleteProduct = async () => {
+    if (!deleteTargetId) return;
+    const id = deleteTargetId;
+    setDeleteTargetId(null);
+    try { await deleteProduct(id); loadProducts(true); }
+          catch { CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to delete product' }); }
   };
 
   const filtered = useMemo(() => {
@@ -154,12 +158,16 @@ export default function ProductsScreen() {
 
       <View style={S.productActions}>
         <TouchableOpacity
+          accessibilityLabel="Edit product"
+          accessibilityRole="button"
           style={S.actionEdit}
           onPress={() => router.push({ pathname: '/business/products/addproducts', params: { productData: JSON.stringify(item) } })}
         >
           <Feather name="edit-2" size={rs(14)} color={C.navy} />
         </TouchableOpacity>
         <TouchableOpacity
+          accessibilityLabel="Delete product"
+          accessibilityRole="button"
           style={S.actionDelete}
           onPress={() => confirmDeleteProduct(item.id)}
         >
@@ -188,7 +196,7 @@ export default function ProductsScreen() {
               <View style={S.hdrGlow} pointerEvents="none" />
 
               <View style={S.hdrLogoRow}>
-                <TouchableOpacity style={S.storeSelectorPill} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
+                <TouchableOpacity accessibilityLabel="Switch business profile" accessibilityRole="button" style={S.storeSelectorPill} onPress={() => setShowSwitcher(true)} activeOpacity={0.85}>
                   {(activeBusiness?.logo_url || activeBusiness?.logo) ? (
                     <AppImage uri={activeBusiness.logo_url || activeBusiness.logo} style={S.storePillLogo} />
                   ) : (
@@ -206,7 +214,7 @@ export default function ProductsScreen() {
                 </TouchableOpacity>
 
                 <View style={S.topIcons}>
-                  <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/notifications')}>
+                  <TouchableOpacity accessibilityLabel="Open notifications" accessibilityRole="button" style={S.iconBtn} onPress={() => router.push('/business/notifications')}>
                     <Ionicons name="notifications-outline" size={20} color="#FFF" />
                     {unreadCount > 0 && (
                       <View style={S.badgeContainer}>
@@ -214,7 +222,7 @@ export default function ProductsScreen() {
                       </View>
                     )}
                   </TouchableOpacity>
-                  <TouchableOpacity style={S.iconBtn} onPress={() => router.push('/business/settings')}>
+                  <TouchableOpacity accessibilityLabel="Open settings" accessibilityRole="button" style={S.iconBtn} onPress={() => router.push('/business/settings')}>
                     <Ionicons name="settings-outline" size={20} color="#FFF" />
                   </TouchableOpacity>
                 </View>
@@ -281,7 +289,7 @@ export default function ProductsScreen() {
               </View>
 
               {/* ── Bargains shortcut ─────────────────────────────────────── */}
-              <TouchableOpacity style={S.bargainCard} onPress={() => router.push('/business/bargains' as any)} activeOpacity={0.85}>
+              <TouchableOpacity accessibilityLabel="View incoming bargains" accessibilityRole="button" style={S.bargainCard} onPress={() => router.push('/business/bargains' as any)} activeOpacity={0.85}>
                 <View style={S.bargainIconWrap}>
                   <Feather name="tag" size={rs(20)} color={C.navy} />
                 </View>
@@ -296,9 +304,9 @@ export default function ProductsScreen() {
               <View style={S.searchContainer}>
                 <View style={S.searchBar}>
                   <Ionicons name="search" size={rs(18)} color={C.subtle} />
-                  <TextInput placeholder="Search products…" placeholderTextColor={C.subtle} value={searchQuery} onChangeText={setSearchQuery} style={S.searchInput} />
+                  <TextInput accessibilityLabel="Search products" accessibilityRole="none" placeholder="Search products…" placeholderTextColor={C.subtle} value={searchQuery} onChangeText={setSearchQuery} style={S.searchInput} />
                 </View>
-                <TouchableOpacity style={S.addBtnSmall} onPress={() => router.push('/business/products/addproducts')} disabled={isBlocked}>
+                <TouchableOpacity accessibilityLabel="Add product" accessibilityRole="button" style={S.addBtnSmall} onPress={() => router.push('/business/products/addproducts')} disabled={isBlocked}>
                   <Ionicons name="add" size={rs(16)} color={C.limeText} />
                   <Text style={S.addBtnSmallTxt}>Add Product</Text>
                 </TouchableOpacity>
@@ -308,7 +316,7 @@ export default function ProductsScreen() {
                 {FILTERS.map((f) => {
                   const on = filter === f;
                   return (
-                    <TouchableOpacity key={f} style={[S.chip, on && S.chipOn]} onPress={() => setFilter(f)} activeOpacity={0.75}>
+                    <TouchableOpacity accessibilityLabel={`Filter by ${f}`} accessibilityRole="button" key={f} style={[S.chip, on && S.chipOn]} onPress={() => setFilter(f)} activeOpacity={0.75}>
                       <Text style={[S.chipTxt, on && S.chipTxtOn]}>{f}</Text>
                     </TouchableOpacity>
                   );
@@ -341,11 +349,11 @@ export default function ProductsScreen() {
         {/* --- SWITCHER BOTTOM SHEET --- */}
         <Modal visible={showSwitcher} animationType="slide" transparent>
           <View style={S.switcherOverlay}>
-            <TouchableOpacity style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
+            <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" style={S.switcherDismiss} onPress={() => setShowSwitcher(false)} activeOpacity={1} />
             <View style={S.switcherSheet}>
               <View style={S.switcherHeader}>
                 <Text style={S.switcherTitle}>Switch Profile</Text>
-                <TouchableOpacity onPress={() => setShowSwitcher(false)}>
+                <TouchableOpacity accessibilityLabel="Close profile switcher" accessibilityRole="button" onPress={() => setShowSwitcher(false)}>
                   <Ionicons name="close" size={24} color="#64748B" />
                 </TouchableOpacity>
               </View>
@@ -355,6 +363,8 @@ export default function ProductsScreen() {
                   const active = biz._id === activeBusiness?._id;
                   return (
                     <TouchableOpacity
+                      accessibilityLabel={`Switch to ${biz.businessName}`}
+                      accessibilityRole="button"
                       key={biz._id}
                       style={[S.switcherCard, active && S.switcherCardActive]}
                       onPress={async () => {
@@ -385,6 +395,8 @@ export default function ProductsScreen() {
                 })}
                 {businesses.length < 3 && (
                   <TouchableOpacity
+                    accessibilityLabel="Register another store"
+                    accessibilityRole="button"
                     style={S.switcherAddCard}
                     onPress={() => { setShowSwitcher(false); router.push('/business/register'); }}
                   >
@@ -398,6 +410,18 @@ export default function ProductsScreen() {
             </View>
           </View>
         </Modal>
+
+        <ConfirmModal
+          visible={deleteTargetId !== null}
+          onClose={() => setDeleteTargetId(null)}
+          title="Delete Product"
+          message="Are you sure?"
+          icon="🗑️"
+          actions={[
+            { label: 'Cancel', onPress: () => setDeleteTargetId(null), variant: 'cancel' },
+            { label: 'Delete', onPress: handleDeleteProduct, variant: 'destructive' },
+          ]}
+        />
       </SafeAreaView>
     </View>
   );

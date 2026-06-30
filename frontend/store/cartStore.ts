@@ -8,6 +8,8 @@ type Product = {
   price: number;
   image: any;
   storeId?: string;
+  storeName?: string;
+  storeLogo?: string;
   variantId?: string | null;
   variantAttributes?: Record<string, string>;
   bargain_discount?: number;
@@ -30,44 +32,51 @@ const cartStorageKey = (userId: string) => `cart-v2-${userId}`;
 
 let _currentUserId: string | null = null;
 
+const COMPUTE_COUNT = (items: CartItem[]) => items.reduce((sum, i) => sum + i.quantity, 0);
+
 export const useCart = create<CartStore>((set, get) => ({
   items: [],
-  get cartCount() {
-    return get().items.reduce((sum, item) => sum + item.quantity, 0);
-  },
+  cartCount: 0,
   addToCart: (product) =>
     set((state) => {
       const key = itemKey(product.id, product.variantId);
       const existing = state.items.find((i) => itemKey(i.id, i.variantId) === key);
+      let newItems: CartItem[];
       if (existing) {
-        return {
-          items: state.items.map((i) =>
-            itemKey(i.id, i.variantId) === key ? { ...i, quantity: i.quantity + 1 } : i
-          ),
-        };
+        newItems = state.items.map((i) =>
+          itemKey(i.id, i.variantId) === key ? { ...i, quantity: i.quantity + 1 } : i
+        );
+      } else {
+        newItems = [...state.items, { ...product, quantity: 1 }];
       }
-      return { items: [...state.items, { ...product, quantity: 1 }] };
+      return { items: newItems, cartCount: COMPUTE_COUNT(newItems) };
     }),
   removeFromCart: (id, variantId) =>
-    set((state) => ({
-      items: state.items.filter((i) => itemKey(i.id, i.variantId) !== itemKey(id, variantId)),
-    })),
+    set((state) => {
+      const newItems = state.items.filter((i) => itemKey(i.id, i.variantId) !== itemKey(id, variantId));
+      return { items: newItems, cartCount: COMPUTE_COUNT(newItems) };
+    }),
   updateQuantity: (id, change, variantId) =>
-    set((state) => ({
-      items: state.items.map((i) =>
+    set((state) => {
+      const newItems = state.items.map((i) =>
         itemKey(i.id, i.variantId) === itemKey(id, variantId)
           ? { ...i, quantity: Math.max(1, i.quantity + change) }
           : i
-      ),
-    })),
-  clearCart: () => set({ items: [] }),
+      );
+      return { items: newItems, cartCount: COMPUTE_COUNT(newItems) };
+    }),
+  clearCart: () => set({ items: [], cartCount: 0 }),
 }));
 
-// Auto-persist to the current user's scoped key on every state change
+// Debounced auto-persist to AsyncStorage
+let _persistTimer: ReturnType<typeof setTimeout> | null = null;
 useCart.subscribe((state) => {
   if (!_currentUserId) return;
   const uid = _currentUserId;
-  storage.setItem(cartStorageKey(uid), JSON.stringify(state.items)).catch(() => {});
+  if (_persistTimer) clearTimeout(_persistTimer);
+  _persistTimer = setTimeout(() => {
+    storage.setItem(cartStorageKey(uid), JSON.stringify(state.items)).catch((e) => console.error('Cart persist failed:', e));
+  }, 500);
 });
 
 /**
@@ -79,7 +88,7 @@ export async function initCartForUser(userId: string): Promise<void> {
   try {
     const raw = await storage.getItem(cartStorageKey(userId));
     const items: CartItem[] = raw ? JSON.parse(raw) : [];
-    useCart.setState({ items });
+    useCart.setState({ items, cartCount: COMPUTE_COUNT(items) });
   } catch {
     useCart.setState({ items: [] });
   }
@@ -94,5 +103,7 @@ export async function clearCartForUser(userId: string): Promise<void> {
   _currentUserId = null;
   try {
     await storage.removeItem(cartStorageKey(userId));
-  } catch {}
+  } catch (e) {
+    console.error('Failed to clear cart storage:', e);
+  }
 }

@@ -122,7 +122,7 @@ export default function AdminFlashSales() {
         fetchPendingSales();
       }
     } catch (err: any) {
-      Alert.alert('Review Failed', err.message || 'Error occurred during review processing.');
+      CustomInAppToast.show({ type: 'error', title: 'Review Failed', message: err.message || 'Error occurred during review processing.' });
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +130,7 @@ export default function AdminFlashSales() {
 
   const handleCreateSlot = async () => {
     if (!slotTitle.trim() || !slotStart.trim() || !slotEnd.trim()) {
-      Alert.alert('Required Fields', 'Please complete all slot fields.');
+      CustomInAppToast.show({ type: 'error', title: 'Required Fields', message: 'Please complete all slot fields.' });
       return;
     }
 
@@ -156,7 +156,7 @@ export default function AdminFlashSales() {
         fetchSlots();
       }
     } catch (err: any) {
-      Alert.alert('Creation Failed', err.message || 'Verify date strings format (YYYY-MM-DDTHH:MM:SSZ).');
+      CustomInAppToast.show({ type: 'error', title: 'Creation Failed', message: err.message || 'Verify date strings format (YYYY-MM-DDTHH:MM:SSZ).' });
     } finally {
       setSubmitting(false);
     }

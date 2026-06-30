@@ -13,7 +13,7 @@ class NotificationService {
     // Initialize email transporter
     this.emailTransporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
+      port: parseInt(process.env.EMAIL_PORT, 10),
       secure: false,
       family: 4,
       auth: {

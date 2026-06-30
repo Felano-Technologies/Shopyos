@@ -5,7 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Dimensions, ActivityIndicator, Alert, Modal,
+  Dimensions, ActivityIndicator, Modal,
   TextInput, Linking, FlatList,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -263,33 +263,22 @@ export default function DriverVerificationDetailScreen() {
   useEffect(() => { loadDriver(); }, [loadDriver]);
 
   // ── Actions ────────────────────────────────────────────────────────────────
-  const handleApprove = () => {
-    Alert.alert(
-      'Approve Driver',
-      `Are you sure you want to approve ${driver?.user_profiles?.full_name ?? 'this driver'}? They will gain full access to their account.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve', onPress: async () => {
-            try {
-              setSubmitting(true);
-              await approveDriverVerification(id);
-              Toast.show({ type: 'success', text1: 'Driver Approved', text2: 'The driver can now access their account.' });
-              await loadDriver();
-            } catch (e: any) {
-              Alert.alert('Error', e.message || 'Approval failed');
-            } finally {
-              setSubmitting(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleApprove = async () => {
+    try {
+      setSubmitting(true);
+      await approveDriverVerification(id);
+      Toast.show({ type: 'success', text1: 'Driver Approved', text2: 'The driver can now access their account.' });
+      await loadDriver();
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Approval failed' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleReject = async () => {
     if (!rejectReason.trim()) {
-      Alert.alert('Reason required', 'Please provide a reason for rejection.');
+      CustomInAppToast.show({ type: 'error', title: 'Reason required', message: 'Please provide a reason for rejection.' });
       return;
     }
     try {
@@ -299,7 +288,7 @@ export default function DriverVerificationDetailScreen() {
       Toast.show({ type: 'error', text1: 'Driver Rejected', text2: 'The driver has been notified.' });
       await loadDriver();
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'Rejection failed');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Rejection failed' });
     } finally {
       setSubmitting(false);
       setRejectReason('');

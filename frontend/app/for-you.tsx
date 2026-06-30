@@ -209,7 +209,7 @@ export default function ForYouScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const S = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#e9f0ff' },
+  container: { flex: 1, backgroundColor: '#fff' },
 
   // Header
   headerWrapper: { marginBottom: 10 },
@@ -252,11 +252,8 @@ const S = StyleSheet.create({
     backgroundColor: '#FFF',
     borderRadius: 16,
     marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
     overflow: 'hidden',
   },
   imageContainer: { height: 140, width: '100%', backgroundColor: '#F1F5F9', position: 'relative' },

@@ -1,6 +1,7 @@
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary } = require('../utils/uploadHelpers');
 const { logger } = require('../config/logger');
+const ApiResponse = require('../utils/apiResponse');
 const notificationService = require('../services/notificationService');
 const rabbitMQService = require('../services/rabbitmq');
 
@@ -88,11 +89,7 @@ const submitVerification = async (req, res, next) => {
       }
     });
     
-    res.status(200).json({
-      success: true,
-      message: 'Verification documents submitted successfully',
-      profile
-    });
+    ApiResponse.withEntity(res, 'profile', profile, 'Verification documents submitted successfully');
   } catch (error) {
     logger.error('Error submitting driver verification:', error);
     next(error);
@@ -108,10 +105,7 @@ const getDriverProfile = async (req, res, next) => {
     try {
         const profile = await repositories.drivers.findByUserId(req.user.id);
 
-        res.status(200).json({
-            success: true,
-            profile
-        });
+        ApiResponse.withEntity(res, 'profile', profile);
 
     } catch (error) {
         next(error);
@@ -130,11 +124,7 @@ const updateAvailability = async (req, res, next) => {
 
     const profile = await repositories.drivers.updateAvailability(userId, isAvailable);
 
-    res.status(200).json({
-      success: true,
-      message: `Driver is now ${isAvailable ? 'online' : 'offline'}`,
-      profile
-    });
+    ApiResponse.withEntity(res, 'profile', profile, `Driver is now ${isAvailable ? 'online' : 'offline'}`);
   } catch (error) {
     next(error);
   }

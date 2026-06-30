@@ -30,25 +30,31 @@ const getPool = () => {
     throw new Error('DATABASE_URL is required');
   }
 
-  const min = Number.parseInt(process.env.PG_POOL_MIN || '2', 10);
-  const max = Number.parseInt(process.env.PG_POOL_MAX || '10', 10);
+const min = Number.parseInt(process.env.PG_POOL_MIN || '2', 10);
+const max = Number.parseInt(process.env.PG_POOL_MAX || '25', 10);
 
-  const config = {
-    connectionString: databaseUrl,
-    min,
-    max,
-  };
+const config = {
+  connectionString: databaseUrl,
+  min,
+  max,
+  connectionTimeoutMillis: Number.parseInt(process.env.PG_CONNECTION_TIMEOUT || '10000', 10),
+  idleTimeoutMillis: Number.parseInt(process.env.PG_IDLE_TIMEOUT || '30000', 10),
+};
 
-  const sslConfig = getSslConfig();
-  if (sslConfig !== null) {
-    config.ssl = sslConfig;
-  }
+const sslConfig = getSslConfig();
+if (sslConfig !== null) {
+  config.ssl = sslConfig;
+}
 
-  pool = new Pool(config);
+pool = new Pool(config);
 
-  pool.on('error', (error) => {
-    console.error('Postgres pool error:', error.message);
-  });
+pool.on('error', (error) => {
+  console.error('Postgres pool error:', error.message);
+});
+
+pool.on('remove', (client) => {
+  console.error('Postgres client removed from pool');
+});
 
   return pool;
 };

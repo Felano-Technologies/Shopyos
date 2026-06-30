@@ -108,18 +108,15 @@ function ProductRowBase({ title, products, loading, onPressProduct, onSeeAll, ge
 export const ProductRow = React.memo(ProductRowBase);
 
 const S = StyleSheet.create({
-  wrap: { marginBottom: 8 },
+  wrap: { marginBottom: 8, backgroundColor: '#fff' },
   list: { paddingLeft: 16, paddingBottom: 20, paddingRight: 4 },
   card: {
     width: 152,
     borderRadius: 18,
     backgroundColor: C.card,
     overflow: 'hidden',
-    elevation: 4,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   img: { width: '100%', height: 116 },
   info: { padding: 10 },

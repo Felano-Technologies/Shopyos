@@ -184,6 +184,8 @@ export default function SettingsScreen() {
     rightElement = null
   }: any) => (
     <TouchableOpacity
+      accessibilityLabel={label}
+      accessibilityRole="button"
       style={styles.settingItem}
       onPress={onPress}
       activeOpacity={0.7}
@@ -236,6 +238,8 @@ export default function SettingsScreen() {
                   style={{ marginRight: 4 }}
                 />
                 <TouchableOpacity
+                  accessibilityLabel="View and edit profile"
+                  accessibilityRole="button"
                   activeOpacity={0.7}
                   style={styles.profileInfo}
                   onPress={() => router.push('/settings/Account')}
@@ -244,6 +248,8 @@ export default function SettingsScreen() {
                   <Text style={styles.profileEmail}>{email || 'View and edit profile'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  accessibilityLabel="Edit profile"
+                  accessibilityRole="button"
                   activeOpacity={0.7}
                   style={styles.profileAction}
                   onPress={() => router.push('/settings/Account')}
@@ -303,6 +309,12 @@ export default function SettingsScreen() {
           })}
           <View style={styles.separator} />
           {renderSettingItem({
+            icon: 'bar-chart-2',
+            label: 'Shopping Stats',
+            onPress: () => router.push('/analytics')
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
             icon: 'refresh-ccw',
             label: 'My Returns',
             onPress: () => router.push('/returns')
@@ -317,6 +329,8 @@ export default function SettingsScreen() {
             onPress: null, // No navigation
             rightElement: (
               <Switch
+                accessibilityLabel={`Notifications ${notificationsEnabled ? 'enabled' : 'disabled'}`}
+                accessibilityRole="switch"
                 value={notificationsEnabled}
                 onValueChange={handleNotificationToggle}
                 trackColor={{ false: '#E2E8F0', true: '#84cc16' }}
@@ -361,7 +375,7 @@ export default function SettingsScreen() {
         </View>
         {/* Logout */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <TouchableOpacity accessibilityLabel="Log out" accessibilityRole="button" style={styles.logoutButton} onPress={handleLogout}>
             <Feather name="log-out" size={20} color="#EF4444" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
@@ -382,7 +396,7 @@ export default function SettingsScreen() {
         onRequestClose={() => setLogoutModalVisible(false)}
       >
         <View style={styles.logoutModalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setLogoutModalVisible(false)} />
+          <Pressable accessibilityLabel="Close logout dialog" accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={() => setLogoutModalVisible(false)} />
           <View style={styles.logoutModalCard}>
             <View style={styles.logoutModalIcon}>
               <Feather name="log-out" size={22} color="#EF4444" />
@@ -393,6 +407,8 @@ export default function SettingsScreen() {
             </Text>
             <View style={styles.logoutModalActions}>
               <TouchableOpacity
+                accessibilityLabel="Cancel logout"
+                accessibilityRole="button"
                 style={styles.logoutCancelBtn}
                 onPress={() => setLogoutModalVisible(false)}
                 disabled={logoutLoading}
@@ -400,6 +416,8 @@ export default function SettingsScreen() {
                 <Text style={styles.logoutCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
+                accessibilityLabel="Confirm logout"
+                accessibilityRole="button"
                 style={styles.logoutConfirmBtn}
                 onPress={confirmLogout}
                 disabled={logoutLoading}

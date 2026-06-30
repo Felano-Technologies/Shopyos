@@ -1,3 +1,4 @@
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { uploadFileToCloudinary } = require('../utils/uploadHelpers');
 const { transformImageUrlsAsync } = require('../config/storage');
@@ -29,17 +30,17 @@ exports.createCampaign = async (req, res, next) => {
     const store = Array.isArray(storeResults) ? storeResults[0] : (storeResults?.data?.[0] || storeResults.data);
 
     if (!store) {
-      return res.status(404).json({ error: 'No store found for this account. Please create a store first.' });
+      return ApiResponse.error(res, 'No store found for this account. Please create a store first.', 404);
     }
 
     const store_id = store.id;
 
     if (!title || !duration) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return ApiResponse.error(res, 'Missing required fields', 400);
     }
 
     if (!req.file) {
-      return res.status(400).json({ error: 'Banner image is required' });
+      return ApiResponse.error(res, 'Banner image is required', 400);
     }
 
     const durationDays = Number.parseInt(duration);
@@ -58,7 +59,7 @@ exports.createCampaign = async (req, res, next) => {
       banner_url: uploadResult.url,
     });
 
-    res.status(201).json({ success: true, campaign: await transformImageUrlsAsync(campaign) });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync(campaign), null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -71,12 +72,12 @@ exports.getMyCampaigns = async (req, res, next) => {
     const store = Array.isArray(storeResults) ? storeResults[0] : (storeResults?.data?.[0] || storeResults.data);
     
     if (!store) {
-      return res.status(200).json({ success: true, campaigns: [] });
+      return ApiResponse.withEntity(res, 'campaigns', []);
     }
 
     const store_id = store.id;
     const campaigns = await repositories.bannerCampaigns.getMyCampaigns(store_id);
-    res.status(200).json({ success: true, campaigns: await transformImageUrlsAsync(campaigns) });
+    ApiResponse.withEntity(res, 'campaigns', await transformImageUrlsAsync(campaigns));
   } catch (error) {
     next(error);
   }
@@ -85,7 +86,7 @@ exports.getMyCampaigns = async (req, res, next) => {
 exports.getAllCampaigns = async (req, res, next) => {
   try {
     const campaigns = await repositories.bannerCampaigns.getAllCampaigns();
-    res.status(200).json({ success: true, campaigns: await transformImageUrlsAsync(campaigns) });
+    ApiResponse.withEntity(res, 'campaigns', await transformImageUrlsAsync(campaigns));
   } catch (error) {
     next(error);
   }
@@ -107,7 +108,7 @@ exports.updateCampaignStatus = async (req, res, next) => {
 
     const updated = await repositories.bannerCampaigns.updateCampaign(id, updateData);
 
-    res.status(200).json({ success: true, campaign: await transformImageUrlsAsync(updated) });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync(updated));
   } catch (error) {
     next(error);
   }
@@ -116,7 +117,7 @@ exports.updateCampaignStatus = async (req, res, next) => {
 exports.getActiveBanners = async (req, res, next) => {
   try {
     const activeAds = await repositories.bannerCampaigns.getActiveBanners();
-    res.status(200).json({ success: true, banners: await transformImageUrlsAsync(activeAds) });
+    ApiResponse.withEntity(res, 'banners', await transformImageUrlsAsync(activeAds));
   } catch (error) {
     next(error);
   }
@@ -130,10 +131,10 @@ exports.adminCreateCampaign = async (req, res, next) => {
   try {
     const { storeId, title, duration, productId } = req.body;
     if (!storeId || !title || !duration) {
-      return res.status(400).json({ error: 'storeId, title and duration are required' });
+      return ApiResponse.error(res, 'storeId, title and duration are required', 400);
     }
     if (!req.file) {
-      return res.status(400).json({ error: 'Banner image is required' });
+      return ApiResponse.error(res, 'Banner image is required', 400);
     }
 
     const durationDays = Number.parseInt(duration);
@@ -177,7 +178,7 @@ exports.adminCreateCampaign = async (req, res, next) => {
       }).catch(() => {});
     }
 
-    res.status(201).json({ success: true, campaign: await transformImageUrlsAsync(campaign) });
+    ApiResponse.withEntity(res, 'campaign', await transformImageUrlsAsync(campaign), null, null, 201);
   } catch (error) {
     next(error);
   }
@@ -196,7 +197,7 @@ exports.initializeCampaignPayment = async (req, res, next) => {
     const { campaignId, email, callbackUrl } = req.body;
     
     if (!campaignId || !email) {
-      return res.status(400).json({ error: 'Missing required fields' });
+      return ApiResponse.error(res, 'Missing required fields', 400);
     }
 
     // Fetch campaign details
@@ -207,11 +208,11 @@ exports.initializeCampaignPayment = async (req, res, next) => {
       .single();
 
     if (fetchErr || !campaign) {
-      return res.status(404).json({ error: 'Campaign not found' });
+      return ApiResponse.error(res, 'Campaign not found', 404);
     }
 
     if (campaign.status !== 'Approved') {
-      return res.status(400).json({ error: 'Campaign must be approved by admin before payment' });
+      return ApiResponse.error(res, 'Campaign must be approved by admin before payment', 400);
     }
 
     const amountInPesewas = Math.round(campaign.paid_amount * 100);
@@ -240,7 +241,7 @@ exports.initializeCampaignPayment = async (req, res, next) => {
     );
 
     if (!response.data.status) {
-      return res.status(400).json({ success: false, error: response.data.message });
+      return ApiResponse.error(res, response.data.message, 400);
     }
 
     // Update campaign with reference
@@ -248,10 +249,7 @@ exports.initializeCampaignPayment = async (req, res, next) => {
       paystack_reference: response.data.data.reference
     });
 
-    res.status(200).json({
-      success: true,
-      data: response.data.data
-    });
+    ApiResponse.success(res, response.data.data);
   } catch (error) {
     next(error);
   }
@@ -297,9 +295,9 @@ exports.verifyCampaignPayment = async (req, res, next) => {
         end_date: end.toISOString()
       });
 
-      res.status(200).json({ success: true, message: 'Payment verified and Ad is now Active' });
+      ApiResponse.success(res, null, 'Payment verified and Ad is now Active');
     } else {
-      res.status(400).json({ success: false, error: 'Payment not successful' });
+      ApiResponse.error(res, 'Payment not successful', 400);
     }
   } catch (error) {
     next(error);

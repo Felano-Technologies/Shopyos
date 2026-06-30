@@ -1,6 +1,7 @@
 ﻿// controllers/notificationController.js
 // Controller for notification management
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 
 /**
@@ -21,16 +22,7 @@ const getNotifications = async (req, res, next) => {
 
     const unreadCount = await repositories.notifications.getUnreadCount(userId);
 
-    res.status(200).json({
-      success: true,
-      notifications,
-      unreadCount,
-      pagination: {
-        limit: Number.parseInt(limit),
-        offset: Number.parseInt(offset),
-        hasMore: notifications.length === Number.parseInt(limit)
-      }
-    });
+    ApiResponse.success(res, { notifications, unreadCount, pagination: { limit: Number.parseInt(limit), offset: Number.parseInt(offset), hasMore: notifications.length === Number.parseInt(limit) } });
   } catch (error) {
     next(error);
   }
@@ -46,10 +38,7 @@ const getUnreadCount = async (req, res, next) => {
     const userId = req.user.id;
     const count = await repositories.notifications.getUnreadCount(userId);
 
-    res.status(200).json({
-      success: true,
-      unreadCount: count
-    });
+    ApiResponse.withEntity(res, 'unreadCount', count);
   } catch (error) {
     next(error);
   }
@@ -67,11 +56,7 @@ const markAsRead = async (req, res, next) => {
 
     const notification = await repositories.notifications.markAsRead(notificationId, userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Notification marked as read',
-      notification
-    });
+    ApiResponse.success(res, { message: 'Notification marked as read', notification });
   } catch (error) {
     next(error);
   }
@@ -87,11 +72,7 @@ const markAllAsRead = async (req, res, next) => {
     const userId = req.user.id;
     const count = await repositories.notifications.markAllAsRead(userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'All notifications marked as read',
-      updatedCount: count
-    });
+    ApiResponse.success(res, { message: 'All notifications marked as read', updatedCount: count });
   } catch (error) {
     next(error);
   }
@@ -109,10 +90,7 @@ const deleteNotification = async (req, res, next) => {
 
     await repositories.notifications.deleteNotification(notificationId, userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Notification deleted successfully'
-    });
+    ApiResponse.success(res, null, 'Notification deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -128,10 +106,7 @@ const deleteAllNotifications = async (req, res, next) => {
     const userId = req.user.id;
     await repositories.notifications.deleteAllNotifications(userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'All notifications deleted successfully'
-    });
+    ApiResponse.success(res, null, 'All notifications deleted successfully');
   } catch (error) {
     next(error);
   }
@@ -147,10 +122,7 @@ const getPreferences = async (req, res, next) => {
     const userId = req.user.id;
     const preferences = await repositories.notifications.getUserPreferences(userId);
 
-    res.status(200).json({
-      success: true,
-      preferences
-    });
+    ApiResponse.withEntity(res, 'preferences', preferences);
   } catch (error) {
     next(error);
   }
@@ -186,19 +158,12 @@ const updatePreferences = async (req, res, next) => {
     }
 
     if (Object.keys(validUpdates).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No valid preference fields provided'
-      });
+      return ApiResponse.error(res, 'No valid preference fields provided', 400);
     }
 
     const preferences = await repositories.notifications.updatePreferences(userId, validUpdates);
 
-    res.status(200).json({
-      success: true,
-      message: 'Preferences updated successfully',
-      preferences
-    });
+    ApiResponse.success(res, { message: 'Preferences updated successfully', preferences });
   } catch (error) {
     next(error);
   }
@@ -220,11 +185,7 @@ const getNotificationsByType = async (req, res, next) => {
       offset: Number.parseInt(offset)
     });
 
-    res.status(200).json({
-      success: true,
-      notifications,
-      type
-    });
+    ApiResponse.success(res, { notifications, type });
   } catch (error) {
     next(error);
   }
@@ -241,15 +202,12 @@ const registerPushToken = async (req, res, next) => {
     const { token, deviceName } = req.body;
 
     if (!token) {
-      return res.status(400).json({ success: false, error: 'Push token is required' });
+      return ApiResponse.error(res, 'Push token is required', 400);
     }
 
     await repositories.notifications.savePushToken(userId, token, deviceName);
 
-    res.status(200).json({
-      success: true,
-      message: 'Push token registered successfully'
-    });
+    ApiResponse.success(res, null, 'Push token registered successfully');
   } catch (error) {
     next(error);
   }
@@ -267,11 +225,7 @@ const markReadByConversation = async (req, res, next) => {
 
     const count = await repositories.notifications.markNotificationsAsReadByConversation(conversationId, userId);
 
-    res.status(200).json({
-      success: true,
-      message: 'Notifications marked as read',
-      updatedCount: count
-    });
+    ApiResponse.success(res, { message: 'Notifications marked as read', updatedCount: count });
   } catch (error) {
     next(error);
   }

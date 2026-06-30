@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import AppImage from '@/components/AppImage';
 import { getProductById, createBargainOffer } from '@/services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
 
@@ -67,13 +68,13 @@ export default function MakeOfferScreen() {
           if (res.success) {
             setProduct(res.product);
           } else {
-            Alert.alert('Error', 'Product not found');
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Product not found' });
             router.back();
           }
         })
         .catch((err) => {
           console.error('Error fetching product:', err);
-          Alert.alert('Error', 'Failed to load product details');
+          CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to load product details' });
           router.back();
         })
         .finally(() => {
@@ -113,23 +114,23 @@ export default function MakeOfferScreen() {
 
   const handleSubmit = async () => {
     if (!offeredPrice.trim()) {
-      Alert.alert('Validation Error', 'Please enter your offer price.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Please enter your offer price.' });
       return;
     }
 
     const priceNum = Number(offeredPrice);
     if (isNaN(priceNum) || priceNum <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid price greater than 0.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Please enter a valid price greater than 0.' });
       return;
     }
 
     if (product && priceNum >= Number(product.price)) {
-      Alert.alert('Validation Error', 'Your offered price must be lower than the current price.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Your offered price must be lower than the current price.' });
       return;
     }
 
     if (bargainPolicy && !isDisclaimerChecked) {
-      Alert.alert('Agreement Required', 'You must agree to the Bargaining Terms and Conditions to proceed.');
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'You must agree to the Bargaining Terms and Conditions to proceed.' });
       return;
     }
 
@@ -137,24 +138,11 @@ export default function MakeOfferScreen() {
       setIsSubmitting(true);
       const res = await createBargainOffer(productId!, priceNum, buyerMessage.trim() || undefined);
       if (res.success) {
-        Alert.alert('Success', 'Your offer has been submitted to the seller!', [
-          {
-            text: 'View My Offers',
-            onPress: () => {
-              router.replace('/bargain/my-offers');
-            },
-          },
-          {
-            text: 'Continue Shopping',
-            style: 'cancel',
-            onPress: () => {
-              router.back();
-            },
-          },
-        ]);
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Your offer has been submitted to the seller!' });
+        router.replace('/bargain/my-offers');
       }
     } catch (err: any) {
-      Alert.alert('Offer Declined', err.message || 'Failed to submit offer. Please check constraints.');
+      CustomInAppToast.show({ type: 'error', title: 'Offer Declined', message: err.message || 'Failed to submit offer. Please check constraints.' });
     } finally {
       setIsSubmitting(false);
     }

@@ -13,6 +13,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -62,12 +63,12 @@ const ProductReviewScreen = () => {
                     console.log("Could not find matching order, submission might fail if DB requires it", err);
                 }
             } else {
-                Alert.alert('Error', 'Could not find product to review');
+                CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not find product to review' });
                 router.back();
             }
         } catch (e) {
             console.error(e);
-            Alert.alert('Error', 'Failed to load product details');
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to load product details' });
             router.back();
         } finally {
             setLoading(false);
@@ -85,11 +86,11 @@ const ProductReviewScreen = () => {
     }, []);
     const handleSubmit = async () => {
         if (rating === 0) {
-            Alert.alert('Required', 'Please give a star rating');
+            CustomInAppToast.show({ type: 'info', title: 'Required', message: 'Please give a star rating' });
             return;
         }
         if (reviewTerms && !isTermsChecked) {
-            Alert.alert('Agreement Required', 'Please agree to the Review Policy before posting.');
+            CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'Please agree to the Review Policy before posting.' });
             return;
         }
         try {
@@ -100,17 +101,16 @@ const ProductReviewScreen = () => {
                 rating: rating,
                 reviewText: comment
             });
-            Alert.alert('Thank You!', 'Your review has been shared with the community.', [
-                { text: 'OK', onPress: () => router.back() }
-            ]);
+            CustomInAppToast.show({ type: 'success', title: 'Thank You!', message: 'Your review has been shared with the community.' });
+            router.back();
         } catch (e: any) {
             const msg = String(e?.message || '').toLowerCase();
             if (msg.includes('purchase') || msg.includes('order') || msg.includes('receive')) {
                 setEligibilityVisible(true);
             } else if (msg.includes('already reviewed')) {
-                Alert.alert('Already Reviewed', 'You have already reviewed this product. You can update your existing review from your profile.');
+                CustomInAppToast.show({ type: 'info', title: 'Already Reviewed', message: 'You have already reviewed this product. You can update your existing review from your profile.' });
             } else {
-                Alert.alert('Error', e.message || 'Failed to submit review');
+                CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Failed to submit review' });
             }
         } finally {
             setSubmitting(false);

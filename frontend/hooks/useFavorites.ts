@@ -1,8 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { favoritesApi, Product } from '@/lib/query/api';
 import { queryKeys } from '@/lib/query/keys';
-import { Alert } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 export const useFavorites = () => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -52,7 +52,7 @@ export const useAddFavorite = () => {
         queryClient.setQueryData(queryKeys.favorites.list(), context.previousFavorites);
       }
       
-      Alert.alert('Error', error.userMessage || 'Failed to add to favorites');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.userMessage || 'Failed to add to favorites' });
     },
     
     onSuccess: () => {
@@ -85,7 +85,7 @@ export const useRemoveFavorite = () => {
         queryClient.setQueryData(queryKeys.favorites.list(), context.previousFavorites);
       }
       
-      Alert.alert('Error', error.userMessage || 'Failed to remove from favorites');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: error.userMessage || 'Failed to remove from favorites' });
     },
     
     onSuccess: () => {

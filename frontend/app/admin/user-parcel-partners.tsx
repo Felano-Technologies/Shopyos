@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  Alert,
   FlatList,
   RefreshControl,
   StyleSheet,
@@ -17,6 +16,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors } from '@/components/admin/adminTheme';
 import { CustomInAppToast } from '@/components/InAppToastHost';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { adminUpdateUserStatus, getAdminUsers } from '@/services/api';
 import { adminDeleteUser, adminResetUserSession } from '@/services/admin';
 
@@ -58,6 +58,7 @@ export default function AdminParcelPartners() {
   const [partners, setPartners] = useState<PartnerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<PartnerItem | null>(null);
 
   const loadPartners = useCallback(async (isRefresh = false, search = '') => {
     if (isRefresh) setRefreshing(true);
@@ -80,47 +81,30 @@ export default function AdminParcelPartners() {
     return () => clearTimeout(t);
   }, [searchQuery, loadPartners]);
 
-  const handleSuspend = (item: PartnerItem) => {
+  const handleSuspend = async (item: PartnerItem) => {
     const isActive = item.account_status === 'active';
-    Alert.alert(
-      isActive ? 'Suspend Partner' : 'Activate Partner',
-      `${isActive ? 'Suspend' : 'Activate'} ${item.full_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: isActive ? 'Suspend' : 'Activate',
-          style: isActive ? 'destructive' : 'default',
-          onPress: async () => {
-            try {
-              await adminUpdateUserStatus(item.id, isActive ? 'suspended' : 'active');
-              setPartners((prev) => prev.map((p) => p.id === item.id ? { ...p, account_status: isActive ? 'suspended' : 'active' } : p));
-              CustomInAppToast.show({ type: 'success', title: 'Done', message: `Partner ${isActive ? 'suspended' : 'activated'}` });
-            } catch (e: any) {
-              CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
-            }
-          },
-        },
-      ]
-    );
+    try {
+      await adminUpdateUserStatus(item.id, isActive ? 'suspended' : 'active');
+      setPartners((prev) => prev.map((p) => p.id === item.id ? { ...p, account_status: isActive ? 'suspended' : 'active' } : p));
+      CustomInAppToast.show({ type: 'success', title: 'Done', message: `Partner ${isActive ? 'suspended' : 'activated'}` });
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
+    }
   };
 
   const handleDelete = (item: PartnerItem) => {
-    Alert.alert('Delete Partner', `Permanently delete ${item.full_name}? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await adminDeleteUser(item.id);
-            setPartners((prev) => prev.filter((p) => p.id !== item.id));
-            CustomInAppToast.show({ type: 'success', title: 'Deleted', message: `${item.full_name} has been removed` });
-          } catch (e: any) {
-            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
-          }
-        },
-      },
-    ]);
+    setDeleteTarget(item);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await adminDeleteUser(deleteTarget.id);
+      setPartners((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+      CustomInAppToast.show({ type: 'success', title: 'Deleted', message: `${deleteTarget.full_name} has been removed` });
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message });
+    } finally { setDeleteTarget(null); }
   };
 
   if (loading && !refreshing) {
@@ -224,6 +208,17 @@ export default function AdminParcelPartners() {
           }}
         />
       </SafeAreaView>
+
+      <ConfirmModal
+        visible={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Partner"
+        message={`Permanently delete ${deleteTarget?.full_name || 'this partner'}? This cannot be undone.`}
+        actions={[
+          { label: 'Cancel', variant: 'cancel', onPress: () => setDeleteTarget(null) },
+          { label: 'Delete', variant: 'destructive', onPress: executeDelete },
+        ]}
+      />
     </>
   );
 }

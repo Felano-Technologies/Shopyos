@@ -1,3 +1,4 @@
+const ApiResponse = require('../utils/apiResponse');
 const { getPool } = require('../config/postgres');
 const db = getPool();
 
@@ -7,7 +8,7 @@ exports.createSnap = async (req, res) => {
     const storeId = req.store.id; // From requireStore middleware
 
     if (!media_url) {
-      return res.status(400).json({ success: false, error: 'Media URL is required' });
+      return ApiResponse.error(res, 'Media URL is required', 400);
     }
 
     const { rows } = await db.query(
@@ -22,10 +23,10 @@ exports.createSnap = async (req, res) => {
       snap.media_url = await resolveImageUrl(snap.media_url);
     }
 
-    res.status(201).json({ success: true, snap });
+    ApiResponse.withEntity(res, 'snap', snap, null, null, 201);
   } catch (error) {
     console.error('Error creating snap:', error);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    ApiResponse.error(res, 'Server Error', 500);
   }
 };
 
@@ -64,10 +65,10 @@ exports.getSnapFeed = async (req, res) => {
       })))
     })));
 
-    res.json({ success: true, feed });
+    ApiResponse.withEntity(res, 'feed', feed);
   } catch (error) {
     console.error('Error fetching snap feed:', error);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    ApiResponse.error(res, 'Server Error', 500);
   }
 };
 
@@ -105,10 +106,10 @@ exports.viewSnap = async (req, res) => {
       }
     }
 
-    res.json({ success: true });
+    ApiResponse.success(res, null);
   } catch (error) {
     console.error('Error viewing snap:', error);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    ApiResponse.error(res, 'Server Error', 500);
   }
 };
 
@@ -119,13 +120,13 @@ exports.deleteSnap = async (req, res) => {
     
     const { rowCount } = await db.query(`DELETE FROM snaps WHERE id = $1 AND store_id = $2`, [id, storeId]);
     if (rowCount === 0) {
-      return res.status(404).json({ success: false, error: 'Snap not found or unauthorized' });
+      return ApiResponse.error(res, 'Snap not found or unauthorized', 404);
     }
     
-    res.json({ success: true, message: 'Snap deleted' });
+    ApiResponse.success(res, null, 'Snap deleted');
   } catch (error) {
     console.error('Error deleting snap:', error);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    ApiResponse.error(res, 'Server Error', 500);
   }
 };
 
@@ -160,10 +161,10 @@ exports.getMySnaps = async (req, res) => {
       }))
     );
 
-    res.json({ success: true, snaps });
+    ApiResponse.withEntity(res, 'snaps', snaps);
   } catch (error) {
     console.error('Error fetching seller snaps:', error);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    ApiResponse.error(res, 'Server Error', 500);
   }
 };
 
@@ -184,16 +185,16 @@ exports.repostSnap = async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Snap not found or unauthorized' });
+      return ApiResponse.error(res, 'Snap not found or unauthorized', 404);
     }
 
     const { resolveImageUrl } = require('../config/storage');
     const snap = rows[0];
     snap.media_url = await resolveImageUrl(snap.media_url);
 
-    res.json({ success: true, snap, message: 'Snap reposted successfully' });
+    ApiResponse.success(res, { snap, message: 'Snap reposted successfully' });
   } catch (error) {
     console.error('Error reposting snap:', error);
-    res.status(500).json({ success: false, error: 'Server Error' });
+    ApiResponse.error(res, 'Server Error', 500);
   }
 };

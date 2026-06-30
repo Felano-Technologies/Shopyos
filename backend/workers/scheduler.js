@@ -632,7 +632,14 @@ function initScheduler() {
     }
   });
 
-  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min)');
+  cron.schedule('0 9 28-31 * *', () => {
+    const { sendMonthlyBuyerWrapNotifications } = require('../jobs/monthlyWrap');
+    sendMonthlyBuyerWrapNotifications().catch(err =>
+      logger.error('[Scheduler] Monthly wrap notification error:', err.message)
+    );
+  });
+
+  logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min) + monthly wrap (last day 9 AM)');
 }
 
 module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts };

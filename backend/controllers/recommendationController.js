@@ -1,6 +1,7 @@
 // controllers/recommendationController.js
 // HTTP layer only — validates input, calls the service, formats the response.
 
+const ApiResponse = require('../utils/apiResponse');
 const { resolveImageUrl } = require('../config/storage');
 const recommendationService = require('../services/recommendationService');
 
@@ -30,14 +31,14 @@ const getSimilar = async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!UUID_REGEX.test(id)) {
-      return res.status(400).json({ success: false, error: 'Invalid product ID' });
+      return ApiResponse.error(res, 'Invalid product ID', 400);
     }
 
     const userId = req.user?.id || null;
     const result = await recommendationService.getRecommendations(id, userId, req.query.limit);
     const products = await formatProducts(result.products);
 
-    res.status(200).json({ success: true, products, source: result.source });
+    ApiResponse.success(res, { products, source: result.source });
   } catch (error) {
     next(error);
   }
@@ -50,7 +51,7 @@ const getPersonalized = async (req, res, next) => {
     const result = await recommendationService.getPersonalized(req.user.id, req.query.limit);
     const products = await formatProducts(result.products);
 
-    res.status(200).json({ success: true, products, source: result.source });
+    ApiResponse.success(res, { products, source: result.source });
   } catch (error) {
     next(error);
   }
@@ -64,7 +65,7 @@ const getTrending = async (req, res, next) => {
     const result = await recommendationService.getTrending(category, limit);
     const products = await formatProducts(result.products);
 
-    res.status(200).json({ success: true, products, source: result.source });
+    ApiResponse.success(res, { products, source: result.source });
   } catch (error) {
     next(error);
   }

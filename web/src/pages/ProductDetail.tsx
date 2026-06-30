@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useProduct } from '../hooks/useProducts';
 import { useCart } from '../store/cartStore';
+import { SEO } from '../components/SEO';
 
 export const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -51,6 +52,7 @@ export const ProductDetail: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in mt-4">
+      <SEO title={product?.name ? product.name : 'Product Details'} />
       {/* Upper split section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
         {/* Left Side: Images */}
@@ -116,6 +118,7 @@ export const ProductDetail: React.FC = () => {
               <button
                 onClick={() => setQty(q => Math.max(1, q - 1))}
                 className="px-4 h-full bg-white hover:bg-gray-100 font-bold transition-colors text-body text-lg border-r border-gray-200"
+                aria-label="Decrease quantity"
               >
                 -
               </button>
@@ -123,18 +126,20 @@ export const ProductDetail: React.FC = () => {
               <button
                 onClick={() => setQty(q => q + 1)}
                 className="px-4 h-full bg-white hover:bg-gray-100 font-bold transition-colors text-body text-lg border-l border-gray-200"
+                aria-label="Increase quantity"
               >
                 +
               </button>
             </div>
 
             {/* Add to Cart Button */}
-            <button
-              onClick={handleAddToCart}
-              className="flex-1 bg-navy hover:bg-navy-mid text-white font-bold h-12 rounded-[16px] text-sm transition-colors shadow-md"
-            >
-              Add To Cart
-            </button>
+          <button
+            onClick={handleAddToCart}
+            className="flex-1 bg-navy hover:bg-navy-mid text-white font-bold h-12 rounded-[16px] text-sm transition-colors shadow-md"
+            aria-label={`Add ${product?.name || 'product'} to cart`}
+          >
+            Add To Cart
+          </button>
           </div>
         </div>
       </div>

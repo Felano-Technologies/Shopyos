@@ -14,10 +14,12 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { AdminPanel } from '@/components/admin/AdminShell';
 import AdminBottomNav from '@/components/AdminBottomNav';
 import AdminScreenSkeleton from '@/components/admin/AdminSkeleton';
 import { adminColors } from '@/components/admin/adminTheme';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { getUserData } from '@/services/api';
 import { getAdminPlatformSettings, updateAdminPlatformSettings } from '@/services/admin';
 import { storage } from '@/services/storage';
@@ -118,11 +120,15 @@ export default function AdminSettings() {
     [profileName]
   );
 
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to log out of the admin portal?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => router.replace('/login') },
-    ]);
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    router.replace('/login');
   };
 
   if (loading && !refreshing) {
@@ -228,7 +234,7 @@ export default function AdminSettings() {
                 icon="lock"
                 label="Update Password"
                 subLabel="Rotate admin credentials"
-                onPress={() => Alert.alert('Security', 'Redirecting to security settings...')}
+                onPress={() => CustomInAppToast.show({ type: 'info', title: 'Security', message: 'Redirecting to security settings...' })}
               />
               <View style={styles.divider} />
               <SettingItem
@@ -310,6 +316,18 @@ export default function AdminSettings() {
             <Text style={styles.logoutText}>Logout Admin Portal</Text>
           </TouchableOpacity>
         </ScrollView>
+
+        <ConfirmModal
+          visible={showLogoutConfirm}
+          onClose={() => setShowLogoutConfirm(false)}
+          title="Sign Out"
+          message="Are you sure you want to log out of the admin portal?"
+          icon="⚠️"
+          actions={[
+            { label: 'Cancel', onPress: () => setShowLogoutConfirm(false), variant: 'cancel' },
+            { label: 'Logout', onPress: confirmLogout, variant: 'destructive' },
+          ]}
+        />
         <AdminBottomNav />
       </View>
     </>

@@ -16,7 +16,8 @@ import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { HeroAd } from '@/components/home/HeroCarousel';
-import { useProducts, useProductSearch } from '@/hooks/useProducts';
+import { useProducts, useProductSearch, useInfiniteProducts } from '@/hooks/useProducts';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';
 import { useCart } from '@/store/cartStore';
@@ -140,6 +141,8 @@ function StoreList({ stores }: { stores: any[] }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storeList}>
         {stores.map((store: any) => (
           <TouchableOpacity
+            accessibilityLabel={`View ${store.name} store`}
+            accessibilityRole="button"
             key={store.id}
             style={styles.storeCard}
             onPress={() => safePush('/stores/details', { id: store.id, name: store.name, logo: store.logo })}
@@ -162,10 +165,10 @@ function StoreList({ stores }: { stores: any[] }) {
 
 const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
   return (
-    <TouchableOpacity style={styles.gridCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
+    <TouchableOpacity accessibilityLabel={`View ${item.name}`} accessibilityRole="button" style={styles.gridCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <View style={styles.gridImgWrap}>
         <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.gridImg} />
-        <TouchableOpacity style={styles.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity accessibilityLabel="Toggle favorite" accessibilityRole="button" style={styles.favBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="heart-outline" size={13} color={C.navy} />
         </TouchableOpacity>
         {item.isNew && <View style={styles.badgeNew}><Text style={styles.badgeNewTxt}>NEW</Text></View>}
@@ -176,6 +179,8 @@ const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart }: {
         <View style={styles.priceRow}>
           <Text style={styles.priceLbl}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
           <TouchableOpacity
+            accessibilityLabel="Add to cart"
+            accessibilityRole="button"
             style={styles.addBtn}
             onPress={(e: any) => { e?.stopPropagation?.(); onAddToCart(item); }}
             disabled={addingId === item._id}
@@ -193,7 +198,7 @@ const GridCard = React.memo(function GridCard({ item, addingId, onAddToCart }: {
 
 const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
   return (
-    <TouchableOpacity style={styles.featCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
+    <TouchableOpacity accessibilityLabel={`View featured ${item.name}`} accessibilityRole="button" style={styles.featCard} activeOpacity={0.88} onPress={() => safePush('/product/details', { id: item._id })}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.featImg} />
       <View style={styles.featInfo}>
         <View style={styles.featBadge}><Text style={styles.featBadgeTxt}>TOP PICK</Text></View>
@@ -202,6 +207,8 @@ const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToC
         <Text style={styles.featPrice}>₵{Number.parseFloat(item.price).toFixed(2)}</Text>
       </View>
       <TouchableOpacity
+        accessibilityLabel="Add to cart"
+        accessibilityRole="button"
         style={styles.featAddBtn}
         onPress={(e: any) => { e?.stopPropagation?.(); onAddToCart(item); }}
         disabled={addingId === item._id}
@@ -217,7 +224,7 @@ const FeaturedCard = React.memo(function FeaturedCard({ item, addingId, onAddToC
 
 const ListCard = React.memo(function ListCard({ item, addingId, onAddToCart }: { item: any; addingId: string | null; onAddToCart: (item: any) => void }) {
   return (
-    <TouchableOpacity style={styles.listCard} activeOpacity={0.85} onPress={() => safePush('/product/details', { id: item._id })}>
+    <TouchableOpacity accessibilityLabel={`View ${item.name}`} accessibilityRole="button" style={styles.listCard} activeOpacity={0.85} onPress={() => safePush('/product/details', { id: item._id })}>
       <AppImage uri={item.images?.[0] || 'https://via.placeholder.com/300'} style={styles.listImg} />
       <View style={styles.listInfo}>
         <Text style={styles.storeLbl} numberOfLines={1}>{item.store?.name || 'Shopyos'}</Text>
@@ -227,6 +234,8 @@ const ListCard = React.memo(function ListCard({ item, addingId, onAddToCart }: {
         </Text>
       </View>
       <TouchableOpacity
+        accessibilityLabel="Add to cart"
+        accessibilityRole="button"
         style={styles.listAddBtn}
         onPress={(e: any) => { e?.stopPropagation?.(); onAddToCart(item); }}
         disabled={addingId === item._id}
@@ -267,10 +276,10 @@ function DiscoveryView({
         <View style={styles.discSection}>
           <View style={styles.discHeader}>
             <Text style={styles.discLabel}>Recent</Text>
-            <TouchableOpacity onPress={clearRecent}><Text style={styles.discClear}>Clear all</Text></TouchableOpacity>
+            <TouchableOpacity accessibilityLabel="Clear search history" accessibilityRole="button" onPress={clearRecent}><Text style={styles.discClear}>Clear all</Text></TouchableOpacity>
           </View>
           {recentSearches.map(term => (
-            <TouchableOpacity key={term} style={styles.recentRow} onPress={() => { setQuery(term); inputRef.current?.focus(); }}>
+            <TouchableOpacity accessibilityLabel={`Search for ${term}`} accessibilityRole="button" key={term} style={styles.recentRow} onPress={() => { setQuery(term); inputRef.current?.focus(); }}>
               <View style={styles.recentIcon}><Ionicons name="time-outline" size={14} color={C.navy} /></View>
               <Text style={styles.recentTxt}>{term}</Text>
               <Feather name="arrow-up-right" size={13} color={C.subtle} />
@@ -293,6 +302,8 @@ function DiscoveryView({
                 const catImg = CATEGORY_IMAGES[cat.name];
                 return (
                   <TouchableOpacity
+                    accessibilityLabel={`Filter by category ${cat.name}`}
+                    accessibilityRole="button"
                     key={cat.id || cat.name}
                     style={[styles.catTile, isOn && styles.catTileSelected]}
                     onPress={() => { setCategory(isOn ? null : cat.name); setQuery(''); }}
@@ -328,7 +339,7 @@ function EmptyResults({ setQuery, setCategory, setSortBy }: { setQuery: (q: stri
       </View>
       <Text style={styles.emptyTitle}>Nothing found</Text>
       <Text style={styles.emptyBody}>Try different keywords or remove active filters.</Text>
-      <TouchableOpacity style={styles.resetBtn} onPress={() => { setQuery(''); setCategory(null); setSortBy('newest'); }}>
+      <TouchableOpacity accessibilityLabel="Reset all filters" accessibilityRole="button" style={styles.resetBtn} onPress={() => { setQuery(''); setCategory(null); setSortBy('newest'); }}>
         <Text style={styles.resetBtnTxt}>Reset filters</Text>
       </TouchableOpacity>
     </View>
@@ -363,7 +374,9 @@ export default function SearchScreen() {
       try {
         const res = await getActiveBanners();
         if (res?.banners?.length > 0) setSearchAds(res.banners);
-      } catch { }
+      } catch (e) {
+        console.error('Failed to load search banner ads:', e);
+      }
     })();
   }, []);
 
@@ -436,14 +449,21 @@ export default function SearchScreen() {
     return name !== 'automotive' && name !== 'toys';
   });
   const filters = buildFilters(category, gender, sortBy, params);
-  const isActive = query.length >= 2;
-  const { data: allData, isLoading: loadingAll, refetch: refetchAll } = useProducts(filters, 50);
-  const { data: searchData, isLoading: loadingSearch, refetch: refetchSearch } = useProductSearch(query, filters, 50);
-  const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(query, category, 10);
-  const loading = isActive ? loadingSearch : loadingAll;
-  const activeProducts = searchData?.success ? searchData.products : [];
-  const browseProducts = allData?.success ? allData.products : [];
-  const products = isActive ? activeProducts : browseProducts;
+  const isActive = debouncedQuery.length >= 2;
+  const {
+    data: infiniteData,
+    isLoading: loadingProducts,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+    refetch: refetchProducts,
+  } = useInfiniteProducts(filters, 20);
+  const { data: storeSearchData, refetch: refetchStores } = useStoreSearch(debouncedQuery, category, 10);
+  const loading = loadingProducts && !infiniteData;
+  const products = useMemo(
+    () => (infiniteData?.pages || []).flatMap(p => (p.success ? p.products || [] : [])),
+    [infiniteData]
+  );
   const showStores = isActive || !!category;
   const stores = useMemo(
     () => showStores && storeSearchData?.success ? (storeSearchData.data || storeSearchData.businesses || []) : [],
@@ -460,14 +480,15 @@ export default function SearchScreen() {
     Animated.timing(slideAnim, { toValue: sortOpen ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [slideAnim, sortOpen]);
 
+  const debouncedQuery = useDebounce(query, 300);
   const handleChangeText = (text: string) => { setQuery(text); if (category) setCategory(null); };
   const handleSubmit = () => { if (query.trim().length >= 2) saveRecent(query.trim()); Keyboard.dismiss(); };
   const handleAddToCart = useCallback((item: any) => addItemToCart(item, addToCart, setAddingId), [addToCart, setAddingId]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    try { await Promise.all([refetchAll(), refetchSearch(), refetchStores()]); }
+    try { await Promise.all([refetchProducts(), refetchStores()]); }
     finally { setRefreshing(false); }
-  }, [refetchAll, refetchSearch, refetchStores]);
+  }, [refetchProducts, refetchStores]);
 
   const headingTop = isActive ? 'Results for' : 'Discover';
   const renderListHeader = useCallback(() => (
@@ -506,7 +527,7 @@ export default function SearchScreen() {
                   </Text>
                 </View>
                 <View style={styles.hdrActions} ref={refActions} onLayout={() => measureElement(refActions, 'actions')}>
-                  <TouchableOpacity style={styles.hdrBtn} onPress={() => safePush('/cart')}>
+                  <TouchableOpacity accessibilityLabel="Open cart" accessibilityRole="button" style={styles.hdrBtn} onPress={() => safePush('/cart')}>
                     <Feather name="shopping-bag" size={16} color="rgba(255,255,255,0.8)" />
                   </TouchableOpacity>
                 </View>
@@ -514,6 +535,8 @@ export default function SearchScreen() {
               <View style={[styles.searchPill, query.length > 0 && styles.searchPillFocused]} ref={refSearchPill} onLayout={() => measureElement(refSearchPill, 'search')}>
                 <Feather name="search" size={15} color="rgba(255,255,255,0.5)" />
                 <TextInput
+                  accessibilityLabel="Search for products"
+                  accessibilityRole="none"
                   ref={inputRef}
                   style={styles.searchInput}
                   placeholder="Search products, brands…"
@@ -526,7 +549,7 @@ export default function SearchScreen() {
                   autoCapitalize="none"
                 />
                 {query.length > 0 ? (
-                  <TouchableOpacity style={styles.clearBtn} onPress={() => { setQuery(''); setCategory(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <TouchableOpacity accessibilityLabel="Clear search" accessibilityRole="button" style={styles.clearBtn} onPress={() => { setQuery(''); setCategory(null); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="close" size={10} color="#fff" />
                   </TouchableOpacity>
                 ) : (
@@ -560,7 +583,7 @@ export default function SearchScreen() {
                     {['All', 'Men', 'Women', 'Unisex', 'Boys', 'Girls'].map((g) => {
                       const active = (g === 'All' && !gender) || gender === g;
                       return (
-                        <TouchableOpacity key={g} style={[styles.genderFilterChip, active && styles.genderFilterChipActive]} onPress={() => setGender(g === 'All' ? null : g)}>
+                        <TouchableOpacity accessibilityLabel={`Filter by gender ${g}`} accessibilityRole="button" key={g} style={[styles.genderFilterChip, active && styles.genderFilterChipActive]} onPress={() => setGender(g === 'All' ? null : g)}>
                           <Text style={[styles.genderFilterChipTxt, active && styles.genderFilterChipTxtActive]}>{g}</Text>
                         </TouchableOpacity>
                       );
@@ -573,14 +596,14 @@ export default function SearchScreen() {
                   </Text>
                   <View style={styles.toolbarRight}>
                     <View style={styles.viewToggle}>
-                      <TouchableOpacity style={[styles.vtBtn, viewMode === 'grid' && styles.vtBtnOn]} onPress={() => setViewMode('grid')}>
+                      <TouchableOpacity accessibilityLabel="Switch to grid view" accessibilityRole="button" style={[styles.vtBtn, viewMode === 'grid' && styles.vtBtnOn]} onPress={() => setViewMode('grid')}>
                         <MaterialCommunityIcons name="view-grid-outline" size={15} color={viewMode === 'grid' ? '#fff' : C.muted} />
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.vtBtn, viewMode === 'list' && styles.vtBtnOn]} onPress={() => setViewMode('list')}>
+                      <TouchableOpacity accessibilityLabel="Switch to list view" accessibilityRole="button" style={[styles.vtBtn, viewMode === 'list' && styles.vtBtnOn]} onPress={() => setViewMode('list')}>
                         <MaterialCommunityIcons name="view-list-outline" size={15} color={viewMode === 'list' ? '#fff' : C.muted} />
                       </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.sortBtn} onPress={() => setSortOpen(v => !v)}>
+                    <TouchableOpacity accessibilityLabel="Open sort options" accessibilityRole="button" style={styles.sortBtn} onPress={() => setSortOpen(v => !v)}>
                       <Ionicons name="funnel-outline" size={11} color={C.navy} />
                       <Text style={styles.sortBtnTxt}>{SORT_OPTIONS.find(s => s.value === sortBy)?.label ?? 'Sort'}</Text>
                       <Ionicons name={sortOpen ? 'chevron-up' : 'chevron-down'} size={11} color={C.navy} />
@@ -590,7 +613,7 @@ export default function SearchScreen() {
                 {sortOpen && (
                   <Animated.View style={[styles.sortDropdown, { opacity: slideAnim, transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }] }]}>
                     {SORT_OPTIONS.map(opt => (
-                      <TouchableOpacity key={opt.value} style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]} onPress={() => { setSortBy(opt.value); setSortOpen(false); }}>
+                      <TouchableOpacity accessibilityLabel={`Sort by ${opt.label}`} accessibilityRole="button" key={opt.value} style={[styles.sortOption, sortBy === opt.value && styles.sortOptionOn]} onPress={() => { setSortBy(opt.value); setSortOpen(false); }}>
                         <Text style={[styles.sortOptionTxt, sortBy === opt.value && { color: C.navy }]}>{opt.label}</Text>
                         {sortBy === opt.value && <Ionicons name="checkmark" size={14} color={C.lime} />}
                       </TouchableOpacity>
@@ -599,9 +622,9 @@ export default function SearchScreen() {
                 )}
                 <Animated.View style={{ flex: 1, opacity: loading ? 0.6 : fadeAnim }}>
                   {viewMode === 'grid' ? (
-                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
+                    <FlatList key="grid" data={products} keyExtractor={item => item._id} numColumns={2} contentContainerStyle={styles.gridContent} columnWrapperStyle={styles.gridRow} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderGrid} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={C.navy} /> : null} />
                   ) : (
-                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} />
+                    <FlatList key="list" data={products} keyExtractor={item => item._id} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" initialNumToRender={10} maxToRenderPerBatch={10} windowSize={10} removeClippedSubviews renderItem={renderList} ListHeaderComponent={renderListHeader} ListEmptyComponent={renderEmpty} refreshing={refreshing} onRefresh={onRefresh} onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }} onEndReachedThreshold={0.5} ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ padding: 16, marginBottom: 80 }} color={C.navy} /> : null} />
                   )}
                 </Animated.View>
               </View>
@@ -905,11 +928,8 @@ const styles = StyleSheet.create({
     backgroundColor: C2.card,
     borderRadius: 22,
     overflow: 'hidden',
-    elevation: 5,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   gridImgWrap: { width: '100%', height: 136, position: 'relative' },
   gridImg: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -1025,11 +1045,8 @@ const styles = StyleSheet.create({
     padding: 14,
     marginHorizontal: 14,
     marginBottom: 10,
-    elevation: 8,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   featImg: {
     width: 78,
@@ -1073,11 +1090,8 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 12,
     marginBottom: 10,
-    elevation: 3,
-    shadowColor: C2.navy,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   listImg: {
     width: 72, height: 72,

@@ -9,8 +9,10 @@
  *   const pickImage = useImagePickerSheet();
  *   const uri = await pickImage({ aspect: [1, 1] });
  */
+
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 type PickOptions = ImagePicker.ImagePickerOptions;
 
@@ -48,7 +50,7 @@ export function useImagePickerSheet() {
             onPress: async () => {
               const { status } = await ImagePicker.requestCameraPermissionsAsync();
               if (status !== 'granted') {
-                Alert.alert('Permission Required', 'Camera access is needed to take a photo.');
+                CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Camera access is needed to take a photo.' });
                 resolve(null);
                 return;
               }
@@ -60,7 +62,7 @@ export function useImagePickerSheet() {
             onPress: async () => {
               const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
               if (status !== 'granted') {
-                Alert.alert('Permission Required', 'Gallery access is needed to pick a photo.');
+                CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Gallery access is needed to pick a photo.' });
                 resolve(null);
                 return;
               }

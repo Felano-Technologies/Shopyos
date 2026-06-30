@@ -1,6 +1,7 @@
 // controllers/deliveryFeeController.js
 // Handles delivery fee quotes and seller delivery settings
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
@@ -40,24 +41,24 @@ const getDeliveryQuote = async (req, res, next) => {
         const { storeId, buyerLat, buyerLng, deliveryState } = req.query;
 
         if (!storeId) {
-            return res.status(400).json({ success: false, error: 'storeId is required' });
+            return ApiResponse.error(res, 'storeId is required', 400);
         }
 
         const store = await repositories.stores.findById(storeId);
-        if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
+        if (!store) return ApiResponse.error(res, 'Store not found', 404);
 
         const { fee, distanceKm, withinRange, note } = await resolveCoordinateFee(store, buyerLat, buyerLng);
 
         // Regional pricing logic (Sync with orderController.js)
-        const storeRegion = (store.state_province || 'Greater Accra').trim().toLowerCase();
-        const targetRegion = (deliveryState || 'Greater Accra').trim().toLowerCase();
-        
+        const storeRegion = store.state_province?.trim().toLowerCase() || null;
+        const targetRegion = (deliveryState || '').trim().toLowerCase();
+
         let deliveryFee;
         let isInterRegional = false;
         let parcelTransitFee = 0;
         let estimatedTransitDays = null;
 
-        if (storeRegion === targetRegion) {
+        if (!storeRegion || !targetRegion || storeRegion === targetRegion) {
             // Intra-regional: distance from store to buyer — floor only, no ceiling (Bolt model)
             const minIntra = await feeConfigService.get('delivery_intra_min_fee');
             deliveryFee = Math.max(minIntra, fee);
@@ -102,19 +103,16 @@ const getDeliveryQuote = async (req, res, next) => {
             }
         }
 
-        res.status(200).json({
-            success: true,
-            quote: {
-                storeId,
-                distanceKm,
-                deliveryFee,
-                isInterRegional,
-                parcelTransitFee,
-                estimatedTransitDays,
-                storeRegion: store.state_province || 'Greater Accra',
-                withinRange: true,
-                note: ''
-            }
+        ApiResponse.withEntity(res, 'quote', {
+            storeId,
+            distanceKm,
+            deliveryFee,
+            isInterRegional,
+            parcelTransitFee,
+            estimatedTransitDays,
+            storeRegion: store.state_province || 'Greater Accra',
+            withinRange: true,
+            note: ''
         });
     } catch (err) {
         next(err);
@@ -147,16 +145,16 @@ const updateDeliverySettings = async (req, res, next) => {
 
         const validationError = validateDeliverySettings({ deliveryBaseFee, deliveryPerKmFee, deliveryMaxKm });
         if (validationError) {
-            return res.status(400).json({ success: false, error: validationError });
+            return ApiResponse.error(res, validationError, 400);
         }
 
         // Verify ownership
         const store = await repositories.stores.findById(storeId);
         if (!store) {
-            return res.status(404).json({ success: false, error: 'Store not found' });
+            return ApiResponse.error(res, 'Store not found', 404);
         }
         if (store.owner_id !== userId && !req.user.roles?.includes('admin')) {
-            return res.status(403).json({ success: false, error: 'Not authorized to update this store' });
+            return ApiResponse.error(res, 'Not authorized to update this store', 403);
         }
 
         // Build update payload â€” only update fields that were provided
@@ -166,7 +164,7 @@ const updateDeliverySettings = async (req, res, next) => {
         if ('deliveryMaxKm' in req.body)    updates.delivery_max_km    = deliveryMaxKm === null ? null : Number.parseFloat(deliveryMaxKm);
 
         if (Object.keys(updates).length === 0) {
-            return res.status(400).json({ success: false, error: 'No delivery settings provided to update' });
+            return ApiResponse.error(res, 'No delivery settings provided to update', 400);
         }
 
         const { data: updatedStore, error } = await repositories.stores.db
@@ -180,15 +178,11 @@ const updateDeliverySettings = async (req, res, next) => {
 
         logger.info(`Delivery settings updated for store ${storeId} by user ${userId}`);
 
-        res.status(200).json({
-            success: true,
-            message: 'Delivery settings updated',
-            deliverySettings: {
-                baseFee: updatedStore.delivery_base_fee,
-                perKmFee: updatedStore.delivery_per_km_fee,
-                maxKm: updatedStore.delivery_max_km
-            }
-        });
+        ApiResponse.withEntity(res, 'deliverySettings', {
+            baseFee: updatedStore.delivery_base_fee,
+            perKmFee: updatedStore.delivery_per_km_fee,
+            maxKm: updatedStore.delivery_max_km
+        }, 'Delivery settings updated');
     } catch (error) {
         next(error);
     }
@@ -206,20 +200,17 @@ const getDeliverySettings = async (req, res, next) => {
 
         const store = await repositories.stores.findById(storeId);
         if (!store) {
-            return res.status(404).json({ success: false, error: 'Store not found' });
+            return ApiResponse.error(res, 'Store not found', 404);
         }
 
         if (store.owner_id !== userId && !req.user.roles?.includes('admin')) {
-            return res.status(403).json({ success: false, error: 'Not authorized' });
+            return ApiResponse.error(res, 'Not authorized', 403);
         }
 
-        res.status(200).json({
-            success: true,
-            deliverySettings: {
-                baseFee: store.delivery_base_fee,
-                perKmFee: store.delivery_per_km_fee,
-                maxKm: store.delivery_max_km
-            }
+        ApiResponse.withEntity(res, 'deliverySettings', {
+            baseFee: store.delivery_base_fee,
+            perKmFee: store.delivery_per_km_fee,
+            maxKm: store.delivery_max_km
         });
     } catch (error) {
         next(error);

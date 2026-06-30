@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../store/cartStore';
 import { createOrder } from '../services/orders';
+import { SEO } from '../components/SEO';
 
 export const Checkout: React.FC = () => {
   const items = useCart((s) => s.items);
@@ -39,7 +40,9 @@ export const Checkout: React.FC = () => {
         });
         lat = position.coords.latitude;
         lng = position.coords.longitude;
-      } catch {}
+      } catch (e) {
+        console.warn('Geolocation failed, using defaults:', e);
+      }
     }
 
     try {
@@ -71,6 +74,7 @@ export const Checkout: React.FC = () => {
 
   return (
     <div className="flex flex-col gap-8 animate-fade-in mt-4">
+      <SEO title="Checkout" />
       <h2 className="text-2xl md:text-3xl font-bold text-body">Checkout</h2>
 
       {error && (
@@ -210,6 +214,7 @@ export const Checkout: React.FC = () => {
             type="submit"
             disabled={loading || items.length === 0}
             className="w-full bg-navy hover:bg-navy-mid text-white font-bold py-3.5 rounded-[16px] text-sm transition-colors shadow-md disabled:opacity-50"
+            aria-label="Place your order"
           >
             {loading ? 'Processing Order...' : 'Place Order'}
           </button>

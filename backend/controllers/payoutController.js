@@ -1,4 +1,5 @@
 // controllers/payoutController.js
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const paystackService = require('../services/paystackService');
 const feeConfigService = require('../services/feeConfigService');
@@ -35,26 +36,26 @@ const requestPayout = async (req, res, next) => {
         const userId = req.user.id;
 
         if (!storeId || !amount || !method) {
-            return res.status(400).json({ success: false, error: 'Store ID, amount, and method are required' });
+            return ApiResponse.error(res, 'Store ID, amount, and method are required', 400);
         }
 
         const store = await repositories.stores.findById(storeId);
-        if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
-        if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!store) return ApiResponse.error(res, 'Store not found', 404);
+        if (store.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
 
         const minPayoutAmount = await feeConfigService.get('min_payout_amount');
         if (amount < minPayoutAmount) {
-            return res.status(400).json({ success: false, error: `Minimum payout request is GHS ${minPayoutAmount}` });
+            return ApiResponse.error(res, `Minimum payout request is GHS ${minPayoutAmount}`, 400);
         }
 
         const currentBalance = Number.parseFloat(store.current_balance || 0);
         if (amount > currentBalance) {
-            return res.status(400).json({ success: false, error: 'Insufficient balance' });
+            return ApiResponse.error(res, 'Insufficient balance', 400);
         }
 
         const hasPending = await repositories.payouts.hasPendingPayout(storeId, null);
         if (hasPending) {
-            return res.status(400).json({ success: false, error: 'You already have a pending payout request' });
+            return ApiResponse.error(res, 'You already have a pending payout request', 400);
         }
 
         const payout = await repositories.payouts.requestPayout({ storeId, amount, method, details });
@@ -69,7 +70,7 @@ const requestPayout = async (req, res, next) => {
             notes: 'Manual payout request'
         });
 
-        res.status(201).json({ success: true, message: 'Payout requested successfully', payout });
+        ApiResponse.withEntity(res, 'payout', payout, 'Payout requested successfully', null, 201);
     } catch (error) {
         next(error);
     }
@@ -84,12 +85,12 @@ const getPayoutHistory = async (req, res, next) => {
         const userId = req.user.id;
 
         const store = await repositories.stores.findById(storeId);
-        if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
-        if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!store) return ApiResponse.error(res, 'Store not found', 404);
+        if (store.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
 
         const history = await repositories.payouts.getStorePayouts(storeId, { status, search, from, to, limit, offset });
 
-        res.status(200).json({ success: true, data: history });
+        ApiResponse.success(res, history);
     } catch (error) {
         next(error);
     }
@@ -103,8 +104,8 @@ const getSellerLockedBalance = async (req, res, next) => {
         const userId = req.user.id;
 
         const store = await repositories.stores.findById(storeId);
-        if (!store) return res.status(404).json({ success: false, error: 'Store not found' });
-        if (store.owner_id !== userId) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!store) return ApiResponse.error(res, 'Store not found', 404);
+        if (store.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
 
         const db = require('../config/postgres').getPool();
         // Locked = payout_eligible_at in the future OR open return request on that order
@@ -138,29 +139,29 @@ const requestDriverPayout = async (req, res, next) => {
         const { amount } = req.body;
 
         if (!amount) {
-            return res.status(400).json({ success: false, error: 'amount is required' });
+            return ApiResponse.error(res, 'amount is required', 400);
         }
 
         const profile = await repositories.userProfiles.findByUserId(userId);
-        if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+        if (!profile) return ApiResponse.error(res, 'Profile not found', 404);
 
         const minDriverPayout = await feeConfigService.get('min_driver_payout').catch(() => 10);
         if (Number.parseFloat(amount) < minDriverPayout) {
-            return res.status(400).json({ success: false, error: `Minimum payout amount is GHS ${minDriverPayout}` });
+            return ApiResponse.error(res, `Minimum payout amount is GHS ${minDriverPayout}`, 400);
         }
 
         const currentBalance = Number.parseFloat(profile.wallet_balance || 0);
         if (Number.parseFloat(amount) > currentBalance) {
-            return res.status(400).json({ success: false, error: 'Insufficient wallet balance' });
+            return ApiResponse.error(res, 'Insufficient wallet balance', 400);
         }
 
         if (!profile.payout_method) {
-            return res.status(400).json({ success: false, error: 'Please set up a payout method first' });
+            return ApiResponse.error(res, 'Please set up a payout method first', 400);
         }
 
         const hasPending = await repositories.payouts.hasPendingPayout(null, userId);
         if (hasPending) {
-            return res.status(400).json({ success: false, error: 'You already have a pending payout' });
+            return ApiResponse.error(res, 'You already have a pending payout', 400);
         }
 
         const payout = await repositories.payouts.requestPayout({
@@ -182,7 +183,7 @@ const requestDriverPayout = async (req, res, next) => {
             balance_after: currentBalance - Number.parseFloat(amount)
         });
 
-        res.status(201).json({ success: true, message: 'Payout requested', payout });
+        ApiResponse.withEntity(res, 'payout', payout, 'Payout requested', null, 201);
     } catch (error) {
         next(error);
     }
@@ -194,7 +195,7 @@ const getDriverPayoutHistory = async (req, res, next) => {
     try {
         const { status, from, to, limit, offset } = req.query;
         const history = await repositories.payouts.getDriverPayouts(req.user.id, { status, from, to, limit, offset });
-        res.json({ success: true, data: history });
+        ApiResponse.success(res, history);
     } catch (error) {
         next(error);
     }
@@ -205,7 +206,7 @@ const getDriverPayoutHistory = async (req, res, next) => {
 const getAdminPayouts = async (req, res, next) => {
     try {
         const isAdmin = await repositories.users.hasRole(req.user.id, 'admin');
-        if (!isAdmin) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!isAdmin) return ApiResponse.error(res, 'Not authorized', 403);
 
         const { type, status, search, from, to, page = 1, limit = 30 } = req.query;
         const limitNum = Math.min(parseInt(limit) || 30, 100);
@@ -213,15 +214,11 @@ const getAdminPayouts = async (req, res, next) => {
 
         const { data, count } = await repositories.payouts.getAdminPayouts({ type, status, search, from, to, limit: limitNum, offset });
 
-        res.json({
-            success: true,
-            data,
-            pagination: {
-                totalItems: count,
-                totalPages: Math.ceil(count / limitNum),
-                currentPage: parseInt(page),
-                itemsPerPage: limitNum
-            }
+        ApiResponse.paginated(res, data, {
+            totalItems: count,
+            totalPages: Math.ceil(count / limitNum),
+            currentPage: parseInt(page),
+            itemsPerPage: limitNum
         });
     } catch (error) {
         next(error);
@@ -233,7 +230,7 @@ const getAdminPayouts = async (req, res, next) => {
 const getAdminPayoutSummary = async (req, res, next) => {
     try {
         const isAdmin = await repositories.users.hasRole(req.user.id, 'admin');
-        if (!isAdmin) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!isAdmin) return ApiResponse.error(res, 'Not authorized', 403);
 
         const rows = await repositories.payouts.getAdminPayoutSummary();
 
@@ -246,7 +243,7 @@ const getAdminPayoutSummary = async (req, res, next) => {
                 total: Number.parseFloat(row.total)
             };
         }
-        res.json({ success: true, data: summary });
+        ApiResponse.success(res, summary);
     } catch (error) {
         next(error);
     }
@@ -260,16 +257,16 @@ const processPayout = async (req, res, next) => {
         const { action } = req.body; // 'approve' or 'reject'
 
         const isAdmin = await repositories.users.hasRole(req.user.id, 'admin');
-        if (!isAdmin) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!isAdmin) return ApiResponse.error(res, 'Not authorized', 403);
 
         const payout = await repositories.payouts.findById(payoutId);
-        if (!payout) return res.status(404).json({ success: false, error: 'Payout not found' });
-        if (payout.status !== 'pending') return res.status(400).json({ success: false, error: 'Payout is not pending' });
+        if (!payout) return ApiResponse.error(res, 'Payout not found', 404);
+        if (payout.status !== 'pending') return ApiResponse.error(res, 'Payout is not pending', 400);
 
         if (action === 'reject') {
             const updated = await repositories.payouts.updatePayoutStatus(payoutId, 'failed', { notes: 'Rejected by admin' });
             await _refundPayoutBalance(payout);
-            return res.json({ success: true, message: 'Payout rejected and refunded', payout: updated });
+            return ApiResponse.withEntity(res, 'payout', updated, 'Payout rejected and refunded');
         }
 
         // approve → Paystack transfer
@@ -291,14 +288,14 @@ const bulkProcessPayouts = async (req, res, next) => {
     try {
         const { ids, action } = req.body;
         if (!Array.isArray(ids) || !ids.length) {
-            return res.status(400).json({ success: false, error: 'ids array is required' });
+            return ApiResponse.error(res, 'ids array is required', 400);
         }
         if (!['approve', 'reject'].includes(action)) {
-            return res.status(400).json({ success: false, error: "action must be 'approve' or 'reject'" });
+            return ApiResponse.error(res, "action must be 'approve' or 'reject'", 400);
         }
 
         const isAdmin = await repositories.users.hasRole(req.user.id, 'admin');
-        if (!isAdmin) return res.status(403).json({ success: false, error: 'Not authorized' });
+        if (!isAdmin) return ApiResponse.error(res, 'Not authorized', 403);
 
         const results = await Promise.allSettled(ids.map(async (payoutId) => {
             const payout = await repositories.payouts.findById(payoutId);

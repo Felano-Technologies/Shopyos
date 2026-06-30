@@ -18,6 +18,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { api } from '@/services/client';
 import { useOrderDetail } from '@/hooks/useOrders';
 import { createReturnRequest } from '@/services/orders';
@@ -97,7 +98,7 @@ export default function ReturnSubmitScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Permission to access gallery is required to attach photos.');
+        CustomInAppToast.show({ type: 'error', title: 'Permission Denied', message: 'Permission to access gallery is required to attach photos.' });
         return;
       }
 
@@ -149,11 +150,11 @@ export default function ReturnSubmitScreen() {
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
-      Alert.alert('Validation Error', 'Please describe the reason for your return request.');
+      CustomInAppToast.show({ type: 'error', title: 'Validation Error', message: 'Please describe the reason for your return request.' });
       return;
     }
     if (refundPolicy && !isDisclaimerChecked) {
-      Alert.alert('Agreement Required', 'You must agree to the Return & Refund Policy to proceed.');
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'You must agree to the Return & Refund Policy to proceed.' });
       return;
     }
 
@@ -173,16 +174,10 @@ export default function ReturnSubmitScreen() {
         evidenceImages: uploadedUrls,
       });
 
-      Alert.alert('Success', 'Your return request has been submitted successfully.', [
-        {
-          text: 'OK',
-          onPress: () => {
-            router.replace('/returns');
-          },
-        },
-      ]);
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Your return request has been submitted successfully.' });
+      router.replace('/returns');
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to submit return request. Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: err.message || 'Failed to submit return request. Please try again.' });
     } finally {
       setIsSubmitting(false);
       setUploadingImage(false);

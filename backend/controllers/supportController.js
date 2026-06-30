@@ -1,4 +1,5 @@
 // controllers/supportController.js
+const ApiResponse = require('../utils/apiResponse');
 const { getPool } = require('../config/postgres');
 const { logger } = require('../config/logger');
 
@@ -17,16 +18,16 @@ const createTicket = async (req, res, next) => {
     const { reporter_role, category, subject, description, entity_type, entity_id } = req.body;
 
     if (!VALID_ROLES.includes(reporter_role)) {
-      return res.status(400).json({ success: false, message: 'Invalid reporter_role' });
+      return ApiResponse.error(res, 'Invalid reporter_role', 400);
     }
     if (!VALID_CATEGORIES.includes(category)) {
-      return res.status(400).json({ success: false, message: 'Invalid category' });
+      return ApiResponse.error(res, 'Invalid category', 400);
     }
     if (!subject?.trim() || !description?.trim()) {
-      return res.status(400).json({ success: false, message: 'subject and description are required' });
+      return ApiResponse.error(res, 'subject and description are required', 400);
     }
     if (description.trim().length < 20) {
-      return res.status(400).json({ success: false, message: 'description must be at least 20 characters' });
+      return ApiResponse.error(res, 'description must be at least 20 characters', 400);
     }
 
     const { rows } = await db.query(
@@ -37,7 +38,7 @@ const createTicket = async (req, res, next) => {
       [reporterId, reporter_role, category, subject.trim(), description.trim(), entity_type || null, entity_id || null]
     );
 
-    res.status(201).json({ success: true, ticket: rows[0] });
+    ApiResponse.withEntity(res, 'ticket', rows[0], null, null, 201);
   } catch (error) {
     logger.error(`createTicket error: ${error.message}`);
     next(error);
@@ -68,13 +69,7 @@ const getMyTickets = async (req, res, next) => {
       [reporterId]
     );
 
-    res.json({
-      success: true,
-      tickets: rows,
-      total: parseInt(countRows[0].count),
-      page,
-      pages: Math.ceil(parseInt(countRows[0].count) / limit),
-    });
+    ApiResponse.success(res, { tickets: rows, total: parseInt(countRows[0].count), page, pages: Math.ceil(parseInt(countRows[0].count) / limit) });
   } catch (error) {
     logger.error(`getMyTickets error: ${error.message}`);
     next(error);
@@ -126,13 +121,7 @@ const adminGetTickets = async (req, res, next) => {
       params
     );
 
-    res.json({
-      success: true,
-      tickets: rows,
-      total: parseInt(countRows[0].count),
-      page,
-      pages: Math.ceil(parseInt(countRows[0].count) / limit),
-    });
+    ApiResponse.success(res, { tickets: rows, total: parseInt(countRows[0].count), page, pages: Math.ceil(parseInt(countRows[0].count) / limit) });
   } catch (error) {
     logger.error(`adminGetTickets error: ${error.message}`);
     next(error);
@@ -148,10 +137,10 @@ const adminUpdateTicket = async (req, res, next) => {
     const { status, priority, admin_notes } = req.body;
 
     if (status && !VALID_STATUSES.includes(status)) {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
+      return ApiResponse.error(res, 'Invalid status', 400);
     }
     if (priority !== undefined && (priority < 1 || priority > 3)) {
-      return res.status(400).json({ success: false, message: 'priority must be 1, 2, or 3' });
+      return ApiResponse.error(res, 'priority must be 1, 2, or 3', 400);
     }
 
     const isResolving = status === 'resolved' || status === 'closed';
@@ -170,10 +159,10 @@ const adminUpdateTicket = async (req, res, next) => {
     );
 
     if (!rows.length) {
-      return res.status(404).json({ success: false, message: 'Ticket not found' });
+      return ApiResponse.error(res, 'Ticket not found', 404);
     }
 
-    res.json({ success: true, ticket: rows[0] });
+    ApiResponse.withEntity(res, 'ticket', rows[0]);
   } catch (error) {
     logger.error(`adminUpdateTicket error: ${error.message}`);
     next(error);

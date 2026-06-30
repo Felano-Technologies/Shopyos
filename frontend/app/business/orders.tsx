@@ -241,7 +241,7 @@ export default function OrdersScreen() {
   const renderOrder = ({ item }: { item: Order }) => {
     const cfg = MAP_STATUS(item.status);
     let dateStr = '';
-    try { dateStr = format(new Date(item.date), 'MMM dd, yyyy · hh:mm a'); } catch {}
+    try { dateStr = format(new Date(item.date), 'MMM dd, yyyy · hh:mm a'); } catch (e) { console.error('Failed to format order date:', e); }
 
     return (
       <TouchableOpacity
@@ -616,8 +616,7 @@ const S = StyleSheet.create({
   statCard: {
     flex: 1, backgroundColor: C.card, borderRadius: rs(14),
     padding: rs(12), alignItems: 'center',
-    elevation: 3, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(2) }, shadowOpacity: 0.06, shadowRadius: rs(8),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   statNum: { fontSize: rf(20), fontFamily: 'Montserrat-Bold', marginBottom: rs(3) },
   statLbl: { fontSize: rf(9),  fontFamily: 'Montserrat-SemiBold', color: C.subtle, marginBottom: rs(6) },
@@ -644,8 +643,7 @@ const S = StyleSheet.create({
   listWrap: { paddingHorizontal: rs(16) },
   card: {
     backgroundColor: C.card, borderRadius: rs(20), overflow: 'hidden',
-    elevation: 4, shadowColor: C.navy,
-    shadowOffset: { width: 0, height: rs(3) }, shadowOpacity: 0.07, shadowRadius: rs(12),
+    borderWidth: 1, borderColor: '#fdfdfd',
   },
   cardBar:   { height: rs(3) },
   cardInner: { padding: rs(14) },

@@ -1,6 +1,7 @@
 ﻿// controllers/loyaltyTransactionsController.js
 // Thin handler â€” delegates to LoyaltyRepository for the ledger query.
 
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 
 // @route   GET /api/v1/loyalty/transactions
@@ -20,18 +21,7 @@ const getLoyaltyTransactions = async (req, res, next) => {
     const totalPages = Math.ceil(count / limitNum);
     const currentPage = Math.floor(offset / limitNum) + 1;
 
-    res.json({
-      success: true,
-      data,
-      pagination: {
-        totalItems: count,
-        totalPages,
-        currentPage,
-        itemsPerPage: limitNum,
-        hasNext: currentPage < totalPages,
-        hasPrev: currentPage > 1
-      }
-    });
+    ApiResponse.paginated(res, data, { page: currentPage, limit: limitNum, total: count, pages: totalPages });
   } catch (err) {
     next(err);
   }

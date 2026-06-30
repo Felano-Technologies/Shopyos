@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { businessRegister } from '@/services/api';
 import { queryKeys } from '@/lib/query/keys';
 import { useProfile } from '@/hooks/useProfile';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import {
   View,
   Text,
@@ -26,6 +27,12 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import MapView, { UrlTile } from '@/components/MapView';
+const GHANA_REGIONS = [
+  'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
+  'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
+  'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North',
+];
+
 interface BusinessFormData {
   businessName: string;
   ownerName: string;
@@ -35,6 +42,7 @@ interface BusinessFormData {
   businessPhone: string;
   country: string;
   city: string;
+  stateProvince: string;
   address: string;
   latitude: number | null;
   longitude: number | null;
@@ -163,6 +171,7 @@ export default function BusinessRegistrationScreen() {
     businessPhone: '',
     country: 'Ghana',
     city: '',
+    stateProvince: '',
     address: '',
     latitude: null, 
     longitude: null,
@@ -219,14 +228,14 @@ export default function BusinessRegistrationScreen() {
       longitude: tempCoords.longitude
     }));
     setMapVisible(false);
-    Alert.alert("Location Pinned", "Your store location has been saved.");
+    CustomInAppToast.show({ type: 'success', title: 'Location Pinned', message: "Your store location has been saved." });
   };
   // --- Simulated Search (Use Google Geocoding API in Production) ---
   const handleMapSearch = () => {
     if (!searchQuery.trim()) return;
     Keyboard.dismiss();
     // For production: Use fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=YOUR_KEY`)
-    Alert.alert("Search", `Searching for "${searchQuery}"...`);
+    CustomInAppToast.show({ type: 'info', title: 'Search', message: `Searching for "${searchQuery}"...` });
     // Placeholder logic: map centers on a random point nearby for demo
     const newLat = 6.6745 + (Math.random() - 0.5) * 0.02;
     const newLng = -1.5716 + (Math.random() - 0.5) * 0.02;
@@ -262,7 +271,7 @@ export default function BusinessRegistrationScreen() {
   };
   const handleSubmit = async () => {
     if (!formData.businessName || !formData.latitude || !formData.businessEmail) {
-      Alert.alert('Missing Information', 'Please ensure Store Name, Business Email, and Map Location are set.');
+      CustomInAppToast.show({ type: 'error', title: 'Missing Information', message: 'Please ensure Store Name, Business Email, and Map Location are set.' });
       return;
     }
     setIsSubmitting(true);
@@ -273,6 +282,7 @@ export default function BusinessRegistrationScreen() {
         category: '',
         address: formData.address || '',
         city: formData.city || '',
+        stateProvince: formData.stateProvince || '',
         country: formData.country || 'Ghana',
         phone: formData.businessPhone || formData.ownerPhone || '',
         website: formData.website || '',
@@ -290,13 +300,10 @@ export default function BusinessRegistrationScreen() {
       });
       // Invalidate cached business list so dashboard fetches fresh data
       await queryClient.invalidateQueries({ queryKey: queryKeys.business.list() });
-      Alert.alert(
-        'Application Submitted',
-        'Your business is pending verification. You can view the status in the verification status page.',
-        [{ text: 'Go to Verification Status', onPress: () => router.replace('/business/verification-status') }]
-      );
+      CustomInAppToast.show({ type: 'success', title: 'Application Submitted', message: 'Your business is pending verification. You can view the status in the verification status page.' });
+      router.replace('/business/verification-status');
     } catch (e: any) {
-      Alert.alert('Registration Failed', e.message || 'Something went wrong. Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Registration Failed', message: e.message || 'Something went wrong. Please try again.' });
     } finally {
       setIsSubmitting(false);
     }
@@ -351,6 +358,21 @@ export default function BusinessRegistrationScreen() {
                         <RegistrationField icon="location-outline" value={formData.address} placeholder="Street Address / Shop No. / GPS" onChangeText={(t: string) => handleInputChange('address', t)} />
                         <View style={styles.divider} />
                         <RegistrationField icon="map-outline" value={formData.city} isDropdown={true} placeholder="Select City" onAction={() => setShowCityModal(true)} />
+                        <View style={styles.divider} />
+                        <View style={{ paddingVertical: 10, paddingHorizontal: 4 }}>
+                          <Text style={{ fontFamily: 'Montserrat-SemiBold', fontSize: 13, color: '#64748B', marginBottom: 8 }}>Region / State *</Text>
+                          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                            {GHANA_REGIONS.map((reg) => (
+                              <TouchableOpacity
+                                key={reg}
+                                style={[{ paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, marginRight: 8, borderColor: formData.stateProvince === reg ? '#0C1559' : '#CBD5E1', backgroundColor: formData.stateProvince === reg ? '#0C1559' : '#F8FAFC' }]}
+                                onPress={() => handleInputChange('stateProvince', reg)}
+                              >
+                                <Text style={[{ fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: formData.stateProvince === reg ? '#FFF' : '#64748B' }]}>{reg}</Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                        </View>
                     </View>
                     <Text style={styles.sectionHeader}>Verification & Finance</Text>
                     <View style={styles.sectionCard}>

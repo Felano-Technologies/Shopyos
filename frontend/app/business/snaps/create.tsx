@@ -50,7 +50,7 @@ export default function CreateSnapScreen() {
           onPress: async () => {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') {
-              Alert.alert('Permission Required', 'Camera access is needed to take photos or videos.');
+              CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Camera access is needed to take photos or videos.' });
               return;
             }
             const result = await ImagePicker.launchCameraAsync({
@@ -70,7 +70,7 @@ export default function CreateSnapScreen() {
           onPress: async () => {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') {
-              Alert.alert('Permission Required', 'Gallery access is needed to select photos or videos.');
+              CustomInAppToast.show({ type: 'error', title: 'Permission Required', message: 'Gallery access is needed to select photos or videos.' });
               return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -107,7 +107,7 @@ export default function CreateSnapScreen() {
       // Handle both seconds (e.g. 7) and milliseconds (e.g. 7000)
       const durationInSeconds = duration > 300 ? duration / 1000 : duration;
       if (durationInSeconds > 60) {
-        Alert.alert('Video Too Long', 'Snap videos are limited to a maximum length of 1 minute (60 seconds).');
+        CustomInAppToast.show({ type: 'error', title: 'Video Too Long', message: 'Snap videos are limited to a maximum length of 1 minute (60 seconds).' });
         return;
       }
     }
@@ -115,7 +115,7 @@ export default function CreateSnapScreen() {
     // 2. Check file size limit (100MB)
     const maxSize = 100 * 1024 * 1024;
     if (asset.fileSize && asset.fileSize > maxSize) {
-      Alert.alert('File Too Large 📂', 'Selected photo or video exceeds the 100MB size limit. Please choose a smaller file.');
+      CustomInAppToast.show({ type: 'error', title: 'File Too Large', message: 'Selected photo or video exceeds the 100MB size limit. Please choose a smaller file.' });
       return;
     }
 
@@ -134,11 +134,11 @@ export default function CreateSnapScreen() {
 
   const handlePost = async () => {
     if (!imageUri) {
-      Alert.alert('Missing Media', 'Please select a photo or video for your snap.');
+      CustomInAppToast.show({ type: 'error', title: 'Missing Media', message: 'Please select a photo or video for your snap.' });
       return;
     }
     if (contentTerms && !isTermsChecked) {
-      Alert.alert('Agreement Required', 'Please agree to the Content Policy before posting your snap.');
+      CustomInAppToast.show({ type: 'info', title: 'Agreement Required', message: 'Please agree to the Content Policy before posting your snap.' });
       return;
     }
 
@@ -152,7 +152,7 @@ export default function CreateSnapScreen() {
       router.back();
     } catch (e: any) {
       stopFakeProgress();
-      Alert.alert('Error', e.message || 'Could not post snap.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not post snap.' });
     } finally {
       setLoading(false);
     }

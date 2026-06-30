@@ -1,4 +1,5 @@
-﻿const { getPool } = require('../config/postgres');
+﻿const ApiResponse = require('../utils/apiResponse');
+const { getPool } = require('../config/postgres');
 
 /**
  * @route  POST /api/v1/promo/validate
@@ -13,7 +14,7 @@ const validatePromoCode = async (req, res, next) => {
     const { code, subtotal } = req.body;
 
     if (!code || subtotal === undefined) {
-      return res.status(400).json({ success: false, error: 'code and subtotal are required' });
+      return ApiResponse.error(res, 'code and subtotal are required', 400);
     }
 
     const pool = getPool();
@@ -24,24 +25,21 @@ const validatePromoCode = async (req, res, next) => {
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'Invalid or expired promo code' });
+      return ApiResponse.error(res, 'Invalid or expired promo code', 404);
     }
 
     const promo = rows[0];
 
     if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
-      return res.status(400).json({ success: false, error: 'This promo code has expired' });
+      return ApiResponse.error(res, 'This promo code has expired', 400);
     }
 
     if (promo.max_uses !== null && promo.uses_count >= promo.max_uses) {
-      return res.status(400).json({ success: false, error: 'This promo code has reached its usage limit' });
+      return ApiResponse.error(res, 'This promo code has reached its usage limit', 400);
     }
 
     if (Number.parseFloat(subtotal) < Number.parseFloat(promo.min_order)) {
-      return res.status(400).json({
-        success: false,
-        error: `Minimum order of â‚µ${Number.parseFloat(promo.min_order).toFixed(2)} required for this code`,
-      });
+      return ApiResponse.error(res, `Minimum order of â‚µ${Number.parseFloat(promo.min_order).toFixed(2)} required for this code`, 400);
     }
 
     const { rows: used } = await pool.query(
@@ -50,7 +48,7 @@ const validatePromoCode = async (req, res, next) => {
     );
 
     if (used.length > 0) {
-      return res.status(400).json({ success: false, error: 'You have already used this promo code' });
+      return ApiResponse.error(res, 'You have already used this promo code', 400);
     }
 
     let discountAmount =
@@ -61,8 +59,7 @@ const validatePromoCode = async (req, res, next) => {
     discountAmount = Math.min(discountAmount, Number.parseFloat(subtotal));
     discountAmount = Number.parseFloat(discountAmount.toFixed(2));
 
-    return res.json({
-      success: true,
+    return ApiResponse.success(res, {
       promo: {
         id: promo.id,
         code: promo.code.toUpperCase(),

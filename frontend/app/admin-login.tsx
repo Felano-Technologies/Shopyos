@@ -42,7 +42,9 @@ async function getLocation() {
       ]);
       if (loc?.coords) return { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
     }
-  } catch {}
+  } catch (e) {
+    console.warn('Failed to get geolocation:', e);
+  }
   return { latitude: 0, longitude: 0 };
 }
 

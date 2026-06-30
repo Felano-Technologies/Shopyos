@@ -21,10 +21,10 @@ jest.mock('@tanstack/react-query', () => ({
   useQueryClient: jest.fn(),
 }));
 
-// Mock react-native Alert
-jest.mock('react-native', () => ({
+// Mock CustomInAppToast
+jest.mock('@/components/InAppToastHost', () => ({
   __esModule: true,
-  Alert: { alert: jest.fn() },
+  CustomInAppToast: { show: jest.fn() },
 }));
 
 // Mock favorites API and keys
@@ -45,7 +45,7 @@ jest.mock('expo-router', () => ({
 }));
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Alert } from 'react-native';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { favoritesApi } from '@/lib/query/api';
 import {
   useFavorites,
@@ -168,7 +168,7 @@ describe('useFavorites Hooks Unit Tests', () => {
       queryKeys.favorites.list(),
       previousFavs
     );
-    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Failed to add to favorites');
+    expect(CustomInAppToast.show).toHaveBeenCalledWith({ type: 'error', title: 'Error', message: 'Failed to add to favorites' });
 
     // Verify onSuccess invalidates keys
     config.onSuccess();
@@ -226,7 +226,7 @@ describe('useFavorites Hooks Unit Tests', () => {
       queryKeys.favorites.list(),
       previousFavs
     );
-    expect(Alert.alert).toHaveBeenCalledWith('Error', 'Access denied');
+    expect(CustomInAppToast.show).toHaveBeenCalledWith({ type: 'error', title: 'Error', message: 'Access denied' });
 
     // Verify onSuccess
     config.onSuccess();

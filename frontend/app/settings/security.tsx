@@ -17,6 +17,7 @@ import { Ionicons, Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { storage } from '@/services/api';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -52,6 +53,8 @@ function SectionPill({
 }>) {
   return (
     <TouchableOpacity
+      accessibilityLabel={label}
+      accessibilityRole="button"
       onPress={onPress}
       style={[styles.catPill, active && styles.catPillActive]}
     >
@@ -82,6 +85,8 @@ function ToggleRow({
           <Text style={styles.rowSubtitle}>{subtitle}</Text>
         </View>
         <Switch
+          accessibilityLabel={`${title}: ${value ? 'enabled' : 'disabled'}`}
+          accessibilityRole="switch"
           value={value}
           onValueChange={onValueChange}
           trackColor={{ false: '#E2E8F0', true: '#A3E635' }}
@@ -109,7 +114,7 @@ function LinkRow({
   danger?: boolean;
 }>) {
   return (
-    <TouchableOpacity style={styles.rowCard} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity accessibilityLabel={title} accessibilityRole="button" style={styles.rowCard} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.rowInner}>
         <View style={[styles.rowIconWrap, danger && { backgroundColor: '#FEF2F2' }]}>
           {icon}
@@ -207,7 +212,9 @@ export default function SecurityPrivacySettings() {
           if (val !== null) updates[key] = JSON.parse(val);
         }
         setToggles((prev) => ({ ...prev, ...updates }));
-      } catch {}
+      } catch (e) {
+        console.error('Failed to load security toggle settings:', e);
+      }
     })();
   }, []);
 
@@ -216,7 +223,9 @@ export default function SecurityPrivacySettings() {
     setToggles((prev) => ({ ...prev, [key]: value }));
     try {
       await storage.setItem(key, JSON.stringify(value));
-    } catch {}
+    } catch (e) {
+      console.error('Failed to save toggle setting:', e);
+    }
   };
 
   const switchSection = (section: Section) => {
@@ -224,27 +233,19 @@ export default function SecurityPrivacySettings() {
     setActiveSection(section);
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleDeleteAccount = () => {
-    Alert.alert(
-      'Delete Account',
-      'This permanently deletes your account and all associated data. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete My Account',
-          style: 'destructive',
-          onPress: () =>
-            Alert.alert(
-              'Request Submitted',
-              'Your account deletion request has been received and will be processed within 30 days.'
-            ),
-        },
-      ]
-    );
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteAccount = () => {
+    setShowDeleteConfirm(false);
+    CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received and will be processed within 30 days.' });
   };
 
   const handleDownloadData = () =>
-    Alert.alert('Data Export', "We'll email you a download link within 24 hours.");
+    CustomInAppToast.show({ type: 'info', title: 'Data Export', message: "We'll email you a download link within 24 hours." });
 
   return (
     <View style={styles.mainContainer}>
@@ -270,7 +271,7 @@ export default function SecurityPrivacySettings() {
         >
           <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
             <View style={styles.headerContent}>
-              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.backBtn}>
                 <Ionicons name="arrow-back" size={22} color="#FFF" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Privacy & Security</Text>
@@ -444,6 +445,8 @@ export default function SecurityPrivacySettings() {
             <Text style={styles.supportText}>Our support team is available 24/7.</Text>
           </View>
           <TouchableOpacity
+            accessibilityLabel="Contact support"
+            accessibilityRole="button"
             style={styles.contactBtn}
             onPress={() => router.push('/settings/contactUs' as any)}
           >
@@ -451,6 +454,18 @@ export default function SecurityPrivacySettings() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title="Delete Account"
+        message="This permanently deletes your account and all associated data. This cannot be undone."
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowDeleteConfirm(false), variant: 'cancel' },
+          { label: 'Delete My Account', onPress: confirmDeleteAccount, variant: 'destructive' },
+        ]}
+      />
     </View>
   );
 }

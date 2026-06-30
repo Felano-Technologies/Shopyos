@@ -236,7 +236,7 @@ function ProductGridBase({
 export const ProductGrid = React.memo(ProductGridBase);
 
 const S = StyleSheet.create({
-  section: { marginBottom: 8 },
+  section: { marginBottom: 8, backgroundColor: '#fff' },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -249,11 +249,8 @@ const S = StyleSheet.create({
     backgroundColor: C.card,
     borderRadius: 22,
     overflow: 'hidden',
-    elevation: 8,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
     marginBottom: 14,
   },
   // Ad cards need an explicit height so absoluteFill children render correctly

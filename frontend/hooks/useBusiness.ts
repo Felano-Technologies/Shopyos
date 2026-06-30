@@ -27,11 +27,13 @@ export const useBusinessDashboard = (businessId: string) => {
 
 export const useBusinessAnalytics = (
   businessId: string,
-  timeframe: 'week' | 'month' | 'year'
+  timeframe: 'week' | 'month' | 'year',
+  startDate?: string,
+  endDate?: string,
 ) => {
   return useQuery({
-    queryKey: queryKeys.business.analytics(businessId, timeframe),
-    queryFn: () => ApiService.getBusinessAnalytics(businessId, timeframe),
+    queryKey: queryKeys.business.analytics(businessId, timeframe, startDate, endDate),
+    queryFn: () => ApiService.getBusinessAnalytics(businessId, timeframe, startDate, endDate),
     enabled: !!businessId,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,

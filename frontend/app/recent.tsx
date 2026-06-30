@@ -313,7 +313,7 @@ export default function RecentScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#e9f0ff'
+    backgroundColor: '#fff'
   },
 
   // Background Watermark

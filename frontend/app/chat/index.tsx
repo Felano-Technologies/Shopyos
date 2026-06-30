@@ -6,6 +6,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useAllConversations, useChatActions } from '@/hooks/useChat';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { startConversation, getChatContacts } from '@/services/api';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,6 +37,7 @@ export default function ChatInbox() {
   const { markAsRead, refresh, deleteConversation } = useChatActions();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
+  const [deleteTarget, setDeleteTarget] = useState<any>(null);
   const filters = ['All', 'Unread', 'Read'];
 
   // New Chat Modal State
@@ -167,21 +169,20 @@ export default function ChatInbox() {
   }, [markAsRead, router]);
 
   const handleLongPress = useCallback((item: any) => {
-    Alert.alert('Delete Chat', `Delete conversation with ${item.name}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          const ok = await deleteConversation(item.id, 'buyer');
-          CustomInAppToast.show({
-            type: ok ? 'success' : 'error',
-            title: ok ? 'Deleted' : 'Error',
-            message: ok ? 'Conversation deleted successfully' : 'Failed to delete conversation'
-          });
-        },
-      },
-    ]);
-  }, [deleteConversation]);
+    setDeleteTarget(item);
+  }, []);
+
+  const confirmDeleteChat = async () => {
+    if (!deleteTarget) return;
+    const item = deleteTarget;
+    setDeleteTarget(null);
+    const ok = await deleteConversation(item.id, 'buyer');
+    CustomInAppToast.show({
+      type: ok ? 'success' : 'error',
+      title: ok ? 'Deleted' : 'Error',
+      message: ok ? 'Conversation deleted successfully' : 'Failed to delete conversation'
+    });
+  };
 
   const initials = (name: string) =>
     (name || 'U').split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
@@ -390,6 +391,18 @@ export default function ChatInbox() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmModal
+        visible={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete Chat"
+        message={deleteTarget ? `Delete conversation with ${deleteTarget.name}?` : ''}
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setDeleteTarget(null), variant: 'cancel' },
+          { label: 'Delete', onPress: confirmDeleteChat, variant: 'destructive' },
+        ]}
+      />
     </View>
   );
 }

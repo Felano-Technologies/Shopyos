@@ -1,7 +1,8 @@
 const winston = require('winston');
+const { envInt } = require('./envConfig');
 
 const { combine, timestamp, printf, colorize, errors } = winston.format;
-const LOG_LEVEL = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'http' : 'debug');
+const LOG_LEVEL = process.env.LOG_LEVEL || (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
 const devFormat = combine(
     colorize(),
@@ -30,7 +31,8 @@ const prodFormat = combine(
     })
 );
 
-// Keep the last 200 logs in memory for debugging
+// Keep the last N logs in memory for debugging (configurable via IN_MEMORY_LOG_CAP)
+const IN_MEMORY_LOG_CAP = envInt('IN_MEMORY_LOG_CAP', 200);
 const memoryLogs = [];
 class MemoryTransport extends winston.Transport {
     log(info, callback) {
@@ -43,7 +45,7 @@ class MemoryTransport extends winston.Transport {
         const msg = `${info.timestamp || new Date().toISOString()} [${info.level.toUpperCase()}]${reqId}: ${info.message}${metaStr}${stack}`;
         
         memoryLogs.push(msg);
-        if (memoryLogs.length > 200) memoryLogs.shift();
+        if (memoryLogs.length > IN_MEMORY_LOG_CAP) memoryLogs.shift();
         
         callback();
     }
@@ -80,6 +82,8 @@ if (process.env.LOKI_HOST) {
     }));
 }
 
+const SLOW_THRESHOLD_MS = envInt('SLOW_REQUEST_THRESHOLD_MS', 1000);
+
 const httpLogMiddleware = (req, res, next) => {
     const start = Date.now();
     const originalEnd = res.end;
@@ -103,7 +107,7 @@ const httpLogMiddleware = (req, res, next) => {
             logger.error('HTTP Request', logData);
         } else if (res.statusCode >= 400) {
             logger.warn('HTTP Request', logData);
-        } else if (duration > 1000) {
+        } else if (duration > SLOW_THRESHOLD_MS) {
             logger.warn('SLOW Request', logData);
         } else {
             logger.http('HTTP Request', logData);

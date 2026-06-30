@@ -1,4 +1,5 @@
 // controllers/userActionController.js
+const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { resolveImageUrl } = require('../config/storage');
@@ -10,11 +11,11 @@ const blockUser = async (req, res, next) => {
         const { blockedId } = req.body;
 
         if (!blockedId) {
-            return res.status(400).json({ success: false, message: 'Blocked user ID is required' });
+            return ApiResponse.error(res, 'Blocked user ID is required', 400);
         }
 
         if (blockerId === blockedId) {
-            return res.status(400).json({ success: false, message: 'You cannot block yourself' });
+            return ApiResponse.error(res, 'You cannot block yourself', 400);
         }
 
         const { error } = await repositories.users.db.from('user_blocks').insert({
@@ -25,12 +26,12 @@ const blockUser = async (req, res, next) => {
         if (error) {
             // Postgres unique constraint violation
             if (error.code === '23505') {
-                return res.status(400).json({ success: false, message: 'User is already blocked' });
+                return ApiResponse.error(res, 'User is already blocked', 400);
             }
             throw error;
         }
 
-        res.status(200).json({ success: true, message: 'User blocked successfully' });
+        ApiResponse.success(res, null, 'User blocked successfully');
     } catch (error) {
         logger.error(`Error blocking user: ${error.message}`);
         next(error);
@@ -44,7 +45,7 @@ const unblockUser = async (req, res, next) => {
         const { blockedId } = req.params;
 
         if (!blockedId) {
-            return res.status(400).json({ success: false, message: 'Blocked user ID is required' });
+            return ApiResponse.error(res, 'Blocked user ID is required', 400);
         }
 
         const { error } = await repositories.users.db.from('user_blocks')
@@ -53,7 +54,7 @@ const unblockUser = async (req, res, next) => {
 
         if (error) throw error;
 
-        res.status(200).json({ success: true, message: 'User unblocked successfully' });
+        ApiResponse.success(res, null, 'User unblocked successfully');
     } catch (error) {
         logger.error(`Error unblocking user: ${error.message}`);
         next(error);
@@ -90,7 +91,7 @@ const getBlockedUsers = async (req, res, next) => {
             } : null
         })));
 
-        res.status(200).json({ success: true, blockedUsers });
+        ApiResponse.withEntity(res, 'blockedUsers', blockedUsers);
     } catch (error) {
         logger.error(`Error fetching blocked users: ${error.message}`);
         next(error);
@@ -104,11 +105,11 @@ const reportEntity = async (req, res, next) => {
         const { entityType, entityId, reason, details } = req.body;
 
         if (!entityType || !entityId || !reason) {
-            return res.status(400).json({ success: false, message: 'Entity type, entity ID, and reason are required' });
+            return ApiResponse.error(res, 'Entity type, entity ID, and reason are required', 400);
         }
 
         if (entityType !== 'user' && entityType !== 'store') {
-            return res.status(400).json({ success: false, message: 'Invalid entity type' });
+            return ApiResponse.error(res, 'Invalid entity type', 400);
         }
 
         const insertData = {
@@ -120,7 +121,7 @@ const reportEntity = async (req, res, next) => {
 
         if (entityType === 'user') {
             if (entityId === reporterId) {
-                return res.status(400).json({ success: false, message: 'You cannot report yourself' });
+                return ApiResponse.error(res, 'You cannot report yourself', 400);
             }
             insertData.reported_user_id = entityId;
         } else {
@@ -131,7 +132,7 @@ const reportEntity = async (req, res, next) => {
 
         if (error) throw error;
 
-        res.status(200).json({ success: true, message: 'Report submitted successfully' });
+        ApiResponse.success(res, null, 'Report submitted successfully');
     } catch (error) {
         logger.error(`Error submitting report: ${error.message}`);
         next(error);

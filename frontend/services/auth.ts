@@ -27,12 +27,14 @@ export const signInWithGoogle = async (idToken: string) => {
           await initCartForUser(meResponse.data.id);
         }
         await cacheUserProfile(meResponse.data);
-      } catch {}
-      try {
+      } catch (e) {
+        console.warn('Failed to sync profile after google sign-in:', e);
+      }
         const pushToken = await storage.getItem('expoPushToken');
         if (pushToken) await registerPushTokenInBackend(pushToken);
-      } catch {}
-    }
+      } catch (e) {
+        console.warn('Failed to register push token after google sign-in:', e);
+      }
     const needsRole =
       response.data.requiresRoleSelection ||
       response.data.role === 'none' ||
@@ -128,8 +130,9 @@ export const logoutUser = async () => {
         const { clearCartForUser } = require('@/store/cartStore');
         await clearCartForUser(userId);
       }
-    } catch {}
-    await Promise.all([
+    } catch (e) {
+      console.error('Failed to clear cart for user on logout:', e);
+    }
       secureStorage.removeItem('userToken'),
       secureStorage.removeItem('refreshToken'),
       secureStorage.removeItem('businessToken'),
@@ -143,8 +146,9 @@ export const logoutUser = async () => {
     try {
       const { socketService } = require('./socket');
       socketService.disconnect();
-    } catch {}
-  }
+    } catch (e) {
+      console.error('Failed to disconnect socket on logout:', e);
+    }
 };
 
 export const loginUser = async (
@@ -261,7 +265,7 @@ export const uploadAvatar = async (uri: string, options?: { fileName?: string; m
 
     const raw = await response.text();
     let parsed: any = null;
-    try { parsed = raw ? JSON.parse(raw) : null; } catch {}
+    try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = null; }
 
     if (!response.ok) {
       const msg =

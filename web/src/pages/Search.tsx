@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useProductSearch } from '../hooks/useProducts';
+import { useInfiniteProductSearch } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { useCart } from '../store/cartStore';
 import { Skeleton } from '../components/common/Skeleton';
+import { SEO } from '../components/SEO';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 export const Search: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -22,8 +24,22 @@ export const Search: React.FC = () => {
   if (categoryId) filters.category = categoryId;
   if (sortBy) filters.sortBy = sortBy;
 
-  const { data: searchResults, isLoading } = useProductSearch(query || ' ', filters);
+  const {
+    data: searchResults,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteProductSearch(query || ' ', filters);
   const addToCart = useCart((s) => s.addToCart);
+
+  const products = searchResults?.pages?.flatMap(p => p.products ?? p.data ?? []) || [];
+
+  const { sentinelRef } = useInfiniteScroll({
+    hasMore: !!hasNextPage,
+    isLoading: isFetchingNextPage,
+    onLoadMore: fetchNextPage,
+  });
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,22 +69,23 @@ export const Search: React.FC = () => {
     }));
   };
 
-  const products = searchResults?.products || [];
-
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
+      <SEO title={query ? `Search: ${query}` : 'Search Products'} />
       {/* Search Input Bar */}
-      <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full max-w-xl mx-auto px-4 md:px-0 mt-4 mb-6">
+      <form onSubmit={handleSearchSubmit} className="flex gap-2 w-full max-w-xl mx-auto px-4 md:px-0 mt-4 mb-6" role="search">
         <input
           type="text"
           placeholder="Search products..."
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
           className="flex-1 px-4 py-3 rounded-[16px] bg-white focus:outline-none focus:ring-2 focus:ring-navy shadow-sm text-sm text-body placeholder:text-subtle"
+          aria-label="Search products"
         />
         <button
           type="submit"
           className="bg-navy hover:bg-navy-mid text-white font-bold px-6 py-3 rounded-[16px] text-sm transition-colors shadow-sm"
+          aria-label="Submit search"
         >
           Search
         </button>
@@ -99,14 +116,15 @@ export const Search: React.FC = () => {
                 <button
                   key={cat.id}
                   onClick={() => handleCategorySelect(cat.id)}
-                  className={`text-left px-3 py-2 rounded-[12px] text-sm font-semibold transition-all ${
-                    cat.id === categoryId
-                      ? 'bg-navy/10 text-navy'
-                      : 'text-subtle hover:bg-gray-50'
-                  }`}
-                >
-                  {cat.name}
-                </button>
+                    className={`text-left px-3 py-2 rounded-[12px] text-sm font-semibold transition-all ${
+                      cat.id === categoryId
+                        ? 'bg-navy/10 text-navy'
+                        : 'text-subtle hover:bg-gray-50'
+                    }`}
+                    aria-label={`Filter by category: ${cat.name}`}
+                  >
+                    {cat.name}
+                  </button>
               ))}
             </div>
           </div>
@@ -186,6 +204,12 @@ export const Search: React.FC = () => {
               ))}
             </div>
           )}
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
+            </div>
+          )}
+          <div ref={sentinelRef} />
         </div>
       </div>
     </div>

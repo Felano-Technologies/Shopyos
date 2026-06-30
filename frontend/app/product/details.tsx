@@ -18,6 +18,7 @@ import {
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -222,7 +223,7 @@ export default function ProductDetails() {
                 const updated = await getReviewComments(selectedReviewId);
                 setActiveComments(updated.comments);
             }
-        } catch (err: unknown) { Alert.alert("Error", err instanceof Error ? err.message : "Could not post comment"); }
+        } catch (err: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: err instanceof Error ? err.message : "Could not post comment" }); }
         finally { setCommentSubmitting(false); }
     };
     const toggleFavorite = async () => {
@@ -234,12 +235,12 @@ export default function ProductDetails() {
                 await addToFavorites(product.id);
                 setIsLiked(true);
             }
-        } catch (error: unknown) { Alert.alert("Error", error instanceof Error ? error.message : "Failed to update favorites"); }
+        } catch (error: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to update favorites" }); }
     };
     const handleChat = async () => {
         try {
             if (!product.sellerId) {
-                Alert.alert("Error", "Seller information not available");
+                CustomInAppToast.show({ type: 'error', title: 'Error', message: "Seller information not available" });
                 return;
             }
             const res = await startConversation(product.sellerId);
@@ -256,7 +257,7 @@ export default function ProductDetails() {
                     }
                 });
             }
-        } catch (error: unknown) { Alert.alert("Error", error instanceof Error ? error.message : "Failed to start chat with seller"); }
+        } catch (error: unknown) { CustomInAppToast.show({ type: 'error', title: 'Error', message: error instanceof Error ? error.message : "Failed to start chat with seller" }); }
     };
     const handleAttributeSelect = (optionName: string, value: string) => {
         const next = { ...selectedAttributes, [optionName]: value };
@@ -274,7 +275,7 @@ export default function ProductDetails() {
     const handleAddToCart = async () => {
         if (isOutOfStock) return;
         if (variantOptions.length > 0 && !allOptionsSelected) {
-            Alert.alert('Select options', 'Please select all options before adding to cart.');
+            CustomInAppToast.show({ type: 'info', title: 'Select options', message: 'Please select all options before adding to cart.' });
             return;
         }
 
@@ -289,6 +290,8 @@ export default function ProductDetails() {
                     image: product.image,
                     category: product.category,
                     storeId: product.storeId,
+                    storeName: product.sellerName,
+                    storeLogo: product.storeImage,
                     bargain_discount: Number(bargain.bargain_discount),
                     bargain_offer_id: bargain.id,
                 });
@@ -304,6 +307,8 @@ export default function ProductDetails() {
             image: product.image,
             category: product.category,
             storeId: product.storeId,
+            storeName: product.sellerName,
+            storeLogo: product.storeImage,
             variantId: selectedVariant?.id || null,
             variantAttributes: selectedVariant?.attributes || undefined,
         });
@@ -344,10 +349,10 @@ export default function ProductDetails() {
             {/* Floating header — back & favourite buttons always visible */}
             <SafeAreaView edges={['top']} style={styles.floatingHeader} pointerEvents="box-none">
                 <View style={styles.headerOverlay}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
+                    <TouchableOpacity accessibilityLabel="Go back" accessibilityRole="button" onPress={() => router.back()} style={styles.iconBtn}>
                         <Ionicons name="arrow-back" size={24} color="#0C1559" />
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={toggleFavorite} style={styles.iconBtn}>
+                    <TouchableOpacity accessibilityLabel="Toggle favorite" accessibilityRole="button" onPress={toggleFavorite} style={styles.iconBtn}>
                         <Ionicons name={isLiked ? "heart" : "heart-outline"} size={24} color={isLiked ? "#EF4444" : "#0C1559"} />
                     </TouchableOpacity>
                 </View>
@@ -436,6 +441,8 @@ export default function ProductDetails() {
                                         const active = selectedAttributes[opt.option_name] === val;
                                         return (
                                             <TouchableOpacity
+                                                accessibilityLabel={`Select ${val}`}
+                                                accessibilityRole="button"
                                                 key={val}
                                                 style={[styles.variantChip, active && styles.variantChipActive]}
                                                 onPress={() => handleAttributeSelect(opt.option_name, val)}
@@ -482,7 +489,7 @@ export default function ProductDetails() {
                                     </View>
                                 </View>
                             </View>
-                            <TouchableOpacity style={styles.visitBtn} onPress={() => product.storeId && router.push({ pathname: '/stores/details', params: { id: product.storeId } })}>
+                            <TouchableOpacity accessibilityLabel="Visit store" accessibilityRole="button" style={styles.visitBtn} onPress={() => product.storeId && router.push({ pathname: '/stores/details', params: { id: product.storeId } })}>
                                 <Text style={styles.visitText}>Visit Store</Text>
                             </TouchableOpacity>
                         </View>
@@ -490,7 +497,7 @@ export default function ProductDetails() {
                         <View style={styles.reviewsSection}>
                             <View style={styles.sectionHeaderRow}>
                                 <Text style={styles.sectionTitle}>Community Reviews</Text>
-                                <TouchableOpacity onPress={() => router.push(`/review/product/${product.id}` as any)}>
+                                <TouchableOpacity accessibilityLabel="Write a review" accessibilityRole="button" onPress={() => router.push(`/review/product/${product.id}` as any)}>
                                     <Text style={styles.writeReviewText}>Write a Review</Text>
                                 </TouchableOpacity>
                             </View>
@@ -507,6 +514,8 @@ export default function ProductDetails() {
                     <>
                         {/* Row 1: Add to Cart — full width */}
                         <TouchableOpacity
+                            accessibilityLabel={cartBtnText}
+                            accessibilityRole="button"
                             style={styles.cartBtnFull}
                             onPress={handleAddToCart}
                             disabled={isOutOfStock}
@@ -523,11 +532,13 @@ export default function ProductDetails() {
                         </TouchableOpacity>
                         {/* Row 2: Chat icon + Make Offer */}
                         <View style={styles.bottomRow2}>
-                            <TouchableOpacity style={styles.chatBtn} onPress={handleChat}>
+                            <TouchableOpacity accessibilityLabel="Chat with seller" accessibilityRole="button" style={styles.chatBtn} onPress={handleChat}>
                                 <Ionicons name="chatbubble-ellipses-outline" size={22} color="#0C1559" />
                                 <Text style={styles.chatText}>Chat</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
+                                accessibilityLabel="Make an offer"
+                                accessibilityRole="button"
                                 style={styles.offerBtn}
                                 onPress={() => router.push({ pathname: '/bargain/make-offer', params: { productId: product.id } })}
                                 activeOpacity={0.85}
@@ -546,11 +557,11 @@ export default function ProductDetails() {
                 ) : (
                     /* ── Single-row layout (no bargaining) ── */
                     <>
-                        <TouchableOpacity style={styles.chatBtn} onPress={handleChat}>
+                        <TouchableOpacity accessibilityLabel="Chat with seller" accessibilityRole="button" style={styles.chatBtn} onPress={handleChat}>
                             <Ionicons name="chatbubble-ellipses-outline" size={24} color="#0C1559" />
                             <Text style={styles.chatText}>Chat</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity style={styles.cartBtn} onPress={handleAddToCart} disabled={isOutOfStock} activeOpacity={isOutOfStock ? 1 : 0.8}>
+                        <TouchableOpacity accessibilityLabel={cartBtnText} accessibilityRole="button" style={styles.cartBtn} onPress={handleAddToCart} disabled={isOutOfStock} activeOpacity={isOutOfStock ? 1 : 0.8}>
                             <LinearGradient
                                 colors={isOutOfStock ? ['#94A3B8', '#94A3B8'] : ['#0C1559', '#1e3a8a']}
                                 style={styles.cartGradient}
@@ -580,10 +591,10 @@ export default function ProductDetails() {
                         <Text style={styles.modalTitle}>Success!</Text>
                         <Text style={styles.modalMessage}><Text style={{ fontWeight: '700' }}>{product.title}</Text> has been added to your cart.</Text>
                         <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.continueBtn} onPress={() => setSuccessModalVisible(false)}>
+                            <TouchableOpacity accessibilityLabel="Continue shopping" accessibilityRole="button" style={styles.continueBtn} onPress={() => setSuccessModalVisible(false)}>
                                 <Text style={styles.continueText}>Continue Shopping</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.viewCartBtn} onPress={() => { setSuccessModalVisible(false); router.push('/cart'); }}>
+                            <TouchableOpacity accessibilityLabel="View cart" accessibilityRole="button" style={styles.viewCartBtn} onPress={() => { setSuccessModalVisible(false); router.push('/cart'); }}>
                                 <LinearGradient colors={['#0C1559', '#1e3a8a']} style={styles.viewCartGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
                                     <Text style={styles.viewCartText}>View Cart</Text>
                                     <Feather name="arrow-right" size={16} color="#FFF" />

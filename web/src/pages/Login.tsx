@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { loginUser } from '../services/auth';
+import { SEO } from '../components/SEO';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -51,6 +52,7 @@ export const Login: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[75vh] p-4">
+      <SEO title="Sign In" />
       <div className="bg-white animate-fade-in w-full max-w-[420px] p-8 md:p-10 rounded-[24px] shadow-sm border border-gray-100">
         <div className="flex justify-center mb-6">
           <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-16 h-16 object-contain rounded-2xl shadow-sm" />
@@ -108,6 +110,7 @@ export const Login: React.FC = () => {
             type="submit"
             disabled={loading}
             className="bg-navy text-white hover:bg-navy-mid font-bold py-3.5 rounded-[16px] text-sm transition-colors mt-4 shadow-sm disabled:opacity-50"
+            aria-label="Sign in to your account"
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>

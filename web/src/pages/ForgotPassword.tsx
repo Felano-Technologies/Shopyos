@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { requestPasswordResetOTP } from '../services/auth';
+import { SEO } from '../components/SEO';
 
 export const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -37,6 +38,7 @@ export const ForgotPassword: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[75vh] p-4">
+      <SEO title="Forgot Password" />
       <div className="bg-white animate-fade-in w-full max-w-[420px] p-8 md:p-10 rounded-[24px] shadow-sm border border-gray-100">
         <div className="flex justify-center mb-6">
           <img src="/adaptive-icon.png" alt="Shopyos Logo" className="w-16 h-16 object-contain rounded-2xl shadow-sm" />

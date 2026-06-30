@@ -1,6 +1,7 @@
 // controllers/favoriteController.js
 const repositories = require('../db/repositories');
 const { resolveImageUrl } = require('../config/storage');
+const ApiResponse = require('../utils/apiResponse');
 
 // @desc    Add product to favorites
 // @route   POST /api/favorites
@@ -11,13 +12,13 @@ const addFavorite = async (req, res, next) => {
         const { productId } = req.body;
 
         if (!productId) {
-            return res.status(400).json({ success: false, error: 'Product ID is required' });
+            return ApiResponse.error(res, 'Product ID is required', 400);
         }
 
         // Check if product exists
         const product = await repositories.products.findById(productId);
         if (!product) {
-            return res.status(404).json({ success: false, error: 'Product not found' });
+            return ApiResponse.error(res, 'Product not found', 404);
         }
 
         // Check if already favorited
@@ -27,11 +28,7 @@ const addFavorite = async (req, res, next) => {
         });
 
         if (existing) {
-            return res.status(200).json({
-                success: true,
-                message: 'Product already in favorites',
-                favorite: existing
-            });
+            return ApiResponse.withEntity(res, 'favorite', existing, 'Product already in favorites');
         }
 
         // Create favorite
@@ -40,11 +37,7 @@ const addFavorite = async (req, res, next) => {
             product_id: productId
         });
 
-        res.status(201).json({
-            success: true,
-            message: 'Product added to favorites',
-            favorite
-        });
+        ApiResponse.withEntity(res, 'favorite', favorite, 'Product added to favorites', null, 201);
 
     } catch (error) {
         next(error);
@@ -66,15 +59,12 @@ const removeFavorite = async (req, res, next) => {
         });
 
         if (!favorite) {
-            return res.status(404).json({ success: false, error: 'Favorite not found' });
+            return ApiResponse.error(res, 'Favorite not found', 404);
         }
 
         await repositories.favorites.delete(favorite.id);
 
-        res.status(200).json({
-            success: true,
-            message: 'Product removed from favorites'
-        });
+        ApiResponse.success(res, null, 'Product removed from favorites');
 
     } catch (error) {
         next(error);
@@ -113,11 +103,7 @@ const getUserFavorites = async (req, res, next) => {
             } : null
         })));
 
-        res.status(200).json({
-            success: true,
-            count: formattedFavorites.length,
-            favorites: formattedFavorites
-        });
+        ApiResponse.success(res, { count: formattedFavorites.length, favorites: formattedFavorites });
 
     } catch (error) {
         next(error);
@@ -137,11 +123,7 @@ const checkFavorite = async (req, res, next) => {
             product_id: productId
         });
 
-        res.status(200).json({
-            success: true,
-            isFavorite: !!favorite,
-            favoriteId: favorite?.id || null
-        });
+        ApiResponse.success(res, { isFavorite: !!favorite, favoriteId: favorite?.id || null });
 
     } catch (error) {
         next(error);

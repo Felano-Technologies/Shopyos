@@ -20,6 +20,12 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { useActiveBusiness, useUpdateBusiness } from '@/hooks/useBusiness';
+
+const GHANA_REGIONS = [
+  'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
+  'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
+  'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North',
+];
 const InputField = React.memo(function InputField({
   label,
   value,
@@ -59,6 +65,7 @@ const BusinessUpdateScreen = () => {
     category: '',
     address: '',
     city: '',
+    stateProvince: '',
     country: '',
     phone: '',
     website: '',
@@ -84,6 +91,7 @@ const BusinessUpdateScreen = () => {
         category: biz.category || '',
         address: biz.address_line1 || biz.address || '',
         city: biz.city || '',
+        stateProvince: biz.stateProvince || biz.state_province || '',
         country: biz.country || '',
         phone: biz.phone || '',
         website: biz.website || '',
@@ -109,7 +117,7 @@ const BusinessUpdateScreen = () => {
         else { setCoverImage(uri); }
       }
     } catch {
-      Alert.alert('Error', 'Failed to pick image');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Failed to pick image' });
     }
   };
   const handleInputChange = (field: string, value: string) => {
@@ -117,7 +125,7 @@ const BusinessUpdateScreen = () => {
   };
   const handleUpdate = async () => {
     if (!formData.businessName.trim() || !formData.phone.trim()) {
-      Alert.alert('Required Fields', 'Business Name and Phone are required.');
+      CustomInAppToast.show({ type: 'error', title: 'Required Fields', message: 'Business Name and Phone are required.' });
       return;
     }
     try {
@@ -125,8 +133,9 @@ const BusinessUpdateScreen = () => {
       const coverImageInput = coverImage;
       const updateData = {
         ...formData,
-        store_name: formData.businessName, // Ensure compatibility with backend mapping
+        store_name: formData.businessName,
         address_line1: formData.address,
+        stateProvince: formData.stateProvince,
         logo: logoInput,
         coverImage: coverImageInput,
         socialMedia: {
@@ -140,13 +149,12 @@ const BusinessUpdateScreen = () => {
         data: updateData
       });
       if (response.success) {
-        Alert.alert('Success', 'Business profile updated successfully!', [
-          { text: 'OK', onPress: () => router.back() }
-        ]);
+        CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Business profile updated successfully!' });
+        router.back();
       }
     } catch (error: any) {
       console.error('Update Error:', error);
-      Alert.alert('Update Failed', error.message || 'Please try again.');
+      CustomInAppToast.show({ type: 'error', title: 'Update Failed', message: error.message || 'Please try again.' });
     }
   };
   if (loadingData) {
@@ -285,6 +293,20 @@ const BusinessUpdateScreen = () => {
                     <InputField label="Country" value={formData.country} field="country" placeholder="Ghana" icon="flag" onChange={handleInputChange} />
                 </View>
             </View>
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>Region / State</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll} keyboardShouldPersistTaps="handled">
+                    {GHANA_REGIONS.map((reg) => (
+                      <TouchableOpacity
+                        key={reg}
+                        onPress={() => handleInputChange('stateProvince', reg)}
+                        style={[styles.categoryChip, formData.stateProvince === reg ? styles.categoryActive : styles.categoryInactive]}
+                      >
+                        <Text style={[styles.categoryText, formData.stateProvince === reg ? styles.categoryTextActive : styles.categoryTextInactive]}>{reg}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
                 <InputField label="Address" value={formData.address} field="address" placeholder="123 Independence Ave" icon="map" onChange={handleInputChange} />
             <Text style={[styles.sectionHeader, { marginTop: 10 }]}>Social Media</Text>
             <InputField label="Website" value={formData.website} field="website" placeholder="https://..." icon="globe" keyboardType="url" onChange={handleInputChange} />

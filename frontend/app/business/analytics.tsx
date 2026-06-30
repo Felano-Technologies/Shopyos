@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Animated,
-  Dimensions, Modal, RefreshControl, Platform
+  Dimensions, Modal, RefreshControl, Platform, TextInput,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
@@ -35,10 +35,11 @@ const C = {
   subtle:  '#94A3B8',
 };
 
-function getTimeframeLabel(p: 'week' | 'month' | 'year'): string {
+function getTimeframeLabel(p: 'week' | 'month' | 'year' | 'custom'): string {
   if (p === 'week') return 'Weekly';
   if (p === 'month') return 'Monthly';
-  return 'Yearly';
+  if (p === 'year') return 'Yearly';
+  return 'Custom';
 }
 
 function getRankBadgeColor(i: number, navyColor: string): string {
@@ -110,7 +111,10 @@ const Analytics = () => {
 
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
-  const [timeframe,  setTimeframe]  = useState<'week' | 'month' | 'year'>('week');
+  const [timeframe,  setTimeframe]  = useState<'week' | 'month' | 'year' | 'custom'>('week');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const { activeBusiness, businesses, selectBusiness } = useActiveBusiness();
@@ -118,7 +122,9 @@ const Analytics = () => {
   const businessId = activeBusiness?._id;
 
   const { data, isLoading, refetch, isRefetching } =
-    useBusinessAnalytics(businessId || '', timeframe);
+    useBusinessAnalytics(businessId || '', timeframe === 'custom' ? 'week' : timeframe,
+      timeframe === 'custom' ? customStartDate : undefined,
+      timeframe === 'custom' ? customEndDate : undefined);
   const { data: unreadData } = useUnreadNotificationCount(false);
   const unreadCount = unreadData?.unreadCount || 0;
 
@@ -145,6 +151,7 @@ const Analytics = () => {
       pending: data?.stats?.pending   ?? 0,
       orders:  data?.stats?.orders    ?? 0,
       growth:  data?.stats?.growth    ?? 0,
+      repeat_customer_rate: data?.stats?.repeat_customer_rate ?? 0,
     },
     topProducts:          Array.isArray(data?.topProducts)          ? data.topProducts          : [],
     categoryDistribution: Array.isArray(data?.categoryDistribution) ? data.categoryDistribution : [],
@@ -328,13 +335,21 @@ const Analytics = () => {
 
               {/* Timeframe toggle */}
               <View style={S.toggleRow} ref={refToggle} onLayout={() => measureElement(refToggle, 'toggle')}>
-                {(['week', 'month', 'year'] as const).map((p) => {
+                {(['week', 'month', 'year', 'custom'] as const).map((p) => {
                   const on = timeframe === p;
                   return (
                     <TouchableOpacity
                       key={p}
                       style={[S.toggleBtn, on && S.toggleBtnOn]}
-                      onPress={() => setTimeframe(p)}
+                      onPress={() => {
+                        if (p === 'custom') {
+                          setShowDatePicker(true);
+                        } else {
+                          setTimeframe(p);
+                          setCustomStartDate('');
+                          setCustomEndDate('');
+                        }
+                      }}
                     >
                       <Text style={[S.toggleTxt, on && S.toggleTxtOn]}>
                         {getTimeframeLabel(p)}
@@ -343,6 +358,54 @@ const Analytics = () => {
                   );
                 })}
               </View>
+
+              {/* Custom Date Range Modal */}
+              <Modal visible={showDatePicker} animationType="fade" transparent>
+                <View style={S.datePickerOverlay}>
+                  <TouchableOpacity style={S.datePickerDismiss} onPress={() => setShowDatePicker(false)} activeOpacity={1} />
+                  <View style={S.datePickerSheet}>
+                    <Text style={S.datePickerTitle}>Select Date Range</Text>
+                    <Text style={S.datePickerHint}>Format: YYYY-MM-DD</Text>
+                    <TextInput
+                      style={S.dateInput}
+                      placeholder="Start date (e.g. 2025-01-01)"
+                      value={customStartDate}
+                      onChangeText={setCustomStartDate}
+                      placeholderTextColor="#94A3B8"
+                    />
+                    <TextInput
+                      style={S.dateInput}
+                      placeholder="End date (e.g. 2025-01-31)"
+                      value={customEndDate}
+                      onChangeText={setCustomEndDate}
+                      placeholderTextColor="#94A3B8"
+                    />
+                    <View style={S.datePickerActions}>
+                      <TouchableOpacity
+                        style={S.dateCancelBtn}
+                        onPress={() => {
+                          setShowDatePicker(false);
+                          setCustomStartDate('');
+                          setCustomEndDate('');
+                        }}
+                      >
+                        <Text style={S.dateCancelText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={S.dateApplyBtn}
+                        onPress={() => {
+                          if (customStartDate && customEndDate) {
+                            setTimeframe('custom');
+                            setShowDatePicker(false);
+                          }
+                        }}
+                      >
+                        <Text style={S.dateApplyText}>Apply</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              </Modal>
 
               {/* Revenue chart */}
               <Text style={S.secTitle}>Revenue Trend</Text>
@@ -409,6 +472,14 @@ const Analytics = () => {
                   <Text style={S.statLbl}>Orders</Text>
                   <Text style={S.statVal}>{analytics.stats.orders}</Text>
                   <Text style={S.statSubTxt}>Total orders</Text>
+                </View>
+                <View style={S.statCard}>
+                  <View style={[S.iconBox, { backgroundColor: '#F3E8FF' }]}>
+                    <Ionicons name="people" size={rs(20)} color="#7C3AED" />
+                  </View>
+                  <Text style={S.statLbl}>Repeat Customers</Text>
+                  <Text style={S.statVal}>{analytics.stats.repeat_customer_rate}%</Text>
+                  <Text style={S.statSubTxt}>Of total buyers</Text>
                 </View>
               </View>
 
@@ -834,6 +905,75 @@ const S = StyleSheet.create({
     fontFamily: 'Montserrat-Bold',
     color: '#0C1559',
     marginLeft: rs(12),
+  },
+
+  datePickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  datePickerDismiss: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+  },
+  datePickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: rs(30),
+    borderTopRightRadius: rs(30),
+    padding: rs(24),
+    paddingBottom: rs(40),
+  },
+  datePickerTitle: {
+    fontSize: rf(20),
+    fontFamily: 'Montserrat-Bold',
+    color: '#0F172A',
+    marginBottom: rs(4),
+  },
+  datePickerHint: {
+    fontSize: rf(12),
+    fontFamily: 'Montserrat-Medium',
+    color: '#64748B',
+    marginBottom: rs(20),
+  },
+  dateInput: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: rs(12),
+    padding: rs(14),
+    fontSize: rf(15),
+    fontFamily: 'Montserrat-Medium',
+    color: '#0F172A',
+    marginBottom: rs(12),
+    backgroundColor: '#F8FAFC',
+  },
+  datePickerActions: {
+    flexDirection: 'row',
+    gap: rs(10),
+    marginTop: rs(8),
+  },
+  dateCancelBtn: {
+    flex: 1,
+    paddingVertical: rs(14),
+    borderRadius: rs(12),
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+  },
+  dateCancelText: {
+    fontSize: rf(14),
+    fontFamily: 'Montserrat-SemiBold',
+    color: '#334155',
+  },
+  dateApplyBtn: {
+    flex: 1,
+    paddingVertical: rs(14),
+    borderRadius: rs(12),
+    backgroundColor: '#0C1559',
+    alignItems: 'center',
+  },
+  dateApplyText: {
+    fontSize: rf(14),
+    fontFamily: 'Montserrat-Bold',
+    color: '#FFF',
   },
 });
 

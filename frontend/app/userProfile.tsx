@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { getUserData, logoutUser, storage } from '../services/api';
 import TappableAvatar from '@/components/TappableAvatar';
@@ -42,23 +43,16 @@ export default function UserProfile() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const handleLogout = () => {
-    Alert.alert(
-      'Log Out',
-      'Are you sure you want to log out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Log Out',
-          style: 'destructive',
-          onPress: async () => {
-            await logoutUser();
-            router.replace('/login');
-          },
-        },
-      ]
-    );
+    setShowConfirm(true);
+  };
+
+  const confirmLogoutAction = async () => {
+    setShowConfirm(false);
+    await logoutUser();
+    router.replace('/login');
   };
 
   const fetchUserDetails = useCallback(async () => {
@@ -78,10 +72,7 @@ export default function UserProfile() {
       });
     } catch (error) {
       console.warn('Failed to fetch user details:', error);
-      Alert.alert(
-        'Error',
-        'Unable to load user details. Please try again later.'
-      );
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Unable to load user details. Please try again later.' });
     } finally {
       setLoading(false);
     }
@@ -141,7 +132,7 @@ export default function UserProfile() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.headerTitle, { color: primaryText }]}>Profile</Text>
-        <TouchableOpacity onPress={() => router.push('/settings')}>
+        <TouchableOpacity accessibilityLabel="Open settings" accessibilityRole="button" onPress={() => router.push('/settings')}>
           <Ionicons name="settings-outline" size={24} color={primaryText} />
         </TouchableOpacity>
       </View>
@@ -175,6 +166,8 @@ export default function UserProfile() {
           
           {user.referral_code && (
             <TouchableOpacity
+              accessibilityLabel="Copy referral code"
+              accessibilityRole="button"
               style={{ marginTop: 16, alignItems: 'center', backgroundColor: isDark ? '#2D2D2D' : '#F1F5F9', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
               onPress={async () => {
                 await Clipboard.setStringAsync(user.referral_code!);
@@ -193,7 +186,7 @@ export default function UserProfile() {
 
         {/* Profile Options */}
         <View style={[styles.sectionCard, { backgroundColor: cardBg, marginTop: 12 }]}>
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/orders')}>
+          <TouchableOpacity accessibilityLabel="View my orders" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/orders')}>
             <Ionicons
               name="receipt-outline"
               size={20}
@@ -209,7 +202,7 @@ export default function UserProfile() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/wishlist')}>
+          <TouchableOpacity accessibilityLabel="View wishlist" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/wishlist')}>
             <Ionicons
               name="heart-outline"
               size={20}
@@ -225,7 +218,7 @@ export default function UserProfile() {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.itemRow} onPress={() => router.push('/addresses')}>
+          <TouchableOpacity accessibilityLabel="Manage addresses" accessibilityRole="button" style={styles.itemRow} onPress={() => router.push('/addresses')}>
             <Ionicons
               name="location-outline"
               size={20}
@@ -244,7 +237,7 @@ export default function UserProfile() {
 
         {/* Logout Button */}
         <View style={styles.logoutContainer}>
-          <TouchableOpacity style={[styles.logoutButton, { backgroundColor: cardBg }]} onPress={handleLogout}>
+          <TouchableOpacity accessibilityLabel="Log out of account" accessibilityRole="button" style={[styles.logoutButton, { backgroundColor: cardBg }]} onPress={handleLogout}>
             <Ionicons
               name="log-out-outline"
               size={20}
@@ -255,6 +248,18 @@ export default function UserProfile() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <ConfirmModal
+        visible={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        title="Log Out"
+        message="Are you sure you want to log out?"
+        icon="⚠️"
+        actions={[
+          { label: 'Cancel', onPress: () => setShowConfirm(false), variant: 'cancel' },
+          { label: 'Log Out', onPress: confirmLogoutAction, variant: 'destructive' },
+        ]}
+      />
     </SafeAreaView>
   );
 }

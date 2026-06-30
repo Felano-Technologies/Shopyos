@@ -111,6 +111,15 @@ export const getDriverStats = async (timeframe: 'today' | 'week' | 'month' = 'to
   }
 };
 
+export const getDriverEarningsAnalytics = async (view: 'weekly' | 'monthly' = 'weekly') => {
+  try {
+    const response = await api.get('/deliveries/driver/stats', { params: { view } });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const updateDriverLocation = async (deliveryId: string, latitude: number, longitude: number) => {
   try {
     const response = await api.put(`/deliveries/${deliveryId}/location`, { latitude, longitude });

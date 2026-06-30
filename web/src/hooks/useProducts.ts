@@ -63,3 +63,23 @@ export const useProductSearch = (
     placeholderData: keepPreviousData,
   });
 };
+
+export const useInfiniteProductSearch = (query: string, filters?: ProductFilters, limit = 20) => {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  return useInfiniteQuery({
+    queryKey: [...queryKeys.products.search(query, filters), 'infinite'],
+    queryFn: ({ pageParam = 0 }) =>
+      productsApi.search(query || undefined, filters, limit, pageParam),
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage.success || !lastPage.products || lastPage.products.length < limit) {
+        return undefined;
+      }
+      return allPages.length * limit;
+    },
+    initialPageParam: 0,
+    enabled: isAuthenticated && query.length >= 2,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
+};

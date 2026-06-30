@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { api } from '@/services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 export default function ChangePasswordScreen() {
   const theme = useColorScheme();
@@ -29,23 +30,23 @@ export default function ChangePasswordScreen() {
 
   const handleChangePassword = async () => {
     if (!currentPw || !newPw || !confirmPw) {
-      Alert.alert('Error', 'All fields are required.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'All fields are required.' });
       return;
     }
     if (newPw !== confirmPw) {
-      Alert.alert('Error', 'New password and confirm password must match.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'New password and confirm password must match.' });
       return;
     }
     try {
       setLoading(true);
       await api.put('/auth/change-password', { currentPassword: currentPw, newPassword: newPw });
-      Alert.alert('Success', 'Password changed successfully.');
+      CustomInAppToast.show({ type: 'success', title: 'Success', message: 'Password changed successfully.' });
       setCurrentPw('');
       setNewPw('');
       setConfirmPw('');
     } catch (error: any) {
       const message = error?.response?.data?.error || error?.message || 'Failed to change password.';
-      Alert.alert('Error', message);
+      CustomInAppToast.show({ type: 'error', title: 'Error', message });
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
     View, Text, StyleSheet, ScrollView, TouchableOpacity,
     Dimensions, Modal, TextInput, KeyboardAvoidingView, Platform,
-    Linking, FlatList, ActivityIndicator, Alert, Image,
+    Linking, FlatList, ActivityIndicator, Image,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -181,25 +181,14 @@ function SnapsTab({ storeId }: { storeId: string }) {
             .finally(() => { setLoading(false); setLoaded(true); });
     }, [storeId, loaded]);
 
-    const handleDeleteSnap = (snapId: string) => {
-        Alert.alert(
-            'Delete Snap',
-            'Are you sure you want to delete this snap? This cannot be undone.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete', style: 'destructive', onPress: async () => {
-                        try {
-                            await api.delete(`/snaps/${snapId}`);
-                            setSnaps((prev) => prev.filter((s) => String(s.id) !== String(snapId)));
-                            CustomInAppToast.show({ type: 'success', title: 'Deleted', message: 'Snap has been removed.' });
-                        } catch (e: any) {
-                            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.userMessage || 'Could not delete snap' });
-                        }
-                    }
-                },
-            ]
-        );
+    const handleDeleteSnap = async (snapId: string) => {
+        try {
+            await api.delete(`/snaps/${snapId}`);
+            setSnaps((prev) => prev.filter((s) => String(s.id) !== String(snapId)));
+            CustomInAppToast.show({ type: 'success', title: 'Deleted', message: 'Snap has been removed.' });
+        } catch (e: any) {
+            CustomInAppToast.show({ type: 'error', title: 'Error', message: e.userMessage || 'Could not delete snap' });
+        }
     };
 
     if (loading) return <View style={ts.center}><ActivityIndicator size="large" color="#0C1559" /></View>;

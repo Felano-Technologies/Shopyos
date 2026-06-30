@@ -1,5 +1,6 @@
 // controllers/feeConfigController.js
 const feeConfigService = require('../services/feeConfigService');
+const ApiResponse = require('../utils/apiResponse');
 
 /**
  * Get all configurations (admin only)
@@ -8,7 +9,7 @@ const getFeeConfigs = async (req, res, next) => {
   try {
     const { category } = req.query;
     const configs = await feeConfigService.getAll(category);
-    res.status(200).json({ success: true, configs });
+    ApiResponse.withEntity(res, 'configs', configs);
   } catch (error) {
     next(error);
   }
@@ -21,7 +22,7 @@ const getFeeConfigByKey = async (req, res, next) => {
   try {
     const { key } = req.params;
     const value = await feeConfigService.get(key);
-    res.status(200).json({ success: true, key, value });
+    ApiResponse.success(res, { key, value });
   } catch (error) {
     next(error);
   }
@@ -36,11 +37,11 @@ const updateFeeConfig = async (req, res, next) => {
     const { value, reason } = req.body;
 
     if (value === undefined) {
-      return res.status(400).json({ success: false, error: 'Value is required' });
+      return ApiResponse.error(res, 'Value is required', 400);
     }
 
     const updated = await feeConfigService.update(key, value, req.user.id, reason);
-    res.status(200).json({ success: true, config: updated });
+    ApiResponse.withEntity(res, 'config', updated);
   } catch (error) {
     next(error);
   }
@@ -53,7 +54,7 @@ const getFeeConfigAudit = async (req, res, next) => {
   try {
     const { key } = req.params;
     const audit = await feeConfigService.getAuditLog(key);
-    res.status(200).json({ success: true, audit });
+    ApiResponse.withEntity(res, 'audit', audit);
   } catch (error) {
     next(error);
   }
@@ -83,7 +84,7 @@ const getPublicFeeConfigs = async (req, res, next) => {
       })
     );
 
-    res.status(200).json({ success: true, configs });
+    ApiResponse.withEntity(res, 'configs', configs);
   } catch (error) {
     next(error);
   }

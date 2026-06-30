@@ -1,5 +1,6 @@
 const Redis = require('ioredis');
 const { logger } = require('./logger');
+const { envInt } = require('./envConfig');
 
 let redisClient = null;
 let isConnected = false;
@@ -13,17 +14,25 @@ const getRedis = () => {
         return null;
     }
 
+    const maxRetries = envInt('REDIS_MAX_RETRIES', 0); // 0 = infinite
+
     redisClient = new Redis(redisUrl, {
-        maxRetriesPerRequest: 3,
+        maxRetriesPerRequest: envInt('REDIS_MAX_RETRIES_PER_REQUEST', 3),
         retryStrategy(times) {
-            if (times > 10) return null;
-            return Math.min(times * 200, 5000);
+            if (maxRetries > 0 && times > maxRetries) {
+                logger.error(`Redis: Exceeded max retries (${maxRetries}), giving up`);
+                return null;
+            }
+            // Exponential backoff with jitter: 200ms → ... → max 30s
+            const delay = Math.min(times * 200, 30000);
+            const jitter = Math.random() * 200;
+            return delay + jitter;
         },
         enableReadyCheck: true,
         lazyConnect: false,
-        connectTimeout: 10000,
-        commandTimeout: 5000,
-        keepAlive: 30000,
+        connectTimeout: envInt('REDIS_CONNECT_TIMEOUT', 10000),
+        commandTimeout: envInt('REDIS_COMMAND_TIMEOUT', 5000),
+        keepAlive: envInt('REDIS_KEEPALIVE', 30000),
         reconnectOnError(err) {
             return ['READONLY', 'ECONNRESET', 'ECONNREFUSED'].some(e => err.message.includes(e));
         }

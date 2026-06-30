@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useProfile, useUpdateProfile } from '../hooks/useProfile';
+import { SEO } from '../components/SEO';
 
 export const Profile: React.FC = () => {
   const { data: profile, isLoading } = useProfile();
@@ -38,6 +39,7 @@ export const Profile: React.FC = () => {
 
   return (
     <div className="flex justify-center items-center min-h-[70vh] p-4 animate-fade-in">
+      <SEO title="My Profile" />
       <div className="bg-white w-full max-w-[500px] p-8 md:p-10 rounded-[24px] shadow-sm border border-gray-100">
         <h2 className="text-center mb-6 font-bold text-3xl text-body">My Profile</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5">

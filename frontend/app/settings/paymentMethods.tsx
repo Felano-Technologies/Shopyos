@@ -17,6 +17,7 @@ import { Ionicons, FontAwesome5, MaterialCommunityIcons, Feather } from '@expo/v
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack } from 'expo-router';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import { getPaymentMethods, deletePaymentMethod, setDefaultPaymentMethod, addPaymentMethod } from '@/services/api';
 // --- Types ---
 interface PaymentMethod {
@@ -43,6 +44,7 @@ export default function PaymentMethodsScreen() {
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleteMethodId, setDeleteMethodId] = useState<string | null>(null);
   // New Method Form State
   const [newMethod, setNewMethod] = useState<{
     type: 'card' | 'momo',
@@ -100,14 +102,14 @@ export default function PaymentMethodsScreen() {
     }
   }, []);
   const handleDelete = (id: string) => {
-    Alert.alert("Remove Method", "Are you sure you want to remove this payment method?", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: () => confirmDeleteMethod(id, setMethods),
-      }
-    ]);
+    setDeleteMethodId(id);
+  };
+
+  const handleConfirmRemove = () => {
+    if (!deleteMethodId) return;
+    const id = deleteMethodId;
+    setDeleteMethodId(null);
+    confirmDeleteMethod(id, setMethods);
   };
   const handleSetDefault = async (id: string) => {
     try {
@@ -362,6 +364,18 @@ export default function PaymentMethodsScreen() {
           />
         )}
       </View>
+
+      <ConfirmModal
+        visible={deleteMethodId !== null}
+        onClose={() => setDeleteMethodId(null)}
+        title="Remove Method"
+        message="Are you sure you want to remove this payment method?"
+        icon="🗑️"
+        actions={[
+          { label: 'Cancel', onPress: () => setDeleteMethodId(null), variant: 'cancel' },
+          { label: 'Remove', onPress: handleConfirmRemove, variant: 'destructive' },
+        ]}
+      />
     </View>
   );
 }

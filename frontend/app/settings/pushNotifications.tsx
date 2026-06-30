@@ -67,7 +67,7 @@ export default function PushNotificationsScreen() {
         finalStatus = status;
       }
       if (finalStatus !== 'granted') {
-        Alert.alert('Permission required', 'Enable notifications to receive alerts.');
+        CustomInAppToast.show({ type: 'error', title: 'Permission required', message: 'Enable notifications to receive alerts.' });
         return;
       }
       const tokenData = await Notifications.getExpoPushTokenAsync();
@@ -104,10 +104,7 @@ export default function PushNotificationsScreen() {
         if (existingStatus !== 'granted') {
           const { status } = await Notifications.requestPermissionsAsync();
           if (status !== 'granted') {
-            Alert.alert(
-              'Permission denied',
-              'Cannot enable notifications without permission.'
-            );
+            CustomInAppToast.show({ type: 'error', title: 'Permission denied', message: 'Cannot enable notifications without permission.' });
             setPushEnabled(false);
             await SecureStore.setItemAsync('prefPushNotifications', 'false');
             await updateNotificationPreferences({ push_enabled: false });
@@ -119,10 +116,10 @@ export default function PushNotificationsScreen() {
       }
       // Sync to backend — this is what actually makes the server stop/start sending pushes
       await updateNotificationPreferences({ push_enabled: newValue });
-      Alert.alert('Push Notifications', newValue ? 'Enabled' : 'Disabled');
+      CustomInAppToast.show({ type: 'info', title: 'Push Notifications', message: newValue ? 'Enabled' : 'Disabled' });
     } catch (e) {
       console.error('Error saving push pref:', e);
-      Alert.alert('Error', 'Could not update notification settings.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not update notification settings.' });
     }
   };
   // Send a local notification in 3 seconds
@@ -136,10 +133,10 @@ export default function PushNotificationsScreen() {
         },
         trigger: { seconds: 3, repeats: false, type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL },
       });
-      Alert.alert('Test Scheduled', 'A test notification will appear in ~3 seconds.');
+      CustomInAppToast.show({ type: 'success', title: 'Test Scheduled', message: 'A test notification will appear in ~3 seconds.' });
     } catch (e) {
       console.error('Error scheduling test notification:', e);
-      Alert.alert('Error', 'Could not schedule test notification.');
+      CustomInAppToast.show({ type: 'error', title: 'Error', message: 'Could not schedule test notification.' });
     }
   };
   return (

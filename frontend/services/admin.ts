@@ -253,6 +253,15 @@ export const getDriverHistoryAdmin = async (
   }
 };
 
+export const getAdminRevenueBreakdown = async (period: 'week' | 'month' | 'year' = 'month') => {
+  try {
+    const response = await api.get('/admin/revenue-breakdown', { params: { period } });
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const adminCreateCampaign = async (formData: FormData) => {
   try {
     const response = await api.post('/advertising/banners/admin-create', formData, {
@@ -465,6 +474,37 @@ export const adminGetDisclaimerAudit = async (type?: string, limit?: number) => 
       context_type: string;
       context_id: string;
     }>;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+// ─── Listing Fees ────────────────────────────────────────────────────────────
+
+export const getAdminListingFees = async () => {
+  try {
+    const response = await api.get('/admin/listing-fees');
+    return response.data.data as {
+      summary: {
+        total_stores: number;
+        free_tier: number;
+        paid_tier: number;
+        approaching_limit: number;
+        at_limit: number;
+        free_limit: number;
+        listing_fee_amount: number;
+      };
+      stores: Array<{
+        id: string;
+        name: string;
+        owner_id: string;
+        listing_tier: 'free' | 'paid';
+        product_count: number;
+        free_limit: number;
+        listing_fee_paid_at: string | null;
+        status: string;
+      }>;
+    };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

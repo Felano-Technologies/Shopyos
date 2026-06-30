@@ -56,8 +56,8 @@ export const queryKeys = {
     list: () => ['business', 'list'] as const,
     detail: (businessId: string) => ['business', 'detail', businessId] as const,
     dashboard: (businessId: string) => ['business', 'dashboard', businessId] as const,
-    analytics: (businessId: string, timeframe: string) =>
-      ['business', 'analytics', businessId, timeframe] as const,
+    analytics: (businessId: string, timeframe: string, startDate?: string, endDate?: string) =>
+      ['business', 'analytics', businessId, timeframe, startDate, endDate] as const,
     orders: (storeId: string, status?: string) =>
       ['business', 'orders', storeId, status] as const,
     products: (storeId: string) => ['business', 'products', storeId] as const,
@@ -88,6 +88,7 @@ export const queryKeys = {
     users: (filters?: object) => ['admin', 'users', filters] as const,
     userStats: () => ['admin', 'user-stats'] as const,
     driverVerifications: () => ['admin', 'driver-verifications'] as const,
+    listingFees: () => ['admin', 'listing-fees'] as const,
   },
 
   driver: {

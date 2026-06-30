@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getConversations, getMessages, sendMessage } from '../services/messaging';
 import { socketService } from '../services/socket';
+import { SEO } from '../components/SEO';
 
 const getOtherParticipant = (conv: any, currentUserId: string | null) => {
   if (!conv) return null;
@@ -123,7 +124,9 @@ export const Chat: React.FC = () => {
   };
 
   return (
-    <div className="bg-white animate-fade-in grid grid-cols-1 md:grid-cols-[300px_1fr] h-[70vh] rounded-[24px] overflow-hidden border border-gray-100 shadow-sm mt-4">
+    <>
+      <SEO title="Chat" />
+      <div className="bg-white animate-fade-in grid grid-cols-1 md:grid-cols-[300px_1fr] h-[70vh] rounded-[24px] overflow-hidden border border-gray-100 shadow-sm mt-4">
       {/* Inbox List Side */}
       <div className="border-r border-gray-100 flex flex-col h-full bg-gray-50/50">
         <div className="p-4 border-b border-gray-100 font-bold text-base text-body">
@@ -215,5 +218,6 @@ export const Chat: React.FC = () => {
         )}
       </div>
     </div>
+    </>
   );
 };

@@ -20,8 +20,17 @@ class AmqpPublisher {
     this._conn.on('close', ()    => { logger.warn('[AmqpPublisher] Connection closed');    this._reset(); });
 
     this._channel = await this._conn.createChannel();
+
+    // Assert exchange
     await this._channel.assertExchange(EXCHANGE, 'direct', { durable: true });
-    logger.info('[AmqpPublisher] Connected to RabbitMQ');
+
+    // Assert queues and bind them (needed by notification worker)
+    await this._channel.assertQueue('email_queue', { durable: true });
+    await this._channel.assertQueue('sms_queue', { durable: true });
+    await this._channel.bindQueue('email_queue', EXCHANGE, 'email');
+    await this._channel.bindQueue('sms_queue', EXCHANGE, 'sms');
+
+    logger.info('[AmqpPublisher] Connected to RabbitMQ and setup queues');
   }
 
   // Deduplicates concurrent connect calls into one shared promise

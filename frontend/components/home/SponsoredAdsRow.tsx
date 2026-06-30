@@ -90,11 +90,8 @@ const S = StyleSheet.create({
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: C.navy,
-    elevation: 6,
-    shadowColor: C.navy,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fdfdfd',
   },
   // Explicit dimensions so the image/gradient fills the card fully
   cardImg: { width: '100%', height: '100%', position: 'absolute', top: 0, left: 0 },

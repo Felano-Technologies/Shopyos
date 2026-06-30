@@ -3,15 +3,20 @@ const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
 const { ACCESS_TOKEN_BLACKLIST_PREFIX } = require('../config/auth');
+const { envInt } = require('../config/envConfig');
 
-const USER_CACHE_TTL = 300;
+const USER_CACHE_TTL = envInt('USER_CACHE_TTL', 300);
 
 const protect = async (req, res, next) => {
-  if (!req.headers.authorization?.startsWith('Bearer')) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Not authorized, no token provided' });
   }
 
-  const token = req.headers.authorization.split(' ')[1];
+  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Not authorized, malformed token' });
+  }
 
   try {
     // Reject tokens that have been blacklisted on logout
