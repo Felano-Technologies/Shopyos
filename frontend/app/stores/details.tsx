@@ -9,7 +9,6 @@ import {
   Dimensions,
   Linking,
   Share,
-  Alert,
   ActivityIndicator,
   Modal,
   TextInput,

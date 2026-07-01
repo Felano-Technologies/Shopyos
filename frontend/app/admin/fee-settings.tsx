@@ -350,7 +350,7 @@ export default function FeeSettingsScreen() {
                           </Text>
                         </View>
                         {log.reason ? (
-                          <Text style={styles.auditReason}>Reason: "{log.reason}"</Text>
+                          <Text style={styles.auditReason}>{`Reason: "${log.reason}"`}</Text>
                         ) : null}
                         {i < auditLogs.length - 1 && <View style={styles.auditDivider} />}
                       </View>

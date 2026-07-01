@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { Text, StyleSheet, Animated } from 'react-native';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 
 export function OfflineBanner() {

@@ -35,7 +35,7 @@ export default function AdminUsers() {
       if (res?.stats) setStats(res.stats);
     } catch (e) {
       console.error('Failed to load admin user stats:', e);
-    }
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }

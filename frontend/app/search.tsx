@@ -16,7 +16,7 @@ import { safePush } from '@/lib/navigation';
 import { CustomInAppToast, storage, getActiveBanners, recordAdClick } from "@/services/api";
 import { CompactAdCarousel } from '@/components/home/CompactAdCarousel';
 import { HeroAd } from '@/components/home/HeroCarousel';
-import { useProducts, useProductSearch, useInfiniteProducts } from '@/hooks/useProducts';
+import { useInfiniteProducts } from '@/hooks/useProducts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useStoreSearch } from '@/hooks/useBusiness';
 import { useCategories } from '@/hooks/useCategories';

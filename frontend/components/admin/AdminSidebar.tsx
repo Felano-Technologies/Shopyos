@@ -14,7 +14,7 @@ import {
 import { usePathname, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { adminColors, useAdminBreakpoint } from './adminTheme';
+import { useAdminBreakpoint } from './adminTheme';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);

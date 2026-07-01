@@ -30,11 +30,13 @@ export const signInWithGoogle = async (idToken: string) => {
       } catch (e) {
         console.warn('Failed to sync profile after google sign-in:', e);
       }
+      try {
         const pushToken = await storage.getItem('expoPushToken');
         if (pushToken) await registerPushTokenInBackend(pushToken);
       } catch (e) {
         console.warn('Failed to register push token after google sign-in:', e);
       }
+    }
     const needsRole =
       response.data.requiresRoleSelection ||
       response.data.role === 'none' ||
@@ -133,6 +135,7 @@ export const logoutUser = async () => {
     } catch (e) {
       console.error('Failed to clear cart for user on logout:', e);
     }
+    await Promise.all([
       secureStorage.removeItem('userToken'),
       secureStorage.removeItem('refreshToken'),
       secureStorage.removeItem('businessToken'),
@@ -149,6 +152,7 @@ export const logoutUser = async () => {
     } catch (e) {
       console.error('Failed to disconnect socket on logout:', e);
     }
+  }
 };
 
 export const loginUser = async (

@@ -7,7 +7,6 @@ import {
     ScrollView,
     TextInput,
     ActivityIndicator,
-    Alert,
     Modal,
 } from 'react-native';
 import AppImage from '@/components/AppImage';
@@ -20,7 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { getProductById, createProductReview, getReviewableProducts } from '@/services/api';
 import { ReviewSkeleton } from '@/components/skeletons/ReviewSkeleton';
 import DisclaimerModal from '@/components/DisclaimerModal';
-import { getDisclaimerByType, acknowledgeDisclaimer, Disclaimer } from '@/services/disclaimers';
+import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
 
 function StarRating({ currentRating, onRate }: Readonly<{ currentRating: number; onRate: (r: number) => void }>) {
     return (
