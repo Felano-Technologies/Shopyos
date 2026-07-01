@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shopyos - Order Delivered</title>
+<style>
+  body { margin:0; padding:0; background:#f1f3f4; color:#202124; font-family:Arial, Helvetica, sans-serif; -webkit-text-size-adjust:100%; }
+  table { border-collapse:collapse; }
+  img { border:0; line-height:100%; outline:none; text-decoration:none; display:block; }
+  a { color:#1a73e8; text-decoration:none; }
+  .page { width:100%; background:#f1f3f4; padding:32px 12px; }
+  .container { width:100%; max-width:640px; margin:0 auto; }
+  .preheader { display:none!important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; overflow:hidden; mso-hide:all; }
+  .brand { padding:0 0 18px; text-align:left; }
+  .brand img { width:164px; height:auto; }
+  .card { background:#ffffff; border:1px solid #dadce0; border-radius:8px; overflow:hidden; }
+  .mast { padding:32px 40px 22px; border-bottom:1px solid #e8eaed; }
+  .eyebrow { margin:0 0 12px; color:#5f6368; font-size:13px; line-height:20px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; }
+  h1 { margin:0; color:#202124; font-size:28px; line-height:36px; font-weight:400; letter-spacing:0; }
+  .summary { margin:14px 0 0; color:#5f6368; font-size:16px; line-height:24px; }
+  .content { padding:30px 40px 36px; }
+  p { margin:0 0 16px; color:#3c4043; font-size:15px; line-height:24px; }
+  .button-wrap { padding:10px 0 24px; }
+  .button { display:inline-block; background:#1a73e8; color:#ffffff!important; border-radius:4px; font-size:14px; line-height:20px; font-weight:700; padding:12px 24px; }
+  .button.green { background:#7ed348; color:#0b1f46!important; }
+  .note { background:#f8fafd; border:1px solid #e8eaed; border-radius:8px; padding:16px 18px; margin:8px 0 22px; }
+  .note p { margin:0; color:#5f6368; font-size:14px; line-height:22px; }
+  .code { background:#f8fafd; border:1px solid #dadce0; border-radius:8px; color:#0b1f46; font-size:36px; line-height:44px; font-weight:700; letter-spacing:8px; text-align:center; padding:22px 10px; margin:8px 0 20px; }
+  .details { width:100%; margin:6px 0 22px; border:1px solid #e8eaed; border-radius:8px; overflow:hidden; }
+  .details td { padding:12px 16px; border-bottom:1px solid #e8eaed; font-size:14px; line-height:20px; }
+  .details tr:last-child td { border-bottom:0; }
+  .label { color:#5f6368; width:44%; }
+  .value { color:#202124; font-weight:700; text-align:right; }
+  .item { width:100%; border-bottom:1px solid #e8eaed; }
+  .item td { padding:14px 0; vertical-align:top; }
+  .thumb { width:44px; height:44px; border-radius:8px; background:#eef3ff; color:#24418f; font-size:20px; text-align:center; line-height:44px; }
+  .item-title { color:#202124; font-size:14px; line-height:20px; font-weight:700; }
+  .item-meta { color:#5f6368; font-size:13px; line-height:20px; }
+  .price { color:#202124; font-size:14px; line-height:20px; font-weight:700; text-align:right; white-space:nowrap; }
+  .total td { padding:8px 0; color:#3c4043; font-size:14px; line-height:20px; }
+  .total .final td { padding-top:14px; border-top:1px solid #dadce0; color:#202124; font-size:16px; font-weight:700; }
+  .steps { width:100%; margin:8px 0 24px; }
+  .steps td { color:#5f6368; font-size:12px; line-height:18px; text-align:center; }
+  .dot { width:22px; height:22px; border-radius:50%; background:#7ed348; color:#0b1f46; font-weight:700; line-height:22px; margin:0 auto 8px; }
+  .dot.muted { background:#e8eaed; color:#5f6368; }
+  .products { width:100%; margin:8px 0 22px; }
+  .products td { width:50%; padding:8px; vertical-align:top; }
+  .product { border:1px solid #e8eaed; border-radius:8px; padding:16px; text-align:center; }
+  .product-name { color:#202124; font-size:14px; line-height:20px; font-weight:700; }
+  .product-price { color:#0b1f46; font-size:16px; line-height:24px; font-weight:700; }
+  .pill { display:inline-block; margin-top:8px; background:#e6f4ea; color:#137333; border-radius:999px; padding:4px 10px; font-size:12px; line-height:16px; font-weight:700; }
+  .footer { padding:22px 8px 0; text-align:center; color:#5f6368; font-size:12px; line-height:20px; }
+  .footer a { color:#5f6368; text-decoration:underline; }
+  @media only screen and (max-width:520px) {
+    .page { padding:20px 8px!important; }
+    .mast, .content { padding-left:22px!important; padding-right:22px!important; }
+    h1 { font-size:24px!important; line-height:31px!important; }
+    .products td { display:block!important; width:100%!important; padding:8px 0!important; }
+    .brand img { width:144px!important; }
+  }</style>
+</head>
+<body>
+<span class="preheader">Your Shopyos order has been delivered.</span>
+<table role="presentation" class="page" width="100%">
+  <tr>
+    <td align="center">
+      <table role="presentation" class="container" width="100%">
+        <tr><td class="brand"><img src="assets/images/icondark.png" alt="Shopyos" width="164"></td></tr>
+        <tr>
+          <td class="card">
+            <table role="presentation" width="100%">
+              <tr><td class="mast">
+                <p class="eyebrow">Delivered</p>
+                <h1>Your order has arrived</h1>
+                <p class="summary">Order #SHP-20847 was delivered successfully. We hope everything looks good.</p>
+              </td></tr>
+              <tr><td class="content"><p>Hi <strong>Abena</strong>,</p><p>Your order has been marked as delivered. Thanks for supporting local businesses through Shopyos.</p><table role="presentation" class="details" width="100%"><tr><td class="label">Delivered to</td><td class="value">Asokwa, Kumasi</td></tr><tr><td class="label">Delivered at</td><td class="value">3:18 PM</td></tr><tr><td class="label">Order ID</td><td class="value">#SHP-20847</td></tr><tr><td class="label">Total paid</td><td class="value">GHâ‚µ 86.00</td></tr></table><div class="button-wrap"><a href="#" class="button green">Rate your order</a></div><div class="note"><p>Your feedback helps sellers improve and helps other shoppers choose with confidence.</p></div></td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr><td class="footer">
+          <p>Shopyos, Kumasi, Ghana<br>Need help? <a href="#">Visit Help Center</a> or reply to this email.</p>
+          <p><a href="#">Privacy Policy</a> &nbsp;|&nbsp; <a href="#">Terms</a> &nbsp;|&nbsp; <a href="#">Unsubscribe</a></p>
+          <p>&copy; 2026 Shopyos. The future of local commerce.</p>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
