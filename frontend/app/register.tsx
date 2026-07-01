@@ -31,14 +31,6 @@ const RegisterScreen = () => {
   const [request, response, promptAsync] = useGoogleAuth();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validateField = (field: string, value: string) => {
-    let err = '';
-    if (field === 'name' && !value.trim()) err = 'Full name is required';
-    if (field === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) err = 'Enter a valid email address';
-    if (field === 'password' && value.length < 6) err = 'Password must be at least 6 characters';
-    if (field === 'phoneNumber' && value.replace(/\D/g, '').length < 6) err = 'Enter a valid phone number';
-    setErrors((prev) => ({ ...prev, [field]: err }));
-  };
 
   const isFormValid = useMemo(() => {
     return name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6 && phoneNumber.replace(/\D/g, '').length >= 6;

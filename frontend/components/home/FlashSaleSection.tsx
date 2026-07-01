@@ -135,7 +135,7 @@ export const FlashSaleSection = React.memo(function FlashSaleSection({ products,
       </ScrollView>
     </View>
   );
-}
+});
 
 const CARD_W = 138;
 

@@ -154,6 +154,7 @@ export default function VoiceRecorder({ onSend, onCancel }: Readonly<VoiceRecord
         } catch (e) {
           if (__DEV__) console.error('Failed to read meter level:', e);
         }
+      }, 1000);
     } catch (err) {
       if (__DEV__) console.error('Failed to start recording', err);
       CustomInAppToast.show({

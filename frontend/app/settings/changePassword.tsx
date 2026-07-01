@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   TextInput,
   TouchableOpacity,
-  Alert,
   useColorScheme,
   ActivityIndicator,
 } from 'react-native';

@@ -147,7 +147,7 @@ export default function BusinessFlashSales() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Feather name="zap" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyText}>You haven't submitted any campaigns yet.</Text>
+              <Text style={styles.emptyText}>You have not submitted any campaigns yet.</Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -205,7 +205,7 @@ export default function BusinessFlashSales() {
                 {item.admin_notes && (
                   <View style={styles.adminNotesBox}>
                     <Text style={styles.adminNotesTitle}>Review Feedback:</Text>
-                    <Text style={styles.adminNotesText}>"{item.admin_notes}"</Text>
+                    <Text style={styles.adminNotesText}>{`"${item.admin_notes}"`}</Text>
                   </View>
                 )}
 

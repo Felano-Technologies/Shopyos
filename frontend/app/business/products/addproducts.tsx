@@ -105,6 +105,7 @@ export default function ManageProductScreen() {
       } catch (e) {
         console.error('Failed to parse product data for editing:', e);
       }
+    }
   }, [productData]);
 
   const handleSave = async () => {

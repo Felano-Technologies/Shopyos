@@ -54,7 +54,7 @@ const ForgotPasswordScreen = () => {
 
       <Text style={styles.title}>Forgotten Password?</Text>
       <Text style={styles.subtitle}>
-        Enter your email and choose how you'd{'\n'}like to receive your verification code.
+        {`Enter your email and choose how you'd\nlike to receive your verification code.`}
       </Text>
 
       {/* Email input */}
