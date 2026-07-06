@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getUserData, secureStorage } from '@/services/api';
-import { cacheUserProfile, getCachedUserProfile } from '@/services/storage';
+import { cacheUserProfile, clearUserProfileCache, getCachedUserProfile } from '@/services/storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -28,16 +28,13 @@ async function authCheckPromise(): Promise<string> {
   try {
     const token = await secureStorage.getItem('userToken');
     if (!token) return '/getstarted';
-    const cached = await getCachedUserProfile();
-    if (cached) {
-      getUserData().then(cacheUserProfile).catch(() => {});
-      return routeForUser(cached);
-    }
+
     const user = await getUserData();
     await cacheUserProfile(user);
     return routeForUser(user);
   } catch (error) {
     console.warn('Startup Auth Check Failed:', error);
+    await clearUserProfileCache();
     return '/getstarted';
   }
 }

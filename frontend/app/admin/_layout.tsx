@@ -3,14 +3,15 @@
 // Using Expo Router's Tabs keeps each screen mounted so navigating between
 // tabs does NOT trigger a full re-render / data reload — the state is preserved.
 
-import React from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { adminColors, adminShadow, useAdminBreakpoint } from '@/components/admin/adminTheme';
+import { getUserData } from '@/services/auth';
 
 const NAV_ITEMS = [
   { label: 'Home',       route: '/admin/dashboard',     icon: 'grid'          as const },
@@ -19,6 +20,15 @@ const NAV_ITEMS = [
   { label: 'Broadcasts', route: '/admin/broadcasts', icon: 'bell'          as const },
   { label: 'Settings',   route: '/admin/settings',      icon: 'settings'      as const },
 ];
+
+function hasAdminRole(user: any): boolean {
+  const role = String(user?.role ?? user?.account_type ?? '').toLowerCase();
+  const roles = Array.isArray(user?.roles) ? user.roles : [];
+  return role === 'admin' || roles.some((item: any) => {
+    if (typeof item === 'string') return item.toLowerCase() === 'admin';
+    return String(item?.name ?? item?.role ?? '').toLowerCase() === 'admin';
+  });
+}
 
 function AdminTabBar(props: BottomTabBarProps) {
   const router   = useRouter();
@@ -72,6 +82,41 @@ function AdminTabBar(props: BottomTabBarProps) {
 }
 
 export default function AdminLayout() {
+  const router = useRouter();
+  const [isCheckingAccess, setIsCheckingAccess] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    const checkAccess = async () => {
+      try {
+        const user = await getUserData();
+        if (!active) return;
+        if (!hasAdminRole(user)) {
+          router.replace('/home');
+          return;
+        }
+        setIsCheckingAccess(false);
+      } catch {
+        if (active) router.replace('/login');
+      }
+    };
+
+    checkAccess();
+
+    return () => {
+      active = false;
+    };
+  }, [router]);
+
+  if (isCheckingAccess) {
+    return (
+      <View style={styles.accessCheck}>
+        <ActivityIndicator size="large" color={adminColors.navy} />
+      </View>
+    );
+  }
+
   return (
     <Tabs
     tabBar={(props) => <AdminTabBar {...props} />}
@@ -99,6 +144,12 @@ export default function AdminLayout() {
 }
 
 const styles = StyleSheet.create({
+  accessCheck: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: adminColors.surface,
+  },
   tabBar: {
     position: 'absolute',
     left: 12,

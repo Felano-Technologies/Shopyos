@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { router } from 'expo-router';
-import { storage, secureStorage } from './storage';
+import { clearUserProfileCache, storage, secureStorage } from './storage';
 export { storage, secureStorage };
 import { CustomInAppToast } from '@/components/InAppToastHost';
 export { CustomInAppToast };
@@ -152,6 +152,7 @@ async function handleTokenExpired(error: any, originalRequest: any): Promise<any
       await secureStorage.removeItem('userToken');
       await secureStorage.removeItem('refreshToken');
       await storage.removeItem('userId');
+      await clearUserProfileCache();
     } catch {}
     throw refreshError;
   } finally {
@@ -165,6 +166,7 @@ async function handleUnauthorized(originalRequest: any): Promise<void> {
     await secureStorage.removeItem('userToken');
     await secureStorage.removeItem('refreshToken');
     await storage.removeItem('userId');
+    await clearUserProfileCache();
     if (existingToken) router.replace('/login');
   } catch (storageError) {
     console.error('Error clearing tokens:', storageError);
