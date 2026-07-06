@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -15,6 +16,14 @@ import AdminShell, { AdminPanel } from '@/components/admin/AdminShell';
 import { adminColors } from '@/components/admin/adminTheme';
 import { getUserData } from '@/services/api';
 
+// ---------------------------------------------------------------------------
+// Reusable row primitives
+// ---------------------------------------------------------------------------
+
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionTitle}>{title}</Text>;
+}
+
 function SettingItem({
   icon,
   label,
@@ -24,28 +33,33 @@ function SettingItem({
   onValueChange,
   onPress,
   color = adminColors.navy,
+  destructive = false,
+  isLast = false,
 }: any) {
+  const tint = destructive ? adminColors.red : color;
   return (
     <TouchableOpacity
-      style={styles.settingCard}
+      style={[styles.settingCard, isLast && styles.settingCardLast]}
       onPress={onPress}
       disabled={type === 'toggle'}
-      activeOpacity={0.7}
+      activeOpacity={type === 'toggle' ? 1 : 0.6}
     >
-      <View style={[styles.iconBg, { backgroundColor: `${color}10` }]}>
-        <Feather name={icon} size={20} color={color} />
+      <View style={[styles.iconBg, { backgroundColor: `${tint}14` }]}>
+        <Feather name={icon} size={18} color={tint} />
       </View>
       <View style={styles.settingText}>
-        <Text style={styles.settingLabel}>{label}</Text>
+        <Text style={[styles.settingLabel, destructive && { color: adminColors.red }]}>
+          {label}
+        </Text>
         {subLabel ? <Text style={styles.settingSubLabel}>{subLabel}</Text> : null}
       </View>
       {type === 'toggle' ? (
         <Switch
           value={value}
           onValueChange={onValueChange}
-          trackColor={{ false: '#CBD5E1', true: adminColors.navy }}
-          thumbColor={value ? '#A3E635' : '#F8FAFC'}
-          ios_backgroundColor="#CBD5E1"
+          trackColor={{ false: '#E2E8F0', true: adminColors.navy }}
+          thumbColor="#FFFFFF"
+          ios_backgroundColor="#E2E8F0"
         />
       ) : (
         <Feather name="chevron-right" size={18} color={adminColors.textSoft} />
@@ -53,6 +67,10 @@ function SettingItem({
     </TouchableOpacity>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
 
 export default function AdminSettings() {
   const router = useRouter();
@@ -74,7 +92,11 @@ export default function AdminSettings() {
         const role = user?.role || user?.account_type || 'Super Administrator';
         const avatar = user?.avatar_url || user?.avatar || null;
         setProfileName(name);
-        setProfileRole(String(role).replaceAll('_', ' ').replace(/\b\w/g, (m: string) => m.toUpperCase()));
+        setProfileRole(
+          String(role)
+            .replaceAll('_', ' ')
+            .replace(/\b\w/g, (m: string) => m.toUpperCase())
+        );
         setProfileImage(avatar);
       } catch {
         // Keep defaults if profile fetch fails.
@@ -91,9 +113,9 @@ export default function AdminSettings() {
   );
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to log out of the admin portal?', [
+    Alert.alert('Log out', 'You will need to sign in again to access the admin portal.', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Logout', style: 'destructive', onPress: () => router.replace('/login') },
+      { text: 'Log out', style: 'destructive', onPress: () => router.replace('/login') },
     ]);
   };
 
@@ -101,7 +123,19 @@ export default function AdminSettings() {
     <>
       <StatusBar style="dark" />
       <AdminShell>
-        <View style={styles.page}>
+        <ScrollView
+          style={styles.page}
+          contentContainerStyle={styles.pageContent}
+          showsVerticalScrollIndicator={false}
+          bounces
+        >
+          {/* Header */}
+          <View style={styles.pageHeader}>
+            <Text style={styles.pageTitle}>Settings</Text>
+            <Text style={styles.pageSubtitle}>Manage your account and platform preferences</Text>
+          </View>
+
+          {/* Profile */}
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
               {profileImage ? (
@@ -114,85 +148,127 @@ export default function AdminSettings() {
               <View style={styles.onlineDot} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.profileName}>{profileName}</Text>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profileName}
+              </Text>
               <Text style={styles.profileRole}>{profileRole}</Text>
             </View>
             <View style={styles.profileBadge}>
-              <Ionicons name="shield-checkmark-outline" size={16} color={adminColors.blue} />
+              <Ionicons name="shield-checkmark-outline" size={14} color={adminColors.blue} />
               <Text style={styles.profileBadgeText}>Protected</Text>
             </View>
           </AdminPanel>
 
-          <View style={styles.grid}>
-            <AdminPanel style={styles.column}>
-              <Text style={styles.sectionTitle}>Platform control</Text>
+          {/* Platform control */}
+          <View style={styles.section}>
+            <SectionHeader title="Platform control" />
+            <AdminPanel style={styles.groupCard}>
               <SettingItem
                 icon="tool"
-                label="Maintenance Mode"
+                label="Maintenance mode"
                 subLabel="Restrict user access during updates"
                 type="toggle"
                 value={isMaintenanceMode}
                 onValueChange={setIsMaintenanceMode}
+                color={adminColors.navy}
               />
               <View style={styles.divider} />
               <SettingItem
                 icon="check-circle"
-                label="Auto-Approve Sellers"
+                label="Auto-approve sellers"
                 subLabel="Skip manual verification for trusted stores"
                 type="toggle"
                 value={autoApproveSellers}
                 onValueChange={setAutoApproveSellers}
                 color={adminColors.green}
+                isLast
               />
             </AdminPanel>
+          </View>
 
-            <AdminPanel style={styles.column}>
-              <Text style={styles.sectionTitle}>Security & audit</Text>
+          {/* Security & audit */}
+          <View style={styles.section}>
+            <SectionHeader title="Security & audit" />
+            <AdminPanel style={styles.groupCard}>
               <SettingItem
                 icon="lock"
-                label="Update Password"
+                label="Update password"
                 subLabel="Rotate admin credentials"
                 onPress={() => Alert.alert('Security', 'Redirecting to security settings...')}
               />
               <View style={styles.divider} />
               <SettingItem
-                icon="list"
-                label="System Audit Logs"
-                subLabel="Review recent admin actions"
-                onPress={() => router.push('/admin/audit-logs' as any)}
+                icon="shield"
+                label="Two-factor authentication"
+                subLabel="Add an extra layer of protection"
+                onPress={() => Alert.alert('Security', 'Redirecting to two-factor setup...')}
               />
               <View style={styles.divider} />
               <SettingItem
-                icon="bell"
-                label="Admin Notifications"
-                subLabel="Keep push alerts enabled"
-                type="toggle"
-                value={pushNotifications}
-                onValueChange={setPushNotifications}
+                icon="list"
+                label="System audit logs"
+                subLabel="Review recent admin actions"
+                onPress={() => router.push('/admin/audit-logs' as any)}
+                isLast
               />
             </AdminPanel>
           </View>
 
-          <AdminPanel>
-            <Text style={styles.sectionTitle}>System info</Text>
-            <SettingItem
-              icon="help-circle"
-              label="Technical Support"
-              subLabel="Get help with platform operations"
-              onPress={() => {}}
-            />
-            <View style={styles.divider} />
-            <View style={styles.versionRow}>
-              <Text style={styles.versionLabel}>Shopyos Admin Version</Text>
-              <Text style={styles.versionValue}>v2.0.4-Build</Text>
-            </View>
-          </AdminPanel>
+          {/* Notifications */}
+          <View style={styles.section}>
+            <SectionHeader title="Notifications" />
+            <AdminPanel style={styles.groupCard}>
+              <SettingItem
+                icon="bell"
+                label="Push notifications"
+                subLabel="Get alerted about important admin events"
+                type="toggle"
+                value={pushNotifications}
+                onValueChange={setPushNotifications}
+                isLast
+              />
+            </AdminPanel>
+          </View>
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Feather name="log-out" size={20} color={adminColors.red} />
-            <Text style={styles.logoutText}>Logout Admin Portal</Text>
-          </TouchableOpacity>
-        </View>
+          {/* System info */}
+          <View style={styles.section}>
+            <SectionHeader title="System info" />
+            <AdminPanel style={styles.groupCard}>
+              <SettingItem
+                icon="help-circle"
+                label="Technical support"
+                subLabel="Get help with platform operations"
+                onPress={() => {}}
+              />
+              <View style={styles.divider} />
+              <View style={[styles.settingCard, styles.settingCardLast]}>
+                <View style={[styles.iconBg, { backgroundColor: `${adminColors.textMuted}14` }]}>
+                  <Feather name="info" size={18} color={adminColors.textMuted} />
+                </View>
+                <View style={styles.settingText}>
+                  <Text style={styles.settingLabel}>Version</Text>
+                  <Text style={styles.settingSubLabel}>Shopyos Admin</Text>
+                </View>
+                <Text style={styles.versionValue}>v2.0.4</Text>
+              </View>
+            </AdminPanel>
+          </View>
+
+          {/* Danger zone / account */}
+          <View style={styles.section}>
+            <SectionHeader title="Account" />
+            <AdminPanel style={styles.groupCard}>
+              <SettingItem
+                icon="log-out"
+                label="Log out"
+                subLabel="Sign out of the admin portal on this device"
+                onPress={handleLogout}
+                destructive
+                isLast
+              />
+            </AdminPanel>
+          </View>
+        </ScrollView>
       </AdminShell>
     </>
   );
@@ -201,41 +277,59 @@ export default function AdminSettings() {
 const styles = StyleSheet.create({
   page: {
     flex: 1,
-    gap: 16,
+  },
+  pageContent: {
+    paddingBottom: 48,
+    gap: 4,
+  },
+  pageHeader: {
+    marginBottom: 4,
+  },
+  pageTitle: {
+    color: adminColors.text,
+    fontSize: 26,
+    fontFamily: 'Montserrat-Bold',
+  },
+  pageSubtitle: {
+    color: adminColors.textMuted,
+    fontSize: 13,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 4,
   },
   profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+    marginTop: 20,
   },
   profileAvatarWrap: {
     position: 'relative',
   },
   profileAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    borderRadius: 20,
     backgroundColor: '#DBEAFE',
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileAvatarImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 22,
+    width: 60,
+    height: 60,
+    borderRadius: 20,
     backgroundColor: '#DBEAFE',
   },
   profileInitial: {
     color: adminColors.blue,
-    fontSize: 26,
+    fontSize: 24,
     fontFamily: 'Montserrat-Bold',
   },
   onlineDot: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
+    bottom: 1,
+    right: 1,
+    width: 13,
+    height: 13,
     borderRadius: 7,
     backgroundColor: adminColors.green,
     borderWidth: 2,
@@ -243,62 +337,66 @@ const styles = StyleSheet.create({
   },
   profileName: {
     color: adminColors.text,
-    fontSize: 22,
+    fontSize: 19,
     fontFamily: 'Montserrat-Bold',
   },
   profileRole: {
     color: adminColors.textMuted,
     fontSize: 13,
     fontFamily: 'Montserrat-Regular',
-    marginTop: 4,
+    marginTop: 3,
   },
   profileBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 999,
     backgroundColor: '#EFF6FF',
   },
   profileBadgeText: {
     color: adminColors.blue,
     fontFamily: 'Montserrat-SemiBold',
-    fontSize: 12,
+    fontSize: 11,
   },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 16,
-  },
-  column: {
-    flex: 1,
-    minWidth: 280,
+  section: {
+    marginTop: 24,
   },
   sectionTitle: {
-    color: adminColors.text,
-    fontSize: 18,
-    fontFamily: 'Montserrat-Bold',
-    marginBottom: 10,
+    color: adminColors.textMuted,
+    fontSize: 12,
+    fontFamily: 'Montserrat-SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  groupCard: {
+    paddingVertical: 4,
   },
   settingCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
+    paddingVertical: 13,
+  },
+  settingCardLast: {
+    paddingBottom: 10,
   },
   iconBg: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   settingText: {
     flex: 1,
     marginLeft: 14,
+    marginRight: 8,
   },
   settingLabel: {
-    fontSize: 15,
+    fontSize: 14.5,
     fontFamily: 'Montserrat-Bold',
     color: adminColors.text,
   },
@@ -306,41 +404,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: adminColors.textMuted,
     fontFamily: 'Montserrat-Regular',
-    marginTop: 3,
+    marginTop: 2,
   },
   divider: {
     height: 1,
     backgroundColor: adminColors.border,
   },
-  versionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingTop: 14,
-  },
-  versionLabel: {
-    fontSize: 13,
-    fontFamily: 'Montserrat-Regular',
-    color: adminColors.textMuted,
-  },
   versionValue: {
     fontSize: 13,
     fontFamily: 'Montserrat-Bold',
-    color: adminColors.navy,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    padding: 18,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-  },
-  logoutText: {
-    color: adminColors.red,
-    fontFamily: 'Montserrat-Bold',
-    fontSize: 15,
+    color: adminColors.textMuted,
   },
 });
