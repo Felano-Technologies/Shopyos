@@ -3,15 +3,39 @@ import { api, extractErrorMessage, API_URL, secureStorage, storage } from './cli
 import { cacheUserProfile, clearUserProfileCache } from './storage';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export const useGoogleAuth = () =>
-  Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+type GoogleAuthConfig = {
+  webClientId?: string;
+  iosClientId?: string;
+  androidClientId?: string;
+};
+
+const getGoogleAuthConfig = (): GoogleAuthConfig => ({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+});
+
+export const isGoogleAuthConfigured = () => {
+  const config = getGoogleAuthConfig();
+
+  if (Platform.OS === 'ios') return Boolean(config.iosClientId);
+  if (Platform.OS === 'android') return Boolean(config.androidClientId);
+  return Boolean(config.webClientId);
+};
+
+export const useGoogleAuth = () => {
+  const config = getGoogleAuthConfig();
+
+  return Google.useAuthRequest({
+    webClientId: config.webClientId || 'google-auth-not-configured.apps.googleusercontent.com',
+    iosClientId: config.iosClientId || 'google-auth-not-configured.apps.googleusercontent.com',
+    androidClientId: config.androidClientId || 'google-auth-not-configured.apps.googleusercontent.com',
   });
+};
 
 export const signInWithGoogle = async (idToken: string) => {
   try {
