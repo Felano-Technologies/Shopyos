@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { CustomInAppToast } from "@/components/InAppToastHost";
 import { StatusBar } from 'expo-status-bar';
 import { loginUser } from '@/services/api';
-import { useGoogleAuth, signInWithGoogle } from '@/services/auth';
+import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle } from '@/services/auth';
 import * as Location from 'expo-location';
 import { useOnboarding } from '@/context/OnboardingContext';
 
@@ -56,6 +56,7 @@ const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const googleAuthConfigured = isGoogleAuthConfigured();
   const [request, response, promptAsync] = useGoogleAuth();
 
   useEffect(() => {
@@ -129,6 +130,17 @@ const LoginScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+  const handleGoogleSignIn = () => {
+    if (!googleAuthConfigured) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Google Sign-In Unavailable',
+        message: 'Google OAuth is not configured for this platform.',
+      });
+      return;
+    }
+    promptAsync();
   };
   return (
     <View style={styles.container}>
@@ -220,9 +232,9 @@ const LoginScreen = () => {
             <TouchableOpacity
               accessibilityLabel="Continue with Google"
               accessibilityRole="button"
-              style={styles.googleButton}
-              onPress={() => promptAsync()}
-              disabled={!request || loading}
+              style={[styles.googleButton, (!googleAuthConfigured || loading) && styles.disabledButton]}
+              onPress={handleGoogleSignIn}
+              disabled={loading || (googleAuthConfigured && !request)}
             >
               <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
               <Text style={styles.googleButtonText}>Continue with Google</Text>
@@ -376,7 +388,7 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     width: '100%',
-    height: 50,
+    height: 45,
     backgroundColor: '#f3f4f6',
     borderRadius: 14,
     borderWidth: 1,
@@ -393,6 +405,7 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     width: '100%',
+    height: 45,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#1e3a8a',
@@ -419,18 +432,18 @@ const styles = StyleSheet.create({
     marginBottom: -20,
   },
   circleLogo: {
-    width: 150,
-    height: 150,
+    width: 120,
+    height: 120,
     resizeMode: 'contain',
-    marginLeft: -60,
-    marginBottom: -210,
+    marginLeft: -50,
+    marginBottom: -120,
   },
   brandLogo: {
     width: 90,
     height: 30,
     resizeMode: 'contain',
     marginLeft: -50,
-    marginBottom: -200,
+    marginBottom: -140,
   },
   devPanel: {
     width: '100%',

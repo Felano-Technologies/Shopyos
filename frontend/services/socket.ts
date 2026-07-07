@@ -146,6 +146,11 @@ class SocketService {
           resolve(this.socket);
         } catch (error) {
           console.error('Failed to connect socket:', error);
+          if (this.socket) {
+            this.socket.removeAllListeners();
+            this.socket.disconnect();
+            this.socket = null;
+          }
           this.connectionPromise = null;
           reject(error);
         }
