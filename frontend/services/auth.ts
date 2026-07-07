@@ -61,6 +61,7 @@ export const registerUser = async (
   try {
     const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password, referralCode, termsAccepted, privacyAccepted });
     if (response.data.token) {
+      await clearUserProfileCache();
       await secureStorage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
       try {
@@ -164,6 +165,7 @@ export const loginUser = async (
   try {
     const response = await api.post('/auth/login', { email, password, latitude, longitude });
     if (response.data.token) {
+      await clearUserProfileCache();
       await secureStorage.setItem('userToken', response.data.token);
       if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
       try {

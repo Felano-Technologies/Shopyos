@@ -152,6 +152,12 @@ export default function AdminSettings() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} tintColor={adminColors.navy} />}
         >
+          {/* Header */}
+          <View style={styles.pageHeader}>
+            <Text style={styles.pageTitle}>Settings</Text>
+            <Text style={styles.pageSubtitle}>Manage your account and platform preferences</Text>
+          </View>
+
           <AdminPanel style={styles.profileCard}>
             <View style={styles.profileAvatarWrap}>
               {profileImage ? (
@@ -343,6 +349,20 @@ const styles = StyleSheet.create({
     gap: 16,
     paddingHorizontal: 16,
     paddingBottom: 16,
+  },
+  pageHeader: {
+    marginBottom: 4,
+  },
+  pageTitle: {
+    color: adminColors.text,
+    fontSize: 26,
+    fontFamily: 'Montserrat-Bold',
+  },
+  pageSubtitle: {
+    color: adminColors.textMuted,
+    fontSize: 13,
+    fontFamily: 'Montserrat-Regular',
+    marginTop: 4,
   },
   profileCard: {
     flexDirection: 'row',
