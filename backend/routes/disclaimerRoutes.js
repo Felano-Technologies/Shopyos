@@ -1,7 +1,7 @@
 // routes/disclaimerRoutes.js
 const express = require('express');
 const router = express.Router();
-const { protect, admin } = require('../middleware/authMiddleware');
+const { protect, optionalAuth, admin } = require('../middleware/authMiddleware');
 const {
   getDisclaimer,
   acknowledgeDisclaimer,
@@ -10,10 +10,14 @@ const {
   getAcknowledgementsAudit,
 } = require('../controllers/disclaimerController');
 
-// Registered user endpoints (cancellation notices, bargain rules, etc.)
+// Reading a disclaimer is public — the register screen shows Terms of Service
+// and Privacy Policy before an account exists. Acknowledging still needs auth.
 router.get('/check', protect, checkAcknowledgement);
-router.get('/:type', protect, getDisclaimer);
-router.post('/acknowledge', protect, acknowledgeDisclaimer);
+router.get('/:type', getDisclaimer);
+// optionalAuth: the shipped app's register screen calls acknowledge before an
+// account exists — the controller answers those without persisting (consent is
+// recorded server-side at registration). Authenticated calls persist as before.
+router.post('/acknowledge', optionalAuth, acknowledgeDisclaimer);
 
 // Administrator endpoints (disclaimer management and audits)
 router.put('/:type', protect, admin, updateDisclaimer);
