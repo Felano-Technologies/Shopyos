@@ -255,10 +255,14 @@ function AppContent() {
               <Stack.Screen name='settings/Account' />
               <Stack.Screen name='settings/Transactions' />
               <Stack.Screen name='settings/changePassword' />
+              <Stack.Screen name='settings/activeSessions' />
+              <Stack.Screen name='two-factor' options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name='settings/contactUs' />
               <Stack.Screen name='settings/helpCenter' />
               <Stack.Screen name='settings/paymentMethods' />
               <Stack.Screen name='settings/pushNotifications' />
+              <Stack.Screen name='settings/myReviews' />
+              <Stack.Screen name='settings/blockedUsers' />
 
 
 

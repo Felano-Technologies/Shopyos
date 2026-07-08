@@ -45,12 +45,15 @@ const RegisterScreen = () => {
         return;
       }
       setLoading(true);
-      signInWithGoogle(idToken)
+      signInWithGoogle(idToken, referralCode)
         .then(async () => {
           CustomInAppToast.show({ type: 'success', title: 'Welcome to Shopyos!', message: 'Account created with Google.' });
           router.push('/role');
         })
         .catch((err: Error) => {
+          if (/referral code/i.test(err.message)) {
+            setErrors(prev => ({ ...prev, referralCode: err.message }));
+          }
           CustomInAppToast.show({ type: 'error', title: 'Google Sign-Up Failed', message: err.message });
         })
         .finally(() => setLoading(false));
@@ -98,10 +101,14 @@ const RegisterScreen = () => {
         });
       }
     } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Something went wrong.';
+      if (/referral code/i.test(message)) {
+        setErrors(prev => ({ ...prev, referralCode: message }));
+      }
       CustomInAppToast.show({
         type: 'error',
         title: 'Sign Up Failed',
-        message: error instanceof Error ? error.message : 'Something went wrong.',
+        message,
       });
     } finally {
       setLoading(false);
@@ -247,9 +254,13 @@ const RegisterScreen = () => {
               autoCapitalize="characters"
               autoCorrect={false}
               value={referralCode}
-              onChangeText={setReferralCode}
+              onChangeText={(text) => {
+                setReferralCode(text);
+                if (errors.referralCode) setErrors(prev => ({ ...prev, referralCode: '' }));
+              }}
             />
           </View>
+          {errors.referralCode ? <Text style={styles.fieldError}>{errors.referralCode}</Text> : null}
           {/* Disclaimer checkboxes */}
           <View style={styles.disclaimerRow}>
             <TouchableOpacity accessibilityLabel="Accept terms of service" accessibilityRole="checkbox" onPress={() => setTermsAccepted(!termsAccepted)} activeOpacity={0.8}>

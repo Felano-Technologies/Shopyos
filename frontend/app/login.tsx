@@ -88,6 +88,10 @@ const LoginScreen = () => {
       setLoading(true);
       const { latitude, longitude } = await getDeviceLocation();
       const response = await loginUser(email, password, latitude, longitude);
+      if (response.requiresTwoFactor) {
+        router.push({ pathname: '/two-factor' as any, params: { token: response.twoFaToken, target: response.maskedTarget || '' } });
+        return;
+      }
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful', message: 'Welcome back!' });
         await refresh();
@@ -112,6 +116,10 @@ const LoginScreen = () => {
       setLoading(true);
       const { latitude, longitude } = await getDeviceLocation();
       const response = await loginUser(quickEmail, quickPassword, latitude, longitude);
+      if (response.requiresTwoFactor) {
+        router.push({ pathname: '/two-factor' as any, params: { token: response.twoFaToken, target: response.maskedTarget || '' } });
+        return;
+      }
       if (response.message === 'Login successful') {
         CustomInAppToast.show({ type: 'success', title: 'Login Successful', message: 'Welcome back!' });
         await refresh();

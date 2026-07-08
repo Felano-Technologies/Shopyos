@@ -8,11 +8,15 @@ import {
   ActivityIndicator,
   StatusBar,
   RefreshControl,
+  Share,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { Feather } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getLoyaltyBalance, getLoyaltyTransactions } from '@/services/api';
+import { getCachedUserProfile } from '@/services/storage';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 
 interface LoyaltyTransaction {
   id: string;
@@ -26,10 +30,44 @@ interface LoyaltyTransaction {
   related_user_avatar: string | null;
 }
 
-function ListHeader({ balance, redeemableValue, lifetimeEarned }: Readonly<{
+function ReferralCard({ code }: Readonly<{ code: string }>) {
+  const copyCode = async () => {
+    await Clipboard.setStringAsync(code);
+    CustomInAppToast.show({ type: 'success', title: 'Copied!', message: 'Referral code copied to clipboard.' });
+  };
+
+  const shareCode = async () => {
+    try {
+      await Share.share({
+        message: `Join me on Shopyos! Use my referral code ${code} when you sign up and we both earn bonus points. 🛍️`,
+      });
+    } catch { /* user dismissed the share sheet */ }
+  };
+
+  return (
+    <View style={styles.referralCard}>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.referralLabel}>Your Referral Code</Text>
+        <TouchableOpacity onPress={copyCode} activeOpacity={0.7} accessibilityLabel="Copy referral code" accessibilityRole="button">
+          <View style={styles.referralCodeRow}>
+            <Text style={styles.referralCode}>{code}</Text>
+            <Feather name="copy" size={15} color="#0C1559" />
+          </View>
+        </TouchableOpacity>
+      </View>
+      <TouchableOpacity style={styles.shareBtn} onPress={shareCode} accessibilityLabel="Share referral code" accessibilityRole="button">
+        <Feather name="share-2" size={15} color="#FFF" />
+        <Text style={styles.shareBtnText}>Share</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function ListHeader({ balance, redeemableValue, lifetimeEarned, referralCode }: Readonly<{
   balance: number;
   redeemableValue: number;
   lifetimeEarned: number;
+  referralCode: string | null;
 }>) {
   return (
     <View>
@@ -84,6 +122,8 @@ function ListHeader({ balance, redeemableValue, lifetimeEarned }: Readonly<{
         </View>
       </View>
 
+      {referralCode ? <ReferralCard code={referralCode} /> : null}
+
       <Text style={styles.sectionTitle}>Transaction History</Text>
     </View>
   );
@@ -114,6 +154,7 @@ export default function LoyaltyPointsScreen() {
   const [lifetimeEarned, setLifetimeEarned] = useState(0);
   const [redeemableValue, setRedeemableValue] = useState(0);
   const [transactions, setTransactions] = useState<LoyaltyTransaction[]>([]);
+  const [referralCode, setReferralCode] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const PAGE_SIZE = 20;
@@ -149,6 +190,12 @@ export default function LoyaltyPointsScreen() {
 
   useEffect(() => {
     loadData(true);
+    getCachedUserProfile()
+      .then((profile: any) => {
+        const p = profile?.user || profile;
+        if (p?.referral_code) setReferralCode(p.referral_code);
+      })
+      .catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -243,7 +290,7 @@ export default function LoyaltyPointsScreen() {
         data={transactions}
         keyExtractor={(item) => item.id}
         renderItem={renderTransaction}
-        ListHeaderComponent={() => <ListHeader balance={balance} redeemableValue={redeemableValue} lifetimeEarned={lifetimeEarned} />}
+        ListHeaderComponent={() => <ListHeader balance={balance} redeemableValue={redeemableValue} lifetimeEarned={lifetimeEarned} referralCode={referralCode} />}
         ListEmptyComponent={ListEmpty}
         ListFooterComponent={() => <ListFooter loadingMore={loadingMore} />}
         contentContainerStyle={styles.listContent}
@@ -359,6 +406,31 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     fontSize: 11,
   },
+  // Referral card
+  referralCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  referralLabel: { fontSize: 11, fontWeight: '600', color: '#15803D', textTransform: 'uppercase', letterSpacing: 0.5 },
+  referralCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  referralCode: { fontSize: 18, fontWeight: 'bold', color: '#0C1559', letterSpacing: 1.5 },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#16A34A',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  shareBtnText: { color: '#FFF', fontSize: 13, fontWeight: '700' },
   // How it works
   howCard: {
     backgroundColor: '#FFF',

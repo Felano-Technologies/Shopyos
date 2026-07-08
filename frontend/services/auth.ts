@@ -37,9 +37,12 @@ export const useGoogleAuth = () => {
   });
 };
 
-export const signInWithGoogle = async (idToken: string) => {
+export const signInWithGoogle = async (idToken: string, referralCode?: string) => {
   try {
-    const response = await api.post('/auth/google', { idToken });
+    const response = await api.post('/auth/google', {
+      idToken,
+      ...(referralCode?.trim() && { referralCode: referralCode.trim() }),
+    });
     const payload = response.data?.data || {};
     if (payload.token) {
       await secureStorage.setItem('userToken', payload.token);
@@ -224,6 +227,127 @@ export const loginUser = async (
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
     throw new Error(error.message || 'Network error during login');
+  }
+};
+
+// Complete a login after tokens are issued (shared by password login and 2FA verify)
+const completeAuthSession = async (payload: any) => {
+  await clearUserProfileCache();
+  await secureStorage.setItem('userToken', payload.token);
+  if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
+  try {
+    const meResponse = await api.get('/auth/me');
+    const me = meResponse.data?.user || meResponse.data;
+    if (me?.id) {
+      await storage.setItem('userId', me.id);
+      const { initCartForUser } = require('@/store/cartStore');
+      await initCartForUser(me.id);
+    }
+    await cacheUserProfile(me);
+  } catch (meErr) {
+    console.warn('Could not fetch profile after login:', meErr);
+  }
+  try {
+    const pushToken = await storage.getItem('expoPushToken');
+    if (pushToken) await registerPushTokenInBackend(pushToken);
+  } catch (err) {
+    console.warn('Failed syncing expo push token on login:', err);
+  }
+};
+
+// Verify a 2FA code and finish logging in
+export const verifyTwoFactorLogin = async (twoFaToken: string, code: string) => {
+  try {
+    const response = await api.post('/auth/2fa/verify', { twoFaToken, code });
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await completeAuthSession(payload);
+    }
+    const needsRole =
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
+  } catch (error: any) {
+    if (error.response) throw new Error(error.response.data?.error || `Verification failed: ${error.response.status}`);
+    throw new Error(error.message || 'Network error during verification');
+  }
+};
+
+// ── Security & privacy settings ──────────────────────────────────────────────
+
+export const getSecuritySettings = async (): Promise<{
+  twoFactorEnabled: boolean;
+  loginAlertsEnabled: boolean;
+  privacySettings: Record<string, boolean>;
+}> => {
+  try {
+    const response = await api.get('/auth/security-settings');
+    return response.data?.data || response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateSecuritySettings = async (settings: {
+  twoFactorEnabled?: boolean;
+  loginAlertsEnabled?: boolean;
+  privacySettings?: Record<string, boolean>;
+}) => {
+  try {
+    const response = await api.put('/auth/security-settings', settings);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const getActiveSessions = async (): Promise<{
+  sessions: { id: string; device: string | null; ip: string | null; createdAt: string; expiresAt: string }[];
+  count: number;
+}> => {
+  try {
+    const response = await api.get('/auth/sessions');
+    return response.data?.data || response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const revokeSession = async (sessionId: string) => {
+  try {
+    const response = await api.delete(`/auth/sessions/${sessionId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const logoutAllSessions = async () => {
+  try {
+    const response = await api.post('/auth/logout-all');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const requestDataExport = async () => {
+  try {
+    const response = await api.post('/auth/export-data');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const requestAccountDeletion = async () => {
+  try {
+    const response = await api.post('/auth/delete-account');
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
 

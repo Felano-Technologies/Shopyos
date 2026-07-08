@@ -850,6 +850,35 @@ const confirmDelivery = async (req, res, next) => {
         }).catch(e => logger.error('Seller payout notification failed', e));
     }
 
+    // If this order completed a pending referral, tell the referrer their points landed.
+    // confirm_delivery_atomic stamps the referral with this order_id when it credits.
+    try {
+      const db = require('../config/postgres').getPool();
+      const { rows: refRows } = await db.query(
+        `SELECT r.referrer_id, lt.points, up.full_name AS referred_name
+         FROM referrals r
+         LEFT JOIN loyalty_transactions lt ON lt.order_id = r.order_id AND lt.type = 'referral' AND lt.user_id = r.referrer_id
+         LEFT JOIN user_profiles up ON up.user_id = r.referred_id
+         WHERE r.order_id = $1 AND r.status = 'completed'
+         LIMIT 1`,
+        [orderId]
+      );
+      if (refRows[0]) {
+        const { referrer_id, points, referred_name } = refRows[0];
+        await notificationService.sendNotification({
+          userId: referrer_id,
+          type: 'loyalty_earned',
+          title: `Referral bonus earned! +${points || ''} points`.trim(),
+          message: `${referred_name || 'Your friend'} completed their first order — your referral points have been added.`,
+          relatedId: orderId,
+          relatedType: 'referral',
+          push: { data: { screen: 'loyalty' } }
+        });
+      }
+    } catch (refErr) {
+      logger.error('Referral reward notification failed:', refErr.message);
+    }
+
     ApiResponse.withEntity(res, 'order', updatedOrder, 'Delivery confirmed. Funds released to seller and driver.');
   } catch (error) {
     next(error);
