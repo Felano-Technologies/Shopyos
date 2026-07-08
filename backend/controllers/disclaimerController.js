@@ -31,10 +31,12 @@ const getDisclaimer = async (req, res, next) => {
 /**
  * Log user consent / acknowledgement of a disclaimer
  */
+// Disclaimer types shown BEFORE an account exists (register screen)
+const PRE_AUTH_TYPES = ['terms_of_service', 'privacy_policy'];
+
 const acknowledgeDisclaimer = async (req, res, next) => {
   try {
     const { disclaimerType, version, contextId, contextType } = req.body;
-    const userId = req.user.id;
     const ip = req.ip || req.connection.remoteAddress;
     const userAgent = req.headers['user-agent'] || 'unknown';
 
@@ -42,8 +44,22 @@ const acknowledgeDisclaimer = async (req, res, next) => {
       return ApiResponse.error(res, 'disclaimerType and version are required', 400);
     }
 
+    // Unauthenticated: only pre-registration documents may be "acknowledged".
+    // Nothing is persisted — durable consent is written during registration —
+    // but the shipped app expects a 201 with an id to let the user proceed.
+    if (!req.user?.id) {
+      if (!PRE_AUTH_TYPES.includes(disclaimerType)) {
+        return ApiResponse.error(res, 'Not authorized', 401);
+      }
+      return ApiResponse.withEntity(res, 'acknowledgement', {
+        id: 'pre-registration',
+        disclaimer_type: disclaimerType,
+        version
+      }, null, null, 201);
+    }
+
     const ack = await repositories.disclaimers.createAcknowledgement(
-      userId, disclaimerType, version, contextId, contextType, ip, userAgent
+      req.user.id, disclaimerType, version, contextId, contextType, ip, userAgent
     );
 
     ApiResponse.withEntity(res, 'acknowledgement', ack, null, null, 201);

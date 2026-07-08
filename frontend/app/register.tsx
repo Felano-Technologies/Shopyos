@@ -331,12 +331,14 @@ const RegisterScreen = () => {
         </View>
         <DisclaimerModal
           type="terms_of_service"
+          localOnly
           visible={showTermsModal}
           onClose={() => setShowTermsModal(false)}
           onAcknowledge={() => { setTermsAccepted(true); setShowTermsModal(false); }}
         />
         <DisclaimerModal
           type="privacy_policy"
+          localOnly
           visible={showPrivacyModal}
           onClose={() => setShowPrivacyModal(false)}
           onAcknowledge={() => { setPrivacyAccepted(true); setShowPrivacyModal(false); }}

@@ -18,6 +18,9 @@ interface DisclaimerModalProps {
   required?: boolean;
   contextId?: string;
   contextType?: string;
+  /** Skip the authenticated acknowledge API — for pre-login contexts (register
+   *  screen), where the backend records consent during registration instead. */
+  localOnly?: boolean;
   onClose: () => void;
   onAcknowledge: (ackId: string) => void;
 }
@@ -26,6 +29,7 @@ export default function DisclaimerModal({
   type,
   visible,
   required = false,
+  localOnly = false,
   contextId,
   contextType,
   onClose,
@@ -55,6 +59,11 @@ export default function DisclaimerModal({
 
   const handleAgree = async () => {
     if (!disclaimer || !checked) return;
+    if (localOnly) {
+      onAcknowledge('');
+      onClose();
+      return;
+    }
     setSubmitting(true);
     try {
       const ack = await acknowledgeDisclaimer(
