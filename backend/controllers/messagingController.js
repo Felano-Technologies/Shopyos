@@ -5,7 +5,12 @@ const ApiResponse = require('../utils/apiResponse');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const notificationService = require('../services/notificationService');
-const { emitToConversation } = require('../../socket/src/config/socketServer');
+const { publishRealtimeEvent } = require('../services/realtimePublisher');
+
+// Route realtime emits through Redis pub/sub so they reach the socket service
+// whether it runs in-process (monolith) or as a separate container.
+const emitToConversation = (conversationId, event, payload) =>
+  publishRealtimeEvent({ scope: 'conversation', conversationId, event, payload });
 const aiService = require('../services/aiService');
 const { s3, resolveImageUrl } = require('../config/storage');
 const { PutObjectCommand } = require('@aws-sdk/client-s3');
