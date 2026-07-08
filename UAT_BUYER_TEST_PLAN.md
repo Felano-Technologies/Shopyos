@@ -298,7 +298,7 @@ There is no "Chat" tab. The chat list is reached via the floating chat button on
 | 12 | From Home, tap the floating chat button, then use the search feature | Matching messages found |
 | 13 | Delete a single message, then delete an entire conversation | Removed as expected |
 | 14 | Receive a message while the app is backgrounded; check a contact's status | Badge updates; presence reflects actual status |
-| 15 | In a conversation, block the other user | Blocked and added to the blocked list |
+| 15 | In a conversation, open the "•••" more-options menu and tap "Block User", then confirm | Blocked and added to the blocked list |
 | 16 | Send a message and watch its status icon | Status icon progresses correctly |
 | 17 | From Home, tap the floating chat button while a delivery is picked up/in transit | Driver appears under "Active Deliveries" and can be messaged |
 | 18 | Open the chat list again after that delivery completes | No longer listed, but history remains |
@@ -372,7 +372,7 @@ Snaps are **not** a separate tab — they appear as a horizontal, story-style ro
 
 | # | Scenario | Expected Result |
 |---|---|---|
-| 1 | From a chat conversation, use the Block action | The other user is blocked; content/messages hidden |
+| 1 | In a chat conversation, open the "•••" more-options menu, tap "Block User", and confirm | The other user is blocked; content/messages hidden |
 | 2 | Go to Settings → Blocked Users | The blocked user appears in the list |
 | 3 | On Settings → Blocked Users, tap "Unblock" on someone | Removed from the list; they can message you again |
 
