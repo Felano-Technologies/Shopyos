@@ -5,6 +5,7 @@
 
 const cron = require('node-cron');
 const { logger } = require('../config/logger');
+const { acquireLock } = require('../config/redis');
 const repositories = require('../db/repositories');
 const paystackService = require('../services/paystackService');
 const { _refundPayoutBalance } = require('../controllers/payoutController');
@@ -240,11 +241,21 @@ async function runSellerPayouts() {
 }
 
 function initPayoutScheduler() {
+    // Cross-instance locks: overlapping containers (rolling deploys) must not
+    // both run a payout batch — money moves in these jobs.
+    const day = () => new Date().toISOString().slice(0, 10);
+
     // Driver: nightly at 02:00 AM
-    cron.schedule('0 2 * * *', runDriverPayouts, { timezone: 'Africa/Accra' });
+    cron.schedule('0 2 * * *', async () => {
+        if (!await acquireLock(`lock:driver_payouts:${day()}`, 3600)) return;
+        await runDriverPayouts();
+    }, { timezone: 'Africa/Accra' });
 
     // Seller: every Monday at 06:00 AM
-    cron.schedule('0 6 * * 1', runSellerPayouts, { timezone: 'Africa/Accra' });
+    cron.schedule('0 6 * * 1', async () => {
+        if (!await acquireLock(`lock:seller_payouts:${day()}`, 3600)) return;
+        await runSellerPayouts();
+    }, { timezone: 'Africa/Accra' });
 
     logger.info('[PayoutScheduler] Payout scheduler initialized (driver: 02:00 daily, seller: 06:00 Mondays)');
 }

@@ -8,6 +8,7 @@ require('dotenv').config();
 
 const cron = require('node-cron');
 const { logger } = require('../config/logger');
+const { acquireLock } = require('../config/redis');
 const repositories = require('../db/repositories');
 const _expoPushService = require('../services/expoPushService');
 const holidayService = require('../services/holidayService');
@@ -289,12 +290,16 @@ async function processManualBroadcasts() {
     logger.info(`[Scheduler] Processing ${due.length} due manual broadcast(s)`);
 
     for (const item of due) {
-      // Atomic claim: only one server instance should handle each item
-      try {
-        await repositories.scheduledNotifications.update(item.id, { status: 'processing' });
-      } catch {
-        continue; // Another instance already claimed it
-      }
+      // Atomic claim: the conditional UPDATE succeeds on exactly one instance.
+      // (An unconditional update let overlapping containers — e.g. during a
+      // rolling deploy — both claim the item and double-send to every user.)
+      const db = require('../config/postgres').getPool();
+      const { rowCount } = await db.query(
+        `UPDATE scheduled_notifications SET status = 'processing'
+         WHERE id = $1 AND status = 'pending'`,
+        [item.id]
+      );
+      if (!rowCount) continue; // Another instance already claimed it
 
       try {
         const recipients = await resolveRecipients(item.recipient_type, item.recipient_ids);
@@ -497,6 +502,17 @@ async function executeDailyMarketingSweep() {
     logger.warn('[Scheduler] Sweep still running from previous trigger, skipping');
     return;
   }
+
+  // Cross-instance guard: during rolling deploys two containers run this cron
+  // simultaneously — only the one that wins the Redis lock may dispatch.
+  // The lock is deliberately never released; the 1h TTL covers the whole slot.
+  const hourSlot = `${new Date().toISOString().slice(0, 10)}-${new Date().getHours()}`;
+  const gotLock = await acquireLock(`lock:daily_sweep:${hourSlot}`, 3600);
+  if (!gotLock) {
+    logger.info('[Scheduler] Daily sweep already handled by another instance, skipping');
+    return;
+  }
+
   sweepRunning = true;
   try {
     logger.info('[Scheduler] Running daily marketing sweep…');
@@ -540,6 +556,7 @@ function initScheduler() {
   // Every 15 minutes: abandoned cart recovery push
   cron.schedule('*/15 * * * *', async () => {
     try {
+      if (!await acquireLock('lock:abandoned_cart_sweep', 840)) return;
       const abandoned = await repositories.carts.getAbandonedCarts(60);
       if (!abandoned.length) return;
 
@@ -597,7 +614,8 @@ function initScheduler() {
   });
 
   // Every 30 minutes: price-drop / back-in-stock alerts for favorited products
-  cron.schedule('*/30 * * * *', () => {
+  cron.schedule('*/30 * * * *', async () => {
+    if (!await acquireLock('lock:favorite_alerts_sweep', 1700)) return;
     const { sweepFavoriteAlerts } = require('./engagementAlerts');
     sweepFavoriteAlerts().catch(err =>
       logger.error('[Scheduler] Favorite alerts sweep error:', err.message)
@@ -615,6 +633,7 @@ function initScheduler() {
   // Every 5 minutes: check for expired snaps and alert sellers
   cron.schedule('*/5 * * * *', async () => {
     try {
+      if (!await acquireLock('lock:snap_expiry_sweep', 270)) return;
       const db = require('../config/postgres').getPool();
       const notificationService = require('../services/notificationService');
 
@@ -648,7 +667,8 @@ function initScheduler() {
     }
   });
 
-  cron.schedule('0 9 28-31 * *', () => {
+  cron.schedule('0 9 28-31 * *', async () => {
+    if (!await acquireLock(`lock:monthly_wrap:${new Date().toISOString().slice(0, 10)}`, 3600)) return;
     const { sendMonthlyBuyerWrapNotifications } = require('../jobs/monthlyWrap');
     sendMonthlyBuyerWrapNotifications().catch(err =>
       logger.error('[Scheduler] Monthly wrap notification error:', err.message)
