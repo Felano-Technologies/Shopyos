@@ -136,7 +136,10 @@ async function handleTokenExpired(error: any, originalRequest: any): Promise<any
     if (!storedRefreshToken) throw new Error('No refresh token stored');
 
     const refreshRes = await api.post('/auth/refresh', { refreshToken: storedRefreshToken });
-    const { token: newAccessToken, refreshToken: newRefreshToken } = refreshRes.data;
+    // ApiResponse.success wraps the payload: { success, message, data: { token, refreshToken } }
+    const payload = refreshRes.data?.data || refreshRes.data || {};
+    const { token: newAccessToken, refreshToken: newRefreshToken } = payload;
+    if (!newAccessToken) throw new Error('Refresh response missing access token');
 
     await secureStorage.setItem('userToken', newAccessToken);
     if (newRefreshToken) await secureStorage.setItem('refreshToken', newRefreshToken);
@@ -150,6 +153,8 @@ async function handleTokenExpired(error: any, originalRequest: any): Promise<any
     } catch (e) {
       console.error('Failed to update socket auth token:', e);
     }
+    // Release every request that queued while we were refreshing
+    processQueue(null, newAccessToken);
     originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
     return api(originalRequest);
   } catch (refreshError) {
@@ -163,6 +168,7 @@ async function handleTokenExpired(error: any, originalRequest: any): Promise<any
       console.error('Failed to clear tokens after refresh error:', e);
     }
     throw refreshError;
+  } finally {
     isRefreshing = false;
   }
 }

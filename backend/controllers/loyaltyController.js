@@ -141,4 +141,87 @@ const getLoyaltyTransactions = async (req, res, next) => {
   }
 };
 
-module.exports = { getBalance, getLoyaltyTransactions, creditPoints, deductPoints, calcPointsDiscount };
+// Daily check-in rewards: base points every day, bonus on every 7th consecutive day.
+const CHECKIN_BASE_POINTS = 5;
+const CHECKIN_WEEKLY_BONUS = 20;
+
+/**
+ * @route  POST /api/v1/loyalty/check-in
+ * @desc   Record today's check-in, award points, and return the streak.
+ *         Idempotent per day — repeat calls return the existing check-in.
+ * @access Private
+ */
+const dailyCheckin = async (req, res, next) => {
+  try {
+    const pool = getPool();
+    const userId = req.user.id;
+
+    // Already checked in today?
+    const { rows: existing } = await pool.query(
+      `SELECT streak, points_awarded FROM daily_checkins
+       WHERE user_id = $1 AND checkin_date = CURRENT_DATE`,
+      [userId]
+    );
+    if (existing[0]) {
+      return ApiResponse.success(res, {
+        alreadyCheckedIn: true,
+        streak: existing[0].streak,
+        pointsAwarded: 0
+      });
+    }
+
+    // Streak continues if the user checked in yesterday
+    const { rows: prev } = await pool.query(
+      `SELECT streak FROM daily_checkins
+       WHERE user_id = $1 AND checkin_date = CURRENT_DATE - 1`,
+      [userId]
+    );
+    const streak = (prev[0]?.streak || 0) + 1;
+    const isBonusDay = streak % 7 === 0;
+    const points = CHECKIN_BASE_POINTS + (isBonusDay ? CHECKIN_WEEKLY_BONUS : 0);
+
+    // Insert guards against double-award on concurrent requests
+    const { rowCount } = await pool.query(
+      `INSERT INTO daily_checkins (user_id, checkin_date, streak, points_awarded)
+       VALUES ($1, CURRENT_DATE, $2, $3)
+       ON CONFLICT (user_id, checkin_date) DO NOTHING`,
+      [userId, streak, points]
+    );
+    if (!rowCount) {
+      return ApiResponse.success(res, { alreadyCheckedIn: true, streak, pointsAwarded: 0 });
+    }
+
+    await pool.query(
+      `INSERT INTO loyalty_points (user_id, balance, lifetime_earned)
+       VALUES ($1, $2, $2)
+       ON CONFLICT (user_id) DO UPDATE SET
+         balance         = loyalty_points.balance + $2,
+         lifetime_earned = loyalty_points.lifetime_earned + $2,
+         updated_at      = NOW()`,
+      [userId, points]
+    );
+    await pool.query(
+      `INSERT INTO loyalty_transactions (user_id, type, points, description)
+       VALUES ($1, 'earn', $2, $3)`,
+      [userId, points, isBonusDay
+        ? `Daily check-in — day ${streak} streak bonus! 🔥`
+        : `Daily check-in (day ${streak})`]
+    );
+
+    const { rows: bal } = await pool.query(
+      `SELECT balance FROM loyalty_points WHERE user_id = $1`, [userId]
+    );
+
+    return ApiResponse.success(res, {
+      alreadyCheckedIn: false,
+      streak,
+      pointsAwarded: points,
+      bonusDay: isBonusDay,
+      balance: bal[0]?.balance ?? points
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { getBalance, getLoyaltyTransactions, creditPoints, deductPoints, calcPointsDiscount, dailyCheckin };

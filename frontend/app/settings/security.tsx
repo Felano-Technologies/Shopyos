@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { ConfirmModal } from '@/components/ConfirmModal';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 import { storage } from '@/services/api';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {

@@ -58,6 +58,17 @@ function TicketCard({ ticket }: { ticket: SupportTicket }) {
           <Text style={styles.cardCategory}>{CATEGORY_LABELS[ticket.category] ?? ticket.category}</Text>
           <Text style={styles.cardSubject} numberOfLines={expanded ? undefined : 1}>{ticket.subject}</Text>
           <Text style={styles.cardDate}>{date}</Text>
+          {ticket.assigned_to_name ? (
+            <View style={styles.assigneeRow}>
+              <Ionicons name="person-circle-outline" size={13} color="#0C1559" />
+              <Text style={styles.assigneeText}>Handled by {ticket.assigned_to_name}</Text>
+            </View>
+          ) : ticket.status === 'open' ? (
+            <View style={styles.assigneeRow}>
+              <Ionicons name="time-outline" size={13} color="#94A3B8" />
+              <Text style={[styles.assigneeText, { color: '#94A3B8' }]}>Awaiting assignment</Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.cardRight}>
           <View style={[styles.statusBadge, { backgroundColor: status.bg }]}>
@@ -146,13 +157,13 @@ export default function MyTicketsScreen() {
           }
         />
       )}
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#FFFFFF' }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0C1559' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 14, gap: 12 },
   backBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
   newBtn: { padding: 6, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 10 },
@@ -182,6 +193,8 @@ const styles = StyleSheet.create({
   cardCategory: { fontSize: 10, fontFamily: 'Montserrat-Bold', color: '#0C1559', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 },
   cardSubject: { fontSize: 14, fontFamily: 'Montserrat-SemiBold', color: '#0F172A', lineHeight: 20 },
   cardDate: { fontSize: 11, fontFamily: 'Montserrat-Medium', color: '#94A3B8', marginTop: 4 },
+  assigneeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
+  assigneeText: { fontSize: 11, fontFamily: 'Montserrat-SemiBold', color: '#0C1559' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
   statusText: { fontSize: 11, fontFamily: 'Montserrat-Bold' },
   expandedBody: { marginTop: 12 },

@@ -15,7 +15,11 @@ const getSslConfig = () => {
   }
 
   if (['true', '1', 'yes', 'on', 'require', 'enabled'].includes(raw)) {
-    return { rejectUnauthorized: false };
+    // Verify the server certificate by default. Managed hosts with self-signed
+    // chains (e.g. some Supabase/Railway setups) can opt out explicitly with
+    // PG_SSL_NO_VERIFY=true rather than silently accepting any cert.
+    const noVerify = (process.env.PG_SSL_NO_VERIFY || '').trim().toLowerCase();
+    return { rejectUnauthorized: !['true', '1', 'yes'].includes(noVerify) };
   }
 
   // Unknown value: fail open to default behavior.

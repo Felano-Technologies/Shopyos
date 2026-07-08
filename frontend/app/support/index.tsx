@@ -15,7 +15,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { useAuthStore } from '@/store/authStore';
+import { getCachedUserProfile } from '@/services/storage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { createSupportTicket, TicketCategory, ReporterRole } from '@/services/support';
 
@@ -42,8 +42,14 @@ function roleFromUser(user: any): ReporterRole {
 
 export default function RaiseReportScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const reporterRole = roleFromUser(user);
+  const [reporterRole, setReporterRole] = useState<ReporterRole>('buyer');
+
+  React.useEffect(() => {
+    // Auth store holds no user object; the cached /auth/me profile has the role
+    getCachedUserProfile()
+      .then((profile: any) => setReporterRole(roleFromUser(profile?.user || profile)))
+      .catch(() => {});
+  }, []);
 
   const [category, setCategory] = useState<TicketCategory | null>(null);
   const [subject, setSubject] = useState('');
@@ -186,13 +192,13 @@ export default function RaiseReportScreen() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#F8FAFC' }} />
+      <SafeAreaView edges={['bottom']} style={{ backgroundColor: '#FFFFFF' }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0C1559' },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

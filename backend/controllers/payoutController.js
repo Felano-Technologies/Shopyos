@@ -58,17 +58,46 @@ const requestPayout = async (req, res, next) => {
             return ApiResponse.error(res, 'You already have a pending payout request', 400);
         }
 
-        const payout = await repositories.payouts.requestPayout({ storeId, amount, method, details });
+        // Atomic: payout row + balance decrement + ledger entry commit or roll back together.
+        // Balance decrement is conditional on sufficient funds to survive concurrent requests.
+        const pool = require('../config/postgres').getPool();
+        const client = await pool.connect();
+        let payout;
+        try {
+            await client.query('BEGIN');
 
-        await repositories.stores.update(storeId, { current_balance: currentBalance - amount });
-        await repositories.stores.db.from('balance_logs').insert({
-            store_id: storeId,
-            amount: -amount,
-            transaction_type: 'withdrawal',
-            payout_id: payout.id,
-            balance_after: currentBalance - amount,
-            notes: 'Manual payout request'
-        });
+            const { rows: balRows } = await client.query(
+                `UPDATE stores SET current_balance = current_balance - $2, updated_at = NOW()
+                 WHERE id = $1 AND current_balance >= $2
+                 RETURNING current_balance`,
+                [storeId, amount]
+            );
+            if (!balRows[0]) {
+                await client.query('ROLLBACK');
+                return ApiResponse.error(res, 'Insufficient balance', 400);
+            }
+
+            const { rows: payoutRows } = await client.query(
+                `INSERT INTO payouts (store_id, payout_type, amount, payout_method, payout_details, status)
+                 VALUES ($1, 'seller', $2, $3, $4, 'pending')
+                 RETURNING *`,
+                [storeId, amount, method, JSON.stringify(details || {})]
+            );
+            payout = payoutRows[0];
+
+            await client.query(
+                `INSERT INTO balance_logs (store_id, amount, transaction_type, payout_id, balance_after, notes)
+                 VALUES ($1, $2, 'withdrawal', $3, $4, 'Manual payout request')`,
+                [storeId, -amount, payout.id, balRows[0].current_balance]
+            );
+
+            await client.query('COMMIT');
+        } catch (txErr) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw txErr;
+        } finally {
+            client.release();
+        }
 
         ApiResponse.withEntity(res, 'payout', payout, 'Payout requested successfully', null, 201);
     } catch (error) {
@@ -91,6 +120,49 @@ const getPayoutHistory = async (req, res, next) => {
         const history = await repositories.payouts.getStorePayouts(storeId, { status, search, from, to, limit, offset });
 
         ApiResponse.success(res, history);
+    } catch (error) {
+        next(error);
+    }
+};
+
+// ── Seller: full balance transaction history ──────────────────────────────
+
+const getSellerTransactions = async (req, res, next) => {
+    try {
+        const { storeId } = req.params;
+        const { limit = 20, offset = 0 } = req.query;
+        const userId = req.user.id;
+
+        const store = await repositories.stores.findById(storeId);
+        if (!store) return ApiResponse.error(res, 'Store not found', 404);
+        if (store.owner_id !== userId) return ApiResponse.error(res, 'Not authorized', 403);
+
+        const lim = Math.min(Number.parseInt(limit) || 20, 100);
+        const off = Math.max(Number.parseInt(offset) || 0, 0);
+
+        const db = require('../config/postgres').getPool();
+        const { rows } = await db.query(`
+            SELECT
+                bl.id, bl.amount, bl.transaction_type, bl.balance_after, bl.created_at,
+                o.order_number,
+                p.status AS payout_status, p.payout_method
+            FROM balance_logs bl
+            LEFT JOIN orders o  ON o.id = bl.order_id
+            LEFT JOIN payouts p ON p.id = bl.payout_id
+            WHERE bl.store_id = $1
+            ORDER BY bl.created_at DESC
+            LIMIT $2 OFFSET $3
+        `, [storeId, lim, off]);
+
+        const { rows: countRows } = await db.query(
+            `SELECT COUNT(*)::int AS count FROM balance_logs WHERE store_id = $1`, [storeId]
+        );
+
+        ApiResponse.success(res, {
+            transactions: rows,
+            currentBalance: Number.parseFloat(store.current_balance || 0),
+            pagination: { limit: lim, offset: off, total: countRows[0]?.count || 0 }
+        });
     } catch (error) {
         next(error);
     }
@@ -374,6 +446,7 @@ async function _refundPayoutBalance(payout) {
 module.exports = {
     requestPayout,
     getPayoutHistory,
+    getSellerTransactions,
     getSellerLockedBalance,
     requestDriverPayout,
     getDriverPayoutHistory,

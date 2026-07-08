@@ -17,6 +17,7 @@ import { CustomInAppToast } from '@/components/InAppToastHost';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { createSupportTicket, TicketCategory } from '@/services/support';
 
 const CONTACT_METHODS = [
   { id: 'phone', label: 'Call Us', icon: 'call', color: '#0C1559', action: 'tel:+233506514687' },
@@ -26,20 +27,40 @@ const CONTACT_METHODS = [
 
 const SUBJECTS = ['General Inquiry', 'Order Issue', 'Payment Problem', 'Feedback'];
 
+const SUBJECT_CATEGORY: Record<string, TicketCategory> = {
+  'General Inquiry': 'other',
+  'Order Issue': 'order_issue',
+  'Payment Problem': 'payment_issue',
+  'Feedback': 'platform_issue',
+};
+
 export default function ContactUsScreen() {
   const router = useRouter();
   const [selectedSubject, setSelectedSubject] = useState('General Inquiry');
   const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
 
-  const handleSend = () => {
-    if (!message.trim()) {
-      CustomInAppToast.show({ type: 'error', title: 'Missing Message', message: 'Please enter a message before sending.' });
+  const handleSend = async () => {
+    if (message.trim().length < 20) {
+      CustomInAppToast.show({ type: 'error', title: 'Message Too Short', message: 'Please describe your issue in at least 20 characters.' });
       return;
     }
-    
-    // Simulate sending
-    CustomInAppToast.show({ type: 'success', title: 'Message Sent', message: 'Our support team will get back to you shortly.' });
-    router.back();
+    if (sending) return;
+    setSending(true);
+    try {
+      await createSupportTicket({
+        reporter_role: 'buyer',
+        category: SUBJECT_CATEGORY[selectedSubject] || 'other',
+        subject: selectedSubject,
+        description: message.trim(),
+      });
+      CustomInAppToast.show({ type: 'success', title: 'Message Sent', message: 'Our support team will get back to you shortly.' });
+      router.back();
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Send Failed', message: e.message || 'Could not send your message. Please try again.' });
+    } finally {
+      setSending(false);
+    }
   };
 
   const handleContactPress = (action: string) => {
@@ -144,8 +165,8 @@ export default function ContactUsScreen() {
                             />
                         </View>
 
-                        <TouchableOpacity style={styles.sendBtn} onPress={handleSend}>
-                            <Text style={styles.sendBtnText}>Send Message</Text>
+                        <TouchableOpacity style={[styles.sendBtn, sending && { opacity: 0.6 }]} onPress={handleSend} disabled={sending}>
+                            <Text style={styles.sendBtnText}>{sending ? 'Sending…' : 'Send Message'}</Text>
                             <Feather name="send" size={18} color="#FFF" />
                         </TouchableOpacity>
 

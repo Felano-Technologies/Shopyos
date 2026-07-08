@@ -2,8 +2,12 @@ const allowedOrigin = (origin, callback) => {
   if (!origin) return callback(null, true);
   const configured = (process.env.CORS_ORIGINS || '').trim();
   if (!configured || configured === '*') {
-    // Allow all origins only when explicitly set (dev/staging)
-    return callback(null, true);
+    // Wildcard must be an explicit choice ('*'); an UNSET list in production
+    // fails closed instead of silently reflecting every origin with credentials.
+    if (configured === '*' || process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS_ORIGINS not configured'));
   }
   const allowed = configured.split(',').map(o => o.trim());
   if (allowed.includes(origin)) return callback(null, true);

@@ -17,37 +17,45 @@ const paystackHeaders = () => ({
 });
 
 const fulfillPayment = async (orderId, paystackData) => {
-    // Check current status first (idempotency)
-    const { data: existing } = await repositories.orders.db
-        .from('payments')
-        .select('status')
-        .eq('order_id', orderId)
-        .single();
-
-    if (!existing || existing.status === 'completed') {
-        return false; // Already fulfilled or doesn't exist
-    }
-
     const amountPaid = paystackData.amount / 100;
     const channel = paystackData.channel || 'unknown';
-    const now = new Date().toISOString();
 
-    // Update payment record
-    await repositories.orders.db
-        .from('payments')
-        .update({
-            status: 'completed',
-            paid_at: now,
-            payment_method: channel === 'mobile_money' ? 'mobile_money' : 'card',
-            payment_details: paystackData
-        })
-        .eq('order_id', orderId);
+    // Atomic claim + fulfil in one transaction: the conditional UPDATE is the
+    // idempotency gate, so concurrent webhook + verify calls cannot both pass.
+    const pool = require('../config/postgres').getPool();
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
 
-    // Update order status to paid, and mark escrow as HELD
-    await repositories.orders.db
-        .from('orders')
-        .update({ status: 'paid', escrow_status: 'HELD', updated_at: now })
-        .eq('id', orderId);
+        const { rowCount } = await client.query(
+            `UPDATE payments
+             SET status = 'completed',
+                 paid_at = NOW(),
+                 payment_method = $2,
+                 payment_details = $3
+             WHERE order_id = $1 AND status != 'completed'`,
+            [orderId, channel === 'mobile_money' ? 'mobile_money' : 'card', JSON.stringify(paystackData)]
+        );
+
+        if (!rowCount) {
+            await client.query('ROLLBACK');
+            return false; // Already fulfilled or no payment row exists
+        }
+
+        await client.query(
+            `UPDATE orders
+             SET status = 'paid', escrow_status = 'HELD', updated_at = NOW()
+             WHERE id = $1`,
+            [orderId]
+        );
+
+        await client.query('COMMIT');
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw err;
+    } finally {
+        client.release();
+    }
 
     // Note: We DO NOT credit the store balance here anymore.
     // Funds are held in escrow until the buyer confirms delivery.
@@ -311,7 +319,11 @@ const handleWebhook = async (req, res) => {
             const reference = event.data?.reference;
             if (reference) {
                 const payout = await repositories.payouts.findByTransactionReference(reference);
-                if (payout) {
+                if (payout && ['completed', 'failed'].includes(payout.status)) {
+                    // Replay protection: Paystack re-delivers events; a payout already in a
+                    // terminal state must not be re-processed (esp. double-refunds on failed).
+                    logger.info(`[Webhook] Ignoring duplicate transfer event for payout ${payout.id}`, { reference });
+                } else if (payout) {
                     const newStatus = event.event === 'transfer.success' ? 'completed' : 'failed';
                     await repositories.payouts.updatePayoutStatus(payout.id, newStatus, {
                         notes: event.event === 'transfer.success'
@@ -333,11 +345,12 @@ const handleWebhook = async (req, res) => {
             }
         }
 
-        // Always respond 200 so Paystack knows we received it
         res.status(200).send('OK');
     } catch (error) {
+        // Respond 500 so Paystack retries the delivery — fulfillment is idempotent,
+        // so a retry after a transient DB failure completes the order instead of losing it.
         logger.error('Webhook processing error', { error: error.message });
-        res.status(200).send('OK'); // Still 200 â€” we log the error and handle manually
+        res.status(500).send('Processing error');
     }
 };
 

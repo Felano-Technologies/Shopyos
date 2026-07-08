@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Dimensions, ActivityIndicator, ScrollView, RefreshControl,
@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import BusinessBottomNav from '../../components/BusinessBottomNav';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { getSellerTransactions, storage } from '@/services/api';
 const { width: SW } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
 const rs = (n: number) => Math.round(n * SCALE);
@@ -27,42 +28,143 @@ const C = {
   subtle:  '#94A3B8',
 };
 type Range = 'Week' | 'Month' | 'Quarter';
-const EARNINGS_DATA: Record<Range, number[]> = {
-  Week:    [120, 140, 170, 130, 160, 180, 210],
-  Month:   [520, 460, 490, 580],
-  Quarter: [1200, 980, 1020],
-};
-const RANGE_LABELS: Record<Range, string[]> = {
-  Week:    ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-  Month:   ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4'],
-  Quarter: ['Q1', 'Q2', 'Q3'],
-};
-const EARNING_ITEMS = [
-  { id: 'e1', label: 'Orders', icon: 'cart-outline',      iconBg: '#DBEAFE', iconColor: '#1E40AF', amount: 30, value: 650,    trend: '+12%', up: true  },
-  { id: 'e2', label: 'Tips',   icon: 'gift-outline',      iconBg: '#DCFCE7', iconColor: '#15803D', amount: 12, value: 180.5,  trend: '+5%',  up: true  },
-  { id: 'e3', label: 'Refunds',icon: 'return-down-back',  iconBg: '#FEE2E2', iconColor: '#B91C1C', amount: 3,  value: -60,    trend: '-2%',  up: false },
-];
+const RANGE_DAYS: Record<Range, number> = { Week: 7, Month: 28, Quarter: 90 };
+
+// Bucket sale amounts from balance_logs into a chart series for the range
+function buildSeries(logs: any[], range: Range): { labels: string[]; data: number[] } {
+  const now = new Date();
+  const days = RANGE_DAYS[range];
+  const cutoff = new Date(now.getTime() - days * 86400000);
+  const sales = logs.filter(
+    (l) => l.transaction_type === 'sale' && new Date(l.created_at) >= cutoff
+  );
+
+  if (range === 'Week') {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const labels: string[] = [];
+    const data = new Array(7).fill(0);
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 86400000);
+      labels.push(dayNames[d.getDay()]);
+    }
+    sales.forEach((l) => {
+      const idx = 6 - Math.floor((now.getTime() - new Date(l.created_at).getTime()) / 86400000);
+      if (idx >= 0 && idx < 7) data[idx] += Number.parseFloat(l.amount);
+    });
+    return { labels, data };
+  }
+
+  const buckets = range === 'Month' ? 4 : 3;
+  const bucketDays = days / buckets;
+  const labels = range === 'Month'
+    ? ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4']
+    : ['Mo 1', 'Mo 2', 'Mo 3'];
+  const data = new Array(buckets).fill(0);
+  sales.forEach((l) => {
+    const age = (now.getTime() - new Date(l.created_at).getTime()) / 86400000;
+    const idx = buckets - 1 - Math.floor(age / bucketDays);
+    if (idx >= 0 && idx < buckets) data[idx] += Number.parseFloat(l.amount);
+  });
+  return { labels, data };
+}
+
+// Aggregate breakdown totals within the range, with trend vs the previous equal period
+function buildBreakdown(logs: any[], range: Range) {
+  const now = Date.now();
+  const days = RANGE_DAYS[range];
+  const cutoff = now - days * 86400000;
+  const prevCutoff = now - 2 * days * 86400000;
+
+  const agg = (type: string, from: number, to: number) => {
+    const rows = logs.filter((l) => {
+      const t = new Date(l.created_at).getTime();
+      return l.transaction_type === type && t >= from && t < to;
+    });
+    return {
+      count: rows.length,
+      total: rows.reduce((s, l) => s + Number.parseFloat(l.amount), 0),
+    };
+  };
+
+  const trend = (cur: number, prev: number) => {
+    if (!prev) return { label: cur ? '+100%' : '0%', up: cur >= 0 };
+    const pct = Math.round(((Math.abs(cur) - Math.abs(prev)) / Math.abs(prev)) * 100);
+    return { label: `${pct >= 0 ? '+' : ''}${pct}%`, up: pct >= 0 };
+  };
+
+  return [
+    { key: 'sale',       label: 'Orders',  icon: 'cart-outline',     iconBg: '#DBEAFE', iconColor: '#1E40AF' },
+    { key: 'withdrawal', label: 'Payouts', icon: 'wallet-outline',   iconBg: '#E0E7FF', iconColor: '#0C1559' },
+    { key: 'refund',     label: 'Refunds', icon: 'return-down-back', iconBg: '#FEE2E2', iconColor: '#B91C1C' },
+  ].map((cfg) => {
+    const cur = agg(cfg.key, cutoff, now);
+    const prev = agg(cfg.key, prevCutoff, cutoff);
+    const t = trend(cur.total, prev.total);
+    return { id: cfg.key, ...cfg, amount: cur.count, value: cur.total, trend: t.label, up: t.up };
+  });
+}
 const EarningsScreen = () => {
   const insets = useSafeAreaInsets();
   // ── ALL HOOKS FIRST ───────────────────────────────────────────────────────
   const { isChecking, isVerified } = useSellerGuard();
   const [range, setRange] = useState<Range>('Week');
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+
+  const loadData = useCallback(async () => {
+    setLoadError(null);
+    try {
+      const storeId = await storage.getItem('currentBusinessId');
+      if (!storeId) { setLoadError('No active store selected.'); return; }
+      // Pull recent ledger entries; 90 days of history is enough for all ranges
+      const res = await getSellerTransactions(storeId, { limit: 100 });
+      setLogs(res?.transactions || []);
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to load earnings.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // No remote data to refetch — data is static. Simulate a brief refresh.
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await loadData();
     } finally {
       setRefreshing(false);
     }
-  }, []);
+  }, [loadData]);
+
+  const series = useMemo(() => buildSeries(logs, range), [logs, range]);
+  const breakdown = useMemo(() => buildBreakdown(logs, range), [logs, range]);
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
-  if (isChecking || !isVerified) {
+  if (isChecking || !isVerified || loading) {
     return <View style={S.centred}><ActivityIndicator size="large" color={C.navy} /></View>;
   }
-  const totalEarnings = EARNING_ITEMS.reduce((s, i) => s + i.value, 0);
-  const chartData     = EARNINGS_DATA[range];
+  if (loadError) {
+    return (
+      <View style={S.centred}>
+        <Text style={{ fontFamily: 'Montserrat-Bold', fontSize: rf(16), color: C.body, marginBottom: rs(8) }}>
+          Couldn&apos;t load earnings
+        </Text>
+        <Text style={{ fontFamily: 'Montserrat-Medium', fontSize: rf(13), color: C.muted, marginBottom: rs(16), textAlign: 'center', paddingHorizontal: rs(40) }}>
+          {loadError}
+        </Text>
+        <TouchableOpacity
+          style={{ backgroundColor: C.navy, paddingVertical: rs(10), paddingHorizontal: rs(24), borderRadius: rs(12) }}
+          onPress={() => { setLoading(true); loadData(); }}
+        >
+          <Text style={{ color: '#fff', fontFamily: 'Montserrat-Bold', fontSize: rf(13) }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  const totalEarnings = breakdown.reduce((s, i) => s + i.value, 0);
+  const chartData     = series.data.some((v) => v > 0) ? series.data : [0];
   const chartConfig = {
     backgroundGradientFrom: '#fff',
     backgroundGradientTo:   '#fff',
@@ -125,7 +227,7 @@ const EarningsScreen = () => {
             {/* Line chart */}
             <View style={S.card}>
               <LineChart
-                data={{ labels: RANGE_LABELS[range], datasets: [{ data: chartData }] }}
+                data={{ labels: series.labels, datasets: [{ data: chartData }] }}
                 width={SW - rs(48)}
                 height={200}
                 chartConfig={chartConfig}
@@ -137,7 +239,7 @@ const EarningsScreen = () => {
             </View>
             {/* Earning breakdown */}
             <Text style={S.secTitle}>Breakdown</Text>
-            {EARNING_ITEMS.map((item) => (
+            {breakdown.map((item) => (
               <View key={item.id} style={S.earnCard}>
                 <View style={[S.earnIcon, { backgroundColor: item.iconBg }]}>
                   <Ionicons name={item.icon as any} size={rs(20)} color={item.iconColor} />

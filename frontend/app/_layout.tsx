@@ -242,7 +242,6 @@ function AppContent() {
 
               {/* --- CATEGORIES & CHAT --- */}
               <Stack.Screen name="categories/categories" />
-              <Stack.Screen name="categories/[id]" options={{ animation: 'fade_from_bottom' }} />
               <Stack.Screen name="chat/index" />
               <Stack.Screen name="chat/conversation" />
               <Stack.Screen name="cart" options={{ animation: 'slide_from_bottom' }} />

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/authMiddleware');
-const { getBalance, getLoyaltyTransactions } = require('../controllers/loyaltyController');
+const { getBalance, getLoyaltyTransactions, dailyCheckin } = require('../controllers/loyaltyController');
 
 /**
  * @swagger
@@ -85,5 +85,20 @@ router.get('/balance', protect, getBalance);
  *         description: Unauthorized — missing or invalid token
  */
 router.get('/transactions', protect, getLoyaltyTransactions);
+
+/**
+ * @swagger
+ * /api/v1/loyalty/check-in:
+ *   post:
+ *     summary: Record today's daily check-in
+ *     description: Awards loyalty points for opening the app. Streak continues if the user checked in yesterday; every 7th consecutive day earns a bonus. Idempotent per day.
+ *     tags: [Loyalty]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Check-in recorded (or already checked in today)
+ */
+router.post('/check-in', protect, dailyCheckin);
 
 module.exports = router;

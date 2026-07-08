@@ -78,6 +78,9 @@ export default function PromotionsScreen() {
   const { data: productsData } = useStoreProducts(storeId);
   const products = productsData?.products || [];
 
+  const { reference } = useLocalSearchParams();
+  const { data: campaignsData, isLoading: loading, refetch: refetchCampaigns } = useMyCampaigns();
+
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
@@ -86,9 +89,6 @@ export default function PromotionsScreen() {
       setRefreshing(false);
     }
   }, [refetchCampaigns]);
-
-  const { reference } = useLocalSearchParams();
-  const { data: campaignsData, isLoading: loading, refetch: refetchCampaigns } = useMyCampaigns();
   const campaigns: any[] = campaignsData?.campaigns || [];
   const createCampaignMutation = useCreateCampaign();
 

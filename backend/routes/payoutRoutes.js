@@ -4,6 +4,7 @@ const router = express.Router();
 const {
     requestPayout,
     getPayoutHistory,
+    getSellerTransactions,
     getSellerLockedBalance,
     requestDriverPayout,
     getDriverPayoutHistory,
@@ -21,6 +22,7 @@ router.use(protect);
 // ── Seller ────────────────────────────────────────────────────────────────
 router.post('/request', seller, requireDisclaimer('payout_terms'), validateRequestPayout, requestPayout);
 router.get('/history/:storeId', seller, getPayoutHistory);
+router.get('/transactions/:storeId', seller, getSellerTransactions);
 router.get('/locked/:storeId', seller, getSellerLockedBalance);
 
 // ── Driver ────────────────────────────────────────────────────────────────

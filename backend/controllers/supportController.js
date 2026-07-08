@@ -55,11 +55,14 @@ const getMyTickets = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     const { rows } = await db.query(
-      `SELECT id, category, subject, description, entity_type, entity_id,
-              status, priority, admin_notes, created_at, updated_at
-       FROM support_tickets
-       WHERE reporter_id = $1
-       ORDER BY created_at DESC
+      `SELECT st.id, st.category, st.subject, st.description, st.entity_type, st.entity_id,
+              st.status, st.priority, st.admin_notes, st.created_at, st.updated_at,
+              st.assigned_to, st.assigned_at,
+              ap.full_name AS assigned_to_name
+       FROM support_tickets st
+       LEFT JOIN user_profiles ap ON ap.user_id = st.assigned_to
+       WHERE st.reporter_id = $1
+       ORDER BY st.created_at DESC
        LIMIT $2 OFFSET $3`,
       [reporterId, limit, offset]
     );
@@ -107,9 +110,11 @@ const adminGetTickets = async (req, res, next) => {
     const { rows } = await db.query(
       `SELECT st.*,
               up.full_name AS reporter_name,
-              up.avatar_url AS reporter_avatar
+              up.avatar_url AS reporter_avatar,
+              ap.full_name AS assigned_to_name
        FROM support_tickets st
        LEFT JOIN user_profiles up ON up.user_id = st.reporter_id
+       LEFT JOIN user_profiles ap ON ap.user_id = st.assigned_to
        ${where}
        ORDER BY st.priority DESC, st.created_at DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
@@ -134,7 +139,7 @@ const adminUpdateTicket = async (req, res, next) => {
     const db = getPool();
     const { id } = req.params;
     const adminId = req.user.id;
-    const { status, priority, admin_notes } = req.body;
+    const { status, priority, admin_notes, assigned_to } = req.body;
 
     if (status && !VALID_STATUSES.includes(status)) {
       return ApiResponse.error(res, 'Invalid status', 400);
@@ -144,18 +149,23 @@ const adminUpdateTicket = async (req, res, next) => {
     }
 
     const isResolving = status === 'resolved' || status === 'closed';
+    // Explicit assignment wins; otherwise picking up a ticket (→ in_progress)
+    // auto-assigns it to the acting admin so reporters can see who has it.
+    const newAssignee = assigned_to || (status === 'in_progress' ? adminId : null);
 
     const { rows } = await db.query(
       `UPDATE support_tickets SET
          status       = COALESCE($1::ticket_status, status),
          priority     = COALESCE($2, priority),
          admin_notes  = COALESCE($3, admin_notes),
+         assigned_to  = COALESCE($7::uuid, assigned_to),
+         assigned_at  = CASE WHEN $7::uuid IS NOT NULL AND assigned_to IS DISTINCT FROM $7::uuid THEN NOW() ELSE assigned_at END,
          resolved_by  = CASE WHEN $4 THEN $5::uuid ELSE resolved_by END,
          resolved_at  = CASE WHEN $4 THEN NOW() ELSE resolved_at END,
          updated_at   = NOW()
        WHERE id = $6
        RETURNING *`,
-      [status || null, priority || null, admin_notes || null, isResolving, adminId, id]
+      [status || null, priority || null, admin_notes || null, isResolving, adminId, id, newAssignee]
     );
 
     if (!rows.length) {
