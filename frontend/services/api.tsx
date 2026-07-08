@@ -10,8 +10,8 @@ export {
 } from './auth';
 
 export {
-  uploadStoreLogo, businessRegister, getMyBusinesses, switchBusiness, updateBusiness,
-  verifyBusinessDetails, loginBusiness, getBusinessById, getAllStores, searchStores,
+  uploadStoreLogo, businessRegister, getMyBusinesses, updateBusiness,
+  verifyBusinessDetails, getBusinessById, getAllStores, searchStores,
   getBusinessDashboard, getBusinessAnalytics, getBusinessReviews, replyToReview,
   followStore, unfollowStore, getDeliverySettings, updateDeliverySettings,
 } from './business';

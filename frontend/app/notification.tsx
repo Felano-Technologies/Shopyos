@@ -88,7 +88,7 @@ function groupNotifications(notifications: any[]): { title: string; data: any[] 
 const NotificationScreen = () => {
   const insets = useSafeAreaInsets();
 
-  const { data, isLoading, refetch } = useNotifications();
+  const { data, isLoading, isError, error, refetch } = useNotifications();
   const markAllMutation = useMarkAllNotificationsRead();
   const markOneMutation = useMarkNotificationRead();
 
@@ -252,8 +252,22 @@ const NotificationScreen = () => {
           <View style={S.hdrArc} />
         </LinearGradient>
 
-        {/* ── List / empty ─────────────────────────────────────────────── */}
-        {rawNotifications.length === 0 ? (
+        {/* ── List / error / empty ─────────────────────────────────────── */}
+        {isError ? (
+          /* Error state — don't mask fetch failures as "no notifications" */
+          <View style={S.emptyWrap}>
+            <View style={S.emptyCircle}>
+              <Feather name="wifi-off" size={rs(36)} color={C.navy} />
+            </View>
+            <Text style={S.emptyTitle}>Couldn&apos;t load notifications</Text>
+            <Text style={S.emptySub}>
+              {(error as any)?.message || 'Something went wrong. Please try again.'}
+            </Text>
+            <TouchableOpacity style={S.shopBtn} onPress={() => refetch()}>
+              <Text style={S.shopBtnTxt}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : rawNotifications.length === 0 ? (
           /* Empty state */
           <View style={S.emptyWrap}>
             <View style={S.emptyCircle}>
@@ -263,7 +277,7 @@ const NotificationScreen = () => {
             <Text style={S.emptySub}>
               You&apos;ll get updates on your orders and account activity here.
             </Text>
-            <TouchableOpacity style={S.shopBtn} onPress={() => router.push('/')}>
+            <TouchableOpacity style={S.shopBtn} onPress={() => router.replace('/home')}>
               <Text style={S.shopBtnTxt}>Start Shopping</Text>
             </TouchableOpacity>
           </View>

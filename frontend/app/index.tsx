@@ -14,7 +14,9 @@ const { width, height } = Dimensions.get('window');
 // Set to `false` (or remove) before shipping to production.
 const DEV_FORCE_SHOW_UPDATE = false;
 
-function routeForUser(user: any): string {
+function routeForUser(data: any): string {
+  // /auth/me wraps the payload as { success, user: {...} }; older caches may hold either shape
+  const user = data?.user || data;
   const role = user.role?.toLowerCase();
   if (Platform.OS === 'web') {
     if (role === 'admin') return '/admin/dashboard';

@@ -58,8 +58,8 @@ export interface SellerFlashSale {
 }
 
 export async function getActiveFlashSale(): Promise<ActiveFlashSaleResponse> {
-  const { data } = await api.get<ActiveFlashSaleResponse>('/flash-sales/active');
-  return data;
+  const { data } = await api.get<{ success: boolean; data: Omit<ActiveFlashSaleResponse, 'success'> }>('/flash-sales/active');
+  return { success: data.success, ...data.data };
 }
 
 export async function getSlotsList(upcoming: boolean = false): Promise<{ success: boolean; data: FlashSaleSlot[] }> {

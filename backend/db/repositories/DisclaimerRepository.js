@@ -59,7 +59,11 @@ class DisclaimerRepository extends BaseRepository {
     }
     if (contextId) {
       params.push(contextId);
-      query += ` AND context_id = $${params.length}`;
+      // A global (context-less) acknowledgement also satisfies a later
+      // context-specific check — e.g. refund_policy is acknowledged at
+      // checkout before the order exists (context_id NULL), then checked
+      // again at payment time once an orderId is available as context.
+      query += ` AND (context_id = $${params.length} OR context_id IS NULL)`;
     }
 
     query += ' ORDER BY acknowledged_at DESC LIMIT 1';

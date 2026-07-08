@@ -40,17 +40,19 @@ export const useGoogleAuth = () => {
 export const signInWithGoogle = async (idToken: string) => {
   try {
     const response = await api.post('/auth/google', { idToken });
-    if (response.data.token) {
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
         const meResponse = await api.get('/auth/me');
-        if (meResponse.data?.id) {
-          await storage.setItem('userId', meResponse.data.id);
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
           const { initCartForUser } = require('@/store/cartStore');
-          await initCartForUser(meResponse.data.id);
+          await initCartForUser(me.id);
         }
-        await cacheUserProfile(meResponse.data);
+        await cacheUserProfile(me);
       } catch (e) {
         console.warn('Failed to sync profile after google sign-in:', e);
       }
@@ -62,11 +64,11 @@ export const signInWithGoogle = async (idToken: string) => {
       }
     }
     const needsRole =
-      response.data.requiresRoleSelection ||
-      response.data.role === 'none' ||
-      !response.data.role ||
-      (response.data.roles?.length === 0);
-    return { ...response.data, needsRole };
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Google sign-in failed: ${error.response.status}`);
     throw new Error(error.message || 'Network error during Google sign-in');
@@ -84,10 +86,11 @@ export const registerUser = async (
 ) => {
   try {
     const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password, referralCode, termsAccepted, privacyAccepted });
-    if (response.data.token) {
+    const payload = response.data?.data || {};
+    if (payload.token) {
       await clearUserProfileCache();
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
         const pushToken = await storage.getItem('expoPushToken');
         if (pushToken) await registerPushTokenInBackend(pushToken);
@@ -95,7 +98,7 @@ export const registerUser = async (
         console.warn('Failed syncing expo push token on register:', err);
       }
     }
-    return response.data;
+    return { ...response.data, ...payload };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `can't reach server : ${error.response.status}`);
     throw new Error(error.message || 'Network error during registration');
@@ -188,18 +191,20 @@ export const loginUser = async (
 ) => {
   try {
     const response = await api.post('/auth/login', { email, password, latitude, longitude });
-    if (response.data.token) {
+    const payload = response.data?.data || {};
+    if (payload.token) {
       await clearUserProfileCache();
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
         const meResponse = await api.get('/auth/me');
-        if (meResponse.data?.id) {
-          await storage.setItem('userId', meResponse.data.id);
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
           const { initCartForUser } = require('@/store/cartStore');
-          await initCartForUser(meResponse.data.id);
+          await initCartForUser(me.id);
         }
-        await cacheUserProfile(meResponse.data);
+        await cacheUserProfile(me);
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
       }
@@ -211,11 +216,11 @@ export const loginUser = async (
       }
     }
     const needsRole =
-      response.data.requiresRoleSelection ||
-      response.data.role === 'none' ||
-      !response.data.role ||
-      (response.data.roles?.length === 0);
-    return { ...response.data, needsRole };
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
     throw new Error(error.message || 'Network error during login');
@@ -225,7 +230,7 @@ export const loginUser = async (
 export const getUserData = async () => {
   try {
     const response = await api.get('/auth/me');
-    return response.data;
+    return response.data?.user ?? response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to fetch user data');
     throw new Error(error.message || 'Network error fetching user data');

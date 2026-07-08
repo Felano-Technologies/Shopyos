@@ -53,7 +53,7 @@ export const getMyTickets = async (page = 1): Promise<{
 }> => {
   try {
     const response = await api.get('/support/tickets/mine', { params: { page } });
-    return response.data;
+    return response.data.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -72,7 +72,7 @@ export const adminGetTickets = async (filters: {
 }> => {
   try {
     const response = await api.get('/support/admin/tickets', { params: filters });
-    return response.data;
+    return response.data.data;
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

@@ -350,6 +350,7 @@ export default function SearchScreen() {
   const addToCart = useCart((s) => s.addToCart);
   const params = useLocalSearchParams();
   const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
   const [category, setCategory] = useState<string | null>(
     params.category ? String(params.category) : null
   );
@@ -480,7 +481,6 @@ export default function SearchScreen() {
     Animated.timing(slideAnim, { toValue: sortOpen ? 1 : 0, duration: 180, useNativeDriver: true }).start();
   }, [slideAnim, sortOpen]);
 
-  const debouncedQuery = useDebounce(query, 300);
   const handleChangeText = (text: string) => { setQuery(text); if (category) setCategory(null); };
   const handleSubmit = () => { if (query.trim().length >= 2) saveRecent(query.trim()); Keyboard.dismiss(); };
   const handleAddToCart = useCallback((item: any) => addItemToCart(item, addToCart, setAddingId), [addToCart, setAddingId]);

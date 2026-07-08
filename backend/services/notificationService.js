@@ -80,12 +80,23 @@ class NotificationService {
         });
       }
 
-      // Send SMS if enabled
-      if (preferences.sms_enabled && params.sms && user.phone) {
-        await this.sendSMS({
-          to: user.phone,
-          message: params.sms.text || message
-        });
+      // Send SMS if enabled — phone lives on user_profiles, not users
+      if (preferences.sms_enabled && params.sms) {
+        let phone = params.sms.to || user.phone;
+        if (!phone) {
+          try {
+            const profile = await repositories.userProfiles.findByUserId(userId);
+            phone = profile?.phone;
+          } catch (profileErr) {
+            logger.warn(`Could not resolve phone for SMS to user ${userId}:`, profileErr.message);
+          }
+        }
+        if (phone) {
+          await this.sendSMS({
+            to: phone,
+            message: params.sms.text || message
+          });
+        }
       }
 
       // Send push notification if enabled — queued through RabbitMQ for observability
