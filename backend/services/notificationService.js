@@ -7,7 +7,12 @@ const axios = require('axios');
 const amqpPublisher = require('./amqpPublisher');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
-const { emitToUser } = require('../../socket/src/config/socketServer');
+const { publishRealtimeEvent } = require('./realtimePublisher');
+
+// Route realtime emits through Redis pub/sub so they reach the socket service
+// whether it runs in-process (monolith) or as a separate container.
+const emitToUser = (userId, event, payload) =>
+  publishRealtimeEvent({ scope: 'user', userId, event, payload });
 
 const BRAND_LOGO_CID = 'shopyos-logo';
 const BRAND_LOGO_PATH = path.join(__dirname, '../templates/assets/logo.png');
