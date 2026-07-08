@@ -4,7 +4,6 @@
  */
 
 import * as Location from 'expo-location';
-import { Alert } from 'react-native';
 import { updateUserLocation } from '../../services/api';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 

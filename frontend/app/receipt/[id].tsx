@@ -189,6 +189,7 @@ export default function ReceiptScreen() {
     } catch (e) {
       console.error('Failed to share receipt:', e);
     }
+  };
 
   // ── States ────────────────────────────────────────────────────────────────
   if (loading) {

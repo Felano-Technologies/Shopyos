@@ -1,5 +1,10 @@
 import { api, extractErrorMessage } from './client';
 
+// Backend responses are either flat (ApiResponse.withEntity: {success, <entityKey>})
+// or nested (ApiResponse.success: {success, message, data: {...}}). This flattens
+// whichever shape comes back so callers can read fields at the top level either way.
+const unwrap = (data: any) => ({ ...data, ...(data?.data || {}) });
+
 export const getPublicFeeConfigs = async (): Promise<Record<string, number | boolean>> => {
   try {
     const response = await api.get('/fee-config/public');
@@ -42,7 +47,7 @@ export const createDelivery = async (deliveryData: {
 export const getAvailableDeliveries = async () => {
   try {
     const response = await api.get('/deliveries/available');
-    return response.data;
+    return unwrap(response.data);
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -60,7 +65,7 @@ export const assignDriver = async (deliveryId: string) => {
 export const getMyDeliveries = async (status?: string) => {
   try {
     const response = await api.get('/deliveries/my-deliveries', { params: { status } });
-    return response.data;
+    return unwrap(response.data);
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -96,7 +101,7 @@ export const verifyDeliveryPin = async (deliveryId: string, pin: string) => {
 export const getActiveDeliveries = async () => {
   try {
     const response = await api.get('/deliveries/active');
-    return response.data;
+    return unwrap(response.data);
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -105,7 +110,7 @@ export const getActiveDeliveries = async () => {
 export const getDriverStats = async (timeframe: 'today' | 'week' | 'month' = 'today') => {
   try {
     const response = await api.get('/deliveries/driver/stats', { params: { timeframe } });
-    return response.data;
+    return unwrap(response.data);
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -114,7 +119,7 @@ export const getDriverStats = async (timeframe: 'today' | 'week' | 'month' = 'to
 export const getDriverEarningsAnalytics = async (view: 'weekly' | 'monthly' = 'weekly') => {
   try {
     const response = await api.get('/deliveries/driver/stats', { params: { view } });
-    return response.data;
+    return unwrap(response.data);
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

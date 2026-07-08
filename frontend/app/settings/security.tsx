@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Switch,
   ScrollView,
-  Alert,
   LayoutAnimation,
   Platform,
   UIManager,

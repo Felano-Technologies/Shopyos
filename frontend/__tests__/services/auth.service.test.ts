@@ -81,7 +81,7 @@ describe('Auth Service Unit Tests', () => {
   test('test_registerUser_successfulRegistration_storesTokensAndReturnsAccessToken', async () => {
     // Arrange
     (api.post as jest.Mock).mockResolvedValueOnce({
-      data: { token: 'access-token', refreshToken: 'refresh-token', message: 'User created successfully' },
+      data: { success: true, message: 'User created successfully', data: { token: 'access-token', refreshToken: 'refresh-token' } },
     });
 
     // Act
@@ -126,9 +126,9 @@ describe('Auth Service Unit Tests', () => {
   test('test_loginUser_successfulCredentials_storesTokensAndReturnsLoginDetails', async () => {
     // Arrange
     (api.post as jest.Mock).mockResolvedValueOnce({
-      data: { token: 'login-token', refreshToken: 'refresh-token', role: 'buyer', roles: ['buyer'], requiresRoleSelection: false },
+      data: { success: true, message: 'Login successful', data: { token: 'login-token', refreshToken: 'refresh-token', role: 'buyer', roles: ['buyer'], requiresRoleSelection: false } },
     });
-    (api.get as jest.Mock).mockResolvedValueOnce({ data: { id: 'user-123' } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, user: { id: 'user-123' } } });
 
     // Act
     const result = await loginUser('buyer@test.com', 'pass', 5.6, -0.2);
@@ -142,9 +142,9 @@ describe('Auth Service Unit Tests', () => {
   test('test_loginUser_roleIsNone_setsNeedsRoleTrue', async () => {
     // Arrange
     (api.post as jest.Mock).mockResolvedValueOnce({
-      data: { token: 't', refreshToken: 'r', role: 'none', roles: [], requiresRoleSelection: false },
+      data: { success: true, message: 'Login successful', data: { token: 't', refreshToken: 'r', role: 'none', roles: [], requiresRoleSelection: false } },
     });
-    (api.get as jest.Mock).mockResolvedValueOnce({ data: { id: 'u-1' } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, user: { id: 'u-1' } } });
 
     // Act
     const result = await loginUser('new@test.com', 'pass', 0, 0);
@@ -275,7 +275,7 @@ describe('Auth Service Unit Tests', () => {
 
   // ── getUserData ───────────────────────────────────────────────────
   test('test_getUserData_validCall_returnsUserProfile', async () => {
-    (api.get as jest.Mock).mockResolvedValueOnce({ data: { id: 'u-1', email: 'me@test.com' } });
+    (api.get as jest.Mock).mockResolvedValueOnce({ data: { success: true, user: { id: 'u-1', email: 'me@test.com' } } });
     const result = await getUserData();
     expect(api.get).toHaveBeenCalledWith('/auth/me');
     expect(result.email).toBe('me@test.com');

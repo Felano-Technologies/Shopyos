@@ -44,11 +44,6 @@ export default function SnapViewer() {
   const currentStore = feedData[storeIndex];
   const currentSnap = currentStore?.snaps?.[snapIndex];
 
-  const mediaSource = React.useMemo(() => {
-    if (!currentSnap?.media_url) return null;
-    return { uri: currentSnap.media_url };
-  }, [currentSnap?.media_url]);
-
   useEffect(() => {
     setStoreIndex(initialIndex);
   }, [initialIndex]);

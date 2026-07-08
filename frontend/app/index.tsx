@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getUserData, secureStorage } from '@/services/api';
-import { cacheUserProfile, getCachedUserProfile } from '@/services/storage';
+import { cacheUserProfile, clearUserProfileCache, getCachedUserProfile } from '@/services/storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -14,7 +14,9 @@ const { width, height } = Dimensions.get('window');
 // Set to `false` (or remove) before shipping to production.
 const DEV_FORCE_SHOW_UPDATE = false;
 
-function routeForUser(user: any): string {
+function routeForUser(data: any): string {
+  // /auth/me wraps the payload as { success, user: {...} }; older caches may hold either shape
+  const user = data?.user || data;
   const role = user.role?.toLowerCase();
   if (Platform.OS === 'web') {
     if (role === 'admin') return '/admin/dashboard';
@@ -38,11 +40,13 @@ async function authCheckPromise(): Promise<string> {
       getUserData().then(cacheUserProfile).catch(() => {});
       return routeForUser(cached);
     }
+
     const user = await getUserData();
     await cacheUserProfile(user);
     return routeForUser(user);
   } catch (error) {
     console.warn('Startup Auth Check Failed:', error);
+    await clearUserProfileCache();
     return '/getstarted';
   }
 }

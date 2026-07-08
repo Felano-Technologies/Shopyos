@@ -57,18 +57,6 @@ export const getMyBusinesses = async (params: { limit?: number; offset?: number 
   }
 };
 
-export const switchBusiness = async (businessId: string) => {
-  try {
-    const response = await api.post('/business/switch', { businessId });
-    if (response.data.token) await secureStorage.setItem('businessToken', response.data.token);
-    await storage.setItem('currentBusinessId', businessId);
-    return response.data;
-  } catch (error: any) {
-    if (error.response) throw new Error(error.response.data.error || 'Failed to switch business');
-    throw new Error(error.message || 'Network error switching business');
-  }
-};
-
 export const updateBusiness = async (businessId: string, updateData: any) => {
   try {
     const formData = new FormData();
@@ -99,24 +87,6 @@ export const updateBusiness = async (businessId: string, updateData: any) => {
 
 export const verifyBusinessDetails = async (businessId: string, details: any) => {
   return updateBusiness(businessId, { ...details, verificationStatus: 'pending' });
-};
-
-export const loginBusiness = async (email: string, password: string, latitude: number, longitude: number) => {
-  try {
-    const response = await api.post('/business/login', { email, password, latitude, longitude });
-    if (response.data.token) {
-      await secureStorage.setItem('businessToken', response.data.token);
-      await secureStorage.setItem('userToken', response.data.token);
-    }
-    if (response.data.business) {
-      await storage.setItem('currentBusinessId', response.data.business._id);
-      await storage.setItem('userRole', 'seller');
-    }
-    return response.data;
-  } catch (error: any) {
-    if (error.response) throw new Error(error.response.data.error || 'Business login failed');
-    throw new Error(error.message || 'Network error during business login');
-  }
 };
 
 export const getBusinessById = async (id: string) => {

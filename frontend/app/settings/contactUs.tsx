@@ -8,7 +8,6 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   Linking
 } from 'react-native';
 import AppImage from '@/components/AppImage';

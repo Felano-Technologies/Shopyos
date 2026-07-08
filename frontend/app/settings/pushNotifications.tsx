@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   useColorScheme,
   Switch,
-  Alert,
   TouchableOpacity,
   Platform,
 } from 'react-native';

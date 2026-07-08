@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   Dimensions,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import AppImage from '@/components/AppImage';

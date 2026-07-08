@@ -1,12 +1,16 @@
 // services/notificationService.js
 // Service for sending notifications via different channels (email, SMS, push)
 
+const path = require('path');
 const nodemailer = require('nodemailer');
 const axios = require('axios');
 const amqpPublisher = require('./amqpPublisher');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { emitToUser } = require('../../socket/src/config/socketServer');
+
+const BRAND_LOGO_CID = 'shopyos-logo';
+const BRAND_LOGO_PATH = path.join(__dirname, '../templates/assets/logo.png');
 
 class NotificationService {
   constructor() {
@@ -76,12 +80,23 @@ class NotificationService {
         });
       }
 
-      // Send SMS if enabled
-      if (preferences.sms_enabled && params.sms && user.phone) {
-        await this.sendSMS({
-          to: user.phone,
-          message: params.sms.text || message
-        });
+      // Send SMS if enabled — phone lives on user_profiles, not users
+      if (preferences.sms_enabled && params.sms) {
+        let phone = params.sms.to || user.phone;
+        if (!phone) {
+          try {
+            const profile = await repositories.userProfiles.findByUserId(userId);
+            phone = profile?.phone;
+          } catch (profileErr) {
+            logger.warn(`Could not resolve phone for SMS to user ${userId}:`, profileErr.message);
+          }
+        }
+        if (phone) {
+          await this.sendSMS({
+            to: phone,
+            message: params.sms.text || message
+          });
+        }
       }
 
       // Send push notification if enabled — queued through RabbitMQ for observability
@@ -147,6 +162,14 @@ class NotificationService {
         html: emailData.html,
         text: emailData.text
       };
+
+      if (emailData.html && emailData.html.includes(`cid:${BRAND_LOGO_CID}`)) {
+        mailOptions.attachments = [{
+          filename: 'shopyos-logo.png',
+          path: BRAND_LOGO_PATH,
+          cid: BRAND_LOGO_CID
+        }];
+      }
 
       await this.emailTransporter.sendMail(mailOptions);
       logger.debug(`Email sent to ${emailData.to}`);

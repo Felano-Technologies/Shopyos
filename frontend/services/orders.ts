@@ -126,7 +126,7 @@ export const removeFromFavorites = async (productId: string) => {
 export const getFavorites = async () => {
   try {
     const response = await api.get('/favorites');
-    return response.data;
+    return { success: response.data.success, ...response.data.data };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -135,7 +135,7 @@ export const getFavorites = async () => {
 export const checkIsFavorite = async (productId: string) => {
   try {
     const response = await api.get(`/favorites/check/${productId}`);
-    return response.data;
+    return { success: response.data.success, ...response.data.data };
   } catch {
     return { isFavorite: false };
   }

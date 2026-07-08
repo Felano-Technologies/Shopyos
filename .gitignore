@@ -1,5 +1,6 @@
 .env
-shopyos_backup.dump
+*.dump
+migration_backup/
 guidelines
 coverage/
 

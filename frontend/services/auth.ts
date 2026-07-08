@@ -3,44 +3,72 @@ import { api, extractErrorMessage, API_URL, secureStorage, storage } from './cli
 import { cacheUserProfile, clearUserProfileCache } from './storage';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export const useGoogleAuth = () =>
-  Google.useAuthRequest({
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+type GoogleAuthConfig = {
+  webClientId?: string;
+  iosClientId?: string;
+  androidClientId?: string;
+};
+
+const getGoogleAuthConfig = (): GoogleAuthConfig => ({
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+  iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+});
+
+export const isGoogleAuthConfigured = () => {
+  const config = getGoogleAuthConfig();
+
+  if (Platform.OS === 'ios') return Boolean(config.iosClientId);
+  if (Platform.OS === 'android') return Boolean(config.androidClientId);
+  return Boolean(config.webClientId);
+};
+
+export const useGoogleAuth = () => {
+  const config = getGoogleAuthConfig();
+
+  return Google.useAuthRequest({
+    webClientId: config.webClientId || 'google-auth-not-configured.apps.googleusercontent.com',
+    iosClientId: config.iosClientId || 'google-auth-not-configured.apps.googleusercontent.com',
+    androidClientId: config.androidClientId || 'google-auth-not-configured.apps.googleusercontent.com',
   });
+};
 
 export const signInWithGoogle = async (idToken: string) => {
   try {
     const response = await api.post('/auth/google', { idToken });
-    if (response.data.token) {
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
         const meResponse = await api.get('/auth/me');
-        if (meResponse.data?.id) {
-          await storage.setItem('userId', meResponse.data.id);
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
           const { initCartForUser } = require('@/store/cartStore');
-          await initCartForUser(meResponse.data.id);
+          await initCartForUser(me.id);
         }
-        await cacheUserProfile(meResponse.data);
+        await cacheUserProfile(me);
       } catch (e) {
         console.warn('Failed to sync profile after google sign-in:', e);
       }
+      try {
         const pushToken = await storage.getItem('expoPushToken');
         if (pushToken) await registerPushTokenInBackend(pushToken);
       } catch (e) {
         console.warn('Failed to register push token after google sign-in:', e);
       }
+    }
     const needsRole =
-      response.data.requiresRoleSelection ||
-      response.data.role === 'none' ||
-      !response.data.role ||
-      (response.data.roles?.length === 0);
-    return { ...response.data, needsRole };
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Google sign-in failed: ${error.response.status}`);
     throw new Error(error.message || 'Network error during Google sign-in');
@@ -58,9 +86,11 @@ export const registerUser = async (
 ) => {
   try {
     const response = await api.post('/auth/register', { name, email, fullPhoneNumber, password, referralCode, termsAccepted, privacyAccepted });
-    if (response.data.token) {
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await clearUserProfileCache();
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
         const pushToken = await storage.getItem('expoPushToken');
         if (pushToken) await registerPushTokenInBackend(pushToken);
@@ -68,7 +98,7 @@ export const registerUser = async (
         console.warn('Failed syncing expo push token on register:', err);
       }
     }
-    return response.data;
+    return { ...response.data, ...payload };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `can't reach server : ${error.response.status}`);
     throw new Error(error.message || 'Network error during registration');
@@ -133,6 +163,7 @@ export const logoutUser = async () => {
     } catch (e) {
       console.error('Failed to clear cart for user on logout:', e);
     }
+    await Promise.all([
       secureStorage.removeItem('userToken'),
       secureStorage.removeItem('refreshToken'),
       secureStorage.removeItem('businessToken'),
@@ -149,6 +180,7 @@ export const logoutUser = async () => {
     } catch (e) {
       console.error('Failed to disconnect socket on logout:', e);
     }
+  }
 };
 
 export const loginUser = async (
@@ -159,17 +191,20 @@ export const loginUser = async (
 ) => {
   try {
     const response = await api.post('/auth/login', { email, password, latitude, longitude });
-    if (response.data.token) {
-      await secureStorage.setItem('userToken', response.data.token);
-      if (response.data.refreshToken) await secureStorage.setItem('refreshToken', response.data.refreshToken);
+    const payload = response.data?.data || {};
+    if (payload.token) {
+      await clearUserProfileCache();
+      await secureStorage.setItem('userToken', payload.token);
+      if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
       try {
         const meResponse = await api.get('/auth/me');
-        if (meResponse.data?.id) {
-          await storage.setItem('userId', meResponse.data.id);
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
           const { initCartForUser } = require('@/store/cartStore');
-          await initCartForUser(meResponse.data.id);
+          await initCartForUser(me.id);
         }
-        await cacheUserProfile(meResponse.data);
+        await cacheUserProfile(me);
       } catch (meErr) {
         console.warn('Could not fetch userId after login:', meErr);
       }
@@ -181,11 +216,11 @@ export const loginUser = async (
       }
     }
     const needsRole =
-      response.data.requiresRoleSelection ||
-      response.data.role === 'none' ||
-      !response.data.role ||
-      (response.data.roles?.length === 0);
-    return { ...response.data, needsRole };
+      payload.requiresRoleSelection ||
+      payload.role === 'none' ||
+      !payload.role ||
+      (payload.roles?.length === 0);
+    return { ...response.data, ...payload, needsRole };
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data?.error || `Sevalla Edge Error: ${error.response.status}`);
     throw new Error(error.message || 'Network error during login');
@@ -195,7 +230,7 @@ export const loginUser = async (
 export const getUserData = async () => {
   try {
     const response = await api.get('/auth/me');
-    return response.data;
+    return response.data?.user ?? response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to fetch user data');
     throw new Error(error.message || 'Network error fetching user data');

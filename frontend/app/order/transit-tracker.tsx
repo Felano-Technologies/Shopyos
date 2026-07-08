@@ -278,7 +278,7 @@ export default function TransitTrackerScreen() {
                 <View style={styles.timelineContent}>
                   <Text style={styles.timelineStatus}>{getStatusLabel(log.status)}</Text>
                   {log.hub_name && <Text style={styles.timelineLocation}>{log.hub_name}</Text>}
-                  {log.notes && <Text style={styles.timelineNotes}>"{log.notes}"</Text>}
+                  {log.notes && <Text style={styles.timelineNotes}>{`"${log.notes}"`}</Text>}
                   <Text style={styles.timelineDate}>
                     {new Date(log.created_at || log.createdAt).toLocaleString(undefined, {
                       month: 'short',

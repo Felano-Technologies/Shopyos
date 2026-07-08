@@ -188,9 +188,15 @@ app.get('/metrics', async (req, res) => {
 });
 
 app.get('/api/v1/system/logs', (req, res) => {
-  // Protected by ADMIN_SECRET env variable — must match to access logs
+  // Secret travels in a header (not the query string, which lands in access
+  // logs and proxies) and is compared in constant time.
   const adminSecret = process.env.ADMIN_SECRET;
-  if (!adminSecret || req.query.secret !== adminSecret) {
+  const provided = req.headers['x-admin-secret'];
+  const crypto = require('crypto');
+  const matches = adminSecret && typeof provided === 'string' &&
+    provided.length === adminSecret.length &&
+    crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(adminSecret));
+  if (!matches) {
     return res.status(403).json({ error: 'Unauthorized' });
   }
   res.status(200).json({
@@ -320,7 +326,7 @@ if (process.env.NODE_ENV !== 'test') {
       logger.error('Failed to start payout scheduler:', err.message);
     }
 
-    // Start notification worker in-process (connects to CloudAMQP, handles email/SMS queues)
+    // Start notification worker in-process (connects to RABBITMQ_URL, handles email/SMS queues)
     const { startWorker } = require('./workers/notificationWorker');
     startWorker().catch((err) => logger.error('Notification worker failed to start:', err.message));
   });

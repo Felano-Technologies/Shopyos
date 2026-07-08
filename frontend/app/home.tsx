@@ -79,6 +79,7 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
     } catch (e) {
       console.warn('Failed to get location:', e);
     }
+  }
 
   if (!liveCoords && profileData?.city) {
     const txt = profileData.city + (profileData.country ? `, ${profileData.country}` : '');
@@ -96,7 +97,9 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
           shouldGeocode = true;
       } catch (e) {
         console.warn('Failed to parse cached coords:', e);
-      } else shouldGeocode = true;
+        shouldGeocode = true;
+      }
+    }
     if (shouldGeocode) {
       try {
         const [info] = await Location.reverseGeocodeAsync(liveCoords);
@@ -110,6 +113,7 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
       } catch (e) {
         console.warn('Failed to reverse geocode:', e);
       }
+    }
   } else if (!cachedTxt) setLocation('Location unavailable');
 }
 

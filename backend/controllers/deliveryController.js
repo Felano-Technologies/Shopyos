@@ -526,8 +526,9 @@ const getDriverStats = async (req, res, next) => {
     const now = new Date();
 
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-    const [monthSummary, weekChart, monthChart, breakdown, rating] = await Promise.all([
+    const [monthSummary, weekChart, monthChart, breakdown, rating, todayStats] = await Promise.all([
       db.query(`
         SELECT
           COALESCE(SUM(d.driver_earnings), 0) AS total_earned_this_month,
@@ -574,6 +575,16 @@ const getDriverStats = async (req, res, next) => {
         FROM driver_reviews dr
         WHERE dr.driver_id = $1
       `, [driverId]),
+      db.query(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE d.status = 'delivered') AS completed,
+          COUNT(*) FILTER (WHERE d.status NOT IN ('delivered', 'cancelled')) AS in_progress,
+          COALESCE(SUM(d.driver_earnings) FILTER (WHERE d.status = 'delivered'), 0) AS earnings
+        FROM deliveries d
+        WHERE d.driver_id = $1
+          AND (d.assigned_at >= $2 OR d.delivered_at >= $2)
+      `, [driverId, startOfToday]),
     ]);
 
     const summary = monthSummary.rows[0] || { total_earned_this_month: 0, total_deliveries_this_month: 0 };
@@ -600,7 +611,15 @@ const getDriverStats = async (req, res, next) => {
 
     const totalLifetime = parseFloat(lifetimeResult.rows[0]?.total_earned_lifetime || 0);
 
+    const t = todayStats.rows[0] || { total: 0, completed: 0, in_progress: 0, earnings: 0 };
+
     ApiResponse.success(res, {
+      today: {
+        total: parseInt(t.total, 10),
+        completed: parseInt(t.completed, 10),
+        inProgress: parseInt(t.in_progress, 10),
+        earnings: parseFloat(t.earnings),
+      },
       summary: {
         total_earned_lifetime: totalLifetime,
         total_earned_this_month: totalEarnedMonth,

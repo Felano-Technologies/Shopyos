@@ -95,7 +95,7 @@ export const getAdminOrders = async (
 export const getAdminRevenue = async (params: { limit?: number; offset?: number } = {}) => {
   try {
     const response = await api.get('/admin/revenue', { params });
-    return response.data;
+    return { success: response.data.success, ...response.data.data };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -256,7 +256,7 @@ export const getDriverHistoryAdmin = async (
 export const getAdminRevenueBreakdown = async (period: 'week' | 'month' | 'year' = 'month') => {
   try {
     const response = await api.get('/admin/revenue-breakdown', { params: { period } });
-    return response.data;
+    return { success: response.data.success, ...response.data.data };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

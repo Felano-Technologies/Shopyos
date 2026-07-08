@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import AppImage from '@/components/AppImage';
-import { getSnapFeed } from '@/services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +10,7 @@ import { useSnapFeed } from '@/hooks/useSnaps';
 export const SnapsRow = () => {
   const router = useRouter();
   const { data, isLoading } = useSnapFeed();
-  const feed = data?.feed || [];
+  const feed = useMemo(() => data?.feed || [], [data?.feed]);
 
   const handlePress = useCallback((storeId: string, index: number) => {
     router.push({

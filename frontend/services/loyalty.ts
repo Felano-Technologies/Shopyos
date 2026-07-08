@@ -8,7 +8,7 @@ export const getLoyaltyBalance = async (): Promise<{
 }> => {
   try {
     const response = await api.get('/loyalty/balance');
-    return response.data;
+    return { success: response.data.success, ...response.data.data };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
@@ -39,7 +39,7 @@ export const validatePromoCode = async (
 }> => {
   try {
     const response = await api.post('/promo/validate', { code, subtotal });
-    return response.data;
+    return { success: response.data.success, ...response.data.data };
   } catch (error: any) {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }

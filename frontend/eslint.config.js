@@ -6,5 +6,11 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ["dist/*"],
-  }
+  },
+  {
+    rules: {
+      // import/namespace re-parses TS files without TS support, producing false positives
+      "import/namespace": "off",
+    },
+  },
 ]);

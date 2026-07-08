@@ -134,7 +134,7 @@ export default function Dashboard() {
   }, [profile]);
   // --- TanStack Query Hooks ---
   const { data: statsData, refetch: refetchStats } = useDriverStats('today');
-  const stats = statsData?.stats || { total: 0, completed: 0, inProgress: 0, earnings: 0 };
+  const stats = statsData?.today || { total: 0, completed: 0, inProgress: 0, earnings: 0 };
   
   const { data: activeData, refetch: refetchActive } = useActiveDeliveries({ enabled: isOnline, refetchInterval: isOnline ? 10000 : false });
   const activeDeliveries = activeData?.deliveries || [];

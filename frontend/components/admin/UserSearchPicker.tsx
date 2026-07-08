@@ -142,7 +142,7 @@ export default function UserSearchPicker({ label = 'User', value, onSelect, erro
 
       {open && results.length === 0 && !loading && query.length >= 2 && (
         <View style={styles.noResults}>
-          <Text style={styles.noResultsText}>No users found for "{query}"</Text>
+          <Text style={styles.noResultsText}>{`No users found for "${query}"`}</Text>
         </View>
       )}
     </View>

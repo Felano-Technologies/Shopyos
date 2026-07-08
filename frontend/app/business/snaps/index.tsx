@@ -60,22 +60,31 @@ export default function SnapsDashboardScreen() {
     }, [fetchSnaps])
   );
 
-  const handleDelete = async (id: string) => {
-    try {
-      const res = await deleteSnap(id);
-      if (res?.success) {
-        CustomInAppToast.show({ 
-          type: 'success', 
-          title: 'Deleted', 
-          message: 'Snap deleted successfully' 
+  const handleDelete = (id: string) => {
+    Alert.alert(
+      'Delete Snap',
+      'Are you sure you want to delete this snap?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = await deleteSnap(id);
+              if (res?.success) {
+                CustomInAppToast.show({
+                  type: 'success',
+                  title: 'Deleted',
+                  message: 'Snap deleted successfully',
                 });
                 setSnaps(prev => prev.filter(s => s.id !== id));
               }
             } catch (e: any) {
               CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not delete snap.' });
             }
-          }
-        }
+          },
+        },
       ]
     );
   };

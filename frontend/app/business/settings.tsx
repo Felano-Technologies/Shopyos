@@ -46,6 +46,7 @@ export default function BusinessSettingsScreen() {
   const switchToBuyerMode = useAuthStore((s) => s.switchToBuyerMode);
   const { activeBusiness: businessData, isLoading: profileLoading } = useActiveBusiness();
   const isBusinessVerified = businessData?.verificationStatus === 'verified';
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const handleRestrictedAction = () => {
     CustomInAppToast.show({ type: 'info', title: 'Verification Required', message: 'Complete verification to access this setting. You can still edit your profile or log out.' });
   };
@@ -55,7 +56,6 @@ export default function BusinessSettingsScreen() {
   }
   const statusInfo   = getStatus(businessData?.verificationStatus);
   const initials     = (businessData?.businessName ?? 'B').charAt(0).toUpperCase();
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const confirmLogout = () => {
     setShowLogoutConfirm(true);

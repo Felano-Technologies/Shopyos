@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet, KeyboardAvoidingView, Platform, Pressable, Keyboard, Dimensions } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { registerUser } from '@/services/api';
-import { useGoogleAuth, signInWithGoogle } from '@/services/auth';
+import { isGoogleAuthConfigured, useGoogleAuth, signInWithGoogle } from '@/services/auth';
 import { Ionicons } from '@expo/vector-icons';
 import CountryPicker from '@/components/CountryPicker';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -28,17 +28,10 @@ const RegisterScreen = () => {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const googleAuthConfigured = isGoogleAuthConfigured();
   const [request, response, promptAsync] = useGoogleAuth();
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const validateField = (field: string, value: string) => {
-    let err = '';
-    if (field === 'name' && !value.trim()) err = 'Full name is required';
-    if (field === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) err = 'Enter a valid email address';
-    if (field === 'password' && value.length < 6) err = 'Password must be at least 6 characters';
-    if (field === 'phoneNumber' && value.replace(/\D/g, '').length < 6) err = 'Enter a valid phone number';
-    setErrors((prev) => ({ ...prev, [field]: err }));
-  };
 
   const isFormValid = useMemo(() => {
     return name.trim() && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && password.length >= 6 && phoneNumber.replace(/\D/g, '').length >= 6;
@@ -115,6 +108,17 @@ const RegisterScreen = () => {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    if (!googleAuthConfigured) {
+      CustomInAppToast.show({
+        type: 'error',
+        title: 'Google Sign-Up Unavailable',
+        message: 'Google OAuth is not configured for this platform.',
+      });
+      return;
+    }
+    promptAsync();
+  };
   
   const content = (
     <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
@@ -291,9 +295,9 @@ const RegisterScreen = () => {
           <TouchableOpacity
             accessibilityLabel="Continue with Google"
             accessibilityRole="button"
-            style={styles.googleButton}
-            onPress={() => promptAsync()}
-            disabled={!request || loading}
+            style={[styles.googleButton, (!googleAuthConfigured || loading) && styles.buttonDisabled]}
+            onPress={handleGoogleSignUp}
+            disabled={loading || (googleAuthConfigured && !request)}
           >
             <Ionicons name="logo-google" size={18} color="#444" style={{ marginRight: 8 }} />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
@@ -354,7 +358,7 @@ const RegisterScreen = () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  scrollContent: { alignItems: 'center', paddingTop: 16, paddingBottom: 80 },
+  scrollContent: { alignItems: 'center', paddingTop: 16, paddingBottom: 15 },
   bannerContainer: { height: 180, width: width * 0.9, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   slide: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   bannerImage: { width: '100%', height: '100%', borderRadius: 16, marginBottom: -10 },
@@ -408,9 +412,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   circleLogo: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
     resizeMode: 'contain',
+    marginLeft: -50,
   },
   brandLogo: {
     width: 80,
@@ -445,7 +450,7 @@ const styles = StyleSheet.create({
   dividerText: { marginHorizontal: 10, color: '#9ca3af', fontSize: 13 },
   googleButton: {
     width: '100%',
-    height: 50,
+    height: 45,
     backgroundColor: '#f3f4f6',
     borderRadius: 14,
     borderWidth: 1,
