@@ -107,6 +107,9 @@ export function getRouteFromNotification(notification: any, role: string): Route
   if (type === 'loyalty_earned' || type === 'badge_awarded') {
     return { pathname: '/settings/loyaltyPoints' };
   }
+  if (type === 'flash_sale_started' || type === 'flash_sale_ending') {
+    return { pathname: '/home' };
+  }
   if (type.startsWith('payment')) {
     return { pathname: '/settings/Transactions' };
   }
@@ -210,6 +213,7 @@ export function getRouteFromPushData(data: Record<string, any>, role: string): R
     return { pathname: '/stores/details', params: { id: String(data.storeId) } };
   }
   if (screen === 'loyalty') return { pathname: '/settings/loyaltyPoints' };
+  if (screen === 'flash_sale') return { pathname: '/home' };
   if (screen === 'payment') return { pathname: '/settings/Transactions' };
   return null;
 }

@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import { getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
+import { CustomInAppToast } from '@/components/InAppToastHost';
 // 1) Tell Expo how to handle incoming notifications (show alert even if app is foregrounded):
 Notifications.setNotificationHandler({
   handleNotification: async () => ({

@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { useBuyerUnreadCount } from '@/hooks/useChat';
 import { useCart } from '@/store/cartStore';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
+import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { useOnboarding } from '@/context/OnboardingContext';
 import { SpotlightTour } from '@/components/ui/SpotlightTour';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
@@ -145,6 +146,9 @@ export default function Home() {
   const [showStartupSkeleton, setShowStartupSkeleton] = useState(true);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [favoriteBusyId, setFavoriteBusyId] = useState<string | null>(null);
+
+  // Daily check-in loyalty reward (once per calendar day)
+  useDailyCheckin();
 
   // ── Remote data ───────────────────────────────────────────────────────────────
   const { data: unreadCount = 0 } = useBuyerUnreadCount();

@@ -41,12 +41,14 @@ async function runDriverPayouts() {
         logger.info(`[PayoutScheduler] Found ${drivers.length} eligible drivers`);
 
         for (const driver of drivers) {
+            let payout = null;
+            let balanceDeducted = false;
             try {
                 // Skip if already has a pending payout
                 const hasPending = await repositories.payouts.hasPendingPayout(null, driver.user_id);
                 if (hasPending) continue;
 
-                const payout = await repositories.payouts.requestPayout({
+                payout = await repositories.payouts.requestPayout({
                     driverId: driver.user_id,
                     amount: parseFloat(driver.wallet_balance),
                     method: driver.payout_method,
@@ -63,6 +65,7 @@ async function runDriverPayouts() {
                      VALUES ($1, $2, 'withdrawal', 0)`,
                     [driver.user_id, -parseFloat(driver.wallet_balance)]
                 );
+                balanceDeducted = true;
 
                 // Initiate Paystack transfer immediately
                 const details = driver.payout_details || {};
@@ -91,7 +94,14 @@ async function runDriverPayouts() {
                 });
             } catch (err) {
                 logger.error(`[PayoutScheduler] Driver ${driver.user_id} payout failed:`, err.message);
-                // On transfer failure the webhook will handle refund; nothing to rollback here yet
+                // A failed initiateTransfer never reaches Paystack, so no webhook will fire —
+                // roll back here: mark the payout failed and restore the wallet balance.
+                if (payout && balanceDeducted) {
+                    await repositories.payouts.updatePayoutStatus(payout.id, 'failed', {
+                        notes: `Auto-payout transfer failed: ${err.message}`
+                    }).catch(e => logger.error('[PayoutScheduler] Failed to mark payout failed:', e.message));
+                    await _refundPayoutBalance(payout);
+                }
             }
         }
     } catch (err) {
@@ -149,12 +159,14 @@ async function runSellerPayouts() {
         logger.info(`[PayoutScheduler] Found ${storeGroups.length} eligible sellers`);
 
         for (const store of storeGroups) {
+            let payout = null;
+            let balanceDeducted = false;
             try {
                 const hasPending = await repositories.payouts.hasPendingPayout(store.store_id, null);
                 if (hasPending) continue;
 
                 const amount = parseFloat(store.eligible_amount);
-                const payout = await repositories.payouts.requestPayout({
+                payout = await repositories.payouts.requestPayout({
                     storeId: store.store_id,
                     amount,
                     method: store.payout_method,
@@ -172,6 +184,7 @@ async function runSellerPayouts() {
                      VALUES ($1, $2, 'withdrawal', $3, $4, 'Weekly auto-payout')`,
                     [store.store_id, -amount, payout.id, newBalance]
                 );
+                balanceDeducted = true;
 
                 // Mark the eligible balance_log entries as consumed (set payout_eligible_at to past date so scheduler won't re-pick them)
                 await db.query(`
@@ -209,6 +222,13 @@ async function runSellerPayouts() {
                 });
             } catch (err) {
                 logger.error(`[PayoutScheduler] Seller ${store.store_id} payout failed:`, err.message);
+                // Failed transfer never reached Paystack → no webhook → refund here.
+                if (payout && balanceDeducted) {
+                    await repositories.payouts.updatePayoutStatus(payout.id, 'failed', {
+                        notes: `Auto-payout transfer failed: ${err.message}`
+                    }).catch(e => logger.error('[PayoutScheduler] Failed to mark payout failed:', e.message));
+                    await _refundPayoutBalance(payout);
+                }
             }
         }
     } catch (err) {

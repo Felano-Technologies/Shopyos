@@ -266,8 +266,13 @@ export default function CheckoutScreen() {
             setSelectedMethodId(defaultMethod.id);
           }
         }
-      } catch (e) {
-        console.log('Error loading checkout info:', e);
+      } catch (e: any) {
+        console.error('Error loading checkout info:', e);
+        CustomInAppToast.show({
+          type: 'error',
+          title: "Couldn't load checkout details",
+          message: 'Your saved address, payment methods, or fees may be missing. Pull back and retry, or fill in details manually.',
+        });
       } finally {
         setIsLoading(false);
       }
@@ -332,11 +337,17 @@ export default function CheckoutScreen() {
         ...(isAnyInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
       });
 
-      if (res.success) {
+      const orderId = res?.orders?.[0]?.id;
+      if (res?.success && orderId) {
         clearCart();
         await clearBackendCart().catch(() => {});
-        const orderId = res.orders[0].id;
         router.replace({ pathname: `/payment/${orderId}`, params: { method: paymentMethodType, methodId: selectedMethodId } } as any);
+      } else {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Order Failed',
+          message: res?.error || res?.message || 'The order could not be created. Please try again.',
+        });
       }
     } catch (e: any) {
       CustomInAppToast.show({ type: 'error', title: 'Order Failed', message: e.message || 'Please try again.' });

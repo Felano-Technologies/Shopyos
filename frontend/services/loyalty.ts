@@ -23,6 +23,22 @@ export const getLoyaltyTransactions = async (params: { limit?: number; offset?: 
   }
 };
 
+export const dailyCheckin = async (): Promise<{
+  success: boolean;
+  alreadyCheckedIn: boolean;
+  streak: number;
+  pointsAwarded: number;
+  bonusDay?: boolean;
+  balance?: number;
+}> => {
+  try {
+    const response = await api.post('/loyalty/check-in');
+    return { success: response.data.success, ...response.data.data };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const validatePromoCode = async (
   code: string,
   subtotal: number

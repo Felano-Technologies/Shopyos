@@ -20,6 +20,13 @@ export default function PaymentProcessingScreen() {
     const [paymentRef, setPaymentRef] = useState<string | null>(null);
     const appState = useRef(AppState.currentState);
     const verifyAttempts = useRef(0);
+    const mountedRef = useRef(true);
+    const verifyInFlight = useRef(false);
+
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
 
     const startAnimation = useCallback(() => {
         progress.setValue(0);
@@ -94,15 +101,20 @@ export default function PaymentProcessingScreen() {
     }, [id, method, startAnimation]);
 
     const handleVerify = async (ref: string) => {
+        // A retry loop may already be running (e.g. re-foregrounding the app) —
+        // never start a second concurrent verification for the same payment.
+        if (verifyInFlight.current) return;
+        verifyInFlight.current = true;
         try {
+            if (!mountedRef.current) return;
             setStatus('verifying');
             verifyAttempts.current = 0;
             const maxAttempts = 6;
 
-
             const check = async (): Promise<void> => {
+                if (!mountedRef.current) return;
                 const res = await verifyPayment(ref);
-
+                if (!mountedRef.current) return;
 
                 if (res.success) {
                     setStatus('success');
@@ -111,7 +123,7 @@ export default function PaymentProcessingScreen() {
 
                 // Check if it's a pending MoMo transaction (user hasn't confirmed yet)
                 const txnStatus = res.data?.status;
-                
+
                 if (txnStatus === 'pending' || txnStatus === 'send_otp' || txnStatus === 'ongoing') {
                     // Still processing, retry
                     if (verifyAttempts.current < maxAttempts) {
@@ -136,8 +148,12 @@ export default function PaymentProcessingScreen() {
             await check();
         } catch (e: any) {
             console.error("Verification Error:", e);
-            setErrorMessage(e.message || 'Verification failed');
-            setStatus('failed');
+            if (mountedRef.current) {
+                setErrorMessage(e.message || 'Verification failed');
+                setStatus('failed');
+            }
+        } finally {
+            verifyInFlight.current = false;
         }
     };
 

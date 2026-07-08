@@ -19,6 +19,9 @@ export interface SupportTicket {
   status: TicketStatus;
   priority: 1 | 2 | 3;
   admin_notes: string | null;
+  assigned_to: string | null;
+  assigned_at: string | null;
+  assigned_to_name?: string | null;
   resolved_by: string | null;
   resolved_at: string | null;
   created_at: string;

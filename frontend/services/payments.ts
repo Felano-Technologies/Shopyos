@@ -89,6 +89,19 @@ export const requestPayout = async (payoutData: any) => {
   }
 };
 
+export const getSellerTransactions = async (
+  storeId: string,
+  params: { limit?: number; offset?: number } = {}
+) => {
+  try {
+    const response = await api.get(`/payouts/transactions/${storeId}`, { params });
+    // ApiResponse.success shape: { success, data: { transactions, currentBalance, pagination } }
+    return response.data?.data || response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
 export const getSellerLockedBalance = async (storeId: string) => {
   try {
     const response = await api.get(`/payouts/locked/${storeId}`);

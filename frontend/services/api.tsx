@@ -53,7 +53,7 @@ export {
 
 export {
   initializePayment, verifyPayment, getPaymentMethods, addPaymentMethod, deletePaymentMethod,
-  setDefaultPaymentMethod, getPayoutHistory, requestPayout, initializeListingFee,
+  setDefaultPaymentMethod, getPayoutHistory, requestPayout, getSellerTransactions, initializeListingFee,
   initializeBannerPayment, verifyBannerPayment,
 } from './payments';
 
@@ -72,7 +72,9 @@ export {
   getMySnaps, repostSnap,
 } from './advertising';
 
-export { getLoyaltyBalance, getLoyaltyTransactions, validatePromoCode } from './loyalty';
+export { getLoyaltyBalance, getLoyaltyTransactions, validatePromoCode, dailyCheckin } from './loyalty';
+
+export { getDisclaimerByType, acknowledgeDisclaimer } from './disclaimers';
 
 export {
   createBargainOffer, getBuyerOffers, getSellerOffers, respondToBargain,

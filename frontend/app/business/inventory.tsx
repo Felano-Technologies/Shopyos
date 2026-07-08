@@ -236,7 +236,7 @@ const Inventory = () => {
                 placeholderTextColor={C.subtle}
                 style={S.searchInput}
                 value={searchQuery}
-                onChangeText={setSearch}
+                onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>

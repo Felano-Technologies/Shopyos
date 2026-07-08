@@ -22,7 +22,7 @@ class SocketService {
     if (!socketURL) {
       throw new Error(isDev ? 'EXPO_PUBLIC_DEV_SOCKET_URL is not set' : 'EXPO_PUBLIC_SOCKET_URL is not set');
     }
-    console.log('📡 Socket URL:', socketURL);
+    if (__DEV__) console.log('📡 Socket URL:', socketURL);
     return socketURL.replace(/\/$/, '');
   }
 
@@ -51,8 +51,7 @@ class SocketService {
           }
 
           const socketURL = this.getSocketURL();
-          console.log('🔌 Connecting to Socket.IO:', socketURL);
-          console.log('🔑 Token available:', !!token, 'Length:', token?.length);
+          if (__DEV__) console.log('🔌 Connecting to Socket.IO:', socketURL);
 
           const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
 
@@ -70,7 +69,7 @@ class SocketService {
 
           // Connection successful
           this.socket.on('connect', () => {
-            console.log('✅ Socket.IO connected:', this.socket?.id);
+            if (__DEV__) console.log('✅ Socket.IO connected:', this.socket?.id);
             this.reconnectAttempts = 0;
             this.reattachEventHandlers();
           });

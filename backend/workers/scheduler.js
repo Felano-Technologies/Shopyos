@@ -578,7 +578,7 @@ function initScheduler() {
       if (activated.length > 0) {
         logger.info(`[Scheduler] Activated ${activated.length} approved flash sale(s)`);
       }
-      
+
       const expired = await repositories.flashSales.expireEndedSales();
       if (expired.length > 0) {
         logger.info(`[Scheduler] Expired ${expired.length} live flash sale(s)`);
@@ -586,6 +586,22 @@ function initScheduler() {
     } catch (err) {
       logger.error('[Scheduler] Flash sale activation/expiry worker error:', err.message);
     }
+  });
+
+  // Every 5 minutes: flash sale "started" / "ending soon" announcements (targeted)
+  cron.schedule('*/5 * * * *', () => {
+    const { announceFlashSales } = require('./engagementAlerts');
+    announceFlashSales().catch(err =>
+      logger.error('[Scheduler] Flash sale announcement sweep error:', err.message)
+    );
+  });
+
+  // Every 30 minutes: price-drop / back-in-stock alerts for favorited products
+  cron.schedule('*/30 * * * *', () => {
+    const { sweepFavoriteAlerts } = require('./engagementAlerts');
+    sweepFavoriteAlerts().catch(err =>
+      logger.error('[Scheduler] Favorite alerts sweep error:', err.message)
+    );
   });
 
   // Every 15 minutes: recompute product–product similarity scores for recommendations

@@ -15,30 +15,34 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { getSellerTransactions, storage } from '@/services/api';
+import { format } from 'date-fns';
 
-// --- MOCK API ---
-const fetchTransactions = async () => {
-  return new Promise<{ data: any[] }>((resolve) => {
-    setTimeout(() => {
-      
-      // --- 🎚️ TOGGLE THIS VALUE TO SEE EMPTY VS ACTIVE STATE ---
-      const SHOW_EMPTY_STATE = true; 
+// Map a balance_logs row to the shape this screen renders
+function mapLogToItem(log: any) {
+  const amount = Number.parseFloat(log.amount);
+  const type =
+    log.transaction_type === 'sale' ? 'sale'
+    : log.transaction_type === 'withdrawal' || log.transaction_type === 'payout' ? 'payout'
+    : log.transaction_type === 'refund' ? 'refund'
+    : log.transaction_type;
 
-      if (SHOW_EMPTY_STATE) {
-        resolve({ data: [] });
-      } else {
-        const mockData = [
-          { id: '1', title: 'Order #2034 Payment', type: 'sale', amount: 450, date: 'Feb 07, 2026', time: '10:45 AM', status: 'Success' },
-          { id: '2', title: 'Weekly Payout', type: 'payout', amount: -1200, date: 'Feb 01, 2026', time: '09:00 AM', status: 'Success' },
-          { id: '3', title: 'Order #2033 Payment', type: 'sale', amount: 85.5, date: 'Jan 30, 2026', time: '02:15 PM', status: 'Success' },
-          { id: '4', title: 'Refund: Order #2010', type: 'refund', amount: -120, date: 'Jan 28, 2026', time: '11:30 AM', status: 'Completed' },
-          { id: '5', title: 'Order #2032 Payment', type: 'sale', amount: 210, date: 'Jan 28, 2026', time: '09:10 AM', status: 'Success' },
-        ];
-        resolve({ data: mockData });
-      }
-    }, 1000);
-  });
-};
+  let title = 'Balance adjustment';
+  if (type === 'sale')   title = log.order_number ? `Order #${log.order_number} Payment` : 'Order payment';
+  if (type === 'payout') title = log.payout_method ? `Payout (${log.payout_method})` : 'Payout';
+  if (type === 'refund') title = log.order_number ? `Refund: Order #${log.order_number}` : 'Refund';
+
+  const d = new Date(log.created_at);
+  return {
+    id: log.id,
+    title,
+    type,
+    amount,
+    date: Number.isNaN(d.getTime()) ? '' : format(d, 'MMM dd, yyyy'),
+    time: Number.isNaN(d.getTime()) ? '' : format(d, 'h:mm a'),
+    status: type === 'payout' ? (log.payout_status || 'Processing') : 'Success',
+  };
+}
 
 export default function TransactionsScreen() {
   const router = useRouter();
@@ -47,6 +51,7 @@ export default function TransactionsScreen() {
   const [filter, setFilter] = useState('All');
   const [searchText, setSearchText] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const { isChecking } = useSellerGuard();
 
@@ -56,9 +61,17 @@ export default function TransactionsScreen() {
 
   const loadData = async () => {
     setLoading(true);
+    setLoadError(null);
     try {
-      const res = await fetchTransactions();
-      setTransactions(res.data);
+      const storeId = await storage.getItem('currentBusinessId');
+      if (!storeId) {
+        setLoadError('No active store selected.');
+        return;
+      }
+      const res = await getSellerTransactions(storeId, { limit: 100 });
+      setTransactions((res?.transactions || []).map(mapLogToItem));
+    } catch (e: any) {
+      setLoadError(e.message || 'Failed to load transactions.');
     } finally {
       setLoading(false);
     }
@@ -132,18 +145,24 @@ export default function TransactionsScreen() {
     );
   };
 
-  // --- Render Empty State ---
+  // --- Render Empty / Error State ---
   const renderEmptyComponent = () => (
     <View style={styles.emptyState}>
         <View style={styles.emptyIconCircle}>
-            <MaterialCommunityIcons name="receipt" size={60} color="#CBD5E1" />
+            <MaterialCommunityIcons
+              name={loadError ? 'wifi-off' : 'receipt'}
+              size={60}
+              color="#CBD5E1"
+            />
         </View>
-        <Text style={styles.emptyTitle}>No Transactions Yet</Text>
+        <Text style={styles.emptyTitle}>
+          {loadError ? "Couldn't load transactions" : 'No Transactions Yet'}
+        </Text>
         <Text style={styles.emptyText}>
-            When you make sales or receive payouts, they will appear here.
+          {loadError || 'When you make sales or receive payouts, they will appear here.'}
         </Text>
         <TouchableOpacity style={styles.refreshBtn} onPress={loadData}>
-            <Text style={styles.refreshText}>Refresh Data</Text>
+            <Text style={styles.refreshText}>{loadError ? 'Retry' : 'Refresh Data'}</Text>
         </TouchableOpacity>
     </View>
   );
