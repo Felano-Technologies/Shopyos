@@ -21,7 +21,6 @@ const { getRedis, healthCheck: redisHealthCheck, disconnect: redisDisconnect } =
 const { performanceMiddleware, getMetrics } = require('./middleware/performanceMonitor');
 const { maintenanceMode } = require('./middleware/maintenanceMode');
 const { register } = require('./config/metrics');
-const { initializeSocketBridge } = require('./config/socketBridge');
 const { getPool } = require('./config/postgres');
 
 const dbHealthCheck = async () => {
@@ -297,6 +296,9 @@ const enableLocalSocket = process.env.ENABLE_LOCAL_SOCKET !== 'false';
 let io = null;
 
 if (enableLocalSocket) {
+  // Lazy require: the bridge reaches into ../../socket, which only exists when
+  // the repo is deployed as a monolith (not with root directory = backend/)
+  const { initializeSocketBridge } = require('./config/socketBridge');
   initializeSocketBridge(server, logger).then((socketIo) => { io = socketIo; }).catch((err) => {
     logger.error('Socket bridge failed to initialize:', err.message);
   });
