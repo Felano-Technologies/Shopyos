@@ -111,6 +111,8 @@ router.post('/refresh', authController.refreshAccessToken); // NEW: Token refres
 
 router.post('/google', authController.googleAuth);
 
+router.post('/2fa/verify', authController.verifyTwoFactor);
+
 router.post('/forgot-password', authController.requestPasswordResetOTP);
 router.post('/forgot-password/verify', authController.verifyPasswordResetOTP);
 router.post('/forgot-password/reset', authController.resetPasswordWithToken);
@@ -373,6 +375,11 @@ router.put('/force-reset-password', protect, authController.forceResetPassword);
  *       401:
  *         description: Unauthorized
  */
+router.get('/security-settings', protect, authController.getSecuritySettings);
+router.put('/security-settings', protect, authController.updateSecuritySettings);
+router.post('/export-data', protect, authController.requestDataExport);
+router.post('/delete-account', protect, authController.requestAccountDeletion);
+
 router.get('/sessions', protect, authController.getSessions);
 
 /**

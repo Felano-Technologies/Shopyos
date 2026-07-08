@@ -17,7 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import AppImage from '@/components/AppImage';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { loginUser } from '@/services/api';
+import { loginUser, logoutUser } from '@/services/api';
 import { useOnboarding } from '@/context/OnboardingContext';
 import * as Location from 'expo-location';
 
@@ -64,6 +64,11 @@ export default function AdminLoginScreen() {
       const { latitude, longitude } = await getLocation();
       const response = await loginUser(loginEmail, loginPassword, latitude, longitude);
 
+      if (response.requiresTwoFactor) {
+        router.push({ pathname: '/two-factor' as any, params: { token: response.twoFaToken, target: response.maskedTarget || '' } });
+        return;
+      }
+
       if (response.message !== 'Login successful') {
         CustomInAppToast.show({
           type: 'error',
@@ -75,6 +80,9 @@ export default function AdminLoginScreen() {
 
       const role = response.role?.toLowerCase();
       if (role !== 'admin') {
+        // loginUser already stored tokens — tear the session down so a
+        // rejected non-admin doesn't remain silently authenticated.
+        await logoutUser().catch(() => {});
         CustomInAppToast.show({
           type: 'error',
           title: 'Access Denied',

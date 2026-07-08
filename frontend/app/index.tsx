@@ -5,7 +5,8 @@ import * as Updates from 'expo-updates';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getUserData, secureStorage } from '@/services/api';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { getUserData, secureStorage, storage } from '@/services/api';
 import { cacheUserProfile, clearUserProfileCache, getCachedUserProfile } from '@/services/storage';
 
 const { width, height } = Dimensions.get('window');
@@ -29,6 +30,29 @@ function routeForUser(data: any): string {
   if (role === 'parcel_partner') return '/parcel-partner/dashboard';
   if (role === 'admin') return '/admin/dashboard';
   return '/home';
+}
+
+// Routes that don't need an unlocked session
+const UNAUTHENTICATED_ROUTES = ['/getstarted', '/login', '/admin-login', '/register'];
+
+// If the user enabled biometric login, require Face ID / fingerprint before
+// entering an authenticated area. Failing or cancelling falls back to /login.
+async function applyBiometricGate(route: string): Promise<string> {
+  if (Platform.OS === 'web' || UNAUTHENTICATED_ROUTES.includes(route)) return route;
+  try {
+    const enabled = await storage.getItem('biometricEnabled');
+    if (JSON.parse(enabled || 'false') !== true) return route;
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = hasHardware && await LocalAuthentication.isEnrolledAsync();
+    if (!hasHardware || !enrolled) return route; // enrolment removed — don't lock the user out
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Unlock Shopyos',
+      cancelLabel: 'Use password',
+    });
+    return result.success ? route : '/login';
+  } catch {
+    return route;
+  }
 }
 
 async function authCheckPromise(): Promise<string> {
@@ -145,7 +169,8 @@ const IndexScreen = () => {
       const cached = await getCachedUserProfile();
       const minWait = cached ? 800 : 2000;
       const minWaitPromise = new Promise((resolve) => setTimeout(resolve, minWait));
-      const [nextRoute] = await Promise.all([authCheckPromise(), minWaitPromise]);
+      const [resolvedRoute] = await Promise.all([authCheckPromise(), minWaitPromise]);
+      const nextRoute = await applyBiometricGate(resolvedRoute);
       Animated.timing(fadeOutAnim, {
         toValue: 0,
         duration: 1000,

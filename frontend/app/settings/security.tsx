@@ -16,9 +16,13 @@ import { Ionicons, Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { ConfirmModal } from '@/components/ConfirmModal';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import { storage } from '@/services/api';
+import {
+  storage, getSecuritySettings, updateSecuritySettings,
+  requestDataExport, requestAccountDeletion, logoutUser,
+} from '@/services/api';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -205,6 +209,7 @@ export default function SecurityPrivacySettings() {
 
   useEffect(() => {
     (async () => {
+      // Local cache first for instant paint, then authoritative server state
       try {
         const updates: Partial<TogglesState> = {};
         for (const key of TOGGLE_KEYS) {
@@ -213,18 +218,76 @@ export default function SecurityPrivacySettings() {
         }
         setToggles((prev) => ({ ...prev, ...updates }));
       } catch (e) {
-        console.error('Failed to load security toggle settings:', e);
+        console.error('Failed to load cached toggle settings:', e);
+      }
+
+      try {
+        const server = await getSecuritySettings();
+        setToggles((prev) => ({
+          ...prev,
+          twoFactorEnabled: server.twoFactorEnabled,
+          loginAlerts: server.loginAlertsEnabled,
+          ...(server.privacySettings || {}),
+        }));
+      } catch (e) {
+        console.warn('Failed to load server security settings:', e);
       }
     })();
   }, []);
 
   const setToggle = async (key: ToggleKey, value: boolean) => {
+    // Biometric: confirm the device supports it and the user can pass the
+    // prompt before turning it on — otherwise they'd lock themselves out.
+    if (key === 'biometricEnabled' && value) {
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const enrolled = hasHardware && await LocalAuthentication.isEnrolledAsync();
+      if (!hasHardware || !enrolled) {
+        CustomInAppToast.show({
+          type: 'error',
+          title: 'Biometrics Unavailable',
+          message: hasHardware
+            ? 'No fingerprint or face is enrolled on this device. Set one up in your device settings first.'
+            : 'This device does not support biometric authentication.',
+        });
+        return;
+      }
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Confirm to enable biometric login',
+        cancelLabel: 'Cancel',
+      });
+      if (!result.success) return;
+    }
+
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setToggles((prev) => ({ ...prev, [key]: value }));
     try {
       await storage.setItem(key, JSON.stringify(value));
     } catch (e) {
-      console.error('Failed to save toggle setting:', e);
+      console.error('Failed to cache toggle setting:', e);
+    }
+
+    // Persist server-side: 2FA and login alerts live on the account;
+    // the rest go into the profile's privacy_settings JSON.
+    try {
+      if (key === 'twoFactorEnabled') {
+        await updateSecuritySettings({ twoFactorEnabled: value });
+        CustomInAppToast.show({
+          type: 'success',
+          title: value ? 'Two-Factor Enabled' : 'Two-Factor Disabled',
+          message: value
+            ? 'New logins now require a code sent to your email.'
+            : 'Logins no longer require a verification code.',
+        });
+      } else if (key === 'loginAlerts') {
+        await updateSecuritySettings({ loginAlertsEnabled: value });
+      } else if (key !== 'biometricEnabled') {
+        await updateSecuritySettings({ privacySettings: { [key]: value } });
+      }
+    } catch (e: any) {
+      // Revert on failure so the UI never lies about account security state
+      setToggles((prev) => ({ ...prev, [key]: !value }));
+      await storage.setItem(key, JSON.stringify(!value)).catch(() => {});
+      CustomInAppToast.show({ type: 'error', title: 'Update Failed', message: e.message || 'Could not save this setting.' });
     }
   };
 
@@ -239,13 +302,32 @@ export default function SecurityPrivacySettings() {
     setShowDeleteConfirm(true);
   };
 
-  const confirmDeleteAccount = () => {
+  const confirmDeleteAccount = async () => {
     setShowDeleteConfirm(false);
-    CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received and will be processed within 30 days.' });
+    try {
+      await requestAccountDeletion();
+      CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received and will be processed within 30 days.' });
+      // All sessions are revoked server-side; finish the logout locally
+      await logoutUser();
+      router.replace('/getstarted' as any);
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Request Failed', message: e.message || 'Could not submit deletion request.' });
+    }
   };
 
-  const handleDownloadData = () =>
-    CustomInAppToast.show({ type: 'info', title: 'Data Export', message: "We'll email you a download link within 24 hours." });
+  const [exporting, setExporting] = useState(false);
+  const handleDownloadData = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await requestDataExport();
+      CustomInAppToast.show({ type: 'success', title: 'Data Export Sent', message: 'A copy of your data has been emailed to you.' });
+    } catch (e: any) {
+      CustomInAppToast.show({ type: 'error', title: 'Export Failed', message: e.message || 'Could not export your data.' });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <View style={styles.mainContainer}>

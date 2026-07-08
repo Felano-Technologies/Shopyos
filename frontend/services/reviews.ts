@@ -106,3 +106,37 @@ export const createReviewComment = async (reviewId: string, text: string) => {
     throw new Error(error.userMessage || extractErrorMessage(error));
   }
 };
+
+export const getMyReviews = async (
+  type: 'product' | 'store' | 'driver',
+  params: { limit?: number; offset?: number } = {}
+) => {
+  try {
+    const response = await api.get(`/reviews/my-reviews/${type}`, { params });
+    const res = response.data;
+    return { ...res, reviews: res.data || res.reviews || [] };
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const updateProductReview = async (
+  reviewId: string,
+  updates: { rating?: number; reviewText?: string }
+) => {
+  try {
+    const response = await api.put(`/reviews/product/${reviewId}`, updates);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};
+
+export const deleteReview = async (reviewType: 'product' | 'store' | 'driver', reviewId: string) => {
+  try {
+    const response = await api.delete(`/reviews/${reviewType}/${reviewId}`);
+    return response.data;
+  } catch (error: any) {
+    throw new Error(error.userMessage || extractErrorMessage(error));
+  }
+};

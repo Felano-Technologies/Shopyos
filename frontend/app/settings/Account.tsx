@@ -10,13 +10,15 @@ import {
   KeyboardAvoidingView,
   ActivityIndicator,
   Modal,
-  FlatList
+  FlatList,
+  Share
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, FontAwesome5, MaterialCommunityIcons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, Stack, useFocusEffect } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
 import { getUserData, updateProfile, getPaymentMethods, uploadAvatar, storage } from '@/services/api';
 import { CustomInAppToast } from "@/components/InAppToastHost";
@@ -201,6 +203,7 @@ export default function AccountScreen() {
     address: '',
     createdAt: '',
     avatar: AVATARS[0],
+    referralCode: '',
   });
   const fetchProfile = async () => {
     try {
@@ -225,11 +228,27 @@ export default function AccountScreen() {
         address: user.address_line1 || '',
         createdAt: dateJoined,
         avatar,
+        referralCode: user.referral_code || '',
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
     } finally {
       setLoading(false);
+    }
+  };
+  const copyReferralCode = async () => {
+    if (!userData.referralCode) return;
+    await Clipboard.setStringAsync(userData.referralCode);
+    CustomInAppToast.show({ type: 'success', title: 'Copied!', message: 'Referral code copied to clipboard.' });
+  };
+  const shareReferralCode = async () => {
+    if (!userData.referralCode) return;
+    try {
+      await Share.share({
+        message: `Join me on Shopyos! Use my referral code ${userData.referralCode} when you sign up.`,
+      });
+    } catch (error) {
+      console.warn('Failed to open share sheet:', error);
     }
   };
   const handleSave = async () => {
@@ -338,6 +357,32 @@ export default function AccountScreen() {
                 <View style={styles.dateBadge}>
                   <Text style={styles.dateText}>Member since {userData.createdAt}</Text>
                 </View>
+                {userData.referralCode ? (
+                  <View style={styles.referralRow}>
+                    <TouchableOpacity
+                      accessibilityLabel="Copy referral code"
+                      accessibilityRole="button"
+                      style={styles.referralChip}
+                      onPress={copyReferralCode}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.referralLabel}>Your Referral Code</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.referralCode}>{userData.referralCode}</Text>
+                        <Ionicons name="copy-outline" size={14} color="#CBD5E1" />
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel="Share referral code"
+                      accessibilityRole="button"
+                      style={styles.referralShareBtn}
+                      onPress={shareReferralCode}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons name="share-social-outline" size={18} color="#A3E635" />
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
               </>
             )}
           </View>
@@ -587,6 +632,11 @@ const styles = StyleSheet.create({
   profileName: { color: '#FFF', fontSize: 22, fontFamily: 'Montserrat-Bold', marginBottom: 6 },
   dateBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12 },
   dateText: { color: '#CBD5E1', fontSize: 12, fontFamily: 'Montserrat-Medium' },
+  referralRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12 },
+  referralChip: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 12, alignItems: 'center' },
+  referralLabel: { color: '#94A3B8', fontSize: 10, fontFamily: 'Montserrat-Medium', marginBottom: 2 },
+  referralCode: { color: '#FFF', fontSize: 14, fontFamily: 'Montserrat-Bold', letterSpacing: 1 },
+  referralShareBtn: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center' },
   nameSkeleton: {
     marginTop: 10,
     width: 180,

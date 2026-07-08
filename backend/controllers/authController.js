@@ -86,6 +86,37 @@ const sanitizePhone = (phone) => {
   return phone.replace(/\++/g, '+').trim();
 };
 
+// Resolve a referral code to the referrer's user id (null if no match)
+const resolveReferrerId = async (referralCode) => {
+  const { data: referrerProfile } = await repositories.users.db
+    .from('user_profiles')
+    .select('user_id')
+    .eq('referral_code', referralCode.trim().toUpperCase())
+    .maybeSingle();
+  return referrerProfile?.user_id || null;
+};
+
+// Record a pending referral for a newly created user and notify the referrer.
+const recordReferralSignup = async (referrerId, newUserId, newUserName) => {
+  await repositories.users.db.from('referrals').insert({
+    referrer_id: referrerId,
+    referred_id: newUserId,
+    status: 'pending',
+    reward_amount: 20
+  });
+
+  const notificationService = require('../services/notificationService');
+  notificationService.sendNotification({
+    userId: referrerId,
+    type: 'loyalty_earned',
+    title: 'Your referral code was used! 🎉',
+    message: `${newUserName || 'Someone'} just joined Shopyos with your code. You'll earn bonus points when they complete their first order.`,
+    relatedId: newUserId,
+    relatedType: 'referral',
+    push: { data: { screen: 'loyalty' } }
+  }).catch(err => logger.warn('Referral signup notification failed:', err.message));
+};
+
 const register = async (req, res, next) => {
   const { name, email, password, fullPhoneNumber, referralCode, termsAccepted, privacyAccepted } = req.body;
 
@@ -96,6 +127,16 @@ const register = async (req, res, next) => {
   try {
     const existingUser = await repositories.users.findByEmail(email);
     if (existingUser) return ApiResponse.error(res, 'User already exists', 400);
+
+    // Validate the referral code BEFORE creating the account, so an invalid
+    // code fails cleanly instead of leaving a half-registered user behind.
+    let referredById = null;
+    if (referralCode?.trim()) {
+      referredById = await resolveReferrerId(referralCode);
+      if (!referredById) {
+        return ApiResponse.error(res, 'Invalid referral code. Check it or leave the field empty.', 400);
+      }
+    }
 
     const user = await repositories.users.createUser({ email, password });
     const cleanPhone = sanitizePhone(fullPhoneNumber);
@@ -108,20 +149,6 @@ const register = async (req, res, next) => {
       repositories.disclaimers.createAcknowledgement(user.id, 'privacy_policy', '1.0', null, 'registration', ipAddress, deviceInfo),
     ]);
     
-    // Process referral code
-    let referredById = null;
-    if (referralCode) {
-      const { data: referrerProfile } = await repositories.users.db
-        .from('user_profiles')
-        .select('user_id')
-        .eq('referral_code', referralCode.toUpperCase())
-        .maybeSingle();
-        
-      if (referrerProfile) {
-        referredById = referrerProfile.user_id;
-      }
-    }
-
     // Generate unique referral code for this new user
     const newReferralCode = 'SHPY-' + crypto.randomBytes(3).toString('hex').toUpperCase();
 
@@ -132,14 +159,9 @@ const register = async (req, res, next) => {
       referred_by_id: referredById
     });
 
-    // If they were referred, log it in referrals table (pending)
+    // If they were referred, log it in referrals table (pending) and notify the referrer
     if (referredById) {
-      await repositories.users.db.from('referrals').insert({
-        referrer_id: referredById,
-        referred_id: user.id,
-        status: 'pending',
-        reward_amount: 20
-      });
+      await recordReferralSignup(referredById, user.id, name);
     }
 
     const accessToken = generateAccessToken(user.id);
@@ -184,31 +206,135 @@ const login = async (req, res, next) => {
       await repositories.userProfiles.updateByUserId(user.id, { latitude, longitude });
     }
 
-    await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
+    // Two-factor: password is correct but tokens are withheld until the
+    // emailed code is verified via /auth/2fa/verify.
+    if (user.two_factor_enabled) {
+      const code = crypto.randomInt(100000, 999999).toString();
+      const twoFaToken = crypto.randomBytes(32).toString('hex');
+      await cacheSet(`2fa_otp:${user.id}`, { code }, 300);
+      await cacheSet(`2fa_token:${twoFaToken}`, { userId: user.id }, 300);
 
-    const userRoles = await repositories.roles.getUserRoles(user.id);
-    const hasRole = userRoles.length > 0;
+      // Also SMS the code when a phone is on file (best-effort — email is primary)
+      let smsSent = false;
+      let profilePhone = null;
+      try {
+        const profile = await repositories.userProfiles.findByUserId(user.id);
+        profilePhone = profile?.phone || null;
+        if (profilePhone) {
+          await notificationService.sendSMS({
+            to: profilePhone,
+            message: `Your Shopyos login verification code is: ${code}. Valid for 5 minutes. If this wasn't you, change your password.`
+          });
+          smsSent = true;
+        }
+      } catch (smsErr) {
+        logger.warn('2FA SMS send failed, email only:', smsErr.message);
+      }
 
-    // Pick the most specific role by priority — prevents driver being routed as buyer
-    const ROLE_PRIORITY = { admin: 4, driver: 3, seller: 2, buyer: 1 };
-    const roleNames = userRoles
-      .map(r => r?.role?.name)
-      .filter(Boolean);
-    const role = roleNames.sort((a, b) => (ROLE_PRIORITY[b] || 0) - (ROLE_PRIORITY[a] || 0))[0] || 'none';
+      await getTransporter().sendMail({
+        to: user.email,
+        from: process.env.EMAIL_FROM,
+        subject: 'Shopyos – Login Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
+            <h2 style="color: #0C1559; margin-bottom: 16px;">Login Verification Code</h2>
+            <p style="color: #334155; font-size: 14px; line-height: 22px;">Someone is signing in to your Shopyos account. Enter the code below to continue. It expires in <strong>5 minutes</strong>.</p>
+            <div style="text-align: center; margin: 28px 0;">
+              <span style="display: inline-block; font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #0C1559; background: #EEF2FF; padding: 16px 28px; border-radius: 10px;">${code}</span>
+            </div>
+            <p style="color: #94a3b8; font-size: 12px; line-height: 18px;">If this wasn't you, change your password immediately.</p>
+          </div>
+        `,
+        text: `Your Shopyos login verification code is: ${code}\n\nIt expires in 5 minutes.\n\nIf this wasn't you, change your password immediately.`
+      });
 
-    const accessToken = generateAccessToken(user.id);
-    const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
-    setAuthCookies(res, accessToken, refreshToken);
+      logger.info('2FA code sent for login', { userId: user.id, smsSent });
+      return ApiResponse.success(res, {
+        requiresTwoFactor: true,
+        twoFaToken,
+        maskedTarget: smsSent && profilePhone
+          ? `${maskEmail(user.email)} and ${maskPhone(profilePhone)}`
+          : maskEmail(user.email)
+      }, 'Verification code sent');
+    }
 
-    ApiResponse.success(res, {
-      token: accessToken,
-      refreshToken,
-      expiresIn: ACCESS_TOKEN_EXPIRY,
-      role,
-      roles: roleNames,
-      requiresRoleSelection: !hasRole,
-      passwordResetRequired: user.password_reset_required === true
-    }, 'Login successful');
+    return _finishLogin(req, res, user);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Issue tokens + build the login payload — shared by password login and 2FA verify
+const _finishLogin = async (req, res, user) => {
+  await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
+
+  const userRoles = await repositories.roles.getUserRoles(user.id);
+  const hasRole = userRoles.length > 0;
+
+  // Pick the most specific role by priority — prevents driver being routed as buyer
+  const ROLE_PRIORITY_LOGIN = { admin: 4, driver: 3, seller: 2, buyer: 1 };
+  const roleNames = userRoles
+    .map(r => r?.role?.name)
+    .filter(Boolean);
+  const role = roleNames.sort((a, b) => (ROLE_PRIORITY_LOGIN[b] || 0) - (ROLE_PRIORITY_LOGIN[a] || 0))[0] || 'none';
+
+  const accessToken = generateAccessToken(user.id);
+  const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
+  setAuthCookies(res, accessToken, refreshToken);
+
+  _sendLoginAlert(user, req);
+
+  return ApiResponse.success(res, {
+    token: accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_EXPIRY,
+    role,
+    roles: roleNames,
+    requiresRoleSelection: !hasRole,
+    passwordResetRequired: user.password_reset_required === true
+  }, 'Login successful');
+};
+
+// Fire-and-forget "new device signed in" notification
+const _sendLoginAlert = (user, req) => {
+  if (user.login_alerts_enabled === false) return;
+  const device = req.headers['user-agent'] || 'Unknown device';
+  notificationService.sendNotification({
+    userId: user.id,
+    type: 'login_alert',
+    title: 'New login to your account',
+    message: `Your Shopyos account was just signed in to from: ${device.slice(0, 120)}`,
+    relatedType: 'session',
+    push: { data: { screen: 'security' } }
+  }).catch(err => logger.warn('Login alert notification failed:', err.message));
+};
+
+// POST /api/v1/auth/2fa/verify — completes a 2FA-gated login
+const verifyTwoFactor = async (req, res, next) => {
+  const { twoFaToken, code } = req.body;
+  if (!twoFaToken || !code) {
+    return ApiResponse.error(res, 'twoFaToken and code are required', 400);
+  }
+
+  try {
+    const session = await cacheGet(`2fa_token:${twoFaToken}`);
+    if (!session?.userId) {
+      return ApiResponse.error(res, 'Verification session expired. Please log in again.', 401);
+    }
+
+    const stored = await cacheGet(`2fa_otp:${session.userId}`);
+    if (!stored || stored.code !== code.trim()) {
+      return ApiResponse.error(res, 'Invalid or expired code. Please try again.', 400);
+    }
+
+    await cacheDel(`2fa_otp:${session.userId}`);
+    await cacheDel(`2fa_token:${twoFaToken}`);
+
+    const user = await repositories.users.findById(session.userId);
+    if (!user?.is_active) return ApiResponse.error(res, 'Account not found or deactivated', 401);
+
+    logger.info('2FA login verified', { userId: user.id });
+    return _finishLogin(req, res, user);
   } catch (err) {
     next(err);
   }
@@ -804,7 +930,7 @@ const forceResetPassword = async (req, res, next) => {
 const ROLE_PRIORITY = { admin: 4, driver: 3, seller: 2, buyer: 1 };
 
 const googleAuth = async (req, res, next) => {
-  const { idToken } = req.body;
+  const { idToken, referralCode } = req.body;
   if (!idToken) return ApiResponse.error(res, 'idToken is required', 400);
 
   try {
@@ -818,13 +944,22 @@ const googleAuth = async (req, res, next) => {
       return ApiResponse.error(res, 'Invalid Google token', 401);
     }
 
-    if (tokenPayload.aud !== process.env.GOOGLE_CLIENT_ID) {
+    // Native sign-ins carry the iOS/Android client ID as the token audience,
+    // not the web client ID — accept any of the configured platform clients.
+    const validAudiences = [
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_IOS_CLIENT_ID,
+      process.env.GOOGLE_ANDROID_CLIENT_ID,
+    ].filter(Boolean);
+    if (!validAudiences.includes(tokenPayload.aud)) {
+      logger.warn('Google token audience mismatch', { aud: tokenPayload.aud });
       return ApiResponse.error(res, 'Token audience mismatch', 401);
     }
 
     const { sub: googleId, email, name, picture } = tokenPayload;
 
     let user = await repositories.users.findByGoogleId(googleId);
+    let isNewUser = false;
 
     if (!user) {
       const existing = await repositories.users.findByEmail(email);
@@ -832,10 +967,38 @@ const googleAuth = async (req, res, next) => {
         await repositories.users.linkGoogleAccount(existing.id, googleId);
         user = { ...existing, google_id: googleId };
       } else {
+        // A referral code on a brand-new signup must be valid BEFORE the account
+        // is created — reject so the user can correct or clear it and retry.
+        let referrerId = null;
+        if (referralCode?.trim()) {
+          referrerId = await resolveReferrerId(referralCode);
+          if (!referrerId) {
+            return ApiResponse.error(res, 'Invalid referral code. Check it or leave the field empty.', 400);
+          }
+        }
+
+        isNewUser = true;
         user = await repositories.users.createOAuthUser({ email, googleId });
         await repositories.userProfiles.updateByUserId(user.id, {
           full_name: name || '',
           avatar_url: picture || null,
+          // OAuth users get a referral code too, so they can refer others
+          referral_code: 'SHPY-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
+          ...(referrerId && { referred_by_id: referrerId }),
+        });
+
+        if (referrerId) {
+          await recordReferralSignup(referrerId, user.id, name);
+        }
+      }
+    }
+
+    // Lazy backfill: Google accounts created before referral support have no code
+    if (!isNewUser) {
+      const profile = await repositories.userProfiles.findByUserId(user.id);
+      if (profile && !profile.referral_code) {
+        await repositories.userProfiles.updateByUserId(user.id, {
+          referral_code: 'SHPY-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
         });
       }
     }
@@ -855,7 +1018,8 @@ const googleAuth = async (req, res, next) => {
     const { rawToken: refreshToken } = await createRefreshToken(user.id, req);
     setAuthCookies(res, accessToken, refreshToken);
 
-    logger.info('Google OAuth login', { userId: user.id, email: user.email });
+    _sendLoginAlert(user, req);
+    logger.info('Google OAuth login', { userId: user.id });
 
     ApiResponse.success(res, {
       token: accessToken,
@@ -870,11 +1034,136 @@ const googleAuth = async (req, res, next) => {
   }
 };
 
+// ── Security & privacy settings ─────────────────────────────────────────────
+
+// GET /api/v1/auth/security-settings
+const getSecuritySettings = async (req, res, next) => {
+  try {
+    const user = await repositories.users.findById(req.user.id);
+    const profile = await repositories.userProfiles.findByUserId(req.user.id);
+    ApiResponse.success(res, {
+      twoFactorEnabled: user?.two_factor_enabled === true,
+      loginAlertsEnabled: user?.login_alerts_enabled !== false,
+      privacySettings: profile?.privacy_settings || {}
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// PUT /api/v1/auth/security-settings
+const updateSecuritySettings = async (req, res, next) => {
+  try {
+    const { twoFactorEnabled, loginAlertsEnabled, privacySettings } = req.body;
+
+    const userUpdates = {};
+    if (typeof twoFactorEnabled === 'boolean') userUpdates.two_factor_enabled = twoFactorEnabled;
+    if (typeof loginAlertsEnabled === 'boolean') userUpdates.login_alerts_enabled = loginAlertsEnabled;
+    if (Object.keys(userUpdates).length) {
+      await repositories.users.update(req.user.id, userUpdates);
+    }
+
+    if (privacySettings && typeof privacySettings === 'object') {
+      const profile = await repositories.userProfiles.findByUserId(req.user.id);
+      await repositories.userProfiles.updateByUserId(req.user.id, {
+        privacy_settings: { ...(profile?.privacy_settings || {}), ...privacySettings }
+      });
+    }
+
+    logger.info('Security settings updated', { userId: req.user.id, keys: Object.keys(req.body) });
+    ApiResponse.success(res, null, 'Settings updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/v1/auth/export-data — emails the user a JSON copy of their data
+const requestDataExport = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const db = require('../config/postgres').getPool();
+
+    const [user, profile, ordersRes, favoritesRes, loyaltyRes] = await Promise.all([
+      repositories.users.findById(userId),
+      repositories.userProfiles.findByUserId(userId),
+      db.query(`SELECT order_number, status, total_amount, created_at FROM orders WHERE buyer_id = $1 ORDER BY created_at DESC LIMIT 500`, [userId]),
+      db.query(`SELECT p.title, f.created_at FROM favorites f JOIN products p ON p.id = f.product_id WHERE f.user_id = $1 LIMIT 500`, [userId]),
+      db.query(`SELECT type, points, description, created_at FROM loyalty_transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 500`, [userId]),
+    ]);
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      account: { id: user.id, email: user.email, emailVerified: user.email_verified, createdAt: user.created_at, lastLoginAt: user.last_login_at },
+      profile: {
+        fullName: profile?.full_name, phone: profile?.phone, city: profile?.city,
+        stateProvince: profile?.state_province, country: profile?.country,
+        addressLine1: profile?.address_line1, referralCode: profile?.referral_code,
+        walletBalance: profile?.wallet_balance, privacySettings: profile?.privacy_settings
+      },
+      orders: ordersRes.rows,
+      favorites: favoritesRes.rows,
+      loyaltyTransactions: loyaltyRes.rows,
+    };
+
+    await notificationService.sendEmail({
+      to: user.email,
+      subject: 'Shopyos – Your Data Export',
+      html: `<p style="font-size:15px;line-height:1.6;">Hi${profile?.full_name ? ` ${profile.full_name}` : ''},</p>
+             <p style="font-size:15px;line-height:1.6;">As requested, attached is a copy of the personal data Shopyos holds about your account.</p>
+             <p style="font-size:13px;color:#64748b;">If you didn't request this export, please contact support immediately.</p>`,
+      text: 'Attached is a copy of the personal data Shopyos holds about your account.',
+      attachments: [{
+        filename: `shopyos-data-export-${new Date().toISOString().slice(0, 10)}.json`,
+        content: JSON.stringify(exportData, null, 2),
+        contentType: 'application/json'
+      }]
+    });
+
+    logger.info('Data export emailed', { userId });
+    ApiResponse.success(res, null, 'Your data export has been emailed to you.');
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/v1/auth/delete-account — records a deletion request and revokes all sessions
+const requestAccountDeletion = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+
+    await repositories.users.update(userId, { deletion_requested_at: new Date().toISOString() });
+
+    // Revoke every session — the account is on its way out
+    await repositories.users.db
+      .from('refresh_tokens')
+      .update({ is_revoked: true, revoked_at: new Date().toISOString(), revoked_reason: 'account_deletion' })
+      .eq('user_id', userId)
+      .eq('is_revoked', false);
+
+    const user = await repositories.users.findById(userId);
+    if (user?.email) {
+      notificationService.sendEmail({
+        to: user.email,
+        subject: 'Shopyos – Account Deletion Request Received',
+        html: `<p style="font-size:15px;line-height:1.6;">We received your request to delete your Shopyos account. It will be processed within 30 days as required by applicable data protection laws.</p>
+               <p style="font-size:13px;color:#64748b;">Changed your mind? Contact support before then and we'll cancel the request.</p>`,
+        text: 'We received your request to delete your Shopyos account. It will be processed within 30 days. Contact support to cancel.'
+      }).catch(e => logger.warn('Deletion confirmation email failed:', e.message));
+    }
+
+    logger.info('Account deletion requested', { userId });
+    ApiResponse.success(res, null, 'Deletion request received. Your account will be removed within 30 days.');
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   register, login, refreshAccessToken, logout, logoutAll,
   getSessions, revokeSession, getUserData,
   requestPasswordResetOTP, verifyPasswordResetOTP, resetPasswordWithToken,
   resetPassword, confirmResetPassword, forceResetPassword,
   addRole, getUserRoles, updateUserRole, updateProfile, updateUserLocation, updateOnboardingState,
-  googleAuth
+  googleAuth,
+  verifyTwoFactor, getSecuritySettings, updateSecuritySettings, requestDataExport, requestAccountDeletion
 };

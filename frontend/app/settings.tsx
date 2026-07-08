@@ -319,6 +319,18 @@ export default function SettingsScreen() {
             label: 'My Returns',
             onPress: () => router.push('/returns')
           })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'star',
+            label: 'My Reviews',
+            onPress: () => router.push('/settings/myReviews' as any)
+          })}
+          <View style={styles.separator} />
+          {renderSettingItem({
+            icon: 'slash',
+            label: 'Blocked Users',
+            onPress: () => router.push('/settings/blockedUsers' as any)
+          })}
         </View>
         {/* Section: Preferences */}
         <Text style={styles.sectionHeader}>Preferences</Text>

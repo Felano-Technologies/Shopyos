@@ -7,6 +7,8 @@ export {
   requestPasswordResetOTP, verifyPasswordResetOTP, resetPasswordWithToken, forceResetPassword,
   logoutUser, loginUser, getUserData, updateProfile, updateUserRole, updateOnboardingState,
   uploadAvatar, updateUserLocation, blockUser, unblockUser, getBlockedUsers, reportEntity,
+  verifyTwoFactorLogin, getSecuritySettings, updateSecuritySettings,
+  getActiveSessions, revokeSession, logoutAllSessions, requestDataExport, requestAccountDeletion,
 } from './auth';
 
 export {
@@ -49,6 +51,7 @@ export {
 export {
   getStoreReviews, getProductReviews, createProductReview, createStoreReview,
   createDriverReview, getReviewableProducts, likeReview, getReviewComments, createReviewComment,
+  getMyReviews, updateProductReview, deleteReview,
 } from './reviews';
 
 export {
