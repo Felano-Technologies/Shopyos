@@ -34,4 +34,35 @@ const getSubClient = () => {
   return subClient;
 };
 
-module.exports = { getPubClient, getSubClient };
+// Mirror backend/config/redis.js cache format (JSON-serialized values) so
+// presence keys written here stay readable by the API service.
+const cacheSet = async (key, value, ttlSeconds = 300) => {
+  const client = getPubClient();
+  if (!client) return false;
+  try {
+    const serialized = JSON.stringify(value);
+    if (ttlSeconds > 0) {
+      await client.setex(key, ttlSeconds, serialized);
+    } else {
+      await client.set(key, serialized);
+    }
+    return true;
+  } catch (error) {
+    logger.error('Socket Redis SET error', { key, error: error.message });
+    return false;
+  }
+};
+
+const cacheDel = async (key) => {
+  const client = getPubClient();
+  if (!client) return false;
+  try {
+    await client.del(key);
+    return true;
+  } catch (error) {
+    logger.error('Socket Redis DEL error', { key, error: error.message });
+    return false;
+  }
+};
+
+module.exports = { getPubClient, getSubClient, cacheSet, cacheDel };
