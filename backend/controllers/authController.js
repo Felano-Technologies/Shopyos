@@ -19,6 +19,10 @@ const {
   hashToken
 } = require('../config/auth');
 const ApiResponse = require('../utils/apiResponse');
+const { renderGenericEmail } = require('../templates');
+
+// Grace period between a deletion request and permanent removal
+const DELETION_GRACE_DAYS = 7;
 
 let _transporter = null;
 const getTransporter = () => {
@@ -201,6 +205,15 @@ const login = async (req, res, next) => {
 
     const isMatch = await repositories.users.verifyPassword(user.id, password);
     if (!isMatch) return ApiResponse.error(res, 'Invalid credentials', 400);
+
+    if (user.deletion_requested_at) {
+      const deleteOn = new Date(new Date(user.deletion_requested_at).getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+      return ApiResponse.error(
+        res,
+        `This account is scheduled for deletion on ${deleteOn.toDateString()}. Contact support if you want to cancel the request.`,
+        403
+      );
+    }
 
     if (latitude && longitude) {
       await repositories.userProfiles.updateByUserId(user.id, { latitude, longitude });
@@ -1010,6 +1023,15 @@ const googleAuth = async (req, res, next) => {
       return ApiResponse.error(res, 'Account is deactivated', 403);
     }
 
+    if (user.deletion_requested_at) {
+      const deleteOn = new Date(new Date(user.deletion_requested_at).getTime() + DELETION_GRACE_DAYS * 24 * 60 * 60 * 1000);
+      return ApiResponse.error(
+        res,
+        `This account is scheduled for deletion on ${deleteOn.toDateString()}. Contact support if you want to cancel the request.`,
+        403
+      );
+    }
+
     await repositories.users.update(user.id, { last_login_at: new Date().toISOString() });
 
     const userRoles = await repositories.roles.getUserRoles(user.id);
@@ -1148,14 +1170,26 @@ const requestAccountDeletion = async (req, res, next) => {
       notificationService.sendEmail({
         to: user.email,
         subject: 'Shopyos – Account Deletion Request Received',
-        html: `<p style="font-size:15px;line-height:1.6;">We received your request to delete your Shopyos account. It will be processed within 30 days as required by applicable data protection laws.</p>
-               <p style="font-size:13px;color:#64748b;">Changed your mind? Contact support before then and we'll cancel the request.</p>`,
-        text: 'We received your request to delete your Shopyos account. It will be processed within 30 days. Contact support to cancel.'
+        html: renderGenericEmail(
+          'Account Deletion Requested',
+          `<p>We received your request to delete your Shopyos account. It will be permanently removed after <strong>${DELETION_GRACE_DAYS} days</strong>, once any outstanding orders are settled.</p>
+           <p style="font-size:13px;color:#64748b;">Changed your mind? Contact support before then and we'll cancel the request.</p>`
+        ),
+        text: `We received your request to delete your Shopyos account. It will be permanently removed after ${DELETION_GRACE_DAYS} days. Contact support to cancel.`
       }).catch(e => logger.warn('Deletion confirmation email failed:', e.message));
     }
 
+    // Push notification so the user sees the request is in progress even after logout
+    notificationService.sendNotification({
+      userId,
+      type: 'account_deletion_requested',
+      title: 'Account deletion in progress',
+      message: `We received your deletion request. Your account will be permanently removed after ${DELETION_GRACE_DAYS} days, once any outstanding orders are settled. Contact support to cancel.`,
+      push: { data: { screen: 'notifications' } }
+    }).catch(e => logger.warn('Deletion push notification failed:', e.message));
+
     logger.info('Account deletion requested', { userId });
-    ApiResponse.success(res, null, 'Deletion request received. Your account will be removed within 30 days.');
+    ApiResponse.success(res, null, `Deletion request received. Your account will be removed after ${DELETION_GRACE_DAYS} days.`);
   } catch (err) {
     next(err);
   }
