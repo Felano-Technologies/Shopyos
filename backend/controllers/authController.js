@@ -718,8 +718,11 @@ const addRole = async (req, res, next) => {
       return ApiResponse.error(res, 'Invalid role. Must be buyer, seller, or driver', 400);
     }
 
+    // Idempotent: a retry after a lost response must not strand the client on an error
     const hasRole = await repositories.roles.userHasRole(userId, role);
-    if (hasRole) return ApiResponse.error(res, `You already have the ${role} role`, 400);
+    if (hasRole) {
+      return ApiResponse.success(res, null, `You already have the ${role} role`);
+    }
 
     const roleData = await repositories.roles.findByName(role);
     if (!roleData) return ApiResponse.error(res, 'Role not found', 404);

@@ -35,13 +35,13 @@ class RoleRepository extends BaseRepository {
    * @returns {Promise<Object>}
    */
   async assignRoleToUser(userId, roleId) {
+    // Upsert on unique_user_role so concurrent duplicate requests can't fail or double-insert
     const { data, error } = await this.db
       .from('user_roles')
-      .insert({
-        user_id: userId,
-        role_id: roleId,
-        is_active: true
-      })
+      .upsert(
+        { user_id: userId, role_id: roleId, is_active: true },
+        { onConflict: 'user_id,role_id' }
+      )
       .select()
       .single();
 
