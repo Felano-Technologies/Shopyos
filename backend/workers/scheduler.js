@@ -13,6 +13,7 @@ const repositories = require('../db/repositories');
 const _expoPushService = require('../services/expoPushService');
 const holidayService = require('../services/holidayService');
 const aiService = require('../services/aiService');
+const { renderGenericEmail } = require('../templates');
 
 let broadcastRunning = false;
 let sweepRunning = false;
@@ -207,7 +208,7 @@ async function dispatchToUser(user, item) {
         campaignType: campaign_type
       },
       email: send_email && user.email ? {
-        html: `<p style="font-size:17px;line-height:1.6;">${personalizedMessage}</p>`
+        html: renderGenericEmail(personalizedTitle, `<p>${personalizedMessage}</p>`)
       } : null,
       sms: send_sms && phone ? {
         text: personalizedMessage
@@ -243,7 +244,7 @@ async function _dispatchEngagementToCustomer(c, { sendEmail, sendSMS, sendPush, 
     relatedId: campaign?.id,
     relatedType: 'scheduled_notification',
     email: sendEmail && c.email ? {
-      html: `<p style="font-size:17px;line-height:1.6;">${message}</p>`
+      html: renderGenericEmail(title, `<p>${message}</p>`)
     } : null,
     sms: sendSMS && phone ? { text: message } : null,
     push: sendPush ? { data: { screen: pushScreen, type: 'daily_engagement', ...pushExtra } } : null

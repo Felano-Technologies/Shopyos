@@ -8,6 +8,7 @@ const amqpPublisher = require('./amqpPublisher');
 const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { publishRealtimeEvent } = require('./realtimePublisher');
+const { renderGenericEmail } = require('../templates');
 
 // Route realtime emits through Redis pub/sub so they reach the socket service
 // whether it runs in-process (monolith) or as a separate container.
@@ -80,7 +81,7 @@ class NotificationService {
         await this.sendEmail({
           to: user.email,
           subject: title,
-          html: params.email.html || message,
+          html: params.email.html || renderGenericEmail(title, `<p>${message}</p>`),
           text: params.email.text || message
         });
       }
@@ -288,17 +289,12 @@ class NotificationService {
       relatedId: order.id,
       relatedType: 'order',
       email: {
-        html: `
-          <div style="font-family: sans-serif; padding: 20px;">
-            <h2 style="color: #0C1559;">${title}</h2>
-            <p style="font-size: 16px;">${message}</p>
-            <p><strong>Total:</strong> ₵${order.total_amount}</p>
-            <a href="${process.env.FRONTEND_URL}/order/${order.id}" 
-               style="background: #84cc16; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-               View Order Details
-            </a>
-          </div>
-        `
+        html: renderGenericEmail(
+          title,
+          `<p>${message}</p><p><strong>Total:</strong> ₵${order.total_amount}</p>`,
+          `${process.env.FRONTEND_URL}/order/${order.id}`,
+          'View Order Details'
+        )
       },
       sms: {
         text: `${message}. Details: ORD-#${order.order_number}`
