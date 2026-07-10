@@ -585,7 +585,13 @@ const getSmsTemplateByEvent = (eventType, role, templateData = {}) => {
     }
 };
 
+// Generic branded shell for ad-hoc emails (scheduled campaigns, status updates)
+// so every email shares the same design system as the event templates.
+const renderGenericEmail = (title, bodyHtml, ctaHref = null, ctaLabel = null) =>
+    wrapHtml(title, bodyHtml, ctaHref, ctaLabel);
+
 module.exports = {
+    renderGenericEmail,
     getWelcomeTemplates,
     getOrderCreatedTemplates,
     getRoleSelectedTemplates,
