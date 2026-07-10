@@ -11,7 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useImagePickerSheet } from '@/hooks/useImagePickerSheet';
-import { initializeBannerPayment, verifyBannerPayment } from '@/services/api';
+import { initializeBannerPayment, verifyBannerPayment, getUserData } from '@/services/api';
 import { useMyCampaigns, useCreateCampaign, useActiveBusiness, useStoreProducts } from '@/hooks/useBusiness';
 import DisclaimerModal from '@/components/DisclaimerModal';
 import { getDisclaimerByType, Disclaimer } from '@/services/disclaimers';
@@ -144,10 +144,19 @@ export default function PromotionsScreen() {
   };
   const handlePayAd = async (campaignId: string) => {
     try {
+      let payerEmail = activeBusiness?.email;
+      if (!payerEmail) {
+        const userData = await getUserData();
+        payerEmail = (userData.user || userData)?.email;
+      }
+      if (!payerEmail) {
+        CustomInAppToast.show({ type: 'error', title: 'Email Required', message: 'Add an email to your account or business profile before paying for an ad.' });
+        return;
+      }
       const callbackUrl = ExpoLinking.createURL('/business/promotions');
       const res = await initializeBannerPayment({
         campaignId,
-        email: 'merchant@shopyos.com',
+        email: payerEmail,
         callbackUrl,
       });
       if (res.success && res.data.authorization_url) {
