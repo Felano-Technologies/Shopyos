@@ -972,7 +972,7 @@ describe('AuthController Unit Tests', () => {
       );
     });
 
-    test('test_addRole_userAlreadyHasRole_returns400', async () => {
+    test('test_addRole_userAlreadyHasRole_isIdempotentSuccess', async () => {
       repositories.roles.userHasRole.mockResolvedValueOnce(true);
 
       const req = mockReq({ user: { id: 'user-123' }, body: { role: 'buyer' } });
@@ -981,10 +981,12 @@ describe('AuthController Unit Tests', () => {
 
       await addRole(req, res, next);
 
-      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: 'You already have the buyer role' })
+        expect.objectContaining({ message: 'You already have the buyer role' })
       );
+      // Must not re-assign or re-publish notifications on a retry
+      expect(repositories.roles.assignRoleToUser).not.toHaveBeenCalled();
     });
 
     test('test_addRole_roleNotFoundInDb_returns404', async () => {
@@ -1021,7 +1023,9 @@ describe('AuthController Unit Tests', () => {
       expect(rabbitMQ.publishMessage).toHaveBeenCalledWith('email', expect.objectContaining({ eventType: 'ROLE_SELECTED_EMAIL' }));
       expect(rabbitMQ.publishMessage).toHaveBeenCalledWith('sms', expect.objectContaining({ eventType: 'ROLE_SELECTED_SMS' }));
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Buyer role added successfully' });
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, message: 'Buyer role added successfully' })
+      );
     });
 
     test('test_addRole_dbThrows_callsNextWithError', async () => {

@@ -66,6 +66,7 @@ const RoleSelectionScreen = () => {
     { id: 'parcel_partner', icon: 'cube-outline', label: 'Parcel Partner' },
   ];
   const handleRoleSelection = async () => {
+    if (loading) return; // guard double-taps before the disabled state re-renders
     if (!selectedRole) {
       CustomInAppToast.show({
         type: 'error',
@@ -79,7 +80,12 @@ const RoleSelectionScreen = () => {
       const backendRole = selectedRole === 'customer' ? 'buyer' : selectedRole;
 
       // Call the API to save the role
-      await updateUserRole(backendRole);
+      try {
+        await updateUserRole(backendRole);
+      } catch (error: any) {
+        // The role may already be saved server-side (lost response + retry) — treat as success
+        if (!/already have the .* role/i.test(error?.message || '')) throw error;
+      }
 
       // Refresh the cached profile so startup routing sees the new role
       try {
@@ -112,7 +118,7 @@ const RoleSelectionScreen = () => {
       CustomInAppToast.show({
         type: 'error',
         title: 'Error ❌',
-        message: error.response?.data?.error || 'Failed to save your role selection.',
+        message: error?.message || 'Failed to save your role selection.',
       });
     } finally {
       setLoading(false);

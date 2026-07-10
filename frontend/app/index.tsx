@@ -60,11 +60,13 @@ async function authCheckPromise(): Promise<string> {
     const token = await secureStorage.getItem('userToken');
     if (!token) return Platform.OS === 'web' ? '/admin-login' : '/getstarted';
     const cached = await getCachedUserProfile();
-    if (cached) {
+    if (cached && routeForUser(cached) !== '/role') {
       getUserData().then(cacheUserProfile).catch(() => {});
       return routeForUser(cached);
     }
 
+    // No cache, or the cache says "no role yet" — that may just be stale
+    // (cached before role selection completed), so confirm with the server.
     const user = await getUserData();
     await cacheUserProfile(user);
     return routeForUser(user);

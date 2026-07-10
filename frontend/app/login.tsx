@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   registerButton: {
     width: '100%',
-    height: 45,
+    minHeight: 45,
     borderRadius: 14,
     borderWidth: 1.5,
     borderColor: '#1e3a8a',
