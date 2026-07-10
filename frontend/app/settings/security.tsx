@@ -306,7 +306,7 @@ export default function SecurityPrivacySettings() {
     setShowDeleteConfirm(false);
     try {
       await requestAccountDeletion();
-      CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received and will be processed within 30 days.' });
+      CustomInAppToast.show({ type: 'info', title: 'Request Submitted', message: 'Your account deletion request has been received. Your account will be permanently removed after 7 days, once any outstanding orders are settled.' });
       // All sessions are revoked server-side; finish the logout locally
       await logoutUser();
       router.replace('/getstarted' as any);
@@ -513,7 +513,7 @@ export default function SecurityPrivacySettings() {
               <View style={styles.infoNote}>
                 <Feather name="info" size={13} color="#94A3B8" />
                 <Text style={styles.infoNoteText}>
-                  Account deletions are processed within 30 days as required by applicable data protection laws.
+                  Account deletions are processed after a 7-day grace period, once any outstanding orders and wallet balances are settled. Contact support within that window to cancel.
                 </Text>
               </View>
             </>
@@ -541,7 +541,12 @@ export default function SecurityPrivacySettings() {
         visible={showDeleteConfirm}
         onClose={() => setShowDeleteConfirm(false)}
         title="Delete Account"
-        message="This permanently deletes your account and all associated data. This cannot be undone."
+        message={
+          'This permanently deletes your account and all associated data after a 7-day grace period. This cannot be undone once processed.\n\n' +
+          '• You will be signed out of all devices immediately and will not be able to log in again.\n' +
+          '• Any outstanding orders must be completed and wallet balances settled before deletion is finalized.\n' +
+          '• To cancel, contact support within the 7-day window.'
+        }
         icon="⚠️"
         actions={[
           { label: 'Cancel', onPress: () => setShowDeleteConfirm(false), variant: 'cancel' },

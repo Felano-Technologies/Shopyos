@@ -537,9 +537,93 @@ async function executeDailyMarketingSweep() {
   }
 }
 
+// ─── Account deletion sweep ──────────────────────────────────────────────────
+// Permanently processes accounts whose deletion grace period has elapsed.
+// Deletion is deferred while the user still has open orders (as buyer or via
+// an owned store) or a wallet balance — retried on the next daily run.
+
+const DELETION_GRACE_DAYS = 7;
+const OPEN_ORDER_STATUSES = `('pending','payment_processing','paid','confirmed','preparing','ready_for_pickup','assigned','picked_up','in_transit')`;
+
+async function processAccountDeletions() {
+  const db = require('../config/postgres').getPool();
+
+  const { rows: due } = await db.query(`
+    SELECT id, email FROM users
+    WHERE deletion_requested_at IS NOT NULL
+      AND deletion_requested_at <= NOW() - INTERVAL '${DELETION_GRACE_DAYS} days'
+      AND is_active = TRUE
+    LIMIT 100
+  `);
+  if (!due.length) return;
+  logger.info(`[AccountDeletion] ${due.length} account(s) due for deletion`);
+
+  for (const user of due) {
+    try {
+      const { rows: [{ open_buyer, open_seller, wallet }] } = await db.query(`
+        SELECT
+          (SELECT COUNT(*) FROM orders WHERE buyer_id = $1 AND status IN ${OPEN_ORDER_STATUSES})::int AS open_buyer,
+          (SELECT COUNT(*) FROM orders o JOIN stores s ON o.store_id = s.id
+            WHERE s.owner_id = $1 AND o.status IN ${OPEN_ORDER_STATUSES})::int AS open_seller,
+          COALESCE((SELECT wallet_balance FROM user_profiles WHERE user_id = $1), 0)::numeric AS wallet
+      `, [user.id]);
+
+      if (open_buyer > 0 || open_seller > 0) {
+        logger.info(`[AccountDeletion] Deferred ${user.id}: ${open_buyer} open buyer / ${open_seller} open seller order(s)`);
+        continue;
+      }
+      if (Number(wallet) > 0) {
+        logger.info(`[AccountDeletion] Deferred ${user.id}: wallet balance ₵${wallet} must be settled first`);
+        continue;
+      }
+
+      // Anonymize and deactivate. Orders/reviews keep referential integrity
+      // via the retained (scrubbed) user row.
+      await db.query('BEGIN');
+      try {
+        await db.query(`
+          UPDATE users SET
+            is_active = FALSE,
+            email = 'deleted+' || id || '@removed.shopyos.app',
+            google_id = NULL
+          WHERE id = $1
+        `, [user.id]);
+        await db.query(`
+          UPDATE user_profiles SET
+            full_name = 'Deleted User', phone = NULL, avatar_url = NULL,
+            address_line1 = NULL, address_line2 = NULL, city = NULL,
+            state_province = NULL, postal_code = NULL,
+            latitude = NULL, longitude = NULL
+          WHERE user_id = $1
+        `, [user.id]);
+        await db.query(`DELETE FROM expo_push_tokens WHERE user_id = $1`, [user.id]);
+        await db.query(`
+          UPDATE refresh_tokens SET is_revoked = TRUE, revoked_at = NOW(), revoked_reason = 'account_deleted'
+          WHERE user_id = $1 AND is_revoked = FALSE
+        `, [user.id]);
+        await db.query('COMMIT');
+        logger.info(`[AccountDeletion] Account ${user.id} anonymized and deactivated`);
+      } catch (txErr) {
+        await db.query('ROLLBACK');
+        throw txErr;
+      }
+    } catch (err) {
+      logger.error(`[AccountDeletion] Failed for user ${user.id}:`, err.message);
+    }
+  }
+}
+
 // ─── Initializer ─────────────────────────────────────────────────────────────
 
 function initScheduler() {
+  // Daily 02:00: process account deletion requests past their grace period
+  cron.schedule('0 2 * * *', async () => {
+    if (!await acquireLock('lock:account_deletion_sweep', 3600)) return;
+    processAccountDeletions().catch(err =>
+      logger.error('[Scheduler] Account deletion sweep error:', err.message)
+    );
+  });
+
   // Every minute: check for due manual broadcasts
   cron.schedule('* * * * *', () => {
     processManualBroadcasts().catch(err =>
@@ -679,4 +763,4 @@ function initScheduler() {
   logger.info('[Scheduler] Cron engine initialised — manual (1 min) + daily (10:00 AM, 3:00 PM, 7:00 PM) + flash sale expiry (1 min) + recommendations (3:00 AM) + snaps check (5 min) + monthly wrap (last day 9 AM)');
 }
 
-module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts };
+module.exports = { initScheduler, executeDailyMarketingSweep, processManualBroadcasts, processAccountDeletions };
