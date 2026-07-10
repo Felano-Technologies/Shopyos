@@ -713,9 +713,9 @@ const addRole = async (req, res, next) => {
   const userId = req.user.id;
 
   try {
-    const validRoles = ['buyer', 'seller', 'driver'];
+    const validRoles = ['buyer', 'seller', 'driver', 'parcel_partner'];
     if (!validRoles.includes(role)) {
-      return ApiResponse.error(res, 'Invalid role. Must be buyer, seller, or driver', 400);
+      return ApiResponse.error(res, 'Invalid role. Must be buyer, seller, driver, or parcel_partner', 400);
     }
 
     // Idempotent: a retry after a lost response must not strand the client on an error

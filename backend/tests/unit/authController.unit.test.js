@@ -968,7 +968,7 @@ describe('AuthController Unit Tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(400);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ error: 'Invalid role. Must be buyer, seller, or driver' })
+        expect.objectContaining({ error: 'Invalid role. Must be buyer, seller, driver, or parcel_partner' })
       );
     });
 
