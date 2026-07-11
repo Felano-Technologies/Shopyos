@@ -72,7 +72,10 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
 
   const tax = Number(await feeConfigService.get('default_tax_amount', 1));
   const store = await repositories.stores.findById(storeId);
-  const deliveryFee = await calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState);
+
+  // Store pickup: the buyer collects from the store — no delivery fee, no
+  // inter-regional transit. pickupStoreIds lists the stores chosen for pickup.
+  const isPickup = Array.isArray(req.body.pickupStoreIds) && req.body.pickupStoreIds.includes(storeId);
 
   // Same fallback chain as deliveryFeeController: state_province → store
   // coords → owner's last login coords.
@@ -80,6 +83,9 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   const resolvedRegion = await resolveStoreRegion(store, repositories);
   const storeRegion = resolvedRegion?.trim().toLowerCase() || null;
   const targetRegion = (deliveryState || '').trim().toLowerCase();
+  const crossRegion = !!(storeRegion && targetRegion && storeRegion !== targetRegion);
+
+  const deliveryFee = isPickup ? 0 : await calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState, crossRegion);
 
   let transitFee = 0;
   let isInterRegional = false;
@@ -87,7 +93,7 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   let destHub = null;
   let estArrivalDate = null;
 
-  if (storeRegion && targetRegion && storeRegion !== targetRegion) {
+  if (!isPickup && storeRegion && targetRegion && storeRegion !== targetRegion) {
     isInterRegional = true;
     if (repositories.parcelPartner) {
       originHub = await repositories.parcelPartner.getHubByRegionName(resolvedRegion || 'Greater Accra');
@@ -166,6 +172,11 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   if (paymentMethod === 'momo') dbPaymentMethod = 'mobile_money';
 
   const order = await repositories.orders.createOrderWithItems(orderData, orderItems, dbPaymentMethod);
+
+  if (isPickup) {
+    // The atomic-create RPC has fixed params — stamp the method afterwards
+    await pool.query(`UPDATE orders SET delivery_method = 'pickup' WHERE id = $1`, [order.id]);
+  }
 
   if (isInterRegional) {
     await pool.query(
@@ -267,7 +278,7 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   return order;
 }
 
-async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
+async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState, isInterRegional = false) {
   const defaultBaseFee = await feeConfigService.get('delivery_default_base_fee');
   const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
   const baseFee = Number.parseFloat(store?.delivery_base_fee) || defaultBaseFee;
@@ -282,9 +293,10 @@ async function calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState) {
     fee = calc.fee ?? baseFee;
   }
 
-  // Floor only — no ceiling (Bolt model: fee scales linearly with distance)
-  const minIntra = await feeConfigService.get('delivery_intra_min_fee');
-  return Math.max(minIntra, fee);
+  // Floor only — no ceiling (Bolt model: fee scales linearly with distance).
+  // Cross-region orders use the inter-regional floor (sync with deliveryFeeController).
+  const minFee = await feeConfigService.get(isInterRegional ? 'delivery_inter_min_fee' : 'delivery_intra_min_fee');
+  return Math.max(minFee, fee);
 }
 
 /**
@@ -326,6 +338,17 @@ const createOrder = async (req, res, next) => {
       const sid = item.products.store_id;
       if (!itemsByStore[sid]) itemsByStore[sid] = [];
       itemsByStore[sid].push(item);
+    }
+
+    // Reject deliveries outside a store's radius (pickup stores are exempt —
+    // the buyer travels to them). Mirrors the quote's withinRange check.
+    const pickupIds = Array.isArray(req.body.pickupStoreIds) ? req.body.pickupStoreIds : [];
+    const deliveryStores = Object.fromEntries(
+      Object.entries(itemsByStore).filter(([sid]) => !pickupIds.includes(sid))
+    );
+    const outOfRangeStore = await validateStoreDeliveryRanges(deliveryStores, buyerLat, buyerLng);
+    if (outOfRangeStore) {
+      return ApiResponse.error(res, `Delivery address is outside the delivery radius for ${outOfRangeStore}`, 400);
     }
 
     const createdOrders = [];

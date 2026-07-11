@@ -27,18 +27,26 @@ async function getDeviceLocation(): Promise<{ latitude: number; longitude: numbe
   return { latitude: 0, longitude: 0 };
 }
 
+// Clear the auth screens (get-started/login/register) off the navigation
+// stack before entering the app, so Android back from the destination exits
+// the app instead of unwinding into the login funnel with stale state.
+function resetToRoute(destination: string) {
+  while (router.canGoBack()) router.back();
+  router.replace(destination as any);
+}
+
 function navigateByRole(role: string | undefined) {
   const userRole = role?.toLowerCase();
   if (userRole === 'customer' || userRole === 'buyer') {
-    router.push('/home');
+    resetToRoute('/home');
   } else if (userRole === 'seller') {
-    router.push('/business/dashboard');
+    resetToRoute('/business/dashboard');
   } else if (userRole === 'driver') {
-    router.push('/driver');
+    resetToRoute('/driver');
   } else if (userRole === 'parcel_partner') {
-    router.push('/parcel-partner/dashboard');
+    resetToRoute('/parcel-partner/dashboard');
   } else if (userRole === 'admin') {
-    router.replace('/admin/dashboard');
+    resetToRoute('/admin/dashboard');
   }
 }
 
@@ -72,7 +80,7 @@ const LoginScreen = () => {
           await refresh();
           CustomInAppToast.show({ type: 'success', title: 'Welcome!', message: 'Signed in with Google.' });
           if (data.needsRole) {
-            router.push('/role');
+            resetToRoute('/role');
           } else {
             navigateByRole(data.role);
           }
@@ -98,7 +106,7 @@ const LoginScreen = () => {
         if (response.passwordResetRequired) {
           router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
         } else if (response.needsRole) {
-          router.push('/role');
+          resetToRoute('/role');
         } else {
           navigateByRole(response.role);
         }
@@ -126,7 +134,7 @@ const LoginScreen = () => {
         if (response.passwordResetRequired) {
           router.push({ pathname: '/force-reset-password', params: { role: response.role || 'buyer', needsRole: response.needsRole ? '1' : '0' } });
         } else if (response.needsRole) {
-          router.push('/role');
+          resetToRoute('/role');
         } else {
           navigateByRole(response.role);
         }

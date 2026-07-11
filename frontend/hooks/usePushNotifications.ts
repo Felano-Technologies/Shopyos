@@ -10,7 +10,27 @@ import { getRouteFromPushData } from '../utils/notificationRouting';
 
 const isExpoGo = Constants.appOwnership === 'expo';
 
+// Android re-delivers the launch intent when the app is reopened from
+// recents, replaying an old notification tap and yanking the user to the
+// notifications screen. Remember handled response ids and ignore repeats.
+let lastHandledNotificationId: string | null = null;
+let hydrateHandledId: Promise<void> | null = null;
+
 async function handleNotificationResponse(response: any, router: ReturnType<typeof useRouter>) {
+    // Make sure the persisted marker is loaded before deciding (cold-start
+    // replays can arrive before the listener-setup hydration completes)
+    hydrateHandledId ??= storage.getItem('lastHandledNotificationId')
+        .then((id) => { if (id && !lastHandledNotificationId) lastHandledNotificationId = id; })
+        .catch(() => {});
+    await hydrateHandledId;
+
+    const notificationId = response?.notification?.request?.identifier;
+    if (notificationId && notificationId === lastHandledNotificationId) return;
+    if (notificationId) {
+        lastHandledNotificationId = notificationId;
+        storage.setItem('lastHandledNotificationId', notificationId).catch(() => {});
+    }
+
     const data = response.notification.request.content.data || {};
     let role = 'buyer';
     try {
