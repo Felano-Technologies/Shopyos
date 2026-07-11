@@ -221,6 +221,21 @@ CTA varies: "go explore", "be among the first", "check it out", "discover their 
 Use the placeholder {{productName}} naturally in each title.
 Angle varies: trending/popular, back in stock, limited units, new arrival.
 CTA varies: "grab yours", "don't miss it", "see it now", "order tonight".`,
+
+    checkin_reminder: `Content type: daily check-in reminder — the user has NOT claimed today's daily loyalty points (+5).
+Use the placeholder {{name}} naturally. Duolingo-style: playful, lightly urgent, never guilt-heavy.
+Mention the free daily points and that they reset at midnight.
+CTA varies: "claim now", "tap in", "grab your points", "one tap before bed".`,
+
+    streak_save: `Content type: streak-save alert — the user has a {{streak}}-day check-in streak that BREAKS at midnight if they don't check in.
+Use {{name}} and {{streak}} placeholders. Duolingo-style urgency: protective of the streak, playful FOMO.
+Mention the streak number and that one tap saves it (+5 points, weekly bonus at day 7).
+CTA varies: "save your streak", "keep the chain alive", "don't break it now".`,
+
+    miss_you: `Content type: we-miss-you win-back — the user hasn't opened the app in {{days}} days.
+Use {{name}} and {{days}} placeholders. Warm, personal, a little playful — like a friend checking in, never desperate or guilt-trippy.
+Reference that new products/sellers arrived while they were away.
+CTA varies: "come see what's new", "your favorites are waiting", "take a peek".`,
   };
 
   return `${base}\n\n${instructions[contentType] || ''}`;
@@ -313,8 +328,34 @@ function variantFallback(contentType, ctx) {
         { title: "Don't sleep on {{productName}} 🌟",        message: 'Top sellers are moving this fast. Grab yours tonight before it sells out.' },
       ],
     },
+    // Time-of-day agnostic pools — same copy whichever slot fires them
+    checkin_reminder: {
+      any: [
+        { title: '{{name}}, your +5 points are waiting 🎁',  message: "Today's free loyalty points are still unclaimed — they vanish at midnight. One tap!" },
+        { title: 'Quick one, {{name}} ⏰',                    message: 'Check in before midnight and grab your daily +5 points. Takes two seconds.' },
+        { title: "Don't leave points behind, {{name}} 🪙",    message: 'Your daily check-in reward resets at midnight. Claim it while it is still there!' },
+        { title: '{{name}}, free points alert 🔔',            message: '+5 loyalty points, zero effort. Tap in before the day ends and they are yours.' },
+      ],
+    },
+    streak_save: {
+      any: [
+        { title: '{{name}}, your {{streak}}-day streak is at risk! 🔥', message: 'It breaks at midnight. One tap saves it — and +5 points come with it.' },
+        { title: "Don't break the chain, {{name}} ⛓️",        message: '{{streak}} days strong. Check in before midnight to keep your streak alive!' },
+        { title: '{{streak}} days… and counting? 👀',          message: 'Your streak ends tonight unless you check in, {{name}}. Save it in one tap!' },
+        { title: 'Streak rescue, {{name}}! 🚨',                message: '{{streak}} days of check-ins on the line. Midnight is the deadline — tap now.' },
+      ],
+    },
+    miss_you: {
+      any: [
+        { title: 'We miss you, {{name}} 🥺',                   message: "It's been {{days}} days… your favorites are still here, plus a lot that's new." },
+        { title: '{{name}}, it has been {{days}} days 👀',     message: 'Sellers added fresh drops while you were away. Come take a peek on Shopyos.' },
+        { title: 'The app is quiet without you, {{name}} 💙',  message: '{{days}} days away! New arrivals and deals piled up — come see what you missed.' },
+        { title: '{{name}}, come say hi 👋',                   message: "We kept your favorites safe. {{days}} days of new drops are waiting for you." },
+      ],
+    },
   };
 
-  const pool = pools[contentType]?.[timeOfDay] || pools.generic_greeting[timeOfDay] || pools.generic_greeting.morning;
+  const typePool = pools[contentType];
+  const pool = typePool?.[timeOfDay] || typePool?.any || pools.generic_greeting[timeOfDay] || pools.generic_greeting.morning;
   return pool;
 }
