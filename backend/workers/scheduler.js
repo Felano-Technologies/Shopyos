@@ -99,13 +99,21 @@ function resolveSpotlightTokens(str, ctx) {
 // Decides WHAT a user hears and WHETHER this slot fires at all, based on
 // check-in status and how long they've been away. Returns a contentType
 // string, or null to skip this user for this slot.
-function resolveEngagementState(user, { timeOfDay, dayOfYear, checkin }) {
+// `weeklyChannel` (SMS/email slots) bypasses the lapsed frequency caps: those
+// caps exist to avoid push spam, but the weekly SMS/email exist precisely to
+// reach people who aren't opening the app.
+function resolveEngagementState(user, { timeOfDay, dayOfYear, checkin, weeklyChannel = false }) {
   const lastLogin = user.last_login_at ? new Date(user.last_login_at) : null;
   const daysAway = lastLogin ? Math.floor((Date.now() - lastLogin.getTime()) / 86400000) : null;
   const hash = Math.abs(_userHash(user.id));
 
+  // Lapsed users on a weekly channel are always included: win-back copy up to
+  // 21 days away, spotlight-only beyond (miss-you reads desperate by then).
+  if (weeklyChannel && daysAway != null && daysAway >= 7) {
+    return { contentType: daysAway >= 21 ? 'product_spotlight' : 'miss_you', daysAway };
+  }
+
   // Long-lapsed (21+ days): spotlights only, twice a week, morning only.
-  // Miss-you is retired here — at this point it reads as desperate.
   if (daysAway != null && daysAway >= 21) {
     if (timeOfDay !== 'morning' || (dayOfYear + hash) % 7 > 1) return null;
     return { contentType: 'product_spotlight', daysAway };
@@ -120,7 +128,7 @@ function resolveEngagementState(user, { timeOfDay, dayOfYear, checkin }) {
 
   // Lapsed 3–6 days: one push per day, morning only; miss-you once on day 3.
   if (daysAway != null && daysAway >= 3) {
-    if (timeOfDay !== 'morning') return null;
+    if (!weeklyChannel && timeOfDay !== 'morning') return null;
     return { contentType: daysAway === 3 ? 'miss_you' : pickContentType(user.id, dayOfYear), daysAway };
   }
 
@@ -282,7 +290,7 @@ async function dispatchToUser(user, item) {
 async function _dispatchEngagementToCustomer(c, { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService, timeOfDay, checkinMap }) {
   const phone = c.phone || (Array.isArray(c.user_profiles) ? c.user_profiles[0]?.phone : c.user_profiles?.phone);
 
-  const state = resolveEngagementState(c, { timeOfDay, dayOfYear, checkin: checkinMap?.[c.id] });
+  const state = resolveEngagementState(c, { timeOfDay, dayOfYear, checkin: checkinMap?.[c.id], weeklyChannel: sendSMS || sendEmail });
   if (!state) return; // this slot is intentionally quiet for this user
 
   const contentType = state.contentType;
@@ -459,14 +467,8 @@ async function _runEngagementSweep() {
   const isMorningRun = hour === 10;
   const dayOfWeek = new Date().getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 
-  // One-off retry: the 2026-07-11 Saturday SMS runs no-op'd silently (missing
-  // sms_enabled column, fixed in migration 031; the service also swallowed
-  // Arkesel errors). Resend on today's extra 17:30 run so users get it.
-  // This condition never matches again after that date.
-  const smsFixRetry = new Date().toISOString().slice(0, 10) === '2026-07-11' && hour === 17;
-
-  const sendEmail = isMorningRun && dayOfWeek === 3;                        // Wednesday only
-  const sendSMS   = (isMorningRun && dayOfWeek === 6) || smsFixRetry;       // Saturday mornings
+  const sendEmail = isMorningRun && dayOfWeek === 3; // Wednesday only
+  const sendSMS   = isMorningRun && dayOfWeek === 6; // Saturday mornings
   // Channels run independently: an email or SMS slot replaces the push for
   // that slot instead of stacking on top of it.
   const sendPush  = !sendEmail && !sendSMS;
@@ -523,6 +525,11 @@ async function _runEngagementSweep() {
       checkin_reminder: await aiService.getEngagementVariants('checkin_reminder', { timeOfDay }),
       streak_save:      await aiService.getEngagementVariants('streak_save',      { timeOfDay }),
     }),
+    // Sellers/drivers only hear from us on the morning slot and weekly channels
+    ...((isMorningRun || sendSMS || sendEmail) && {
+      seller_engagement: await aiService.getEngagementVariants('seller_engagement', { timeOfDay }),
+      driver_engagement: await aiService.getEngagementVariants('driver_engagement', { timeOfDay }),
+    }),
   };
 
   const campaign = await _createEngagementCampaign(timeOfDay, variantPools, sendPush, sendEmail, sendSMS);
@@ -568,6 +575,49 @@ async function _runEngagementSweep() {
         const dispatchOpts = { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService, timeOfDay, checkinMap };
         await runInBatches(customers, c => _dispatchEngagementToCustomer(c, dispatchOpts));
         totalDispatched += customers.length;
+      }
+    }
+
+    // Role-aligned sweeps for sellers and drivers — morning slot and weekly
+    // channels only, and never doubling up on users already reached as buyers.
+    if (isMorningRun || sendSMS || sendEmail) {
+      const buyerIds = new Set((customersRole || []).map(u => u.id));
+      const roleSweeps = [
+        { role: 'seller', contentType: 'seller_engagement' },
+        { role: 'driver', contentType: 'driver_engagement' },
+      ];
+      for (const { role, contentType } of roleSweeps) {
+        try {
+          const { data: roleUsers } = await repositories.users.getUsersByRoleName(role, 20000);
+          const targetIds = (roleUsers || []).map(u => u.id).filter(id => !buyerIds.has(id));
+          if (!targetIds.length) continue;
+          const { data: rawUsers } = await repositories.users.findAll({
+            where: { id: targetIds }, select: USER_SELECT, limit: targetIds.length
+          });
+          if (!rawUsers?.length) continue;
+          const enriched = await enrichWithProfiles(rawUsers);
+          logger.info(`[Scheduler] Dispatching ${role} engagement to ${enriched.length} user(s)`);
+          await runInBatches(enriched, (u) => {
+            const phone = u.phone || (Array.isArray(u.user_profiles) ? u.user_profiles[0]?.phone : u.user_profiles?.phone);
+            const variant = pickVariant(variantPools[contentType] || variantPools.generic_greeting, u.id, todaySalt);
+            const title = personalizeTemplate(variant.title, u);
+            const message = personalizeTemplate(variant.message, u);
+            return notificationService.sendNotification({
+              userId: u.id,
+              type: 'daily_engagement',
+              title,
+              message,
+              relatedId: campaign?.id,
+              relatedType: 'scheduled_notification',
+              email: sendEmail && u.email ? { html: renderGenericEmail(title, `<p>${message}</p>`) } : null,
+              sms: sendSMS && phone ? { text: message } : null,
+              push: sendPush ? { data: { screen: role === 'seller' ? 'business_dashboard' : 'driver_dashboard', type: 'daily_engagement' } } : null
+            }).catch(err => logger.error(`[Scheduler] ${role} sweep notification failed for user ${u.id}:`, err.message));
+          });
+          totalDispatched += enriched.length;
+        } catch (err) {
+          logger.error(`[Scheduler] ${role} engagement sweep failed:`, err.message);
+        }
       }
     }
 
@@ -734,15 +784,6 @@ function initScheduler() {
   cron.schedule('0 10,15,19 * * *', () => {
     executeDailyMarketingSweep().catch(err =>
       logger.error('[Scheduler] Uncaught error in daily sweep:', err.message)
-    );
-  });
-
-  // One-off 17:30 sweep on 2026-07-11 only — delivers the Saturday SMS that the
-  // earlier runs silently dropped. Safe to remove after that date.
-  cron.schedule('30 17 * * *', () => {
-    if (new Date().toISOString().slice(0, 10) !== '2026-07-11') return;
-    executeDailyMarketingSweep().catch(err =>
-      logger.error('[Scheduler] Uncaught error in one-off 17:30 sweep:', err.message)
     );
   });
 

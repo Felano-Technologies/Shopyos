@@ -236,6 +236,16 @@ CTA varies: "save your streak", "keep the chain alive", "don't break it now".`,
 Use {{name}} and {{days}} placeholders. Warm, personal, a little playful — like a friend checking in, never desperate or guilt-trippy.
 Reference that new products/sellers arrived while they were away.
 CTA varies: "come see what's new", "your favorites are waiting", "take a peek".`,
+
+    seller_engagement: `Content type: seller motivation — the recipient OWNS a store on Shopyos ({{shop}} placeholder is their store name; {{name}} is theirs).
+Angle varies: buyers are browsing right now, add new listings, refresh product photos, respond to messages fast to win sales.
+Tone: business-partner energy, not consumer marketing. Never ask them to "shop".
+CTA varies: "open your dashboard", "add a listing", "check your orders", "update your storefront".`,
+
+    driver_engagement: `Content type: driver motivation — the recipient delivers for Shopyos.
+Use the {{name}} placeholder. Angle varies: orders are moving, peak hours ahead, go online to earn, keep your rating high.
+Tone: energetic hustle, respectful. Never ask them to "shop".
+CTA varies: "go online", "open the driver app", "grab deliveries near you".`,
   };
 
   return `${base}\n\n${instructions[contentType] || ''}`;
@@ -343,6 +353,22 @@ function variantFallback(contentType, ctx) {
         { title: "Don't break the chain, {{name}} ⛓️",        message: '{{streak}} days strong. Check in before midnight to keep your streak alive!' },
         { title: '{{streak}} days… and counting? 👀',          message: 'Your streak ends tonight unless you check in, {{name}}. Save it in one tap!' },
         { title: 'Streak rescue, {{name}}! 🚨',                message: '{{streak}} days of check-ins on the line. Midnight is the deadline — tap now.' },
+      ],
+    },
+    seller_engagement: {
+      any: [
+        { title: '{{name}}, buyers are browsing right now 🛍️',  message: 'Fresh listings get seen first. Add something new to {{shop}} and catch the wave.' },
+        { title: 'Boost {{shop}} today 📈',                      message: 'Stores that update weekly sell more. Refresh your products and watch the views climb.' },
+        { title: 'Quick check-in for {{shop}} 👀',                message: 'Any unanswered messages or pending orders? Fast replies win repeat customers, {{name}}.' },
+        { title: 'Weekend shoppers incoming 🛒',                  message: 'Traffic peaks on weekends. Make sure {{shop}} is stocked and your best items are front and center.' },
+      ],
+    },
+    driver_engagement: {
+      any: [
+        { title: '{{name}}, orders are moving 🚗',                message: 'Deliveries are being assigned near you. Go online and grab your share of today\'s earnings.' },
+        { title: 'Peak hours ahead ⏰',                            message: 'Lunchtime and evenings are busiest. Be online when the orders drop, {{name}}.' },
+        { title: 'Your wheels = your earnings 💸',                 message: 'Every delivery counts. Open the driver app and go online to start earning today.' },
+        { title: 'Riders wanted near you 📍',                      message: '{{name}}, stores in your area need deliveries done. Go online and keep your rating hot.' },
       ],
     },
     miss_you: {
