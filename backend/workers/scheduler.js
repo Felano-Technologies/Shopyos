@@ -791,8 +791,8 @@ function initScheduler() {
     );
   });
 
-  // One-off 18:30 SMS rerun on 2026-07-11 only — remove after that date.
-  cron.schedule('30 18 * * *', () => {
+  // One-off 18:05 SMS rerun on 2026-07-11 only — remove after that date.
+  cron.schedule('5 18 * * *', () => {
     if (new Date().toISOString().slice(0, 10) !== '2026-07-11') return;
     executeDailyMarketingSweep().catch(err =>
       logger.error('[Scheduler] Uncaught error in one-off 18:30 sweep:', err.message)
