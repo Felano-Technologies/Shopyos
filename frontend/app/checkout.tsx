@@ -31,16 +31,7 @@ const C = {
   body: '#0F172A',
 };
 
-const GHANA_REGIONS = [
-  'Greater Accra', 'Ashanti', 'Western', 'Eastern', 'Central',
-  'Northern', 'Volta', 'Upper East', 'Upper West', 'Brong-Ahafo',
-  'Oti', 'Bono East', 'Ahafo', 'Savannah', 'North East', 'Western North',
-];
-
-function mapIpRegionToGhana(raw: string): string | null {
-  const r = raw.toLowerCase();
-  return GHANA_REGIONS.find(g => r.includes(g.toLowerCase())) ?? null;
-}
+import { GHANA_REGIONS, nearestGhanaRegion, mapTextToGhanaRegion } from '@/utils/ghanaRegions';
 
 type StoreQuote = {
   deliveryFee: number;
@@ -236,25 +227,48 @@ export default function CheckoutScreen() {
           setDeliveryAddress(addr);
           setDeliveryPhone(phone);
 
+          const coords = profile.latitude && profile.longitude
+            ? { lat: Number(profile.latitude), lng: Number(profile.longitude) }
+            : null;
+          if (coords) setBuyerCoords(coords);
+
+          // Region: saved profile region → login coordinates → IP geolocation
           if (profile.state_province) {
             setDeliveryState(profile.state_province);
             setPrefilled({ address: !!addr, phone: !!phone, region: true });
           } else {
-            // No saved region — try IP geolocation as fallback
             setPrefilled({ address: !!addr, phone: !!phone, region: false });
-            try {
-              const ipRes = await fetch('https://ip-api.com/json');
-              const ipData = await ipRes.json();
-              const detected = mapIpRegionToGhana(ipData.region || ipData.regionName || '');
-              if (detected) {
-                setDeliveryState(detected);
-                setPrefilled(prev => ({ ...prev, region: true }));
-              }
-            } catch { /* silent fallback to default 'Greater Accra' */ }
+            const fromCoords = nearestGhanaRegion(coords?.lat, coords?.lng);
+            if (fromCoords) {
+              setDeliveryState(fromCoords);
+              setPrefilled(prev => ({ ...prev, region: true }));
+            } else {
+              try {
+                const ipRes = await fetch('https://ip-api.com/json');
+                const ipData = await ipRes.json();
+                const detected = mapTextToGhanaRegion(ipData.region || ipData.regionName || '');
+                if (detected) {
+                  setDeliveryState(detected);
+                  setPrefilled(prev => ({ ...prev, region: true }));
+                }
+              } catch { /* silent fallback to default 'Greater Accra' */ }
+            }
           }
 
-          if (profile.latitude && profile.longitude) {
-            setBuyerCoords({ lat: Number(profile.latitude), lng: Number(profile.longitude) });
+          // No saved address — prefill street/suburb + city from login coordinates
+          if (!addr && coords) {
+            try {
+              const [place] = await Location.reverseGeocodeAsync({ latitude: coords.lat, longitude: coords.lng });
+              if (place) {
+                const parts = [place.street || place.name, place.district || place.subregion, place.city]
+                  .filter(Boolean)
+                  .filter((v, i, a) => a.indexOf(v) === i);
+                if (parts.length) {
+                  setDeliveryAddress(parts.join(', '));
+                  setPrefilled(prev => ({ ...prev, address: true }));
+                }
+              }
+            } catch { /* geocoder unavailable — leave address blank */ }
           }
         }
 

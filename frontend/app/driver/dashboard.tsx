@@ -407,7 +407,7 @@ export default function Dashboard() {
                 data={requests}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => <RequestCard item={item} isPending={assignDriverMutation.isPending} onAccept={handleAccept} />}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 120 }}
                 showsVerticalScrollIndicator={false}
                 refreshing={refreshing}
                 onRefresh={onRefresh}

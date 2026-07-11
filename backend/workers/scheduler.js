@@ -167,11 +167,12 @@ function _buildSpotlightCtx(promoted, featuredStores, userId = '', dayOfYear = 0
   };
 }
 
-function _buildActiveChannels(sendEmail, sendSMS) {
-  const list = ['Push'];
+function _buildActiveChannels(sendEmail, sendSMS, sendPush = true) {
+  const list = [];
+  if (sendPush) list.push('Push');
   if (sendEmail) list.push('Email');
   if (sendSMS) list.push('SMS');
-  return list.join(' + ');
+  return list.join(' + ') || 'none';
 }
 
 // ─── Variable Parsing ────────────────────────────────────────────────────────
@@ -458,11 +459,18 @@ async function _runEngagementSweep() {
   const isMorningRun = hour === 10;
   const dayOfWeek = new Date().getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 
-  const sendPush  = true;
-  const sendEmail = isMorningRun && dayOfWeek === 3; // Wednesday only
-  const sendSMS   = isMorningRun && dayOfWeek === 6; // Saturday only
+  // One-off retry: the 2026-07-11 morning SMS run silently no-op'd (missing
+  // sms_enabled column, fixed in migration 031) — verify the fix on today's
+  // 15:00 run. This condition never matches again after that date.
+  const smsFixRetry = new Date().toISOString().slice(0, 10) === '2026-07-11' && hour === 15;
 
-  const activeChannels = _buildActiveChannels(sendEmail, sendSMS);
+  const sendEmail = isMorningRun && dayOfWeek === 3;                 // Wednesday only
+  const sendSMS   = (isMorningRun && dayOfWeek === 6) || smsFixRetry; // Saturday only
+  // Channels run independently: an email or SMS slot replaces the push for
+  // that slot instead of stacking on top of it.
+  const sendPush  = !sendEmail && !sendSMS;
+
+  const activeChannels = _buildActiveChannels(sendEmail, sendSMS, sendPush);
   logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement sweep via: ${activeChannels}`);
 
   let featuredStores = [], promoted = [];

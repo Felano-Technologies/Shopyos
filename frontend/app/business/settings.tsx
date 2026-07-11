@@ -98,7 +98,7 @@ export default function BusinessSettingsScreen() {
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right']}>
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={[S.scroll, { paddingBottom: rs(40) + insets.bottom }]}
+          contentContainerStyle={[S.scroll, { paddingBottom: rs(120) + insets.bottom }]}
         >
           {/* ── Header ─────────────────────────────────────────────────── */}
           <View style={{ position: 'relative', zIndex: 10 }}>

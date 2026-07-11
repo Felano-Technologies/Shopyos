@@ -243,7 +243,7 @@ export default function NotificationsScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderItem}
             renderSectionHeader={renderSectionHeader}
-            contentContainerStyle={[S.listContent, { paddingBottom: rs(40) + insets.bottom }]}
+            contentContainerStyle={[S.listContent, { paddingBottom: rs(120) + insets.bottom }]}
             stickySectionHeadersEnabled={false}
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={NotificationsEmpty}
