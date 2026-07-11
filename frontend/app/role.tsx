@@ -84,7 +84,18 @@ const RoleSelectionScreen = () => {
         await updateUserRole(backendRole);
       } catch (error: any) {
         // The role may already be saved server-side (lost response + retry) — treat as success
-        if (!/already have the .* role/i.test(error?.message || '')) throw error;
+        if (!/already have the .* role/i.test(error?.message || '')) {
+          // Network-type failure: the request may have been delivered with the
+          // response lost. Ask the server before showing an error.
+          let confirmed = false;
+          try {
+            const me: any = await getUserData();
+            const user = me?.user || me;
+            const roles = (user?.roles || []).map((r: any) => (typeof r === 'string' ? r : r?.name));
+            confirmed = roles.includes(backendRole) || user?.role === backendRole;
+          } catch { /* verification unavailable — surface the original error */ }
+          if (!confirmed) throw error;
+        }
       }
 
       // Refresh the cached profile so startup routing sees the new role

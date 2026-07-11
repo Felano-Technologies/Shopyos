@@ -64,6 +64,8 @@ const isDev = process.env.EXPO_PUBLIC_DEV_MODE === 'true';
 
 export const api = axios.create({
   baseURL: API_URL,
+  // Without a timeout, a lost response hangs the UI forever (axios default is 0/infinite)
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     // Bypasses ngrok's browser interstitial page on web dev builds.
@@ -101,10 +103,11 @@ const processQueue = (error: any, token: string | null = null) => {
 // the request may still be delivered but the response is lost, surfacing as a network
 // error with no response. Retrying once on a fresh connection recovers silently.
 const IDEMPOTENT_METHODS = ['get', 'head', 'options', 'put', 'delete'];
+const MAX_NETWORK_RETRIES = 3;
 
 const isRetriableNetworkError = (error: any, originalRequest: any): boolean => {
   if (error.response || !error.request) return false;
-  if (originalRequest._networkRetried) return false;
+  if ((originalRequest._networkRetryCount ?? 0) >= MAX_NETWORK_RETRIES) return false;
   const method = (originalRequest.method || 'get').toLowerCase();
   return IDEMPOTENT_METHODS.includes(method) || originalRequest.retryOnNetworkError === true;
 };
@@ -209,21 +212,26 @@ api.interceptors.response.use(
     }
 
     if (originalRequest && isRetriableNetworkError(error, originalRequest)) {
-      originalRequest._networkRetried = true;
-      await wait(500);
+      const attempt = (originalRequest._networkRetryCount ?? 0) + 1;
+      originalRequest._networkRetryCount = attempt;
+      await wait(500 * attempt);
       return api(originalRequest);
     }
 
-    const isTokenExpired =
-      error.response?.status === 401 &&
-      (error.response?.data?.code === 'TOKEN_EXPIRED' ||
-        error.response?.data?.error === 'Access token expired');
-
-    if (isTokenExpired && !originalRequest._retry) {
-      return handleTokenExpired(error, originalRequest);
-    }
-
+    // Any 401 first attempts the refresh-token flow — not just TOKEN_EXPIRED.
+    // A background request can 401 spuriously (auth header race right after
+    // registration, transient "user not found" read lag); wiping tokens and
+    // yanking the user to /login over that stranded people mid-onboarding.
     if (error.response?.status === 401 && !originalRequest._retry) {
+      const hasRefreshToken = !!(await secureStorage.getItem('refreshToken').catch(() => null));
+      if (hasRefreshToken) {
+        try {
+          return await handleTokenExpired(error, originalRequest);
+        } catch {
+          await handleUnauthorized(originalRequest);
+          throw error;
+        }
+      }
       await handleUnauthorized(originalRequest);
     }
 
