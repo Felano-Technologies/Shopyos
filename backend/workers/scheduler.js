@@ -459,13 +459,14 @@ async function _runEngagementSweep() {
   const isMorningRun = hour === 10;
   const dayOfWeek = new Date().getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 
-  // One-off retry: the 2026-07-11 morning SMS run silently no-op'd (missing
-  // sms_enabled column, fixed in migration 031) — verify the fix on today's
-  // 15:00 run. This condition never matches again after that date.
-  const smsFixRetry = new Date().toISOString().slice(0, 10) === '2026-07-11' && hour === 15;
+  // One-off retry: the 2026-07-11 Saturday SMS runs no-op'd silently (missing
+  // sms_enabled column, fixed in migration 031; the service also swallowed
+  // Arkesel errors). Resend on today's extra 17:30 run so users get it.
+  // This condition never matches again after that date.
+  const smsFixRetry = new Date().toISOString().slice(0, 10) === '2026-07-11' && hour === 17;
 
-  const sendEmail = isMorningRun && dayOfWeek === 3;                 // Wednesday only
-  const sendSMS   = (isMorningRun && dayOfWeek === 6) || smsFixRetry; // Saturday only
+  const sendEmail = isMorningRun && dayOfWeek === 3;                        // Wednesday only
+  const sendSMS   = (isMorningRun && dayOfWeek === 6) || smsFixRetry;       // Saturday mornings
   // Channels run independently: an email or SMS slot replaces the push for
   // that slot instead of stacking on top of it.
   const sendPush  = !sendEmail && !sendSMS;
@@ -733,6 +734,15 @@ function initScheduler() {
   cron.schedule('0 10,15,19 * * *', () => {
     executeDailyMarketingSweep().catch(err =>
       logger.error('[Scheduler] Uncaught error in daily sweep:', err.message)
+    );
+  });
+
+  // One-off 17:30 sweep on 2026-07-11 only — delivers the Saturday SMS that the
+  // earlier runs silently dropped. Safe to remove after that date.
+  cron.schedule('30 17 * * *', () => {
+    if (new Date().toISOString().slice(0, 10) !== '2026-07-11') return;
+    executeDailyMarketingSweep().catch(err =>
+      logger.error('[Scheduler] Uncaught error in one-off 17:30 sweep:', err.message)
     );
   });
 
