@@ -34,7 +34,7 @@ class NotificationService {
 
     // Arkesel SMS configuration
     this.arkeselApiKey = process.env.ARKESEL_API_KEY;
-    this.arkeselSenderId = process.env.ARKESEL_SENDER_ID;
+    this.arkeselSenderId = process.env.ARKESEL_SENDER_ID || 'Shopyos';
     this.arkeselBaseUrl = 'https://sms.arkesel.com/api/v2/sms';
   }
 
@@ -192,6 +192,7 @@ class NotificationService {
    */
   async sendSMS(smsData) {
     try {
+      logger.info(`Sending SMS to ${smsData.to}`);
       const response = await axios.post(
         `${this.arkeselBaseUrl}/send`,
         {
@@ -207,7 +208,13 @@ class NotificationService {
         }
       );
 
-      logger.debug(`SMS sent to ${smsData.to}:`, response.data);
+      // Arkesel returns HTTP 200 even on failure — only status:'success' counts
+      if (response.data?.status !== 'success') {
+        logger.error(`SMS rejected by Arkesel for ${smsData.to}:`, JSON.stringify(response.data));
+        throw new Error(response.data?.message || 'Arkesel rejected the SMS');
+      }
+
+      logger.info(`SMS sent successfully to ${smsData.to}`, JSON.stringify(response.data?.data || ''));
       return response.data;
     } catch (error) {
       logger.error('SMS send error:', error.response?.data || error.message);
