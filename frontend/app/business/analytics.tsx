@@ -17,6 +17,16 @@ import { useBusinessAnalytics, useActiveBusiness } from '@/hooks/useBusiness';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useSellerGuard } from '../../hooks/useSellerGuard';
 import { router } from 'expo-router';
+import { CustomInAppToast } from '@/components/InAppToastHost';
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const isValidDateRange = (start: string, end: string) => {
+  if (!DATE_RE.test(start) || !DATE_RE.test(end)) return false;
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return false;
+  return startDate <= endDate;
+};
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SCALE = Math.min(Math.max(SW / 390, 0.85), 1.15);
@@ -394,10 +404,16 @@ const Analytics = () => {
                       <TouchableOpacity
                         style={S.dateApplyBtn}
                         onPress={() => {
-                          if (customStartDate && customEndDate) {
-                            setTimeframe('custom');
-                            setShowDatePicker(false);
+                          if (!isValidDateRange(customStartDate, customEndDate)) {
+                            CustomInAppToast.show({
+                              type: 'error',
+                              title: 'Invalid Date Range',
+                              message: 'Enter both dates as YYYY-MM-DD, with the start on or before the end.',
+                            });
+                            return;
                           }
+                          setTimeframe('custom');
+                          setShowDatePicker(false);
                         }}
                       >
                         <Text style={S.dateApplyText}>Apply</Text>
@@ -529,10 +545,10 @@ const Analytics = () => {
                 </View>
               )}
 
-              {/* Performance banner */}
+              {/* Repeat customer banner — real backend metric, no invented score */}
               <LinearGradient colors={[C.navy, C.navyMid]} style={S.scoreBanner}>
                 <View style={{ flex: 1, marginRight: rs(12) }}>
-                  <Text style={S.scoreTitle}>Performance Score</Text>
+                  <Text style={S.scoreTitle}>Customer Loyalty</Text>
                   <Text style={S.scoreDesc}>
                     {analytics.stats.growth > 0
                       ? "You're growing fast! Keep it up."
@@ -541,7 +557,7 @@ const Analytics = () => {
                 </View>
                 <View style={S.scoreCircle}>
                   <Text style={S.scoreNum}>
-                    {analytics.stats.orders > 0 ? '9.2' : '—'}
+                    {analytics.stats.orders > 0 ? `${analytics.stats.repeat_customer_rate}%` : '—'}
                   </Text>
                 </View>
               </LinearGradient>

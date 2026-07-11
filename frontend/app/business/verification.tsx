@@ -79,7 +79,10 @@ const BusinessVerification = () => {
       if (!result.canceled && result.assets) {
         setDetails(prev => ({ ...prev, [type]: result.assets[0].uri }));
       }
-    } catch (e) { console.log(e); }
+    } catch (e) {
+      console.warn('Document picker error:', e);
+      CustomInAppToast.show({ type: 'error', title: 'Upload Failed', message: 'Could not select that document. Please try again.' });
+    }
   };
   const showImagePicker = useImagePickerSheet();
   const handleUploadLogo = async () => {

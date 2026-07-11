@@ -90,7 +90,51 @@ function pickVariant(variants, userId, salt) {
 function resolveSpotlightTokens(str, ctx) {
   return (str || '')
     .replace(/\{\{productName\}\}/gi, ctx.productName || 'this product')
-    .replace(/\{\{storeName\}\}/gi,   ctx.storeName   || 'this store');
+    .replace(/\{\{storeName\}\}/gi,   ctx.storeName   || 'this store')
+    .replace(/\{\{streak\}\}/gi,      ctx.streak != null ? String(ctx.streak) : 'a multi')
+    .replace(/\{\{days\}\}/gi,        ctx.daysAway != null ? String(ctx.daysAway) : 'a few');
+}
+
+// ─── Per-user engagement state (Duolingo-style targeting) ────────────────────
+// Decides WHAT a user hears and WHETHER this slot fires at all, based on
+// check-in status and how long they've been away. Returns a contentType
+// string, or null to skip this user for this slot.
+function resolveEngagementState(user, { timeOfDay, dayOfYear, checkin }) {
+  const lastLogin = user.last_login_at ? new Date(user.last_login_at) : null;
+  const daysAway = lastLogin ? Math.floor((Date.now() - lastLogin.getTime()) / 86400000) : null;
+  const hash = Math.abs(_userHash(user.id));
+
+  // Long-lapsed (21+ days): spotlights only, twice a week, morning only.
+  // Miss-you is retired here — at this point it reads as desperate.
+  if (daysAway != null && daysAway >= 21) {
+    if (timeOfDay !== 'morning' || (dayOfYear + hash) % 7 > 1) return null;
+    return { contentType: 'product_spotlight', daysAway };
+  }
+
+  // Lapsed 7–20 days: every other day, morning only; miss-you at most weekly.
+  if (daysAway != null && daysAway >= 7) {
+    if (timeOfDay !== 'morning' || (dayOfYear + hash) % 2 !== 0) return null;
+    const missYouDay = (dayOfYear + hash) % 7 === 0;
+    return { contentType: missYouDay ? 'miss_you' : pickContentType(user.id, dayOfYear), daysAway };
+  }
+
+  // Lapsed 3–6 days: one push per day, morning only; miss-you once on day 3.
+  if (daysAway != null && daysAway >= 3) {
+    if (timeOfDay !== 'morning') return null;
+    return { contentType: daysAway === 3 ? 'miss_you' : pickContentType(user.id, dayOfYear), daysAway };
+  }
+
+  // Active user, evening slot: the daily check-in / streak nudge takes over
+  // when today's points are unclaimed.
+  if (timeOfDay === 'evening' && !checkin?.checkedInToday) {
+    if ((checkin?.yesterdayStreak || 0) >= 3) {
+      return { contentType: 'streak_save', streak: checkin.yesterdayStreak };
+    }
+    return { contentType: 'checkin_reminder' };
+  }
+
+  // Active, checked in (or morning/afternoon): normal rotation.
+  return { contentType: pickContentType(user.id, dayOfYear) };
 }
 
 function _getTimeOfDay(hour) {
@@ -109,12 +153,17 @@ function _resolvePushContext(contentType, spotlightCtx) {
   return { screen: 'notifications', extra: {} };
 }
 
-function _buildSpotlightCtx(promoted, featuredStores) {
+// Per-user spotlight pick: rotate through the promoted/featured lists by user
+// hash + day, so the whole userbase doesn't hear about the same one product.
+function _buildSpotlightCtx(promoted, featuredStores, userId = '', dayOfYear = 0) {
+  const idx = Math.abs(_userHash(userId)) + dayOfYear;
+  const product = promoted.length ? promoted[idx % promoted.length] : null;
+  const store   = featuredStores.length ? featuredStores[idx % featuredStores.length] : null;
   return {
-    productName: promoted[0]?.name || promoted[0]?.title || null,
-    storeName:   featuredStores[0]?.store_name || null,
-    productId:   promoted[0]?.id || null,
-    storeId:     featuredStores[0]?.id || null,
+    productName: product?.name || product?.title || null,
+    storeName:   store?.store_name || null,
+    productId:   product?.id || null,
+    storeId:     store?.id || null,
   };
 }
 
@@ -229,13 +278,21 @@ async function dispatchToUser(user, item) {
 
 // ─── Engagement per-customer dispatch ────────────────────────────────────────
 
-async function _dispatchEngagementToCustomer(c, { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService }) {
+async function _dispatchEngagementToCustomer(c, { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService, timeOfDay, checkinMap }) {
   const phone = c.phone || (Array.isArray(c.user_profiles) ? c.user_profiles[0]?.phone : c.user_profiles?.phone);
-  const contentType = pickContentType(c.id, dayOfYear);
-  const variant = pickVariant(variantPools[contentType], c.id, todaySalt);
-  const title = resolveSpotlightTokens(personalizeTemplate(variant.title, c), spotlightCtx);
-  const message = resolveSpotlightTokens(personalizeTemplate(variant.message, c), spotlightCtx);
-  const { screen: pushScreen, extra: pushExtra } = _resolvePushContext(contentType, spotlightCtx);
+
+  const state = resolveEngagementState(c, { timeOfDay, dayOfYear, checkin: checkinMap?.[c.id] });
+  if (!state) return; // this slot is intentionally quiet for this user
+
+  const contentType = state.contentType;
+  const userSpotlight = spotlightCtx.pools
+    ? _buildSpotlightCtx(spotlightCtx.pools.promoted, spotlightCtx.pools.featuredStores, c.id, dayOfYear)
+    : spotlightCtx;
+  const tokenCtx = { ...userSpotlight, streak: state.streak, daysAway: state.daysAway };
+  const variant = pickVariant(variantPools[contentType] || variantPools.generic_greeting, c.id, todaySalt);
+  const title = resolveSpotlightTokens(personalizeTemplate(variant.title, c), tokenCtx);
+  const message = resolveSpotlightTokens(personalizeTemplate(variant.message, c), tokenCtx);
+  const { screen: pushScreen, extra: pushExtra } = _resolvePushContext(contentType, userSpotlight);
   return notificationService.sendNotification({
     userId: c.id,
     type: 'daily_engagement',
@@ -402,8 +459,8 @@ async function _runEngagementSweep() {
   const dayOfWeek = new Date().getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 
   const sendPush  = true;
-  const sendEmail = isMorningRun && [1, 3, 5].includes(dayOfWeek); // Mon, Wed, Fri
-  const sendSMS   = isMorningRun && dayOfWeek === 6;               // Saturday
+  const sendEmail = isMorningRun && dayOfWeek === 3; // Wednesday only
+  const sendSMS   = isMorningRun && dayOfWeek === 6; // Saturday only
 
   const activeChannels = _buildActiveChannels(sendEmail, sendSMS);
   logger.info(`[Scheduler] No holiday — sending ${timeOfDay} engagement sweep via: ${activeChannels}`);
@@ -411,8 +468,8 @@ async function _runEngagementSweep() {
   let featuredStores = [], promoted = [];
   try {
     [featuredStores, promoted] = await Promise.all([
-      repositories.stores.getFeatured(5),
-      repositories.products.getPromoted(5)
+      repositories.stores.getFeatured(10),
+      repositories.products.getPromoted(10)
     ]);
     featuredStores = featuredStores ?? [];
     promoted = promoted ?? [];
@@ -442,7 +499,8 @@ async function _runEngagementSweep() {
     logger.warn('[Scheduler] Could not pre-fetch spotlight context, spotlight types will use fallback copy:', err.message);
   }
 
-  const spotlightCtx = _buildSpotlightCtx(promoted, featuredStores);
+  // Carry the full pools so each user gets their own spotlight pick
+  const spotlightCtx = { ..._buildSpotlightCtx(promoted, featuredStores), pools: { promoted, featuredStores } };
   const dayOfYear = Math.floor((Date.now() - Date.UTC(new Date().getUTCFullYear(), 0, 0)) / 86400000);
   const todaySalt = new Date().toISOString().slice(0, 10);
   const variantPools = {
@@ -450,6 +508,12 @@ async function _runEngagementSweep() {
     generic_greeting:  await aiService.getEngagementVariants('generic_greeting', { timeOfDay }),
     store_spotlight:   await aiService.getEngagementVariants('store_spotlight',  { timeOfDay }),
     product_spotlight: await aiService.getEngagementVariants('product_spotlight',{ timeOfDay }),
+    miss_you:          await aiService.getEngagementVariants('miss_you',         { timeOfDay }),
+    // Check-in nudges only fire in the evening slot — skip the AI round-trip otherwise
+    ...(timeOfDay === 'evening' && {
+      checkin_reminder: await aiService.getEngagementVariants('checkin_reminder', { timeOfDay }),
+      streak_save:      await aiService.getEngagementVariants('streak_save',      { timeOfDay }),
+    }),
   };
 
   const campaign = await _createEngagementCampaign(timeOfDay, variantPools, sendPush, sendEmail, sendSMS);
@@ -457,7 +521,7 @@ async function _runEngagementSweep() {
   try {
     const { data: customersRole } = await repositories.users.getUsersByRoleName('buyer', 20000);
     const notificationService = require('../services/notificationService');
-    const dispatchOpts = { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService };
+    const db = require('../config/postgres').getPool();
     let totalDispatched = 0;
 
     if (customersRole?.length) {
@@ -473,6 +537,26 @@ async function _runEngagementSweep() {
         });
         if (!rawCustomers?.length) continue;
         const customers = await enrichWithProfiles(rawCustomers);
+
+        // Check-in state for this page: has today's been claimed, and what
+        // streak would break tonight (yesterday's streak, unclaimed today).
+        let checkinMap = {};
+        try {
+          const { rows } = await db.query(`
+            SELECT user_id, checkin_date, streak FROM daily_checkins
+            WHERE user_id = ANY($1) AND checkin_date >= CURRENT_DATE - 1
+          `, [pageIds]);
+          for (const r of rows) {
+            const entry = checkinMap[r.user_id] || (checkinMap[r.user_id] = { checkedInToday: false, yesterdayStreak: 0 });
+            const isToday = new Date(r.checkin_date).toDateString() === new Date().toDateString();
+            if (isToday) entry.checkedInToday = true;
+            else entry.yesterdayStreak = r.streak;
+          }
+        } catch (e) {
+          logger.warn('[Scheduler] Check-in state lookup failed — evening nudges fall back to generic:', e.message);
+        }
+
+        const dispatchOpts = { sendEmail, sendSMS, sendPush, campaign, variantPools, dayOfYear, todaySalt, spotlightCtx, notificationService, timeOfDay, checkinMap };
         await runInBatches(customers, c => _dispatchEngagementToCustomer(c, dispatchOpts));
         totalDispatched += customers.length;
       }
@@ -526,9 +610,15 @@ async function executeDailyMarketingSweep() {
     }
 
     if (holiday) {
-      logger.info(`[Scheduler] Holiday detected: "${holiday.localName}" — generating AI copy…`);
-      const copy = await aiService.generateNotificationText('holiday', { holidayName: holiday.localName });
-      await _runHolidayBlast(holiday, copy);
+      // Holiday greeting goes out ONCE, on the morning run only — the
+      // afternoon and evening slots stay quiet for the rest of the day.
+      if (new Date().getHours() === 10) {
+        logger.info(`[Scheduler] Holiday detected: "${holiday.localName}" — generating AI copy…`);
+        const copy = await aiService.generateNotificationText('holiday', { holidayName: holiday.localName });
+        await _runHolidayBlast(holiday, copy);
+      } else {
+        logger.info(`[Scheduler] Holiday "${holiday.localName}" — morning blast already sent, skipping this slot`);
+      }
     } else {
       await _runEngagementSweep();
     }

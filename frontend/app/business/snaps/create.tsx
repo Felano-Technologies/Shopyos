@@ -22,24 +22,6 @@ export default function CreateSnapScreen() {
   React.useEffect(() => {
     getDisclaimerByType('content_terms').then(setContentTerms).catch(() => null);
   }, []);
-  const fakeProgressRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const startFakeProgress = () => {
-    setUploadProgress(0);
-    let current = 0;
-    fakeProgressRef.current = setInterval(() => {
-      const step = current < 30 ? 3 : current < 60 ? 1.5 : current < 85 ? 0.4 : 0;
-      current = Math.min(current + step, 90);
-      setUploadProgress(Math.round(current));
-      if (current >= 90) clearInterval(fakeProgressRef.current!);
-    }, 300);
-  };
-
-  const stopFakeProgress = () => {
-    if (fakeProgressRef.current) clearInterval(fakeProgressRef.current);
-    setUploadProgress(100);
-  };
-
   const pickImage = async () => {
     Alert.alert(
       'Add Photo or Video',
@@ -128,7 +110,7 @@ export default function CreateSnapScreen() {
                   imageUri?.toLowerCase().endsWith('.webm');
 
   const uploadToBackend = async (uri: string) => {
-    const res = await uploadSnapImage(uri);
+    const res = await uploadSnapImage(uri, (percent) => setUploadProgress(Math.round(percent * 0.9)));
     return res.data.url;
   };
 
@@ -143,18 +125,19 @@ export default function CreateSnapScreen() {
     }
 
     setLoading(true);
-    startFakeProgress();
+    setUploadProgress(0);
     try {
       const publicUrl = await uploadToBackend(imageUri);
+      setUploadProgress(95);
       await createSnap(publicUrl, caption);
-      stopFakeProgress();
+      setUploadProgress(100);
       CustomInAppToast.show({ type: 'success', title: 'Snap Posted', message: 'Your snap is now live for 24 hours!' });
       router.back();
     } catch (e: any) {
-      stopFakeProgress();
       CustomInAppToast.show({ type: 'error', title: 'Error', message: e.message || 'Could not post snap.' });
     } finally {
       setLoading(false);
+      setUploadProgress(0);
     }
   };
 

@@ -98,7 +98,13 @@ const Inventory = () => {
     <TouchableOpacity
       style={S.itemCard}
       activeOpacity={0.85}
-      onPress={() => router.push(`/business/products/${item.id}` as any)}
+      onPress={() => {
+        const rawProduct = (data?.products || []).find((p: any) => p._id === item.id);
+        router.push({
+          pathname: '/business/products/addproducts',
+          params: { productData: JSON.stringify(rawProduct) },
+        } as any);
+      }}
     >
       {/* Low-stock accent bar */}
       {item.lowStock && <View style={S.itemAccentBar} />}
@@ -128,9 +134,7 @@ const Inventory = () => {
         </View>
       </View>
 
-      <TouchableOpacity style={S.itemDots}>
-        <Ionicons name="ellipsis-vertical" size={rs(18)} color={C.muted} />
-      </TouchableOpacity>
+      <Ionicons name="chevron-forward" size={rs(18)} color={C.subtle} style={S.itemDots} />
     </TouchableOpacity>
   );
 

@@ -1,4 +1,3 @@
-// app/business/updateDetails.tsx
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -75,7 +74,6 @@ const BusinessUpdateScreen = () => {
   });
   const [logo, setLogo] = useState<string | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
-  const [uploadLoading, ] = useState(false);
   const categories = [
     'Fashion & Apparel', 'Electronics', 'Home & Living', 'Art & Crafts',
     'Beauty & Personal Care', 'Food & Beverages', 'Jewelry & Accessories',
@@ -332,7 +330,7 @@ const BusinessUpdateScreen = () => {
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
                 >
-                    {updateMutation.isPending || uploadLoading ? (
+                    {updateMutation.isPending ? (
                         <ActivityIndicator color="#FFF" />
                     ) : (
                         <>

@@ -293,10 +293,9 @@ class NotificationRepository extends BaseRepository {
         sms_enabled: true,
         push_enabled: true,
         order_updates: true,
-        delivery_updates: true,
-        message_notifications: true,
-        review_notifications: true,
-        promotional_emails: false
+        message_updates: true,
+        review_updates: true,
+        promotion_updates: false
       })
       .select()
       .single();

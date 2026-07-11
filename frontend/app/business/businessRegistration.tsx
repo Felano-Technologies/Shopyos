@@ -230,21 +230,31 @@ export default function BusinessRegistrationScreen() {
     setMapVisible(false);
     CustomInAppToast.show({ type: 'success', title: 'Location Pinned', message: "Your store location has been saved." });
   };
-  // --- Simulated Search (Use Google Geocoding API in Production) ---
-  const handleMapSearch = () => {
-    if (!searchQuery.trim()) return;
+  const handleMapSearch = async () => {
+    const query = searchQuery.trim();
+    if (!query) return;
     Keyboard.dismiss();
-    // For production: Use fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${searchQuery}&key=YOUR_KEY`)
-    CustomInAppToast.show({ type: 'info', title: 'Search', message: `Searching for "${searchQuery}"...` });
-    // Placeholder logic: map centers on a random point nearby for demo
-    const newLat = 6.6745 + (Math.random() - 0.5) * 0.02;
-    const newLng = -1.5716 + (Math.random() - 0.5) * 0.02;
-    mapRef.current?.animateToRegion({
-        latitude: newLat,
-        longitude: newLng,
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'ShopyosApp/1.0' } }
+      );
+      const results = await res.json();
+      if (!results?.[0]) {
+        CustomInAppToast.show({ type: 'info', title: 'No Results', message: `Couldn't find "${query}". Try a more specific address.` });
+        return;
+      }
+      const { lat, lon } = results[0];
+      mapRef.current?.animateToRegion({
+        latitude: Number.parseFloat(lat),
+        longitude: Number.parseFloat(lon),
         latitudeDelta: 0.005,
-        longitudeDelta: 0.005
-    }, 1000);
+        longitudeDelta: 0.005,
+      }, 1000);
+    } catch (error) {
+      console.warn('Map search failed:', error);
+      CustomInAppToast.show({ type: 'error', title: 'Search Failed', message: 'Could not reach the map search service. Please drag the pin manually.' });
+    }
   };
   const pickImage = async (field: keyof BusinessFormData, isArray: boolean = false) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();

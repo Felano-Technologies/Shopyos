@@ -1,4 +1,4 @@
-import React, {  useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Alert, Dimensions, Switch, ActivityIndicator,
@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from '@/components/InAppToastHost';
-import {  logoutUser } from '@/services/api';
+import { logoutUser, getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useAuthStore } from '@/store/authStore';
@@ -49,6 +49,28 @@ export default function BusinessSettingsScreen() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const handleRestrictedAction = () => {
     CustomInAppToast.show({ type: 'info', title: 'Verification Required', message: 'Complete verification to access this setting. You can still edit your profile or log out.' });
+  };
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const prefs = await getNotificationPreferences();
+        if (prefs?.success) setNotificationsOn(prefs.preferences.push_enabled);
+      } catch (error) {
+        console.warn('Failed to load notification preferences:', error);
+      }
+    })();
+  }, []);
+
+  const handleNotificationToggle = async () => {
+    const next = !notificationsOn;
+    setNotificationsOn(next);
+    try {
+      await updateNotificationPreferences({ push_enabled: next });
+    } catch (error) {
+      console.error('Failed to update notification preference:', error);
+      setNotificationsOn(!next);
+    }
   };
   // ── END OF HOOKS ──────────────────────────────────────────────────────────
   if (isChecking || !isVerified) {
@@ -164,11 +186,11 @@ export default function BusinessSettingsScreen() {
             <SettingGroup>
               <SettingRow
                 icon="briefcase-outline" iconColor="#2563EB" iconBg="#EFF6FF"
-                label="Business Registration"
+                label="Update Registration Details"
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/businessRegistration' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
@@ -177,7 +199,7 @@ export default function BusinessSettingsScreen() {
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/deliverySettings' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
@@ -186,7 +208,16 @@ export default function BusinessSettingsScreen() {
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/payout' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
+              />
+              <Divider />
+              <SettingRow
+                icon="stats-chart-outline" iconColor="#7C3AED" iconBg="#F5F3FF"
+                label="Earnings"
+                disabled={!isBusinessVerified}
+                onPress={() => router.push('/business/earnings' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
@@ -195,7 +226,16 @@ export default function BusinessSettingsScreen() {
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/business/transactions' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
+              />
+              <Divider />
+              <SettingRow
+                icon="cube-outline" iconColor="#0F766E" iconBg="#F0FDFA"
+                label="Inventory"
+                disabled={!isBusinessVerified}
+                onPress={() => router.push('/business/inventory' as any)}
+                onRestrictedAction={handleRestrictedAction}
+                onNotificationToggle={handleNotificationToggle}
               />
             </SettingGroup>
             {/* Preferences */}
@@ -207,16 +247,16 @@ export default function BusinessSettingsScreen() {
                 disabled={!isBusinessVerified}
                 isToggle value={notificationsOn}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
                 icon="shield-checkmark-outline" iconColor="#DC2626" iconBg="#FEF2F2"
                 label="Security & Privacy"
                 disabled={!isBusinessVerified}
-                onPress={() => {}}
+                onPress={() => router.push('/settings/security' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
             </SettingGroup>
             {/* Support */}
@@ -227,7 +267,7 @@ export default function BusinessSettingsScreen() {
                 label="Raise a Report"
                 onPress={() => router.push('/support' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
@@ -235,7 +275,7 @@ export default function BusinessSettingsScreen() {
                 label="My Reports"
                 onPress={() => router.push('/support/my-tickets' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
@@ -244,7 +284,7 @@ export default function BusinessSettingsScreen() {
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/helpCenter' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
               <Divider />
               <SettingRow
@@ -253,7 +293,7 @@ export default function BusinessSettingsScreen() {
                 disabled={!isBusinessVerified}
                 onPress={() => router.push('/settings/contactUs' as any)}
                 onRestrictedAction={handleRestrictedAction}
-                onNotificationToggle={() => setNotificationsOn(v => !v)}
+                onNotificationToggle={handleNotificationToggle}
               />
             </SettingGroup>
             {/* Switch Mode */}
