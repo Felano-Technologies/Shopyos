@@ -3,7 +3,7 @@
     "name": "Shopyos",
     "slug": "shopyos",
     "owner": "eugeneanokye99",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/logo - blue.png",
     "splash": {
@@ -11,7 +11,10 @@
       "resizeMode": "contain",
       "backgroundColor": "#f2f2f2"
     },
-    "scheme": "shopyos",
+    "scheme": [
+      "shopyos",
+      "com.googleusercontent.apps.683446864153-lmpgj403l7ip1jufnkqd2ue5b4prv09a"
+    ],
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,

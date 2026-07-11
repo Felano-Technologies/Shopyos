@@ -97,6 +97,18 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// Android's OkHttp can reuse a keep-alive socket the server already closed after idle:
+// the request may still be delivered but the response is lost, surfacing as a network
+// error with no response. Retrying once on a fresh connection recovers silently.
+const IDEMPOTENT_METHODS = ['get', 'head', 'options', 'put', 'delete'];
+
+const isRetriableNetworkError = (error: any, originalRequest: any): boolean => {
+  if (error.response || !error.request) return false;
+  if (originalRequest._networkRetried) return false;
+  const method = (originalRequest.method || 'get').toLowerCase();
+  return IDEMPOTENT_METHODS.includes(method) || originalRequest.retryOnNetworkError === true;
+};
+
 async function handle429(error: any, originalRequest: any): Promise<any> {
   originalRequest._429RetryCount = (originalRequest._429RetryCount ?? 0);
   const MAX_429_RETRIES = 3;
@@ -194,6 +206,12 @@ api.interceptors.response.use(
 
     if (error.response?.status === 429) {
       return handle429(error, originalRequest);
+    }
+
+    if (originalRequest && isRetriableNetworkError(error, originalRequest)) {
+      originalRequest._networkRetried = true;
+      await wait(500);
+      return api(originalRequest);
     }
 
     const isTokenExpired =

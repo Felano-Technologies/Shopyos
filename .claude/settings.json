@@ -12,7 +12,9 @@
       "Bash(docker run *)",
       "PowerShell(docker run --rm shopyos-backend sh -c \"cat /app/backend/migrations/checksum_overrides.json && echo '---' && grep -n 'checksumOverrides' /app/backend/scripts/applyMigrations.js\")",
       "Bash(docker compose *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "PowerShell(railway status 2>&1)",
+      "PowerShell(railway variables 2>&1)"
     ]
   }
 }
