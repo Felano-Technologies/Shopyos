@@ -467,12 +467,8 @@ async function _runEngagementSweep() {
   const isMorningRun = hour === 10;
   const dayOfWeek = new Date().getDay(); // 0=Sun 1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
 
-  // One-off 2026-07-11 18:30 rerun: deliver the Saturday SMS to every user with
-  // a number (earlier runs excluded lapsed users). Never matches after today.
-  const smsRerun = new Date().toISOString().slice(0, 10) === '2026-07-11' && hour === 18;
-
-  const sendEmail = isMorningRun && dayOfWeek === 3;             // Wednesday only
-  const sendSMS   = (isMorningRun && dayOfWeek === 6) || smsRerun; // Saturday mornings
+  const sendEmail = isMorningRun && dayOfWeek === 3; // Wednesday only
+  const sendSMS   = isMorningRun && dayOfWeek === 6; // Saturday mornings
   // Channels run independently: an email or SMS slot replaces the push for
   // that slot instead of stacking on top of it.
   const sendPush  = !sendEmail && !sendSMS;
@@ -788,14 +784,6 @@ function initScheduler() {
   cron.schedule('0 10,15,19 * * *', () => {
     executeDailyMarketingSweep().catch(err =>
       logger.error('[Scheduler] Uncaught error in daily sweep:', err.message)
-    );
-  });
-
-  // One-off 18:05 SMS rerun on 2026-07-11 only — remove after that date.
-  cron.schedule('5 18 * * *', () => {
-    if (new Date().toISOString().slice(0, 10) !== '2026-07-11') return;
-    executeDailyMarketingSweep().catch(err =>
-      logger.error('[Scheduler] Uncaught error in one-off 18:30 sweep:', err.message)
     );
   });
 
