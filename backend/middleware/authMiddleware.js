@@ -79,8 +79,10 @@ const protect = async (req, res, next) => {
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Access token expired', code: 'TOKEN_EXPIRED' });
     }
-    logger.warn('Auth error', { error: error.message, requestId: req.requestId });
-    res.status(401).json({ error: 'Not authorized, token failed' });
+    // Redis/DB failures are not auth failures — a 401 here makes the client
+    // discard valid tokens and force a re-login over a transient outage.
+    logger.warn('Auth infrastructure error', { error: error.message, requestId: req.requestId });
+    res.status(503).json({ error: 'Service temporarily unavailable. Please try again.' });
   }
 };
 

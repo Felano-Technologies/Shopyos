@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import TappableAvatar from '@/components/TappableAvatar';
+import { APP_VERSION } from '@/constants/appVersion';
 import {
   View,
   Text,
@@ -391,7 +392,7 @@ export default function SettingsScreen() {
             <Feather name="log-out" size={20} color="#EF4444" />
             <Text style={styles.logoutText}>Log Out</Text>
           </TouchableOpacity>
-          <Text style={styles.versionText}>Version 1.1.0</Text>
+          <Text style={styles.versionText}>Version {APP_VERSION}</Text>
         </View>
         {/* Bottom Padding */}
         <View style={{ height: 40 }} />

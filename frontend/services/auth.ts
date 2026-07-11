@@ -193,7 +193,8 @@ export const loginUser = async (
   longitude: number
 ) => {
   try {
-    const response = await api.post('/auth/login', { email, password, latitude, longitude });
+    // Login is safe to retry on a lost response (no client-visible state change on the server)
+    const response = await api.post('/auth/login', { email, password, latitude, longitude }, { retryOnNetworkError: true } as any);
     const payload = response.data?.data || {};
     if (payload.token) {
       await clearUserProfileCache();
@@ -381,7 +382,8 @@ export const updateProfile = async (profileData: {
 
 export const updateUserRole = async (role: string) => {
   try {
-    const response = await api.post('/auth/add-role', { role });
+    // Backend add-role is idempotent, so a lost-response retry is safe
+    const response = await api.post('/auth/add-role', { role }, { retryOnNetworkError: true } as any);
     return response.data;
   } catch (error: any) {
     if (error.response) throw new Error(error.response.data.error || 'Failed to update role');

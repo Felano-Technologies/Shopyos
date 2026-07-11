@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import { CustomInAppToast } from '@/components/InAppToastHost';
 import { logoutUser, getNotificationPreferences, updateNotificationPreferences } from '@/services/api';
 import { useSellerGuard } from '@/hooks/useSellerGuard';
+import { APP_VERSION } from '@/constants/appVersion';
 import { useActiveBusiness } from '@/hooks/useBusiness';
 import { useAuthStore } from '@/store/authStore';
 const { width: SW } = Dimensions.get('window');
@@ -315,7 +316,7 @@ export default function BusinessSettingsScreen() {
               <Feather name="log-out" size={rs(18)} color="#EF4444" />
               <Text style={S.logoutTxt}>Log Out</Text>
             </TouchableOpacity>
-            <Text style={S.version}>Version 1.0.9</Text>
+            <Text style={S.version}>Version {APP_VERSION}</Text>
           </View>
         </ScrollView>
 
