@@ -69,9 +69,22 @@ export const useMessages = (conversationId: string) => {
 
   const appendMessage = useCallback(
     (message: MessageItem) => {
-      queryClient.setQueryData<MessageItem[]>(key, (prev = []) =>
-        prev.some((m) => m.id === message.id) ? prev : [...prev, message]
-      );
+      queryClient.setQueryData<MessageItem[]>(key, (prev = []) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        // The socket echo of our own message is delivery confirmation: replace
+        // a matching pending/failed temp bubble (lost REST response) instead of
+        // appending a duplicate.
+        const tempIdx = prev.findIndex(
+          (m) => m.id.startsWith('temp_') && (m.pending || m.failed) &&
+            m.sender_id === message.sender_id && m.content === message.content
+        );
+        if (tempIdx !== -1) {
+          const next = [...prev];
+          next[tempIdx] = { ...message, pending: false, failed: false };
+          return next;
+        }
+        return [...prev, message];
+      });
     },
     [queryClient, key]
   );

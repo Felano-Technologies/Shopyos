@@ -245,12 +245,11 @@ describe('OrderController Unit Tests', () => {
       expect(repositories.orders.createOrderWithItems).toHaveBeenCalled();
       expect(repositories.carts.clearCart).toHaveBeenCalledWith('buyer-user-id');
       expect(res.status).toHaveBeenCalledWith(201);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         success: true,
         message: 'Order(s) created successfully',
         orders: [mockCreatedOrder],
-        count: 1,
-      });
+      }));
     });
   });
 

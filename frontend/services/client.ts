@@ -80,6 +80,13 @@ api.interceptors.request.use(
       if (token) config.headers.Authorization = `Bearer ${token}`;
       const currentBusinessId = await storage.getItem('currentBusinessId');
       if (currentBusinessId) config.headers['X-Business-ID'] = currentBusinessId;
+
+      // Every POST carries an idempotency key so lost-response retries replay
+      // the original result server-side instead of acting twice. Retries reuse
+      // the same config object, so the key survives across attempts.
+      if ((config.method || 'get').toLowerCase() === 'post' && !config.headers['X-Idempotency-Key']) {
+        config.headers['X-Idempotency-Key'] = `${Date.now()}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+      }
     } catch (error) {
       console.error('Error in request interceptor:', error);
     }
@@ -102,12 +109,17 @@ const processQueue = (error: any, token: string | null = null) => {
 // Android's OkHttp can reuse a keep-alive socket the server already closed after idle:
 // the request may still be delivered but the response is lost, surfacing as a network
 // error with no response. Retrying once on a fresh connection recovers silently.
-const IDEMPOTENT_METHODS = ['get', 'head', 'options', 'put', 'delete'];
+// POSTs are retriable too: the X-Idempotency-Key set in the request
+// interceptor makes the server replay the original response on a retry.
+const IDEMPOTENT_METHODS = ['get', 'head', 'options', 'put', 'delete', 'post'];
 const MAX_NETWORK_RETRIES = 3;
+// Token rotation has its own refresh queue — a blind retry could race it
+const NEVER_RETRY_PATHS = ['/auth/refresh'];
 
 const isRetriableNetworkError = (error: any, originalRequest: any): boolean => {
   if (error.response || !error.request) return false;
   if ((originalRequest._networkRetryCount ?? 0) >= MAX_NETWORK_RETRIES) return false;
+  if (NEVER_RETRY_PATHS.some(p => (originalRequest.url || '').includes(p))) return false;
   const method = (originalRequest.method || 'get').toLowerCase();
   return IDEMPOTENT_METHODS.includes(method) || originalRequest.retryOnNetworkError === true;
 };
@@ -209,6 +221,17 @@ api.interceptors.response.use(
 
     if (error.response?.status === 429) {
       return handle429(error, originalRequest);
+    }
+
+    // A concurrent duplicate is still executing server-side — wait briefly and
+    // retry; the idempotency layer then replays the stored response.
+    if (error.response?.status === 409 && error.response?.data?.code === 'IDEMPOTENT_IN_FLIGHT') {
+      const attempt = (originalRequest._inFlightRetryCount ?? 0) + 1;
+      if (attempt <= 3) {
+        originalRequest._inFlightRetryCount = attempt;
+        await wait(1000 * attempt);
+        return api(originalRequest);
+      }
     }
 
     if (originalRequest && isRetriableNetworkError(error, originalRequest)) {

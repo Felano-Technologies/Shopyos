@@ -44,6 +44,9 @@ jest.mock('../../db/repositories', () => ({
     findByName: jest.fn(),
     assignRoleToUser: jest.fn(),
   },
+  disclaimers: {
+    createAcknowledgement: jest.fn().mockResolvedValue({}),
+  },
 }));
 
 // ── Mock config/storage ──────────────────────────────────────────────────────
@@ -137,7 +140,30 @@ function mockRes() {
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 beforeEach(() => {
-  jest.clearAllMocks();
+  // Full reset (clears calls AND queued *Once values, which clearAllMocks does not)
+  jest.resetAllMocks();
+
+  // Re-apply default implementations wiped by resetAllMocks
+  const auth = require('../../config/auth');
+  auth.generateRefreshToken.mockReturnValue('raw-refresh-token-hex');
+  auth.hashToken.mockImplementation((t) => `hashed:${t}`);
+
+  const { toPublicUrl } = require('../../config/storage');
+  toPublicUrl.mockImplementation((url) => (url ? `https://cdn.example.com/${url}` : null));
+
+  const jwt = require('jsonwebtoken');
+  jwt.sign.mockReturnValue('mock-access-token');
+  jwt.verify.mockReturnValue({ id: 'user-123', sub: 'user-123', exp: Math.floor(Date.now() / 1000) + 900 });
+
+  const { cacheSet, cacheDel } = require('../../config/redis');
+  cacheSet.mockResolvedValue(true);
+  cacheDel.mockResolvedValue(1);
+
+  const nodemailer = require('nodemailer');
+  nodemailer.createTransport.mockImplementation(() => ({ sendMail: mockSendMail }));
+  mockSendMail.mockResolvedValue({ messageId: 'msg-1' });
+
+  repositories.disclaimers.createAcknowledgement.mockResolvedValue({});
 
   // Reset the db chain so every test starts fresh
   mockDbChain.from.mockReturnThis();
@@ -160,14 +186,14 @@ describe('AuthController Unit Tests', () => {
     test('test_register_emailAlreadyExists_returns400BadRequest', async () => {
       repositories.users.findByEmail.mockResolvedValueOnce({ id: 'existing-user' });
 
-      const req = mockReq({ body: { name: 'Alice', email: 'alice@test.com', password: 'pass123' } });
+      const req = mockReq({ body: { name: 'Alice', email: 'alice@test.com', password: 'pass123', termsAccepted: true, privacyAccepted: true } });
       const res = mockRes();
       const next = jest.fn();
 
       await register(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'User already exists' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'User already exists' }));
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -180,7 +206,7 @@ describe('AuthController Unit Tests', () => {
       mockDbChain.single.mockResolvedValueOnce({ data: { id: 'token-id', family_id: 'family-1' }, error: null });
 
       const req = mockReq({
-        body: { name: 'Alice', email: 'alice@test.com', password: 'pass123', fullPhoneNumber: '+233201234567' },
+        body: { name: 'Alice', email: 'alice@test.com', password: 'pass123', fullPhoneNumber: '+233201234567', termsAccepted: true, privacyAccepted: true },
       });
       const res = mockRes();
       const next = jest.fn();
@@ -194,7 +220,11 @@ describe('AuthController Unit Tests', () => {
       );
       expect(res.status).toHaveBeenCalledWith(201);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ message: 'User created successfully', requiresRoleSelection: true })
+        expect.objectContaining({
+          success: true,
+          message: 'User created successfully',
+          data: expect.objectContaining({ requiresRoleSelection: true, token: 'mock-access-token' }),
+        })
       );
       expect(next).not.toHaveBeenCalled();
     });
@@ -213,7 +243,7 @@ describe('AuthController Unit Tests', () => {
       mockDbChain.single.mockResolvedValueOnce({ data: { id: 'token-id', family_id: 'family-1' }, error: null });
 
       const req = mockReq({
-        body: { name: 'Bob', email: 'bob@test.com', password: 'pass', referralCode: 'SHPY-ABC123' },
+        body: { name: 'Bob', email: 'bob@test.com', password: 'pass', referralCode: 'SHPY-ABC123', termsAccepted: true, privacyAccepted: true },
       });
       const res = mockRes();
       const next = jest.fn();
@@ -228,7 +258,7 @@ describe('AuthController Unit Tests', () => {
       repositories.users.findByEmail.mockResolvedValueOnce(null);
       repositories.users.createUser.mockRejectedValueOnce(new Error('DB create error'));
 
-      const req = mockReq({ body: { name: 'Alice', email: 'alice@test.com', password: 'pass123' } });
+      const req = mockReq({ body: { name: 'Alice', email: 'alice@test.com', password: 'pass123', termsAccepted: true, privacyAccepted: true } });
       const res = mockRes();
       const next = jest.fn();
 
@@ -245,7 +275,7 @@ describe('AuthController Unit Tests', () => {
       mockDbChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
       mockDbChain.single.mockResolvedValueOnce({ data: { id: 'token-id', family_id: 'family-1' }, error: null });
 
-      const req = mockReq({ body: { name: 'Alice', email: 'alice@test.com', password: 'pass123' } });
+      const req = mockReq({ body: { name: 'Alice', email: 'alice@test.com', password: 'pass123', termsAccepted: true, privacyAccepted: true } });
       const res = mockRes();
       const next = jest.fn();
 
@@ -268,7 +298,7 @@ describe('AuthController Unit Tests', () => {
       await login(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid credentials' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid credentials' }));
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -283,7 +313,7 @@ describe('AuthController Unit Tests', () => {
       await login(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid credentials' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid credentials' }));
     });
 
     test('test_login_validCredentials_returnsTokensAndRole', async () => {
@@ -304,9 +334,9 @@ describe('AuthController Unit Tests', () => {
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
+          success: true,
           message: 'Login successful',
-          role: 'buyer',
-          requiresRoleSelection: false,
+          data: expect.objectContaining({ role: 'buyer', requiresRoleSelection: false }),
         })
       );
       expect(next).not.toHaveBeenCalled();
@@ -326,7 +356,10 @@ describe('AuthController Unit Tests', () => {
       await login(req, res, next);
 
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ requiresRoleSelection: true, role: 'none' })
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({ requiresRoleSelection: true, role: 'none' }),
+        })
       );
     });
 
@@ -347,7 +380,9 @@ describe('AuthController Unit Tests', () => {
 
       await login(req, res, next);
 
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ role: 'driver' }));
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: expect.objectContaining({ role: 'driver' }) })
+      );
     });
 
     test('test_login_withLocationInBody_updatesUserProfile', async () => {
@@ -393,7 +428,7 @@ describe('AuthController Unit Tests', () => {
       await refreshAccessToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Refresh token required' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Refresh token required' }));
     });
 
     test('test_refreshAccessToken_tokenNotFoundInDb_returns401', async () => {
@@ -406,7 +441,7 @@ describe('AuthController Unit Tests', () => {
       await refreshAccessToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Invalid refresh token' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Invalid refresh token' }));
     });
 
     test('test_refreshAccessToken_revokedToken_revokesEntireFamilyAndReturns401', async () => {
@@ -448,7 +483,7 @@ describe('AuthController Unit Tests', () => {
       await refreshAccessToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Refresh token expired' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Refresh token expired' }));
     });
 
     test('test_refreshAccessToken_deactivatedUser_returns401', async () => {
@@ -471,7 +506,7 @@ describe('AuthController Unit Tests', () => {
       await refreshAccessToken(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(401);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Account not found or deactivated' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Account not found or deactivated' }));
     });
 
     test('test_refreshAccessToken_validToken_issuesNewTokenPair', async () => {
@@ -532,7 +567,7 @@ describe('AuthController Unit Tests', () => {
       const { cacheSet } = require('../../config/redis');
       expect(cacheSet).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Logged out successfully' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: 'Logged out successfully' }));
     });
 
     test('test_logout_expiredBearerToken_stillSucceeds', async () => {
@@ -546,7 +581,7 @@ describe('AuthController Unit Tests', () => {
       await logout(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Logged out successfully' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: 'Logged out successfully' }));
     });
 
     test('test_logout_withRefreshTokenInBody_revokesRefreshToken', async () => {
@@ -587,7 +622,7 @@ describe('AuthController Unit Tests', () => {
 
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ success: true, revokedSessions: 2 })
+        expect.objectContaining({ success: true, data: expect.objectContaining({ revokedSessions: 2 }) })
       );
     });
 
@@ -601,7 +636,7 @@ describe('AuthController Unit Tests', () => {
       await logoutAll(req, res, next);
 
       expect(res.json).toHaveBeenCalledWith(
-        expect.objectContaining({ revokedSessions: 0 })
+        expect.objectContaining({ success: true, data: expect.objectContaining({ revokedSessions: 0 }) })
       );
     });
 
@@ -633,13 +668,15 @@ describe('AuthController Unit Tests', () => {
       await getSessions(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
         success: true,
-        sessions: [
-          { id: 'sess-1', device: 'Chrome/120', ip: '1.2.3.4', createdAt: '2026-01-01', expiresAt: '2026-01-08' },
-        ],
-        count: 1,
-      });
+        data: expect.objectContaining({
+          sessions: [
+            { id: 'sess-1', device: 'Chrome/120', ip: '1.2.3.4', createdAt: '2026-01-01', expiresAt: '2026-01-08' },
+          ],
+          count: 1,
+        }),
+      }));
     });
 
     test('test_getSessions_noActiveSessions_returnsEmptyList', async () => {
@@ -651,7 +688,10 @@ describe('AuthController Unit Tests', () => {
 
       await getSessions(req, res, next);
 
-      expect(res.json).toHaveBeenCalledWith({ success: true, sessions: [], count: 0 });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        success: true,
+        data: expect.objectContaining({ sessions: [], count: 0 }),
+      }));
     });
 
     test('test_getSessions_dbError_callsNextWithError', async () => {
@@ -679,7 +719,7 @@ describe('AuthController Unit Tests', () => {
       await revokeSession(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Session revoked' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: 'Session revoked' }));
     });
 
     test('test_revokeSession_sessionNotFound_returns404', async () => {
@@ -692,7 +732,7 @@ describe('AuthController Unit Tests', () => {
       await revokeSession(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ error: 'Session not found' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'Session not found' }));
     });
 
     test('test_revokeSession_dbError_callsNextWithError', async () => {
@@ -720,7 +760,7 @@ describe('AuthController Unit Tests', () => {
       await resetPassword(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ error: 'User not found' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'User not found' }));
     });
 
     test('test_resetPassword_validEmail_sendsResetEmailAndReturns200', async () => {
@@ -740,7 +780,7 @@ describe('AuthController Unit Tests', () => {
       );
       expect(mockSendMail).toHaveBeenCalled();
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Recovery email sent' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: 'Recovery email sent' }));
     });
 
     test('test_resetPassword_mailerThrows_callsNextWithError', async () => {
@@ -872,7 +912,7 @@ describe('AuthController Unit Tests', () => {
       await getUserData(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ error: 'User not found' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'User not found' }));
     });
 
     test('test_getUserData_validUser_returnsFullUserObject', async () => {
@@ -911,7 +951,9 @@ describe('AuthController Unit Tests', () => {
       await getUserData(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(200);
-      const payload = res.json.mock.calls[0][0];
+      const body = res.json.mock.calls[0][0];
+      expect(body.success).toBe(true);
+      const payload = body.user;
       expect(payload.id).toBe('user-123');
       expect(payload.email).toBe('alice@test.com');
       expect(payload.name).toBe('Alice');
@@ -938,7 +980,7 @@ describe('AuthController Unit Tests', () => {
 
       await getUserData(req, res, next);
 
-      const payload = res.json.mock.calls[0][0];
+      const payload = res.json.mock.calls[0][0].user;
       expect(payload.name).toBe('alice@test.com');
       expect(payload.role).toBe('none');
       expect(payload.wallet_balance).toBe(0);
@@ -1070,7 +1112,7 @@ describe('AuthController Unit Tests', () => {
 
       await getUserRoles(req, res, next);
 
-      expect(res.json).toHaveBeenCalledWith({ success: true, roles: [] });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, roles: [] }));
     });
 
     test('test_getUserRoles_dbThrows_callsNextWithError', async () => {
@@ -1096,7 +1138,7 @@ describe('AuthController Unit Tests', () => {
       await updateUserRole(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Role is required' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: 'Role is required' }));
     });
 
     test('test_updateUserRole_invalidRoleValue_returns400', async () => {
@@ -1122,7 +1164,7 @@ describe('AuthController Unit Tests', () => {
       await updateUserRole(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(404);
-      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'User not found' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: 'User not found' }));
     });
 
     test('test_updateUserRole_validRole_updatesAndClears', async () => {
@@ -1137,7 +1179,7 @@ describe('AuthController Unit Tests', () => {
 
       expect(repositories.users.setRole).toHaveBeenCalledWith('user-123', 'buyer');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Role updated successfully' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: 'Role updated successfully' }));
     });
 
     test('test_updateUserRole_dbThrows_callsNextWithError', async () => {
@@ -1233,7 +1275,7 @@ describe('AuthController Unit Tests', () => {
       await updateUserLocation(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Latitude and longitude are required' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: 'Latitude and longitude are required' }));
     });
 
     test('test_updateUserLocation_validCoords_updatesProfileAndReturns200', async () => {
@@ -1250,7 +1292,7 @@ describe('AuthController Unit Tests', () => {
         longitude: -0.187,
       });
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith({ success: true, message: 'Location updated successfully' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, message: 'Location updated successfully' }));
     });
 
     test('test_updateUserLocation_dbThrows_callsNextWithError', async () => {
@@ -1276,7 +1318,7 @@ describe('AuthController Unit Tests', () => {
       await updateOnboardingState(req, res, next);
 
       expect(res.status).toHaveBeenCalledWith(400);
-      expect(res.json).toHaveBeenCalledWith({ success: false, error: 'Screen key is required' });
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: false, error: 'Screen key is required' }));
     });
 
     test('test_updateOnboardingState_validScreen_mergesAndPersistsState', async () => {

@@ -112,6 +112,11 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
+// Idempotent POSTs: replay the original response when a client retries a
+// request whose response was lost in transit (see middleware/idempotency.js)
+const { idempotency } = require('./middleware/idempotency');
+app.use(idempotency);
+
 app.use((req, res, next) => {
   let timeout = productionConfig.timeout || 30000;
 

@@ -48,7 +48,7 @@ const RegisterScreen = () => {
       signInWithGoogle(idToken, referralCode)
         .then(async () => {
           CustomInAppToast.show({ type: 'success', title: 'Welcome to Shopyos!', message: 'Account created with Google.' });
-          router.push('/role');
+          resetToRoute('/role');
         })
         .catch((err: Error) => {
           if (/referral code/i.test(err.message)) {
@@ -59,6 +59,13 @@ const RegisterScreen = () => {
         .finally(() => setLoading(false));
     }
   }, [response]);
+
+  // Clear the auth funnel off the stack before moving on, so Android back
+  // from the next screen doesn't unwind into register/get-started.
+  const resetToRoute = (destination: string) => {
+    while (router.canGoBack()) router.back();
+    router.replace(destination as any);
+  };
 
   const formatPhoneNumber = (callingCode: string, phoneNumber: string) => {
     const cleanCode = callingCode.replace('+', '');
@@ -92,7 +99,7 @@ const RegisterScreen = () => {
           title: 'Sign up Successful',
           message: 'Welcome!',
         });
-        router.push('/login');
+        resetToRoute('/login');
       } else {
         CustomInAppToast.show({
           type: 'error',

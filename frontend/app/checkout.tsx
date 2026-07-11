@@ -107,6 +107,8 @@ export default function CheckoutScreen() {
 
   // Last-mile home delivery option (inter-regional only)
   const [requestLastMile, setRequestLastMile] = useState(false);
+  // Per-store delivery method: true = buyer collects from the store (free)
+  const [pickupStores, setPickupStores] = useState<Record<string, boolean>>({});
   const [lastMileFee, setLastMileFee] = useState(15);
 
   // Get buyer location once on mount
@@ -173,12 +175,14 @@ export default function CheckoutScreen() {
   }, [buyerCoords, cartItems, deliveryState]);
 
   const storeGroups = groupByStore(cartItems);
+  // Pickup stores contribute no delivery/transit fees and don't need range checks
+  const quoteEntries = Object.entries(storeQuotes);
   const storeQuoteList = Object.values(storeQuotes);
-  const totalDeliveryFee = storeQuoteList.reduce((s, q) => s + q.deliveryFee, 0);
-  const totalTransitFee = storeQuoteList.reduce((s, q) => s + q.parcelTransitFee, 0);
-  const isAnyInterRegional = storeQuoteList.some(q => q.isInterRegional);
-  const isWithinRange = storeQuoteList.length > 0 && storeQuoteList.every(q => q.withinRange);
-  const deliveryNote = storeQuoteList.find(q => !q.withinRange)?.note ?? null;
+  const totalDeliveryFee = quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] ? 0 : q.deliveryFee), 0);
+  const totalTransitFee = quoteEntries.reduce((s, [id, q]) => s + (pickupStores[id] ? 0 : q.parcelTransitFee), 0);
+  const isAnyInterRegional = quoteEntries.some(([id, q]) => q.isInterRegional && !pickupStores[id]);
+  const isWithinRange = storeQuoteList.length > 0 && quoteEntries.every(([id, q]) => q.withinRange || pickupStores[id]);
+  const deliveryNote = quoteEntries.find(([id, q]) => !q.withinRange && !pickupStores[id])?.[1].note ?? null;
   const firstInterRegGroup = storeGroups.find(g => storeQuotes[g.storeId]?.isInterRegional);
   const storeRegionName = firstInterRegGroup ? (storeQuotes[firstInterRegGroup.storeId]?.storeRegion ?? null) : null;
   const estimatedTransitDays = storeQuoteList.filter(q => q.isInterRegional).reduce((max, q) => Math.max(max, q.estimatedTransitDays ?? 0), 0) || null;
@@ -349,6 +353,9 @@ export default function CheckoutScreen() {
         ...(appliedPromo && { promoCode: appliedPromo.code }),
         ...(usePoints && loyaltyBalance > 0 && { loyaltyPointsToRedeem: loyaltyBalance }),
         ...(isAnyInterRegional && { requestLastMile, ...(requestLastMile && { lastMileFee }) }),
+        ...(Object.values(pickupStores).some(Boolean) && {
+          pickupStoreIds: Object.keys(pickupStores).filter(id => pickupStores[id]),
+        }),
       });
 
       const orderId = res?.orders?.[0]?.id;
@@ -428,19 +435,50 @@ export default function CheckoutScreen() {
 
                   <View style={S.divider} />
 
+                  {/* Delivery method — home delivery vs free store pickup */}
+                  <View style={S.methodRow}>
+                    <TouchableOpacity
+                      accessibilityLabel={`Home delivery from ${group.storeName}`}
+                      accessibilityRole="radio"
+                      style={[S.methodChip, !pickupStores[group.storeId] && S.methodChipActive]}
+                      onPress={() => setPickupStores(prev => ({ ...prev, [group.storeId]: false }))}
+                    >
+                      <Ionicons name="bicycle-outline" size={14} color={!pickupStores[group.storeId] ? '#FFF' : C.navy} />
+                      <Text style={[S.methodChipTxt, !pickupStores[group.storeId] && S.methodChipTxtActive]}>Delivery</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      accessibilityLabel={`Pick up from ${group.storeName} for free`}
+                      accessibilityRole="radio"
+                      style={[S.methodChip, pickupStores[group.storeId] && S.methodChipActive]}
+                      onPress={() => setPickupStores(prev => ({ ...prev, [group.storeId]: true }))}
+                    >
+                      <Ionicons name="storefront-outline" size={14} color={pickupStores[group.storeId] ? '#FFF' : C.navy} />
+                      <Text style={[S.methodChipTxt, pickupStores[group.storeId] && S.methodChipTxtActive]}>Pickup · Free</Text>
+                    </TouchableOpacity>
+                  </View>
+
                   {/* Per-store delivery fee */}
                   <View style={S.summaryRow}>
-                    <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>Delivery</Text>
+                    <Text style={[S.summaryItemName, { color: C.muted, fontSize: 13 }]}>
+                      {pickupStores[group.storeId] ? 'Pickup from store' : 'Delivery'}
+                    </Text>
                     <Text style={[S.summaryItemPrice, { fontSize: 13 }]}>
-                      {isFetchingFee
-                        ? '...'
-                        : quote == null
+                      {pickupStores[group.storeId]
+                        ? 'Free'
+                        : isFetchingFee
                           ? '...'
-                          : !quote.withinRange
-                            ? 'Not available'
-                            : `₵${quote.deliveryFee.toFixed(2)}`}
+                          : quote == null
+                            ? '...'
+                            : !quote.withinRange
+                              ? 'Not available'
+                              : `₵${quote.deliveryFee.toFixed(2)}`}
                     </Text>
                   </View>
+                  {pickupStores[group.storeId] && (
+                    <Text style={S.pickupHint}>
+                      Collect your order directly from {group.storeName}. The store will contact you when it's ready.
+                    </Text>
+                  )}
                 </View>
               );
             })}
@@ -891,6 +929,12 @@ const S = StyleSheet.create({
   storeNameTxt: { flex: 1, fontSize: 13, fontFamily: 'Montserrat-Bold', color: C.body },
   interRegBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#EFF6FF', paddingHorizontal: 7, paddingVertical: 3, borderRadius: 20 },
   interRegBadgeText: { fontSize: 10, fontFamily: 'Montserrat-SemiBold', color: '#1E3A8A' },
+  methodRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  methodChip: { flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1.2, borderColor: C.navy, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  methodChipActive: { backgroundColor: C.navy },
+  methodChipTxt: { fontSize: 12, fontFamily: 'Montserrat-SemiBold', color: C.navy },
+  methodChipTxtActive: { color: '#FFF' },
+  pickupHint: { fontSize: 12, fontFamily: 'Montserrat-Regular', color: C.muted, marginTop: 2 },
   multiStoreBanner: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#EFF6FF', borderRadius: 10, padding: 10, marginBottom: 8 },
   multiStoreBannerText: { fontSize: 13, fontFamily: 'Montserrat-SemiBold', color: '#1E40AF' },
 
