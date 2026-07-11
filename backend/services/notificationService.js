@@ -40,10 +40,11 @@ class NotificationService {
 
   /**
    * Send notification through all enabled channels
-   * @param {Object} params - { userId, type, title, message, data, email, sms, push }
+   * @param {Object} params - { userId, type, title, message, data, email, sms, push, silent }
+   *   silent: record in the notifications table only — no realtime in-app emit
    */
   async sendNotification(params) {
-    const { userId, type, title, message, data, relatedId, relatedType } = params;
+    const { userId, type, title, message, data, relatedId, relatedType, silent } = params;
 
     try {
       // Create in-app notification
@@ -58,15 +59,17 @@ class NotificationService {
       });
 
       // Emit real-time in-app notification to the user via socket
-      try {
-        emitToUser(userId, 'notification:new', {
-          notification: dbNotification,
-          type,
-          title,
-          message
-        });
-      } catch (socketErr) {
-        logger.warn('Failed to emit real-time notification:', socketErr.message);
+      if (!silent) {
+        try {
+          emitToUser(userId, 'notification:new', {
+            notification: dbNotification,
+            type,
+            title,
+            message
+          });
+        } catch (socketErr) {
+          logger.warn('Failed to emit real-time notification:', socketErr.message);
+        }
       }
 
       // Get user preferences

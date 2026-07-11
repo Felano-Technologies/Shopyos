@@ -86,8 +86,18 @@ const clearAuthCookies = (res) => {
 
 const sanitizePhone = (phone) => {
   if (!phone) return phone;
-  // Remove duplicate plus signs and extra spaces
-  return phone.replace(/\++/g, '+').trim();
+  // Remove duplicate plus signs, spaces, dashes, and parentheses
+  return phone.replace(/\++/g, '+').replace(/[\s\-()]/g, '').trim();
+};
+
+// Validates a sanitized phone: local 10-digit (0XXXXXXXXX, normalized to +233)
+// or international E.164 (+ then 10–15 digits). Returns the normalized number,
+// or null when invalid — so truncated numbers can never be stored.
+const validatePhone = (phone) => {
+  if (!phone) return null;
+  if (/^0\d{9}$/.test(phone)) return `+233${phone.slice(1)}`;
+  if (/^\+\d{10,15}$/.test(phone)) return phone;
+  return null;
 };
 
 // Resolve a referral code to the referrer's user id (null if no match)
@@ -128,6 +138,12 @@ const register = async (req, res, next) => {
     return ApiResponse.error(res, 'You must accept the Terms of Service and Privacy Policy to register.', 400);
   }
 
+  // Reject malformed/truncated phones before the account exists
+  const normalizedPhone = fullPhoneNumber ? validatePhone(sanitizePhone(fullPhoneNumber)) : null;
+  if (fullPhoneNumber && !normalizedPhone) {
+    return ApiResponse.error(res, 'Invalid phone number. Use a 10-digit local number (0XXXXXXXXX) or international format (+…).', 400);
+  }
+
   try {
     const existingUser = await repositories.users.findByEmail(email);
     if (existingUser) return ApiResponse.error(res, 'User already exists', 400);
@@ -143,7 +159,7 @@ const register = async (req, res, next) => {
     }
 
     const user = await repositories.users.createUser({ email, password });
-    const cleanPhone = sanitizePhone(fullPhoneNumber);
+    const cleanPhone = normalizedPhone;
 
     // Log consent for Terms of Service and Privacy Policy at registration time
     const ipAddress = req.ip || req.headers['x-forwarded-for'] || null;
@@ -312,13 +328,14 @@ const _finishLogin = async (req, res, user) => {
 const _sendLoginAlert = (user, req) => {
   if (user.login_alerts_enabled === false) return;
   const device = req.headers['user-agent'] || 'Unknown device';
+  // Recorded in the notifications table only — no push, no in-app toast
   notificationService.sendNotification({
     userId: user.id,
     type: 'login_alert',
     title: 'New login to your account',
     message: `Your Shopyos account was just signed in to from: ${device.slice(0, 120)}`,
     relatedType: 'session',
-    push: { data: { screen: 'security' } }
+    silent: true
   }).catch(err => logger.warn('Login alert notification failed:', err.message));
 };
 
@@ -666,7 +683,13 @@ const updateProfile = async (req, res, next) => {
 
     const updates = {};
     if (name !== undefined) updates.full_name = name;
-    if (phone !== undefined) updates.phone = sanitizePhone(phone);
+    if (phone !== undefined) {
+      const normalized = phone ? validatePhone(sanitizePhone(phone)) : null;
+      if (phone && !normalized) {
+        return ApiResponse.error(res, 'Invalid phone number. Use a 10-digit local number (0XXXXXXXXX) or international format (+…).', 400);
+      }
+      updates.phone = normalized;
+    }
     if (avatar_url !== undefined) updates.avatar_url = avatar_url;
     if (country !== undefined) updates.country = country;
     if (state_province !== undefined) updates.state_province = state_province;

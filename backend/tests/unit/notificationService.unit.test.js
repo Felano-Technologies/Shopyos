@@ -77,7 +77,7 @@ describe('NotificationService', () => {
 
   describe('sendOTP', () => {
     test('delegates to sendSMS with formatted message', async () => {
-      axios.post.mockResolvedValueOnce({ data: {} });
+      axios.post.mockResolvedValueOnce({ data: { status: 'success' } });
       await service.sendOTP('+233200000000', '654321');
       expect(axios.post).toHaveBeenCalledWith(
         expect.any(String),
