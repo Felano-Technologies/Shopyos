@@ -741,25 +741,32 @@ const addRole = async (req, res, next) => {
     if (!roleData) return ApiResponse.error(res, 'Role not found', 404);
 
     await repositories.roles.assignRoleToUser(userId, roleData.id);
-    await cacheDel(`shopyos:users:${userId}:auth`);
 
-    const user = await repositories.users.findById(userId);
-    const profile = await repositories.userProfiles.findByUserId(userId);
-
-    // Send role-selection welcome for first-time and subsequent role additions
-    const payload = {
-      eventType: 'ROLE_SELECTED_EMAIL',
-      userId: userId,
-      role,
-      email: user?.email,
-      phone: profile?.phone,
-      referenceId: userId,
-      templateData: { name: profile?.full_name || 'User', phone: profile?.phone }
-    };
-    if (user?.email) rabbitMQService.publishMessage('email', payload);
-    if (profile?.phone) rabbitMQService.publishMessage('sms', { ...payload, eventType: 'ROLE_SELECTED_SMS' });
-
+    // The role is committed — respond now. Cache invalidation and welcome
+    // notifications must never turn an assigned role into an error response.
     ApiResponse.success(res, null, `${role.charAt(0).toUpperCase() + role.slice(1)} role added successfully`);
+
+    try {
+      await cacheDel(`shopyos:users:${userId}:auth`);
+
+      const user = await repositories.users.findById(userId);
+      const profile = await repositories.userProfiles.findByUserId(userId);
+
+      // Send role-selection welcome for first-time and subsequent role additions
+      const payload = {
+        eventType: 'ROLE_SELECTED_EMAIL',
+        userId: userId,
+        role,
+        email: user?.email,
+        phone: profile?.phone,
+        referenceId: userId,
+        templateData: { name: profile?.full_name || 'User', phone: profile?.phone }
+      };
+      if (user?.email) rabbitMQService.publishMessage('email', payload);
+      if (profile?.phone) rabbitMQService.publishMessage('sms', { ...payload, eventType: 'ROLE_SELECTED_SMS' });
+    } catch (postErr) {
+      logger.warn('addRole post-commit steps failed (role was assigned):', postErr.message);
+    }
   } catch (error) {
     next(error);
   }

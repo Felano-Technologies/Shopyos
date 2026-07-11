@@ -94,6 +94,20 @@ export const registerUser = async (
       await clearUserProfileCache();
       await secureStorage.setItem('userToken', payload.token);
       if (payload.refreshToken) await secureStorage.setItem('refreshToken', payload.refreshToken);
+      // Mirror loginUser: store userId, cache the profile, and key the cart so
+      // the very next screens (role selection, home) aren't racing an empty store
+      try {
+        const meResponse = await api.get('/auth/me');
+        const me = meResponse.data?.user || meResponse.data;
+        if (me?.id) {
+          await storage.setItem('userId', me.id);
+          const { initCartForUser } = require('@/store/cartStore');
+          await initCartForUser(me.id);
+        }
+        await cacheUserProfile(me);
+      } catch (meErr) {
+        console.warn('Could not fetch profile after registration:', meErr);
+      }
       try {
         const pushToken = await storage.getItem('expoPushToken');
         if (pushToken) await registerPushTokenInBackend(pushToken);
