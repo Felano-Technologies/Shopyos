@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   ratingText: { color: '#FFF', marginLeft: 5, fontFamily: 'Montserrat-Medium', fontSize: 12 },
   // Scroll Layout
   scrollView: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 60 },
+  scrollContent: { padding: 20, paddingBottom: 120 },
   sectionTitle: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B', marginBottom: 10, marginTop: 10, textTransform: 'uppercase' },
   section: { backgroundColor: '#FFF', borderRadius: 16, padding: 5, marginBottom: 10 },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },

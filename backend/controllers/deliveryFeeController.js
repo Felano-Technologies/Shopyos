@@ -6,6 +6,7 @@ const repositories = require('../db/repositories');
 const { logger } = require('../config/logger');
 const { haversineKm, calculateDeliveryFee } = require('../utils/distance');
 const feeConfigService = require('../services/feeConfigService');
+const { resolveStoreRegion } = require('../utils/ghanaRegions');
 
 /**
  * @route   GET /api/delivery/quote
@@ -21,17 +22,25 @@ async function resolveCoordinateFee(store, buyerLat, buyerLng) {
     const hasBuyerCoords = buyerLat !== undefined && buyerLng !== undefined;
 
     if (!hasStoreCoords || !hasBuyerCoords) {
-        return { fee: baseFee, distanceKm: null, withinRange: true, note: '' };
+        return { fee: baseFee, distanceKm: null, withinRange: true, note: 'Location not provided – using base fee' };
     }
 
     const lat = Number.parseFloat(buyerLat);
     const lng = Number.parseFloat(buyerLng);
     if (Number.isNaN(lat) || Number.isNaN(lng)) {
-        return { fee: baseFee, distanceKm: null, withinRange: true, note: '' };
+        return { fee: baseFee, distanceKm: null, withinRange: true, note: 'Location not provided – using base fee' };
     }
 
     const distanceKm = haversineKm(Number.parseFloat(store.latitude), Number.parseFloat(store.longitude), lat, lng);
     const calc = calculateDeliveryFee(store, distanceKm, defaultPerKmFee);
+    if (calc.withinRange === false) {
+        return {
+            fee: null,
+            distanceKm,
+            withinRange: false,
+            note: `You are ${distanceKm.toFixed(2)} km away — outside this store's delivery range`
+        };
+    }
     const fee = calc.fee ?? baseFee;
     return { fee, distanceKm, withinRange: true, note: '' };
 }
@@ -50,15 +59,20 @@ const getDeliveryQuote = async (req, res, next) => {
         const { fee, distanceKm, withinRange, note } = await resolveCoordinateFee(store, buyerLat, buyerLng);
 
         // Regional pricing logic (Sync with orderController.js)
-        const storeRegion = store.state_province?.trim().toLowerCase() || null;
+        // Falls back to store coords, then the owner's last login coords,
+        // when the seller never set a region — no hard-coded region default.
+        const resolvedRegion = await resolveStoreRegion(store, repositories);
+        const storeRegion = resolvedRegion?.trim().toLowerCase() || null;
         const targetRegion = (deliveryState || '').trim().toLowerCase();
 
-        let deliveryFee;
+        let deliveryFee = null;
         let isInterRegional = false;
         let parcelTransitFee = 0;
         let estimatedTransitDays = null;
 
-        if (!storeRegion || !targetRegion || storeRegion === targetRegion) {
+        if (!withinRange) {
+            // Buyer is outside the store's delivery radius — no fee to quote
+        } else if (!storeRegion || !targetRegion || storeRegion === targetRegion) {
             // Intra-regional: distance from store to buyer — floor only, no ceiling (Bolt model)
             const minIntra = await feeConfigService.get('delivery_intra_min_fee');
             deliveryFee = Math.max(minIntra, fee);
@@ -67,10 +81,10 @@ const getDeliveryQuote = async (req, res, next) => {
             isInterRegional = true;
 
             const originHub = repositories.parcelPartner
-                ? await repositories.parcelPartner.getHubByRegionName(store.state_province || 'Greater Accra')
+                ? await repositories.parcelPartner.getHubByRegionName(resolvedRegion)
                 : null;
 
-            const minIntra = await feeConfigService.get('delivery_intra_min_fee');
+            const minInter = await feeConfigService.get('delivery_inter_min_fee');
             const defaultPerKmFee = await feeConfigService.get('delivery_default_per_km_fee');
 
             if (originHub?.latitude && originHub?.longitude && store.latitude && store.longitude) {
@@ -84,16 +98,16 @@ const getDeliveryQuote = async (req, res, next) => {
                 const hubCalc = calculateDeliveryFee(store, storeToHubKm, defaultPerKmFee);
                 const defaultBase = await feeConfigService.get('delivery_default_base_fee');
                 const rawFee = hubCalc.fee ?? (Number.parseFloat(store.delivery_base_fee) || defaultBase);
-                deliveryFee = Math.max(minIntra, rawFee);
+                deliveryFee = Math.max(minInter, rawFee);
             } else {
-                deliveryFee = minIntra;
+                deliveryFee = Math.max(minInter, fee ?? 0);
             }
 
             // Fixed hub-to-hub transit fee from parcel_transit_config
             if (repositories.parcelPartner) {
                 const transitConfig = await repositories.parcelPartner.getTransitConfig(
-                    store.state_province || 'Greater Accra',
-                    deliveryState || 'Greater Accra'
+                    resolvedRegion,
+                    deliveryState
                 );
                 parcelTransitFee = Number(transitConfig?.route_fee ?? await feeConfigService.get('parcel_partner_base_fee'));
                 estimatedTransitDays = transitConfig ? transitConfig.transit_days_min : 2;
@@ -110,9 +124,9 @@ const getDeliveryQuote = async (req, res, next) => {
             isInterRegional,
             parcelTransitFee,
             estimatedTransitDays,
-            storeRegion: store.state_province || 'Greater Accra',
-            withinRange: true,
-            note: ''
+            storeRegion: resolvedRegion,
+            withinRange,
+            note
         });
     } catch (err) {
         next(err);

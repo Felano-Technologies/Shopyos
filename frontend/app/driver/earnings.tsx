@@ -229,7 +229,7 @@ export default function DriverEarnings() {
                 data={transactions}
                 keyExtractor={item => item.id}
                 renderItem={renderTransaction}
-                contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: 120 }}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={<Text style={{ textAlign: 'center', color: '#64748B' }}>No recent deliveries</Text>}
                 refreshing={refreshing}

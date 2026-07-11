@@ -313,7 +313,7 @@ const Analytics = () => {
             S.scroll, 
             { 
               paddingTop: Platform.OS === 'android' ? 240 : 0, 
-              paddingBottom: rs(20) + insets.bottom 
+              paddingBottom: rs(120) + insets.bottom
             }
           ]}
           contentInset={{ top: Platform.OS === 'ios' ? 240 : 0 }} 

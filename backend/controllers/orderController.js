@@ -74,7 +74,11 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   const store = await repositories.stores.findById(storeId);
   const deliveryFee = await calcOrderDeliveryFee(store, buyerLat, buyerLng, deliveryState);
 
-  const storeRegion = store?.state_province?.trim().toLowerCase() || null;
+  // Same fallback chain as deliveryFeeController: state_province → store
+  // coords → owner's last login coords.
+  const { resolveStoreRegion } = require('../utils/ghanaRegions');
+  const resolvedRegion = await resolveStoreRegion(store, repositories);
+  const storeRegion = resolvedRegion?.trim().toLowerCase() || null;
   const targetRegion = (deliveryState || '').trim().toLowerCase();
 
   let transitFee = 0;
@@ -86,11 +90,11 @@ async function processStoreOrder({ storeId, items, cart, req, userId, validatedP
   if (storeRegion && targetRegion && storeRegion !== targetRegion) {
     isInterRegional = true;
     if (repositories.parcelPartner) {
-      originHub = await repositories.parcelPartner.getHubByRegionName(store?.state_province || 'Greater Accra');
+      originHub = await repositories.parcelPartner.getHubByRegionName(resolvedRegion || 'Greater Accra');
       destHub = await repositories.parcelPartner.getHubByRegionName(deliveryState || 'Greater Accra');
 
       const transitConfig = await repositories.parcelPartner.getTransitConfig(
-        store?.state_province || 'Greater Accra',
+        resolvedRegion || 'Greater Accra',
         deliveryState || 'Greater Accra'
       );
 

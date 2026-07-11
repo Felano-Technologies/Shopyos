@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
 
   // List
   contentContainer: { flex: 1 },
-  list: { padding: 20, paddingBottom: 100 },
+  list: { padding: 20, paddingBottom: 120 },
 
   // Card
   card: { 

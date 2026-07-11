@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   roleText: { color: '#A3E635', fontFamily: 'Montserrat-SemiBold', fontSize: 12 },
   scrollView: { flex: 1 },
-  scrollContent: { padding: 20, paddingBottom: 60 },
+  scrollContent: { padding: 20, paddingBottom: 120 },
   sectionTitle: {
     fontSize: 12, fontFamily: 'Montserrat-Bold', color: '#64748B',
     marginBottom: 8, marginTop: 16, textTransform: 'uppercase', letterSpacing: 0.8,
