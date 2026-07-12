@@ -45,7 +45,7 @@ export const ReviewCommentsSheet = ({ visible, onClose, comments, onSendComment,
                 <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
                 
                 <KeyboardAvoidingView 
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
                     style={styles.sheetContent}
                 >
                     <View style={styles.header}>

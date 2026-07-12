@@ -640,7 +640,7 @@ export default function StoreDetailsScreen() {
       {/* --- REDESIGNED REVIEW MODAL --- */}
       <Modal visible={reviewModalVisible} animationType="slide" transparent={true} onRequestClose={() => setReviewModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Write a Review</Text>

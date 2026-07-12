@@ -90,7 +90,7 @@ const getConversations = async (req, res, next) => {
     const { limit = 50, offset = 0 } = req.query;
 
     const conversations = await repositories.conversations.getUserConversations(userId, {
-      limit: Number.parseInt(limit),
+      limit: Math.min(Number.parseInt(limit) || 50, 100),
       offset: Number.parseInt(offset)
     });
 
@@ -154,6 +154,8 @@ async function handleBotInterceptor(conversationId, userId, finalContent, isMode
     emitToConversation(conversationId, 'message:new', {
       message: await formatAvatars(botMessageWithSender || botMessage), conversationId
     });
+    // Clear the client's typing indicator on success too (was error-path only)
+    emitToConversation(conversationId, 'bot:stop_typing', { conversationId });
     await notificationService.sendNotification({
       userId, type: 'new_message', title: 'Shopyos Bot', message: reply.substring(0, 100),
       relatedId: conversationId, relatedType: 'conversation',
@@ -339,7 +341,7 @@ const getMessages = async (req, res, next) => {
     }
 
     const messages = await repositories.messages.getConversationMessages(conversationId, {
-      limit: Number.parseInt(limit),
+      limit: Math.min(Number.parseInt(limit) || 50, 100),
       offset: Number.parseInt(offset),
       beforeMessageId
     });
@@ -416,7 +418,7 @@ const searchMessages = async (req, res, next) => {
     const messages = await repositories.messages.searchMessages(
       conversationId,
       q.trim(),
-      Number.parseInt(limit)
+      Math.min(Number.parseInt(limit) || 50, 100)
     );
 
     res.json({ success: true, messages, count: messages.length, searchTerm: q.trim() });
@@ -931,14 +933,16 @@ const getChatContacts = async (req, res, next) => {
     // BUYER (default)
     // ════════════════════════════════════════
     } else {
-      // 1. All sellers (unrestricted — buyers can enquire before ordering)
+      // 1. Sellers (buyers can enquire before ordering) — capped so the
+      // contacts screen doesn't return every store on the platform
       const { rows: sellers } = await pool.query(`
         SELECT u.id, s.store_name AS name, s.logo_url AS avatar_url,
                s.category, s.is_trusted
         FROM stores s
         JOIN users u ON s.owner_id = u.id
         WHERE s.is_active = true
-        ORDER BY s.store_name
+        ORDER BY s.is_trusted DESC, s.store_name
+        LIMIT 100
       `);
       sections.push({
         title: 'Sellers',

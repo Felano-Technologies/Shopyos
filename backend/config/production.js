@@ -20,7 +20,7 @@ module.exports = {
     credentials: true,
     optionsSuccessStatus: 200,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Business-ID']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Business-ID', 'X-Idempotency-Key']
   },
 
   timeout: parseInt(process.env.SERVER_TIMEOUT || '30000', 10)

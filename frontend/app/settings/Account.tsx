@@ -390,7 +390,7 @@ export default function AccountScreen() {
       </View>
       {/* --- Content Area --- */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.contentArea}
       >
         <SafeAreaView edges={['left', 'right', 'bottom']} style={{ flex: 1 }}>

@@ -38,6 +38,7 @@ type StoreQuote = {
   isInterRegional: boolean;
   parcelTransitFee: number;
   estimatedTransitDays: number | null;
+  estimatedTransitDaysMax: number | null;
   storeRegion: string | null;
   withinRange: boolean;
   note: string | null;
@@ -155,12 +156,13 @@ export default function CheckoutScreen() {
         try {
           const res = await getDeliveryQuote(storeId, buyerCoords?.lat, buyerCoords?.lng, deliveryState);
           if (res?.success) {
-            const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, storeRegion, note } = res.quote || {};
+            const { withinRange, deliveryFee: fee, isInterRegional: isInter, parcelTransitFee: transit, estimatedTransitDays: days, estimatedTransitDaysMax: daysMax, storeRegion, note } = res.quote || {};
             newQuotes[storeId] = {
               deliveryFee: withinRange && fee != null ? fee : 0,
               isInterRegional: !!isInter,
               parcelTransitFee: transit || 0,
               estimatedTransitDays: days || null,
+              estimatedTransitDaysMax: daysMax || null,
               storeRegion: storeRegion || null,
               withinRange: !!withinRange,
               note: note || null,
@@ -186,6 +188,7 @@ export default function CheckoutScreen() {
   const firstInterRegGroup = storeGroups.find(g => storeQuotes[g.storeId]?.isInterRegional);
   const storeRegionName = firstInterRegGroup ? (storeQuotes[firstInterRegGroup.storeId]?.storeRegion ?? null) : null;
   const estimatedTransitDays = storeQuoteList.filter(q => q.isInterRegional).reduce((max, q) => Math.max(max, q.estimatedTransitDays ?? 0), 0) || null;
+  const estimatedTransitDaysMax = storeQuoteList.filter(q => q.isInterRegional).reduce((max, q) => Math.max(max, q.estimatedTransitDaysMax ?? 0), 0) || null;
 
   const tax = buyerProtectionFee;
   const promoDiscount = appliedPromo?.discountAmount ?? 0;
@@ -771,7 +774,7 @@ export default function CheckoutScreen() {
                   </Text>
                   {estimatedTransitDays && (
                     <Text style={S.interRegionalTransit}>
-                      Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDays} days</Text> to destination hub.
+                      Estimated transit time: <Text style={{ fontFamily: 'Montserrat-Bold' }}>{estimatedTransitDaysMax && estimatedTransitDaysMax > estimatedTransitDays ? `${estimatedTransitDays}–${estimatedTransitDaysMax}` : estimatedTransitDays} days</Text> to destination hub.
                     </Text>
                   )}
                   {totalTransitFee > 0 && (

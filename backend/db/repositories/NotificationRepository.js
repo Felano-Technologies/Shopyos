@@ -101,6 +101,12 @@ class NotificationRepository extends BaseRepository {
     await this.db.from('expo_push_tokens').delete().eq('token', token);
   }
 
+  // Scoped variant for user-initiated unregistration (logout) — a user may
+  // only delete tokens that belong to them.
+  async removePushTokenForUser(userId, token) {
+    await this.db.from('expo_push_tokens').delete().eq('token', token).eq('user_id', userId);
+  }
+
   async updateTokenLastUsed(token) {
     await this.db
       .from('expo_push_tokens')

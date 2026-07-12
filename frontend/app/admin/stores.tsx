@@ -521,7 +521,7 @@ export default function AdminStores() {
         </Modal>
 
         <Modal visible={rejectModal} transparent animationType="fade" onRequestClose={() => setRejectModal(false)}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlay}>
             <View style={styles.modalCard}>
               <Text style={styles.modalTitle}>Reject Application</Text>
               <Text style={styles.modalSub}>Provide a reason so the merchant can fix their application.</Text>

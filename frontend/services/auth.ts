@@ -163,6 +163,14 @@ export const resetPasswordWithToken = async (resetToken: string, newPassword: st
 };
 
 export const logoutUser = async () => {
+  // Unregister this device's push token while the request is still
+  // authenticated, so pushes stop reaching a signed-out device.
+  try {
+    const pushToken = await storage.getItem('expoPushToken');
+    if (pushToken) await api.delete('/notifications/push-token', { data: { token: pushToken } });
+  } catch (error) {
+    console.warn('Failed to unregister push token on logout:', error);
+  }
   try {
     await api.post('/auth/logout');
   } catch (error) {

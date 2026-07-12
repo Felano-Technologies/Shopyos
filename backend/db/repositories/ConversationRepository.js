@@ -117,15 +117,16 @@ class ConversationRepository extends BaseRepository {
         }
       }
 
-      // Get last message
-      const lastMessage = conv.messages && conv.messages.length > 0
-        ? conv.messages.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0]
-        : null;
+      // The adapter shim delivers only the latest message plus per-sender
+      // unread tallies — full histories are never materialized here.
+      const lastMessage = conv.messages?.[0] ?? null;
 
-      // Count unread messages (received from others)
-      const unreadCount = conv.messages
-        ? conv.messages.filter(m => !m.is_read && m.sender_id !== userId).length
-        : 0;
+      // Unread = messages from anyone but the viewer
+      const unreadCount = conv._unreadBySender
+        ? Object.entries(conv._unreadBySender)
+            .filter(([senderId]) => senderId !== userId)
+            .reduce((sum, [, count]) => sum + count, 0)
+        : (conv.messages || []).filter(m => !m.is_read && m.sender_id !== userId).length;
 
       return transformImageUrlsAsync({
         id: conv.id,

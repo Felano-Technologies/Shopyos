@@ -69,6 +69,7 @@ const getDeliveryQuote = async (req, res, next) => {
         let isInterRegional = false;
         let parcelTransitFee = 0;
         let estimatedTransitDays = null;
+        let estimatedTransitDaysMax = null;
 
         if (!withinRange) {
             // Buyer is outside the store's delivery radius — no fee to quote
@@ -110,10 +111,14 @@ const getDeliveryQuote = async (req, res, next) => {
                     deliveryState
                 );
                 parcelTransitFee = Number(transitConfig?.route_fee ?? await feeConfigService.get('parcel_partner_base_fee'));
-                estimatedTransitDays = transitConfig ? transitConfig.transit_days_min : 2;
+                // +1 covers hub processing on both ends — raw route numbers
+                // only measure hub-to-hub transit
+                estimatedTransitDays = (transitConfig ? transitConfig.transit_days_min : 2) + 1;
+                estimatedTransitDaysMax = (transitConfig ? (transitConfig.transit_days_max ?? transitConfig.transit_days_min + 1) : 3) + 1;
             } else {
                 parcelTransitFee = Number(await feeConfigService.get('parcel_partner_base_fee') || 25);
-                estimatedTransitDays = 2;
+                estimatedTransitDays = 3;
+                estimatedTransitDaysMax = 4;
             }
         }
 
@@ -124,6 +129,7 @@ const getDeliveryQuote = async (req, res, next) => {
             isInterRegional,
             parcelTransitFee,
             estimatedTransitDays,
+            estimatedTransitDaysMax,
             storeRegion: resolvedRegion,
             withinRange,
             note

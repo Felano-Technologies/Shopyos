@@ -214,6 +214,29 @@ const registerPushToken = async (req, res, next) => {
 };
 
 /**
+ * Unregister a device push token (called on logout so pushes stop reaching
+ * a device whose user has signed out)
+ * @route   DELETE /api/notifications/push-token
+ * @access  Private
+ */
+const unregisterPushToken = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const { token } = req.body;
+
+    if (!token) {
+      return ApiResponse.error(res, 'Push token is required', 400);
+    }
+
+    await repositories.notifications.removePushTokenForUser(userId, token);
+
+    ApiResponse.success(res, null, 'Push token unregistered successfully');
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Mark all message notifications read by conversation ID
  * @route   PUT /api/notifications/read-by-conversation/:conversationId
  * @access  Private
@@ -242,5 +265,6 @@ module.exports = {
   updatePreferences,
   getNotificationsByType,
   registerPushToken,
+  unregisterPushToken,
   markReadByConversation
 };

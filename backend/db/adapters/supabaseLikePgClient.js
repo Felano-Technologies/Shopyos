@@ -752,18 +752,33 @@ class QueryBuilder {
       });
     }
 
+    // Only the latest message + an unread tally per conversation — never the
+    // full history (long threads made the messages tab scale with total chat
+    // volume). Consumers read messages[0] and _unreadCounts.
     let messagesMap = {};
+    let unreadMap = {};
     if (conversationIds.length > 0) {
-      const { rows: messages } = await db.query(
-        `SELECT id, conversation_id, content, created_at, is_read, sender_id
-         FROM messages
-         WHERE conversation_id = ANY($1)
-         ORDER BY created_at DESC`,
-        [conversationIds]
-      );
-      messages.forEach(m => {
-        if (!messagesMap[m.conversation_id]) messagesMap[m.conversation_id] = [];
-        messagesMap[m.conversation_id].push(m);
+      const [{ rows: latest }, { rows: unread }] = await Promise.all([
+        db.query(
+          `SELECT DISTINCT ON (conversation_id)
+             id, conversation_id, content, created_at, is_read, sender_id
+           FROM messages
+           WHERE conversation_id = ANY($1)
+           ORDER BY conversation_id, created_at DESC`,
+          [conversationIds]
+        ),
+        db.query(
+          `SELECT conversation_id, sender_id, COUNT(*)::int AS count
+           FROM messages
+           WHERE conversation_id = ANY($1) AND is_read = FALSE
+           GROUP BY conversation_id, sender_id`,
+          [conversationIds]
+        ),
+      ]);
+      latest.forEach(m => { messagesMap[m.conversation_id] = [m]; });
+      unread.forEach(u => {
+        if (!unreadMap[u.conversation_id]) unreadMap[u.conversation_id] = {};
+        unreadMap[u.conversation_id][u.sender_id] = u.count;
       });
     }
 
@@ -771,7 +786,9 @@ class QueryBuilder {
       ...c,
       participant1: participantMap[c.participant1_id] || null,
       participant2: participantMap[c.participant2_id] || null,
-      messages: messagesMap[c.id] || []
+      messages: messagesMap[c.id] || [],
+      // unread counts keyed by sender, so the repo can exclude the viewer's own
+      _unreadBySender: unreadMap[c.id] || {}
     }));
   }
 

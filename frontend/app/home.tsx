@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import AppImage from '@/components/AppImage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import BottomNav from '@/components/BottomNav';
+
 import { useRouter } from 'expo-router';
 import { safePush } from '@/lib/navigation';
 import * as Location from 'expo-location';
@@ -23,7 +23,7 @@ import { useCart } from '@/store/cartStore';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useDailyCheckin } from '@/hooks/useDailyCheckin';
 import { useOnboarding } from '@/context/OnboardingContext';
-import { SpotlightTour } from '@/components/ui/SpotlightTour';
+import WelcomeCard from '@/components/WelcomeCard';
 import { useAddFavorite, useFavorites, useRemoveFavorite } from '@/hooks/useFavorites';
 import { SnapsRow } from '@/components/SnapsRow';
 // Home section components
@@ -32,7 +32,8 @@ import { QuickActions, QuickAction } from '@/components/home/QuickActions';
 import { FlashSaleSection } from '@/components/home/FlashSaleSection';
 import { MidFeedBanner } from '@/components/home/MidFeedBanner';
 import { ProductRow } from '@/components/home/ProductRow';
-import { ProductGrid } from '@/components/home/ProductGrid';
+import { ProductGrid, ProductCard, AdCard, buildGridItems, GridListItem } from '@/components/home/ProductGrid';
+import { SectionHeader } from '@/components/home/SectionHeader';
 import { SponsoredAdsRow } from '@/components/home/SponsoredAdsRow';
 import { RecommendedSection } from '@/components/home/RecommendedSection';
 
@@ -118,22 +119,6 @@ async function updateLocationDisplay(profileData: any, setLocation: (txt: string
   } else if (!cachedTxt) setLocation('Location unavailable');
 }
 
-async function checkAndStartTour(
-  onboardingLoading: boolean,
-  user: any,
-  isCompleted: (key: string) => boolean,
-  markCompleted: (key: string) => void,
-  startTour: (key: string) => void,
-) {
-  if (onboardingLoading || !user) return;
-  if (isCompleted('home')) return;
-  const createdDate = new Date(user.created_at || Date.now());
-  if (createdDate < new Date('2026-04-01') && (user.role === 'buyer' || user.role === 'customer')) {
-    markCompleted('home');
-    return;
-  }
-  startTour('home');
-}
 
 export default function Home() {
   const router = useRouter();
@@ -198,37 +183,9 @@ const { data: notifData } = useUnreadNotificationCount(false);
   const isManyAds = activeCampaigns.length > AD_THRESHOLD;
   const sponsoredCampaigns = activeCampaigns.slice(0, 8);
 
-  // ── Onboarding refs ────────────────────────────────────────────────────────────
+  // Old spotlight tour removed — the once-ever <WelcomeCard /> replaces it
   const scrollY = useRef(new Animated.Value(0)).current;
-  const [layouts, setLayouts] = useState<any>({});
-  const refGreeting = useRef<View>(null);
-  const refActions = useRef<View>(null);
-const refChat = useRef<View>(null);
-  const { startTour, markCompleted, isCompleted, isTourActive, activeScreen, user, isLoading: onboardingLoading } = useOnboarding();
-
-  const measureElement = (ref: any, key: string) => {
-    if (ref.current) {
-      ref.current.measureInWindow((x: number, y: number, w: number, h: number) => {
-        setLayouts((prev: any) => ({ ...prev, [key]: { x, y, width: w, height: h } }));
-      });
-    }
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      measureElement(refGreeting, 'greeting');
-      measureElement(refActions, 'actions');
-      measureElement(refChat, 'chat');
-      checkAndStartTour(onboardingLoading, user, isCompleted, markCompleted, startTour);
-    }, 1500);
-    return () => clearTimeout(timer);
-  }, [markCompleted, onboardingLoading, startTour, user, isCompleted]);
-
-  const onboardingSteps = [
-    { targetLayout: layouts.greeting, title: 'Welcome to Shopyos!', description: "We've personalized your dashboard based on your location and preferences." },
-    { targetLayout: layouts.actions, title: 'Easy Access', description: 'Quickly check your cart or see notifications from your favourite stores.' },
-{ targetLayout: layouts.chat, title: 'Real-time Chat', description: 'Have a question? Chat with sellers instantly to get more details or negotiate.' },
-  ].filter(s => !!s.targetLayout);
+  const { user } = useOnboarding();
 
   // ── User name ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -303,6 +260,36 @@ const refChat = useRef<View>(null);
     { icon: 'sparkles-outline', label: 'New In', onPress: () => safePush('/recent'), color: '#D97706', bg: '#FFFBEB' },
   ];
 
+  // ── Virtualized Explore feed ────────────────────────────────────────────────
+  // The FlatList is the screen's scroll container; everything above Explore is
+  // its header, so off-screen product cards get recycled instead of piling up.
+  const exploreItems = useMemo<GridListItem[]>(
+    () => buildGridItems(exploreProducts, isManyAds ? sponsoredCampaigns : []),
+    [exploreProducts, isManyAds, sponsoredCampaigns]
+  );
+
+  const renderExploreItem = useCallback(({ item }: { item: GridListItem }) => (
+    <View style={S.exploreCell}>
+      {item.type === 'ad' ? (
+        <AdCard ad={item.data} />
+      ) : (
+        <ProductCard
+          item={item.data}
+          onPressProduct={goToDetails}
+          onAddToCart={handleAddToCart}
+          addingId={addingId}
+          favoriteIds={favoriteIds}
+          onToggleFavorite={handleToggleFavorite}
+          favoriteBusyId={favoriteBusyId}
+          storeName={getStoreDisplayName}
+        />
+      )}
+    </View>
+  ), [goToDetails, handleAddToCart, addingId, favoriteIds, handleToggleFavorite, favoriteBusyId]);
+
+  const exploreKeyExtractor = useCallback((item: GridListItem, idx: number) =>
+    item.type === 'ad' ? item.key : `${item.data._id || item.data.id || 'p'}-${idx}`, []);
+
   // ── Startup skeleton ───────────────────────────────────────────────────────────
   useEffect(() => {
     const t = setTimeout(() => setShowStartupSkeleton(false), MIN_SKELETON_MS);
@@ -339,11 +326,7 @@ const refChat = useRef<View>(null);
             <AppImage source={require('../assets/images/splash-icon.png')} style={S.headerWatermarkImg} />
           </View>
 
-          <View
-            style={S.headerInner}
-            ref={refGreeting}
-            onLayout={() => measureElement(refGreeting, 'greeting')}
-          >
+          <View style={S.headerInner}>
             <TouchableOpacity accessibilityLabel="Select delivery location" accessibilityRole="button" style={S.locationRow} onPress={() => safePush('/settings')}>
               <Ionicons name="location-sharp" size={13} color="rgba(255,255,255,0.55)" />
               <Text style={S.locationTxt} numberOfLines={1}>{locationText}</Text>
@@ -358,11 +341,7 @@ const refChat = useRef<View>(null);
                   : null}
                 {' 👋'}
               </Text>
-              <View
-                style={S.headerActions}
-                ref={refActions}
-                onLayout={() => measureElement(refActions, 'actions')}
-              >
+              <View style={S.headerActions}>
                 <TouchableOpacity accessibilityLabel="Open cart" accessibilityRole="button" style={S.headerBtn} onPress={() => safePush('/cart')}>
                   <Ionicons name="bag-outline" size={18} color="rgba(255,255,255,0.85)" />
                   {cartCount > 0 && (
@@ -385,28 +364,42 @@ const refChat = useRef<View>(null);
           <View style={S.headerArc} />
         </LinearGradient>
 
-        {/* ── Scrollable body ──────────────────────────────────────────────── */}
-        <Animated.ScrollView
+        {/* ── Scrollable body — virtualized: the Explore grid is the list, ──
+            ── everything above it is the header, so cards get recycled ────── */}
+        <Animated.FlatList
+          data={exploreItems}
+          renderItem={renderExploreItem}
+          keyExtractor={exploreKeyExtractor}
+          numColumns={2}
+          columnWrapperStyle={S.exploreRow}
           contentContainerStyle={S.scrollContent}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={6}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh}
               tintColor={C.navy} colors={[C.navy]} />
           }
           onScroll={Animated.event(
             [{ nativeEvent: { contentOffset: { y: scrollY } } }],
-            {
-              useNativeDriver: true,
-              // Auto-fetch next Explore page when user is 500px from bottom
-              listener: (e: any) => {
-                const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-                const nearBottom = contentOffset.y + layoutMeasurement.height >= contentSize.height - 500;
-                if (nearBottom && hasMoreExplore && !fetchingMoreExplore) fetchMoreExplore();
-              },
-            }
+            { useNativeDriver: true }
           )}
           scrollEventThrottle={16}
-        >
+          onEndReached={() => { if (hasMoreExplore && !fetchingMoreExplore) fetchMoreExplore(); }}
+          onEndReachedThreshold={0.6}
+          ListFooterComponent={fetchingMoreExplore
+            ? <ActivityIndicator color={C.navy} size="small" style={S.loadMoreSpinner} />
+            : null}
+          ListEmptyComponent={loadingExplore ? null : (
+            <View style={S.exploreEmpty}>
+              <Ionicons name="grid-outline" size={28} color={C.navyMid} />
+              <Text style={S.exploreEmptyTxt}>Nothing to explore yet</Text>
+            </View>
+          )}
+          ListHeaderComponent={
+            <View>
           {/* Stories row */}
           <SnapsRow />
 
@@ -527,29 +520,11 @@ const refChat = useRef<View>(null);
           {/* Mid-feed promo banner (Explore theme) */}
           <MidFeedBanner variant="explore" onPress={() => router.push('/search' as any)} />
 
-          {/* Explore — 2-col infinite grid (auto-loads via onScroll) */}
-          <ProductGrid
-            title="Explore"
-            products={exploreProducts}
-            loading={loadingExplore}
-            onPressProduct={goToDetails}
-            onAddToCart={handleAddToCart}
-            addingId={addingId}
-            favoriteIds={favoriteIds}
-            onToggleFavorite={handleToggleFavorite}
-            favoriteBusyId={favoriteBusyId}
-            onSeeAll={() => router.push('/search' as any)}
-            getStoreName={getStoreDisplayName}
-            injectedAds={isManyAds ? sponsoredCampaigns : []}
-            emptyTitle="Nothing to explore yet"
-            emptyIcon="grid-outline"
-          />
-
-          {/* Subtle auto-load spinner at the very bottom */}
-          {fetchingMoreExplore && (
-            <ActivityIndicator color={C.navy} size="small" style={S.loadMoreSpinner} />
-          )}
-        </Animated.ScrollView>
+          {/* Explore — the section title; the grid itself is the FlatList body */}
+          <SectionHeader title="Explore" onSeeAll={() => router.push('/search' as any)} />
+            </View>
+          }
+        />
 
         {/* ── Chat FAB ─────────────────────────────────────────────────────── */}
         <TouchableOpacity
@@ -557,8 +532,6 @@ const refChat = useRef<View>(null);
           accessibilityRole="button"
           style={S.chatFab}
           activeOpacity={0.85}
-          ref={refChat}
-          onLayout={() => measureElement(refChat, 'chat')}
           onPress={() => router.push('/chat' as any)}
         >
           <LinearGradient colors={[C.navy, C.navyMid]} style={S.chatFabGrad}>
@@ -571,14 +544,13 @@ const refChat = useRef<View>(null);
           )}
         </TouchableOpacity>
 
-        <BottomNav />
+        {/* BottomNav is rendered globally by app/_layout.tsx for /home —
+            rendering it here too mounted the whole nav (badges, hooks) twice */}
       </SafeAreaView>
 
-      <SpotlightTour
-        visible={isTourActive && activeScreen === 'home'}
-        steps={onboardingSteps}
-        onComplete={() => markCompleted('home')}
-      />
+      {/* One-time welcome card — persisted per device AND on the user's
+          profile, so it never shows again regardless of dismissal or re-login */}
+      <WelcomeCard />
     </View>
   );
 }
@@ -644,6 +616,11 @@ const S = StyleSheet.create({
 
   // Load-more
   loadMoreSpinner: { paddingVertical: 24 },
+  // Virtualized Explore grid cells
+  exploreRow: { paddingHorizontal: 14, justifyContent: 'space-between' },
+  exploreCell: { width: '48.5%' },
+  exploreEmpty: { alignItems: 'center', paddingVertical: 32, gap: 10 },
+  exploreEmptyTxt: { fontSize: 14, fontFamily: 'Montserrat-Bold', color: '#64748B' },
 
   // Chat FAB
   chatFab: {
